@@ -29,7 +29,7 @@ echo [4/4] Launching backend and frontend in separate windows...
 echo.
 
 :: ── Start backend in a new window ───────────────
-start "EmployeeApp Backend - http://localhost:5000" cmd /k "cd /d "%~dp0backend\EmployeeApp.Api" && dotnet run --urls "http://localhost:5000""
+start "EmployeeApp Backend - http://localhost:5000" cmd /k "set ASPNETCORE_ENVIRONMENT=Development && cd /d "%~dp0backend\EmployeeApp.Api" && dotnet run --urls "http://localhost:5000""
 
 :: Brief pause so the backend window appears first
 timeout /t 2 /nobreak >nul
