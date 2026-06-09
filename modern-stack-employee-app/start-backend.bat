@@ -9,8 +9,7 @@ echo.
 :: Kill any existing instance to avoid file lock
 taskkill /IM EmployeeApp.Api.exe /F >nul 2>&1
 
-set ASPNETCORE_ENVIRONMENT=Development
 cd /d "%~dp0backend\EmployeeApp.Api"
-dotnet run --urls "http://localhost:5000"
+dotnet run --launch-profile http
 
 pause
