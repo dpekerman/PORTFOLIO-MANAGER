@@ -1,0 +1,57 @@
+# ========================================
+# .NET / Visual Studio
+# ========================================
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.vssscc
+*.vspscc
+_ReSharper*/
+*.ncrunchsolution
+*.ncrunchteststate
+
+# Published output
+publish/
+
+# ========================================
+# SENSITIVE / ENVIRONMENT-SPECIFIC CONFIG
+# Never check in real connection strings!
+# ========================================
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.json
+!appsettings.json
+
+# ========================================
+# Interview prep / TEST folder
+# ========================================
+modern-stack-employee-app/TEST/
+TEST/
+
+# ========================================
+# Node.js / Angular
+# ========================================
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ========================================
+# Environment files
+# ========================================
+.env
+.env.local
+.env.*.local
+
+# ========================================
+# OS
+# ========================================
+.DS_Store
+Thumbs.db
+Desktop.ini

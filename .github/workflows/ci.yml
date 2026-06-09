@@ -1,0 +1,64 @@
+name: CI Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      DOTNET_VERSION: "9.0.x"
+      NODE_VERSION: "22.x"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ── .NET Backend ──────────────────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore .NET dependencies
+        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+        run: dotnet restore
+
+      - name: Build .NET API
+        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish .NET API
+        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+        run: dotnet publish --configuration Release --output ${{ github.workspace }}/artifacts/api
+
+      # ── Angular Frontend ──────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: modern-stack-employee-app/frontend/employee-client/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: modern-stack-employee-app/frontend/employee-client
+        run: npm ci
+
+      - name: Build Angular client
+        working-directory: modern-stack-employee-app/frontend/employee-client
+        run: npm run build
+
+      # ── Upload Artifacts ──────────────────────────────────────────
+      - name: Upload API artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-drop
+          path: ${{ github.workspace }}/artifacts/api
+
+      # NOTE: SQL connection string must be set as a GitHub Secret
+      # (Settings → Secrets → Actions → SQL_CONNECTION_STRING)
+      # It is injected at runtime and NEVER stored in source code.
