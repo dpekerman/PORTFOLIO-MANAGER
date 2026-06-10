@@ -1,50 +1,56 @@
-import { CommonModule } from "@angular/common";
-import { Component, OnInit, inject, signal } from "@angular/core";
+import { CurrencyPipe } from "@angular/common";
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from "@angular/core";
 import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
+import { MatButtonModule } from "@angular/material/button";
+import { MatCardModule } from "@angular/material/card";
+import { MatFormFieldModule } from "@angular/material/form-field";
+import { MatIconModule } from "@angular/material/icon";
+import { MatInputModule } from "@angular/material/input";
+import { MatProgressSpinnerModule } from "@angular/material/progress-spinner";
+import { MatTableModule } from "@angular/material/table";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { Employee } from "./employee.model";
 import { EmployeeService } from "./employee.service";
 
 @Component({
   selector: "app-employee-list",
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  template: `
-    <form [formGroup]="form" (ngSubmit)="addEmployee()">
-      <input formControlName="firstName" placeholder="First name" />
-      <input formControlName="lastName" placeholder="Last name" />
-      <input formControlName="email" placeholder="Email" />
-      <input formControlName="department" placeholder="Department" />
-      <input formControlName="salary" type="number" placeholder="Salary" />
-      <button type="submit" [disabled]="form.invalid">Add</button>
-    </form>
-
-    <hr />
-
-    @if (loading()) {
-      <p>Loading...</p>
-    } @else {
-      <ul>
-        @for (employee of employees(); track employee.id) {
-          <li>
-            {{ employee.firstName }} {{ employee.lastName }} -
-            {{ employee.department }} - {{ employee.salary | currency }}
-            <button type="button" (click)="deleteEmployee(employee.id)">
-              Delete
-            </button>
-          </li>
-        }
-      </ul>
-    }
-  `,
+  imports: [
+    CurrencyPipe,
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatCardModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatProgressSpinnerModule,
+    MatTableModule,
+    MatTooltipModule,
+  ],
+  templateUrl: "./employee-list.component.html",
+  styleUrl: "./employee-list.component.scss",
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EmployeeListComponent implements OnInit {
-  private service = inject(EmployeeService);
-  private fb = inject(FormBuilder);
+  private readonly service = inject(EmployeeService);
+  private readonly fb = inject(FormBuilder);
 
-  employees = signal<Employee[]>([]);
-  loading = signal(false);
+  protected readonly employees = signal<Employee[]>([]);
+  protected readonly loading = signal(false);
+  protected readonly displayedColumns = [
+    "name",
+    "email",
+    "department",
+    "salary",
+    "actions",
+  ];
 
-  form = this.fb.nonNullable.group({
+  protected readonly form = this.fb.nonNullable.group({
     firstName: ["", Validators.required],
     lastName: ["", Validators.required],
     email: ["", [Validators.required, Validators.email]],
@@ -56,7 +62,7 @@ export class EmployeeListComponent implements OnInit {
     this.loadEmployees();
   }
 
-  loadEmployees(): void {
+  protected loadEmployees(): void {
     this.loading.set(true);
     this.service.getEmployees().subscribe({
       next: (data: Employee[]) => this.employees.set(data),
@@ -65,7 +71,7 @@ export class EmployeeListComponent implements OnInit {
     });
   }
 
-  addEmployee(): void {
+  protected addEmployee(): void {
     if (this.form.invalid) return;
 
     this.service.createEmployee(this.form.getRawValue()).subscribe(() => {
@@ -80,7 +86,7 @@ export class EmployeeListComponent implements OnInit {
     });
   }
 
-  deleteEmployee(id: number): void {
+  protected deleteEmployee(id: number): void {
     this.service.deleteEmployee(id).subscribe(() => this.loadEmployees());
   }
 }

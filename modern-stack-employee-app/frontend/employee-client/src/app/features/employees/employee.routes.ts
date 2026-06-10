@@ -1,6 +1,9 @@
-import { Routes } from '@angular/router';
-import { EmployeeListComponent } from './employee-list.component';
+import { Routes } from "@angular/router";
 
 export const employeeRoutes: Routes = [
-  { path: '', component: EmployeeListComponent }
+  {
+    path: "",
+    loadComponent: () =>
+      import("./employee-list.component").then((m) => m.EmployeeListComponent),
+  },
 ];
