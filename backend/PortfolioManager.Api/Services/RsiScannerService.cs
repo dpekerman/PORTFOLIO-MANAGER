@@ -68,13 +68,16 @@ public sealed class RsiScannerService : IRsiScannerService
     // ── Live scan ─────────────────────────────────────────────────────────────
     private async Task<ScannerResponse> RunLiveScanAsync(CancellationToken ct)
     {
-        var oversold = new List<RsiScanResult>();
+        var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
 
-        // Process in batches of 5 to respect rate limits
+        // Free tier: 60 req/min. Each symbol = 1 candle request.
+        // Batches of 3 with 1.2s delay → ~2.5 req/s = 150 req/min worst-case.
+        // We use 3 per batch with 1.5s delay → safe at ~2 req/s = 120 req/min.
+        // With 50 symbols / 3 = ~17 batches × 1.5s = ~25s total scan time.
         var batches = TsxWatchlist
             .Select((sym, i) => new { sym, i })
-            .GroupBy(x => x.i / 5)
+            .GroupBy(x => x.i / 3)
             .Select(g => g.Select(x => x.sym).ToArray());
 
         foreach (var batch in batches)
@@ -86,13 +89,12 @@ public sealed class RsiScannerService : IRsiScannerService
                 if (r!.ScanType == ScanType.Oversold) oversold.Add(r);
                 else overbought.Add(r);
             }
-            // 1.2s delay between batches to respect free tier (60 req/min)
-            await Task.Delay(1200, ct);
+            await Task.Delay(1500, ct);
         }
 
         return new ScannerResponse
         {
-            OversoldChain = oversold.OrderBy(x => x.Rsi).ToList(),
+            OversoldChain  = oversold.OrderBy(x => x.Rsi).ToList(),
             OverboughtChain = overbought.OrderByDescending(x => x.Rsi).ToList(),
             ScannedAt = DateTime.UtcNow,
             IsDemo = false,
@@ -100,17 +102,38 @@ public sealed class RsiScannerService : IRsiScannerService
         };
     }
 
+    /// <summary>Fetches candle data with up to 2 retries on HTTP 429 (rate-limited).</summary>
+    private async Task<HttpResponseMessage?> FetchWithRetryAsync(string url, CancellationToken ct)
+    {
+        const int maxRetries = 3;
+        int delayMs = 2000;
+        for (int attempt = 0; attempt < maxRetries; attempt++)
+        {
+            var resp = await _http.GetAsync(url, ct);
+            if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                _logger.LogWarning("Finnhub rate limited (429) on attempt {Attempt}. Waiting {Delay}ms.", attempt + 1, delayMs);
+                await Task.Delay(delayMs, ct);
+                delayMs *= 2; // exponential back-off: 2s, 4s, 8s
+                continue;
+            }
+            return resp;
+        }
+        _logger.LogError("Finnhub 429 persisted after {MaxRetries} retries for URL: {Url}", maxRetries, url);
+        return null;
+    }
+
     private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, CancellationToken ct)
     {
         try
         {
             // Fetch 400 days of daily candles to support 200 DMA + MACD(26) + BB(20)
-            var to = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var to   = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var from = DateTimeOffset.UtcNow.AddDays(-400).ToUnixTimeSeconds();
-            var url = $"stock/candle?symbol={Uri.EscapeDataString(symbol)}&resolution=D&from={from}&to={to}";
+            var url  = $"stock/candle?symbol={Uri.EscapeDataString(symbol)}&resolution=D&from={from}&to={to}";
 
-            var resp = await _http.GetAsync(url, ct);
-            if (!resp.IsSuccessStatusCode) return null;
+            var resp = await FetchWithRetryAsync(url, ct);
+            if (resp is null || !resp.IsSuccessStatusCode) return null;
 
             var json = await resp.Content.ReadAsStringAsync(ct);
             var candles = JsonSerializer.Deserialize<FinnhubCandleResponse>(json, _json);

@@ -13,9 +13,15 @@
         <span>No API key — showing demo data</span>
       </div>
     }
+    @if (scanner.loading() && !scanner.isDemo()) {
+      <div class="scan-notice">
+        <mat-icon class="spinning">radar</mat-icon>
+        <span>Scanning TSX (~25s)…</span>
+      </div>
+    }
     <button
       mat-icon-button
-      matTooltip="Refresh all data"
+      matTooltip="Force refresh (bypasses 4-min cache)"
       (click)="refreshAll()"
       [disabled]="portfolio.loading() || scanner.loading()"
     >

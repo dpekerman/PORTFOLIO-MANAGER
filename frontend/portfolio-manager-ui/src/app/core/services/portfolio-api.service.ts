@@ -48,7 +48,9 @@ export class PortfolioApiService {
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
-  getRsiScan(): Observable<ScannerResponse> {
-    return this.http.get<ScannerResponse>(`${this.base}/scanner/rsi`);
+  /** @param force true = bypass server-side 4-minute cache (use on manual refresh only) */
+  getRsiScan(force = false): Observable<ScannerResponse> {
+    const url = force ? `${this.base}/scanner/rsi?force=true` : `${this.base}/scanner/rsi`;
+    return this.http.get<ScannerResponse>(url);
   }
 }

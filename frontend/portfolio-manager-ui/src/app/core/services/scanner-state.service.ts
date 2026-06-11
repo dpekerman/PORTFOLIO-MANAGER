@@ -40,10 +40,10 @@ export class ScannerStateService {
       .subscribe({ next: (r) => this._response.set(r) });
   }
 
-  refresh(): void {
+  refresh(force = false): void {
     this._loading.set(true);
     this._error.set(null);
-    this.api.getRsiScan().subscribe({
+    this.api.getRsiScan(force).subscribe({
       next: (r) => {
         this._response.set(r);
         this._loading.set(false);

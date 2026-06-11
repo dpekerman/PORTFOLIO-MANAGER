@@ -30,7 +30,15 @@ public sealed class FinnhubService : IFinnhubService
         try
         {
             var response = await _http.GetAsync($"quote?symbol={Uri.EscapeDataString(symbol)}", ct);
-            response.EnsureSuccessStatusCode();
+
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                _logger.LogWarning("Finnhub rate limit hit for quote {Symbol}. Backing off 2s.", symbol);
+                await Task.Delay(2000, ct);
+                response = await _http.GetAsync($"quote?symbol={Uri.EscapeDataString(symbol)}", ct);
+            }
+
+            if (!response.IsSuccessStatusCode) return null;
 
             var json = await response.Content.ReadAsStringAsync(ct);
             var data = JsonSerializer.Deserialize<FinnhubQuoteResponse>(json, _jsonOptions);

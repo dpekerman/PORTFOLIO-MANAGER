@@ -66,6 +66,24 @@
     }
   }
 
+  .scan-notice {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(100, 181, 246, 0.08);
+    border: 1px solid rgba(100, 181, 246, 0.2);
+    color: #64b5f6;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+  }
+
   .add-btn {
     border-color: #1565c0;
     color: #64b5f6;

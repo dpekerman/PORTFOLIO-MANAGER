@@ -51,6 +51,6 @@ export class DashboardComponent {
 
   refreshAll(): void {
     this.portfolio.refresh();
-    this.scanner.refresh();
+    this.scanner.refresh(true); // force=true bypasses the 4-min server cache
   }
 }

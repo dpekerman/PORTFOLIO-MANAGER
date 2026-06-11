@@ -47,11 +47,11 @@ PORTFOLIO-MANAGER/
 
 ### Prerequisites
 
-| Tool | Version |
-|------|---------|
-| .NET SDK | 8.0+ |
-| Node.js | 20.x LTS |
-| SQL Server | 2019+ (Express OK) |
+| Tool            | Version                                           |
+| --------------- | ------------------------------------------------- |
+| .NET SDK        | 8.0+                                              |
+| Node.js         | 20.x LTS                                          |
+| SQL Server      | 2019+ (Express OK)                                |
 | Finnhub API key | Free at [finnhub.io](https://finnhub.io/register) |
 
 ### 1 — Database setup
@@ -95,15 +95,15 @@ start-all.bat     # kills existing processes, starts both in separate windows
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/scanner/rsi` | RSI scan with 5 indicators + probability |
-| GET | `/api/portfolio` | All portfolio positions |
-| POST | `/api/portfolio` | Add position |
-| PUT | `/api/portfolio/{id}` | Update position |
-| DELETE | `/api/portfolio/{id}` | Remove position |
-| GET | `/api/stocks/quotes` | Live quotes for all positions |
-| GET | `/api/stocks/search?q=` | Finnhub symbol search |
+| Method | Path                    | Description                              |
+| ------ | ----------------------- | ---------------------------------------- |
+| GET    | `/api/scanner/rsi`      | RSI scan with 5 indicators + probability |
+| GET    | `/api/portfolio`        | All portfolio positions                  |
+| POST   | `/api/portfolio`        | Add position                             |
+| PUT    | `/api/portfolio/{id}`   | Update position                          |
+| DELETE | `/api/portfolio/{id}`   | Remove position                          |
+| GET    | `/api/stocks/quotes`    | Live quotes for all positions            |
+| GET    | `/api/stocks/search?q=` | Finnhub symbol search                    |
 
 ---
 
@@ -111,19 +111,19 @@ start-all.bat     # kills existing processes, starts both in separate windows
 
 **Never commit API keys or connection strings.** Use:
 
-| Secret | Where to set |
-|--------|-------------|
-| Finnhub API key | `dotnet user-secrets set "Finnhub:ApiKey" "..."` |
-| SQL connection | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI |
+| Secret          | Where to set                                                            |
+| --------------- | ----------------------------------------------------------------------- |
+| Finnhub API key | `dotnet user-secrets set "Finnhub:ApiKey" "..."`                        |
+| SQL connection  | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI |
 
 ---
 
 ## GitHub Branch Strategy
 
-| Branch | Purpose |
-|--------|---------|
-| `main` | Production-ready, protected. PR required. |
-| `develop` | Integration branch for features. |
+| Branch      | Purpose                                     |
+| ----------- | ------------------------------------------- |
+| `main`      | Production-ready, protected. PR required.   |
+| `develop`   | Integration branch for features.            |
 | `feature/*` | Short-lived feature branches off `develop`. |
 
 ---
@@ -146,7 +146,8 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main` and 
 See [QA Steps](#steps-before-qa) section below for the full pre-QA handoff checklist.
 
             └── features/          # Dashboard, StockCard, AddStockDialog
-```
+
+````
 
 ---
 
@@ -176,7 +177,7 @@ See [QA Steps](#steps-before-qa) section below for the full pre-QA handoff check
 ```powershell
 cd backend/PortfolioManager.Api
 dotnet user-secrets set "Finnhub:ApiKey" "<YOUR_KEY_HERE>"
-```
+````
 
 The key is stored at `%APPDATA%\Microsoft\UserSecrets\<id>\secrets.json` — outside the project directory and never committed to source control.
 

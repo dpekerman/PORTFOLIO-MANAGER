@@ -30,13 +30,15 @@ builder.Services.AddHttpClient<IFinnhubService, FinnhubService>(client =>
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddMemoryCache();          // used by ScannerController to cache scan results
 builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
 {
     client.BaseAddress = new Uri("https://finnhub.io/api/v1/");
     var apiKey = builder.Configuration["Finnhub:ApiKey"] ?? string.Empty;
     if (!string.IsNullOrWhiteSpace(apiKey))
         client.DefaultRequestHeaders.Add("X-Finnhub-Token", apiKey);
-    client.Timeout = TimeSpan.FromSeconds(30);
+    // Live scan can take ~60s for 50 symbols; set generous timeout
+    client.Timeout = TimeSpan.FromSeconds(120);
 });
 
 // ── CORS (allow Angular dev server) ──────────────────────────────────────────
