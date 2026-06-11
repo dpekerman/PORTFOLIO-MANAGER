@@ -1,0 +1,106 @@
+<h2 mat-dialog-title>
+  <mat-icon>add_chart</mat-icon>
+  Add Stock to Portfolio
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="dialog-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Stock Symbol</mat-label>
+      <input
+        matInput
+        formControlName="symbol"
+        placeholder="e.g. AAPL"
+        autocomplete="off"
+        (input)="onSymbolInput($event)"
+        [matAutocomplete]="auto"
+      />
+      @if (searching()) {
+        <mat-progress-spinner matSuffix mode="indeterminate" diameter="20" />
+      } @else {
+        <mat-icon matSuffix>search</mat-icon>
+      }
+      @if (form.controls.symbol.hasError('required') && form.controls.symbol.touched) {
+        <mat-error>Symbol is required</mat-error>
+      }
+      <mat-autocomplete
+        #auto="matAutocomplete"
+        (optionSelected)="selectResult($event.option.value)"
+      >
+        @for (result of searchResults(); track result.symbol) {
+          <mat-option [value]="result">
+            <span class="autocomplete-symbol">{{ result.symbol }}</span>
+            <span class="autocomplete-desc">{{ result.description }}</span>
+          </mat-option>
+        }
+      </mat-autocomplete>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Company Name</mat-label>
+      <input matInput formControlName="companyName" placeholder="e.g. Apple Inc." />
+      @if (form.controls.companyName.hasError('required') && form.controls.companyName.touched) {
+        <mat-error>Company name is required</mat-error>
+      }
+    </mat-form-field>
+
+    <div class="two-col">
+      <mat-form-field appearance="outline">
+        <mat-label>Number of Shares</mat-label>
+        <input
+          matInput
+          type="number"
+          formControlName="shares"
+          placeholder="10"
+          min="0.0001"
+          step="0.0001"
+        />
+        @if (form.controls.shares.hasError('required') && form.controls.shares.touched) {
+          <mat-error>Required</mat-error>
+        }
+        @if (form.controls.shares.hasError('min')) {
+          <mat-error>Must be > 0</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>Avg Cost / Share ($)</mat-label>
+        <input
+          matInput
+          type="number"
+          formControlName="averageCostBasis"
+          placeholder="150.00"
+          min="0.01"
+          step="0.01"
+        />
+        <mat-icon matPrefix>attach_money</mat-icon>
+        @if (
+          form.controls.averageCostBasis.hasError('required') &&
+          form.controls.averageCostBasis.touched
+        ) {
+          <mat-error>Required</mat-error>
+        }
+        @if (form.controls.averageCostBasis.hasError('min')) {
+          <mat-error>Must be > 0</mat-error>
+        }
+      </mat-form-field>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="saving()">Cancel</button>
+  <button
+    mat-raised-button
+    color="primary"
+    (click)="submit()"
+    [disabled]="form.invalid || saving()"
+  >
+    @if (saving()) {
+      <mat-progress-spinner mode="indeterminate" diameter="18" />
+    } @else {
+      <mat-icon>add</mat-icon>
+    }
+    Add to Portfolio
+  </button>
+</mat-dialog-actions>

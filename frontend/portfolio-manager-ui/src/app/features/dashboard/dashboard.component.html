@@ -1,0 +1,138 @@
+<!-- ── App Toolbar ─────────────────────────────────────────────────────── -->
+<div class="app-toolbar">
+  <div class="toolbar-left">
+    <mat-icon class="toolbar-logo">show_chart</mat-icon>
+    <span class="toolbar-title">Portfolio Manager</span>
+    <span class="toolbar-pipe">|</span>
+    <span class="toolbar-subtitle">TSX Momentum Scanner</span>
+  </div>
+  <div class="toolbar-actions">
+    @if (scanner.isDemo()) {
+      <div class="no-key-notice">
+        <mat-icon>vpn_key_off</mat-icon>
+        <span>No API key — showing demo data</span>
+      </div>
+    }
+    <button
+      mat-icon-button
+      matTooltip="Refresh all data"
+      (click)="refreshAll()"
+      [disabled]="portfolio.loading() || scanner.loading()"
+    >
+      <mat-icon [ngClass]="{ spinning: portfolio.loading() || scanner.loading() }"
+        >refresh</mat-icon
+      >
+    </button>
+    <button mat-stroked-button class="add-btn" (click)="openAddStockDialog()">
+      <mat-icon>add</mat-icon> Add Stock
+    </button>
+  </div>
+</div>
+
+@if (portfolio.loading() || scanner.loading()) {
+  <mat-progress-bar mode="indeterminate" class="global-loader"></mat-progress-bar>
+}
+
+<!-- ── Executive Market Header ────────────────────────────────────────── -->
+<app-market-header />
+
+<!-- ── Main Content ───────────────────────────────────────────────────── -->
+<div class="page-body">
+  <!-- ── RSI Scanner Section: Oversold ───────────────────────────────── -->
+  <section class="scanner-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon oversold-icon">trending_down</mat-icon>
+        <div>
+          <h2 class="section-title">
+            OVERSOLD CHAIN
+            <span class="count-badge oversold-badge">{{ scanner.oversold().length }}</span>
+          </h2>
+          <p class="section-sub">
+            RSI(14) &lt; 30 · Reversal Scanner · {{ scanner.confirmedOversold().length }} Confirmed
+            Signals
+          </p>
+        </div>
+      </div>
+      @if (scanner.scannedAt()) {
+        <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
+      }
+    </div>
+    <div class="table-wrapper">
+      <app-rsi-scanner-table
+        [results]="scanner.oversold()"
+        [scanType]="'Oversold'"
+        [loading]="scanner.loading()"
+      />
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ── RSI Scanner Section: Overbought ─────────────────────────────── -->
+  <section class="scanner-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon overbought-icon">trending_up</mat-icon>
+        <div>
+          <h2 class="section-title">
+            OVERBOUGHT CHAIN
+            <span class="count-badge overbought-badge">{{ scanner.overbought().length }}</span>
+          </h2>
+          <p class="section-sub">
+            RSI(14) &gt; 75 · Distribution Scanner ·
+            {{ scanner.confirmedOverbought().length }} Confirmed Signals
+          </p>
+        </div>
+      </div>
+      @if (scanner.scannedAt()) {
+        <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
+      }
+    </div>
+    <div class="table-wrapper">
+      <app-rsi-scanner-table
+        [results]="scanner.overbought()"
+        [scanType]="'Overbought'"
+        [loading]="scanner.loading()"
+      />
+    </div>
+  </section>
+
+  <!-- ── Portfolio Section ────────────────────────────────────────────── -->
+  <div class="section-divider"></div>
+
+  <section class="portfolio-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon portfolio-icon">account_balance_wallet</mat-icon>
+        <div>
+          <h2 class="section-title">
+            MY PORTFOLIO
+            <span class="count-badge portfolio-badge">{{ portfolio.summaries().length }}</span>
+          </h2>
+          <p class="section-sub">Tracked positions · Live prices active with API key</p>
+        </div>
+      </div>
+      <button mat-stroked-button class="add-btn-inline" (click)="openAddStockDialog()">
+        <mat-icon>add</mat-icon> Add Stock
+      </button>
+    </div>
+
+    @if (portfolio.summaries().length > 0) {
+      <app-portfolio-summary-bar />
+      <div class="stock-grid">
+        @for (summary of portfolio.summaries(); track summary.item.id) {
+          <app-stock-card [summary]="summary" />
+        }
+      </div>
+    } @else if (!portfolio.loading()) {
+      <div class="empty-portfolio">
+        <mat-icon>add_chart</mat-icon>
+        <p>No positions yet. Click <strong>Add Stock</strong> to start tracking.</p>
+        <button mat-raised-button (click)="openAddStockDialog()">
+          <mat-icon>add</mat-icon> Add your first stock
+        </button>
+      </div>
+    }
+  </section>
+</div>

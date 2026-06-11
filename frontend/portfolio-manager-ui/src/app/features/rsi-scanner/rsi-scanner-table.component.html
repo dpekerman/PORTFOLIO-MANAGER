@@ -1,0 +1,246 @@
+<table
+  mat-table
+  [dataSource]="results()"
+  class="scanner-table"
+  [class.oversold-table]="isOversold()"
+  [class.overbought-table]="!isOversold()"
+>
+  <!-- Symbol Column -->
+  <ng-container matColumnDef="symbol">
+    <th mat-header-cell *matHeaderCellDef>Ticker</th>
+    <td mat-cell *matCellDef="let row">
+      <div class="symbol-cell">
+        <div class="symbol-badge" [ngClass]="{ oversold: isOversold(), overbought: !isOversold() }">
+          {{ row.symbol.replace('.TO', '').replace('.UN', '') }}
+        </div>
+        <div class="symbol-info">
+          <span class="symbol-name">{{ row.symbol }}</span>
+          <span class="company-name">{{ row.companyName }}</span>
+        </div>
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- RSI Column -->
+  <ng-container matColumnDef="rsi">
+    <th mat-header-cell *matHeaderCellDef>RSI (14)</th>
+    <td mat-cell *matCellDef="let row">
+      <div class="rsi-cell">
+        <span
+          class="rsi-value"
+          [ngClass]="{ 'rsi-extreme': isOversold() ? row.rsi < 25 : row.rsi > 80 }"
+        >
+          {{ row.rsi | number: '1.1-1' }}
+        </span>
+        <div class="rsi-bar-track">
+          <div
+            class="rsi-bar-fill"
+            [style.width.%]="rsiBarValue(row.rsi, row.scanType)"
+            [style.background]="rsiBarColor(row.rsi, row.scanType)"
+          ></div>
+        </div>
+        <span class="rsi-zone" [ngClass]="{ oversold: isOversold(), overbought: !isOversold() }">
+          {{ isOversold() ? 'OVERSOLD' : 'OVERBOUGHT' }}
+        </span>
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Price Column -->
+  <ng-container matColumnDef="price">
+    <th mat-header-cell *matHeaderCellDef>Price</th>
+    <td mat-cell *matCellDef="let row">
+      <span class="price-value">{{
+        row.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+      }}</span>
+    </td>
+  </ng-container>
+
+  <!-- Change Column -->
+  <ng-container matColumnDef="change">
+    <th mat-header-cell *matHeaderCellDef>Change</th>
+    <td mat-cell *matCellDef="let row">
+      <div class="change-cell" [ngClass]="{ positive: row.change >= 0, negative: row.change < 0 }">
+        <mat-icon class="change-icon">{{
+          row.change >= 0 ? 'arrow_upward' : 'arrow_downward'
+        }}</mat-icon>
+        <span>{{ row.changePercent | number: '1.2-2' }}%</span>
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Indicators Column (5 technical signals) -->
+  <ng-container matColumnDef="indicators">
+    <th mat-header-cell *matHeaderCellDef class="indicators-header">Technical Signals</th>
+    <td mat-cell *matCellDef="let row">
+      <div class="indicators-grid">
+        <!-- 1. RSI + Stochastics -->
+        <div
+          class="ind-chip"
+          [ngClass]="
+            row.stochasticsConfirm ? (isOversold() ? 'ind-bull' : 'ind-bear') : 'ind-neutral'
+          "
+          [matTooltip]="
+            'Stoch %K: ' +
+            (row.stochasticK | number: '1.1-1') +
+            (row.stochasticsConfirm ? ' ✓ Confirms extreme reading' : ' — Not extreme')
+          "
+        >
+          <mat-icon>show_chart</mat-icon>
+          <span>Stoch {{ row.stochasticK | number: '1.0-0' }}</span>
+        </div>
+
+        <!-- 2. MACD Crossover -->
+        <div
+          class="ind-chip"
+          [ngClass]="macdClass(row.macdCrossover)"
+          [matTooltip]="
+            'MACD: ' +
+            (row.macdValue | number: '1.3-3') +
+            ' · Signal: ' +
+            (row.macdSignalLine | number: '1.3-3') +
+            ' · ' +
+            row.macdCrossover +
+            ' crossover'
+          "
+        >
+          <mat-icon>{{ macdIcon(row.macdCrossover) }}</mat-icon>
+          <span>{{ row.macdCrossover }}</span>
+        </div>
+
+        <!-- 3. Bollinger Bands -->
+        <div
+          class="ind-chip"
+          [ngClass]="
+            row.bollingerBreakout ? (isOversold() ? 'ind-bull' : 'ind-bear') : 'ind-neutral'
+          "
+          [matTooltip]="'Bollinger: ' + row.bollingerPosition"
+        >
+          <mat-icon>{{ row.bollingerBreakout ? 'bolt' : 'radio_button_unchecked' }}</mat-icon>
+          <span
+            >BB
+            {{
+              row.bollingerPosition === 'Inside'
+                ? 'Inside'
+                : row.bollingerBreakout
+                  ? 'Break!'
+                  : row.bollingerPosition
+            }}</span
+          >
+        </div>
+
+        <!-- 4. Volume / OBV -->
+        <div
+          class="ind-chip"
+          [ngClass]="volSignalClass(row.volumeSignal)"
+          [matTooltip]="
+            'Volume ' + row.volumeSignal + ' (' + (row.volumeRatio | number: '1.1-1') + 'x avg)'
+          "
+        >
+          <mat-icon>{{ volSignalIcon(row.volumeSignal) }}</mat-icon>
+          <span
+            >{{ row.volumeRatio | number: '1.1-1' }}x ·
+            {{ row.volumeSignal === 'Low-Volume Trap' ? 'Trap' : row.volumeSignal }}</span
+          >
+        </div>
+
+        <!-- 5. Moving Averages 50/200 DMA -->
+        <div
+          class="ind-chip"
+          [ngClass]="
+            (isOversold() ? row.dma50Deviation < -10 : row.dma50Deviation > 10)
+              ? isOversold()
+                ? 'ind-bull'
+                : 'ind-bear'
+              : 'ind-neutral'
+          "
+          [matTooltip]="dmaTooltip(row)"
+        >
+          <mat-icon>timeline</mat-icon>
+          <span
+            >50D {{ row.dma50Deviation >= 0 ? '+' : ''
+            }}{{ row.dma50Deviation | number: '1.1-1' }}%</span
+          >
+          @if (row.has200Dma) {
+            <span class="dma200-badge"
+              >200D {{ row.dma200Deviation >= 0 ? '+' : ''
+              }}{{ row.dma200Deviation | number: '1.1-1' }}%</span
+            >
+          }
+        </div>
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Reversal Probability Column -->
+  <ng-container matColumnDef="probability">
+    <th mat-header-cell *matHeaderCellDef>Reversal P.</th>
+    <td mat-cell *matCellDef="let row">
+      <div
+        class="prob-badge"
+        [ngClass]="probClass(row.reversalProbability)"
+        [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
+      >
+        <mat-icon>{{
+          row.reversalProbability === 'High'
+            ? 'warning'
+            : row.reversalProbability === 'Medium'
+              ? 'info'
+              : 'check_circle'
+        }}</mat-icon>
+        {{ row.reversalProbability }}
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Status Column -->
+  <ng-container matColumnDef="status">
+    <th mat-header-cell *matHeaderCellDef>Signal</th>
+    <td mat-cell *matCellDef="let row">
+      @if (row.status === 'Confirmed') {
+        <div class="status-badge confirmed" [ngClass]="{ 'confirmed-bear': !isOversold() }">
+          <mat-icon>verified</mat-icon>
+          <span>CONFIRMED</span>
+        </div>
+      } @else {
+        <div class="status-badge warning">
+          <mat-icon>warning_amber</mat-icon>
+          <span>EARLY WARNING</span>
+        </div>
+      }
+    </td>
+  </ng-container>
+
+  <!-- Trigger Column -->
+  <ng-container matColumnDef="trigger">
+    <th mat-header-cell *matHeaderCellDef>Trigger / Analysis</th>
+    <td mat-cell *matCellDef="let row">
+      <span
+        class="trigger-text"
+        [matTooltip]="row.triggerDetails"
+        matTooltipClass="trigger-tooltip"
+      >
+        {{ row.triggerDetails }}
+      </span>
+    </td>
+  </ng-container>
+
+  <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+  <tr
+    mat-row
+    *matRowDef="let row; columns: displayedColumns"
+    [ngClass]="{
+      'row-confirmed': row.status === 'Confirmed',
+      'row-warning': row.status === 'EarlyWarning',
+    }"
+  ></tr>
+
+  @if (!loading() && results().length === 0) {
+    <tr class="mat-mdc-no-data-row">
+      <td [attr.colspan]="displayedColumns.length" class="no-data-cell">
+        <mat-icon>search_off</mat-icon>
+        <span>No signals detected at this time</span>
+      </td>
+    </tr>
+  }
+</table>

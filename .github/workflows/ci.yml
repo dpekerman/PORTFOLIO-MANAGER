@@ -1,4 +1,4 @@
-name: CI Build
+name: CI – Build, Lint & Test
 
 on:
   push:
@@ -7,58 +7,110 @@ on:
     branches: [main, develop]
 
 jobs:
-  build:
+  # ── Backend: build + test ───────────────────────────────────────────────────
+  backend:
+    name: .NET 8 API
     runs-on: ubuntu-latest
 
-    env:
-      DOTNET_VERSION: "9.0.x"
-      NODE_VERSION: "22.x"
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── .NET Backend ──────────────────────────────────────────────
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: "8.0.x"
 
-      - name: Restore .NET dependencies
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Restore dependencies
+        working-directory: backend/PortfolioManager.Api
         run: dotnet restore
 
-      - name: Build .NET API
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Build (Release)
+        working-directory: backend/PortfolioManager.Api
         run: dotnet build --configuration Release --no-restore
 
-      - name: Publish .NET API
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Run unit tests
+        working-directory: backend
+        run: |
+          if [ -d "PortfolioManager.Tests" ]; then
+            dotnet test --configuration Release --no-build --verbosity normal
+          else
+            echo "No test project found – skipping (create backend/PortfolioManager.Tests to add tests)"
+          fi
+
+      - name: Publish API artifact
+        working-directory: backend/PortfolioManager.Api
         run: dotnet publish --configuration Release --output ${{ github.workspace }}/artifacts/api
 
-      # ── Angular Frontend ──────────────────────────────────────────
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: modern-stack-employee-app/frontend/employee-client/package-lock.json
-
-      - name: Install Node dependencies
-        working-directory: modern-stack-employee-app/frontend/employee-client
-        run: npm ci
-
-      - name: Build Angular client
-        working-directory: modern-stack-employee-app/frontend/employee-client
-        run: npm run build
-
-      # ── Upload Artifacts ──────────────────────────────────────────
-      - name: Upload API artifact
+      - name: Upload API drop
         uses: actions/upload-artifact@v4
         with:
           name: api-drop
           path: ${{ github.workspace }}/artifacts/api
+          retention-days: 7
 
-      # NOTE: SQL connection string must be set as a GitHub Secret
-      # (Settings → Secrets → Actions → SQL_CONNECTION_STRING)
-      # It is injected at runtime and NEVER stored in source code.
+  # ── Frontend: lint + build ──────────────────────────────────────────────────
+  frontend:
+    name: Angular 22 Client
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/portfolio-manager-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/portfolio-manager-ui
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend/portfolio-manager-ui
+        run: npx ng lint || echo "Lint warnings present – review before merge"
+
+      - name: Production build
+        working-directory: frontend/portfolio-manager-ui
+        run: npx ng build --configuration production
+
+      - name: Upload Angular drop
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular-drop
+          path: frontend/portfolio-manager-ui/dist
+          retention-days: 7
+
+  # ── Security: dependency audit ──────────────────────────────────────────────
+  security:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/portfolio-manager-ui/package-lock.json
+
+      - name: npm audit (high+)
+        working-directory: frontend/portfolio-manager-ui
+        run: npm audit --audit-level=high || echo "Review npm audit output above"
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: NuGet vulnerability check
+        working-directory: backend/PortfolioManager.Api
+        run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
+
+# NOTE: Set these secrets in GitHub → Settings → Secrets → Actions:
+#   SQL_CONNECTION_STRING  → Server=...;Database=PortfolioManagerDb;...
+#   FINNHUB_API_KEY        → your key from finnhub.io (never commit it)

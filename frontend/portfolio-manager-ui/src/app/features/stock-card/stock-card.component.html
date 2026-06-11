@@ -1,0 +1,67 @@
+<mat-card class="stock-card" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+  <mat-card-header>
+    <div
+      mat-card-avatar
+      class="symbol-avatar"
+      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+    >
+      {{ summary().item.symbol.substring(0, 2) }}
+    </div>
+    <mat-card-title>{{ summary().item.symbol }}</mat-card-title>
+    <mat-card-subtitle class="company-name">{{ summary().item.companyName }}</mat-card-subtitle>
+    <button
+      mat-icon-button
+      class="remove-btn"
+      matTooltip="Remove from portfolio"
+      (click)="remove()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="price-row">
+      <span class="current-price">{{ currentPrice() | currency }}</span>
+      @if (summary().quote) {
+        <span class="change" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+          <mat-icon>{{ isPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+          {{ summary().quote!.change | number: '1.2-2' }}
+          ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
+        </span>
+      } @else {
+        <mat-chip class="no-quote-chip">No live data</mat-chip>
+      }
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric">
+        <span class="label">Shares</span>
+        <span class="value">{{ summary().item.shares | number: '1.0-4' }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Avg Cost</span>
+        <span class="value">{{ summary().item.averageCostBasis | currency }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Market Value</span>
+        <span class="value">{{ marketValue() | currency }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Gain / Loss</span>
+        <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+          {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
+        </span>
+      </div>
+    </div>
+
+    @if (summary().quote) {
+      <div class="range-row">
+        <span class="range-label">Day Range:</span>
+        <span
+          >{{ summary().quote!.lowPrice | currency }} –
+          {{ summary().quote!.highPrice | currency }}</span
+        >
+      </div>
+    }
+  </mat-card-content>
+</mat-card>

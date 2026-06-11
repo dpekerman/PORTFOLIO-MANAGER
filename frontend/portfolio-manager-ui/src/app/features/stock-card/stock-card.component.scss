@@ -1,0 +1,113 @@
+﻿.stock-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 10px !important;
+  border-top: 3px solid #2a2a2a;
+  background: #161616 !important;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  &.positive { border-top-color: #00c853; }
+  &.negative { border-top-color: #ff5252; }
+
+  mat-card-header {
+    position: relative;
+
+    .company-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+      color: #616161 !important;
+    }
+
+    mat-card-title { color: #e0e0e0 !important; }
+
+    .remove-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      color: #616161;
+    }
+  }
+
+  &:hover .remove-btn { opacity: 1; }
+}
+
+.symbol-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: white;
+  background: #2a2a2a;
+  border-radius: 8px;
+
+  &.positive { background: #1b5e20; }
+  &.negative { background: #b71c1c; }
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  .current-price {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #e0e0e0;
+    font-family: "Roboto Mono", monospace;
+  }
+
+  .change {
+    display: flex;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    &.positive { color: #00c853; }
+    &.negative { color: #ff5252; }
+  }
+
+  .no-quote-chip { font-size: 0.7rem; background: #1e1e1e; color: #424242; }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+
+    .label { font-size: 0.68rem; color: #424242; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+    .value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #bdbdbd;
+      font-family: "Roboto Mono", monospace;
+      &.positive { color: #00c853; }
+      &.negative { color: #ff5252; }
+    }
+  }
+}
+
+.range-row {
+  font-size: 0.75rem;
+  color: #424242;
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid #1e1e1e;
+  padding-top: 8px;
+
+  .range-label { font-weight: 600; }
+}

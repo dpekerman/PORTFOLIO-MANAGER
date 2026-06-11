@@ -1,0 +1,69 @@
+<div class="market-header">
+  <!-- Left: Branding -->
+  <div class="brand-block">
+    <mat-icon class="brand-icon">candlestick_chart</mat-icon>
+    <div class="brand-text">
+      <span class="brand-title">RSI Momentum Scanner</span>
+      <span class="brand-sub"
+        >{{ scanner.market() || 'TSX' }} · {{ scanner.isDemo() ? 'DEMO MODE' : 'LIVE' }}</span
+      >
+    </div>
+    @if (scanner.isDemo()) {
+      <div class="demo-badge" matTooltip="Live data requires a Finnhub API key">
+        <mat-icon>info_outline</mat-icon> DEMO
+      </div>
+    }
+  </div>
+
+  <!-- Center: Signal stats -->
+  <div class="signal-stats">
+    <div class="stat-tile oversold-tile">
+      <span class="stat-number">{{ scanner.oversold().length }}</span>
+      <div class="stat-detail">
+        <span class="stat-label">OVERSOLD</span>
+        <span class="stat-sub">{{ scanner.confirmedOversold().length }} confirmed</span>
+      </div>
+      <mat-icon class="stat-icon">arrow_downward</mat-icon>
+    </div>
+
+    <div class="bias-indicator" [ngClass]="biasClass()">
+      <span class="bias-label">MARKET BIAS</span>
+      <span class="bias-value">{{ signalBias() }}</span>
+    </div>
+
+    <div class="stat-tile overbought-tile">
+      <mat-icon class="stat-icon">arrow_upward</mat-icon>
+      <div class="stat-detail">
+        <span class="stat-label">OVERBOUGHT</span>
+        <span class="stat-sub">{{ scanner.confirmedOverbought().length }} confirmed</span>
+      </div>
+      <span class="stat-number">{{ scanner.overbought().length }}</span>
+    </div>
+  </div>
+
+  <!-- Right: Portfolio KPIs -->
+  <div class="portfolio-kpis">
+    <div class="kpi">
+      <span class="kpi-label">Portfolio Value</span>
+      <span class="kpi-value">{{
+        portfolio.totalValue() | currency: 'USD' : 'symbol' : '1.0-0'
+      }}</span>
+    </div>
+    <div class="kpi-divider"></div>
+    <div class="kpi">
+      <span class="kpi-label">Total Return</span>
+      <span
+        class="kpi-value"
+        [ngClass]="{ positive: isPortfolioPositive(), negative: !isPortfolioPositive() }"
+      >
+        <mat-icon>{{ isPortfolioPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
+        {{ portfolio.totalGainLossPct() | number: '1.2-2' }}%
+      </span>
+    </div>
+    <div class="kpi-divider"></div>
+    <div class="kpi">
+      <span class="kpi-label">Positions</span>
+      <span class="kpi-value">{{ portfolio.summaries().length }}</span>
+    </div>
+  </div>
+</div>

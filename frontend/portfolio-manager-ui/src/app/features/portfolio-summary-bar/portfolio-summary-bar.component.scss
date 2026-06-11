@@ -1,0 +1,55 @@
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.summary-tile {
+  background: #161616;
+  border: 1px solid #1e1e1e;
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: #2a2a2a;
+  }
+
+  .label {
+    font-size: 0.68rem;
+    color: #616161;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+  }
+
+  .value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'Roboto Mono', monospace;
+
+    mat-icon {
+      font-size: 17px;
+      width: 17px;
+      height: 17px;
+    }
+
+    &.primary {
+      color: #64b5f6;
+    }
+    &.positive {
+      color: #00c853;
+    }
+    &.negative {
+      color: #ff5252;
+    }
+  }
+}
