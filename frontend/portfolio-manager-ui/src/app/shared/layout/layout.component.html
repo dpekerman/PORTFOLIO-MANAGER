@@ -1,0 +1,119 @@
+<mat-sidenav-container class="app-container" autosize>
+  <!-- ── Mobile Sidenav ──────────────────────────────────────────────────── -->
+  <mat-sidenav
+    #sidenav
+    class="app-sidenav"
+    mode="over"
+    position="start"
+    role="navigation"
+    aria-label="App navigation"
+  >
+    <div class="sidenav-brand">
+      <mat-icon class="sidenav-brand-icon">show_chart</mat-icon>
+      <span class="sidenav-brand-title">Portfolio Manager</span>
+    </div>
+
+    <mat-divider />
+
+    <mat-nav-list>
+      @for (link of navLinks; track link.path) {
+        <a
+          mat-list-item
+          [routerLink]="link.path"
+          routerLinkActive="sidenav-active"
+          (click)="closeSidenav()"
+        >
+          <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
+          <span matListItemTitle>{{ link.label }}</span>
+        </a>
+      }
+    </mat-nav-list>
+  </mat-sidenav>
+
+  <!-- ── Main Content ────────────────────────────────────────────────────── -->
+  <mat-sidenav-content class="app-main">
+    <!-- ── Top Toolbar ──────────────────────────────────────────────────── -->
+    <mat-toolbar class="app-toolbar" role="banner">
+      <!-- Mobile hamburger -->
+      <button
+        mat-icon-button
+        class="hamburger-btn"
+        aria-label="Open navigation menu"
+        (click)="sidenav.toggle()"
+      >
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <!-- Brand -->
+      <a class="toolbar-brand" routerLink="/portfolio" aria-label="Portfolio Manager home">
+        <mat-icon class="brand-icon">show_chart</mat-icon>
+        <span class="brand-title">Portfolio Manager</span>
+      </a>
+
+      <!-- Desktop nav links -->
+      <nav class="desktop-nav" aria-label="Main navigation">
+        @for (link of navLinks; track link.path) {
+          <a
+            mat-button
+            class="nav-link"
+            [routerLink]="link.path"
+            routerLinkActive="nav-link-active"
+          >
+            <mat-icon>{{ link.icon }}</mat-icon>
+            {{ link.label }}
+          </a>
+        }
+      </nav>
+
+      <span class="toolbar-spacer"></span>
+
+      <!-- Status notices -->
+      @if (scanner.isDemo()) {
+        <div class="status-badge status-warn" role="status" aria-live="polite">
+          <mat-icon>vpn_key_off</mat-icon>
+          <span class="badge-text">Demo data</span>
+        </div>
+      }
+      @if (scanner.loading() && !scanner.isDemo()) {
+        <div class="status-badge status-info" role="status" aria-live="polite">
+          <mat-icon class="spinning">radar</mat-icon>
+          <span class="badge-text">Scanning…</span>
+        </div>
+      }
+
+      <!-- Theme toggle -->
+      <button
+        mat-icon-button
+        [matTooltip]="theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'"
+        (click)="theme.toggle()"
+        aria-label="Toggle colour theme"
+      >
+        <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
+      <!-- Global refresh -->
+      <button
+        mat-icon-button
+        matTooltip="Refresh all data (bypasses 4-min cache)"
+        (click)="refreshAll()"
+        [disabled]="isLoading()"
+        aria-label="Refresh all data"
+      >
+        <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
+      </button>
+    </mat-toolbar>
+
+    <!-- Global progress bar -->
+    @if (isLoading()) {
+      <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
+    }
+
+    <!-- Executive market header -->
+    <app-market-header />
+
+    <!-- Page content -->
+    <main class="page-content" id="main-content" role="main">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>

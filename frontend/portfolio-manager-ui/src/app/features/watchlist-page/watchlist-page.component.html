@@ -1,0 +1,52 @@
+<div class="watchlist-page">
+  <!-- ── Section Header ──────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <mat-icon class="page-icon">visibility</mat-icon>
+      <div>
+        <h1 class="page-title">
+          MY WATCH LIST
+          <span class="count-badge">{{ watchlist.count() }}</span>
+        </h1>
+        <p class="page-sub">Tracked symbols · Live prices · Auto-refreshes every 60s</p>
+      </div>
+    </div>
+
+    <div class="page-actions">
+      <button
+        mat-icon-button
+        matTooltip="Refresh watchlist"
+        (click)="refresh()"
+        [disabled]="watchlist.loading()"
+        aria-label="Refresh watchlist"
+      >
+        <mat-icon [class.spinning]="watchlist.loading()">refresh</mat-icon>
+      </button>
+      <button mat-flat-button class="add-btn" (click)="openAddDialog()">
+        <mat-icon>add</mat-icon>
+        <span class="btn-text">Add Symbol</span>
+      </button>
+    </div>
+  </div>
+
+  @if (watchlist.items().length > 0) {
+    <!-- ── Watchlist Grid ──────────────────────────────────────────────────── -->
+    <div class="watchlist-grid" role="list" aria-label="Watchlist symbols">
+      @for (w of watchlist.items(); track w.item.id) {
+        <app-watchlist-card [summary]="w" />
+      }
+    </div>
+  } @else if (!watchlist.loading()) {
+    <!-- ── Empty State ────────────────────────────────────────────────────── -->
+    <div class="empty-state">
+      <mat-icon class="empty-icon">visibility_off</mat-icon>
+      <h3 class="empty-title">No symbols in watchlist</h3>
+      <p class="empty-sub">
+        Add symbols you want to track without holding a position in your portfolio.
+      </p>
+      <button mat-flat-button class="add-btn" (click)="openAddDialog()">
+        <mat-icon>add</mat-icon> Add your first symbol
+      </button>
+    </div>
+  }
+</div>

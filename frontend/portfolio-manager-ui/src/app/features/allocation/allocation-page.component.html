@@ -1,0 +1,98 @@
+<div class="allocation-page">
+  <!-- ── Page Header ───────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <mat-icon class="page-icon">donut_large</mat-icon>
+      <div>
+        <h1 class="page-title">PORTFOLIO ALLOCATION</h1>
+        <p class="page-sub">Breakdown by sector &amp; industry · Click sectors to drill down</p>
+      </div>
+    </div>
+  </div>
+
+  @if (portfolio.summaries().length === 0 && !portfolio.loading()) {
+    <!-- ── Empty State ──────────────────────────────────────────────────────── -->
+    <div class="empty-state">
+      <mat-icon class="empty-icon">donut_large</mat-icon>
+      <h3 class="empty-title">No allocation data</h3>
+      <p class="empty-sub">Add positions to your portfolio to see sector allocation.</p>
+      <a mat-flat-button class="action-btn-primary" routerLink="/portfolio">
+        <mat-icon>account_balance_wallet</mat-icon> Go to Portfolio
+      </a>
+    </div>
+  } @else {
+    <!-- ── KPI Cards ────────────────────────────────────────────────────────── -->
+    <div class="kpi-grid">
+      <mat-card class="kpi-card">
+        <mat-card-content class="kpi-content">
+          <div class="kpi-label">
+            <mat-icon>account_balance</mat-icon>
+            Portfolio Value
+          </div>
+          <div class="kpi-value kpi-neutral">
+            {{ portfolio.totalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+          </div>
+          <div class="kpi-sub">Current market value</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card">
+        <mat-card-content class="kpi-content">
+          <div class="kpi-label">
+            <mat-icon>payments</mat-icon>
+            Total Cost Basis
+          </div>
+          <div class="kpi-value kpi-neutral">
+            {{ portfolio.totalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+          </div>
+          <div class="kpi-sub">Invested capital</div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card">
+        <mat-card-content class="kpi-content">
+          <div class="kpi-label">
+            <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
+            Total Gain / Loss
+          </div>
+          <div
+            class="kpi-value"
+            [class.kpi-positive]="isPositive()"
+            [class.kpi-negative]="!isPositive()"
+          >
+            {{ portfolio.totalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+          </div>
+          <div
+            class="kpi-sub"
+            [class.kpi-positive]="isPositive()"
+            [class.kpi-negative]="!isPositive()"
+          >
+            {{ returnPct() | percent: '1.2-2' }} total return
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="kpi-card">
+        <mat-card-content class="kpi-content">
+          <div class="kpi-label">
+            <mat-icon>layers</mat-icon>
+            Positions
+          </div>
+          <div class="kpi-value kpi-neutral">
+            {{ portfolio.summaries().length }}
+          </div>
+          <div class="kpi-sub">Active holdings</div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- ── Sector Breakdown ─────────────────────────────────────────────────── -->
+    <section class="breakdown-section">
+      <div class="breakdown-header">
+        <mat-icon class="breakdown-icon">pie_chart</mat-icon>
+        <h2 class="breakdown-title">Sector &amp; Industry Breakdown</h2>
+      </div>
+      <app-sector-exposition />
+    </section>
+  }
+</div>

@@ -1,0 +1,92 @@
+<div class="portfolio-page">
+  <!-- ── Section Header ──────────────────────────────────────────────────── -->
+  <section class="portfolio-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon">account_balance_wallet</mat-icon>
+        <div>
+          <h2 class="section-title">
+            MY PORTFOLIO
+            <span class="count-badge">{{ portfolio.summaries().length }}</span>
+          </h2>
+          <p class="section-sub">Tracked positions · Live prices active with API key</p>
+        </div>
+      </div>
+
+      <div class="section-actions">
+        <button
+          mat-icon-button
+          matTooltip="Refresh live prices"
+          (click)="refresh()"
+          [disabled]="portfolio.loading()"
+          aria-label="Refresh portfolio prices"
+        >
+          <mat-icon [ngClass]="{ spinning: portfolio.loading() }">refresh</mat-icon>
+        </button>
+        <button
+          mat-stroked-button
+          class="action-btn"
+          (click)="openImportDialog()"
+          matTooltip="Import positions from Excel/CSV"
+        >
+          <mat-icon>upload_file</mat-icon>
+          <span class="btn-text">Import</span>
+        </button>
+        <button
+          mat-stroked-button
+          class="action-btn"
+          (click)="openAddManualDialog()"
+          matTooltip="Add cash, options, or other manual position"
+        >
+          <mat-icon>edit_note</mat-icon>
+          <span class="btn-text">Add Manual</span>
+        </button>
+        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+          <mat-icon>add</mat-icon>
+          <span class="btn-text">Add Stock</span>
+        </button>
+      </div>
+    </div>
+
+    @if (portfolio.summaries().length > 0) {
+      <!-- ── Summary Bar ──────────────────────────────────────────────── -->
+      <app-portfolio-summary-bar />
+
+      <!-- ── Bulk-action toolbar ─────────────────────────────────────── -->
+      @if (portfolio.hasSelection()) {
+        <div class="bulk-toolbar bulk-active">
+          <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+          <button mat-stroked-button (click)="portfolio.clearSelection()">
+            <mat-icon>deselect</mat-icon> Clear
+          </button>
+          <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+            <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
+          </button>
+        </div>
+      } @else {
+        <div class="bulk-toolbar bulk-hint">
+          <mat-icon>check_box_outline_blank</mat-icon>
+          <span>Check boxes on cards to select multiple positions for bulk removal</span>
+          <button mat-button (click)="portfolio.selectAll()">Select All</button>
+        </div>
+      }
+
+      <!-- ── Stock Grid ───────────────────────────────────────────────── -->
+      <div class="stock-grid" role="list" aria-label="Portfolio positions">
+        @for (summary of portfolio.summaries(); track summary.item.id) {
+          <app-stock-card [summary]="summary" />
+        }
+      </div>
+    } @else if (!portfolio.loading()) {
+      <!-- ── Empty State ──────────────────────────────────────────────── -->
+      <div class="empty-state">
+        <mat-icon class="empty-icon">add_chart</mat-icon>
+        <h3 class="empty-title">No positions yet</h3>
+        <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
+        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+          <mat-icon>add</mat-icon> Add your first stock
+        </button>
+      </div>
+    }
+  </section>
+</div>

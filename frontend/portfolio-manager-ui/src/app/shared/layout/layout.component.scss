@@ -1,0 +1,232 @@
+// ── App container (full viewport) ────────────────────────────────────────────
+.app-container {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+// ── Mobile sidenav drawer ─────────────────────────────────────────────────────
+.app-sidenav {
+  width: 260px;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+
+  .sidenav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px 16px;
+
+    .sidenav-brand-icon {
+      color: #1565c0;
+      font-size: 24px;
+    }
+
+    .sidenav-brand-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.3px;
+    }
+  }
+
+  // Active nav item highlight
+  .sidenav-active {
+    color: #64b5f6 !important;
+    background: rgba(100, 181, 246, 0.08) !important;
+    border-left: 3px solid #64b5f6;
+
+    mat-icon {
+      color: #64b5f6 !important;
+    }
+  }
+}
+
+// ── Main area ─────────────────────────────────────────────────────────────────
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--bg-page);
+}
+
+// ── Top Toolbar ───────────────────────────────────────────────────────────────
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 8px 0 4px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 12px var(--shadow-card);
+  gap: 4px;
+
+  // Hamburger — visible only on mobile
+  .hamburger-btn {
+    display: none;
+    color: var(--text-secondary);
+
+    @media (max-width: 768px) {
+      display: inline-flex;
+    }
+  }
+
+  // Brand / logo
+  .toolbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    flex-shrink: 0;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--bg-hover);
+    }
+
+    .brand-icon {
+      color: #1565c0;
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+    }
+
+    .brand-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+
+      @media (max-width: 480px) {
+        display: none;
+      }
+    }
+  }
+
+  // Desktop nav links (hide on mobile)
+  .desktop-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 12px;
+
+    @media (max-width: 768px) {
+      display: none;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+      letter-spacing: 0.3px;
+      border-radius: 8px;
+      height: 36px;
+      padding: 0 12px;
+      transition:
+        color 0.15s,
+        background 0.15s;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        margin-right: 4px;
+      }
+
+      &:hover {
+        color: var(--text-primary);
+        background: var(--bg-hover);
+      }
+
+      // Active state
+      &.nav-link-active {
+        color: #64b5f6;
+        background: rgba(100, 181, 246, 0.1);
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Push actions to right
+  .toolbar-spacer {
+    flex: 1;
+  }
+
+  // Status notice badges
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+    margin-right: 4px;
+    flex-shrink: 0;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+
+    .badge-text {
+      @media (max-width: 600px) {
+        display: none;
+      }
+    }
+
+    &.status-warn {
+      background: rgba(255, 167, 38, 0.08);
+      border: 1px solid rgba(255, 167, 38, 0.2);
+      color: #ffa726;
+    }
+
+    &.status-info {
+      background: rgba(100, 181, 246, 0.08);
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      color: #64b5f6;
+    }
+  }
+
+  // Icon buttons
+  button[mat-icon-button] {
+    color: var(--text-secondary);
+
+    &:hover:not([disabled]) {
+      color: var(--text-primary);
+    }
+  }
+}
+
+// ── Global progress bar ───────────────────────────────────────────────────────
+.global-loader {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+}
+
+// ── Page content ──────────────────────────────────────────────────────────────
+.page-content {
+  flex: 1;
+  min-height: 0;
+  padding: 0 0 48px;
+  background: var(--bg-page);
+}
+
+// ── Spin animation (used by loading icons) ────────────────────────────────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
