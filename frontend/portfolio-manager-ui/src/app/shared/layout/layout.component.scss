@@ -73,20 +73,13 @@
     }
   }
 
-  // Brand / logo
+  // Brand (plain text, no hover/click)
   .toolbar-brand {
     display: flex;
     align-items: center;
     gap: 8px;
-    text-decoration: none;
     flex-shrink: 0;
     padding: 4px 8px;
-    border-radius: 8px;
-    transition: background 0.15s;
-
-    &:hover {
-      background: var(--bg-hover);
-    }
 
     .brand-icon {
       color: #1565c0;

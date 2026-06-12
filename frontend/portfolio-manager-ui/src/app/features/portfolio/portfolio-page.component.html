@@ -60,53 +60,62 @@
       </div>
     </div>
 
-    @if (portfolio.summaries().length > 0) {
-      <!-- ── Summary Bar ──────────────────────────────────────────────── -->
-      <app-portfolio-summary-bar />
+    @defer (when !portfolio.loading()) {
 
-      <!-- ── Bulk-action toolbar ─────────────────────────────────────── -->
-      @if (portfolio.hasSelection()) {
-        <div class="bulk-toolbar bulk-active">
-          <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
-          <button mat-stroked-button (click)="portfolio.clearSelection()">
-            <mat-icon>deselect</mat-icon> Clear
-          </button>
-          <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
-            <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
-          </button>
+      @if (portfolio.summaries().length > 0) {
+        <!-- ── Summary Bar ────────────────────────────────────────────── -->
+        <app-portfolio-summary-bar />
+
+        <!-- ── Bulk-action toolbar ───────────────────────────────────── -->
+        @if (portfolio.hasSelection()) {
+          <div class="bulk-toolbar bulk-active">
+            <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+            <button mat-stroked-button (click)="portfolio.clearSelection()">
+              <mat-icon>deselect</mat-icon> Clear
+            </button>
+            <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+              <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
+            </button>
+          </div>
+        } @else {
+          <div class="bulk-toolbar bulk-hint">
+            <mat-icon>check_box_outline_blank</mat-icon>
+            <span>Check boxes on cards to select multiple positions for bulk removal</span>
+            <button mat-button (click)="portfolio.selectAll()">Select All</button>
+          </div>
+        }
+
+        <!-- ── Stock Grid ─────────────────────────────────────────────── -->
+        <div class="stock-grid" role="list" aria-label="Portfolio positions">
+          @for (summary of portfolio.summaries(); track summary.item.id) {
+            <app-stock-card [summary]="summary" />
+          }
         </div>
+
       } @else {
-        <div class="bulk-toolbar bulk-hint">
-          <mat-icon>check_box_outline_blank</mat-icon>
-          <span>Check boxes on cards to select multiple positions for bulk removal</span>
-          <button mat-button (click)="portfolio.selectAll()">Select All</button>
+        <!-- ── Empty State ────────────────────────────────────────────── -->
+        <div class="empty-state">
+          <mat-icon class="empty-icon">add_chart</mat-icon>
+          <h3 class="empty-title">No positions yet</h3>
+          <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
+          <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+            <mat-icon>add</mat-icon> Add your first stock
+          </button>
         </div>
       }
 
-      <!-- ── Stock Grid ───────────────────────────────────────────────── -->
-      <div class="stock-grid" role="list" aria-label="Portfolio positions">
-        @for (summary of portfolio.summaries(); track summary.item.id) {
-          <app-stock-card [summary]="summary" />
-        }
-      </div>
-
-    } @else if (portfolio.loading()) {
-      <!-- ── Skeleton Grid (initial load) ────────────────────────────── -->
+    } @placeholder (minimum 300ms) {
+      <!-- ── Skeleton Grid (initial load) ──────────────────────────────── -->
       <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
         @for (i of skeletonItems; track i) {
           <app-stock-card-skeleton />
         }
       </div>
-
-    } @else {
-      <!-- ── Empty State ──────────────────────────────────────────────── -->
-      <div class="empty-state">
-        <mat-icon class="empty-icon">add_chart</mat-icon>
-        <h3 class="empty-title">No positions yet</h3>
-        <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
-        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
-          <mat-icon>add</mat-icon> Add your first stock
-        </button>
+    } @loading (minimum 400ms) {
+      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
+        @for (i of skeletonItems; track i) {
+          <app-stock-card-skeleton />
+        }
       </div>
     }
   </section>

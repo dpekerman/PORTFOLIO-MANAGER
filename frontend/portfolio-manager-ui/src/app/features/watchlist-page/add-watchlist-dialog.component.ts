@@ -27,7 +27,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
   ],
   template: `
     <h2 mat-dialog-title>Add to Watch List</h2>
-    <mat-dialog-content class="watchlist-dialog-content">
+    <mat-dialog-content>
       <form [formGroup]="form">
         <mat-form-field appearance="outline" class="watchlist-symbol-field">
           <mat-label>Symbol (e.g. AAPL, RY.TO)</mat-label>
@@ -60,9 +60,8 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
   `,
   styles: [
     `
-      .watchlist-dialog-content {
-        padding-top: 8px;
-        min-width: 320px;
+      :host {
+        display: block;
       }
       .watchlist-symbol-field {
         width: 100%;

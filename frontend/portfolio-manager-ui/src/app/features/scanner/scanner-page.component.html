@@ -33,14 +33,16 @@
     </div>
 
     <div class="table-wrapper">
-      @if (scanner.loading() && scanner.oversold().length === 0) {
-        <app-scanner-row-skeleton aria-label="Loading oversold signals…" />
-      } @else {
+      @defer (when scanner.scannedAt() !== null) {
         <app-rsi-scanner-table
           [results]="scanner.oversold()"
           scanType="Oversold"
           [loading]="scanner.loading()"
         />
+      } @placeholder (minimum 300ms) {
+        <app-scanner-row-skeleton aria-label="Loading oversold signals…" />
+      } @loading (minimum 400ms) {
+        <app-scanner-row-skeleton />
       }
     </div>
   </section>
@@ -72,14 +74,16 @@
     </div>
 
     <div class="table-wrapper">
-      @if (scanner.loading() && scanner.overbought().length === 0) {
-        <app-scanner-row-skeleton aria-label="Loading overbought signals…" />
-      } @else {
+      @defer (when scanner.scannedAt() !== null) {
         <app-rsi-scanner-table
           [results]="scanner.overbought()"
           scanType="Overbought"
           [loading]="scanner.loading()"
         />
+      } @placeholder (minimum 300ms) {
+        <app-scanner-row-skeleton aria-label="Loading overbought signals…" />
+      } @loading (minimum 400ms) {
+        <app-scanner-row-skeleton />
       }
     </div>
   </section>
