@@ -1,0 +1,78 @@
+<div class="scanner-page">
+  <!-- ── Oversold Section ──────────────────────────────────────────────────── -->
+  <section class="scanner-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon oversold-icon">trending_down</mat-icon>
+        <div>
+          <h2 class="section-title">
+            OVERSOLD CHAIN
+            <span class="count-badge oversold-badge">{{ scanner.oversold().length }}</span>
+          </h2>
+          <p class="section-sub">
+            RSI(14) &lt; 30 · Reversal Scanner ·
+            {{ scanner.confirmedOversold().length }} Confirmed Signals
+          </p>
+        </div>
+      </div>
+
+      <div class="section-actions">
+        @if (scanner.scannedAt()) {
+          <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
+        }
+        <button
+          mat-icon-button
+          matTooltip="Force new scan (bypasses cache)"
+          (click)="refresh()"
+          [disabled]="scanner.loading()"
+          aria-label="Refresh scanner"
+        >
+          <mat-icon [ngClass]="{ spinning: scanner.loading() }">refresh</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <app-rsi-scanner-table
+        [results]="scanner.oversold()"
+        scanType="Oversold"
+        [loading]="scanner.loading()"
+      />
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ── Overbought Section ─────────────────────────────────────────────────── -->
+  <section class="scanner-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon overbought-icon">trending_up</mat-icon>
+        <div>
+          <h2 class="section-title">
+            OVERBOUGHT CHAIN
+            <span class="count-badge overbought-badge">{{ scanner.overbought().length }}</span>
+          </h2>
+          <p class="section-sub">
+            RSI(14) &gt; 75 · Distribution Scanner ·
+            {{ scanner.confirmedOverbought().length }} Confirmed Signals
+          </p>
+        </div>
+      </div>
+
+      @if (scanner.scannedAt()) {
+        <span class="scan-time section-actions">
+          Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}
+        </span>
+      }
+    </div>
+
+    <div class="table-wrapper">
+      <app-rsi-scanner-table
+        [results]="scanner.overbought()"
+        scanType="Overbought"
+        [loading]="scanner.loading()"
+      />
+    </div>
+  </section>
+</div>

@@ -1,0 +1,120 @@
+.scanner-page {
+  padding: 0 0 48px;
+}
+
+.scanner-section {
+  padding: 20px 24px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-color) 20%,
+    var(--border-color) 80%,
+    transparent
+  );
+  margin: 0 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+
+  &.oversold-icon {
+    color: #00c853;
+  }
+  &.overbought-icon {
+    color: #ff5252;
+  }
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-sub {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scan-time {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  font-family: 'Roboto Mono', monospace;
+}
+
+.count-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: 'Roboto Mono', monospace;
+
+  &.oversold-badge {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.2);
+  }
+
+  &.overbought-badge {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.2);
+  }
+}
+
+.table-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

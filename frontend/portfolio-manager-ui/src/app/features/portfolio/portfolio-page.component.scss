@@ -1,0 +1,186 @@
+.portfolio-page {
+  padding: 0 0 48px;
+}
+
+.portfolio-section {
+  padding: 20px 24px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  color: #1565c0;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-sub {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.count-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(21, 101, 192, 0.12);
+  color: #64b5f6;
+  border: 1px solid rgba(21, 101, 192, 0.2);
+}
+
+// ── Action buttons ────────────────────────────────────────────────────────────
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border-color: rgba(100, 181, 246, 0.4);
+  color: #64b5f6;
+  font-size: 0.8rem;
+  height: 34px;
+
+  .btn-text {
+    @media (max-width: 480px) {
+      display: none;
+    }
+  }
+}
+
+.action-btn-primary {
+  background: #1565c0;
+  color: #fff;
+  font-size: 0.82rem;
+  height: 34px;
+}
+
+// ── Bulk toolbar ──────────────────────────────────────────────────────────────
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  border-radius: 10px;
+  flex-wrap: wrap;
+
+  &.bulk-active {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+
+    .bulk-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #64b5f6;
+    }
+  }
+
+  &.bulk-hint {
+    background: transparent;
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-faint);
+    font-size: 0.75rem;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ── Stock grid ────────────────────────────────────────────────────────────────
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 24px;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 56px;
+    width: 56px;
+    height: 56px;
+    color: var(--text-faint);
+  }
+
+  .empty-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .empty-sub {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    max-width: 320px;
+  }
+}
+
+// ── Spin animation ────────────────────────────────────────────────────────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

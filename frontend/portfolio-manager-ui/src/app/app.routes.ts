@@ -3,8 +3,30 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () =>
-      import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+    loadComponent: () => import('./shared/layout/layout.component').then((m) => m.LayoutComponent),
+    children: [
+      {
+        path: 'portfolio',
+        loadChildren: () =>
+          import('./features/portfolio/portfolio.routes').then((m) => m.PORTFOLIO_ROUTES),
+      },
+      {
+        path: 'scanner',
+        loadChildren: () =>
+          import('./features/scanner/scanner.routes').then((m) => m.SCANNER_ROUTES),
+      },
+      {
+        path: 'allocation',
+        loadChildren: () =>
+          import('./features/allocation/allocation.routes').then((m) => m.ALLOCATION_ROUTES),
+      },
+      {
+        path: 'watchlist',
+        loadChildren: () =>
+          import('./features/watchlist-page/watchlist.routes').then((m) => m.WATCHLIST_ROUTES),
+      },
+      { path: '', redirectTo: 'scanner', pathMatch: 'full' },
+    ],
   },
-  { path: '**', redirectTo: '' },
+  { path: '**', redirectTo: 'scanner' },
 ];
