@@ -1,0 +1,117 @@
+<h2 mat-dialog-title>
+  <mat-icon>upload_file</mat-icon>
+  Import Portfolio from Excel
+</h2>
+
+<mat-dialog-content class="import-content">
+  <!-- Instructions -->
+  <div class="instructions">
+    <p>Upload an <strong>.xlsx</strong> or <strong>.csv</strong> file with your stock positions.</p>
+    <p class="hint">
+      Required column: <code>Symbol</code> &nbsp;·&nbsp; Optional: <code>Company</code>,
+      <code>Shares</code>, <code>AvgCost</code>
+    </p>
+  </div>
+
+  <!-- Upload + template buttons -->
+  <div class="upload-row">
+    <button mat-stroked-button (click)="fileInput.click()" [disabled]="importing()">
+      <mat-icon>attach_file</mat-icon>
+      {{ fileName() ?? 'Choose File' }}
+    </button>
+    <input
+      #fileInput
+      type="file"
+      accept=".xlsx,.xls,.csv"
+      class="hidden-input"
+      (change)="onFileSelected($event)"
+    />
+    <button mat-button (click)="downloadTemplate()" matTooltip="Download a sample .xlsx template">
+      <mat-icon>download</mat-icon> Template
+    </button>
+  </div>
+
+  <!-- Parse error -->
+  @if (parseError()) {
+    <div class="parse-error">
+      <mat-icon>error_outline</mat-icon>
+      {{ parseError() }}
+    </div>
+  }
+
+  <!-- Preview table -->
+  @if (rows().length > 0) {
+    <p class="preview-label">Preview — {{ rows().length }} rows</p>
+
+    <div class="table-scroll">
+      <table mat-table [dataSource]="rows()">
+        <ng-container matColumnDef="symbol">
+          <th mat-header-cell *matHeaderCellDef>Symbol</th>
+          <td mat-cell *matCellDef="let row">
+            <code class="sym">{{ row.symbol }}</code>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="companyName">
+          <th mat-header-cell *matHeaderCellDef>Company</th>
+          <td mat-cell *matCellDef="let row">{{ row.companyName }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="shares">
+          <th mat-header-cell *matHeaderCellDef>Shares</th>
+          <td mat-cell *matCellDef="let row">{{ row.shares }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="avgCost">
+          <th mat-header-cell *matHeaderCellDef>Avg Cost</th>
+          <td mat-cell *matCellDef="let row">${{ row.avgCost }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">
+            @switch (row.status) {
+              @case ('pending') {
+                <span class="status pending">—</span>
+              }
+              @case ('importing') {
+                <span class="status importing">Importing…</span>
+              }
+              @case ('done') {
+                <span class="status done">✓ Done</span>
+              }
+              @case ('error') {
+                <span class="status error" [matTooltip]="row.error ?? ''">✗ Error</span>
+              }
+            }
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns" [ngClass]="row.status"></tr>
+      </table>
+    </div>
+
+    @if (importing()) {
+      <mat-progress-bar
+        mode="determinate"
+        [value]="progress()"
+        class="import-progress"
+      ></mat-progress-bar>
+      <p class="progress-label">{{ progress() }}% complete</p>
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close [disabled]="importing()">Cancel</button>
+  <button
+    mat-flat-button
+    color="primary"
+    [disabled]="rows().length === 0 || importing()"
+    (click)="importAll()"
+  >
+    <mat-icon>cloud_upload</mat-icon>
+    Import {{ rows().length > 0 ? rows().length + ' Stocks' : '' }}
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,114 @@
+<div class="sector-exposition">
+  <!-- ── Toolbar ── -->
+  <div class="expo-toolbar">
+    <span class="expo-hint">Click a sector to drill down by industry and position</span>
+    <button
+      mat-stroked-button
+      class="refresh-btn"
+      [disabled]="refreshing()"
+      (click)="refreshSectors()"
+      matTooltip="Fetch sector & industry from Yahoo Finance for all positions"
+    >
+      @if (refreshing()) {
+        <mat-progress-spinner diameter="16" mode="indeterminate" />
+        Refreshing…
+      } @else {
+        <mat-icon>sync</mat-icon>
+        Refresh Sectors
+      }
+    </button>
+  </div>
+
+  @if (sectors().length === 0) {
+    <p class="empty-msg">No sector data available yet. Add stocks or click Refresh Sectors.</p>
+  } @else {
+    <div class="sector-list">
+      @for (row of sectors(); track row.sector) {
+        <div class="sector-row">
+          <!-- ── Sector header ── -->
+          <div class="sector-header" (click)="toggleSector(row.sector)">
+            <div class="sector-left">
+              <mat-icon class="expand-icon">
+                {{ expandedSector() === row.sector ? 'expand_less' : 'expand_more' }}
+              </mat-icon>
+              <span class="sector-name">{{ row.sector }}</span>
+              <span class="position-count">
+                {{ row.industries.length }} industr{{ row.industries.length !== 1 ? 'ies' : 'y' }}
+              </span>
+            </div>
+            <div class="sector-right">
+              <div class="bar-track">
+                <div class="bar-fill" [style.width.%]="row.pct"></div>
+              </div>
+              <span class="pct">{{ row.pct | number: '1.1-1' }}%</span>
+              <span class="mv">${{ row.marketValue / 1000 | number: '1.0-0' }}k</span>
+            </div>
+          </div>
+
+          <!-- ── Industry drill-down ── -->
+          @if (expandedSector() === row.sector) {
+            <div class="industry-list">
+              @for (ind of row.industries; track ind.industry) {
+                <div class="industry-row">
+                  <!-- Industry sub-header -->
+                  <div
+                    class="industry-header"
+                    (click)="toggleIndustry(industryKey(row.sector, ind.industry))"
+                  >
+                    <div class="industry-left">
+                      <mat-icon class="expand-icon-sm">
+                        {{
+                          expandedIndustry() === industryKey(row.sector, ind.industry)
+                            ? 'expand_less'
+                            : 'expand_more'
+                        }}
+                      </mat-icon>
+                      <span class="industry-name">{{ ind.industry }}</span>
+                      <span class="position-count">
+                        {{ ind.positions.length }} position{{
+                          ind.positions.length !== 1 ? 's' : ''
+                        }}
+                      </span>
+                    </div>
+                    <div class="sector-right">
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill industry-bar"
+                          [style.width.%]="(ind.pct / row.pct) * 100"
+                        ></div>
+                      </div>
+                      <span class="pct pct-sm">{{ ind.pct | number: '1.1-1' }}%</span>
+                      <span class="mv">${{ ind.marketValue / 1000 | number: '1.1-1' }}k</span>
+                    </div>
+                  </div>
+
+                  <!-- Position rows inside industry -->
+                  @if (expandedIndustry() === industryKey(row.sector, ind.industry)) {
+                    <div class="ticker-list">
+                      @for (pos of ind.positions; track pos.symbol) {
+                        <div class="ticker-row">
+                          <span class="ticker-symbol">{{ pos.symbol }}</span>
+                          <span class="ticker-name">{{ pos.companyName }}</span>
+                          <div class="ticker-bar-track">
+                            <div
+                              class="ticker-bar-fill"
+                              [style.width.%]="(pos.pct / ind.pct) * 100"
+                            ></div>
+                          </div>
+                          <span class="ticker-pct">{{ pos.pct | number: '1.1-1' }}%</span>
+                          <span class="ticker-mv"
+                            >${{ pos.marketValue / 1000 | number: '1.1-1' }}k</span
+                          >
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

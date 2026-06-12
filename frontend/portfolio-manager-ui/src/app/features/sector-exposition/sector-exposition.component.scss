@@ -1,0 +1,266 @@
+.sector-exposition {
+  padding: 4px 0;
+}
+
+.empty-msg {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  padding: 16px 0;
+}
+
+.sector-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sector-row {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--border-subtle);
+  }
+}
+
+.sector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  .sector-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+
+    .expand-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .sector-name {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .position-count {
+      font-size: 0.7rem;
+      color: var(--text-faint);
+      white-space: nowrap;
+    }
+  }
+
+  .sector-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+
+    .bar-track {
+      width: 100px;
+      height: 6px;
+      background: var(--border-subtle);
+      border-radius: 3px;
+      overflow: hidden;
+
+      .bar-fill {
+        height: 100%;
+        background: #1565c0;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+      }
+    }
+
+    .pct {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #64b5f6;
+      font-family: 'Roboto Mono', monospace;
+      min-width: 42px;
+      text-align: right;
+    }
+
+    .mv {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'Roboto Mono', monospace;
+      min-width: 50px;
+      text-align: right;
+    }
+  }
+}
+
+.expo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+
+  .expo-hint {
+    font-size: 0.75rem;
+    color: var(--text-faint);
+  }
+
+  .refresh-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+
+    mat-progress-spinner {
+      flex-shrink: 0;
+    }
+  }
+}
+
+.industry-list {
+  border-top: 1px solid var(--border-color);
+}
+
+.industry-row {
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.industry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px 8px 36px;
+  background: var(--bg-elevated);
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  .industry-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .expand-icon-sm {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .industry-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pct-sm {
+    min-width: 38px;
+    font-size: 0.78rem !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .industry-bar {
+    background: #7e57c2 !important;
+  }
+}
+
+.ticker-list {
+  padding: 6px 14px 10px 56px;
+  background: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ticker-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  .ticker-symbol {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    min-width: 70px;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .ticker-name {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    min-width: 130px;
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+  }
+
+  .ticker-bar-track {
+    width: 80px;
+    height: 4px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+
+    .ticker-bar-fill {
+      height: 100%;
+      background: #1565c080;
+      border-radius: 2px;
+    }
+  }
+
+  .ticker-pct {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    min-width: 36px;
+    text-align: right;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .ticker-mv {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    min-width: 44px;
+    text-align: right;
+    font-family: 'Roboto Mono', monospace;
+  }
+}

@@ -1,0 +1,27 @@
+<div class="summary-bar">
+  <div class="summary-tile">
+    <span class="label">Portfolio Value</span>
+    <span class="value primary">{{ state.totalValue() | currency }}</span>
+  </div>
+  <div class="summary-tile">
+    <span class="label">Total Cost</span>
+    <span class="value">{{ state.totalCost() | currency }}</span>
+  </div>
+  <div class="summary-tile">
+    <span class="label">Total Gain / Loss</span>
+    <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+      <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
+      {{ state.totalGainLoss() | currency }}
+    </span>
+  </div>
+  <div class="summary-tile">
+    <span class="label">Return</span>
+    <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+      {{ state.totalGainLossPct() | number: '1.2-2' }}%
+    </span>
+  </div>
+  <div class="summary-tile">
+    <span class="label">Positions</span>
+    <span class="value">{{ state.summaries().length }}</span>
+  </div>
+</div>

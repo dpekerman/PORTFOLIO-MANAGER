@@ -1,0 +1,233 @@
+﻿.stock-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  border-radius: 10px !important;
+  border-top: 3px solid var(--border-subtle);
+  background: var(--bg-surface) !important;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--shadow-card);
+  }
+
+  &.positive {
+    border-top-color: #00c853;
+  }
+  &.negative {
+    border-top-color: #ff5252;
+  }
+  &.selected {
+    outline: 2px solid #64b5f6;
+    outline-offset: -1px;
+  }
+
+  mat-card-header {
+    position: relative;
+
+    .company-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+      color: var(--text-muted) !important;
+    }
+
+    mat-card-title {
+      color: var(--text-primary) !important;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      opacity: 0.4;
+      transition:
+        opacity 0.2s,
+        color 0.2s;
+      color: #616161;
+    }
+  }
+
+  &:hover .remove-btn {
+    opacity: 1;
+    color: #ff5252;
+  }
+}
+
+.symbol-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: white;
+  background: var(--bg-border);
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+
+  .avatar-label {
+    transition: opacity 0.15s;
+  }
+
+  .avatar-check {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #fff;
+    }
+  }
+
+  // Show checkmark on card hover or when selected
+  &:hover .avatar-check,
+  &.is-selected .avatar-check {
+    opacity: 1;
+  }
+
+  // Dim the label text when checkmark is visible
+  &:hover .avatar-label,
+  &.is-selected .avatar-label {
+    opacity: 0;
+  }
+
+  &.positive {
+    background: #1b5e20;
+  }
+  &.negative {
+    background: #b71c1c;
+  }
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  .current-price {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .change {
+    display: flex;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+    &.positive {
+      color: #00c853;
+    }
+    &.negative {
+      color: #ff5252;
+    }
+  }
+
+  .no-quote-chip {
+    font-size: 0.7rem;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+
+    mat-icon {
+      font-size: 0.85rem;
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+  }
+
+  .manual-chip {
+    font-size: 0.7rem;
+    background: rgba(100, 120, 255, 0.15);
+    color: #8899ff;
+    display: inline-flex;
+    align-items: center;
+
+    mat-icon {
+      font-size: 0.85rem;
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+  }
+
+  .market-closed-badge {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-left: 4px;
+    cursor: default;
+
+    mat-icon {
+      font-size: 0.9rem;
+      width: 0.9rem;
+      height: 0.9rem;
+    }
+  }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+
+    .label {
+      font-size: 0.68rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: 'Roboto Mono', monospace;
+      &.positive {
+        color: #00c853;
+      }
+      &.negative {
+        color: #ff5252;
+      }
+    }
+  }
+}
+
+.range-row {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+
+  .range-label {
+    font-weight: 600;
+  }
+}

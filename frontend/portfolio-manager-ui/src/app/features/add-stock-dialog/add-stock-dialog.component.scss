@@ -1,0 +1,39 @@
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  width: 100%;
+
+  .full-width {
+    width: 100%;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+.autocomplete-symbol {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.autocomplete-desc {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+mat-dialog-actions {
+  padding: 8px 0 0;
+  gap: 8px;
+}

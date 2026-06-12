@@ -1,0 +1,403 @@
+// ── App Toolbar ─────────────────────────────────────────────────────────────
+.app-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 12px var(--shadow-card);
+
+  .toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    .toolbar-logo {
+      color: #1565c0;
+      font-size: 22px;
+    }
+
+    .toolbar-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: 0.3px;
+    }
+
+    .toolbar-pipe {
+      color: var(--border-subtle);
+      font-size: 1.2rem;
+    }
+
+    .toolbar-subtitle {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+  }
+
+  .toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .no-key-notice {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(255, 167, 38, 0.08);
+    border: 1px solid rgba(255, 167, 38, 0.2);
+    color: #ffa726;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .scan-notice {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(100, 181, 246, 0.08);
+    border: 1px solid rgba(100, 181, 246, 0.2);
+    color: #64b5f6;
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 16px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  .add-btn {
+    border-color: #1565c0;
+    color: #64b5f6;
+    font-size: 0.82rem;
+  }
+
+  button[mat-icon-button] {
+    color: var(--text-secondary);
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+
+  .spinning {
+    animation: spin 1s linear infinite;
+  }
+}
+
+// Shared spin animation (used both in toolbar and section refresh buttons)
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── Global loader ────────────────────────────────────────────────────────────
+.global-loader {
+  position: sticky;
+  top: 56px;
+  z-index: 99;
+}
+
+// ── Page body ────────────────────────────────────────────────────────────────
+.page-body {
+  background: var(--bg-page);
+  min-height: calc(100vh - 56px);
+  padding: 0 0 48px;
+}
+
+// ── Section layout ───────────────────────────────────────────────────────────
+.scanner-section,
+.portfolio-section {
+  padding: 20px 24px;
+}
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-color) 20%,
+    var(--border-color) 80%,
+    transparent
+  );
+  margin: 0 24px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+
+  &.oversold-icon {
+    color: #00c853;
+  }
+  &.overbought-icon {
+    color: #ff5252;
+  }
+  &.portfolio-icon {
+    color: #1565c0;
+  }
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-sub {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.scan-time {
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  font-family: 'Roboto Mono', monospace;
+}
+
+// Count badges
+.count-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: 'Roboto Mono', monospace;
+
+  &.oversold-badge {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.2);
+  }
+
+  &.overbought-badge {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.2);
+  }
+
+  &.portfolio-badge {
+    background: rgba(21, 101, 192, 0.12);
+    color: #64b5f6;
+    border: 1px solid rgba(21, 101, 192, 0.2);
+  }
+}
+
+// Table wrapper
+.table-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+// Add stock inline button
+.add-btn-inline {
+  border-color: #1565c0;
+  color: #64b5f6;
+  font-size: 0.8rem;
+}
+
+// Section header right-side action group
+.section-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// Small refresh button inside section headers
+.section-refresh-btn {
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover:not([disabled]) {
+    color: var(--text-primary);
+  }
+}
+
+// Portfolio stock grid (keep light cards on dark bg)
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+// Bulk-action toolbar
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+
+  .bulk-count {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64b5f6;
+    margin-right: 4px;
+  }
+
+  &.hint {
+    color: var(--text-faint);
+    font-size: 0.75rem;
+    gap: 6px;
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+}
+
+// Empty portfolio
+.empty-portfolio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--text-faint);
+  gap: 12px;
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+    color: var(--border-subtle);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
+  button {
+    color: #64b5f6;
+    border-color: #1565c0;
+  }
+}
+
+// ── Mobile responsive ─────────────────────────────────────────────────────────
+@media (max-width: 768px) {
+  .app-toolbar {
+    padding: 0 12px;
+    height: 52px;
+
+    .toolbar-pipe,
+    .toolbar-subtitle {
+      display: none;
+    }
+
+    .no-key-notice span {
+      display: none;
+    }
+  }
+
+  .global-loader {
+    top: 52px;
+  }
+
+  .scanner-section,
+  .portfolio-section {
+    padding: 14px 12px;
+  }
+
+  .section-divider {
+    margin: 0 12px;
+  }
+
+  .table-wrapper {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    margin: 0 -12px;
+  }
+
+  .stock-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-toolbar {
+    height: 48px;
+  }
+  .global-loader {
+    top: 48px;
+  }
+
+  .section-title {
+    font-size: 0.72rem;
+  }
+  .section-sub {
+    font-size: 0.65rem;
+  }
+}
+
+// ── Viewport meta & scroll ────────────────────────────────────────────────────
+// Ensure tables scroll horizontally on mobile without breaking layout
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
