@@ -60,9 +60,14 @@
       </div>
     </div>
 
-    @defer (when !portfolio.loading()) {
-
-      @if (portfolio.summaries().length > 0) {
+    @if (portfolio.loading()) {
+      <!-- ── Skeleton Grid (loading / refresh) ────────────────────────────── -->
+      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
+        @for (i of skeletonItems; track i) {
+          <app-stock-card-skeleton />
+        }
+      </div>
+    } @else if (portfolio.summaries().length > 0) {
         <!-- ── Summary Bar ────────────────────────────────────────────── -->
         <app-portfolio-summary-bar />
 
@@ -92,30 +97,15 @@
           }
         </div>
 
-      } @else {
-        <!-- ── Empty State ────────────────────────────────────────────── -->
-        <div class="empty-state">
-          <mat-icon class="empty-icon">add_chart</mat-icon>
-          <h3 class="empty-title">No positions yet</h3>
-          <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
-          <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
-            <mat-icon>add</mat-icon> Add your first stock
-          </button>
-        </div>
-      }
-
-    } @placeholder (minimum 300ms) {
-      <!-- ── Skeleton Grid (initial load) ──────────────────────────────── -->
-      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
-        @for (i of skeletonItems; track i) {
-          <app-stock-card-skeleton />
-        }
-      </div>
-    } @loading (minimum 400ms) {
-      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
-        @for (i of skeletonItems; track i) {
-          <app-stock-card-skeleton />
-        }
+    } @else {
+      <!-- ── Empty State ────────────────────────────────────────────── -->
+      <div class="empty-state">
+        <mat-icon class="empty-icon">add_chart</mat-icon>
+        <h3 class="empty-title">No positions yet</h3>
+        <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
+        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+          <mat-icon>add</mat-icon> Add your first stock
+        </button>
       </div>
     }
   </section>
