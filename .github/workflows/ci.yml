@@ -126,18 +126,52 @@ jobs:
     name: Notify on Success
     runs-on: ubuntu-latest
     needs: [backend, frontend]
-    if: success() && github.event_name == 'push'
+    # Fire on every successful push AND every successful pull_request
+    if: success()
 
     steps:
-      - name: Send success notification
+      - name: Post workflow annotation
         uses: actions/github-script@v7
         with:
           script: |
+            const event  = context.eventName;
             const branch = context.ref.replace('refs/heads/', '');
             const sha    = context.sha.slice(0, 7);
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            core.notice(`✅ CI passed on ${branch} (${sha}) — ${runUrl}`);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            core.notice(`✅ CI passed — ${event} on ${branch} (${sha}) — ${runUrl}`);
 
-# NOTE: Set this secret in GitHub → Settings → Secrets → Actions:
+      # ── Email notification (requires MAIL_SERVER secret to be set) ──────────
+      # Add these secrets in GitHub → Settings → Secrets → Actions:
+      #   MAIL_SERVER   — SMTP host, e.g. smtp.gmail.com
+      #   MAIL_PORT     — SMTP port, e.g. 587
+      #   MAIL_USERNAME — Sender address / login
+      #   MAIL_PASSWORD — SMTP password or Gmail App Password
+      #   MAIL_TO       — Recipient address(es), comma-separated
+      - name: Send success email
+        if: ${{ env.MAIL_SERVER != '' }}
+        env:
+          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.MAIL_SERVER }}
+          server_port: ${{ secrets.MAIL_PORT || 587 }}
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          to: ${{ secrets.MAIL_TO }}
+          from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
+          subject: "✅ CI Passed – ${{ github.repository }} (${{ github.ref_name }})"
+          body: |
+            ✅ CI Build Passed
+
+            Repository : ${{ github.repository }}
+            Branch     : ${{ github.ref_name }}
+            Event      : ${{ github.event_name }}
+            Commit     : ${{ github.sha }}
+            Triggered  : ${{ github.actor }}
+
+            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ignore_cert: true
+
+# NOTE: Set these secrets in GitHub → Settings → Secrets → Actions:
+#   MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_TO
 #   SQL_CONNECTION_STRING  → Server=...;Database=PortfolioManagerDb;...
-#   (No API key needed – market data is sourced from Yahoo Finance)

@@ -29,31 +29,39 @@
     </div>
   </div>
 
-  @if (watchlist.items().length > 0) {
-    <!-- ── Watchlist Grid ──────────────────────────────────────────────────── -->
-    <div class="watchlist-grid" role="list" aria-label="Watchlist symbols">
-      @for (w of watchlist.items(); track w.item.id) {
-        <app-watchlist-card [summary]="w" />
-      }
-    </div>
-  } @else if (watchlist.loading()) {
-    <!-- ── Skeleton Grid (initial load) ────────────────────────────────── -->
+  @defer (when !watchlist.loading()) {
+    @if (watchlist.items().length > 0) {
+      <!-- ── Watchlist Grid ────────────────────────────────────────────── -->
+      <div class="watchlist-grid" role="list" aria-label="Watchlist symbols">
+        @for (w of watchlist.items(); track w.item.id) {
+          <app-watchlist-card [summary]="w" />
+        }
+      </div>
+    } @else {
+      <!-- ── Empty State ──────────────────────────────────────────────── -->
+      <div class="empty-state">
+        <mat-icon class="empty-icon">visibility_off</mat-icon>
+        <h3 class="empty-title">No symbols in watchlist</h3>
+        <p class="empty-sub">
+          Add symbols you want to track without holding a position in your portfolio.
+        </p>
+        <button mat-flat-button class="add-btn" (click)="openAddDialog()">
+          <mat-icon>add</mat-icon> Add your first symbol
+        </button>
+      </div>
+    }
+  } @placeholder (minimum 300ms) {
+    <!-- ── Skeleton Grid (initial load) ──────────────────────────────── -->
     <div class="watchlist-grid skeleton-grid" aria-busy="true" aria-label="Loading watchlist…">
       @for (i of [0, 1, 2, 3, 4]; track i) {
         <app-watchlist-card-skeleton />
       }
     </div>
-  } @else {
-    <!-- ── Empty State ────────────────────────────────────────────────────── -->
-    <div class="empty-state">
-      <mat-icon class="empty-icon">visibility_off</mat-icon>
-      <h3 class="empty-title">No symbols in watchlist</h3>
-      <p class="empty-sub">
-        Add symbols you want to track without holding a position in your portfolio.
-      </p>
-      <button mat-flat-button class="add-btn" (click)="openAddDialog()">
-        <mat-icon>add</mat-icon> Add your first symbol
-      </button>
+  } @loading (minimum 400ms) {
+    <div class="watchlist-grid skeleton-grid" aria-busy="true">
+      @for (i of [0, 1, 2, 3, 4]; track i) {
+        <app-watchlist-card-skeleton />
+      }
     </div>
   }
 </div>
