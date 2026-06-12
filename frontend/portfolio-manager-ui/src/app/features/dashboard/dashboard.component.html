@@ -21,6 +21,13 @@
     }
     <button
       mat-icon-button
+      [matTooltip]="theme.isDark() ? 'Switch to light theme' : 'Switch to dark theme'"
+      (click)="theme.toggle()"
+    >
+      <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+    </button>
+    <button
+      mat-icon-button
       matTooltip="Force refresh (bypasses 4-min cache)"
       (click)="refreshAll()"
       [disabled]="portfolio.loading() || scanner.loading()"
@@ -63,6 +70,15 @@
       @if (scanner.scannedAt()) {
         <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
       }
+      <button
+        mat-icon-button
+        matTooltip="Refresh scanner (force new scan)"
+        (click)="refreshScanner()"
+        [disabled]="scanner.loading()"
+        class="section-refresh-btn"
+      >
+        <mat-icon [ngClass]="{ spinning: scanner.loading() }">refresh</mat-icon>
+      </button>
     </div>
     <div class="table-wrapper">
       <app-rsi-scanner-table
@@ -119,13 +135,60 @@
           <p class="section-sub">Tracked positions · Live prices active with API key</p>
         </div>
       </div>
-      <button mat-stroked-button class="add-btn-inline" (click)="openAddStockDialog()">
-        <mat-icon>add</mat-icon> Add Stock
-      </button>
+      <div class="section-header-actions">
+        <button
+          mat-icon-button
+          matTooltip="Refresh live prices"
+          (click)="refreshPortfolio()"
+          [disabled]="portfolio.loading()"
+          class="section-refresh-btn"
+        >
+          <mat-icon [ngClass]="{ spinning: portfolio.loading() }">refresh</mat-icon>
+        </button>
+        <button
+          mat-stroked-button
+          class="add-btn-inline"
+          (click)="openImportDialog()"
+          matTooltip="Import positions from Excel/CSV"
+        >
+          <mat-icon>upload_file</mat-icon> Import
+        </button>
+        <button
+          mat-stroked-button
+          class="add-btn-inline"
+          (click)="openAddManualDialog()"
+          matTooltip="Add cash, options, or other manual position"
+        >
+          <mat-icon>edit_note</mat-icon> Add Manual
+        </button>
+        <button mat-stroked-button class="add-btn-inline" (click)="openAddStockDialog()">
+          <mat-icon>add</mat-icon> Add Stock
+        </button>
+      </div>
     </div>
 
     @if (portfolio.summaries().length > 0) {
       <app-portfolio-summary-bar />
+
+      <!-- ── Bulk-action toolbar ── -->
+      @if (portfolio.hasSelection()) {
+        <div class="bulk-toolbar">
+          <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+          <button mat-stroked-button (click)="portfolio.clearSelection()">
+            <mat-icon>deselect</mat-icon> Clear
+          </button>
+          <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+            <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
+          </button>
+        </div>
+      } @else {
+        <div class="bulk-toolbar hint">
+          <mat-icon>check_box_outline_blank</mat-icon>
+          <span>Check boxes on cards to select multiple positions for bulk removal</span>
+          <button mat-button (click)="portfolio.selectAll()">Select All</button>
+        </div>
+      }
+
       <div class="stock-grid">
         @for (summary of portfolio.summaries(); track summary.item.id) {
           <app-stock-card [summary]="summary" />
@@ -138,6 +201,83 @@
         <button mat-raised-button (click)="openAddStockDialog()">
           <mat-icon>add</mat-icon> Add your first stock
         </button>
+      </div>
+    }
+  </section>
+
+  <!-- ── Sector Exposition Section ─────────────────────────────────────── -->
+  @if (portfolio.summaries().length > 0) {
+    <div class="section-divider"></div>
+    <section class="scanner-section">
+      <div class="section-header">
+        <div class="section-title-group">
+          <mat-icon class="section-icon" style="color: #7e57c2">donut_large</mat-icon>
+          <div>
+            <h2 class="section-title">PORTFOLIO ALLOCATION</h2>
+            <p class="section-sub">Breakdown by sector &amp; industry · Click to drill down</p>
+          </div>
+        </div>
+      </div>
+      <app-sector-exposition />
+    </section>
+  }
+
+  <!-- ── Watch List Section ────────────────────────────────────────────── -->
+  <div class="section-divider"></div>
+  <section class="scanner-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon" style="color: #ffa000">visibility</mat-icon>
+        <div>
+          <h2 class="section-title">
+            MY WATCH LIST
+            <span
+              class="count-badge"
+              style="
+                background: rgba(255, 160, 0, 0.12);
+                color: #ffa000;
+                border: 1px solid rgba(255, 160, 0, 0.2);
+              "
+            >
+              {{ watchlist.count() }}
+            </span>
+          </h2>
+          <p class="section-sub">Tracked symbols · Live prices · Auto-refreshes every 60s</p>
+        </div>
+      </div>
+      <div class="section-header-actions">
+        <button
+          mat-icon-button
+          matTooltip="Refresh watchlist"
+          (click)="watchlist.refresh()"
+          [disabled]="watchlist.loading()"
+          class="section-refresh-btn"
+        >
+          <mat-icon [ngClass]="{ spinning: watchlist.loading() }">refresh</mat-icon>
+        </button>
+        <button
+          mat-stroked-button
+          class="add-btn-inline"
+          (click)="addToWatchlist()"
+          style="border-color: #ffa000; color: #ffa000"
+        >
+          <mat-icon>add</mat-icon> Add Symbol
+        </button>
+      </div>
+    </div>
+
+    @if (watchlist.items().length > 0) {
+      <div class="stock-grid">
+        @for (w of watchlist.items(); track w.item.id) {
+          <app-watchlist-card [summary]="w" />
+        }
+      </div>
+    } @else if (!watchlist.loading()) {
+      <div class="empty-portfolio">
+        <mat-icon>visibility_off</mat-icon>
+        <p>
+          No symbols in your watchlist. Click <strong>Add Symbol</strong> to start watching stocks.
+        </p>
       </div>
     }
   </section>

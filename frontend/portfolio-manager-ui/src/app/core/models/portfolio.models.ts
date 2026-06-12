@@ -1,9 +1,13 @@
-export interface PortfolioItem {
+﻿export interface PortfolioItem {
   id: number;
   symbol: string;
   companyName: string;
   shares: number;
   averageCostBasis: number;
+  sector: string;
+  industry: string;
+  isManual: boolean;
+  manualMarketValue: number | null;
   addedAt: string;
 }
 
@@ -17,11 +21,27 @@ export interface StockQuote {
   lowPrice: number;
   openPrice: number;
   previousClose: number;
+  sector: string;
+  industry: string;
+  /** Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST */
+  marketState: string;
   timestamp: number;
 }
 
 export interface PortfolioSummary {
   item: PortfolioItem;
+  quote: StockQuote | null;
+}
+
+export interface WatchlistItem {
+  id: number;
+  symbol: string;
+  notes: string;
+  addedAt: string;
+}
+
+export interface WatchlistSummary {
+  item: WatchlistItem;
   quote: StockQuote | null;
 }
 
@@ -38,14 +58,21 @@ export interface UpdatePortfolioItemRequest {
   averageCostBasis: number;
 }
 
-export interface FinnhubSearchResult {
+export interface AddManualPositionRequest {
+  name: string;
+  description: string;
+  averageCost: number;
+  marketValue: number;
+}
+
+export interface SymbolSearchResult {
   description: string;
   displaySymbol: string;
   symbol: string;
   type: string;
 }
 
-// ── RSI Scanner ────────────────────────────────────────────────────────────────
+// â”€â”€ RSI Scanner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export type ScanType = 'Oversold' | 'Overbought';
 export type SignalStatus = 'Confirmed' | 'EarlyWarning';
 export type ReversalProbability = 'Low' | 'Medium' | 'High';
@@ -68,7 +95,7 @@ export interface RsiScanResult {
   volumeRatio: number;
   scannedAt: string;
   isDemo: boolean;
-  // ── 5 Technical Indicators ────────────────────────────────────────────────
+  // â”€â”€ 5 Technical Indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   stochasticK: number;
   stochasticsConfirm: boolean;
   macdValue: number;
@@ -91,22 +118,9 @@ export interface ScannerResponse {
   market: string;
 }
 
-export interface AddPortfolioItemRequest {
-  symbol: string;
-  companyName: string;
-  shares: number;
-  averageCostBasis: number;
-}
-
-export interface UpdatePortfolioItemRequest {
-  companyName: string;
-  shares: number;
-  averageCostBasis: number;
-}
-
-export interface FinnhubSearchResult {
+export interface AddManualPositionRequest {
+  name: string;
   description: string;
-  displaySymbol: string;
-  symbol: string;
-  type: string;
+  averageCost: number;
+  marketValue: number;
 }

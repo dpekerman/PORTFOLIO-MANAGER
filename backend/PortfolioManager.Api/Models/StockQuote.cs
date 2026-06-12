@@ -1,7 +1,7 @@
 namespace PortfolioManager.Api.Models;
 
 /// <summary>
-/// Live quote returned from Finnhub and enriched with portfolio data.
+/// Live quote returned from Yahoo Finance, enriched with portfolio data.
 /// </summary>
 public class StockQuote
 {
@@ -14,5 +14,9 @@ public class StockQuote
     public decimal LowPrice { get; set; }
     public decimal OpenPrice { get; set; }
     public decimal PreviousClose { get; set; }
+    public string Sector { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    /// <summary>Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST.</summary>
+    public string MarketState { get; set; } = string.Empty;
     public long Timestamp { get; set; }
 }

@@ -10,7 +10,7 @@ h2[mat-dialog-title] {
   flex-direction: column;
   gap: 4px;
   padding-top: 8px;
-  width: 100%;
+  min-width: 400px;
 
   .full-width {
     width: 100%;
@@ -21,16 +21,6 @@ h2[mat-dialog-title] {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
-}
-
-.autocomplete-symbol {
-  font-weight: 600;
-  margin-right: 8px;
-}
-
-.autocomplete-desc {
-  color: #888;
-  font-size: 0.85rem;
 }
 
 mat-dialog-actions {

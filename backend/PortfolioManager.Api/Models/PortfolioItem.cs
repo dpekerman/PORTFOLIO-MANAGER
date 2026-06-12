@@ -7,5 +7,9 @@ public class PortfolioItem
     public string CompanyName { get; set; } = string.Empty;
     public decimal Shares { get; set; }
     public decimal AverageCostBasis { get; set; }
+    public string Sector { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public bool IsManual { get; set; } = false;
+    public decimal? ManualMarketValue { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 }

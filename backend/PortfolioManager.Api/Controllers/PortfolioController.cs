@@ -29,6 +29,17 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
+    /// <summary>
+    /// Adds a manual (non-ticker) position such as Cash, Options, Bonds, etc.
+    /// No Yahoo Finance call is made. Name → Sector, Description → Industry.
+    /// </summary>
+    [HttpPost("manual")]
+    public async Task<ActionResult<PortfolioItemDto>> AddManual([FromBody] AddManualPositionRequest request, CancellationToken ct)
+    {
+        var item = await portfolioService.AddManualAsync(request, ct);
+        return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+    }
+
     [HttpPut("{id:int}")]
     public async Task<ActionResult<PortfolioItemDto>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
     {
@@ -41,5 +52,16 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     {
         var deleted = await portfolioService.DeleteAsync(id, ct);
         return deleted ? NoContent() : NotFound();
+    }
+
+    /// <summary>
+    /// Fetches sector/industry from Yahoo Finance quoteSummary for every portfolio item and
+    /// persists the results. Returns the number of items that were successfully classified.
+    /// </summary>
+    [HttpPost("refresh-sectors")]
+    public async Task<ActionResult<object>> RefreshSectors(CancellationToken ct)
+    {
+        var updated = await portfolioService.RefreshSectorsAsync(ct);
+        return Ok(new { updated });
     }
 }

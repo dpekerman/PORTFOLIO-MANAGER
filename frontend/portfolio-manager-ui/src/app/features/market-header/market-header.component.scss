@@ -3,8 +3,8 @@
   align-items: center;
   gap: 24px;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #0d0d0d 0%, #161616 100%);
-  border-bottom: 1px solid #222;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap;
 }
 
@@ -29,13 +29,13 @@
     .brand-title {
       font-size: 0.95rem;
       font-weight: 700;
-      color: #e0e0e0;
+      color: var(--text-primary);
       letter-spacing: 0.3px;
     }
 
     .brand-sub {
       font-size: 0.65rem;
-      color: #616161;
+      color: var(--text-muted);
       letter-spacing: 1px;
       text-transform: uppercase;
     }

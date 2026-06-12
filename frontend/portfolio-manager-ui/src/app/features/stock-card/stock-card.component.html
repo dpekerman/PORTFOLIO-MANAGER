@@ -1,14 +1,32 @@
-<mat-card class="stock-card" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+<mat-card
+  class="stock-card"
+  [ngClass]="{ positive: isPositive(), negative: !isPositive(), selected: isSelected() }"
+>
   <mat-card-header>
+    <!--
+      Avatar doubles as selection toggle: click it to select/deselect.
+      On hover or when selected a checkmark scrim fades in over the avatar.
+    -->
     <div
       mat-card-avatar
       class="symbol-avatar"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+      [ngClass]="{ positive: isPositive(), negative: !isPositive(), 'is-selected': isSelected() }"
+      (click)="toggleSelect()"
+      matTooltip="Click to select"
     >
-      {{ summary().item.symbol.substring(0, 2) }}
+      <!-- Normal initials — hidden when selected/hovered via CSS -->
+      <span class="avatar-label">{{ summary().item.symbol.substring(0, 2) }}</span>
+      <!-- Checkmark scrim -->
+      <span class="avatar-check"><mat-icon>check</mat-icon></span>
     </div>
-    <mat-card-title>{{ summary().item.symbol }}</mat-card-title>
-    <mat-card-subtitle class="company-name">{{ summary().item.companyName }}</mat-card-subtitle>
+    <mat-card-title>{{
+      summary().item.isManual ? summary().item.companyName : summary().item.symbol
+    }}</mat-card-title>
+    <mat-card-subtitle class="company-name">{{
+      summary().item.isManual
+        ? summary().item.industry || summary().item.sector
+        : summary().item.companyName
+    }}</mat-card-subtitle>
     <button
       mat-icon-button
       class="remove-btn"
@@ -23,31 +41,58 @@
     <div class="price-row">
       <span class="current-price">{{ currentPrice() | currency }}</span>
       @if (summary().quote) {
-        <span class="change" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
-          <mat-icon>{{ isPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        <span
+          class="change"
+          [ngClass]="{ positive: isDailyPositive(), negative: !isDailyPositive() }"
+        >
+          <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
           {{ summary().quote!.change | number: '1.2-2' }}
           ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
         </span>
+        @if (summary().quote!.marketState && summary().quote!.marketState !== 'REGULAR') {
+          <span
+            class="market-closed-badge"
+            matTooltip="Market is currently closed — showing last traded price"
+          >
+            <mat-icon>schedule</mat-icon>
+          </span>
+        }
       } @else {
-        <mat-chip class="no-quote-chip">No live data</mat-chip>
+        @if (summary().item.isManual) {
+          <mat-chip
+            class="manual-chip"
+            matTooltip="Manually entered position — no live market data"
+          >
+            <mat-icon>edit_note</mat-icon>&nbsp;Manual
+          </mat-chip>
+        } @else {
+          <mat-chip
+            class="no-quote-chip"
+            matTooltip="Live price unavailable — showing average cost basis"
+          >
+            <mat-icon>info_outline</mat-icon>&nbsp;Avg cost
+          </mat-chip>
+        }
       }
     </div>
 
     <div class="metrics-grid">
-      <div class="metric">
-        <span class="label">Shares</span>
-        <span class="value">{{ summary().item.shares | number: '1.0-4' }}</span>
-      </div>
-      <div class="metric">
-        <span class="label">Avg Cost</span>
-        <span class="value">{{ summary().item.averageCostBasis | currency }}</span>
-      </div>
+      @if (!summary().item.isManual) {
+        <div class="metric">
+          <span class="label">Shares</span>
+          <span class="value">{{ summary().item.shares | number: '1.0-4' }}</span>
+        </div>
+        <div class="metric">
+          <span class="label">Avg Cost</span>
+          <span class="value">{{ summary().item.averageCostBasis | currency }}</span>
+        </div>
+      }
       <div class="metric">
         <span class="label">Market Value</span>
         <span class="value">{{ marketValue() | currency }}</span>
       </div>
       <div class="metric">
-        <span class="label">Gain / Loss</span>
+        <span class="label">{{ summary().item.isManual ? 'P&amp;L' : 'Gain / Loss' }}</span>
         <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
           {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
         </span>

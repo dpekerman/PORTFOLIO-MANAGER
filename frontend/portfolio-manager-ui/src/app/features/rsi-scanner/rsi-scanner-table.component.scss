@@ -7,25 +7,25 @@
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: #9e9e9e;
-    border-bottom: 1px solid #2a2a2a;
-    background: #111;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
     padding: 10px 12px;
     white-space: nowrap;
   }
 
   td.mat-mdc-cell {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid rgba(128, 128, 128, 0.1);
     padding: 10px 12px;
     vertical-align: middle;
   }
 
   tr.mat-mdc-row {
-    background: #161616;
+    background: var(--bg-surface);
     transition: background 0.15s;
 
     &:hover {
-      background: #1e1e1e;
+      background: var(--bg-hover);
     }
 
     &.row-confirmed {
@@ -79,12 +79,12 @@
   .symbol-name {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #e0e0e0;
+    color: var(--text-primary);
   }
 
   .company-name {
     font-size: 0.72rem;
-    color: #616161;
+    color: var(--text-muted);
     max-width: 130px;
     white-space: nowrap;
     overflow: hidden;
@@ -111,7 +111,7 @@
 
   .rsi-bar-track {
     height: 3px;
-    background: #2a2a2a;
+    background: var(--border-subtle);
     border-radius: 2px;
     overflow: hidden;
 
@@ -140,7 +140,7 @@
 .price-value {
   font-size: 0.9rem;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-family: 'Roboto Mono', monospace;
 }
 
@@ -170,7 +170,7 @@
 .vol-ratio {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #757575;
+  color: var(--text-muted);
   font-family: 'Roboto Mono', monospace;
 
   &.elevated {

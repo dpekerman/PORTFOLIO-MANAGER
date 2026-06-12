@@ -1,0 +1,52 @@
+<div class="watchlist-card" [ngClass]="{ up: isUp(), down: !isUp(), nodata: !hasData() }">
+  <div class="card-header">
+    <div class="symbol-row">
+      <div class="symbol-badge" [ngClass]="{ up: isUp(), down: !isUp() }">
+        {{ summary().item.symbol.substring(0, 2) }}
+      </div>
+      <div class="symbol-info">
+        <span class="symbol">{{ summary().item.symbol }}</span>
+        @if (quote()) {
+          <span class="name">{{ quote()!.companyName }}</span>
+        }
+      </div>
+    </div>
+    <button
+      mat-icon-button
+      class="remove-btn"
+      matTooltip="Remove from watchlist"
+      (click)="remove()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  @if (quote()) {
+    <div class="price-row">
+      <span class="price">{{ quote()!.currentPrice | currency }}</span>
+      <span class="change" [ngClass]="{ up: isUp(), down: !isUp() }">
+        <mat-icon>{{ isUp() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        {{ quote()!.change | number: '1.2-2' }} ({{ quote()!.changePercent | number: '1.2-2' }}%)
+      </span>
+    </div>
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-label">High</span>
+        <span class="stat-value">{{ quote()!.highPrice | currency }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Low</span>
+        <span class="stat-value">{{ quote()!.lowPrice | currency }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Prev Close</span>
+        <span class="stat-value">{{ quote()!.previousClose | currency }}</span>
+      </div>
+      @if (quote()!.sector) {
+        <div class="stat sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
+      }
+    </div>
+  } @else {
+    <mat-chip class="no-data-chip">No live data</mat-chip>
+  }
+</div>

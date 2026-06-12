@@ -3,18 +3,6 @@ using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
-// Finnhub candle response
-public sealed class FinnhubCandleResponse
-{
-    public List<decimal> C { get; set; } = []; // Close
-    public List<decimal> H { get; set; } = []; // High
-    public List<decimal> L { get; set; } = []; // Low
-    public List<decimal> O { get; set; } = []; // Open
-    public List<long> V { get; set; } = [];    // Volume
-    public List<long> T { get; set; } = [];    // Timestamp
-    public string S { get; set; } = string.Empty; // Status
-}
-
 public interface IRsiScannerService
 {
     Task<ScannerResponse> ScanAsync(CancellationToken ct = default);
@@ -23,46 +11,75 @@ public interface IRsiScannerService
 public sealed class RsiScannerService : IRsiScannerService
 {
     private readonly HttpClient _http;
-    private readonly IConfiguration _config;
     private readonly ILogger<RsiScannerService> _logger;
 
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
-    // Liquid TSX large/mid caps to scan
+    // Liquid TSX large/mid-caps — Yahoo Finance supports .TO symbols on the free tier
     private static readonly string[] TsxWatchlist =
     [
-        "RY.TO", "TD.TO", "BNS.TO", "BMO.TO", "CM.TO",
-        "ENB.TO", "CNQ.TO", "SU.TO", "TRP.TO", "CVE.TO",
-        "BCE.TO", "T.TO", "SHOP.TO", "CP.TO", "CNR.TO",
+        "RY.TO",  "TD.TO",  "BNS.TO", "BMO.TO", "CM.TO",
+        "ENB.TO", "CNQ.TO", "SU.TO",  "TRP.TO", "CVE.TO",
+        "BCE.TO", "T.TO",   "SHOP.TO","CP.TO",  "CNR.TO",
         "BAM.TO", "MFC.TO", "SLF.TO", "GWO.TO", "POW.TO",
-        "ABX.TO", "WPM.TO", "AEM.TO", "K.TO", "FM.TO",
-        "ATD.TO", "MRU.TO", "L.TO", "WN.TO", "CCL.B.TO",
+        "ABX.TO", "WPM.TO", "AEM.TO", "K.TO",   "FM.TO",
+        "ATD.TO", "MRU.TO", "L.TO",   "WN.TO",  "CCL.B.TO",
         "TFI.TO", "GFL.TO", "WSP.TO", "STN.TO", "TFII.TO",
-        "ALA.TO", "KEY.TO", "NPI.TO", "BEP.UN.TO", "INE.TO",
-        "CAR.UN.TO", "DIR.UN.TO", "AP.UN.TO", "IIP.UN.TO", "HR.UN.TO",
-        "BRP.TO", "MDA.TO", "OTEX.TO", "CSU.TO", "DSG.TO"
+        "ALA.TO", "KEY.TO", "NPI.TO", "BEP-UN.TO", "INE.TO",
+        "CAR-UN.TO", "DIR-UN.TO", "AP-UN.TO", "IIP-UN.TO", "HR-UN.TO",
+        "BRP.TO", "MDA.TO", "OTEX.TO","CSU.TO",  "DSG.TO"
     ];
 
-    public RsiScannerService(HttpClient http, IConfiguration config, ILogger<RsiScannerService> logger)
+    private static readonly Dictionary<string, string> CompanyNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["RY.TO"]      = "Royal Bank of Canada",      ["TD.TO"]      = "TD Bank",
+        ["BNS.TO"]     = "Bank of Nova Scotia",        ["BMO.TO"]     = "Bank of Montreal",
+        ["CM.TO"]      = "CIBC",                       ["ENB.TO"]     = "Enbridge",
+        ["CNQ.TO"]     = "Canadian Natural Resources", ["SU.TO"]      = "Suncor Energy",
+        ["TRP.TO"]     = "TC Energy",                  ["CVE.TO"]     = "Cenovus Energy",
+        ["BCE.TO"]     = "BCE Inc.",                   ["T.TO"]       = "Telus",
+        ["SHOP.TO"]    = "Shopify",                    ["CP.TO"]      = "Canadian Pacific Kansas City",
+        ["CNR.TO"]     = "CN Rail",                    ["BAM.TO"]     = "Brookfield Asset Mgmt",
+        ["MFC.TO"]     = "Manulife Financial",         ["SLF.TO"]     = "Sun Life Financial",
+        ["GWO.TO"]     = "Great-West Lifeco",          ["POW.TO"]     = "Power Corp",
+        ["ABX.TO"]     = "Barrick Gold",               ["WPM.TO"]     = "Wheaton Precious Metals",
+        ["AEM.TO"]     = "Agnico Eagle Mines",         ["K.TO"]       = "Kinross Gold",
+        ["FM.TO"]      = "First Quantum Minerals",     ["ATD.TO"]     = "Alimentation Couche-Tard",
+        ["MRU.TO"]     = "Metro Inc.",                 ["L.TO"]       = "Loblaw Companies",
+        ["WN.TO"]      = "George Weston",              ["CCL.B.TO"]   = "CCL Industries",
+        ["TFI.TO"]     = "TFI International",          ["GFL.TO"]     = "GFL Environmental",
+        ["WSP.TO"]     = "WSP Global",                 ["STN.TO"]     = "Stantec",
+        ["TFII.TO"]    = "TFI International (Dual)",   ["ALA.TO"]     = "AltaGas",
+        ["KEY.TO"]     = "Keyera Corp",                ["NPI.TO"]     = "Northland Power",
+        ["BEP-UN.TO"]  = "Brookfield Renewable",       ["INE.TO"]     = "Innergex Renewable",
+        ["CAR-UN.TO"]  = "Canadian Apartment REIT",    ["DIR-UN.TO"]  = "Dream Industrial REIT",
+        ["AP-UN.TO"]   = "Allied Properties REIT",     ["IIP-UN.TO"]  = "InterRent REIT",
+        ["HR-UN.TO"]   = "H&R REIT",                   ["BRP.TO"]     = "BRP Inc.",
+        ["MDA.TO"]     = "MDA Space",                  ["OTEX.TO"]    = "Open Text",
+        ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
+    };
+
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger)
     {
         _http = http;
-        _config = config;
         _logger = logger;
     }
 
     public async Task<ScannerResponse> ScanAsync(CancellationToken ct = default)
     {
-        var apiKey = _config["Finnhub:ApiKey"] ?? string.Empty;
-        bool hasKey = !string.IsNullOrWhiteSpace(apiKey)
-                      && !apiKey.StartsWith("PLACEHOLDER", StringComparison.OrdinalIgnoreCase);
-
-        if (!hasKey)
+        // Yahoo Finance requires no API key — go straight to live scan.
+        // If Yahoo is unreachable (network error), fall back to demo data.
+        try
         {
-            _logger.LogInformation("No valid Finnhub API key — returning demo scanner data.");
+            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols).",
+                TsxWatchlist.Length);
+            return await RunLiveScanAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "TSX scan failed — falling back to demo data.");
             return BuildDemoResponse();
         }
-
-        return await RunLiveScanAsync(ct);
     }
 
     // ── Live scan ─────────────────────────────────────────────────────────────
@@ -71,10 +88,8 @@ public sealed class RsiScannerService : IRsiScannerService
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
 
-        // Free tier: 60 req/min. Each symbol = 1 candle request.
-        // Batches of 3 with 1.2s delay → ~2.5 req/s = 150 req/min worst-case.
-        // We use 3 per batch with 1.5s delay → safe at ~2 req/s = 120 req/min.
-        // With 50 symbols / 3 = ~17 batches × 1.5s = ~25s total scan time.
+        // Yahoo Finance has no hard rate limit; ~2 req/s is courteous.
+        // 3 symbols/batch with 1.5s delay → 50 symbols in ~25s.
         var batches = TsxWatchlist
             .Select((sym, i) => new { sym, i })
             .GroupBy(x => x.i / 3)
@@ -112,14 +127,14 @@ public sealed class RsiScannerService : IRsiScannerService
             var resp = await _http.GetAsync(url, ct);
             if (resp.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
             {
-                _logger.LogWarning("Finnhub rate limited (429) on attempt {Attempt}. Waiting {Delay}ms.", attempt + 1, delayMs);
+                _logger.LogWarning("Yahoo Finance rate limited (429) on attempt {Attempt}. Waiting {Delay}ms.", attempt + 1, delayMs);
                 await Task.Delay(delayMs, ct);
-                delayMs *= 2; // exponential back-off: 2s, 4s, 8s
+                delayMs *= 2;
                 continue;
             }
             return resp;
         }
-        _logger.LogError("Finnhub 429 persisted after {MaxRetries} retries for URL: {Url}", maxRetries, url);
+        _logger.LogError("Yahoo Finance 429 persisted after {MaxRetries} retries for URL: {Url}", maxRetries, url);
         return null;
     }
 
@@ -127,22 +142,27 @@ public sealed class RsiScannerService : IRsiScannerService
     {
         try
         {
-            // Fetch 400 days of daily candles to support 200 DMA + MACD(26) + BB(20)
-            var to   = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var from = DateTimeOffset.UtcNow.AddDays(-400).ToUnixTimeSeconds();
-            var url  = $"stock/candle?symbol={Uri.EscapeDataString(symbol)}&resolution=D&from={from}&to={to}";
+            // Yahoo Finance: 2y of daily candles (enough for 200 DMA + MACD + BB)
+            var url  = $"v8/finance/chart/{Uri.EscapeDataString(symbol)}?interval=1d&range=2y";
 
             var resp = await FetchWithRetryAsync(url, ct);
             if (resp is null || !resp.IsSuccessStatusCode) return null;
 
             var json = await resp.Content.ReadAsStringAsync(ct);
-            var candles = JsonSerializer.Deserialize<FinnhubCandleResponse>(json, _json);
-            if (candles is null || candles.S != "ok" || candles.C.Count < 30) return null;
+            var data = JsonSerializer.Deserialize<YahooChartResponse>(json, _json);
+            var chartResult = data?.Chart?.Result?.FirstOrDefault();
+            if (chartResult is null) return null;
 
-            var closes  = candles.C;
-            var highs   = candles.H;
-            var lows    = candles.L;
-            var volumes = candles.V;
+            var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
+            if (qd is null) return null;
+
+            // Filter out null slots (non-trading days Yahoo sometimes returns as null)
+            var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
+            var highs   = qd.High.Where(h => h.HasValue).Select(h => h!.Value).ToList();
+            var lows    = qd.Low.Where(l => l.HasValue).Select(l => l!.Value).ToList();
+            var volumes = qd.Volume.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+
+            if (closes.Count < 30) return null;
 
             // ── Core RSI ────────────────────────────────────────────────────
             decimal rsi = CalculateRsi(closes, 14);
@@ -151,11 +171,13 @@ public sealed class RsiScannerService : IRsiScannerService
             decimal avgVol = volumes.Count >= 21
                 ? volumes.TakeLast(21).SkipLast(1).Select(v => (decimal)v).Average()
                 : volumes.Select(v => (decimal)v).Average();
-            decimal todayVol   = volumes.Last();
+            decimal todayVol   = volumes.Count > 0 ? volumes.Last() : 0L;
             decimal volRatio   = avgVol > 0 ? todayVol / avgVol : 1m;
 
+            var opens = qd.Open.Where(o => o.HasValue).Select(o => o!.Value).ToList();
+
             // ── Candle data ─────────────────────────────────────────────────
-            decimal todayOpen  = candles.O.Last();
+            decimal todayOpen  = opens.Count  > 0 ? opens.Last()   : closes.Last();
             decimal todayHigh  = highs.Last();
             decimal todayLow   = lows.Last();
             decimal todayClose = closes.Last();
@@ -208,7 +230,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 return new RsiScanResult
                 {
                     Symbol = symbol,
-                    CompanyName = symbol.Replace(".TO", "").Replace(".UN", " REIT"),
+                    CompanyName = CompanyNames.TryGetValue(symbol, out var name1) ? name1 : symbol,
                     Rsi = Math.Round(rsi, 2),
                     CurrentPrice = todayClose,
                     Change = Math.Round(change, 2),
@@ -241,7 +263,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 return new RsiScanResult
                 {
                     Symbol = symbol,
-                    CompanyName = symbol.Replace(".TO", "").Replace(".UN", " REIT"),
+                    CompanyName = CompanyNames.TryGetValue(symbol, out var name2) ? name2 : symbol,
                     Rsi = Math.Round(rsi, 2),
                     CurrentPrice = todayClose,
                     Change = Math.Round(change, 2),
@@ -466,45 +488,17 @@ public sealed class RsiScannerService : IRsiScannerService
         [
             new RsiScanResult
             {
-                Symbol = "DIR.UN.TO", CompanyName = "Dye & Durham",
-                Rsi = 26.40m, CurrentPrice = 11.24m, Change = -0.38m, ChangePercent = -3.27m,
-                ScanType = ScanType.Oversold, Status = SignalStatus.Confirmed, Sector = "Real Estate",
-                Volume = 1_640_000, VolumeRatio = 1.6m, IsDemo = true,
-                TriggerDetails = "Trigger 1 – Break of prior day's high on elevated volume (1.6x avg)",
-                StochasticK = 14.2m, StochasticsConfirm = true,
-                MacdValue = -0.082m, MacdSignalLine = -0.051m, MacdCrossover = "Neutral",
-                BollingerBreakout = true, BollingerPosition = "Below Lower",
-                VolumeSignal = "Validated",
-                Dma50Deviation = -12.4m, Dma200Deviation = -18.7m, Has200Dma = true,
-                ReversalProbability = "High"
-            },
-            new RsiScanResult
-            {
-                Symbol = "AP.UN.TO", CompanyName = "Allied Properties REIT",
+                Symbol = "AP-UN.TO", CompanyName = "Allied Properties REIT",
                 Rsi = 22.15m, CurrentPrice = 14.88m, Change = -0.62m, ChangePercent = -4.00m,
                 ScanType = ScanType.Oversold, Status = SignalStatus.Confirmed, Sector = "Real Estate",
                 Volume = 2_200_000, VolumeRatio = 2.1m, IsDemo = true,
-                TriggerDetails = "Trigger 3 – Gap-down open followed by aggressive intraday institutional reversal",
+                TriggerDetails = "Trigger 1 – Break of prior day's high on elevated volume (2.1x avg)",
                 StochasticK = 9.8m, StochasticsConfirm = true,
                 MacdValue = -0.124m, MacdSignalLine = -0.091m, MacdCrossover = "Neutral",
                 BollingerBreakout = true, BollingerPosition = "Below Lower",
                 VolumeSignal = "Validated",
                 Dma50Deviation = -16.2m, Dma200Deviation = -24.1m, Has200Dma = true,
                 ReversalProbability = "High"
-            },
-            new RsiScanResult
-            {
-                Symbol = "IIP.UN.TO", CompanyName = "InterRent REIT",
-                Rsi = 28.90m, CurrentPrice = 9.41m, Change = -0.22m, ChangePercent = -2.28m,
-                ScanType = ScanType.Oversold, Status = SignalStatus.EarlyWarning, Sector = "Real Estate",
-                Volume = 980_000, VolumeRatio = 1.1m, IsDemo = true,
-                TriggerDetails = "Momentum flattening near multi-year structural support – no price-action trigger yet",
-                StochasticK = 22.5m, StochasticsConfirm = false,
-                MacdValue = -0.041m, MacdSignalLine = -0.038m, MacdCrossover = "Neutral",
-                BollingerBreakout = false, BollingerPosition = "Inside",
-                VolumeSignal = "Neutral",
-                Dma50Deviation = -8.1m, Dma200Deviation = -11.3m, Has200Dma = true,
-                ReversalProbability = "Low"
             },
             new RsiScanResult
             {
@@ -519,6 +513,34 @@ public sealed class RsiScannerService : IRsiScannerService
                 VolumeSignal = "Low-Volume Trap",
                 Dma50Deviation = -14.8m, Dma200Deviation = -20.5m, Has200Dma = true,
                 ReversalProbability = "Medium"
+            },
+            new RsiScanResult
+            {
+                Symbol = "IIP-UN.TO", CompanyName = "InterRent REIT",
+                Rsi = 28.90m, CurrentPrice = 9.41m, Change = -0.22m, ChangePercent = -2.28m,
+                ScanType = ScanType.Oversold, Status = SignalStatus.EarlyWarning, Sector = "Real Estate",
+                Volume = 980_000, VolumeRatio = 1.1m, IsDemo = true,
+                TriggerDetails = "Momentum flattening near multi-year structural support – no price-action trigger yet",
+                StochasticK = 22.5m, StochasticsConfirm = false,
+                MacdValue = -0.041m, MacdSignalLine = -0.038m, MacdCrossover = "Neutral",
+                BollingerBreakout = false, BollingerPosition = "Inside",
+                VolumeSignal = "Neutral",
+                Dma50Deviation = -8.1m, Dma200Deviation = -11.3m, Has200Dma = true,
+                ReversalProbability = "Low"
+            },
+            new RsiScanResult
+            {
+                Symbol = "DIR-UN.TO", CompanyName = "Dream Industrial REIT",
+                Rsi = 26.40m, CurrentPrice = 11.24m, Change = -0.38m, ChangePercent = -3.27m,
+                ScanType = ScanType.Oversold, Status = SignalStatus.Confirmed, Sector = "Real Estate",
+                Volume = 1_640_000, VolumeRatio = 1.6m, IsDemo = true,
+                TriggerDetails = "Trigger 3 – Gap-down open followed by aggressive intraday reversal",
+                StochasticK = 14.2m, StochasticsConfirm = true,
+                MacdValue = -0.082m, MacdSignalLine = -0.051m, MacdCrossover = "Neutral",
+                BollingerBreakout = true, BollingerPosition = "Below Lower",
+                VolumeSignal = "Validated",
+                Dma50Deviation = -12.4m, Dma200Deviation = -18.7m, Has200Dma = true,
+                ReversalProbability = "High"
             }
         ],
         OverboughtChain =
@@ -567,11 +589,11 @@ public sealed class RsiScannerService : IRsiScannerService
             },
             new RsiScanResult
             {
-                Symbol = "ALA.TO", CompanyName = "AltaGas Ltd.",
+                Symbol = "ALA.TO", CompanyName = "AltaGas",
                 Rsi = 75.80m, CurrentPrice = 34.75m, Change = 0.45m, ChangePercent = 1.31m,
                 ScanType = ScanType.Overbought, Status = SignalStatus.EarlyWarning, Sector = "Utilities",
                 Volume = 610_000, VolumeRatio = 0.7m, IsDemo = true,
-                TriggerDetails = "Extended above upper Keltner Channel – volume thinning on higher ticks; mean-reversion risk",
+                TriggerDetails = "Extended above upper Bollinger Band – volume thinning on higher ticks; mean-reversion risk",
                 StochasticK = 79.1m, StochasticsConfirm = false,
                 MacdValue = 0.055m, MacdSignalLine = 0.048m, MacdCrossover = "Neutral",
                 BollingerBreakout = true, BollingerPosition = "Above Upper",

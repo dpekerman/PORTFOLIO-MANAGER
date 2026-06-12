@@ -1,0 +1,146 @@
+.import-content {
+  min-width: 560px;
+  max-width: 700px;
+}
+
+.instructions {
+  margin-bottom: 16px;
+
+  p {
+    margin: 4px 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    code {
+      background: var(--bg-elevated);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: 'Roboto Mono', monospace;
+      font-size: 0.78rem;
+    }
+  }
+}
+
+.hidden-input {
+  display: none;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.parse-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 82, 82, 0.08);
+  border: 1px solid rgba(255, 82, 82, 0.25);
+  color: #ff5252;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  margin-bottom: 12px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+.preview-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+
+.table-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+
+  table {
+    width: 100%;
+  }
+
+  th {
+    background: var(--bg-elevated) !important;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  td {
+    font-size: 0.82rem;
+  }
+}
+
+.sym {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64b5f6;
+}
+
+// Row status colours
+tr.done {
+  background: rgba(0, 200, 83, 0.04);
+}
+tr.error {
+  background: rgba(255, 82, 82, 0.06);
+}
+tr.importing {
+  background: rgba(100, 181, 246, 0.06);
+}
+
+.status {
+  font-size: 0.75rem;
+  font-weight: 700;
+
+  &.done {
+    color: #00c853;
+  }
+  &.error {
+    color: #ff5252;
+    cursor: help;
+  }
+  &.importing {
+    color: #64b5f6;
+  }
+  &.pending {
+    color: var(--text-faint);
+  }
+}
+
+.import-progress {
+  margin-top: 14px;
+}
+
+.progress-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin: 4px 0 0;
+}
+
+mat-dialog-actions {
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .import-content {
+    min-width: 280px;
+  }
+}

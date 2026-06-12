@@ -11,12 +11,9 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../core/models/portfolio.models';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 
 @Component({
-  selector: 'app-add-stock-dialog',
-  templateUrl: './add-stock-dialog.component.html',
-  styleUrl: './add-stock-dialog.component.scss',
+  selector: 'app-add-watchlist-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatDialogModule,
@@ -28,24 +25,64 @@ import { PortfolioStateService } from '../../core/services/portfolio-state.servi
     MatProgressSpinnerModule,
     ReactiveFormsModule,
   ],
+  template: `
+    <h2 mat-dialog-title>Add to Watch List</h2>
+    <mat-dialog-content class="watchlist-dialog-content">
+      <form [formGroup]="form">
+        <mat-form-field appearance="outline" class="watchlist-symbol-field">
+          <mat-label>Symbol (e.g. AAPL, RY.TO)</mat-label>
+          <input
+            matInput
+            formControlName="symbol"
+            (input)="onSymbolInput($event)"
+            [matAutocomplete]="auto"
+            placeholder="Search symbol..."
+          />
+          @if (searching()) {
+            <mat-progress-spinner matSuffix mode="indeterminate" diameter="20" />
+          }
+          <mat-autocomplete #auto (optionSelected)="selectResult($event.option.value)">
+            @for (r of searchResults(); track r.symbol) {
+              <mat-option [value]="r">
+                <strong>{{ r.symbol }}</strong> — {{ r.description }}
+              </mat-option>
+            }
+          </mat-autocomplete>
+        </mat-form-field>
+      </form>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="cancel()">Cancel</button>
+      <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="confirm()">
+        Add
+      </button>
+    </mat-dialog-actions>
+  `,
+  styles: [
+    `
+      .watchlist-dialog-content {
+        padding-top: 8px;
+        min-width: 320px;
+      }
+      .watchlist-symbol-field {
+        width: 100%;
+        display: block;
+      }
+    `,
+  ],
 })
-export class AddStockDialogComponent {
+export class AddWatchlistDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
-  private readonly state = inject(PortfolioStateService);
-  private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
+  private readonly dialogRef = inject(MatDialogRef<AddWatchlistDialogComponent>);
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
-  protected readonly saving = signal(false);
 
   private readonly searchSubject = new Subject<string>();
 
   readonly form = this.fb.group({
     symbol: ['', [Validators.required, Validators.maxLength(20)]],
-    companyName: ['', [Validators.required, Validators.maxLength(200)]],
-    shares: [null as number | null, [Validators.required, Validators.min(0.0001)]],
-    averageCostBasis: [null as number | null, [Validators.required, Validators.min(0.01)]],
   });
 
   constructor() {
@@ -74,35 +111,20 @@ export class AddStockDialogComponent {
   }
 
   onSymbolInput(event: Event): void {
-    const val = (event.target as HTMLInputElement).value;
-    this.searchSubject.next(val);
+    this.searchSubject.next((event.target as HTMLInputElement).value);
   }
 
   selectResult(result: SymbolSearchResult): void {
-    this.form.patchValue({
-      symbol: result.symbol,
-      companyName: result.description,
-    });
+    this.form.patchValue({ symbol: result.symbol });
     this.searchResults.set([]);
   }
 
-  async submit(): Promise<void> {
+  confirm(): void {
     if (this.form.invalid) return;
-    this.saving.set(true);
-    try {
-      await this.state.addItem({
-        symbol: this.form.value.symbol!,
-        companyName: this.form.value.companyName!,
-        shares: this.form.value.shares!,
-        averageCostBasis: this.form.value.averageCostBasis!,
-      });
-      this.dialogRef.close(true);
-    } finally {
-      this.saving.set(false);
-    }
+    this.dialogRef.close(this.form.value.symbol!.toUpperCase());
   }
 
   cancel(): void {
-    this.dialogRef.close(false);
+    this.dialogRef.close(null);
   }
 }
