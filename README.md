@@ -1,8 +1,8 @@
 # Portfolio Manager – TSX Momentum Scanner
 
-A full-stack executive-grade stock portfolio tracker and RSI momentum scanner built with **Angular 22**, **.NET 8**, and **SQL Server**, using [Finnhub](https://finnhub.io) as the market data provider.
+A full-stack executive-grade stock portfolio tracker and RSI momentum scanner built with **Angular 22**, **.NET 8**, and **SQL Server**, using [Yahoo Finance](https://finance.yahoo.com) as the market data provider.
 
-> **Demo mode active by default.** All 8 demo signals (4 oversold + 4 overbought) are displayed without a Finnhub API key. Live scanning activates once you configure your key.
+> **No API key required.** All live data is sourced from Yahoo Finance — just run the backend and start scanning.
 
 ---
 
@@ -27,7 +27,7 @@ PORTFOLIO-MANAGER/
 │       ├── Controllers/           # portfolio, stocks, scanner endpoints
 │       ├── Data/                  # EF Core 8 + SQL Server migrations
 │       ├── Models/                # ScannerModels, PortfolioItem, Dtos
-│       └── Services/              # FinnhubService, PortfolioService, RsiScannerService
+│       └── Services/              # YahooFinanceService, PortfolioService, RsiScannerService
 ├── frontend/
 │   └── portfolio-manager-ui/      # Angular 22 SPA (port 4200)
 │       └── src/app/
@@ -47,12 +47,11 @@ PORTFOLIO-MANAGER/
 
 ### Prerequisites
 
-| Tool            | Version                                           |
-| --------------- | ------------------------------------------------- |
-| .NET SDK        | 8.0+                                              |
-| Node.js         | 20.x LTS                                          |
-| SQL Server      | 2019+ (Express OK)                                |
-| Finnhub API key | Free at [finnhub.io](https://finnhub.io/register) |
+| Tool       | Version            |
+| ---------- | ------------------ |
+| .NET SDK   | 8.0+               |
+| Node.js    | 22.x LTS           |
+| SQL Server | 2019+ (Express OK) |
 
 ### 1 — Database setup
 
@@ -67,11 +66,6 @@ database/03_SeedData.sql      -- optional: seeds 5 demo positions
 
 ```powershell
 cd backend\PortfolioManager.Api
-
-# Configure Finnhub key (never commit this)
-dotnet user-secrets set "Finnhub:ApiKey" "YOUR_KEY_HERE"
-
-# Run
 dotnet run --launch-profile http
 # API available at http://localhost:5000/swagger
 ```
@@ -103,18 +97,17 @@ start-all.bat     # kills existing processes, starts both in separate windows
 | PUT    | `/api/portfolio/{id}`   | Update position                          |
 | DELETE | `/api/portfolio/{id}`   | Remove position                          |
 | GET    | `/api/stocks/quotes`    | Live quotes for all positions            |
-| GET    | `/api/stocks/search?q=` | Finnhub symbol search                    |
+| GET    | `/api/stocks/search?q=` | Yahoo Finance symbol search              |
 
 ---
 
 ## Environment Configuration
 
-**Never commit API keys or connection strings.** Use:
+**Never commit connection strings.** Use:
 
-| Secret          | Where to set                                                            |
-| --------------- | ----------------------------------------------------------------------- |
-| Finnhub API key | `dotnet user-secrets set "Finnhub:ApiKey" "..."`                        |
-| SQL connection  | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI |
+| Secret         | Where to set                                                            |
+| -------------- | ----------------------------------------------------------------------- |
+| SQL connection | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI |
 
 ---
 
@@ -156,32 +149,15 @@ See [QA Steps](#steps-before-qa) section below for the full pre-QA handoff check
 | Tool        | Version                        |
 | ----------- | ------------------------------ |
 | .NET SDK    | 8.x                            |
-| Node.js     | 20+                            |
+| Node.js     | 22.x LTS                       |
 | SQL Server  | local (Express or full)        |
 | Angular CLI | 22 (installed locally via npx) |
 
 ---
 
-## 🔑 Getting a Finnhub API Key
-
-1. Go to [https://finnhub.io/register](https://finnhub.io/register)
-2. Create a **free** account (free tier: 60 API calls/minute)
-3. Copy your **API Key** from the dashboard
-
----
-
 ## ⚙️ Backend Setup
 
-### 1. Store the API key securely (never commit it!)
-
-```powershell
-cd backend/PortfolioManager.Api
-dotnet user-secrets set "Finnhub:ApiKey" "<YOUR_KEY_HERE>"
-````
-
-The key is stored at `%APPDATA%\Microsoft\UserSecrets\<id>\secrets.json` — outside the project directory and never committed to source control.
-
-### 2. Apply database migrations (auto-runs on first start in Development)
+### 1. Apply database migrations (auto-runs on first start in Development)
 
 ```powershell
 dotnet ef database update
@@ -196,7 +172,7 @@ cd backend/PortfolioManager.Api
 dotnet run
 ```
 
-API runs at **http://localhost:5000**  
+API runs at **http://localhost:5000**
 Swagger UI: **http://localhost:5000/swagger**
 
 ---
@@ -209,7 +185,7 @@ npm install
 npx ng serve
 ```
 
-Angular dev server runs at **http://localhost:4200**  
+Angular dev server runs at **http://localhost:4200**
 All `/api` requests are proxied to the backend at `http://localhost:5000`.
 
 ---
@@ -222,7 +198,6 @@ Open two terminals:
 
 ```powershell
 cd backend/PortfolioManager.Api
-dotnet user-secrets set "Finnhub:ApiKey" "<YOUR_KEY>"
 dotnet run
 ```
 
@@ -241,7 +216,7 @@ Then open **http://localhost:4200**.
 
 - **Dashboard** with a live portfolio summary bar (total value, cost, gain/loss %)
 - **Stock cards** showing live price, change, day range, shares, market value, P&L
-- **Add Stock dialog** with Finnhub symbol search autocomplete (Material Design)
+- **Add Stock dialog** with Yahoo Finance symbol search autocomplete (Material Design)
 - **30-second polling** for near-real-time price refresh
 - **Delete** a position directly from the card
 - All data persisted in SQL Server via EF Core
@@ -258,14 +233,15 @@ Then open **http://localhost:4200**.
 | DELETE | `/api/portfolio/{id}`        | Remove a stock                 |
 | GET    | `/api/stocks/quotes`         | All positions with live quotes |
 | GET    | `/api/stocks/quote/{symbol}` | Single live quote              |
-| GET    | `/api/stocks/search?q=`      | Symbol search via Finnhub      |
+| GET    | `/api/stocks/search?q=`      | Symbol search via Yahoo Finance |
 
 ---
 
 ## Security Notes
 
-- API key stored in `.NET User Secrets` (development) — never in `appsettings.json`
+- API key stored in `.NET User Secrets` (development) — never in `appsettings.json` (not currently required — Yahoo Finance needs no key)
 - For **production**: use Azure Key Vault, AWS Secrets Manager, or environment variables
 - CORS is locked to `localhost:4200` in development
 - EF Core parameterized queries prevent SQL injection
 - No sensitive data stored in browser localStorage
+````

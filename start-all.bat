@@ -43,9 +43,6 @@ echo  Backend  : http://localhost:5000
 echo  Swagger  : http://localhost:5000/swagger
 echo  Frontend : http://localhost:4200  (ready in ~15s)
 echo.
-echo  NOTE: Make sure you have set your Finnhub API key:
-echo    cd backend\PortfolioManager.Api
-echo    dotnet user-secrets set "Finnhub:ApiKey" "YOUR_KEY"
-echo.
+echo  Market data is provided by Yahoo Finance (no API key required).
 echo  Close this window or press any key to exit.
 pause >nul
