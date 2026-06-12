@@ -17,9 +17,9 @@ import { WatchlistStateService } from '../../core/services/watchlist-state.servi
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { AddManualDialogComponent } from '../add-manual-dialog/add-manual-dialog.component';
 import { AddStockDialogComponent } from '../add-stock-dialog/add-stock-dialog.component';
-import { ImportStocksDialogComponent } from '../import-stocks-dialog/import-stocks-dialog.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
 import { PortfolioSummaryBarComponent } from '../portfolio-summary-bar/portfolio-summary-bar.component';
+import { ImportStocksDialogComponent } from '../portfolio/import-stocks-dialog/import-stocks-dialog.component';
 import { RsiScannerTableComponent } from '../rsi-scanner/rsi-scanner-table.component';
 import { SectorExpositionComponent } from '../sector-exposition/sector-exposition.component';
 import { StockCardComponent } from '../stock-card/stock-card.component';

@@ -9,9 +9,9 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { AddManualDialogComponent } from '../add-manual-dialog/add-manual-dialog.component';
 import { AddStockDialogComponent } from '../add-stock-dialog/add-stock-dialog.component';
-import { ImportStocksDialogComponent } from '../import-stocks-dialog/import-stocks-dialog.component';
 import { PortfolioSummaryBarComponent } from '../portfolio-summary-bar/portfolio-summary-bar.component';
 import { StockCardComponent } from '../stock-card/stock-card.component';
+import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
 
 @Component({
   selector: 'app-portfolio-page',
