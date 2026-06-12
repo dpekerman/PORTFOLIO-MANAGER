@@ -9,7 +9,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
 interface ImportRow {
   symbol: string;

@@ -32,6 +32,7 @@
           <mat-icon>upload_file</mat-icon>
           <span class="btn-text">Import</span>
         </button>
+        <!--
         <button
           mat-stroked-button
           class="action-btn"
@@ -41,9 +42,20 @@
           <mat-icon>edit_note</mat-icon>
           <span class="btn-text">Add Manual</span>
         </button>
+        -->
         <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
           <mat-icon>add</mat-icon>
           <span class="btn-text">Add Stock</span>
+        </button>
+
+        <button
+          mat-flat-button
+          class="action-btn-primary"
+          (click)="openAddManualDialog()"
+          matTooltip="Add cash, options, or other manual position"
+        >
+          <mat-icon>add</mat-icon>
+          <span class="btn-text">Add Manual</span>
         </button>
       </div>
     </div>
@@ -77,7 +89,16 @@
           <app-stock-card [summary]="summary" />
         }
       </div>
-    } @else if (!portfolio.loading()) {
+
+    } @else if (portfolio.loading()) {
+      <!-- ── Skeleton Grid (initial load) ────────────────────────────── -->
+      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
+        @for (i of skeletonItems; track i) {
+          <app-stock-card-skeleton />
+        }
+      </div>
+
+    } @else {
       <!-- ── Empty State ──────────────────────────────────────────────── -->
       <div class="empty-state">
         <mat-icon class="empty-icon">add_chart</mat-icon>

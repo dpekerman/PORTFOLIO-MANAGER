@@ -7,11 +7,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
-import { AddManualDialogComponent } from '../add-manual-dialog/add-manual-dialog.component';
-import { AddStockDialogComponent } from '../add-stock-dialog/add-stock-dialog.component';
-import { ImportStocksDialogComponent } from '../import-stocks-dialog/import-stocks-dialog.component';
-import { PortfolioSummaryBarComponent } from '../portfolio-summary-bar/portfolio-summary-bar.component';
-import { StockCardComponent } from '../stock-card/stock-card.component';
+import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
+import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.component';
+import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
+import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
+import { PortfolioSummaryBarComponent } from './portfolio-summary-bar/portfolio-summary-bar.component';
+import { StockCardComponent } from './stock-card/stock-card.component';
 
 @Component({
   selector: 'app-portfolio-page',
@@ -25,12 +26,16 @@ import { StockCardComponent } from '../stock-card/stock-card.component';
     MatTooltipModule,
     StockCardComponent,
     PortfolioSummaryBarComponent,
+    StockCardSkeletonComponent,
   ],
 })
 export class PortfolioPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly scanner = inject(ScannerStateService);
   private readonly dialog = inject(MatDialog);
+
+  /** Ghost cards displayed while portfolio loads for the first time */
+  protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
 
   openAddStockDialog(): void {
     this.dialog.open(AddStockDialogComponent, { width: '480px', maxWidth: '95vw' });

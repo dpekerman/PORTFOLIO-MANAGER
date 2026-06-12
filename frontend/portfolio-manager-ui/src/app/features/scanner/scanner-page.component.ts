@@ -4,7 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
-import { RsiScannerTableComponent } from '../rsi-scanner/rsi-scanner-table.component';
+import { ScannerRowSkeletonComponent } from '../../shared/skeleton/scanner-row-skeleton.component';
+import { RsiScannerTableComponent } from './rsi-scanner-table.component';
 
 @Component({
   selector: 'app-scanner-page',
@@ -18,6 +19,7 @@ import { RsiScannerTableComponent } from '../rsi-scanner/rsi-scanner-table.compo
     MatIconModule,
     MatTooltipModule,
     RsiScannerTableComponent,
+    ScannerRowSkeletonComponent,
   ],
 })
 export class ScannerPageComponent {

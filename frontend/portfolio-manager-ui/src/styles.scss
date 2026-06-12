@@ -78,24 +78,52 @@ html {
   height: 100%;
 }
 
-// ── Material Dialog — consistent sizing and scrollbar ─────────────────────────
-.mat-mdc-dialog-content {
-  max-height: 70vh !important;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  // Ensure full-width form fields fill the dialog
-  box-sizing: border-box;
-  padding: 0 24px !important;
+// ── Skeleton shimmer CSS variables ────────────────────────────────────────────
+:root {
+  --skeleton-base: #1e1e1e;
+  --skeleton-shine: #2e2e2e;
+}
+body.light-theme {
+  --skeleton-base: #e8e8e8;
+  --skeleton-shine: #f0f0f0;
+}
+
+// ── Material Dialog — fixed layout to prevent control overlap ─────────────────
+.mat-mdc-dialog-container .mdc-dialog__container {
+  width: 100%;
 }
 
 .mat-mdc-dialog-surface {
-  overflow: hidden !important;
   border-radius: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
-// Title and actions get consistent horizontal padding matching content
 .mat-mdc-dialog-title {
   padding: 20px 24px 8px !important;
+  flex-shrink: 0;
+}
+
+.mat-mdc-dialog-content {
+  flex: 1 1 auto !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  box-sizing: border-box !important;
+  padding: 8px 24px 16px !important;
+  max-height: 65vh !important;
+
+  // Ensure form fields inside dialogs don't collapse
+  mat-form-field {
+    display: block;
+    width: 100%;
+  }
+}
+
+.mat-mdc-dialog-actions {
+  flex-shrink: 0 !important;
+  padding: 8px 16px 16px !important;
+  justify-content: flex-end !important;
 }
 
 .mat-mdc-dialog-actions {

@@ -6,9 +6,9 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PortfolioSummary } from '../../core/models/portfolio.models';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { PortfolioSummary } from '../../../core/models/portfolio.models';
+import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-stock-card',
