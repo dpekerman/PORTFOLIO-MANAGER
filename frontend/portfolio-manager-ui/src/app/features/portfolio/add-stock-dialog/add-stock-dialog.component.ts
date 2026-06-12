@@ -9,9 +9,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
-import { SymbolSearchResult } from '../../core/models/portfolio.models';
-import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { SymbolSearchResult } from '../../../core/models/portfolio.models';
+import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
+import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
 @Component({
   selector: 'app-add-stock-dialog',

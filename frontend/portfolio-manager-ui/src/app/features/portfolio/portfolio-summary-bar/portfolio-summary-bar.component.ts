@@ -2,7 +2,7 @@ import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
 @Component({
   selector: 'app-portfolio-summary-bar',

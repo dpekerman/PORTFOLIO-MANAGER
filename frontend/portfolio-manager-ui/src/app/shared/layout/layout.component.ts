@@ -12,7 +12,7 @@ import { PortfolioStateService } from '../../core/services/portfolio-state.servi
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
-import { MarketHeaderComponent } from '../../features/market-header/market-header.component';
+import { MarketHeaderComponent } from '../market-header/market-header.component';
 
 @Component({
   selector: 'app-layout',

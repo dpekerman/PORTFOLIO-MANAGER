@@ -89,7 +89,16 @@
           <app-stock-card [summary]="summary" />
         }
       </div>
-    } @else if (!portfolio.loading()) {
+
+    } @else if (portfolio.loading()) {
+      <!-- ── Skeleton Grid (initial load) ────────────────────────────── -->
+      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
+        @for (i of skeletonItems; track i) {
+          <app-stock-card-skeleton />
+        }
+      </div>
+
+    } @else {
       <!-- ── Empty State ──────────────────────────────────────────────── -->
       <div class="empty-state">
         <mat-icon class="empty-icon">add_chart</mat-icon>

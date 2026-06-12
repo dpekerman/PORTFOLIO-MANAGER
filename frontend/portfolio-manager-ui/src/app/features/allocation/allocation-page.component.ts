@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { SectorExpositionComponent } from '../sector-exposition/sector-exposition.component';
+import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
 @Component({
   selector: 'app-allocation-page',
