@@ -140,28 +140,24 @@ jobs:
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             core.notice(`✅ CI passed — ${event} on ${branch} (${sha}) — ${runUrl}`);
 
-      # ── Email notification (requires MAIL_SERVER secret to be set) ──────────
-      # Add these secrets in GitHub → Settings → Secrets → Actions:
-      #   MAIL_SERVER   — SMTP host, e.g. smtp.gmail.com
-      #   MAIL_PORT     — SMTP port, e.g. 587
-      #   MAIL_USERNAME — Sender address / login
-      #   MAIL_PASSWORD — SMTP password or Gmail App Password
-      #   MAIL_TO       — Recipient address(es), comma-separated
+      # ── Email notification ─────────────────────────────────────────────────
+      # Gmail SMTP is hard-coded. Only ONE secret is required:
+      #   GMAIL_APP_PASSWORD — create at https://myaccount.google.com/apppasswords
+      #     (Google Account → Security → 2-Step Verification → App passwords)
       - name: Send success email
-        if: ${{ env.MAIL_SERVER != '' }}
-        env:
-          MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
         uses: dawidd6/action-send-mail@v3
+        continue-on-error: true # never fail the pipeline if SMTP is unavailable
         with:
-          server_address: ${{ secrets.MAIL_SERVER }}
-          server_port: ${{ secrets.MAIL_PORT || 587 }}
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          to: ${{ secrets.MAIL_TO }}
-          from: "GitHub Actions <${{ secrets.MAIL_USERNAME }}>"
-          subject: "✅ CI Passed – ${{ github.repository }} (${{ github.ref_name }})"
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: false # STARTTLS on port 587
+          username: dima.pekerman@gmail.com
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          to: dima.pekerman@gmail.com
+          from: "Portfolio Manager CI <dima.pekerman@gmail.com>"
+          subject: "✅ CI Passed — ${{ github.ref_name }} @ ${{ github.repository }}"
           body: |
-            ✅ CI Build Passed
+            ✅ All CI checks passed
 
             Repository : ${{ github.repository }}
             Branch     : ${{ github.ref_name }}
@@ -170,8 +166,9 @@ jobs:
             Triggered  : ${{ github.actor }}
 
             View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          ignore_cert: true
 
-# NOTE: Set these secrets in GitHub → Settings → Secrets → Actions:
-#   MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, MAIL_TO
+# NOTE: Add this ONE secret in GitHub → Settings → Secrets → Actions:
+#   GMAIL_APP_PASSWORD  — Gmail App Password (not your regular Gmail password)
+#     How to get it: Google Account → Security → 2-Step Verification → App passwords
+#     App name: "GitHub Actions Portfolio Manager"
 #   SQL_CONNECTION_STRING  → Server=...;Database=PortfolioManagerDb;...
