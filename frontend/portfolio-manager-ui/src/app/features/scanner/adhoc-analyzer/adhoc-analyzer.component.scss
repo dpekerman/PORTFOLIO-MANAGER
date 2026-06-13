@@ -79,7 +79,8 @@
 }
 
 .analyze-btn {
-  background: var(--mat-primary) !important;
+  background: var(--mat-sys-primary) !important;
+  color: var(--mat-sys-on-primary, #fff) !important;
   font-weight: 600;
   white-space: nowrap;
 }

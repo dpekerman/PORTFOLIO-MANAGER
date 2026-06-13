@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RsiScanResult } from '../../../core/models/portfolio.models';
+import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ScannerRowSkeletonComponent } from '../../../shared/skeleton/scanner-row-skeleton.component';
 import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
@@ -30,6 +31,7 @@ import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
 })
 export class AdhocAnalyzerComponent {
   private readonly api = inject(PortfolioApiService);
+  private readonly config = inject(ConfigService);
 
   protected readonly symbols = signal<string[]>([]);
   protected readonly inputValue = signal('');
@@ -80,7 +82,10 @@ export class AdhocAnalyzerComponent {
     this.results.set([]);
     this.analyzed.set(false);
 
-    this.api.analyzeSymbols(this.symbols()).subscribe({
+    const oversold = this.config.rsiOversoldThreshold();
+    const overbought = this.config.rsiOverboughtThreshold();
+
+    this.api.analyzeSymbols(this.symbols(), oversold, overbought).subscribe({
       next: (r) => {
         this.results.set(r);
         this.loading.set(false);

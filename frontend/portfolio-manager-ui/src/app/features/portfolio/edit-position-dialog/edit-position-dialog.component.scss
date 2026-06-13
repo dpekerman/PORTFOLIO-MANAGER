@@ -1,0 +1,38 @@
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding-bottom: 4px;
+
+  mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+mat-dialog-content {
+  padding-top: 8px !important;
+  overflow: visible !important;
+  min-width: 360px;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  // Give each form field enough room for hint + error text below it
+  // so the next field's label never overlaps
+  gap: 20px;
+  padding: 4px 0 8px;
+}
+
+.full-width {
+  width: 100%;
+  // Reserve explicit bottom space for mat-hint/mat-error lines
+  // mat-form-field in outline mode needs ~18px below for subscript
+  .mat-mdc-form-field-subscript-wrapper {
+    min-height: 18px;
+  }
+}

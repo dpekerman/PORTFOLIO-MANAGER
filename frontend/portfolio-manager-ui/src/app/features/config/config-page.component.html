@@ -71,6 +71,52 @@
       </mat-card-content>
     </mat-card>
 
+    <!-- ── RSI Signal Thresholds ── -->
+    <mat-card class="config-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>show_chart</mat-icon>
+        <mat-card-title>RSI Signal Thresholds</mat-card-title>
+        <mat-card-subtitle
+          >RSI boundaries used by the scanner to classify Oversold / Overbought
+          signals</mat-card-subtitle
+        >
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="fields-grid">
+          <mat-form-field appearance="outline">
+            <mat-label>Oversold threshold (≤)</mat-label>
+            <input matInput type="number" formControlName="rsiOversoldThreshold" min="1" max="49" />
+            <mat-hint>RSI at or below this value → Oversold. Default: 30</mat-hint>
+            @if (form.controls.rsiOversoldThreshold.errors?.['min']) {
+              <mat-error>Minimum 1</mat-error>
+            }
+            @if (form.controls.rsiOversoldThreshold.errors?.['max']) {
+              <mat-error>Must be below 50</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Overbought threshold (≥)</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="rsiOverboughtThreshold"
+              min="51"
+              max="99"
+            />
+            <mat-hint>RSI at or above this value → Overbought. Default: 75</mat-hint>
+            @if (form.controls.rsiOverboughtThreshold.errors?.['min']) {
+              <mat-error>Must be above 50</mat-error>
+            }
+            @if (form.controls.rsiOverboughtThreshold.errors?.['max']) {
+              <mat-error>Maximum 99</mat-error>
+            }
+          </mat-form-field>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
     <!-- ── Actions ── -->
     <div class="config-actions">
       <button
@@ -93,4 +139,88 @@
       </button>
     </div>
   </form>
+
+  <!-- ── Email Alert Recipients (outside the form — saved separately to backend) ── -->
+  <mat-card class="config-card email-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>notifications_active</mat-icon>
+      <mat-card-title>RSI Confirmed Signal Alerts</mat-card-title>
+      <mat-card-subtitle>
+        Email recipients who receive a high-priority alert the moment a new CONFIRMED RSI signal is
+        detected. Each signal fires <strong>once</strong> — no spam.
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <p class="email-info">
+        <mat-icon class="email-info-icon">info_outline</mat-icon>
+        To enable sending, set <code>EmailNotification.Enabled = true</code> and fill in SMTP
+        credentials in <code>appsettings.json</code> on the backend. Recipients are managed here.
+      </p>
+
+      <!-- Chip input for email addresses -->
+      <mat-form-field appearance="outline" class="email-input-field" subscriptSizing="dynamic">
+        <mat-label>Add recipient email</mat-label>
+        <mat-chip-grid #chipGrid>
+          @for (email of recipientEmails(); track email) {
+            <mat-chip-row (removed)="removeEmail(email)" [disabled]="savingEmails()">
+              {{ email }}
+              <button matChipRemove aria-label="Remove {{ email }}">
+                <mat-icon>cancel</mat-icon>
+              </button>
+            </mat-chip-row>
+          }
+        </mat-chip-grid>
+        <input
+          matInput
+          placeholder="e.g. trader@example.com"
+          [matChipInputFor]="chipGrid"
+          [ngModel]="emailInputValue()"
+          (ngModelChange)="emailInputValue.set($event)"
+          (keydown)="onEmailKeydown($event)"
+          (blur)="addEmail(emailInputValue())"
+          [disabled]="savingEmails() || recipientEmails().length >= 50"
+          autocomplete="off"
+          type="email"
+        />
+        <mat-hint>Press Enter to add · Max 50 recipients</mat-hint>
+      </mat-form-field>
+
+      @if (recipientEmails().length === 0 && !loadingEmails()) {
+        <p class="no-recipients">No recipients configured — alerts will not be sent.</p>
+      }
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button
+        mat-stroked-button
+        (click)="sendTestEmail()"
+        [disabled]="sendingTestEmail() || savingEmails() || scanningNow()"
+        matTooltip="Send a test email to verify SMTP is working. Uses the first recipient or the address in the input field."
+        class="test-email-btn"
+      >
+        <mat-icon>{{ sendingTestEmail() ? 'hourglass_empty' : 'send' }}</mat-icon>
+        {{ sendingTestEmail() ? 'Sending…' : 'Send Test Email' }}
+      </button>
+      <button
+        mat-stroked-button
+        (click)="scanAndNotifyNow()"
+        [disabled]="scanningNow() || savingEmails() || sendingTestEmail()"
+        matTooltip="Run a live RSI scan right now and send emails for all currently CONFIRMED signals"
+        class="scan-now-btn"
+      >
+        <mat-icon>{{ scanningNow() ? 'hourglass_empty' : 'radar' }}</mat-icon>
+        {{ scanningNow() ? 'Scanning…' : 'Scan & Notify Now' }}
+      </button>
+      <button
+        mat-flat-button
+        (click)="saveEmailRecipients()"
+        [disabled]="savingEmails()"
+        matTooltip="Save recipient list to the backend"
+      >
+        <mat-icon>{{ savingEmails() ? 'hourglass_empty' : 'save' }}</mat-icon>
+        {{ savingEmails() ? 'Saving…' : 'Save Recipients' }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
 </div>

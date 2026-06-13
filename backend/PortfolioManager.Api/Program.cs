@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using PortfolioManager.Api.Data;
+using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 using System.Text.Json.Serialization;
 
@@ -57,6 +59,17 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
+
+// ── Email Notification Services ───────────────────────────────────────────────
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailNotification"));
+builder.Services.AddSingleton<NotificationRecipientsService>();
+builder.Services.AddSingleton<SignalNotificationTracker>();
+// Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
+builder.Services.AddSingleton<EmailNotificationService>();
+// Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals
+// regardless of which page is open in the frontend
+builder.Services.AddHostedService<RsiAlertBackgroundService>();
 
 var app = builder.Build();
 

@@ -1,0 +1,63 @@
+using PortfolioManager.Api.Models;
+
+namespace PortfolioManager.Api.Services;
+
+/// <summary>
+/// Singleton that tracks which CONFIRMED RSI signals have already triggered an email alert.
+/// Ensures each signal fires an email ONCE. When a symbol drops off the confirmed list,
+/// its key is removed so it can fire again if it re-enters a confirmed state.
+/// </summary>
+public class SignalNotificationTracker
+{
+    // Key: "SYMBOL|ScanType" e.g. "RY.TO|Overbought"
+    private readonly HashSet<string> _notifiedKeys = [];
+    private readonly object _lock = new();
+
+    /// <summary>
+    /// Computes which confirmed signals are NEW (not yet notified) and
+    /// updates the tracker to match the current scan result set.
+    /// Returns only the newly-confirmed signals that should trigger an email.
+    /// </summary>
+    public List<RsiScanResult> GetNewlyConfirmedAndSync(IEnumerable<RsiScanResult> allResults)
+    {
+        var confirmedNow = allResults
+            .Where(r => r.Status == SignalStatus.Confirmed)
+            .ToList();
+
+        var confirmedKeys = confirmedNow
+            .Select(r => $"{r.Symbol}|{r.ScanType}")
+            .ToHashSet();
+
+        lock (_lock)
+        {
+            // Find newly confirmed: in current set but NOT yet in our notified set
+            var newlyConfirmed = confirmedNow
+                .Where(r => !_notifiedKeys.Contains($"{r.Symbol}|{r.ScanType}"))
+                .ToList();
+
+            // Mark all current confirmed signals as notified
+            foreach (var key in confirmedKeys)
+                _notifiedKeys.Add(key);
+
+            // Remove keys that are no longer confirmed (so they can trigger again if they return)
+            _notifiedKeys.RemoveWhere(k => !confirmedKeys.Contains(k));
+
+            return newlyConfirmed;
+        }
+    }
+
+    /// <summary>Returns count of currently tracked/notified signals.</summary>
+    public int TrackedCount
+    {
+        get { lock (_lock) return _notifiedKeys.Count; }
+    }
+
+    /// <summary>
+    /// Clears all tracked keys so that all currently CONFIRMED signals will fire emails again
+    /// on the next notification check. Used by the manual "scan-now" endpoint.
+    /// </summary>
+    public void ResetAll()
+    {
+        lock (_lock) _notifiedKeys.Clear();
+    }
+}

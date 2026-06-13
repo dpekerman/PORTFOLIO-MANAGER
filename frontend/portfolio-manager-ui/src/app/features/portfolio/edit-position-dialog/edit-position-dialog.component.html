@@ -1,0 +1,53 @@
+<h2 mat-dialog-title>
+  <mat-icon>edit</mat-icon>
+  Edit Position · {{ data.item.symbol }}
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" (ngSubmit)="save()" id="edit-form" class="edit-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Company Name</mat-label>
+      <input matInput formControlName="companyName" autocomplete="off" />
+      @if (form.controls.companyName.errors?.['required']) {
+        <mat-error>Company name is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Shares</mat-label>
+      <input matInput type="number" formControlName="shares" step="0.0001" min="0.0001" />
+      @if (form.controls.shares.errors?.['min']) {
+        <mat-error>Shares must be greater than 0</mat-error>
+      }
+      @if (form.controls.shares.errors?.['required']) {
+        <mat-error>Shares is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Average Cost Basis (per share)</mat-label>
+      <input matInput type="number" formControlName="averageCostBasis" step="0.01" min="0" />
+      <mat-hint>Average price paid per share in your currency</mat-hint>
+      @if (form.controls.averageCostBasis.errors?.['min']) {
+        <mat-error>Cost basis must be 0 or greater</mat-error>
+      }
+      @if (form.controls.averageCostBasis.errors?.['required']) {
+        <mat-error>Average cost basis is required</mat-error>
+      }
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="edit-form"
+    [disabled]="form.invalid || form.pristine"
+    (click)="save()"
+  >
+    <mat-icon>save</mat-icon>
+    Save Changes
+  </button>
+</mat-dialog-actions>

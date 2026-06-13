@@ -10,6 +10,10 @@ import { PortfolioSummary } from '../../../core/models/portfolio.models';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
+import {
+  EditPositionDialogComponent,
+  EditPositionDialogResult,
+} from '../edit-position-dialog/edit-position-dialog.component';
 
 @Component({
   selector: 'app-stock-card',
@@ -62,6 +66,25 @@ export class StockCardComponent {
 
   toggleSelect(): void {
     this.state.toggleSelection(this.summary().item.id);
+  }
+
+  edit(): void {
+    this.dialog
+      .open(EditPositionDialogComponent, {
+        data: { item: this.summary().item },
+        width: '420px',
+        maxWidth: '95vw',
+      })
+      .afterClosed()
+      .subscribe((result: EditPositionDialogResult | undefined) => {
+        if (result) {
+          this.state.updateItem(this.summary().item.id, {
+            companyName: result.companyName,
+            shares: result.shares,
+            averageCostBasis: result.averageCostBasis,
+          });
+        }
+      });
   }
 
   remove(): void {

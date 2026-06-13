@@ -6,6 +6,7 @@ import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
   PortfolioSummary,
+  UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -162,6 +163,30 @@ export class PortfolioStateService {
         this.snackBar.open(`${symbol} removed from portfolio`, 'Close', { duration: 3000 });
       },
       error: () => this.snackBar.open('Failed to remove stock', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateItem(id: number, request: UpdatePortfolioItemRequest): void {
+    this.api.updateItem(id, request).subscribe({
+      next: (updated) => {
+        this._summaries.update((items) =>
+          items.map((s) =>
+            s.item.id === id
+              ? {
+                  ...s,
+                  item: {
+                    ...s.item,
+                    companyName: updated.companyName,
+                    shares: updated.shares,
+                    averageCostBasis: updated.averageCostBasis,
+                  },
+                }
+              : s,
+          ),
+        );
+        this.snackBar.open(`Position updated`, 'Close', { duration: 3000 });
+      },
+      error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });
   }
 }

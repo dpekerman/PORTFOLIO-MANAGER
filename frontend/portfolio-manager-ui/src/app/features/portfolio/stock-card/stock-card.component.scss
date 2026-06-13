@@ -37,6 +37,17 @@
       color: var(--text-primary) !important;
     }
 
+    .edit-btn {
+      position: absolute;
+      top: -8px;
+      right: 28px;
+      opacity: 0.4;
+      transition:
+        opacity 0.2s,
+        color 0.2s;
+      color: #616161;
+    }
+
     .remove-btn {
       position: absolute;
       top: -8px;
@@ -49,9 +60,17 @@
     }
   }
 
-  &:hover .remove-btn {
+  &:hover .remove-btn,
+  &:hover .edit-btn {
     opacity: 1;
+  }
+
+  &:hover .remove-btn {
     color: #ff5252;
+  }
+
+  &:hover .edit-btn {
+    color: #64b5f6;
   }
 }
 

@@ -38,7 +38,10 @@ export class ScannerStateService {
       .pipe(
         takeUntilDestroyed(),
         switchMap((cfg) => interval(cfg.scanIntervalSeconds * 1000)),
-        switchMap(() => this.api.getRsiScan()),
+        switchMap(() => {
+          const cfg = this.configService.config();
+          return this.api.getRsiScan(false, cfg.rsiOversoldThreshold, cfg.rsiOverboughtThreshold);
+        }),
       )
       .subscribe({ next: (r) => this._response.set(r) });
   }
@@ -46,7 +49,8 @@ export class ScannerStateService {
   refresh(force = false): void {
     this._loading.set(true);
     this._error.set(null);
-    this.api.getRsiScan(force).subscribe({
+    const cfg = this.configService.config();
+    this.api.getRsiScan(force, cfg.rsiOversoldThreshold, cfg.rsiOverboughtThreshold).subscribe({
       next: (r) => {
         this._response.set(r);
         this._loading.set(false);

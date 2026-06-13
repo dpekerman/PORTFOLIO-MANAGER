@@ -40,15 +40,18 @@ export class RsiScannerTableComponent {
   ];
 
   protected readonly isOversold = computed(() => this.scanType() === 'Oversold');
+  protected readonly isNeutral = computed(() => this.scanType() === 'Neutral');
 
   protected rsiBarColor(rsi: number, type: ScanType): string {
     if (type === 'Oversold') return rsi < 25 ? '#d32f2f' : '#f57c00';
-    return rsi > 80 ? '#d32f2f' : '#f57c00';
+    if (type === 'Overbought') return rsi > 80 ? '#d32f2f' : '#f57c00';
+    return '#757575'; // neutral = grey
   }
 
   protected rsiBarValue(rsi: number, type: ScanType): number {
     if (type === 'Oversold') return (rsi / 30) * 100;
-    return ((rsi - 75) / 25) * 100;
+    if (type === 'Overbought') return ((rsi - 75) / 25) * 100;
+    return rsi; // neutral: show actual RSI as bar value 0-100
   }
 
   protected macdIcon(crossover: string): string {

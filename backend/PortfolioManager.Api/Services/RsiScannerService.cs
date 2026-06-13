@@ -5,9 +5,9 @@ namespace PortfolioManager.Api.Services;
 
 public interface IRsiScannerService
 {
-    Task<ScannerResponse> ScanAsync(CancellationToken ct = default);
+    Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
-    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, CancellationToken ct = default);
+    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default);
 }
 
 public sealed class RsiScannerService : IRsiScannerService
@@ -67,15 +67,15 @@ public sealed class RsiScannerService : IRsiScannerService
         _logger = logger;
     }
 
-    public async Task<ScannerResponse> ScanAsync(CancellationToken ct = default)
+    public async Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default)
     {
         // Yahoo Finance requires no API key — go straight to live scan.
         // If Yahoo is unreachable (network error), fall back to demo data.
         try
         {
-            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols).",
-                TsxWatchlist.Length);
-            return await RunLiveScanAsync(ct);
+            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols). Oversold<{OS} Overbought>{OB}",
+                TsxWatchlist.Length, oversoldThreshold, overboughtThreshold);
+            return await RunLiveScanAsync(oversoldThreshold, overboughtThreshold, ct);
         }
         catch (Exception ex)
         {
@@ -86,7 +86,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
     // ── Live scan ─────────────────────────────────────────────────────────────
     public async Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
-        IEnumerable<string> symbols, CancellationToken ct = default)
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default)
     {
         var results = new List<RsiScanResult>();
         var distinct = symbols
@@ -103,7 +103,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, ct)).ToArray();
+            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, ct)).ToArray();
             var batchResults = await Task.WhenAll(tasks);
             results.AddRange(batchResults.Where(r => r is not null)!);
             if (distinct.Length > 3) await Task.Delay(1500, ct);
@@ -112,7 +112,7 @@ public sealed class RsiScannerService : IRsiScannerService
         return results.OrderBy(r => r.ScanType).ThenBy(r => r.Rsi).ToList();
     }
 
-    private async Task<ScannerResponse> RunLiveScanAsync(CancellationToken ct)
+    private async Task<ScannerResponse> RunLiveScanAsync(decimal oversoldThreshold, decimal overboughtThreshold, CancellationToken ct)
     {
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
@@ -126,12 +126,13 @@ public sealed class RsiScannerService : IRsiScannerService
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, ct)).ToArray();
+            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, ct)).ToArray();
             var results = await Task.WhenAll(tasks);
             foreach (var r in results.Where(r => r is not null))
             {
                 if (r!.ScanType == ScanType.Oversold) oversold.Add(r);
-                else overbought.Add(r);
+                else if (r.ScanType == ScanType.Overbought) overbought.Add(r);
+                // Neutral results are not shown in main TSX scan chains
             }
             await Task.Delay(1500, ct);
         }
@@ -167,7 +168,7 @@ public sealed class RsiScannerService : IRsiScannerService
         return null;
     }
 
-    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, CancellationToken ct)
+    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, CancellationToken ct)
     {
         try
         {
@@ -219,7 +220,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── Indicator 1: Stochastics ────────────────────────────────────
             decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
-            bool stochConfirm = rsi < 30 ? stochK < 20 : stochK > 80;
+            bool stochConfirm = rsi < oversoldThreshold ? stochK < 20 : stochK > 80;
 
             // ── Indicator 2: MACD ───────────────────────────────────────────
             var (macdVal, macdSig) = CalculateMacd(closes);
@@ -227,15 +228,13 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── Indicator 3: Bollinger Bands ────────────────────────────────
             var (bbUpper, _, bbLower) = CalculateBollingerBands(closes, 20);
-            bool bbBreakout = rsi < 30 ? todayClose < bbLower : todayClose > bbUpper;
+            bool bbBreakout = rsi < oversoldThreshold ? todayClose < bbLower : todayClose > bbUpper;
             string bbPosition = todayClose < bbLower ? "Below Lower"
                               : todayClose > bbUpper ? "Above Upper"
                               : "Inside";
 
             // ── Indicator 4: Volume Signal ──────────────────────────────────
-            string volumeSignal = rsi < 30
-                ? (volRatio >= 1.3m ? "Validated" : volRatio < 0.8m ? "Low-Volume Trap" : "Neutral")
-                : (volRatio >= 1.3m ? "Validated" : volRatio < 0.8m ? "Low-Volume Trap" : "Neutral");
+            string volumeSignal = volRatio >= 1.3m ? "Validated" : volRatio < 0.8m ? "Low-Volume Trap" : "Neutral";
 
             // ── Indicator 5: 50 / 200 DMA ───────────────────────────────────
             decimal dma50Dev  = 0m;
@@ -246,77 +245,58 @@ public sealed class RsiScannerService : IRsiScannerService
             if (has200Dma)
                 dma200Dev = Math.Round(((todayClose - CalculateSma(closes, 200)) / CalculateSma(closes, 200)) * 100m, 2);
 
-            // ── Probability ──────────────────────────────────────────────────
-            string probability = CalculateReversalProbability(
-                rsi, rsi < 30 ? ScanType.Oversold : ScanType.Overbought,
-                stochConfirm, macdCrossover, bbBreakout, volumeSignal);
+            ScanType scanType;
+            string probability;
+            SignalStatus status;
+            string trigger;
 
-            if (rsi < 30)
+            if (rsi <= oversoldThreshold)
             {
-                var (status, trigger) = ClassifyOversold(
-                    todayOpen, todayHigh, todayLow, todayClose,
-                    prevHigh, range, volRatio, rsi);
-                return new RsiScanResult
-                {
-                    Symbol = symbol,
-                    CompanyName = CompanyNames.TryGetValue(symbol, out var name1) ? name1 : symbol,
-                    Rsi = Math.Round(rsi, 2),
-                    CurrentPrice = todayClose,
-                    Change = Math.Round(change, 2),
-                    ChangePercent = Math.Round(changePct, 2),
-                    ScanType = ScanType.Oversold,
-                    Status = status,
-                    TriggerDetails = trigger,
-                    Volume = todayVol,
-                    VolumeRatio = Math.Round(volRatio, 2),
-                    StochasticK = Math.Round(stochK, 1),
-                    StochasticsConfirm = stochConfirm,
-                    MacdValue = Math.Round(macdVal, 4),
-                    MacdSignalLine = Math.Round(macdSig, 4),
-                    MacdCrossover = macdCrossover,
-                    BollingerBreakout = bbBreakout,
-                    BollingerPosition = bbPosition,
-                    VolumeSignal = volumeSignal,
-                    Dma50Deviation = dma50Dev,
-                    Dma200Deviation = dma200Dev,
-                    Has200Dma = has200Dma,
-                    ReversalProbability = probability,
-                    IsDemo = false
-                };
+                scanType = ScanType.Oversold;
+                probability = CalculateReversalProbability(rsi, ScanType.Oversold, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
+                (status, trigger) = ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
             }
-            else if (rsi > 75)
+            else if (rsi >= overboughtThreshold)
             {
-                var (status, trigger) = ClassifyOverbought(
-                    todayOpen, todayHigh, todayLow, todayClose,
-                    prevLow, range, rsi);
-                return new RsiScanResult
-                {
-                    Symbol = symbol,
-                    CompanyName = CompanyNames.TryGetValue(symbol, out var name2) ? name2 : symbol,
-                    Rsi = Math.Round(rsi, 2),
-                    CurrentPrice = todayClose,
-                    Change = Math.Round(change, 2),
-                    ChangePercent = Math.Round(changePct, 2),
-                    ScanType = ScanType.Overbought,
-                    Status = status,
-                    TriggerDetails = trigger,
-                    Volume = todayVol,
-                    VolumeRatio = Math.Round(volRatio, 2),
-                    StochasticK = Math.Round(stochK, 1),
-                    StochasticsConfirm = stochConfirm,
-                    MacdValue = Math.Round(macdVal, 4),
-                    MacdSignalLine = Math.Round(macdSig, 4),
-                    MacdCrossover = macdCrossover,
-                    BollingerBreakout = bbBreakout,
-                    BollingerPosition = bbPosition,
-                    VolumeSignal = volumeSignal,
-                    Dma50Deviation = dma50Dev,
-                    Dma200Deviation = dma200Dev,
-                    Has200Dma = has200Dma,
-                    ReversalProbability = probability,
-                    IsDemo = false
-                };
+                scanType = ScanType.Overbought;
+                probability = CalculateReversalProbability(rsi, ScanType.Overbought, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
+                (status, trigger) = ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
             }
+            else
+            {
+                scanType = ScanType.Neutral;
+                probability = "Low";
+                status = SignalStatus.Neutral;
+                trigger = $"RSI {Math.Round(rsi, 1)} — neutral range ({oversoldThreshold}–{overboughtThreshold}). No directional signal. Technical indicators shown for reference.";
+            }
+
+            return new RsiScanResult
+            {
+                Symbol = symbol,
+                CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
+                Rsi = Math.Round(rsi, 2),
+                CurrentPrice = todayClose,
+                Change = Math.Round(change, 2),
+                ChangePercent = Math.Round(changePct, 2),
+                ScanType = scanType,
+                Status = status,
+                TriggerDetails = trigger,
+                Volume = todayVol,
+                VolumeRatio = Math.Round(volRatio, 2),
+                StochasticK = Math.Round(stochK, 1),
+                StochasticsConfirm = stochConfirm,
+                MacdValue = Math.Round(macdVal, 4),
+                MacdSignalLine = Math.Round(macdSig, 4),
+                MacdCrossover = macdCrossover,
+                BollingerBreakout = bbBreakout,
+                BollingerPosition = bbPosition,
+                VolumeSignal = volumeSignal,
+                Dma50Deviation = dma50Dev,
+                Dma200Deviation = dma200Dev,
+                Has200Dma = has200Dma,
+                ReversalProbability = probability,
+                IsDemo = false
+            };
         }
         catch (Exception ex)
         {

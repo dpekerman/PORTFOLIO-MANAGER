@@ -4,6 +4,8 @@ export interface AppConfig {
   scanIntervalSeconds: number;
   portfolioRefreshSeconds: number;
   watchlistRefreshSeconds: number;
+  rsiOversoldThreshold: number;
+  rsiOverboughtThreshold: number;
 }
 
 const STORAGE_KEY = 'pm_app_config';
@@ -12,6 +14,8 @@ const DEFAULTS: AppConfig = {
   scanIntervalSeconds: 300, // 5 minutes
   portfolioRefreshSeconds: 120, // 2 minutes
   watchlistRefreshSeconds: 60, // 1 minute
+  rsiOversoldThreshold: 30,
+  rsiOverboughtThreshold: 75,
 };
 
 @Injectable({ providedIn: 'root' })
@@ -23,6 +27,8 @@ export class ConfigService {
   readonly scanIntervalSeconds = () => this._config().scanIntervalSeconds;
   readonly portfolioRefreshSeconds = () => this._config().portfolioRefreshSeconds;
   readonly watchlistRefreshSeconds = () => this._config().watchlistRefreshSeconds;
+  readonly rsiOversoldThreshold = () => this._config().rsiOversoldThreshold;
+  readonly rsiOverboughtThreshold = () => this._config().rsiOverboughtThreshold;
 
   constructor() {
     // Persist to localStorage on every change

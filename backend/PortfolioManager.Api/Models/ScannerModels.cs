@@ -1,7 +1,7 @@
 namespace PortfolioManager.Api.Models;
 
-public enum ScanType { Oversold, Overbought }
-public enum SignalStatus { Confirmed, EarlyWarning }
+public enum ScanType { Oversold, Overbought, Neutral }
+public enum SignalStatus { Confirmed, EarlyWarning, Neutral }
 
 public class RsiScanResult
 {

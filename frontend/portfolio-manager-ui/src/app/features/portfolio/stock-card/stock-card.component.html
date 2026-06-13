@@ -29,6 +29,14 @@
     }}</mat-card-subtitle>
     <button
       mat-icon-button
+      class="edit-btn"
+      matTooltip="Edit shares / average cost"
+      (click)="edit()"
+    >
+      <mat-icon>edit</mat-icon>
+    </button>
+    <button
+      mat-icon-button
       class="remove-btn"
       matTooltip="Remove from portfolio"
       (click)="remove()"

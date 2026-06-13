@@ -19,19 +19,27 @@ public class ScannerController(
     [HttpGet("rsi")]
     public async Task<ActionResult<ScannerResponse>> GetRsiScan(
         [FromQuery] bool force = false,
+        [FromQuery] decimal oversold = 30m,
+        [FromQuery] decimal overbought = 75m,
         CancellationToken ct = default)
     {
-        if (!force && cache.TryGetValue(CacheKey, out ScannerResponse? cached) && cached is not null)
+        // Cache key includes thresholds so changing them forces a fresh scan
+        var cacheKey = $"{CacheKey}_{oversold}_{overbought}";
+        if (!force && cache.TryGetValue(cacheKey, out ScannerResponse? cached) && cached is not null)
         {
             logger.LogDebug("Returning cached RSI scan (scanned at {Time})", cached.ScannedAt);
             return Ok(cached);
         }
 
-        var result = await scanner.ScanAsync(ct);
+        var result = await scanner.ScanAsync(oversold, overbought, ct);
 
         // Only cache live results — demo data has no TTL value
         if (!result.IsDemo)
-            cache.Set(CacheKey, result, CacheTtl);
+            cache.Set(cacheKey, result, CacheTtl);
+
+        // NOTE: Email notifications are handled by RsiAlertBackgroundService — it runs
+        // independently every ScanIntervalSeconds and fires emails for new CONFIRMED signals.
+        // No fire-and-forget needed here.
 
         return Ok(result);
     }
@@ -59,8 +67,9 @@ public class ScannerController(
         if (request.Symbols.Count > 20)
             return BadRequest("Maximum 20 symbols per request.");
 
-        logger.LogInformation("Ad-hoc analysis requested for {Count} symbols.", request.Symbols.Count);
-        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, ct);
+        logger.LogInformation("Ad-hoc analysis requested for {Count} symbols. Oversold<{OS} Overbought>{OB}",
+            request.Symbols.Count, request.OversoldThreshold, request.OverboughtThreshold);
+        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, request.OversoldThreshold, request.OverboughtThreshold, ct);
         return Ok(results);
     }
 
@@ -97,4 +106,4 @@ public class ScannerController(
     }
 }
 
-public sealed record AnalyzeRequest(List<string> Symbols);
+public sealed record AnalyzeRequest(List<string> Symbols, decimal OversoldThreshold = 30m, decimal OverboughtThreshold = 75m);

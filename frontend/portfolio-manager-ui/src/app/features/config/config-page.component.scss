@@ -67,3 +67,50 @@
   justify-content: flex-end;
   flex-wrap: wrap;
 }
+
+/* ── Email alert card ── */
+.email-card {
+  margin-top: 8px;
+}
+
+.email-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 20px;
+  line-height: 1.5;
+
+  code {
+    background: rgba(100, 181, 246, 0.12);
+    color: #64b5f6;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.78rem;
+  }
+}
+
+.email-info-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #64b5f6;
+}
+
+.email-input-field {
+  width: 100%;
+}
+
+.no-recipients {
+  font-size: 0.8rem;
+  color: var(--text-faint);
+  margin: 8px 0 0;
+  font-style: italic;
+}

@@ -8,6 +8,17 @@
         <p class="page-sub">Breakdown by sector &amp; industry · Click sectors to drill down</p>
       </div>
     </div>
+    <div class="page-actions">
+      <button
+        mat-icon-button
+        matTooltip="Export allocation to CSV (opens in Excel)"
+        (click)="exportCsv()"
+        [disabled]="portfolio.summaries().length === 0"
+        aria-label="Export allocation to CSV"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
+    </div>
   </div>
 
   @if (portfolio.summaries().length === 0 && !portfolio.loading()) {

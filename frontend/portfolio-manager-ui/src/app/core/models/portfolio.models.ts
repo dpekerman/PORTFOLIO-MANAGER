@@ -73,7 +73,7 @@ export interface SymbolSearchResult {
 }
 
 // â”€â”€ RSI Scanner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export type ScanType = 'Oversold' | 'Overbought';
+export type ScanType = 'Oversold' | 'Overbought' | 'Neutral';
 export type SignalStatus = 'Confirmed' | 'EarlyWarning';
 export type ReversalProbability = 'Low' | 'Medium' | 'High';
 export type MacdCrossover = 'Bullish' | 'Bearish' | 'Neutral';
