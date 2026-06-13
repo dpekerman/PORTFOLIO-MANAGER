@@ -192,6 +192,44 @@
     &:hover:not([disabled]) {
       color: var(--text-primary);
     }
+
+    // Demo mode active state
+    &.demo-active {
+      color: #ffa726;
+    }
+  }
+}
+
+// ── Demo mode banner ──────────────────────────────────────────────────────────
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 20px;
+  background: rgba(255, 167, 38, 0.12);
+  border-bottom: 1px solid rgba(255, 167, 38, 0.3);
+  color: #ffa726;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  position: sticky;
+  top: 56px;
+  z-index: 98;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .demo-banner-btn {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #ffa726;
+    padding: 0 8px;
+    min-width: auto;
+    text-decoration: underline;
   }
 }
 

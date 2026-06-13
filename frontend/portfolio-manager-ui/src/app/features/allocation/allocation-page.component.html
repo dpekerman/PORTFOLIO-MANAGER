@@ -30,7 +30,7 @@
             Portfolio Value
           </div>
           <div class="kpi-value kpi-neutral">
-            {{ portfolio.totalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ portfolio.displayTotalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Current market value</div>
         </mat-card-content>
@@ -43,7 +43,7 @@
             Total Cost Basis
           </div>
           <div class="kpi-value kpi-neutral">
-            {{ portfolio.totalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ portfolio.displayTotalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Invested capital</div>
         </mat-card-content>
@@ -60,7 +60,7 @@
             [class.kpi-positive]="isPositive()"
             [class.kpi-negative]="!isPositive()"
           >
-            {{ portfolio.totalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ portfolio.displayTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div
             class="kpi-sub"

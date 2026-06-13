@@ -45,6 +45,26 @@ public class ScannerController(
     }
 
     /// <summary>
+    /// Ad-hoc analysis: accepts up to 20 user-supplied symbols and returns RSI scan results for each.
+    /// Not cached — always fetches live data.
+    /// </summary>
+    [HttpPost("analyze")]
+    public async Task<ActionResult<List<RsiScanResult>>> AnalyzeSymbols(
+        [FromBody] AnalyzeRequest request,
+        CancellationToken ct)
+    {
+        if (request.Symbols is null || request.Symbols.Count == 0)
+            return BadRequest("Provide at least one symbol.");
+
+        if (request.Symbols.Count > 20)
+            return BadRequest("Maximum 20 symbols per request.");
+
+        logger.LogInformation("Ad-hoc analysis requested for {Count} symbols.", request.Symbols.Count);
+        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, ct);
+        return Ok(results);
+    }
+
+    /// <summary>
     /// Diagnostic: tests connectivity to Yahoo Finance.
     /// Returns 200 with status info. Safe to call from Swagger.
     /// </summary>
@@ -76,3 +96,5 @@ public class ScannerController(
         }
     }
 }
+
+public sealed record AnalyzeRequest(List<string> Symbols);

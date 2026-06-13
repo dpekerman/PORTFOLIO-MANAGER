@@ -6,6 +6,8 @@ namespace PortfolioManager.Api.Services;
 public interface IRsiScannerService
 {
     Task<ScannerResponse> ScanAsync(CancellationToken ct = default);
+    /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
+    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, CancellationToken ct = default);
 }
 
 public sealed class RsiScannerService : IRsiScannerService
@@ -83,6 +85,33 @@ public sealed class RsiScannerService : IRsiScannerService
     }
 
     // ── Live scan ─────────────────────────────────────────────────────────────
+    public async Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
+        IEnumerable<string> symbols, CancellationToken ct = default)
+    {
+        var results = new List<RsiScanResult>();
+        var distinct = symbols
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Where(s => s.Length > 0)
+            .Distinct()
+            .ToArray();
+
+        // Batch of 3 with polite delay — same strategy as the main scan
+        var batches = distinct
+            .Select((sym, i) => new { sym, i })
+            .GroupBy(x => x.i / 3)
+            .Select(g => g.Select(x => x.sym).ToArray());
+
+        foreach (var batch in batches)
+        {
+            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, ct)).ToArray();
+            var batchResults = await Task.WhenAll(tasks);
+            results.AddRange(batchResults.Where(r => r is not null)!);
+            if (distinct.Length > 3) await Task.Delay(1500, ct);
+        }
+
+        return results.OrderBy(r => r.ScanType).ThenBy(r => r.Rsi).ToList();
+    }
+
     private async Task<ScannerResponse> RunLiveScanAsync(CancellationToken ct)
     {
         var oversold  = new List<RsiScanResult>();

@@ -49,8 +49,32 @@ export class SectorExpositionComponent {
   private readonly snackBar = inject(MatSnackBar);
 
   protected readonly refreshing = signal(false);
-  protected readonly expandedSector = signal<string | null>(null);
-  protected readonly expandedIndustry = signal<string | null>(null);
+  protected readonly expandedSectors = signal<Set<string>>(new Set());
+  protected readonly expandedIndustries = signal<Set<string>>(new Set());
+
+  isSectorExpanded(sector: string): boolean {
+    return this.expandedSectors().has(sector);
+  }
+
+  isIndustryExpanded(key: string): boolean {
+    return this.expandedIndustries().has(key);
+  }
+
+  expandAll(): void {
+    const allSectors = new Set(this.sectors().map((s) => s.sector));
+    const allIndustries = new Set(
+      this.sectors().flatMap((s) =>
+        s.industries.map((ind) => this.industryKey(s.sector, ind.industry)),
+      ),
+    );
+    this.expandedSectors.set(allSectors);
+    this.expandedIndustries.set(allIndustries);
+  }
+
+  collapseAll(): void {
+    this.expandedSectors.set(new Set());
+    this.expandedIndustries.set(new Set());
+  }
 
   protected readonly sectors = computed<SectorRow[]>(() => {
     const summaries = this.portfolio.summaries();
@@ -106,12 +130,21 @@ export class SectorExpositionComponent {
   });
 
   toggleSector(sector: string): void {
-    this.expandedSector.update((cur) => (cur === sector ? null : sector));
-    this.expandedIndustry.set(null);
+    this.expandedSectors.update((set) => {
+      const next = new Set(set);
+      if (next.has(sector)) next.delete(sector);
+      else next.add(sector);
+      return next;
+    });
   }
 
   toggleIndustry(key: string): void {
-    this.expandedIndustry.update((cur) => (cur === key ? null : key));
+    this.expandedIndustries.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   }
 
   industryKey(sector: string, industry: string): string {

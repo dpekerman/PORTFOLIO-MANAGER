@@ -8,6 +8,7 @@ import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeService } from '../../core/services/theme.service';
@@ -39,6 +40,7 @@ export class LayoutComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly theme = inject(ThemeService);
   protected readonly watchlist = inject(WatchlistStateService);
+  protected readonly demoMode = inject(DemoModeService);
 
   protected readonly sidenav = viewChild.required<MatSidenav>('sidenav');
 
@@ -51,6 +53,7 @@ export class LayoutComponent {
     { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },
     { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
+    { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;
 
   refreshAll(): void {

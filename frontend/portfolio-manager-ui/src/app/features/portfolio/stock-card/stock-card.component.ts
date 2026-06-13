@@ -7,6 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../../core/models/portfolio.models';
+import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 
@@ -29,6 +30,7 @@ import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-d
 export class StockCardComponent {
   readonly summary = input.required<PortfolioSummary>();
   protected readonly state = inject(PortfolioStateService);
+  protected readonly demoMode = inject(DemoModeService);
   private readonly dialog = inject(MatDialog);
 
   protected readonly currentPrice = computed(() => {

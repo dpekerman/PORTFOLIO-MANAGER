@@ -7,12 +7,14 @@ import {
   AddPortfolioItemRequest,
   PortfolioSummary,
 } from '../models/portfolio.models';
+import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly demoMode = inject(DemoModeService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -45,6 +47,16 @@ export class PortfolioStateService {
     const cost = this.totalCost();
     return cost === 0 ? 0 : (this.totalGainLoss() / cost) * 100;
   });
+
+  // ── Demo-aware display values ───────────────────────────────────────────────
+  // Use these in templates. When demo mode is OFF they are identical to the raw values.
+  // When demo mode is ON they return masked values so real positions are never revealed.
+  readonly displayTotalValue = computed(() => this.demoMode.maskValue(this.totalValue()));
+  readonly displayTotalCost = computed(() => this.demoMode.maskValue(this.totalCost()));
+  readonly displayTotalGainLoss = computed(() => this.demoMode.maskValue(this.totalGainLoss()));
+  readonly displayTotalGainLossPct = computed(() =>
+    this.demoMode.maskPercent(this.totalGainLossPct()),
+  );
 
   constructor() {
     this.refresh();

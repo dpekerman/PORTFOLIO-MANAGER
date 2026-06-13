@@ -1,11 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Controllers + Swagger ────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        // Serialize enums as strings ("Oversold"/"Overbought") so Angular TypeScript
+        // string-union types match without manual mapping.
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

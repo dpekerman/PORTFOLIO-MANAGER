@@ -2,6 +2,7 @@ import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 
@@ -15,6 +16,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
 export class MarketHeaderComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly portfolio = inject(PortfolioStateService);
+  protected readonly demoMode = inject(DemoModeService);
 
   protected readonly signalBias = computed(() => {
     const o = this.scanner.oversold().length;
@@ -33,4 +35,12 @@ export class MarketHeaderComponent {
   });
 
   protected readonly isPortfolioPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
+
+  protected readonly displayPortfolioValue = computed(() =>
+    this.demoMode.maskValue(this.portfolio.totalValue()),
+  );
+
+  protected readonly displayGainLossPct = computed(() =>
+    this.demoMode.maskPercent(this.portfolio.totalGainLossPct()),
+  );
 }

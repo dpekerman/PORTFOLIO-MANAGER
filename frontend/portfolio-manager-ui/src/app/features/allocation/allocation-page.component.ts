@@ -4,6 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
@@ -24,7 +25,8 @@ import { SectorExpositionComponent } from './sector-exposition/sector-exposition
 })
 export class AllocationPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
+  protected readonly demoMode = inject(DemoModeService);
 
   protected readonly isPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
-  protected readonly returnPct = computed(() => this.portfolio.totalGainLossPct() / 100);
+  protected readonly returnPct = computed(() => this.portfolio.displayTotalGainLossPct() / 100);
 }

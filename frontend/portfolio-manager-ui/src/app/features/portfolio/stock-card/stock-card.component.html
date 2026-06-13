@@ -39,15 +39,19 @@
 
   <mat-card-content>
     <div class="price-row">
-      <span class="current-price">{{ currentPrice() | currency }}</span>
+      <span class="current-price" [class.demo-redact]="demoMode.isDemoMode()">{{
+        currentPrice() | currency
+      }}</span>
       @if (summary().quote) {
         <span
           class="change"
           [ngClass]="{ positive: isDailyPositive(), negative: !isDailyPositive() }"
         >
           <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-          {{ summary().quote!.change | number: '1.2-2' }}
-          ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
+          <span [class.demo-redact]="demoMode.isDemoMode()">
+            {{ summary().quote!.change | number: '1.2-2' }}
+            ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
+          </span>
         </span>
         @if (summary().quote!.marketState && summary().quote!.marketState !== 'REGULAR') {
           <span
@@ -84,16 +88,24 @@
         </div>
         <div class="metric">
           <span class="label">Avg Cost</span>
-          <span class="value">{{ summary().item.averageCostBasis | currency }}</span>
+          <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
+            summary().item.averageCostBasis | currency
+          }}</span>
         </div>
       }
       <div class="metric">
         <span class="label">Market Value</span>
-        <span class="value">{{ marketValue() | currency }}</span>
+        <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
+          marketValue() | currency
+        }}</span>
       </div>
       <div class="metric">
         <span class="label">{{ summary().item.isManual ? 'P&amp;L' : 'Gain / Loss' }}</span>
-        <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
+        <span
+          class="value"
+          [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+          [class.demo-redact]="demoMode.isDemoMode()"
+        >
           {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
         </span>
       </div>

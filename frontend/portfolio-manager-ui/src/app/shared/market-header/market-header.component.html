@@ -46,7 +46,7 @@
     <div class="kpi">
       <span class="kpi-label">Portfolio Value</span>
       <span class="kpi-value">{{
-        portfolio.totalValue() | currency: 'USD' : 'symbol' : '1.0-0'
+        displayPortfolioValue() | currency: 'USD' : 'symbol' : '1.0-0'
       }}</span>
     </div>
     <div class="kpi-divider"></div>
@@ -57,7 +57,7 @@
         [ngClass]="{ positive: isPortfolioPositive(), negative: !isPortfolioPositive() }"
       >
         <mat-icon>{{ isPortfolioPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
-        {{ portfolio.totalGainLossPct() | number: '1.2-2' }}%
+        {{ displayGainLossPct() | number: '1.2-2' }}%
       </span>
     </div>
     <div class="kpi-divider"></div>

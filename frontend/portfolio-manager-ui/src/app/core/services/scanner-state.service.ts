@@ -1,12 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { interval, switchMap } from 'rxjs';
 import { ScannerResponse } from '../models/portfolio.models';
+import { ConfigService } from './config.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ScannerStateService {
   private readonly api = inject(PortfolioApiService);
+  private readonly configService = inject(ConfigService);
 
   private readonly _response = signal<ScannerResponse | null>(null);
   private readonly _loading = signal(false);
@@ -31,10 +33,11 @@ export class ScannerStateService {
 
   constructor() {
     this.refresh();
-    // Refresh scanner every 5 minutes
-    interval(5 * 60_000)
+    // Restart auto-refresh whenever the configured interval changes
+    toObservable(this.configService.config)
       .pipe(
         takeUntilDestroyed(),
+        switchMap((cfg) => interval(cfg.scanIntervalSeconds * 1000)),
         switchMap(() => this.api.getRsiScan()),
       )
       .subscribe({ next: (r) => this._response.set(r) });

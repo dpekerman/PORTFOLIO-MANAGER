@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ScannerRowSkeletonComponent } from '../../shared/skeleton/scanner-row-skeleton.component';
+import { AdhocAnalyzerComponent } from './adhoc-analyzer/adhoc-analyzer.component';
 import { RsiScannerTableComponent } from './rsi-scanner-table.component';
 
 @Component({
@@ -20,6 +21,7 @@ import { RsiScannerTableComponent } from './rsi-scanner-table.component';
     MatTooltipModule,
     RsiScannerTableComponent,
     ScannerRowSkeletonComponent,
+    AdhocAnalyzerComponent,
   ],
 })
 export class ScannerPageComponent {

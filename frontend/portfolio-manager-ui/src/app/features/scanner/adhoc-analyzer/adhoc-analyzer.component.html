@@ -1,0 +1,142 @@
+<div class="adhoc-analyzer">
+  <!-- ── Header ── -->
+  <div class="adhoc-header">
+    <div class="adhoc-title-group">
+      <mat-icon class="adhoc-icon">manage_search</mat-icon>
+      <div>
+        <h2 class="adhoc-title">
+          AD-HOC SYMBOL ANALYSIS
+          @if (symbols().length > 0) {
+            <span class="count-badge neutral-badge">{{ symbols().length }}</span>
+          }
+        </h2>
+        <p class="adhoc-sub">
+          Enter any stock ticker to get full RSI + technical analysis · Max 20 symbols
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Input Row ── -->
+  <div class="adhoc-input-row">
+    <!-- Chip list -->
+    <mat-chip-set class="symbol-chips" aria-label="Symbols to analyze">
+      @for (sym of symbols(); track sym) {
+        <mat-chip class="symbol-chip" (removed)="removeSymbol(sym)">
+          {{ sym }}
+          <button matChipRemove aria-label="Remove {{ sym }}">
+            <mat-icon>cancel</mat-icon>
+          </button>
+        </mat-chip>
+      }
+    </mat-chip-set>
+
+    <!-- Text input -->
+    <mat-form-field class="symbol-input" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Add symbol (e.g. RY.TO, AAPL)</mat-label>
+      <input
+        matInput
+        [ngModel]="inputValue()"
+        (ngModelChange)="inputValue.set($event)"
+        (keydown)="onInputKeydown($event)"
+        (blur)="addSymbol(inputValue())"
+        placeholder="Type symbol and press Enter"
+        [disabled]="symbols().length >= 20"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+      />
+      @if (symbols().length >= 20) {
+        <mat-hint>Maximum 20 symbols reached</mat-hint>
+      } @else {
+        <mat-hint>Press Enter or comma to add · Backspace removes last</mat-hint>
+      }
+    </mat-form-field>
+
+    <!-- Action buttons -->
+    <div class="adhoc-actions">
+      <button
+        mat-flat-button
+        class="analyze-btn"
+        [disabled]="symbols().length === 0 || loading()"
+        (click)="analyze()"
+        matTooltip="Fetch live RSI + technical analysis for all entered symbols"
+      >
+        @if (loading()) {
+          <mat-icon class="spinning">radar</mat-icon>
+          Analyzing…
+        } @else {
+          <mat-icon>analytics</mat-icon>
+          Analyze
+        }
+      </button>
+      @if (symbols().length > 0) {
+        <button mat-icon-button (click)="clear()" matTooltip="Clear all symbols and results">
+          <mat-icon>clear_all</mat-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ── Error ── -->
+  @if (error()) {
+    <div class="adhoc-error" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      {{ error() }}
+    </div>
+  }
+
+  <!-- ── Loading ── -->
+  @if (loading()) {
+    <div class="adhoc-results">
+      <p class="loading-hint">
+        <mat-icon class="spinning">radar</mat-icon>
+        Fetching 2 years of price history per symbol from Yahoo Finance… This may take 5–30 seconds
+        depending on the number of symbols.
+      </p>
+      <app-scanner-row-skeleton aria-label="Analyzing symbols…" />
+    </div>
+  }
+
+  <!-- ── Results ── -->
+  @if (analyzed() && !loading()) {
+    @if (results().length === 0) {
+      <div class="adhoc-no-signal">
+        <mat-icon>check_circle</mat-icon>
+        <span
+          >No RSI signals found — all entered symbols are in neutral territory (RSI 30–75).</span
+        >
+      </div>
+    } @else {
+      <div class="adhoc-results">
+        @if (oversoldResults().length > 0) {
+          <div class="adhoc-result-section">
+            <div class="result-section-label oversold-label">
+              <mat-icon>trending_down</mat-icon>
+              Oversold signals ({{ oversoldResults().length }})
+            </div>
+            <app-rsi-scanner-table [results]="oversoldResults()" scanType="Oversold" />
+          </div>
+        }
+        @if (overboughtResults().length > 0) {
+          <div class="adhoc-result-section">
+            <div class="result-section-label overbought-label">
+              <mat-icon>trending_up</mat-icon>
+              Overbought signals ({{ overboughtResults().length }})
+            </div>
+            <app-rsi-scanner-table [results]="overboughtResults()" scanType="Overbought" />
+          </div>
+        }
+        @if (neutralResults().length > 0) {
+          <div class="adhoc-result-section">
+            <div class="result-section-label neutral-label">
+              <mat-icon>remove</mat-icon>
+              Neutral range ({{ neutralResults().length }})
+            </div>
+            <app-rsi-scanner-table [results]="neutralResults()" scanType="Oversold" />
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

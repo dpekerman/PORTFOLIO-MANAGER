@@ -6,6 +6,7 @@ import {
   AddPortfolioItemRequest,
   PortfolioItem,
   PortfolioSummary,
+  RsiScanResult,
   ScannerResponse,
   StockQuote,
   SymbolSearchResult,
@@ -82,5 +83,10 @@ export class PortfolioApiService {
   getRsiScan(force = false): Observable<ScannerResponse> {
     const url = force ? `${this.base}/scanner/rsi?force=true` : `${this.base}/scanner/rsi`;
     return this.http.get<ScannerResponse>(url);
+  }
+
+  /** Ad-hoc analysis: analyzes up to 20 user-supplied symbols live. */
+  analyzeSymbols(symbols: string[]): Observable<RsiScanResult[]> {
+    return this.http.post<RsiScanResult[]>(`${this.base}/scanner/analyze`, { symbols });
   }
 }
