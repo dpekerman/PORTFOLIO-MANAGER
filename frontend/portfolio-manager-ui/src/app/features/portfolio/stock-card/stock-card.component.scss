@@ -206,6 +206,33 @@
   }
 }
 
+// Sector / Industry badges under card subtitle
+.sector-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 16px 6px 56px; // align with card content (avatar offset)
+}
+.sector-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(100, 181, 246, 0.12);
+  color: var(--accent-primary);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+.industry-badge {
+  font-size: 0.62rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -248,5 +275,41 @@
 
   .range-label {
     font-weight: 600;
+  }
+}
+
+.rsi-row {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+
+  .range-label {
+    font-weight: 600;
+  }
+}
+
+.rsi-badge {
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 9px;
+
+  &.rsi-oversold {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.25);
+  }
+  &.rsi-overbought {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.25);
+  }
+  &.rsi-neutral {
+    background: rgba(120, 120, 120, 0.08);
+    color: #9e9e9e;
+    border: 1px solid rgba(120, 120, 120, 0.15);
   }
 }

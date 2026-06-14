@@ -30,9 +30,16 @@ mat-dialog-content {
 
 .full-width {
   width: 100%;
-  // Reserve explicit bottom space for mat-hint/mat-error lines
-  // mat-form-field in outline mode needs ~18px below for subscript
   .mat-mdc-form-field-subscript-wrapper {
     min-height: 18px;
   }
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+.half-width {
+  flex: 1;
+  min-width: 0;
 }

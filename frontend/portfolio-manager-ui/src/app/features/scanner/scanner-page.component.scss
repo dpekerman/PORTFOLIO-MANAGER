@@ -2,6 +2,65 @@
   padding: 0 0 48px;
 }
 
+// ── Logic Mode Banner ───────────────────────────────────────────────────────
+.mode-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 24px;
+  background: color-mix(in srgb, var(--surface-color) 85%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, #546e7a 30%, transparent);
+  flex-wrap: wrap;
+
+  &.mode-enhanced {
+    border-bottom-color: color-mix(in srgb, #7c4dff 40%, transparent);
+    background: color-mix(in srgb, #7c4dff 6%, var(--surface-color));
+  }
+}
+
+.mode-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mode-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  color: #90a4ae;
+
+  .mode-enhanced & {
+    color: #b39ddb;
+  }
+}
+
+.mode-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mode-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.mode-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.mode-toggle-btn {
+  white-space: nowrap;
+  font-size: 13px;
+}
+
 .scanner-section {
   padding: 20px 24px;
 

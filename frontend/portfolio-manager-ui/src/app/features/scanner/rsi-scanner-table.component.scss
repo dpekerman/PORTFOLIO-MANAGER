@@ -305,6 +305,23 @@
     border-color: rgba(255, 255, 255, 0.06);
   }
 
+  // Enhanced mode: histogram momentum chip gets a subtle purple accent
+  &.ind-chip--enhanced {
+    border-style: dashed;
+    &.ind-bull {
+      border-color: rgba(0, 200, 83, 0.45);
+    }
+    &.ind-bear {
+      border-color: rgba(255, 82, 82, 0.45);
+    }
+    &.ind-warn {
+      border-color: rgba(255, 167, 38, 0.45);
+    }
+    &.ind-neutral {
+      border-color: rgba(179, 157, 219, 0.3);
+    }
+  }
+
   .dma200-badge {
     margin-left: 4px;
     opacity: 0.7;
@@ -418,4 +435,87 @@
     font-size: 0.65rem;
     padding: 3px 7px;
   }
+}
+
+// ── Tracking column ─────────────────────────────────────────────────────────
+.tracking-header {
+  white-space: nowrap;
+  min-width: 90px;
+}
+
+.tracking-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+
+  .tracking-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
+  &.track-portfolio {
+    background: rgba(66, 165, 245, 0.12);
+    color: #42a5f5;
+    border: 1px solid rgba(66, 165, 245, 0.25);
+  }
+  &.track-watchlist {
+    background: rgba(171, 71, 188, 0.12);
+    color: #ab47bc;
+    border: 1px solid rgba(171, 71, 188, 0.25);
+  }
+  &.track-market {
+    background: rgba(120, 120, 120, 0.08);
+    color: #757575;
+    border: 1px solid rgba(120, 120, 120, 0.15);
+  }
+}
+
+// ── Analyst Target Upside column ─────────────────────────────────────────────
+.analyst-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1px;
+  min-width: 72px;
+}
+
+.upside-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.upside-target {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.upside-pos {
+  .upside-value {
+    color: #00c853;
+  }
+}
+.upside-neg {
+  .upside-value {
+    color: #ff5252;
+  }
+}
+.upside-neutral {
+  .upside-value {
+    color: #bdbdbd;
+  }
+}
+
+.no-data {
+  color: #424242;
+  font-size: 0.8rem;
 }

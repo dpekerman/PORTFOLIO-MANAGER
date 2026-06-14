@@ -115,7 +115,11 @@
               <mat-icon>trending_down</mat-icon>
               Oversold signals ({{ oversoldResults().length }})
             </div>
-            <app-rsi-scanner-table [results]="oversoldResults()" scanType="Oversold" />
+            <app-rsi-scanner-table
+              [results]="oversoldResults()"
+              scanType="Oversold"
+              [logicMode]="logicMode()"
+            />
           </div>
         }
         @if (overboughtResults().length > 0) {
@@ -124,7 +128,11 @@
               <mat-icon>trending_up</mat-icon>
               Overbought signals ({{ overboughtResults().length }})
             </div>
-            <app-rsi-scanner-table [results]="overboughtResults()" scanType="Overbought" />
+            <app-rsi-scanner-table
+              [results]="overboughtResults()"
+              scanType="Overbought"
+              [logicMode]="logicMode()"
+            />
           </div>
         }
         @if (neutralResults().length > 0) {
@@ -133,7 +141,11 @@
               <mat-icon>remove</mat-icon>
               Neutral range ({{ neutralResults().length }})
             </div>
-            <app-rsi-scanner-table [results]="neutralResults()" scanType="Oversold" />
+            <app-rsi-scanner-table
+              [results]="neutralResults()"
+              scanType="Oversold"
+              [logicMode]="logicMode()"
+            />
           </div>
         }
       </div>

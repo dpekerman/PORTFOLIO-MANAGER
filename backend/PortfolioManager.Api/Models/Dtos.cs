@@ -21,7 +21,9 @@ public record AddManualPositionRequest(
 public record UpdatePortfolioItemRequest(
     string CompanyName,
     decimal Shares,
-    decimal AverageCostBasis);
+    decimal AverageCostBasis,
+    string Sector = "",
+    string Industry = "");
 
 public record PortfolioItemDto(
     int Id,

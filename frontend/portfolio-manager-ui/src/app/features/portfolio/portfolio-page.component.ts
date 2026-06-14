@@ -1,5 +1,12 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
@@ -7,6 +14,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../core/models/portfolio.models';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -17,7 +25,14 @@ import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stock
 import { PortfolioSummaryBarComponent } from './portfolio-summary-bar/portfolio-summary-bar.component';
 import { StockCardComponent } from './stock-card/stock-card.component';
 
-type SortField = 'default' | 'gainLoss' | 'gainLossPct' | 'sector' | 'industry' | 'symbol';
+type SortField =
+  | 'default'
+  | 'marketValue'
+  | 'gainLoss'
+  | 'gainLossPct'
+  | 'sector'
+  | 'industry'
+  | 'symbol';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -40,13 +55,70 @@ type SortDir = 'asc' | 'desc';
 export class PortfolioPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly scanner = inject(ScannerStateService);
+  private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
 
   /** Ghost cards displayed while portfolio loads for the first time */
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
 
-  protected readonly sortField = signal<SortField>('default');
+  protected readonly sortField = signal<SortField>('marketValue');
   protected readonly sortDir = signal<SortDir>('desc');
+
+  /**
+   * RSI map fetched directly for all portfolio symbols.
+   * This covers ALL RSI values, not just oversold/overbought extremes from the scanner.
+   */
+  protected readonly portfolioRsiMap = signal<Map<string, number>>(new Map());
+
+  constructor() {
+    // Whenever portfolio summaries change, load RSI for ALL non-manual symbols.
+    // We batch in groups of 50 (backend limit) and merge results.
+    effect(() => {
+      const symbols = this.portfolio
+        .summaries()
+        .filter((s) => !s.item.isManual)
+        .map((s) => s.item.symbol);
+      if (symbols.length === 0) return;
+
+      // Split into batches of 50
+      const batchSize = 50;
+      const batches: string[][] = [];
+      for (let i = 0; i < symbols.length; i += batchSize)
+        batches.push(symbols.slice(i, i + batchSize));
+
+      const merged = new Map<string, number>();
+      let completed = 0;
+      for (const batch of batches) {
+        this.api.analyzeSymbols(batch, 30, 75, 'Legacy').subscribe({
+          next: (results) => {
+            for (const r of results) merged.set(r.symbol.toUpperCase(), r.rsi);
+            completed++;
+            if (completed === batches.length) this.portfolioRsiMap.set(new Map(merged));
+          },
+          error: (err) => {
+            console.warn('Portfolio RSI batch fetch failed', err);
+            completed++;
+            if (completed === batches.length) this.portfolioRsiMap.set(new Map(merged));
+          },
+        });
+      }
+    });
+  }
+
+  /** Flat RSI lookup: symbol (upper) → RSI value */
+  protected readonly rsiMap = computed<Map<string, number>>(() => {
+    const map = new Map<string, number>();
+    // Start with dedicated portfolio RSI (covers all symbols)
+    for (const [sym, rsi] of this.portfolioRsiMap()) map.set(sym, rsi);
+    // Overlay scanner results (same values, just ensures consistency)
+    for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
+      map.set(r.symbol.toUpperCase(), r.rsi);
+    return map;
+  });
+
+  protected rsiForSymbol(symbol: string): number | null {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
 
   protected readonly sortedSummaries = computed(() => {
     const list = [...this.portfolio.summaries()];
@@ -70,6 +142,8 @@ export class PortfolioPageComponent {
       : price * s.item.shares;
     const cost = s.item.averageCostBasis * s.item.shares;
     switch (field) {
+      case 'marketValue':
+        return marketValue;
       case 'gainLoss':
         return marketValue - cost;
       case 'gainLossPct':

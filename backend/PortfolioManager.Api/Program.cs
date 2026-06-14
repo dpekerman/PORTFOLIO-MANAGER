@@ -50,6 +50,7 @@ builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
     // Full TSX scan: ~17 batches × 1.5s = ~25s. Give generous timeout.
     client.Timeout = TimeSpan.FromSeconds(120);
 });
+builder.Services.AddScoped<ValueScreenerService>();
 
 // ── CORS (allow Angular dev server) ──────────────────────────────────────────
 builder.Services.AddCors(options =>

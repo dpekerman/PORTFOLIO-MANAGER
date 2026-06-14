@@ -5,15 +5,16 @@ namespace PortfolioManager.Api.Services;
 
 public interface IRsiScannerService
 {
-    Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default);
+    Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
-    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default);
+    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
 }
 
 public sealed class RsiScannerService : IRsiScannerService
 {
     private readonly HttpClient _http;
     private readonly ILogger<RsiScannerService> _logger;
+    private readonly IMarketDataProvider _marketData;
 
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
@@ -61,21 +62,22 @@ public sealed class RsiScannerService : IRsiScannerService
         ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
     };
 
-    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger)
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData)
     {
         _http = http;
         _logger = logger;
+        _marketData = marketData;
     }
 
-    public async Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default)
+    public async Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
     {
         // Yahoo Finance requires no API key — go straight to live scan.
         // If Yahoo is unreachable (network error), fall back to demo data.
         try
         {
-            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols). Oversold<{OS} Overbought>{OB}",
-                TsxWatchlist.Length, oversoldThreshold, overboughtThreshold);
-            return await RunLiveScanAsync(oversoldThreshold, overboughtThreshold, ct);
+            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols). Oversold<{OS} Overbought>{OB} Mode={Mode}",
+                TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
+            return await RunLiveScanAsync(oversoldThreshold, overboughtThreshold, logicMode, ct);
         }
         catch (Exception ex)
         {
@@ -86,7 +88,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
     // ── Live scan ─────────────────────────────────────────────────────────────
     public async Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
-        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, CancellationToken ct = default)
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
     {
         var results = new List<RsiScanResult>();
         var distinct = symbols
@@ -103,16 +105,17 @@ public sealed class RsiScannerService : IRsiScannerService
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, ct)).ToArray();
+            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, logicMode, ct)).ToArray();
             var batchResults = await Task.WhenAll(tasks);
             results.AddRange(batchResults.Where(r => r is not null)!);
             if (distinct.Length > 3) await Task.Delay(1500, ct);
         }
 
-        return results.OrderBy(r => r.ScanType).ThenBy(r => r.Rsi).ToList();
+        await EnrichWithQuoteDataAsync(results, ct);
+        return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
     }
 
-    private async Task<ScannerResponse> RunLiveScanAsync(decimal oversoldThreshold, decimal overboughtThreshold, CancellationToken ct)
+    private async Task<ScannerResponse> RunLiveScanAsync(decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
@@ -126,7 +129,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, ct)).ToArray();
+            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, logicMode, ct)).ToArray();
             var results = await Task.WhenAll(tasks);
             foreach (var r in results.Where(r => r is not null))
             {
@@ -137,14 +140,81 @@ public sealed class RsiScannerService : IRsiScannerService
             await Task.Delay(1500, ct);
         }
 
+        // Enrich with analyst targets and 52-week range in a single batch call
+        var allResults = oversold.Concat(overbought).ToList();
+        await EnrichWithQuoteDataAsync(allResults, ct);
+
         return new ScannerResponse
         {
-            OversoldChain  = oversold.OrderBy(x => x.Rsi).ToList(),
-            OverboughtChain = overbought.OrderByDescending(x => x.Rsi).ToList(),
+            OversoldChain  = SortResults(oversold, ScanType.Oversold),
+            OverboughtChain = SortResults(overbought, ScanType.Overbought),
             ScannedAt = DateTime.UtcNow,
             IsDemo = false,
             Market = "TSX"
         };
+    }
+
+    /// <summary>Enrich scan results with analyst target and 52-week range from Yahoo v7/quote,
+    /// with a fallback to quoteSummary/financialData for analyst targets (more reliable for TSX).</summary>
+    private async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
+    {
+        if (results.Count == 0) return;
+        var symbols = results.Select(r => r.Symbol).Distinct().ToList();
+        try
+        {
+            var quotes = await _marketData.GetBatchQuotesAsync(symbols, ct);
+            foreach (var r in results)
+            {
+                if (!quotes.TryGetValue(r.Symbol, out var q)) continue;
+                r.Week52High = q.Week52High;
+                r.Week52Low  = q.Week52Low;
+                if (q.TargetMeanPrice > 0 && r.CurrentPrice > 0)
+                {
+                    r.AnalystTargetPrice  = Math.Round(q.TargetMeanPrice, 2);
+                    r.AnalystTargetUpside = Math.Round((q.TargetMeanPrice - r.CurrentPrice) / r.CurrentPrice * 100m, 1);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "EnrichWithQuoteDataAsync (v7) failed — analyst targets may be unavailable");
+        }
+
+        // For any result still missing an analyst target, fall back to quoteSummary/financialData.
+        // This is the primary data source for TSX stocks where the v7 field is often 0.
+        var missingTarget = results.Where(r => r.AnalystTargetPrice == 0).ToList();
+        if (missingTarget.Count > 0)
+        {
+            try
+            {
+                var targets = await _marketData.GetAnalystTargetsAsync(
+                    missingTarget.Select(r => r.Symbol), ct);
+                foreach (var r in missingTarget)
+                {
+                    if (targets.TryGetValue(r.Symbol, out var tp) && tp > 0 && r.CurrentPrice > 0)
+                    {
+                        r.AnalystTargetPrice  = Math.Round(tp, 2);
+                        r.AnalystTargetUpside = Math.Round((tp - r.CurrentPrice) / r.CurrentPrice * 100m, 1);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "EnrichWithQuoteDataAsync (quoteSummary fallback) failed");
+            }
+        }
+    }
+
+    /// <summary>Sort: Confirmed first, then by RSI (ascending for oversold, descending for overbought).</summary>
+    private static IReadOnlyList<RsiScanResult> SortResults(List<RsiScanResult> list, ScanType type)
+    {
+        if (type == ScanType.Oversold)
+            return list.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0)
+                       .ThenBy(r => r.Rsi)
+                       .ToList();
+        return list.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0)
+                   .ThenByDescending(r => r.Rsi)
+                   .ToList();
     }
 
     /// <summary>Fetches candle data with up to 2 retries on HTTP 429 (rate-limited).</summary>
@@ -168,7 +238,7 @@ public sealed class RsiScannerService : IRsiScannerService
         return null;
     }
 
-    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, CancellationToken ct)
+    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         try
         {
@@ -223,8 +293,13 @@ public sealed class RsiScannerService : IRsiScannerService
             bool stochConfirm = rsi < oversoldThreshold ? stochK < 20 : stochK > 80;
 
             // ── Indicator 2: MACD ───────────────────────────────────────────
-            var (macdVal, macdSig) = CalculateMacd(closes);
-            string macdCrossover = DetermineMacdCrossover(closes, macdVal, macdSig);
+            var (macdVal, macdSig, macdHist, prevMacdHist) = CalculateMacdFull(closes);
+            decimal macdHistDelta = macdHist - prevMacdHist;
+            // Slope: histogram shrinking toward zero from the negative side → Rising (bullish shift)
+            string macdHistSlope = macdHistDelta > 0.0001m ? "Rising"
+                                 : macdHistDelta < -0.0001m ? "Falling"
+                                 : "Neutral";
+            string macdCrossover = DetermineMacdCrossover(macdVal, macdSig, prevMacdHist, macdHist);
 
             // ── Indicator 3: Bollinger Bands ────────────────────────────────
             var (bbUpper, _, bbLower) = CalculateBollingerBands(closes, 20);
@@ -250,17 +325,27 @@ public sealed class RsiScannerService : IRsiScannerService
             SignalStatus status;
             string trigger;
 
+            bool enhanced = string.Equals(logicMode, "Enhanced", StringComparison.OrdinalIgnoreCase);
+
             if (rsi <= oversoldThreshold)
             {
                 scanType = ScanType.Oversold;
-                probability = CalculateReversalProbability(rsi, ScanType.Oversold, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
-                (status, trigger) = ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
+                probability = enhanced
+                    ? CalculateReversalProbabilityEnhanced(rsi, ScanType.Oversold, stochConfirm, macdHistSlope, bbBreakout, volumeSignal)
+                    : CalculateReversalProbability(rsi, ScanType.Oversold, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
+                (status, trigger) = enhanced
+                    ? ClassifyOversoldEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi, macdHistSlope, macdHistDelta, bbBreakout)
+                    : ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
             }
             else if (rsi >= overboughtThreshold)
             {
                 scanType = ScanType.Overbought;
-                probability = CalculateReversalProbability(rsi, ScanType.Overbought, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
-                (status, trigger) = ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
+                probability = enhanced
+                    ? CalculateReversalProbabilityEnhanced(rsi, ScanType.Overbought, stochConfirm, macdHistSlope, bbBreakout, volumeSignal)
+                    : CalculateReversalProbability(rsi, ScanType.Overbought, stochConfirm, macdCrossover, bbBreakout, volumeSignal);
+                (status, trigger) = enhanced
+                    ? ClassifyOverboughtEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi, macdHistSlope, macdHistDelta, bbBreakout, volRatio)
+                    : ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
             }
             else
             {
@@ -295,6 +380,10 @@ public sealed class RsiScannerService : IRsiScannerService
                 Dma200Deviation = dma200Dev,
                 Has200Dma = has200Dma,
                 ReversalProbability = probability,
+                MacdHistogram = Math.Round(macdHist, 4),
+                MacdHistDelta = Math.Round(macdHistDelta, 4),
+                MacdHistSlope = macdHistSlope,
+                LogicMode = enhanced ? "Enhanced" : "Legacy",
                 IsDemo = false
             };
         }
@@ -356,10 +445,10 @@ public sealed class RsiScannerService : IRsiScannerService
         return ema;
     }
 
-    // ── MACD (12,26,9) ────────────────────────────────────────────────────────
-    private static (decimal macd, decimal signal) CalculateMacd(List<decimal> closes)
+    // ── MACD (12,26,9) — Full with histogram series ───────────────────────────
+    private static (decimal macd, decimal signal, decimal hist, decimal prevHist) CalculateMacdFull(List<decimal> closes)
     {
-        if (closes.Count < 35) return (0m, 0m);
+        if (closes.Count < 35) return (0m, 0m, 0m, 0m);
 
         decimal mult12 = 2m / 13m, mult26 = 2m / 27m;
         decimal ema12  = closes.Take(12).Average();
@@ -376,36 +465,47 @@ public sealed class RsiScannerService : IRsiScannerService
             }
         }
 
-        if (macdLine.Count < 9) return (macdLine[^1], macdLine[^1]);
+        if (macdLine.Count < 9) return (macdLine[^1], macdLine[^1], 0m, 0m);
 
         decimal sigMult   = 2m / 10m;
         decimal sigLine   = macdLine.Take(9).Average();
-        for (int i = 9; i < macdLine.Count; i++)
-            sigLine = macdLine[i] * sigMult + sigLine * (1 - sigMult);
+        var     histLine  = new List<decimal>();
 
-        return (macdLine[^1], sigLine);
+        for (int i = 9; i < macdLine.Count; i++)
+        {
+            sigLine = macdLine[i] * sigMult + sigLine * (1 - sigMult);
+            histLine.Add(macdLine[i] - sigLine);
+        }
+
+        decimal hist     = histLine.Count > 0 ? histLine[^1] : 0m;
+        decimal prevHist = histLine.Count > 1 ? histLine[^2] : hist;
+
+        return (macdLine[^1], sigLine, hist, prevHist);
     }
 
-    /// <summary>Detects whether MACD recently crossed above/below its signal line.</summary>
-    private static string DetermineMacdCrossover(List<decimal> closes, decimal macdNow, decimal sigNow)
+    // Legacy wrapper (kept for backward compat)
+    private static (decimal macd, decimal signal) CalculateMacd(List<decimal> closes)
     {
-        // Use a 2-bar lookback to detect a fresh crossover
-        if (closes.Count < 37) return "Neutral";
+        var (macd, sig, _, _) = CalculateMacdFull(closes);
+        return (macd, sig);
+    }
 
-        var prev2 = closes.Take(closes.Count - 1).ToList();
-        var (prevMacd, prevSig) = CalculateMacdStatic(prev2);
+    /// <summary>Detects whether MACD recently crossed above/below its signal line.
+    /// Uses histogram sign-change as a more direct indicator than line re-computation.</summary>
+    private static string DetermineMacdCrossover(decimal macdNow, decimal sigNow, decimal prevHist, decimal currHist)
+    {
+        // Fresh crossover: histogram changed sign this bar
+        bool crossedBullish = prevHist < 0 && currHist >= 0;
+        bool crossedBearish = prevHist > 0 && currHist <= 0;
 
-        bool wasBelowSignal = prevMacd < prevSig;
-        bool nowAboveSignal = macdNow  > sigNow;
+        if (crossedBullish) return "Bullish";
+        if (crossedBearish) return "Bearish";
 
-        if (wasBelowSignal && nowAboveSignal) return "Bullish";
-        if (!wasBelowSignal && !nowAboveSignal) return "Bearish";
+        // Fallback: current position of lines
+        if (macdNow > sigNow) return "Bullish";
+        if (macdNow < sigNow) return "Bearish";
         return "Neutral";
     }
-
-    // Thin static wrapper so DetermineMacdCrossover can call without instance
-    private static (decimal macd, decimal signal) CalculateMacdStatic(List<decimal> closes)
-        => CalculateMacd(closes);
 
     // ── Bollinger Bands (20, ±2σ) ─────────────────────────────────────────────
     private static (decimal upper, decimal middle, decimal lower) CalculateBollingerBands(
@@ -442,6 +542,32 @@ public sealed class RsiScannerService : IRsiScannerService
             if (rsi > 80) score++;
             if (stochConfirm) score++;
             if (macdCrossover == "Bearish") score++;
+            if (bbBreakout) score++;
+            if (volumeSignal == "Validated") score++;
+        }
+
+        return score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+    }
+
+    // ── Enhanced Reversal Probability (uses histogram slope instead of crossover) ──
+    private static string CalculateReversalProbabilityEnhanced(
+        decimal rsi, ScanType scanType, bool stochConfirm,
+        string macdHistSlope, bool bbBreakout, string volumeSignal)
+    {
+        int score = 0;
+        if (scanType == ScanType.Oversold)
+        {
+            if (rsi < 25) score++;
+            if (stochConfirm) score++;
+            if (macdHistSlope == "Rising") score++;   // histogram shrinking from negative side
+            if (bbBreakout) score++;
+            if (volumeSignal == "Validated") score++;
+        }
+        else
+        {
+            if (rsi > 80) score++;
+            if (stochConfirm) score++;
+            if (macdHistSlope == "Falling") score++;  // histogram shrinking from positive side
             if (bbBreakout) score++;
             if (volumeSignal == "Validated") score++;
         }
@@ -488,6 +614,101 @@ public sealed class RsiScannerService : IRsiScannerService
             return (SignalStatus.EarlyWarning, "Extreme overbought (RSI " + rsi.ToString("0.0") + ") – parabolic extension, velocity flattening");
 
         return (SignalStatus.EarlyWarning, "RSI above 75 – buying velocity decelerating, no distribution trigger yet");
+    }
+
+    // ── Enhanced Signal Classification — Strict State Machine ─────────────────
+    /// <summary>
+    /// Enhanced Oversold — EarlyWarning is the default price-discovery phase.
+    /// Confirmed is ONLY issued when the daily candle closes with structural
+    /// absorption: close above the session midpoint (buyers defended price) AND
+    /// at least one of: volume validates OR histogram slope has turned positive
+    /// (internal momentum shift before MACD lines cross).
+    /// </summary>
+    private static (SignalStatus status, string trigger) ClassifyOversoldEnhanced(
+        decimal open, decimal high, decimal low, decimal close,
+        decimal prevHigh, decimal range, decimal volRatio, decimal rsi,
+        string macdHistSlope, decimal macdHistDelta, bool bbBreakout)
+    {
+        decimal midpoint   = (high + low) / 2m;
+        bool bullishClose  = close > midpoint;                          // candle closed in upper half
+        bool histRising    = macdHistSlope == "Rising";                 // Δhist > 0: selling pressure easing
+        bool volumeValid   = volRatio >= 1.3m;
+        bool structuralAbs = bullishClose && (volumeValid || histRising);
+
+        if (structuralAbs && close > prevHigh)
+            return (SignalStatus.Confirmed,
+                $"[Enhanced] State: Confirmed — Candle closed above prior day's high with bullish structure. " +
+                $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
+                "Selling pressure absorbed; execution phase.");
+
+        if (structuralAbs)
+            return (SignalStatus.Confirmed,
+                $"[Enhanced] State: Confirmed — Candle closed in upper half of range ({((close - low) / range * 100m):0}%) with momentum shift. " +
+                $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
+                "Structural absorption of selling pressure validated.");
+
+        if (bbBreakout && histRising)
+            return (SignalStatus.EarlyWarning,
+                $"[Enhanced] State: EarlyWarning — Bollinger breakout with histogram slope turning positive (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                "Price discovery phase: volatility bands pierced, momentum shifting. Awaiting candle close confirmation.");
+
+        if (rsi < 25 && histRising)
+            return (SignalStatus.EarlyWarning,
+                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                "Momentum has shifted days before MACD crossover. Capital not deployed until candle close confirms.");
+
+        string histNote = macdHistSlope == "Falling"
+            ? $"Hist slope still falling (Δ={macdHistDelta:+0.0000;-0.0000}) — selling momentum intact."
+            : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
+        return (SignalStatus.EarlyWarning,
+            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} below oversold threshold. {histNote} " +
+            "No structural absorption detected. Waiting for candle close to validate.");
+    }
+
+    /// <summary>
+    /// Enhanced Overbought — Confirmed ONLY when the daily candle closes with structural
+    /// distribution: close below the session midpoint (sellers defended price) AND
+    /// at least one of: volume validates OR histogram slope has turned negative.
+    /// </summary>
+    private static (SignalStatus status, string trigger) ClassifyOverboughtEnhanced(
+        decimal open, decimal high, decimal low, decimal close,
+        decimal prevLow, decimal range, decimal rsi,
+        string macdHistSlope, decimal macdHistDelta, bool bbBreakout, decimal volRatio)
+    {
+        decimal midpoint    = (high + low) / 2m;
+        bool bearishClose   = close < midpoint;                          // candle closed in lower half
+        bool histFalling    = macdHistSlope == "Falling";                // Δhist < 0: buying pressure waning
+        bool volumeValid    = volRatio >= 1.3m;
+        bool structuralDist = bearishClose && (volumeValid || histFalling);
+
+        if (structuralDist && close < prevLow)
+            return (SignalStatus.Confirmed,
+                $"[Enhanced] State: Confirmed — Candle closed below prior day's low with bearish structure. " +
+                $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
+                "Institutional distribution confirmed; execution phase.");
+
+        if (structuralDist)
+            return (SignalStatus.Confirmed,
+                $"[Enhanced] State: Confirmed — Candle closed in lower half of range ({((high - close) / range * 100m):0}% from top) with distribution signal. " +
+                $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
+                "Structural distribution of buying pressure validated.");
+
+        if (bbBreakout && histFalling)
+            return (SignalStatus.EarlyWarning,
+                $"[Enhanced] State: EarlyWarning — Extended above upper Bollinger Band with histogram slope turning negative (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                "Price discovery phase: parabolic extension, internal momentum waning. Awaiting candle close confirmation.");
+
+        if (rsi > 80 && histFalling)
+            return (SignalStatus.EarlyWarning,
+                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                "Buying velocity decelerating before MACD crossover. Capital not deployed until candle close confirms.");
+
+        string histNote = macdHistSlope == "Rising"
+            ? $"Hist slope still rising (Δ={macdHistDelta:+0.0000;-0.0000}) — buying momentum intact."
+            : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
+        return (SignalStatus.EarlyWarning,
+            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} above overbought threshold. {histNote} " +
+            "No structural distribution detected. Waiting for candle close to validate.");
     }
 
     // ── Demo data (shown when no API key) ─────────────────────────────────────

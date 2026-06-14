@@ -10,6 +10,8 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfigService } from '../../core/services/config.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { ScannerStateService } from '../../core/services/scanner-state.service';
 
 @Component({
   selector: 'app-config-page',
@@ -31,6 +33,8 @@ import { NotificationApiService } from '../../core/services/notification-api.ser
 export class ConfigPageComponent implements OnInit {
   private readonly configService = inject(ConfigService);
   private readonly notificationApi = inject(NotificationApiService);
+  private readonly api = inject(PortfolioApiService);
+  private readonly scannerState = inject(ScannerStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
 
@@ -96,7 +100,14 @@ export class ConfigPageComponent implements OnInit {
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
     });
-    this.snackBar.open('Settings saved and applied immediately.', 'OK', { duration: 3000 });
+    // Clear server RSI cache so next scan uses the new thresholds
+    this.api.clearRsiCache().subscribe({
+      complete: () => this.scannerState.refresh(true),
+      error: () => this.scannerState.refresh(true), // still refresh even if clear fails
+    });
+    this.snackBar.open('Settings saved. RSI Scanner will refresh with new thresholds.', 'OK', {
+      duration: 4000,
+    });
   }
 
   reset(): void {

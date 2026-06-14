@@ -179,6 +179,8 @@ export class PortfolioStateService {
                     companyName: updated.companyName,
                     shares: updated.shares,
                     averageCostBasis: updated.averageCostBasis,
+                    sector: updated.sector ?? s.item.sector,
+                    industry: updated.industry ?? s.item.industry,
                   },
                 }
               : s,

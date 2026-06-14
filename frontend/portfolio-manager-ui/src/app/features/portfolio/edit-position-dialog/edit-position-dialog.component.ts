@@ -15,6 +15,8 @@ export interface EditPositionDialogResult {
   shares: number;
   averageCostBasis: number;
   companyName: string;
+  sector: string;
+  industry: string;
 }
 
 @Component({
@@ -46,6 +48,8 @@ export class EditPositionDialogComponent {
       this.data.item.averageCostBasis,
       [Validators.required, Validators.min(0), Validators.max(1_000_000)],
     ],
+    sector: [this.data.item.sector ?? '', [Validators.maxLength(100)]],
+    industry: [this.data.item.industry ?? '', [Validators.maxLength(150)]],
   });
 
   save(): void {
@@ -54,6 +58,8 @@ export class EditPositionDialogComponent {
       companyName: this.form.value.companyName!,
       shares: this.form.value.shares!,
       averageCostBasis: this.form.value.averageCostBasis!,
+      sector: this.form.value.sector ?? '',
+      industry: this.form.value.industry ?? '',
     };
     this.dialogRef.close(result);
   }

@@ -27,6 +27,16 @@
         ? summary().item.industry || summary().item.sector
         : summary().item.companyName
     }}</mat-card-subtitle>
+    @if (!summary().item.isManual && (summary().item.sector || summary().item.industry)) {
+      <div class="sector-row">
+        @if (summary().item.sector) {
+          <span class="sector-badge">{{ summary().item.sector }}</span>
+        }
+        @if (summary().item.industry) {
+          <span class="industry-badge">{{ summary().item.industry }}</span>
+        }
+      </div>
+    }
     <button
       mat-icon-button
       class="edit-btn"
@@ -121,12 +131,33 @@
 
     @if (summary().quote) {
       <div class="range-row">
-        <span class="range-label">Day Range:</span>
-        <span
-          >{{ summary().quote!.lowPrice | currency }} –
-          {{ summary().quote!.highPrice | currency }}</span
-        >
+        <span class="range-label">52 Week:</span>
+        @if (summary().quote!.week52Low > 0 || summary().quote!.week52High > 0) {
+          <span
+            >{{ summary().quote!.week52Low | currency }} –
+            {{ summary().quote!.week52High | currency }}</span
+          >
+        } @else {
+          <span
+            >{{ summary().quote!.lowPrice | currency }} –
+            {{ summary().quote!.highPrice | currency }}</span
+          >
+        }
       </div>
+      @if (rsi() !== null) {
+        <div class="rsi-row">
+          <span class="range-label">RSI (14):</span>
+          <span
+            class="rsi-badge"
+            [ngClass]="{
+              'rsi-oversold': rsi()! < 30,
+              'rsi-overbought': rsi()! > 75,
+              'rsi-neutral': rsi()! >= 30 && rsi()! <= 75,
+            }"
+            >{{ rsi()! | number: '1.1-1' }}</span
+          >
+        </div>
+      }
     }
   </mat-card-content>
 </mat-card>

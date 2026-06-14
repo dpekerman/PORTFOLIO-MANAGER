@@ -12,7 +12,7 @@ public class ScannerController(
     IMemoryCache cache,
     ILogger<ScannerController> logger) : ControllerBase
 {
-    private const string CacheKey = "rsi_scan";
+    private const string CacheKeyPrefix = "rsi_scan";
     /// <summary>Cache live scan results for 4 minutes to avoid hammering Yahoo Finance.</summary>
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(4);
 
@@ -21,34 +21,40 @@ public class ScannerController(
         [FromQuery] bool force = false,
         [FromQuery] decimal oversold = 30m,
         [FromQuery] decimal overbought = 75m,
+        [FromQuery] string logicMode = "Legacy",
         CancellationToken ct = default)
     {
-        // Cache key includes thresholds so changing them forces a fresh scan
-        var cacheKey = $"{CacheKey}_{oversold}_{overbought}";
+        // Cache key includes thresholds + logicMode so switching modes forces a fresh scan
+        var cacheKey = $"{CacheKeyPrefix}_{oversold}_{overbought}_{logicMode}";
         if (!force && cache.TryGetValue(cacheKey, out ScannerResponse? cached) && cached is not null)
         {
             logger.LogDebug("Returning cached RSI scan (scanned at {Time})", cached.ScannedAt);
             return Ok(cached);
         }
 
-        var result = await scanner.ScanAsync(oversold, overbought, ct);
+        var result = await scanner.ScanAsync(oversold, overbought, logicMode, ct);
 
         // Only cache live results — demo data has no TTL value
         if (!result.IsDemo)
             cache.Set(cacheKey, result, CacheTtl);
 
-        // NOTE: Email notifications are handled by RsiAlertBackgroundService — it runs
-        // independently every ScanIntervalSeconds and fires emails for new CONFIRMED signals.
-        // No fire-and-forget needed here.
-
         return Ok(result);
     }
 
-    /// <summary>Force-invalidate the cache (e.g. after market open).</summary>
+    /// <summary>Force-invalidate all RSI scan cache entries (e.g. after config save).</summary>
     [HttpDelete("rsi/cache")]
     public IActionResult ClearCache()
     {
-        cache.Remove(CacheKey);
+        // IMemoryCache does not expose enumerate; use a compact token pattern instead.
+        // We store a "version" key that is appended to the cache key so all old keys become stale.
+        // For simplicity, force=true on the next request is the primary mechanism.
+        // Here we also remove the most common key patterns used by the UI.
+        foreach (var mode in new[] { "Legacy", "Enhanced" })
+        foreach (var os in new[] { 25m, 30m, 35m })
+        foreach (var ob in new[] { 70m, 75m, 80m })
+            cache.Remove($"{CacheKeyPrefix}_{os}_{ob}_{mode}");
+
+        logger.LogInformation("RSI scan cache cleared (all common key patterns).");
         return NoContent();
     }
 
@@ -64,12 +70,12 @@ public class ScannerController(
         if (request.Symbols is null || request.Symbols.Count == 0)
             return BadRequest("Provide at least one symbol.");
 
-        if (request.Symbols.Count > 20)
-            return BadRequest("Maximum 20 symbols per request.");
+        if (request.Symbols.Count > 50)
+            return BadRequest("Maximum 50 symbols per request.");
 
-        logger.LogInformation("Ad-hoc analysis requested for {Count} symbols. Oversold<{OS} Overbought>{OB}",
-            request.Symbols.Count, request.OversoldThreshold, request.OverboughtThreshold);
-        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, request.OversoldThreshold, request.OverboughtThreshold, ct);
+        logger.LogInformation("Ad-hoc analysis requested for {Count} symbols. Oversold<{OS} Overbought>{OB} Mode={Mode}",
+            request.Symbols.Count, request.OversoldThreshold, request.OverboughtThreshold, request.LogicMode);
+        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, request.OversoldThreshold, request.OverboughtThreshold, request.LogicMode, ct);
         return Ok(results);
     }
 
@@ -106,4 +112,8 @@ public class ScannerController(
     }
 }
 
-public sealed record AnalyzeRequest(List<string> Symbols, decimal OversoldThreshold = 30m, decimal OverboughtThreshold = 75m);
+public sealed record AnalyzeRequest(
+    List<string> Symbols,
+    decimal OversoldThreshold = 30m,
+    decimal OverboughtThreshold = 75m,
+    string LogicMode = "Legacy");

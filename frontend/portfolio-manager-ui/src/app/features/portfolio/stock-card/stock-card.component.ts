@@ -33,6 +33,8 @@ import {
 })
 export class StockCardComponent {
   readonly summary = input.required<PortfolioSummary>();
+  /** RSI(14) value from the scanner — null when this symbol is not in the scanner results. */
+  readonly rsi = input<number | null>(null);
   protected readonly state = inject(PortfolioStateService);
   protected readonly demoMode = inject(DemoModeService);
   private readonly dialog = inject(MatDialog);
@@ -72,7 +74,7 @@ export class StockCardComponent {
     this.dialog
       .open(EditPositionDialogComponent, {
         data: { item: this.summary().item },
-        width: '420px',
+        width: '460px',
         maxWidth: '95vw',
       })
       .afterClosed()
@@ -82,6 +84,8 @@ export class StockCardComponent {
             companyName: result.companyName,
             shares: result.shares,
             averageCostBasis: result.averageCostBasis,
+            sector: result.sector,
+            industry: result.industry,
           });
         }
       });

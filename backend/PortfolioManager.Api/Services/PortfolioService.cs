@@ -87,6 +87,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         item.CompanyName      = request.CompanyName;
         item.Shares           = request.Shares;
         item.AverageCostBasis = request.AverageCostBasis;
+        if (!string.IsNullOrWhiteSpace(request.Sector))   item.Sector   = request.Sector;
+        if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
 
         await db.SaveChangesAsync(ct);
         return ToDto(item);

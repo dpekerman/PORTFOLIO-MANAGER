@@ -1,4 +1,4 @@
-﻿export interface PortfolioItem {
+export interface PortfolioItem {
   id: number;
   symbol: string;
   companyName: string;
@@ -26,6 +26,15 @@ export interface StockQuote {
   /** Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST */
   marketState: string;
   timestamp: number;
+  week52High: number;
+  week52Low: number;
+  targetMeanPrice: number;
+  // -- Fundamental data (Yahoo Finance v7 quote) --------------------------------
+  trailingPE: number;
+  forwardPE: number;
+  priceToBook: number;
+  dividendYield: number; // e.g. 0.035 = 3.5%
+  marketCap: number;
 }
 
 export interface PortfolioSummary {
@@ -56,6 +65,8 @@ export interface UpdatePortfolioItemRequest {
   companyName: string;
   shares: number;
   averageCostBasis: number;
+  sector?: string;
+  industry?: string;
 }
 
 export interface AddManualPositionRequest {
@@ -72,13 +83,15 @@ export interface SymbolSearchResult {
   type: string;
 }
 
-// â”€â”€ RSI Scanner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── RSI Scanner ────────────────────────────────────────────────────────────────
 export type ScanType = 'Oversold' | 'Overbought' | 'Neutral';
 export type SignalStatus = 'Confirmed' | 'EarlyWarning';
 export type ReversalProbability = 'Low' | 'Medium' | 'High';
 export type MacdCrossover = 'Bullish' | 'Bearish' | 'Neutral';
 export type VolumeSignal = 'Validated' | 'Low-Volume Trap' | 'Neutral';
 export type BollingerPosition = 'Below Lower' | 'Above Upper' | 'Inside';
+export type MacdHistSlope = 'Rising' | 'Falling' | 'Neutral';
+export type LogicMode = 'Legacy' | 'Enhanced';
 
 export interface RsiScanResult {
   symbol: string;
@@ -95,7 +108,7 @@ export interface RsiScanResult {
   volumeRatio: number;
   scannedAt: string;
   isDemo: boolean;
-  // â”€â”€ 5 Technical Indicators â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── 5 Technical Indicators ────────────────────────────────────────────────
   stochasticK: number;
   stochasticsConfirm: boolean;
   macdValue: number;
@@ -108,6 +121,16 @@ export interface RsiScanResult {
   dma200Deviation: number;
   has200Dma: boolean;
   reversalProbability: ReversalProbability;
+  // -- Enhanced Mode fields ---------------------------------------------------
+  macdHistogram: number;
+  macdHistDelta: number;
+  macdHistSlope: MacdHistSlope;
+  logicMode: LogicMode;
+  // -- Analyst & Market Data --------------------------------------------------
+  analystTargetPrice: number;
+  analystTargetUpside: number;
+  week52High: number;
+  week52Low: number;
 }
 
 export interface ScannerResponse {
@@ -123,4 +146,58 @@ export interface AddManualPositionRequest {
   description: string;
   averageCost: number;
   marketValue: number;
+}
+
+// -- Value Screener ------------------------------------------------------------
+
+export type ValueTier = 'HighConviction' | 'FairValue' | 'ValueTrap';
+export type TechnicalState =
+  | 'DeepValueReversal'
+  | 'OverboughtMomentum'
+  | 'OverboughtPullback'
+  | 'SidewaysConsolidation'
+  | 'MeanReversion'
+  | 'HighVolumeExhaustion';
+export type ActionTrigger =
+  | 'AccumulateYield'
+  | 'AccumulateValue'
+  | 'BuyLimitAlert'
+  | 'HoldRideTrend'
+  | 'ValueTrapWarning'
+  | 'Observe';
+export type ValueOrigin = 'Portfolio' | 'Watchlist';
+
+export interface ValueScreenerResult {
+  symbol: string;
+  description: string;
+  origin: ValueOrigin;
+  technicalState: TechnicalState;
+  tier: ValueTier;
+  score: number;
+  actionTrigger: ActionTrigger;
+  // Individual factor scores
+  scoreEarningsYield: number;
+  scoreFcfYield: number;
+  scorePriceToBook: number;
+  scorePiotroski: number;
+  scoreRoic: number;
+  // Raw values
+  earningsYield: number; // %
+  fcfYieldProxy: number; // %
+  priceToBook: number;
+  piotroskiScore: number; // 0-9
+  roicProxy: number; // %
+  dividendYield: number; // %
+  currentPrice: number;
+  currentRsi: number;
+  week52High: number;
+  week52Low: number;
+  sector: string;
+  analyzedAt: string;
+}
+
+export interface ValueScreenerRequest {
+  includePortfolio: boolean;
+  includeWatchlist: boolean;
+  adHocSymbols: string[];
 }

@@ -26,6 +26,13 @@ export const routes: Routes = [
           import('./features/watchlist-page/watchlist.routes').then((m) => m.WATCHLIST_ROUTES),
       },
       {
+        path: 'value-screener',
+        loadChildren: () =>
+          import('./features/value-screener/value-screener.routes').then(
+            (m) => m.VALUE_SCREENER_ROUTES,
+          ),
+      },
+      {
         path: 'config',
         loadChildren: () => import('./features/config/config.routes').then((m) => m.CONFIG_ROUTES),
       },

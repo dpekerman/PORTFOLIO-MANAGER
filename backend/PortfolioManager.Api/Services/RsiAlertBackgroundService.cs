@@ -65,6 +65,7 @@ public sealed class RsiAlertBackgroundService(
         var result = await scanner.ScanAsync(
             Settings.OversoldThreshold,
             Settings.OverboughtThreshold,
+            "Legacy",
             ct);
 
         if (result.IsDemo)
