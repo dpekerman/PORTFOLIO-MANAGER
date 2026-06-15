@@ -119,9 +119,9 @@
 .lists-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
 
-  @media (max-width: 600px) {
+  @media (max-width: 640px) {
     grid-template-columns: 1fr;
   }
 }
@@ -129,18 +129,87 @@
 .list-panel {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .list-title {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
   color: var(--text-secondary);
   margin: 0;
 }
 
-.list-input {
+.list-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+}
+
+.list-search {
+  width: 100%;
+}
+
+.list-scroll {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-elevated, var(--bg-surface));
+
+  mat-list {
+    padding: 4px 0;
+  }
+}
+
+.list-item {
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  height: 40px !important;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.list-delete-btn {
+  width: 28px !important;
+  height: 28px !important;
+  line-height: 28px !important;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &:hover {
+    opacity: 1;
+    color: #ef5350;
+  }
+}
+
+.list-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-faint, var(--text-muted));
+  font-style: italic;
+  margin: 0;
+}
+
+.list-add-input {
   width: 100%;
 }

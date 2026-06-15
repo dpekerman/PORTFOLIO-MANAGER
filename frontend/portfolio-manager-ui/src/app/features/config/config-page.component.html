@@ -236,24 +236,58 @@
 
     <mat-card-content>
       <div class="lists-grid">
-        <!-- Sectors -->
+        <!-- Sectors column -->
         <div class="list-panel">
-          <h4 class="list-title">Sectors</h4>
-          <mat-chip-grid #sectorGrid>
-            @for (s of sectors(); track s) {
-              <mat-chip-row (removed)="removeSector(s)">
-                {{ s }}
-                <button matChipRemove aria-label="Remove {{ s }}">
-                  <mat-icon>cancel</mat-icon>
-                </button>
-              </mat-chip-row>
+          <div class="list-header">
+            <span class="list-title">Sectors</span>
+            <span class="list-badge">{{ sectors().length }}</span>
+          </div>
+
+          <!-- Search filter -->
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="list-search">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              placeholder="Filter sectors…"
+              [ngModel]="sectorFilter()"
+              (ngModelChange)="sectorFilter.set($event)"
+              autocomplete="off"
+            />
+            @if (sectorFilter()) {
+              <button matSuffix mat-icon-button (click)="sectorFilter.set('')" matTooltip="Clear">
+                <mat-icon>close</mat-icon>
+              </button>
             }
-          </mat-chip-grid>
-          <mat-form-field appearance="outline" class="list-input" subscriptSizing="dynamic">
+          </mat-form-field>
+
+          <!-- Scrollable list -->
+          <div class="list-scroll">
+            @if (filteredSectors().length === 0) {
+              <p class="list-empty">{{ sectorFilter() ? 'No matches found' : 'No sectors yet' }}</p>
+            }
+            <mat-list>
+              @for (s of filteredSectors(); track s) {
+                <mat-list-item class="list-item">
+                  <span matListItemTitle>{{ s }}</span>
+                  <button
+                    matListItemMeta
+                    mat-icon-button
+                    (click)="removeSector(s)"
+                    matTooltip="Remove"
+                    class="list-delete-btn"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </mat-list-item>
+              }
+            </mat-list>
+          </div>
+
+          <!-- Add new -->
+          <mat-form-field appearance="outline" class="list-add-input" subscriptSizing="dynamic">
             <mat-label>Add sector</mat-label>
             <input
               matInput
-              [matChipInputFor]="sectorGrid"
               [ngModel]="newSectorInput()"
               (ngModelChange)="newSectorInput.set($event)"
               (keydown.enter)="$event.preventDefault(); addSector(newSectorInput())"
@@ -264,31 +298,67 @@
               matSuffix
               mat-icon-button
               (click)="addSector(newSectorInput())"
-              matTooltip="Add"
+              matTooltip="Add sector"
             >
               <mat-icon>add_circle</mat-icon>
             </button>
           </mat-form-field>
         </div>
 
-        <!-- Industries -->
+        <!-- Industries column -->
         <div class="list-panel">
-          <h4 class="list-title">Industries</h4>
-          <mat-chip-grid #industryGrid>
-            @for (i of industries(); track i) {
-              <mat-chip-row (removed)="removeIndustry(i)">
-                {{ i }}
-                <button matChipRemove aria-label="Remove {{ i }}">
-                  <mat-icon>cancel</mat-icon>
-                </button>
-              </mat-chip-row>
+          <div class="list-header">
+            <span class="list-title">Industries</span>
+            <span class="list-badge">{{ industries().length }}</span>
+          </div>
+
+          <!-- Search filter -->
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="list-search">
+            <mat-icon matPrefix>search</mat-icon>
+            <input
+              matInput
+              placeholder="Filter industries…"
+              [ngModel]="industryFilter()"
+              (ngModelChange)="industryFilter.set($event)"
+              autocomplete="off"
+            />
+            @if (industryFilter()) {
+              <button matSuffix mat-icon-button (click)="industryFilter.set('')" matTooltip="Clear">
+                <mat-icon>close</mat-icon>
+              </button>
             }
-          </mat-chip-grid>
-          <mat-form-field appearance="outline" class="list-input" subscriptSizing="dynamic">
+          </mat-form-field>
+
+          <!-- Scrollable list -->
+          <div class="list-scroll">
+            @if (filteredIndustries().length === 0) {
+              <p class="list-empty">
+                {{ industryFilter() ? 'No matches found' : 'No industries yet' }}
+              </p>
+            }
+            <mat-list>
+              @for (i of filteredIndustries(); track i) {
+                <mat-list-item class="list-item">
+                  <span matListItemTitle>{{ i }}</span>
+                  <button
+                    matListItemMeta
+                    mat-icon-button
+                    (click)="removeIndustry(i)"
+                    matTooltip="Remove"
+                    class="list-delete-btn"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </mat-list-item>
+              }
+            </mat-list>
+          </div>
+
+          <!-- Add new -->
+          <mat-form-field appearance="outline" class="list-add-input" subscriptSizing="dynamic">
             <mat-label>Add industry</mat-label>
             <input
               matInput
-              [matChipInputFor]="industryGrid"
               [ngModel]="newIndustryInput()"
               (ngModelChange)="newIndustryInput.set($event)"
               (keydown.enter)="$event.preventDefault(); addIndustry(newIndustryInput())"
@@ -299,7 +369,7 @@
               matSuffix
               mat-icon-button
               (click)="addIndustry(newIndustryInput())"
-              matTooltip="Add"
+              matTooltip="Add industry"
             >
               <mat-icon>add_circle</mat-icon>
             </button>

@@ -25,7 +25,18 @@ h2[mat-dialog-title] {
 
 .autocomplete-symbol {
   font-weight: 600;
-  margin-right: 8px;
+  margin-right: 6px;
+}
+
+.autocomplete-exch {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+  margin-right: 6px;
+  white-space: nowrap;
 }
 
 .autocomplete-desc {

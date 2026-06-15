@@ -67,6 +67,12 @@ public sealed class YahooSearchQuote
 
     [JsonPropertyName("typeDisp")]
     public string? TypeDisp { get; set; }
+
+    [JsonPropertyName("quoteType")]
+    public string? QuoteType { get; set; }
+
+    [JsonPropertyName("exchange")]
+    public string? Exchange { get; set; }
 }
 
 // ── Yahoo Finance /v7/finance/quote batch response ──────────────────────────
@@ -115,6 +121,7 @@ public sealed class SymbolSearchResult
     public string DisplaySymbol { get; set; } = string.Empty;
     public string Symbol        { get; set; } = string.Empty;
     public string Type          { get; set; } = string.Empty;
+    public string Exchange      { get; set; } = string.Empty;
 }
 
 // ── Yahoo Finance /v11/finance/quoteSummary?modules=assetProfile ──────────────

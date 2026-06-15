@@ -88,6 +88,7 @@ export interface SymbolSearchResult {
   displaySymbol: string;
   symbol: string;
   type: string;
+  exchange: string;
 }
 
 // ── RSI Scanner ────────────────────────────────────────────────────────────────

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -6,6 +13,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatListModule } from '@angular/material/list';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfigService } from '../../core/services/config.service';
@@ -27,6 +35,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatListModule,
     MatTooltipModule,
   ],
 })
@@ -76,6 +85,16 @@ export class ConfigPageComponent implements OnInit {
   protected readonly newSectorInput = signal('');
   protected readonly newIndustryInput = signal('');
   protected readonly savingLists = signal(false);
+  protected readonly sectorFilter = signal('');
+  protected readonly industryFilter = signal('');
+  protected readonly filteredSectors = computed(() => {
+    const f = this.sectorFilter().toLowerCase();
+    return f ? this.sectors().filter((s) => s.toLowerCase().includes(f)) : this.sectors();
+  });
+  protected readonly filteredIndustries = computed(() => {
+    const f = this.industryFilter().toLowerCase();
+    return f ? this.industries().filter((i) => i.toLowerCase().includes(f)) : this.industries();
+  });
 
   ngOnInit(): void {
     const cfg = this.configService.config();

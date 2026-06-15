@@ -12,7 +12,6 @@
     "Materials",
     "Real Estate",
     "Technology",
-    "test sector",
     "Utilities"
   ],
   "Industries": [
@@ -55,7 +54,8 @@
     "Software \u2013 Infrastructure",
     "Specialty Chemicals",
     "Telecom Services",
-    "TEST INDUSTRY",
+    "Test",
+    "Uranium",
     "Utilities \u2013 Regulated Electric",
     "Utilities \u2013 Regulated Gas"
   ]

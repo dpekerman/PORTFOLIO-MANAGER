@@ -54,7 +54,12 @@ public sealed class YahooFinanceService : IMarketDataProvider
         ["INDEX"]          = "Indices",
         ["FUTURE"]         = "Futures & Commodities",
     };
-
+    // Quote types excluded from symbol search results.
+    // OPTION is intentionally kept so users can add options contracts to their watchlist.
+    private static readonly HashSet<string> ExcludedSearchQuoteTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FUTURE", "CURRENCY", "CRYPTOCURRENCY"
+    };
     public YahooFinanceService(HttpClient http, YahooCrumbService crumb, ILogger<YahooFinanceService> logger)
     {
         _http   = http;
@@ -236,23 +241,36 @@ public sealed class YahooFinanceService : IMarketDataProvider
     {
         try
         {
+            // Fetch more results than we need (20) so filtering still returns enough.
+            // region=CA + lang=en-CA biases Yahoo towards TSX/TSX-V results first.
             var resp = await _http.GetAsync(
-                $"https://query1.finance.yahoo.com/v1/finance/search?q={Uri.EscapeDataString(query)}&quotesCount=15&newsCount=0", ct);
+                $"https://query1.finance.yahoo.com/v1/finance/search" +
+                $"?q={Uri.EscapeDataString(query)}&quotesCount=20&newsCount=0" +
+                $"&listsCount=0&region=CA&lang=en-CA", ct);
             if (!resp.IsSuccessStatusCode) return [];
 
             var json = await resp.Content.ReadAsStringAsync(ct);
             var data = JsonSerializer.Deserialize<YahooSearchResponse>(json, _json);
 
-            return data?.Quotes?
+            var results = (data?.Quotes ?? [])
                 .Where(q => !string.IsNullOrWhiteSpace(q.Symbol))
+                // Filter out futures, currencies — not tradeable in portfolio context
+                .Where(q => string.IsNullOrWhiteSpace(q.QuoteType) || !ExcludedSearchQuoteTypes.Contains(q.QuoteType))
                 .Select(q => new SymbolSearchResult
                 {
                     Symbol        = q.Symbol,
                     Description   = q.Longname ?? q.Shortname ?? q.Symbol,
-                    Type          = q.TypeDisp ?? "Equity",
-                    DisplaySymbol = q.Symbol
+                    Type          = q.TypeDisp ?? (q.QuoteType ?? "Equity"),
+                    DisplaySymbol = q.Symbol,
+                    Exchange      = q.ExchDisp ?? ""
                 })
-                .ToList() ?? [];
+                // Sort: Canadian equities first, then other equities, then options/warrants/rights last
+                .OrderBy(r => IsOptionOrDerivative(r.Type) ? 2 : IsCanadianSymbol(r.Symbol) ? 0 : 1)
+                .ThenBy(r => r.Symbol.Length)
+                .Take(10)
+                .ToList();
+
+            return results;
         }
         catch (Exception ex)
         {
@@ -260,6 +278,17 @@ public sealed class YahooFinanceService : IMarketDataProvider
             return [];
         }
     }
+
+    private static bool IsCanadianSymbol(string symbol) =>
+        symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".V", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".CN", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".NE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsOptionOrDerivative(string type) =>
+        type.Equals("Option", StringComparison.OrdinalIgnoreCase) ||
+        type.Equals("Warrant", StringComparison.OrdinalIgnoreCase) ||
+        type.Equals("Rights", StringComparison.OrdinalIgnoreCase);
 
     // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
