@@ -6,13 +6,16 @@ import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
   PortfolioSummary,
+  UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
+import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly demoMode = inject(DemoModeService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -45,6 +48,16 @@ export class PortfolioStateService {
     const cost = this.totalCost();
     return cost === 0 ? 0 : (this.totalGainLoss() / cost) * 100;
   });
+
+  // ── Demo-aware display values ───────────────────────────────────────────────
+  // Use these in templates. When demo mode is OFF they are identical to the raw values.
+  // When demo mode is ON they return masked values so real positions are never revealed.
+  readonly displayTotalValue = computed(() => this.demoMode.maskValue(this.totalValue()));
+  readonly displayTotalCost = computed(() => this.demoMode.maskValue(this.totalCost()));
+  readonly displayTotalGainLoss = computed(() => this.demoMode.maskValue(this.totalGainLoss()));
+  readonly displayTotalGainLossPct = computed(() =>
+    this.demoMode.maskPercent(this.totalGainLossPct()),
+  );
 
   constructor() {
     this.refresh();
@@ -150,6 +163,33 @@ export class PortfolioStateService {
         this.snackBar.open(`${symbol} removed from portfolio`, 'Close', { duration: 3000 });
       },
       error: () => this.snackBar.open('Failed to remove stock', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateItem(id: number, request: UpdatePortfolioItemRequest): void {
+    this.api.updateItem(id, request).subscribe({
+      next: (updated) => {
+        this._summaries.update((items) =>
+          items.map((s) =>
+            s.item.id === id
+              ? {
+                  ...s,
+                  item: {
+                    ...s.item,
+                    companyName: updated.companyName,
+                    shares: updated.shares,
+                    averageCostBasis: updated.averageCostBasis,
+                    sector: updated.sector ?? s.item.sector,
+                    industry: updated.industry ?? s.item.industry,
+                    sectorIsOverridden: updated.sectorIsOverridden,
+                  },
+                }
+              : s,
+          ),
+        );
+        this.snackBar.open(`Position updated`, 'Close', { duration: 3000 });
+      },
+      error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });
   }
 }

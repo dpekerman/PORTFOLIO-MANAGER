@@ -30,6 +30,9 @@
         @for (result of searchResults(); track result.symbol) {
           <mat-option [value]="result">
             <span class="autocomplete-symbol">{{ result.symbol }}</span>
+            @if (result.exchange) {
+              <span class="autocomplete-exch">{{ result.exchange }}</span>
+            }
             <span class="autocomplete-desc">{{ result.description }}</span>
           </mat-option>
         }

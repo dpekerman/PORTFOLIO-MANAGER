@@ -24,6 +24,15 @@
           <mat-icon [ngClass]="{ spinning: portfolio.loading() }">refresh</mat-icon>
         </button>
         <button
+          mat-icon-button
+          matTooltip="Export to CSV (opens in Excel)"
+          (click)="exportCsv()"
+          [disabled]="portfolio.summaries().length === 0"
+          aria-label="Export portfolio to CSV"
+        >
+          <mat-icon>download</mat-icon>
+        </button>
+        <button
           mat-stroked-button
           class="action-btn"
           (click)="openImportDialog()"
@@ -32,30 +41,9 @@
           <mat-icon>upload_file</mat-icon>
           <span class="btn-text">Import</span>
         </button>
-        <!--
-        <button
-          mat-stroked-button
-          class="action-btn"
-          (click)="openAddManualDialog()"
-          matTooltip="Add cash, options, or other manual position"
-        >
-          <mat-icon>edit_note</mat-icon>
-          <span class="btn-text">Add Manual</span>
-        </button>
-        -->
         <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
           <mat-icon>add</mat-icon>
           <span class="btn-text">Add Stock</span>
-        </button>
-
-        <button
-          mat-flat-button
-          class="action-btn-primary"
-          (click)="openAddManualDialog()"
-          matTooltip="Add cash, options, or other manual position"
-        >
-          <mat-icon>add</mat-icon>
-          <span class="btn-text">Add Manual</span>
         </button>
       </div>
     </div>
@@ -68,35 +56,127 @@
         }
       </div>
     } @else if (portfolio.summaries().length > 0) {
-        <!-- ── Summary Bar ────────────────────────────────────────────── -->
-        <app-portfolio-summary-bar />
+      <!-- ── Summary Bar ────────────────────────────────────────────── -->
+      <app-portfolio-summary-bar />
 
-        <!-- ── Bulk-action toolbar ───────────────────────────────────── -->
-        @if (portfolio.hasSelection()) {
-          <div class="bulk-toolbar bulk-active">
-            <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
-            <button mat-stroked-button (click)="portfolio.clearSelection()">
-              <mat-icon>deselect</mat-icon> Clear
-            </button>
-            <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
-              <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
-            </button>
-          </div>
-        } @else {
-          <div class="bulk-toolbar bulk-hint">
-            <mat-icon>check_box_outline_blank</mat-icon>
-            <span>Check boxes on cards to select multiple positions for bulk removal</span>
-            <button mat-button (click)="portfolio.selectAll()">Select All</button>
-          </div>
-        }
-
-        <!-- ── Stock Grid ─────────────────────────────────────────────── -->
-        <div class="stock-grid" role="list" aria-label="Portfolio positions">
-          @for (summary of portfolio.summaries(); track summary.item.id) {
-            <app-stock-card [summary]="summary" />
-          }
+      <!-- ── Bulk-action toolbar ───────────────────────────────────── -->
+      @if (portfolio.hasSelection()) {
+        <div class="bulk-toolbar bulk-active">
+          <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+          <button mat-stroked-button (click)="portfolio.clearSelection()">
+            <mat-icon>deselect</mat-icon> Clear
+          </button>
+          <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+            <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
+          </button>
         </div>
+      } @else {
+        <div class="bulk-toolbar bulk-hint">
+          <mat-icon>check_box_outline_blank</mat-icon>
+          <span>Check boxes on cards to select multiple positions for bulk removal</span>
+          <button mat-button (click)="portfolio.selectAll()">Select All</button>
+        </div>
+      }
 
+      <!-- ── Sort Controls ─────────────────────────────────────────── -->
+      <div class="sort-bar">
+        <span class="sort-label">Sort by:</span>
+        <div class="sort-chips">
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'default'"
+            (click)="setSortField('default')"
+            class="sort-chip"
+          >
+            Default
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'marketValue'"
+            (click)="setSortField('marketValue')"
+            class="sort-chip"
+          >
+            Market Value
+            @if (sortField() === 'marketValue') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'gainLoss'"
+            (click)="setSortField('gainLoss')"
+            class="sort-chip"
+          >
+            Gain / Loss
+            @if (sortField() === 'gainLoss') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'gainLossPct'"
+            (click)="setSortField('gainLossPct')"
+            class="sort-chip"
+          >
+            Gain %
+            @if (sortField() === 'gainLossPct') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'sector'"
+            (click)="setSortField('sector')"
+            class="sort-chip"
+          >
+            Sector
+            @if (sortField() === 'sector') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'industry'"
+            (click)="setSortField('industry')"
+            class="sort-chip"
+          >
+            Industry
+            @if (sortField() === 'industry') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+          <button
+            mat-button
+            [class.sort-active]="sortField() === 'symbol'"
+            (click)="setSortField('symbol')"
+            class="sort-chip"
+          >
+            Ticker
+            @if (sortField() === 'symbol') {
+              <mat-icon class="sort-dir-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Stock Grid ─────────────────────────────────────────────── -->
+      <div class="stock-grid" role="list" aria-label="Portfolio positions">
+        @for (summary of sortedSummaries(); track summary.item.id) {
+          <app-stock-card [summary]="summary" [rsi]="rsiForSymbol(summary.item.symbol)" />
+        }
+      </div>
     } @else {
       <!-- ── Empty State ────────────────────────────────────────────── -->
       <div class="empty-state">

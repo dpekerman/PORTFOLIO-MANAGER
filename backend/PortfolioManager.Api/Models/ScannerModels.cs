@@ -1,7 +1,7 @@
 namespace PortfolioManager.Api.Models;
 
-public enum ScanType { Oversold, Overbought }
-public enum SignalStatus { Confirmed, EarlyWarning }
+public enum ScanType { Oversold, Overbought, Neutral }
+public enum SignalStatus { Confirmed, EarlyWarning, Neutral }
 
 public class RsiScanResult
 {
@@ -49,6 +49,28 @@ public class RsiScanResult
 
     /// <summary>Aggregate reversal probability: "Low" | "Medium" | "High"</summary>
     public string ReversalProbability { get; set; } = "Low";
+
+    // ── Enhanced Mode (MACD Histogram Momentum + State Machine) ─────────────
+    /// <summary>MACD histogram value (macdLine − signalLine) at latest bar.</summary>
+    public decimal MacdHistogram { get; set; }
+    /// <summary>Change in histogram from previous bar (Δhist = hist[t] − hist[t−1]).
+    /// Negative bars that are shrinking toward zero → slope is positive → momentum shift.</summary>
+    public decimal MacdHistDelta { get; set; }
+    /// <summary>"Rising" | "Falling" | "Neutral" — internal momentum shift direction
+    /// detected before the MACD lines actually cross.</summary>
+    public string MacdHistSlope { get; set; } = "Neutral";
+    /// <summary>"Legacy" (original logic) or "Enhanced" (histogram momentum + strict state machine).</summary>
+    public string LogicMode { get; set; } = "Legacy";
+
+    // ── Analyst & Market Data ────────────────────────────────────────────────
+    /// <summary>Analyst consensus 1-year target price. 0 when not available.</summary>
+    public decimal AnalystTargetPrice { get; set; }
+    /// <summary>(TargetPrice − CurrentPrice) / CurrentPrice × 100. 0 when target not available.</summary>
+    public decimal AnalystTargetUpside { get; set; }
+    /// <summary>52-week high price.</summary>
+    public decimal Week52High { get; set; }
+    /// <summary>52-week low price.</summary>
+    public decimal Week52Low { get; set; }
 }
 
 public class ScannerResponse

@@ -7,8 +7,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../../core/models/portfolio.models';
+import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
+import {
+  EditPositionDialogComponent,
+  EditPositionDialogResult,
+} from '../edit-position-dialog/edit-position-dialog.component';
 
 @Component({
   selector: 'app-stock-card',
@@ -28,7 +33,10 @@ import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-d
 })
 export class StockCardComponent {
   readonly summary = input.required<PortfolioSummary>();
+  /** RSI(14) value from the scanner — null when this symbol is not in the scanner results. */
+  readonly rsi = input<number | null>(null);
   protected readonly state = inject(PortfolioStateService);
+  protected readonly demoMode = inject(DemoModeService);
   private readonly dialog = inject(MatDialog);
 
   protected readonly currentPrice = computed(() => {
@@ -60,6 +68,28 @@ export class StockCardComponent {
 
   toggleSelect(): void {
     this.state.toggleSelection(this.summary().item.id);
+  }
+
+  edit(): void {
+    this.dialog
+      .open(EditPositionDialogComponent, {
+        data: { item: this.summary().item },
+        width: '460px',
+        maxWidth: '95vw',
+      })
+      .afterClosed()
+      .subscribe((result: EditPositionDialogResult | undefined) => {
+        if (result) {
+          this.state.updateItem(this.summary().item.id, {
+            companyName: result.companyName,
+            shares: result.shares,
+            averageCostBasis: result.averageCostBasis,
+            sector: result.sector,
+            industry: result.industry,
+            overrideSector: result.overrideSector,
+          });
+        }
+      });
   }
 
   remove(): void {

@@ -21,7 +21,10 @@ public record AddManualPositionRequest(
 public record UpdatePortfolioItemRequest(
     string CompanyName,
     decimal Shares,
-    decimal AverageCostBasis);
+    decimal AverageCostBasis,
+    string Sector = "",
+    string Industry = "",
+    bool OverrideSector = false);
 
 public record PortfolioItemDto(
     int Id,
@@ -31,6 +34,7 @@ public record PortfolioItemDto(
     decimal AverageCostBasis,
     string Sector,
     string Industry,
+    bool SectorIsOverridden,
     bool IsManual,
     decimal? ManualMarketValue,
     DateTime AddedAt);
@@ -45,4 +49,8 @@ public record AddWatchlistItemRequest(string Symbol, string Notes = "");
 public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt);
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
+
+// ── Sector / Industry Lists ─────────────────────────────────────────────────────
+public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries);
+public record UpdateSectorIndustryListsRequest(List<string> Sectors, List<string> Industries);
 

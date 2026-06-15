@@ -3,14 +3,38 @@
   [dataSource]="results()"
   class="scanner-table"
   [class.oversold-table]="isOversold()"
-  [class.overbought-table]="!isOversold()"
+  [class.overbought-table]="!isOversold() && !isNeutral()"
+  [class.neutral-table]="isNeutral()"
 >
-  <!-- Symbol Column -->
+  <!-- Tracking Column -->
+  <ng-container matColumnDef="tracking">
+    <th mat-header-cell *matHeaderCellDef class="tracking-header">TRACKING</th>
+    <td mat-cell *matCellDef="let row">
+      @let status = trackingStatus(row.symbol);
+      <div
+        class="tracking-cell"
+        [ngClass]="trackingClass(status)"
+        [matTooltip]="status + ': ' + row.symbol"
+      >
+        <mat-icon class="tracking-icon">{{ trackingIcon(status) }}</mat-icon>
+        <span class="tracking-label">{{ status }}</span>
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Ticker Column -->
   <ng-container matColumnDef="symbol">
-    <th mat-header-cell *matHeaderCellDef>Ticker</th>
+    <th mat-header-cell *matHeaderCellDef>TICKER</th>
     <td mat-cell *matCellDef="let row">
       <div class="symbol-cell">
-        <div class="symbol-badge" [ngClass]="{ oversold: isOversold(), overbought: !isOversold() }">
+        <div
+          class="symbol-badge"
+          [ngClass]="{
+            oversold: isOversold(),
+            overbought: !isOversold() && !isNeutral(),
+            neutral: isNeutral(),
+          }"
+        >
           {{ row.symbol.replace('.TO', '').replace('.UN', '') }}
         </div>
         <div class="symbol-info">
@@ -28,7 +52,7 @@
       <div class="rsi-cell">
         <span
           class="rsi-value"
-          [ngClass]="{ 'rsi-extreme': isOversold() ? row.rsi < 25 : row.rsi > 80 }"
+          [ngClass]="{ 'rsi-extreme': isOversold() ? row.rsi < 25 : !isNeutral() && row.rsi > 80 }"
         >
           {{ row.rsi | number: '1.1-1' }}
         </span>
@@ -39,8 +63,15 @@
             [style.background]="rsiBarColor(row.rsi, row.scanType)"
           ></div>
         </div>
-        <span class="rsi-zone" [ngClass]="{ oversold: isOversold(), overbought: !isOversold() }">
-          {{ isOversold() ? 'OVERSOLD' : 'OVERBOUGHT' }}
+        <span
+          class="rsi-zone"
+          [ngClass]="{
+            oversold: isOversold(),
+            overbought: !isOversold() && !isNeutral(),
+            neutral: isNeutral(),
+          }"
+        >
+          {{ isOversold() ? 'OVERSOLD' : isNeutral() ? 'NEUTRAL' : 'OVERBOUGHT' }}
         </span>
       </div>
     </td>
@@ -69,6 +100,39 @@
     </td>
   </ng-container>
 
+  <!-- Analyst Target Upside Column -->
+  <ng-container matColumnDef="analystUpside">
+    <th mat-header-cell *matHeaderCellDef>
+      <span matTooltip="Analyst 1-Year Target Upside = (Target − Price) / Price"
+        >Analyst Target</span
+      >
+    </th>
+    <td mat-cell *matCellDef="let row">
+      @if (row.analystTargetPrice > 0) {
+        <div
+          class="analyst-cell"
+          [ngClass]="analystUpsideClass(row.analystTargetUpside)"
+          [matTooltip]="
+            '1Y Target: $' +
+            (row.analystTargetPrice | number: '1.2-2') +
+            ' · Upside: ' +
+            (row.analystTargetUpside >= 0 ? '+' : '') +
+            (row.analystTargetUpside | number: '1.1-1') +
+            '%'
+          "
+        >
+          <span class="upside-value"
+            >{{ row.analystTargetUpside >= 0 ? '+' : ''
+            }}{{ row.analystTargetUpside | number: '1.1-1' }}%</span
+          >
+          <span class="upside-target">${{ row.analystTargetPrice | number: '1.2-2' }}</span>
+        </div>
+      } @else {
+        <span class="no-data">—</span>
+      }
+    </td>
+  </ng-container>
+
   <!-- Indicators Column (5 technical signals) -->
   <ng-container matColumnDef="indicators">
     <th mat-header-cell *matHeaderCellDef class="indicators-header">Technical Signals</th>
@@ -90,23 +154,40 @@
           <span>Stoch {{ row.stochasticK | number: '1.0-0' }}</span>
         </div>
 
-        <!-- 2. MACD Crossover -->
-        <div
-          class="ind-chip"
-          [ngClass]="macdClass(row.macdCrossover)"
-          [matTooltip]="
-            'MACD: ' +
-            (row.macdValue | number: '1.3-3') +
-            ' · Signal: ' +
-            (row.macdSignalLine | number: '1.3-3') +
-            ' · ' +
-            row.macdCrossover +
-            ' crossover'
-          "
-        >
-          <mat-icon>{{ macdIcon(row.macdCrossover) }}</mat-icon>
-          <span>{{ row.macdCrossover }}</span>
-        </div>
+        <!-- 2a. MACD — Legacy: crossover signal -->
+        @if (!isEnhanced()) {
+          <div
+            class="ind-chip"
+            [ngClass]="macdClass(row.macdCrossover)"
+            [matTooltip]="
+              'MACD: ' +
+              (row.macdValue | number: '1.3-3') +
+              ' · Signal: ' +
+              (row.macdSignalLine | number: '1.3-3') +
+              ' · ' +
+              row.macdCrossover +
+              ' crossover'
+            "
+          >
+            <mat-icon>{{ macdIcon(row.macdCrossover) }}</mat-icon>
+            <span>{{ row.macdCrossover }}</span>
+          </div>
+        }
+
+        <!-- 2b. MACD Histogram Momentum — Enhanced: slope of histogram bars -->
+        @if (isEnhanced()) {
+          <div
+            class="ind-chip ind-chip--enhanced"
+            [ngClass]="histSlopeClass(row.macdHistSlope, row.scanType)"
+            [matTooltip]="histSlopeTooltip(row)"
+          >
+            <mat-icon>{{ histSlopeIcon(row.macdHistSlope) }}</mat-icon>
+            <span
+              >Hist {{ row.macdHistDelta >= 0 ? '+' : ''
+              }}{{ row.macdHistDelta | number: '1.3-3' }}</span
+            >
+          </div>
+        }
 
         <!-- 3. Bollinger Bands -->
         <div

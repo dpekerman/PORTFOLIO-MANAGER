@@ -1,11 +1,18 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using PortfolioManager.Api.Data;
+using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Controllers + Swagger ────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        // Serialize enums as strings ("Oversold"/"Overbought") so Angular TypeScript
+        // string-union types match without manual mapping.
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -43,6 +50,7 @@ builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
     // Full TSX scan: ~17 batches × 1.5s = ~25s. Give generous timeout.
     client.Timeout = TimeSpan.FromSeconds(120);
 });
+builder.Services.AddScoped<ValueScreenerService>();
 
 // ── CORS (allow Angular dev server) ──────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -52,6 +60,18 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod());
 });
+
+// ── Email Notification Services ───────────────────────────────────────────────
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailNotification"));
+builder.Services.AddSingleton<NotificationRecipientsService>();
+builder.Services.AddSingleton<SectorIndustryService>();
+builder.Services.AddSingleton<SignalNotificationTracker>();
+// Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
+builder.Services.AddSingleton<EmailNotificationService>();
+// Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals
+// regardless of which page is open in the frontend
+builder.Services.AddHostedService<RsiAlertBackgroundService>();
 
 var app = builder.Build();
 

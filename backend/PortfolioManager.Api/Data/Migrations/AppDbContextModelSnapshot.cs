@@ -63,6 +63,11 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasDefaultValue("");
 
+                    b.Property<bool>("SectorIsOverridden")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<decimal>("Shares")
                         .HasColumnType("decimal(18,6)");
 

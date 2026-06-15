@@ -1,0 +1,275 @@
+<div class="value-screener-page">
+  <!-- HEADER -->
+  <section class="screener-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon">analytics</mat-icon>
+        <div>
+          <h2 class="section-title">
+            VALUE SCREENER
+            @if (results().length > 0) {
+              <span class="count-badge">{{ results().length }}</span>
+            }
+          </h2>
+          <p class="section-sub">
+            Capital Valuation Engine � Earnings Yield � FCF � P/B � Piotroski � ROIC
+          </p>
+        </div>
+      </div>
+      @if (lastAnalyzedAt()) {
+        <span class="scan-time">Analyzed at {{ lastAnalyzedAt() }}</span>
+      }
+    </div>
+
+    <!-- SOURCE SELECTION: 3 mutually exclusive options -->
+    <div class="source-bar">
+      <span class="source-label">Analyze:</span>
+
+      <!-- Option group -->
+      <div class="source-options">
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'portfolio'"
+          (click)="selectPortfolio()"
+          matTooltip="Analyze all positions from your Portfolio"
+        >
+          <mat-icon>account_balance_wallet</mat-icon>
+          Portfolio
+        </button>
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'watchlist'"
+          (click)="selectWatchlist()"
+          matTooltip="Analyze all symbols from your Watch List"
+        >
+          <mat-icon>bookmark</mat-icon>
+          Watch List
+        </button>
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'adhoc'"
+          (click)="selectAdhoc()"
+          matTooltip="Enter ticker symbols manually for a one-off analysis"
+        >
+          <mat-icon>search</mat-icon>
+          Ad-Hoc
+        </button>
+      </div>
+
+      <!-- Ad-Hoc input: only visible when Ad-Hoc mode is selected -->
+      @if (sourceMode() === 'adhoc') {
+        <div class="adhoc-section">
+          <mat-form-field class="adhoc-field" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Ticker symbols</mat-label>
+            <input
+              matInput
+              [value]="adHocInput()"
+              (input)="adHocInput.set($any($event.target).value)"
+              placeholder="e.g. RY.TO, AAPL, MSFT"
+              (keydown.enter)="analyze()"
+            />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+          <p class="adhoc-hint">
+            Separate symbols with commas or spaces &bull; Press Enter to Analyze
+          </p>
+        </div>
+      }
+
+      <button mat-flat-button class="analyze-btn" (click)="analyze()" [disabled]="loading()">
+        @if (loading()) {
+          <mat-spinner diameter="18" class="btn-spinner" />
+          Analyzing...
+        } @else {
+          <mat-icon>bar_chart</mat-icon>
+          Analyze
+        }
+      </button>
+    </div>
+
+    <!-- TIER SUMMARY (shown after analysis) -->
+    @if (results().length > 0) {
+      <div class="tier-summary">
+        <div
+          class="tier-card tier-card--high"
+          matTooltip="Score 8.0-10.0: Asset profoundly underpriced with superb balance sheet"
+        >
+          <div class="tier-count">{{ highConviction().length }}</div>
+          <div class="tier-label">High-Conviction</div>
+          <div class="tier-sub">Score 8.0 &ndash; 10.0</div>
+        </div>
+        <div
+          class="tier-card tier-card--fair"
+          matTooltip="Score 5.0-7.5: Stable pricing relative to capital layout"
+        >
+          <div class="tier-count">{{ fairValue().length }}</div>
+          <div class="tier-label">Fair Value</div>
+          <div class="tier-sub">Score 5.0 &ndash; 7.5</div>
+        </div>
+        <div
+          class="tier-card tier-card--trap"
+          matTooltip="Score < 5.0: Cheap for a reason; fails basic liquidity, efficiency, or debt stress-tests"
+        >
+          <div class="tier-count">{{ valueTrap().length }}</div>
+          <div class="tier-label">Value Trap</div>
+          <div class="tier-sub">Score &lt; 5.0</div>
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- RESULTS TABLE -->
+  @if (results().length > 0) {
+    <div class="table-wrapper">
+      <table mat-table [dataSource]="filteredSortedResults()" class="screener-table">
+        <!-- TICKER Column -->
+        <ng-container matColumnDef="ticker">
+          <th mat-header-cell *matHeaderCellDef>TICKER</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="symbol-cell">
+              <span class="symbol-text">{{ row.symbol }}</span>
+              @if (row.currentRsi > 0) {
+                <span
+                  class="rsi-mini"
+                  [ngClass]="{
+                    'rsi-over': row.currentRsi > 75,
+                    'rsi-under': row.currentRsi < 30,
+                    'rsi-mid': row.currentRsi >= 30 && row.currentRsi <= 75,
+                  }"
+                  [matTooltip]="'RSI(14): ' + (row.currentRsi | number: '1.1-1')"
+                  >{{ row.currentRsi | number: '1.1-1' }}</span
+                >
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Description Column -->
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>Description</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="desc-cell">
+              <span class="company-name">{{ row.description }}</span>
+              @if (row.sector) {
+                <span class="sector-label">{{ row.sector }}</span>
+              }
+              @if (row.currentPrice > 0) {
+                <span class="price-label">{{ row.currentPrice | currency }}</span>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Technical State Column — tooltip on hover -->
+        <ng-container matColumnDef="technicalState">
+          <th mat-header-cell *matHeaderCellDef>Technical State</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="state-badge"
+              [ngClass]="techStateClass(row.technicalState)"
+              [matTooltip]="techStateTooltip(row.technicalState)"
+              matTooltipClass="value-screener-tooltip"
+              matTooltipPosition="right"
+              >{{ techStateLabel(row.technicalState) }}</span
+            >
+          </td>
+        </ng-container>
+
+        <!-- Score Column — breakdown tooltip on hover -->
+        <ng-container matColumnDef="score">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            matTooltip="0-10 composite score: Earnings Yield (+3) + FCF Yield (+2) + P/B (+1) + Piotroski (+3) + ROIC (+1)"
+          >
+            Score
+          </th>
+          <td mat-cell *matCellDef="let row">
+            <div
+              class="score-cell"
+              [ngClass]="tierClass(row.tier)"
+              [matTooltip]="scoreTooltip(row)"
+              matTooltipClass="value-screener-tooltip"
+            >
+              <span class="score-value">{{ row.score | number: '1.1-1' }}</span>
+              <span class="score-out">/10</span>
+            </div>
+            <div class="score-bar">
+              <div
+                class="score-fill"
+                [ngClass]="tierClass(row.tier)"
+                [style.width.%]="row.score * 10"
+              ></div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Action Trigger Column — tooltip on hover -->
+        <ng-container matColumnDef="actionTrigger">
+          <th mat-header-cell *matHeaderCellDef>Action Trigger</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="action-badge"
+              [ngClass]="actionClass(row.actionTrigger)"
+              [matTooltip]="actionTooltip(row.actionTrigger)"
+              matTooltipClass="value-screener-tooltip"
+              matTooltipPosition="left"
+              >{{ actionLabel(row.actionTrigger) }}</span
+            >
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          [ngClass]="tierClass(row.tier) + '-row'"
+        ></tr>
+      </table>
+    </div>
+  } @else if (loading()) {
+    <!-- LOADING STATE (shown on first run / re-analyze) -->
+    <div class="loading-state">
+      <mat-spinner diameter="48" class="loading-spinner" />
+      <p class="loading-label">Running Capital Valuation engine…</p>
+      <p class="loading-sub">
+        Fetching fundamentals &bull; Calculating RSI &bull; Scoring
+        {{
+          sourceMode() === 'portfolio'
+            ? 'Portfolio'
+            : sourceMode() === 'watchlist'
+              ? 'Watch List'
+              : 'Ad-Hoc'
+        }}
+        symbols
+      </p>
+    </div>
+  } @else {
+    <!-- EMPTY STATE -->
+    <div class="empty-state">
+      <mat-icon class="empty-icon">analytics</mat-icon>
+      <h3 class="empty-title">No results yet</h3>
+      <p class="empty-sub">
+        Select <strong>Portfolio</strong> or <strong>Watch List</strong> (or enter ad-hoc tickers),
+        then click <strong>Analyze</strong> to run the Capital Valuation engine.
+      </p>
+      <div class="scoring-hint">
+        <div class="score-factor">
+          <span class="sf-pts">+3</span><span class="sf-label">Earnings Yield (EBIT/EV proxy)</span>
+        </div>
+        <div class="score-factor">
+          <span class="sf-pts">+2</span><span class="sf-label">FCF Yield proxy</span>
+        </div>
+        <div class="score-factor">
+          <span class="sf-pts">+1</span><span class="sf-label">Price-to-Book</span>
+        </div>
+        <div class="score-factor">
+          <span class="sf-pts">+3</span><span class="sf-label">Piotroski F-Score</span>
+        </div>
+        <div class="score-factor">
+          <span class="sf-pts">+1</span><span class="sf-label">ROIC proxy</span>
+        </div>
+      </div>
+    </div>
+  }
+</div>

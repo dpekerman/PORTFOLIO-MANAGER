@@ -44,7 +44,13 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
           <mat-autocomplete #auto (optionSelected)="selectResult($event.option.value)">
             @for (r of searchResults(); track r.symbol) {
               <mat-option [value]="r">
-                <strong>{{ r.symbol }}</strong> — {{ r.description }}
+                <span class="search-result">
+                  <strong>{{ r.symbol }}</strong>
+                  @if (r.exchange) {
+                    <span class="search-exch">{{ r.exchange }}</span>
+                  }
+                  <span class="search-desc">{{ r.description }}</span>
+                </span>
               </mat-option>
             }
           </mat-autocomplete>
@@ -66,6 +72,29 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
       .watchlist-symbol-field {
         width: 100%;
         display: block;
+      }
+      .search-result {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        overflow: hidden;
+      }
+      .search-exch {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: rgba(100, 181, 246, 0.15);
+        color: #64b5f6;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .search-desc {
+        font-size: 0.82rem;
+        color: var(--text-secondary, #888);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     `,
   ],

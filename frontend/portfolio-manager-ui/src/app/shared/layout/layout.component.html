@@ -91,6 +91,21 @@
         <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
 
+      <!-- Demo mode toggle -->
+      <button
+        mat-icon-button
+        [matTooltip]="
+          demoMode.isDemoMode()
+            ? 'Disable demo mode (show real data)'
+            : 'Enable demo mode (mask real values for presentations)'
+        "
+        (click)="demoMode.toggle()"
+        [class.demo-active]="demoMode.isDemoMode()"
+        aria-label="Toggle demo mode"
+      >
+        <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+      </button>
+
       <!-- Global refresh -->
       <button
         mat-icon-button
@@ -102,6 +117,15 @@
         <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
       </button>
     </mat-toolbar>
+
+    <!-- Demo mode banner -->
+    @if (demoMode.isDemoMode()) {
+      <div class="demo-banner" role="status" aria-live="polite">
+        <mat-icon>visibility_off</mat-icon>
+        <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
+        <button mat-button (click)="demoMode.disable()" class="demo-banner-btn">Exit Demo</button>
+      </div>
+    }
 
     <!-- Global progress bar -->
     @if (isLoading()) {

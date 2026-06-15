@@ -37,6 +37,17 @@
       color: var(--text-primary) !important;
     }
 
+    .edit-btn {
+      position: absolute;
+      top: -8px;
+      right: 28px;
+      opacity: 0.4;
+      transition:
+        opacity 0.2s,
+        color 0.2s;
+      color: #616161;
+    }
+
     .remove-btn {
       position: absolute;
       top: -8px;
@@ -49,9 +60,17 @@
     }
   }
 
-  &:hover .remove-btn {
+  &:hover .remove-btn,
+  &:hover .edit-btn {
     opacity: 1;
+  }
+
+  &:hover .remove-btn {
     color: #ff5252;
+  }
+
+  &:hover .edit-btn {
+    color: #64b5f6;
   }
 }
 
@@ -187,6 +206,37 @@
   }
 }
 
+// Sector / Industry meta rows at the bottom of the card
+.meta-row {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 3px;
+
+  .meta-label {
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .meta-value {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.override-badge::after {
+      content: '✎';
+      font-size: 0.6rem;
+      color: var(--accent-primary);
+      margin-left: 4px;
+      vertical-align: super;
+    }
+  }
+}
+
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -229,5 +279,41 @@
 
   .range-label {
     font-weight: 600;
+  }
+}
+
+.rsi-row {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+
+  .range-label {
+    font-weight: 600;
+  }
+}
+
+.rsi-badge {
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 9px;
+
+  &.rsi-oversold {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.25);
+  }
+  &.rsi-overbought {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.25);
+  }
+  &.rsi-neutral {
+    background: rgba(120, 120, 120, 0.08);
+    color: #9e9e9e;
+    border: 1px solid rgba(120, 120, 120, 0.15);
   }
 }

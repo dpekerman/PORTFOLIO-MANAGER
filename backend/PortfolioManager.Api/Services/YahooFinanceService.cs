@@ -16,6 +16,15 @@ public interface IMarketDataProvider
     Task<Dictionary<string, StockQuote>> GetBatchQuotesAsync(IEnumerable<string> symbols, CancellationToken ct = default);
     Task<(string sector, string industry)> GetSectorAsync(string symbol, CancellationToken ct = default);
     Task<IReadOnlyList<SymbolSearchResult>> SearchSymbolAsync(string query, CancellationToken ct = default);
+    /// <summary>Fetch analyst consensus 1-year target prices via quoteSummary/financialData module.</summary>
+    Task<Dictionary<string, decimal>> GetAnalystTargetsAsync(IEnumerable<string> symbols, CancellationToken ct = default);
+    /// <summary>
+    /// Fetch deep fundamental snapshot for a single symbol via v10/finance/quoteSummary
+    /// with modules: defaultKeyStatistics, financialData, cashflowStatementHistory,
+    /// incomeStatementHistory, balanceSheetHistory, summaryDetail.
+    /// Returns null if the symbol is not found or quoteSummary returns an error.
+    /// </summary>
+    Task<FundamentalsSnapshot?> GetFundamentalsAsync(string symbol, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -45,7 +54,12 @@ public sealed class YahooFinanceService : IMarketDataProvider
         ["INDEX"]          = "Indices",
         ["FUTURE"]         = "Futures & Commodities",
     };
-
+    // Quote types excluded from symbol search results.
+    // OPTION is intentionally kept so users can add options contracts to their watchlist.
+    private static readonly HashSet<string> ExcludedSearchQuoteTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "FUTURE", "CURRENCY", "CRYPTOCURRENCY"
+    };
     public YahooFinanceService(HttpClient http, YahooCrumbService crumb, ILogger<YahooFinanceService> logger)
     {
         _http   = http;
@@ -150,7 +164,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
                            "regularMarketPreviousClose,regularMarketVolume," +
                            "longName,shortName,sector,industry,quoteType,marketState," +
-                           "fiftyTwoWeekHigh,fiftyTwoWeekLow";
+                           "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield";
 
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode)
@@ -227,23 +241,36 @@ public sealed class YahooFinanceService : IMarketDataProvider
     {
         try
         {
+            // Fetch more results than we need (20) so filtering still returns enough.
+            // region=CA + lang=en-CA biases Yahoo towards TSX/TSX-V results first.
             var resp = await _http.GetAsync(
-                $"https://query1.finance.yahoo.com/v1/finance/search?q={Uri.EscapeDataString(query)}&quotesCount=15&newsCount=0", ct);
+                $"https://query1.finance.yahoo.com/v1/finance/search" +
+                $"?q={Uri.EscapeDataString(query)}&quotesCount=20&newsCount=0" +
+                $"&listsCount=0&region=CA&lang=en-CA", ct);
             if (!resp.IsSuccessStatusCode) return [];
 
             var json = await resp.Content.ReadAsStringAsync(ct);
             var data = JsonSerializer.Deserialize<YahooSearchResponse>(json, _json);
 
-            return data?.Quotes?
+            var results = (data?.Quotes ?? [])
                 .Where(q => !string.IsNullOrWhiteSpace(q.Symbol))
+                // Filter out futures, currencies — not tradeable in portfolio context
+                .Where(q => string.IsNullOrWhiteSpace(q.QuoteType) || !ExcludedSearchQuoteTypes.Contains(q.QuoteType))
                 .Select(q => new SymbolSearchResult
                 {
                     Symbol        = q.Symbol,
                     Description   = q.Longname ?? q.Shortname ?? q.Symbol,
-                    Type          = q.TypeDisp ?? "Equity",
-                    DisplaySymbol = q.Symbol
+                    Type          = q.TypeDisp ?? (q.QuoteType ?? "Equity"),
+                    DisplaySymbol = q.Symbol,
+                    Exchange      = q.ExchDisp ?? ""
                 })
-                .ToList() ?? [];
+                // Sort: Canadian equities first, then other equities, then options/warrants/rights last
+                .OrderBy(r => IsOptionOrDerivative(r.Type) ? 2 : IsCanadianSymbol(r.Symbol) ? 0 : 1)
+                .ThenBy(r => r.Symbol.Length)
+                .Take(10)
+                .ToList();
+
+            return results;
         }
         catch (Exception ex)
         {
@@ -251,6 +278,17 @@ public sealed class YahooFinanceService : IMarketDataProvider
             return [];
         }
     }
+
+    private static bool IsCanadianSymbol(string symbol) =>
+        symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".V", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".CN", StringComparison.OrdinalIgnoreCase) ||
+        symbol.EndsWith(".NE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsOptionOrDerivative(string type) =>
+        type.Equals("Option", StringComparison.OrdinalIgnoreCase) ||
+        type.Equals("Warrant", StringComparison.OrdinalIgnoreCase) ||
+        type.Equals("Rights", StringComparison.OrdinalIgnoreCase);
 
     // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -281,7 +319,15 @@ public sealed class YahooFinanceService : IMarketDataProvider
             Sector        = sector ?? "",
             Industry      = q.Industry ?? "",
             MarketState   = q.MarketState ?? "",
-            Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+            Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Week52High    = q.FiftyTwoWeekHigh,
+            Week52Low     = q.FiftyTwoWeekLow,
+            TargetMeanPrice = q.TargetMeanPrice,
+            TrailingPE    = q.TrailingPE,
+            ForwardPE     = q.ForwardPE,
+            PriceToBook   = q.PriceToBook,
+            DividendYield = q.TrailingAnnualDividendYield,
+            MarketCap     = q.MarketCap ?? 0L
         };
     }
 
@@ -332,6 +378,177 @@ public sealed class YahooFinanceService : IMarketDataProvider
                 result[orig] = quote;
             }
         }
+    }
+
+    /// <summary>
+    /// Fetch analyst 1-year mean target prices via v10/finance/quoteSummary?modules=financialData.
+    /// This is more reliable than the targetMeanPrice field in v7/finance/quote which is often 0
+    /// for TSX-listed stocks because the field requires a paid Yahoo Finance data subscription.
+    /// Returns a dictionary of symbol → targetMeanPrice (0 if unavailable).
+    /// </summary>
+    public async Task<Dictionary<string, decimal>> GetAnalystTargetsAsync(
+        IEnumerable<string> symbols, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var symbol in symbols.Distinct())
+        {
+            // Try the exact symbol first; if it fails and symbol has no '.', also try with ".TO"
+            var candidates = symbol.Contains('.')
+                ? new[] { symbol }
+                : new[] { symbol, symbol + ".TO" };
+
+            decimal target = 0m;
+            foreach (var candidate in candidates)
+            {
+                try
+                {
+                    var resp = await SendWithCrumbAsync(
+                        $"v10/finance/quoteSummary/{Uri.EscapeDataString(candidate)}?modules=financialData", ct);
+
+                    if (!resp.IsSuccessStatusCode) continue;
+
+                    var json = await resp.Content.ReadAsStringAsync(ct);
+                    // Parse the response — use a local record to avoid polluting the model namespace
+                    using var doc  = System.Text.Json.JsonDocument.Parse(json);
+                    var root       = doc.RootElement;
+                    if (!root.TryGetProperty("quoteSummary", out var qs)) continue;
+                    if (!qs.TryGetProperty("result", out var resArr) || resArr.ValueKind != System.Text.Json.JsonValueKind.Array) continue;
+                    if (resArr.GetArrayLength() == 0) continue;
+
+                    var first = resArr[0];
+                    if (!first.TryGetProperty("financialData", out var fd)) continue;
+                    if (!fd.TryGetProperty("targetMeanPrice", out var tmp)) continue;
+                    if (tmp.TryGetProperty("raw", out var rawProp))
+                    {
+                        target = rawProp.GetDecimal();
+                        if (target > 0)
+                        {
+                            _logger.LogDebug("Analyst target for {Symbol} ({Candidate}): {Target}", symbol, candidate, target);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "GetAnalystTargetsAsync failed for {Candidate}", candidate);
+                }
+                // Brief courtesy delay between individual symbol lookups
+                await Task.Delay(300, ct);
+            }
+            result[symbol] = target;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Fetches a deep fundamental snapshot via v10/quoteSummary with 6 modules.
+    /// Tries the exact symbol first; if that fails and there's no '.' suffix, retries with ".TO".
+    /// </summary>
+    public async Task<FundamentalsSnapshot?> GetFundamentalsAsync(
+        string symbol, CancellationToken ct = default)
+    {
+        const string modules = "defaultKeyStatistics,financialData,cashflowStatementHistory," +
+                               "incomeStatementHistory,balanceSheetHistory,summaryDetail,assetProfile";
+
+        var candidates = symbol.Contains('.')
+            ? new[] { symbol }
+            : new[] { symbol, symbol + ".TO" };
+
+        foreach (var candidate in candidates)
+        {
+            try
+            {
+                var resp = await SendWithCrumbAsync(
+                    $"v10/finance/quoteSummary/{Uri.EscapeDataString(candidate)}?modules={Uri.EscapeDataString(modules)}", ct);
+                if (!resp.IsSuccessStatusCode) continue;
+
+                var json = await resp.Content.ReadAsStringAsync(ct);
+                var data = JsonSerializer.Deserialize<YahooQuoteSummaryMultiResponse>(json, _json);
+                var r    = data?.QuoteSummary?.Result?.FirstOrDefault();
+                if (r is null) continue;
+
+                return MapFundamentalsSnapshot(symbol, r);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetFundamentalsAsync failed for {Candidate}", candidate);
+            }
+            await Task.Delay(250, ct);
+        }
+        return null;
+    }
+
+    private static FundamentalsSnapshot MapFundamentalsSnapshot(string symbol, YahooQuoteSummaryModules r)
+    {
+        var ks  = r.DefaultKeyStatistics;
+        var fd  = r.FinancialData;
+        var sd  = r.SummaryDetail;
+        var cf  = r.CashflowStatementHistory?.CashflowStatements?.FirstOrDefault();
+        var inc = r.IncomeStatementHistory?.IncomeStatements?.FirstOrDefault();
+        var bs  = r.BalanceSheetHistory?.BalanceSheetStatements?.FirstOrDefault();
+        var ap  = r.CashflowStatementHistory; // will use assetProfile via YahooAssetProfileWrapper below
+
+        // Helper
+        static decimal Raw(YahooRawValue? v) => v?.Raw ?? 0m;
+        static long RawL(YahooRawValue? v) => (long)(v?.Raw ?? 0m);
+
+        // FCF: prefer financialData.freeCashflow (most reliable); fallback to OCF - |CapEx|
+        long ocf  = RawL(cf?.OperatingCashFlow);
+        long capex = Math.Abs(RawL(cf?.CapitalExpenditures));  // Yahoo reports CapEx as negative
+        long fcf  = RawL(fd?.FreeCashflow);
+        if (fcf == 0 && ocf != 0) fcf = ocf - capex;
+
+        long marketCap = RawL(sd?.MarketCap);
+        long ev        = RawL(ks?.EnterpriseValue);
+
+        // Sector/Industry live in assetProfile which we parse from the raw JSON separately;
+        // not mapped here since the model doesn't have a typed assetProfile on YahooQuoteSummaryModules.
+        // Set it to empty string; caller can enrich via GetSectorAsync if needed.
+
+        return new FundamentalsSnapshot
+        {
+            Symbol             = symbol,
+            Sector             = "",
+            Industry           = "",
+            MarketCap          = marketCap,
+            EnterpriseValue    = ev,
+            Week52High         = Raw(sd?.FiftyTwoWeekHigh),
+            Week52Low          = Raw(sd?.FiftyTwoWeekLow),
+            TrailingPE         = Raw(sd?.TrailingPE != null ? sd.TrailingPE : ks?.TrailingPE),
+            ForwardPE          = Raw(sd?.ForwardPE  != null ? sd.ForwardPE  : ks?.ForwardPE),
+            PriceToBook        = Raw(sd?.PriceToBook != null ? sd.PriceToBook : ks?.PriceToBook),
+            TrailingEps        = Raw(ks?.TrailingEps),
+            ForwardEps         = Raw(ks?.ForwardEps),
+            BookValuePerShare  = Raw(ks?.BookValue),
+            ReturnOnAssets     = Raw(fd?.ReturnOnAssets != null ? fd.ReturnOnAssets : ks?.ReturnOnAssets),
+            ReturnOnEquity     = Raw(fd?.ReturnOnEquity != null ? fd.ReturnOnEquity : ks?.ReturnOnEquity),
+            DebtToEquity       = Raw(fd?.DebtToEquity),
+            CurrentRatio       = Raw(fd?.CurrentRatio),
+            ProfitMargins      = Raw(fd?.GrossProfits) > 0 && Raw(fd?.TotalRevenue) > 0
+                                    ? Raw(fd.GrossProfits) / Raw(fd.TotalRevenue) : Raw(ks?.ProfitMargins),
+            RevenueGrowth      = Raw(fd?.RevenueGrowth),
+            DividendYield      = Raw(sd?.DividendYield) > 0 ? Raw(sd.DividendYield)
+                                   : Raw(sd?.TrailingAnnualDividendYield),
+            TrailingAnnualDividendYield = Raw(sd?.TrailingAnnualDividendYield),
+            TargetMeanPrice    = Raw(fd?.TargetMeanPrice),
+            AnalystCount       = (int)(fd?.NumberOfAnalystOpinions?.Raw ?? 0m),
+            OperatingCashFlow  = ocf,
+            CapitalExpenditures = capex,
+            FreeCashFlow       = fcf,
+            TotalRevenue       = RawL(inc?.TotalRevenue) > 0 ? RawL(inc.TotalRevenue) : RawL(fd?.TotalRevenue),
+            NetIncome          = RawL(inc?.NetIncome),
+            Ebit               = RawL(inc?.Ebit),
+            TotalAssets        = RawL(bs?.TotalAssets),
+            TotalLiabilities   = RawL(bs?.TotalLiabilities),
+            StockholdersEquity = RawL(bs?.StockholdersEquity),
+            LongTermDebt       = RawL(bs?.LongTermDebt),
+            ShortTermDebt      = RawL(bs?.ShortTermDebt),
+            TotalCurrentAssets = RawL(bs?.TotalCurrentAssets),
+            TotalCurrentLiabilities = RawL(bs?.TotalCurrentLiabilities),
+            Cash               = RawL(bs?.Cash),
+            NetReceivables     = RawL(bs?.NetReceivables),
+            DataAvailable      = true
+        };
     }
 }
 

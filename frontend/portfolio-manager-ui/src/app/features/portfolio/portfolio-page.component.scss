@@ -126,6 +126,55 @@
   }
 }
 
+// ── Sort bar ──────────────────────────────────────────────────────────────────
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+  flex-wrap: wrap;
+
+  .sort-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .sort-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .sort-chip {
+    font-size: 0.78rem;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    min-width: unset;
+
+    &.sort-active {
+      background: var(--mat-sys-primary);
+      color: var(--mat-sys-on-primary, #fff);
+      border-color: transparent;
+    }
+  }
+
+  .sort-dir-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+}
+
 // ── Stock grid ────────────────────────────────────────────────────────────────
 .stock-grid {
   display: grid;

@@ -39,7 +39,10 @@
         <app-rsi-scanner-table
           [results]="scanner.oversold()"
           scanType="Oversold"
+          [logicMode]="scanner.logicMode()"
           [loading]="scanner.loading()"
+          [portfolioSymbols]="portfolioSymbols()"
+          [watchlistSymbols]="watchlistSymbols()"
         />
       }
     </div>
@@ -78,9 +81,19 @@
         <app-rsi-scanner-table
           [results]="scanner.overbought()"
           scanType="Overbought"
+          [logicMode]="scanner.logicMode()"
           [loading]="scanner.loading()"
+          [portfolioSymbols]="portfolioSymbols()"
+          [watchlistSymbols]="watchlistSymbols()"
         />
       }
     </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ── Ad-hoc Symbol Analysis ─────────────────────────────────────────────── -->
+  <section class="scanner-section">
+    <app-adhoc-analyzer />
   </section>
 </div>

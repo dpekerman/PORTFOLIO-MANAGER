@@ -6,10 +6,14 @@ import {
   AddPortfolioItemRequest,
   PortfolioItem,
   PortfolioSummary,
+  RsiScanResult,
   ScannerResponse,
+  SectorIndustryLists,
   StockQuote,
   SymbolSearchResult,
   UpdatePortfolioItemRequest,
+  ValueScreenerRequest,
+  ValueScreenerResult,
   WatchlistSummary,
 } from '../models/portfolio.models';
 
@@ -79,8 +83,51 @@ export class PortfolioApiService {
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
   /** @param force true = bypass server-side 4-minute cache (use on manual refresh only) */
-  getRsiScan(force = false): Observable<ScannerResponse> {
-    const url = force ? `${this.base}/scanner/rsi?force=true` : `${this.base}/scanner/rsi`;
-    return this.http.get<ScannerResponse>(url);
+  getRsiScan(
+    force = false,
+    oversold = 30,
+    overbought = 75,
+    logicMode = 'Legacy',
+  ): Observable<ScannerResponse> {
+    let params = new HttpParams()
+      .set('oversold', oversold)
+      .set('overbought', overbought)
+      .set('logicMode', logicMode);
+    if (force) params = params.set('force', 'true');
+    return this.http.get<ScannerResponse>(`${this.base}/scanner/rsi`, { params });
+  }
+
+  /** Ad-hoc analysis: analyzes up to 20 user-supplied symbols live. */
+  analyzeSymbols(
+    symbols: string[],
+    oversold = 30,
+    overbought = 75,
+    logicMode = 'Legacy',
+  ): Observable<RsiScanResult[]> {
+    return this.http.post<RsiScanResult[]>(`${this.base}/scanner/analyze`, {
+      symbols,
+      oversoldThreshold: oversold,
+      overboughtThreshold: overbought,
+      logicMode,
+    });
+  }
+
+  /** Invalidate all server-side RSI scan cache entries (call after config/threshold change). */
+  clearRsiCache(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
+  }
+
+  // ── Value Screener ──────────────────────────────────────────────────────────
+  runValueScreener(request: ValueScreenerRequest): Observable<ValueScreenerResult[]> {
+    return this.http.post<ValueScreenerResult[]>(`${this.base}/valuescreener/analyze`, request);
+  }
+
+  // ── Sector / Industry Lists ─────────────────────────────────────────────────
+  getSectorIndustryLists(): Observable<SectorIndustryLists> {
+    return this.http.get<SectorIndustryLists>(`${this.base}/sector-industry`);
+  }
+
+  saveSectorIndustryLists(lists: SectorIndustryLists): Observable<SectorIndustryLists> {
+    return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
   }
 }

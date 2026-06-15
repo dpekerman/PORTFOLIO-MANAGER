@@ -140,3 +140,13 @@ body.light-theme {
   padding: 8px 24px 16px !important;
   min-height: unset !important;
 }
+
+// ── Demo mode value redaction ─────────────────────────────────────────────────
+// Applied to elements that contain sensitive financial values.
+// Values are blurred so the shape/layout is preserved but numbers are unreadable.
+.demo-redact {
+  filter: blur(6px);
+  user-select: none;
+  transition: filter 0.2s ease;
+  pointer-events: none;
+}

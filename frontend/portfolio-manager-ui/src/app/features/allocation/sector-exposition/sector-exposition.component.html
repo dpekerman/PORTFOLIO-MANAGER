@@ -1,22 +1,46 @@
 <div class="sector-exposition">
   <!-- ── Toolbar ── -->
   <div class="expo-toolbar">
-    <span class="expo-hint">Click a sector to drill down by industry and position</span>
-    <button
-      mat-stroked-button
-      class="refresh-btn"
-      [disabled]="refreshing()"
-      (click)="refreshSectors()"
-      matTooltip="Fetch sector & industry from Yahoo Finance for all positions"
-    >
-      @if (refreshing()) {
-        <mat-progress-spinner diameter="16" mode="indeterminate" />
-        Refreshing…
-      } @else {
-        <mat-icon>sync</mat-icon>
-        Refresh Sectors
-      }
-    </button>
+    <span class="expo-hint">Click a sector to expand · Expand/collapse all at once</span>
+
+    <div class="expo-actions">
+      <!-- Expand All / Collapse All -->
+      <button
+        mat-stroked-button
+        (click)="expandAll()"
+        matTooltip="Expand all sectors and industries"
+        [disabled]="sectors().length === 0"
+      >
+        <mat-icon>unfold_more</mat-icon>
+        Expand All
+      </button>
+      <button
+        mat-stroked-button
+        (click)="collapseAll()"
+        matTooltip="Collapse all sectors and industries"
+        [disabled]="expandedSectors().size === 0"
+      >
+        <mat-icon>unfold_less</mat-icon>
+        Collapse All
+      </button>
+
+      <!-- Refresh Sectors -->
+      <button
+        mat-stroked-button
+        class="refresh-btn"
+        [disabled]="refreshing()"
+        (click)="refreshSectors()"
+        matTooltip="Fetch sector & industry from Yahoo Finance for all positions"
+      >
+        @if (refreshing()) {
+          <mat-progress-spinner diameter="16" mode="indeterminate" />
+          Refreshing…
+        } @else {
+          <mat-icon>sync</mat-icon>
+          Refresh Sectors
+        }
+      </button>
+    </div>
   </div>
 
   @if (sectors().length === 0) {
@@ -29,7 +53,7 @@
           <div class="sector-header" (click)="toggleSector(row.sector)">
             <div class="sector-left">
               <mat-icon class="expand-icon">
-                {{ expandedSector() === row.sector ? 'expand_less' : 'expand_more' }}
+                {{ isSectorExpanded(row.sector) ? 'expand_less' : 'expand_more' }}
               </mat-icon>
               <span class="sector-name">{{ row.sector }}</span>
               <span class="position-count">
@@ -46,7 +70,7 @@
           </div>
 
           <!-- ── Industry drill-down ── -->
-          @if (expandedSector() === row.sector) {
+          @if (isSectorExpanded(row.sector)) {
             <div class="industry-list">
               @for (ind of row.industries; track ind.industry) {
                 <div class="industry-row">
@@ -58,7 +82,7 @@
                     <div class="industry-left">
                       <mat-icon class="expand-icon-sm">
                         {{
-                          expandedIndustry() === industryKey(row.sector, ind.industry)
+                          isIndustryExpanded(industryKey(row.sector, ind.industry))
                             ? 'expand_less'
                             : 'expand_more'
                         }}
@@ -83,7 +107,7 @@
                   </div>
 
                   <!-- Position rows inside industry -->
-                  @if (expandedIndustry() === industryKey(row.sector, ind.industry)) {
+                  @if (isIndustryExpanded(industryKey(row.sector, ind.industry))) {
                     <div class="ticker-list">
                       @for (pos of ind.positions; track pos.symbol) {
                         <div class="ticker-row">

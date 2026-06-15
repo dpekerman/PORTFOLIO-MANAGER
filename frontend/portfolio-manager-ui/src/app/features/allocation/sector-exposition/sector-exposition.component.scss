@@ -115,26 +115,35 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
 
   .expo-hint {
     font-size: 0.75rem;
     color: var(--text-faint);
   }
 
-  .refresh-btn {
-    display: inline-flex;
+  .expo-actions {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
+    gap: 8px;
+    flex-wrap: wrap;
 
-    mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-    }
+    button[mat-stroked-button] {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
 
-    mat-progress-spinner {
-      flex-shrink: 0;
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+      }
+
+      mat-progress-spinner {
+        flex-shrink: 0;
+      }
     }
   }
 }
