@@ -86,6 +86,7 @@ export class StockCardComponent {
             averageCostBasis: result.averageCostBasis,
             sector: result.sector,
             industry: result.industry,
+            overrideSector: result.overrideSector,
           });
         }
       });

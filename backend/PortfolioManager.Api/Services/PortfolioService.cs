@@ -87,8 +87,20 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         item.CompanyName      = request.CompanyName;
         item.Shares           = request.Shares;
         item.AverageCostBasis = request.AverageCostBasis;
-        if (!string.IsNullOrWhiteSpace(request.Sector))   item.Sector   = request.Sector;
-        if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
+
+        // When OverrideSector is true, always save the supplied values (even empty to clear).
+        // When false, only update if non-empty (legacy behaviour).
+        if (request.OverrideSector)
+        {
+            item.Sector            = request.Sector ?? string.Empty;
+            item.Industry          = request.Industry ?? string.Empty;
+            item.SectorIsOverridden = true;
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(request.Sector))   item.Sector   = request.Sector;
+            if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
+        }
 
         await db.SaveChangesAsync(ct);
         return ToDto(item);
@@ -106,7 +118,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     private static PortfolioItemDto ToDto(PortfolioItem item) =>
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
-            item.Sector, item.Industry, item.IsManual, item.ManualMarketValue, item.AddedAt);
+            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {
@@ -116,7 +128,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         int updated  = 0;
 
         var tasks = items
-            .Where(item => !item.IsManual)  // manual positions have no ticker — skip Yahoo call
+            .Where(item => !item.IsManual && !item.SectorIsOverridden)  // skip manual positions and user overrides
             .Select(async item =>
         {
             await semaphore.WaitAsync(ct);

@@ -223,4 +223,101 @@
       </button>
     </mat-card-actions>
   </mat-card>
+
+  <!-- ── Sector / Industry List Management ── -->
+  <mat-card class="config-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>category</mat-icon>
+      <mat-card-title>Sectors &amp; Industries</mat-card-title>
+      <mat-card-subtitle>
+        Manage the dropdown values shown when editing a portfolio position's sector and industry.
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="lists-grid">
+        <!-- Sectors -->
+        <div class="list-panel">
+          <h4 class="list-title">Sectors</h4>
+          <mat-chip-grid #sectorGrid>
+            @for (s of sectors(); track s) {
+              <mat-chip-row (removed)="removeSector(s)">
+                {{ s }}
+                <button matChipRemove aria-label="Remove {{ s }}">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+          </mat-chip-grid>
+          <mat-form-field appearance="outline" class="list-input" subscriptSizing="dynamic">
+            <mat-label>Add sector</mat-label>
+            <input
+              matInput
+              [matChipInputFor]="sectorGrid"
+              [ngModel]="newSectorInput()"
+              (ngModelChange)="newSectorInput.set($event)"
+              (keydown.enter)="$event.preventDefault(); addSector(newSectorInput())"
+              placeholder="e.g. Real Estate"
+              autocomplete="off"
+            />
+            <button
+              matSuffix
+              mat-icon-button
+              (click)="addSector(newSectorInput())"
+              matTooltip="Add"
+            >
+              <mat-icon>add_circle</mat-icon>
+            </button>
+          </mat-form-field>
+        </div>
+
+        <!-- Industries -->
+        <div class="list-panel">
+          <h4 class="list-title">Industries</h4>
+          <mat-chip-grid #industryGrid>
+            @for (i of industries(); track i) {
+              <mat-chip-row (removed)="removeIndustry(i)">
+                {{ i }}
+                <button matChipRemove aria-label="Remove {{ i }}">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+          </mat-chip-grid>
+          <mat-form-field appearance="outline" class="list-input" subscriptSizing="dynamic">
+            <mat-label>Add industry</mat-label>
+            <input
+              matInput
+              [matChipInputFor]="industryGrid"
+              [ngModel]="newIndustryInput()"
+              (ngModelChange)="newIndustryInput.set($event)"
+              (keydown.enter)="$event.preventDefault(); addIndustry(newIndustryInput())"
+              placeholder="e.g. Banks – Diversified"
+              autocomplete="off"
+            />
+            <button
+              matSuffix
+              mat-icon-button
+              (click)="addIndustry(newIndustryInput())"
+              matTooltip="Add"
+            >
+              <mat-icon>add_circle</mat-icon>
+            </button>
+          </mat-form-field>
+        </div>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button
+        mat-flat-button
+        (click)="saveSectorIndustryLists()"
+        [disabled]="savingLists()"
+        matTooltip="Persist changes to the backend"
+      >
+        <mat-icon>{{ savingLists() ? 'hourglass_empty' : 'save' }}</mat-icon>
+        {{ savingLists() ? 'Saving…' : 'Save Lists' }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
 </div>

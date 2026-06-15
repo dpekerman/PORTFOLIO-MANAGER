@@ -65,6 +65,7 @@ builder.Services.AddCors(options =>
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailNotification"));
 builder.Services.AddSingleton<NotificationRecipientsService>();
+builder.Services.AddSingleton<SectorIndustryService>();
 builder.Services.AddSingleton<SignalNotificationTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();

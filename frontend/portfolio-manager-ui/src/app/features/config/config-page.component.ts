@@ -70,6 +70,13 @@ export class ConfigPageComponent implements OnInit {
   protected readonly sendingTestEmail = signal(false);
   protected readonly scanningNow = signal(false);
 
+  // ── Sector / Industry Lists ──────────────────────────────────────────────
+  protected readonly sectors = signal<string[]>([]);
+  protected readonly industries = signal<string[]>([]);
+  protected readonly newSectorInput = signal('');
+  protected readonly newIndustryInput = signal('');
+  protected readonly savingLists = signal(false);
+
   ngOnInit(): void {
     const cfg = this.configService.config();
     this.form.setValue({
@@ -87,6 +94,19 @@ export class ConfigPageComponent implements OnInit {
         this.loadingEmails.set(false);
       },
       error: () => this.loadingEmails.set(false),
+    });
+
+    // Load sector/industry lists from backend
+    this.api.getSectorIndustryLists().subscribe({
+      next: (lists) => {
+        this.sectors.set(lists.sectors);
+        this.industries.set(lists.industries);
+      },
+      error: () => {
+        this.snackBar.open('Could not load sector/industry lists from backend.', 'Dismiss', {
+          duration: 4000,
+        });
+      },
     });
   }
 
@@ -217,5 +237,52 @@ export class ConfigPageComponent implements OnInit {
         });
       },
     });
+  }
+
+  // ── Sector / Industry list management ────────────────────────────────────
+  addSector(value: string): void {
+    const v = value.trim();
+    if (!v || this.sectors().includes(v)) {
+      this.newSectorInput.set('');
+      return;
+    }
+    this.sectors.update((list) => [...list, v].sort());
+    this.newSectorInput.set('');
+  }
+
+  removeSector(s: string): void {
+    this.sectors.update((list) => list.filter((x) => x !== s));
+  }
+
+  addIndustry(value: string): void {
+    const v = value.trim();
+    if (!v || this.industries().includes(v)) {
+      this.newIndustryInput.set('');
+      return;
+    }
+    this.industries.update((list) => [...list, v].sort());
+    this.newIndustryInput.set('');
+  }
+
+  removeIndustry(i: string): void {
+    this.industries.update((list) => list.filter((x) => x !== i));
+  }
+
+  saveSectorIndustryLists(): void {
+    this.savingLists.set(true);
+    this.api
+      .saveSectorIndustryLists({ sectors: this.sectors(), industries: this.industries() })
+      .subscribe({
+        next: (lists) => {
+          this.sectors.set(lists.sectors);
+          this.industries.set(lists.industries);
+          this.savingLists.set(false);
+          this.snackBar.open('Sector & Industry lists saved.', 'OK', { duration: 3000 });
+        },
+        error: () => {
+          this.savingLists.set(false);
+          this.snackBar.open('Failed to save lists.', 'Dismiss', { duration: 4000 });
+        },
+      });
   }
 }

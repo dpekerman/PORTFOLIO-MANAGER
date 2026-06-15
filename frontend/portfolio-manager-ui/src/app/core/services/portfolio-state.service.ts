@@ -181,6 +181,7 @@ export class PortfolioStateService {
                     averageCostBasis: updated.averageCostBasis,
                     sector: updated.sector ?? s.item.sector,
                     industry: updated.industry ?? s.item.industry,
+                    sectorIsOverridden: updated.sectorIsOverridden,
                   },
                 }
               : s,

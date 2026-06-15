@@ -9,6 +9,8 @@ public class PortfolioItem
     public decimal AverageCostBasis { get; set; }
     public string Sector { get; set; } = string.Empty;
     public string Industry { get; set; } = string.Empty;
+    /// <summary>True when sector/industry were manually set by the user. RefreshSectors skips these items.</summary>
+    public bool SectorIsOverridden { get; set; } = false;
     public bool IsManual { get; set; } = false;
     public decimal? ManualMarketValue { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;

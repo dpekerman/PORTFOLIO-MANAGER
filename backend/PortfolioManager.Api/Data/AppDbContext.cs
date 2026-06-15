@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.AverageCostBasis).HasColumnType("decimal(18,4)");
             entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
             entity.Property(e => e.Industry).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.SectorIsOverridden).HasDefaultValue(false);
             entity.Property(e => e.IsManual).HasDefaultValue(false);
             entity.Property(e => e.ManualMarketValue).HasColumnType("decimal(18,4)");
             entity.HasIndex(e => e.Symbol).IsUnique();

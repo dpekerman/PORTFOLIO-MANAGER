@@ -6,6 +6,7 @@ export interface PortfolioItem {
   averageCostBasis: number;
   sector: string;
   industry: string;
+  sectorIsOverridden: boolean;
   isManual: boolean;
   manualMarketValue: number | null;
   addedAt: string;
@@ -67,6 +68,12 @@ export interface UpdatePortfolioItemRequest {
   averageCostBasis: number;
   sector?: string;
   industry?: string;
+  overrideSector?: boolean;
+}
+
+export interface SectorIndustryLists {
+  sectors: string[];
+  industries: string[];
 }
 
 export interface AddManualPositionRequest {

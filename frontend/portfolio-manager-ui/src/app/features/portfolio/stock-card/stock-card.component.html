@@ -27,16 +27,6 @@
         ? summary().item.industry || summary().item.sector
         : summary().item.companyName
     }}</mat-card-subtitle>
-    @if (!summary().item.isManual && (summary().item.sector || summary().item.industry)) {
-      <div class="sector-row">
-        @if (summary().item.sector) {
-          <span class="sector-badge">{{ summary().item.sector }}</span>
-        }
-        @if (summary().item.industry) {
-          <span class="industry-badge">{{ summary().item.industry }}</span>
-        }
-      </div>
-    }
     <button
       mat-icon-button
       class="edit-btn"
@@ -156,6 +146,22 @@
             }"
             >{{ rsi()! | number: '1.1-1' }}</span
           >
+        </div>
+      }
+    }
+    @if (!summary().item.isManual) {
+      @if (summary().item.sector) {
+        <div class="meta-row">
+          <span class="meta-label">Sector:</span>
+          <span class="meta-value" [class.override-badge]="summary().item.sectorIsOverridden">{{
+            summary().item.sector
+          }}</span>
+        </div>
+      }
+      @if (summary().item.industry) {
+        <div class="meta-row">
+          <span class="meta-label">Industry:</span>
+          <span class="meta-value">{{ summary().item.industry }}</span>
         </div>
       }
     }

@@ -206,31 +206,35 @@
   }
 }
 
-// Sector / Industry badges under card subtitle
-.sector-row {
+// Sector / Industry meta rows at the bottom of the card
+.meta-row {
+  font-size: 0.72rem;
+  color: var(--text-faint);
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
   gap: 4px;
-  padding: 2px 16px 6px 56px; // align with card content (avatar offset)
-}
-.sector-badge {
-  font-size: 0.62rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(100, 181, 246, 0.12);
-  color: var(--accent-primary);
-  letter-spacing: 0.2px;
-  white-space: nowrap;
-}
-.industry-badge {
-  font-size: 0.62rem;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-  letter-spacing: 0.2px;
-  white-space: nowrap;
+  margin-top: 3px;
+
+  .meta-label {
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .meta-value {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.override-badge::after {
+      content: '✎';
+      font-size: 0.6rem;
+      color: var(--accent-primary);
+      margin-left: 4px;
+      vertical-align: super;
+    }
+  }
 }
 
 .metrics-grid {

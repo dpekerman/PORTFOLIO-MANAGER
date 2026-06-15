@@ -139,7 +139,12 @@ public class EmailNotificationService(
         var oversold  = signals.Where(s => s.ScanType == ScanType.Oversold).ToList();
         var overbought = signals.Where(s => s.ScanType == ScanType.Overbought).ToList();
 
-        var subject = $"⚠️ RSI ALERT — {signals.Count} Confirmed Signal{(signals.Count > 1 ? "s" : "")} Detected";
+        // Build a compact ticker list for the subject: "RY.TO (79.9), BCE.TO (68.2)"
+        var tickerSummary = string.Join(", ", signals.Select(s => $"{s.Symbol} RSI:{s.Rsi:F1}"));
+        var subject = signals.Count == 1
+            ? $"⚠️ RSI ALERT — {signals[0].Symbol} (RSI {signals[0].Rsi:F1}) Confirmed Signal"
+            : $"⚠️ RSI ALERT — {signals.Count} Confirmed Signals: {tickerSummary}";
+
         var body = BuildHtmlBody(oversold, overbought, scannedAt);
 
         using var message = new MailMessage
@@ -176,35 +181,34 @@ public class EmailNotificationService(
 <meta charset=""UTF-8"">
 <meta name=""viewport"" content=""width=device-width,initial-scale=1"">
 <style>
-  body{margin:0;padding:0;background:#0d0d0d;font-family:'Segoe UI',Arial,sans-serif;color:#e0e0e0}
+  body{margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;color:#333}
   .wrapper{max-width:800px;margin:0 auto;padding:24px 16px}
   .header{background:linear-gradient(135deg,#0d47a1,#1565c0);border-radius:12px;padding:24px 28px;margin-bottom:24px}
   .header h1{margin:0 0 6px;font-size:1.4rem;color:#fff;letter-spacing:0.05em}
-  .header p{margin:0;font-size:0.85rem;color:rgba(255,255,255,0.75)}
+  .header p{margin:0;font-size:0.85rem;color:rgba(255,255,255,0.85)}
   .badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;letter-spacing:0.06em}
-  .badge-oversold{background:#1b5e20;color:#a5d6a7}
-  .badge-overbought{background:#b71c1c;color:#ef9a9a}
-  .section-title{font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid #2a2a2a}
-  .section-title.os{color:#66bb6a}
-  .section-title.ob{color:#ef5350}
-  table{width:100%;border-collapse:collapse;margin-bottom:24px;background:#161616;border-radius:10px;overflow:hidden}
-  th{background:#1e1e1e;padding:10px 14px;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#9e9e9e;text-transform:uppercase;border-bottom:1px solid #2a2a2a}
-  td{padding:12px 14px;font-size:0.82rem;border-bottom:1px solid #1a1a1a;vertical-align:top}
+  .section-title{font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e0e0e0}
+  .section-title.os{color:#2e7d32}
+  .section-title.ob{color:#c62828}
+  table{width:100%;border-collapse:collapse;margin-bottom:24px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+  th{background:#f0f4ff;padding:10px 14px;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:0.08em;color:#555;text-transform:uppercase;border-bottom:2px solid #dde3f0}
+  td{padding:12px 14px;font-size:0.82rem;border-bottom:1px solid #f0f0f0;vertical-align:top}
   tr:last-child td{border-bottom:none}
-  .sym{font-weight:700;font-size:0.9rem;color:#fff}
-  .co{font-size:0.73rem;color:#9e9e9e;margin-top:2px}
-  .rsi-os{color:#ef5350;font-weight:700;font-size:1rem}
-  .rsi-ob{color:#ffa726;font-weight:700;font-size:1rem}
-  .pos{color:#66bb6a}.neg{color:#ef5350}
+  tr:hover td{background:#fafbff}
+  .sym{font-weight:700;font-size:0.9rem;color:#1a1a2e}
+  .co{font-size:0.73rem;color:#666;margin-top:2px}
+  .rsi-os{color:#c62828;font-weight:700;font-size:1rem}
+  .rsi-ob{color:#e65100;font-weight:700;font-size:1rem}
+  .pos{color:#2e7d32}.neg{color:#c62828}
   .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;margin:1px}
-  .pill-bull{background:rgba(102,187,106,0.15);color:#66bb6a;border:1px solid rgba(102,187,106,0.3)}
-  .pill-bear{background:rgba(239,83,80,0.15);color:#ef5350;border:1px solid rgba(239,83,80,0.3)}
-  .pill-neu{background:rgba(158,158,158,0.15);color:#9e9e9e;border:1px solid rgba(158,158,158,0.3)}
-  .trigger{font-size:0.77rem;color:#bdbdbd;max-width:220px}
-  .footer{margin-top:28px;padding-top:16px;border-top:1px solid #2a2a2a;font-size:0.72rem;color:#616161;text-align:center}
-  .prob-high{color:#66bb6a;font-weight:700}
-  .prob-med{color:#ffa726;font-weight:700}
-  .prob-low{color:#9e9e9e}
+  .pill-bull{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+  .pill-bear{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+  .pill-neu{background:#f5f5f5;color:#757575;border:1px solid #e0e0e0}
+  .trigger{font-size:0.77rem;color:#555;max-width:220px}
+  .footer{margin-top:28px;padding-top:16px;border-top:1px solid #e0e0e0;font-size:0.72rem;color:#999;text-align:center}
+  .prob-high{color:#2e7d32;font-weight:700}
+  .prob-med{color:#e65100;font-weight:700}
+  .prob-low{color:#999}
 </style>
 </head>
 <body>

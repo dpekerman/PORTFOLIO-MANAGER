@@ -8,6 +8,7 @@ import {
   PortfolioSummary,
   RsiScanResult,
   ScannerResponse,
+  SectorIndustryLists,
   StockQuote,
   SymbolSearchResult,
   UpdatePortfolioItemRequest,
@@ -119,5 +120,14 @@ export class PortfolioApiService {
   // ── Value Screener ──────────────────────────────────────────────────────────
   runValueScreener(request: ValueScreenerRequest): Observable<ValueScreenerResult[]> {
     return this.http.post<ValueScreenerResult[]>(`${this.base}/valuescreener/analyze`, request);
+  }
+
+  // ── Sector / Industry Lists ─────────────────────────────────────────────────
+  getSectorIndustryLists(): Observable<SectorIndustryLists> {
+    return this.http.get<SectorIndustryLists>(`${this.base}/sector-industry`);
+  }
+
+  saveSectorIndustryLists(lists: SectorIndustryLists): Observable<SectorIndustryLists> {
+    return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
   }
 }
