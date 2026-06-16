@@ -143,6 +143,62 @@
   }
 }
 
+// ── RSI Signal (9-EMA) column ────────────────────────────────────────────────
+.rsi-signal-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .rsi-signal-value {
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .rsi-signal-arrow {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.signal-above {
+    .rsi-signal-value {
+      color: #4caf50;
+    }
+    .rsi-signal-arrow {
+      color: #4caf50;
+    }
+  }
+
+  &.signal-below {
+    .rsi-signal-value {
+      color: #ef5350;
+    }
+    .rsi-signal-arrow {
+      color: #ef5350;
+    }
+  }
+}
+
+.rsi-signal-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  cursor: help;
+
+  .rsi-signal-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .rsi-signal-na {
+    font-size: 0.72rem;
+    font-style: italic;
+  }
+}
+
 // Price
 .price-value {
   font-size: 0.9rem;

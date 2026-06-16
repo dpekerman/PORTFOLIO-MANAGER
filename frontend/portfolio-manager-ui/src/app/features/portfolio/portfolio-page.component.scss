@@ -233,3 +233,217 @@
     transform: rotate(360deg);
   }
 }
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+.view-toggle {
+  height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// ── Grid filters bar ──────────────────────────────────────────────────────────
+.grid-filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 10px;
+
+  .gf-field {
+    min-width: 160px;
+  }
+  .gf-ticker {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+  .gf-select {
+    min-width: 160px;
+    max-width: 240px;
+  }
+  .gf-rsi {
+    min-width: 100px;
+    max-width: 120px;
+  }
+}
+
+.gf-clear-btn {
+  height: 36px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.gf-count {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+// ── Portfolio grid table ──────────────────────────────────────────────────────
+.portfolio-table-wrapper {
+  overflow-x: auto;
+  margin-top: 6px;
+}
+
+.portfolio-grid-table {
+  width: 100%;
+  background: var(--bg-surface) !important;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+
+  th.mat-mdc-header-cell {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: var(--bg-elevated);
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  tr.pg-row:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.pg-num-header {
+  text-align: right !important;
+}
+.pg-num {
+  text-align: right !important;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+.pg-bold {
+  font-weight: 700;
+}
+.pg-pos {
+  color: #43a047 !important;
+}
+.pg-neg {
+  color: #e53935 !important;
+}
+.pg-dim {
+  color: var(--text-faint);
+}
+
+.pg-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(21, 101, 192, 0.15);
+  color: #64b5f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.pg-symbol {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.pg-manual-tag {
+  font-size: 0.6rem;
+  background: rgba(255, 160, 0, 0.12);
+  color: #ffa000;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+}
+
+.pg-company {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  display: block;
+}
+
+.pg-rsi {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+
+  &.pg-rsi-over {
+    color: #ef6c00;
+  }
+  &.pg-rsi-under {
+    color: #43a047;
+  }
+}
+
+.pg-no-results {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-faint);
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    display: block;
+    margin: 0 auto 8px;
+  }
+  span {
+    font-size: 0.85rem;
+  }
+  button {
+    margin-top: 8px;
+  }
+}
+
+// ── Grid actions column ───────────────────────────────────────────────────────
+.pg-actions-header {
+  width: 72px;
+  padding: 0 !important;
+}
+
+.pg-actions-cell {
+  white-space: nowrap;
+  padding: 0 4px !important;
+}
+
+.pg-action-btn {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--text-faint);
+  }
+
+  &:hover mat-icon {
+    color: var(--text-primary);
+  }
+}
+
+.pg-action-delete:hover mat-icon {
+  color: #ef5350 !important;
+}

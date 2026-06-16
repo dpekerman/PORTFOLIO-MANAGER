@@ -37,11 +37,11 @@ export class RsiScannerTableComponent {
     'tracking',
     'symbol',
     'rsi',
+    'rsiSignal',
     'price',
     'change',
     'analystUpside',
     'indicators',
-    'probability',
     'status',
     'trigger',
   ];

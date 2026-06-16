@@ -77,6 +77,50 @@
     </td>
   </ng-container>
 
+  <!-- RSI Signal Column (9-EMA of RSI) -->
+  <ng-container matColumnDef="rsiSignal">
+    <th
+      mat-header-cell
+      *matHeaderCellDef
+      matTooltip="RSI Signal: 9-period EMA of RSI(14). When RSI crosses above the signal line it signals building momentum; below = fading momentum."
+    >
+      RSI Signal
+    </th>
+    <td mat-cell *matCellDef="let row">
+      @if (!row.rsiSignalAvailable) {
+        <span
+          class="rsi-signal-unavailable"
+          matTooltip="Insufficient historical data to calculate the 9-EMA of RSI"
+        >
+          <mat-icon class="rsi-signal-icon">show_chart</mat-icon>
+          <span class="rsi-signal-na">N/A</span>
+        </span>
+      } @else {
+        <div
+          class="rsi-signal-cell"
+          [ngClass]="{
+            'signal-above': row.rsi > row.rsiSignal,
+            'signal-below': row.rsi < row.rsiSignal,
+          }"
+          [matTooltip]="
+            'RSI Signal (9-EMA): ' +
+            (row.rsiSignal | number: '1.1-1') +
+            ' · RSI(14): ' +
+            (row.rsi | number: '1.1-1') +
+            (row.rsi > row.rsiSignal
+              ? ' · RSI above signal (bullish)'
+              : ' · RSI below signal (bearish)')
+          "
+        >
+          <span class="rsi-signal-value">{{ row.rsiSignal | number: '1.1-1' }}</span>
+          <mat-icon class="rsi-signal-arrow">{{
+            row.rsi > row.rsiSignal ? 'north_east' : 'south_east'
+          }}</mat-icon>
+        </div>
+      }
+    </td>
+  </ng-container>
+
   <!-- Price Column -->
   <ng-container matColumnDef="price">
     <th mat-header-cell *matHeaderCellDef>Price</th>

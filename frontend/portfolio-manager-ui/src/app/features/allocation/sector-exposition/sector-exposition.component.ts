@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,18 +7,26 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { ScannerStateService } from '../../../core/services/scanner-state.service';
 
 interface PositionRow {
   symbol: string;
   companyName: string;
   marketValue: number;
   pct: number;
+  lastPrice: number | null;
+  gainLoss: number | null;
+  gainLossPct: number | null;
+  changePct: number | null;
+  rsi: number | null;
 }
 
 interface IndustryRow {
   industry: string;
   marketValue: number;
   pct: number;
+  gainLoss: number;
+  gainLossPct: number;
   positions: PositionRow[];
 }
 
@@ -26,6 +34,8 @@ interface SectorRow {
   sector: string;
   marketValue: number;
   pct: number;
+  gainLoss: number;
+  gainLossPct: number;
   industries: IndustryRow[];
   expanded: boolean;
 }
@@ -41,16 +51,26 @@ interface SectorRow {
     MatTooltipModule,
     MatProgressSpinnerModule,
     DecimalPipe,
+    NgClass,
   ],
 })
 export class SectorExpositionComponent {
   private readonly portfolio = inject(PortfolioStateService);
   private readonly api = inject(PortfolioApiService);
+  private readonly scanner = inject(ScannerStateService);
   private readonly snackBar = inject(MatSnackBar);
 
   protected readonly refreshing = signal(false);
   protected readonly expandedSectors = signal<Set<string>>(new Set());
   protected readonly expandedIndustries = signal<Set<string>>(new Set());
+
+  /** RSI map built from scanner state (covers oversold/overbought signals) */
+  protected readonly rsiMap = computed<Map<string, number>>(() => {
+    const map = new Map<string, number>();
+    for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
+      map.set(r.symbol.toUpperCase(), r.rsi);
+    return map;
+  });
 
   isSectorExpanded(sector: string): boolean {
     return this.expandedSectors().has(sector);
@@ -81,13 +101,26 @@ export class SectorExpositionComponent {
     const totalValue = this.portfolio.totalValue();
     if (totalValue === 0) return [];
 
+    const rsiMap = this.rsiMap();
+
     // sector → industry → positions map
     const sectorMap = new Map<string, Map<string, PositionRow[]>>();
 
     for (const s of summaries) {
+      const isManual = s.item.isManual;
       const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-      const mv = price * s.item.shares;
-      const sector = s.quote?.sector || s.item.sector || 'Unclassified';
+      const mv = isManual
+        ? (s.item.manualMarketValue ?? s.item.averageCostBasis * s.item.shares)
+        : price * s.item.shares;
+      const cost = s.item.averageCostBasis * s.item.shares;
+      const gainLoss = mv - cost;
+      const gainLossPct = cost > 0 ? (gainLoss / cost) * 100 : null;
+
+      // If the user manually overrode the sector, always prefer the stored value
+      const sector =
+        s.item.sectorIsOverridden && s.item.sector
+          ? s.item.sector
+          : s.quote?.sector || s.item.sector || 'Unclassified';
       const industry = s.item.industry || s.quote?.industry || '';
 
       if (!sectorMap.has(sector)) sectorMap.set(sector, new Map());
@@ -100,6 +133,11 @@ export class SectorExpositionComponent {
         companyName: s.item.companyName,
         marketValue: mv,
         pct: (mv / totalValue) * 100,
+        lastPrice: isManual ? null : (s.quote?.currentPrice ?? null),
+        gainLoss,
+        gainLossPct,
+        changePct: isManual ? null : (s.quote?.changePercent ?? null),
+        rsi: rsiMap.get(s.item.symbol.toUpperCase()) ?? null,
       });
     }
 
@@ -108,20 +146,31 @@ export class SectorExpositionComponent {
         const industries: IndustryRow[] = [...industryMap.entries()]
           .map(([industry, positions]) => {
             const mv = positions.reduce((sum, p) => sum + p.marketValue, 0);
+            const totalGl = positions.reduce((sum, p) => sum + (p.gainLoss ?? 0), 0);
+            const totalCost = positions.reduce(
+              (sum, p) => sum + p.marketValue - (p.gainLoss ?? 0),
+              0,
+            );
             return {
               industry,
               marketValue: mv,
               pct: (mv / totalValue) * 100,
+              gainLoss: totalGl,
+              gainLossPct: totalCost > 0 ? (totalGl / totalCost) * 100 : 0,
               positions: [...positions].sort((a, b) => b.marketValue - a.marketValue),
             };
           })
           .sort((a, b) => b.marketValue - a.marketValue);
 
         const sectorMv = industries.reduce((sum, i) => sum + i.marketValue, 0);
+        const sectorGl = industries.reduce((sum, i) => sum + i.gainLoss, 0);
+        const sectorCost = sectorMv - sectorGl;
         return {
           sector,
           marketValue: sectorMv,
           pct: (sectorMv / totalValue) * 100,
+          gainLoss: sectorGl,
+          gainLossPct: sectorCost > 0 ? (sectorGl / sectorCost) * 100 : 0,
           industries,
           expanded: false,
         };

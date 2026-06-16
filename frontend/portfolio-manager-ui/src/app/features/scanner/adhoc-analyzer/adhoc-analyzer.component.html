@@ -63,11 +63,15 @@
         matTooltip="Fetch live RSI + technical analysis for all entered symbols"
       >
         @if (loading()) {
-          <mat-icon class="spinning">radar</mat-icon>
-          Analyzing…
+          <ng-container>
+            <mat-icon class="spinning">radar</mat-icon>
+            Analyzing…
+          </ng-container>
         } @else {
-          <mat-icon>analytics</mat-icon>
-          Analyze
+          <ng-container>
+            <mat-icon>analytics</mat-icon>
+            Analyze
+          </ng-container>
         }
       </button>
       @if (symbols().length > 0) {

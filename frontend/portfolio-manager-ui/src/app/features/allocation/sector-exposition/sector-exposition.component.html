@@ -33,11 +33,15 @@
         matTooltip="Fetch sector & industry from Yahoo Finance for all positions"
       >
         @if (refreshing()) {
-          <mat-progress-spinner diameter="16" mode="indeterminate" />
-          Refreshing…
+          <ng-container>
+            <mat-progress-spinner diameter="16" mode="indeterminate" />
+            Refreshing…
+          </ng-container>
         } @else {
-          <mat-icon>sync</mat-icon>
-          Refresh Sectors
+          <ng-container>
+            <mat-icon>sync</mat-icon>
+            Refresh Sectors
+          </ng-container>
         }
       </button>
     </div>
@@ -66,6 +70,20 @@
               </div>
               <span class="pct">{{ row.pct | number: '1.1-1' }}%</span>
               <span class="mv">${{ row.marketValue / 1000 | number: '1.0-0' }}k</span>
+              <span
+                class="gl-val"
+                [class.gl-pos]="row.gainLoss >= 0"
+                [class.gl-neg]="row.gainLoss < 0"
+              >
+                {{ row.gainLoss >= 0 ? '+' : '' }}${{ row.gainLoss / 1000 | number: '1.1-1' }}k
+              </span>
+              <span
+                class="gl-pct"
+                [class.gl-pos]="row.gainLossPct >= 0"
+                [class.gl-neg]="row.gainLossPct < 0"
+              >
+                {{ row.gainLossPct >= 0 ? '+' : '' }}{{ row.gainLossPct | number: '1.1-1' }}%
+              </span>
             </div>
           </div>
 
@@ -103,16 +121,45 @@
                       </div>
                       <span class="pct pct-sm">{{ ind.pct | number: '1.1-1' }}%</span>
                       <span class="mv">${{ ind.marketValue / 1000 | number: '1.1-1' }}k</span>
+                      <span
+                        class="gl-val gl-sm"
+                        [class.gl-pos]="ind.gainLoss >= 0"
+                        [class.gl-neg]="ind.gainLoss < 0"
+                      >
+                        {{ ind.gainLoss >= 0 ? '+' : '' }}${{
+                          ind.gainLoss / 1000 | number: '1.1-1'
+                        }}k
+                      </span>
+                      <span
+                        class="gl-pct gl-sm"
+                        [class.gl-pos]="ind.gainLossPct >= 0"
+                        [class.gl-neg]="ind.gainLossPct < 0"
+                      >
+                        {{ ind.gainLossPct >= 0 ? '+' : ''
+                        }}{{ ind.gainLossPct | number: '1.1-1' }}%
+                      </span>
                     </div>
                   </div>
 
                   <!-- Position rows inside industry -->
                   @if (isIndustryExpanded(industryKey(row.sector, ind.industry))) {
                     <div class="ticker-list">
+                      <div class="ticker-row ticker-header-row">
+                        <span class="ticker-symbol-col">Ticker</span>
+                        <span class="ticker-desc-col">Description</span>
+                        <span class="ticker-bar-spacer"></span>
+                        <span class="ticker-pct-col">% Total</span>
+                        <span class="ticker-mv-col">Total MV</span>
+                        <span class="ticker-price-col">Last Price</span>
+                        <span class="ticker-gl-col">Gain/Loss</span>
+                        <span class="ticker-glpct-col">G/L %</span>
+                        <span class="ticker-rsi-col">RSI</span>
+                        <span class="ticker-day-col">Day %</span>
+                      </div>
                       @for (pos of ind.positions; track pos.symbol) {
                         <div class="ticker-row">
                           <span class="ticker-symbol">{{ pos.symbol }}</span>
-                          <span class="ticker-name">{{ pos.companyName }}</span>
+                          <span class="ticker-name ticker-desc-col">{{ pos.companyName }}</span>
                           <div class="ticker-bar-track">
                             <div
                               class="ticker-bar-fill"
@@ -123,6 +170,63 @@
                           <span class="ticker-mv"
                             >${{ pos.marketValue / 1000 | number: '1.1-1' }}k</span
                           >
+                          <span class="ticker-price-col ticker-num">
+                            {{
+                              pos.lastPrice != null ? '$' + (pos.lastPrice | number: '1.2-2') : '—'
+                            }}
+                          </span>
+                          <span
+                            class="ticker-gl-col ticker-num"
+                            [ngClass]="{
+                              'gl-pos': (pos.gainLoss ?? 0) >= 0,
+                              'gl-neg': (pos.gainLoss ?? 0) < 0,
+                            }"
+                          >
+                            @if (pos.gainLoss != null) {
+                              {{ pos.gainLoss >= 0 ? '+' : '' }}${{
+                                pos.gainLoss / 1000 | number: '1.1-1'
+                              }}k
+                            } @else {
+                              —
+                            }
+                          </span>
+                          <span
+                            class="ticker-glpct-col ticker-num"
+                            [ngClass]="{
+                              'gl-pos': (pos.gainLossPct ?? 0) >= 0,
+                              'gl-neg': (pos.gainLossPct ?? 0) < 0,
+                            }"
+                          >
+                            @if (pos.gainLossPct != null) {
+                              {{ pos.gainLossPct >= 0 ? '+' : ''
+                              }}{{ pos.gainLossPct | number: '1.1-1' }}%
+                            } @else {
+                              —
+                            }
+                          </span>
+                          <span
+                            class="ticker-rsi-col ticker-num"
+                            [ngClass]="{
+                              'rsi-over': (pos.rsi ?? 50) >= 70,
+                              'rsi-under': (pos.rsi ?? 50) <= 30,
+                            }"
+                          >
+                            {{ pos.rsi != null ? (pos.rsi | number: '1.0-0') : '—' }}
+                          </span>
+                          <span
+                            class="ticker-day-col ticker-num"
+                            [ngClass]="{
+                              'gl-pos': (pos.changePct ?? 0) >= 0,
+                              'gl-neg': (pos.changePct ?? 0) < 0,
+                            }"
+                          >
+                            @if (pos.changePct != null) {
+                              {{ pos.changePct >= 0 ? '+' : ''
+                              }}{{ pos.changePct | number: '1.2-2' }}%
+                            } @else {
+                              —
+                            }
+                          </span>
                         </div>
                       }
                     </div>

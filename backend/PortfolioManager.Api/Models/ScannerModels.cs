@@ -20,6 +20,14 @@ public class RsiScanResult
     public DateTime ScannedAt { get; set; } = DateTime.UtcNow;
     public bool IsDemo { get; set; }
 
+    /// <summary>9-period EMA of the RSI(14) series — the "RSI Signal line".
+    /// Null when there is insufficient data to compute (requires at least 23 candles:
+    /// 14 for first RSI + 9 for EMA seed).</summary>
+    public decimal? RsiSignal { get; set; }
+    /// <summary>True when RsiSignal was successfully calculated; false means the column
+    /// should display an "unable to calculate" indicator.</summary>
+    public bool RsiSignalAvailable { get; set; }
+
     // ── 5 Technical Indicators ──────────────────────────────────────────────
     /// <summary>Stochastic Fast %K (0-100). Confirms extreme reading when
     /// below 20 (oversold) or above 80 (overbought).</summary>

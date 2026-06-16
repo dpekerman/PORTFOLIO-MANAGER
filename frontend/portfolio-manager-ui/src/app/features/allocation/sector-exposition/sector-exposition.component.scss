@@ -210,45 +210,91 @@
   }
 }
 
+// ── Grid column definition ────────────────────────────────────────────────────
+// Cols: ticker | description | bar | %total | mv | price | gain/loss | g/l% | rsi | day%
+$ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px;
+
 .ticker-list {
   padding: 6px 14px 10px 56px;
   background: var(--bg-page);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.ticker-header-row,
+.ticker-row {
+  display: grid;
+  grid-template-columns: $ticker-grid;
+  align-items: center;
+  column-gap: 8px;
+}
+
+.ticker-header-row {
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 2px;
+
+  > span,
+  > div {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    text-align: right;
+  }
+
+  .ticker-symbol-col {
+    text-align: left;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .ticker-desc-col {
+    text-align: left;
+  }
+
+  .ticker-bar-spacer {
+    // empty bar spacer — no text
+  }
 }
 
 .ticker-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 3px 0;
+  border-radius: 4px;
+  transition: background 0.1s;
 
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  // Col 1 — Ticker
   .ticker-symbol {
     font-size: 0.78rem;
     font-weight: 700;
     color: var(--text-secondary);
-    min-width: 70px;
     font-family: 'Roboto Mono', monospace;
-  }
-
-  .ticker-name {
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    min-width: 130px;
-    max-width: 200px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1;
   }
 
+  // Col 2 — Description
+  .ticker-name {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Col 3 — Mini bar
   .ticker-bar-track {
-    width: 80px;
     height: 4px;
     background: var(--border-subtle);
     border-radius: 2px;
     overflow: hidden;
-    flex-shrink: 0;
 
     .ticker-bar-fill {
       height: 100%;
@@ -257,19 +303,66 @@
     }
   }
 
-  .ticker-pct {
+  // Cols 4-10 — Numeric data (right-aligned, monospace)
+  .ticker-pct,
+  .ticker-mv,
+  .ticker-price-col,
+  .ticker-gl-col,
+  .ticker-glpct-col,
+  .ticker-rsi-col,
+  .ticker-day-col {
     font-size: 0.72rem;
-    color: var(--text-faint);
-    min-width: 36px;
-    text-align: right;
     font-family: 'Roboto Mono', monospace;
+    text-align: right;
   }
 
-  .ticker-mv {
-    font-size: 0.72rem;
+  .ticker-pct {
     color: var(--text-faint);
-    min-width: 44px;
-    text-align: right;
-    font-family: 'Roboto Mono', monospace;
   }
+  .ticker-mv {
+    color: var(--text-faint);
+  }
+  .ticker-price-col {
+    color: var(--text-secondary);
+  }
+  .ticker-rsi-col {
+    color: var(--text-faint);
+  }
+
+  .ticker-num {
+    color: var(--text-faint);
+  }
+}
+
+// ── Gain/loss colours ─────────────────────────────────────────────────────────
+.gl-pos {
+  color: #4caf50 !important;
+}
+.gl-neg {
+  color: #ef5350 !important;
+}
+.rsi-over {
+  color: #ef5350 !important;
+  font-weight: 700;
+}
+.rsi-under {
+  color: #29b6f6 !important;
+  font-weight: 700;
+}
+
+// ── Gain/loss in sector/industry headers ──────────────────────────────────────
+.gl-val {
+  font-size: 0.78rem;
+  font-family: 'Roboto Mono', monospace;
+  min-width: 80px;
+  text-align: right;
+}
+.gl-pct {
+  font-size: 0.78rem;
+  font-family: 'Roboto Mono', monospace;
+  min-width: 64px;
+  text-align: right;
+}
+.gl-sm {
+  font-size: 0.72rem !important;
 }

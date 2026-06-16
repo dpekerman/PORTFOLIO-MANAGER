@@ -267,6 +267,9 @@ public sealed class RsiScannerService : IRsiScannerService
             // ── Core RSI ────────────────────────────────────────────────────
             decimal rsi = CalculateRsi(closes, 14);
 
+            // ── RSI Signal: 9-period EMA of RSI(14) ─────────────────────────
+            var (rsiSignalValue, rsiSignalAvailable) = CalculateRsiSignal(closes);
+
             // ── Volume ratio ────────────────────────────────────────────────
             decimal avgVol = volumes.Count >= 21
                 ? volumes.TakeLast(21).SkipLast(1).Select(v => (decimal)v).Average()
@@ -360,6 +363,8 @@ public sealed class RsiScannerService : IRsiScannerService
                 Symbol = symbol,
                 CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
                 Rsi = Math.Round(rsi, 2),
+                RsiSignal = rsiSignalAvailable ? rsiSignalValue : null,
+                RsiSignalAvailable = rsiSignalAvailable,
                 CurrentPrice = todayClose,
                 Change = Math.Round(change, 2),
                 ChangePercent = Math.Round(changePct, 2),
@@ -393,6 +398,54 @@ public sealed class RsiScannerService : IRsiScannerService
         }
 
         return null;
+    }
+
+    // ── RSI full series (Wilder's smoothed method) ───────────────────────────
+    /// <summary>Returns the complete RSI series for use in further calculations (e.g. RSI Signal EMA).</summary>
+    private static List<decimal> CalculateRsiSeries(List<decimal> closes, int period)
+    {
+        var result = new List<decimal>();
+        if (closes.Count < period + 1) return result;
+
+        decimal avgGain = 0, avgLoss = 0;
+        for (int i = 1; i <= period; i++)
+        {
+            var diff = closes[i] - closes[i - 1];
+            if (diff >= 0) avgGain += diff; else avgLoss -= diff;
+        }
+        avgGain /= period;
+        avgLoss /= period;
+
+        decimal rs = avgLoss == 0 ? 100m : avgGain / avgLoss;
+        result.Add(100m - (100m / (1m + rs)));
+
+        for (int i = period + 1; i < closes.Count; i++)
+        {
+            var diff = closes[i] - closes[i - 1];
+            decimal gain = diff >= 0 ? diff : 0;
+            decimal loss = diff < 0 ? -diff : 0;
+            avgGain = (avgGain * (period - 1) + gain) / period;
+            avgLoss = (avgLoss * (period - 1) + loss) / period;
+            rs = avgLoss == 0 ? 100m : avgGain / avgLoss;
+            result.Add(100m - (100m / (1m + rs)));
+        }
+
+        return result;
+    }
+
+    /// <summary>Calculates the RSI Signal: a 9-period EMA of the RSI(14) series.
+    /// Returns (value, available=true) or (0, available=false) when data is insufficient.</summary>
+    private static (decimal value, bool available) CalculateRsiSignal(List<decimal> closes, int rsiPeriod = 14, int emaPeriod = 9)
+    {
+        var rsiSeries = CalculateRsiSeries(closes, rsiPeriod);
+        if (rsiSeries.Count < emaPeriod) return (0m, false);
+
+        decimal mult = 2m / (emaPeriod + 1);                        // multiplier = 0.2 for period=9
+        decimal ema  = rsiSeries.Take(emaPeriod).Average();          // seed: simple average of first 9 RSI values
+        for (int i = emaPeriod; i < rsiSeries.Count; i++)
+            ema = rsiSeries[i] * mult + ema * (1m - mult);
+
+        return (Math.Round(ema, 2), true);
     }
 
     // ── RSI Calculation (Wilder's smoothed method) ────────────────────────────

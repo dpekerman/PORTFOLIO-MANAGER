@@ -139,6 +139,9 @@ export interface RsiScanResult {
   analystTargetUpside: number;
   week52High: number;
   week52Low: number;
+  // -- RSI Signal (9-EMA of RSI) ----------------------------------------------
+  rsiSignal: number | null;
+  rsiSignalAvailable: boolean;
 }
 
 export interface ScannerResponse {

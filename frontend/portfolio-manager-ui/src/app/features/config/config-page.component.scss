@@ -70,7 +70,12 @@
 
 /* ── Email alert card ── */
 .email-card {
-  margin-top: 8px;
+  margin-top: 20px;
+}
+
+/* gap between any two sibling config-cards outside the form */
+.config-page > .config-card + .config-card {
+  margin-top: 20px;
 }
 
 .email-info {

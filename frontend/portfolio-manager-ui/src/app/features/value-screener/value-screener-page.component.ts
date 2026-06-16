@@ -98,12 +98,14 @@ export class ValueScreenerPageComponent implements OnInit {
     this.analyze();
   }
 
-  // -- Source selection: mutually exclusive ------------------------------------
+  // -- Source selection: Portfolio & Watchlist auto-execute; Ad-Hoc needs manual trigger ----------
   selectPortfolio(): void {
     this.sourceMode.set('portfolio');
+    this.analyze();
   }
   selectWatchlist(): void {
     this.sourceMode.set('watchlist');
+    this.analyze();
   }
   selectAdhoc(): void {
     this.sourceMode.set('adhoc');
