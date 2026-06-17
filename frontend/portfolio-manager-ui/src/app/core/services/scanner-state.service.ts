@@ -1,7 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { interval, switchMap } from 'rxjs';
-import { LogicMode, RsiScanResult, ScannerResponse } from '../models/portfolio.models';
+import {
+  LogicMode,
+  RsiScanResult,
+  ScannerResponse,
+  YesterdayEodResponse,
+} from '../models/portfolio.models';
 import { ConfigService } from './config.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -19,6 +24,8 @@ export class ScannerStateService {
   readonly eodWindowActive = signal(false);
   /** Summary of the last EOD window run result (e.g. "3 EOD Confirm signals"). */
   readonly lastEodRunSummary = signal<string | null>(null);
+  /** Yesterday's EOD CONFIRM signals (fetched on init and refreshed periodically). */
+  readonly yesterdayEod = signal<YesterdayEodResponse | null>(null);
 
   readonly response = this._response.asReadonly();
   readonly loading = this._loading.asReadonly();
@@ -99,6 +106,11 @@ export class ScannerStateService {
 
     // Initial check
     this.checkEodWindowStatus();
+    // Load yesterday's EOD signals on init; refresh every 5 minutes
+    this.loadYesterdayEod();
+    interval(5 * 60_000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.loadYesterdayEod());
   }
 
   private checkEodWindowStatus(): void {
@@ -112,6 +124,13 @@ export class ScannerStateService {
         }
       },
       error: () => {}, // Silently fail — non-critical
+    });
+  }
+
+  private loadYesterdayEod(): void {
+    this.api.getYesterdayEod().subscribe({
+      next: (data) => this.yesterdayEod.set(data),
+      error: () => {}, // Non-critical — silently ignore
     });
   }
 

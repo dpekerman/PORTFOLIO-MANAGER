@@ -17,6 +17,7 @@ import {
   ValueScreenerRequest,
   ValueScreenerResult,
   WatchlistSummary,
+  YesterdayEodResponse,
 } from '../models/portfolio.models';
 
 @Injectable({ providedIn: 'root' })
@@ -158,6 +159,11 @@ export class PortfolioApiService {
       eodWindowEnabled: boolean;
       serverTimeUtc: string;
     }>(`${this.base}/scanner/eod-window-active`);
+  }
+
+  /** Returns the most-recently persisted EOD CONFIRM signals plus morning-window metadata. */
+  getYesterdayEod(): Observable<YesterdayEodResponse> {
+    return this.http.get<YesterdayEodResponse>(`${this.base}/scanner/yesterday-eod`);
   }
 
   // ── Ad-Hoc Session Persistence ──────────────────────────────────────────────

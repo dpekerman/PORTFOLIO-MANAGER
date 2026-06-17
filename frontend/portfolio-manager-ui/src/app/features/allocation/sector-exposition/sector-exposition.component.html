@@ -166,6 +166,7 @@
                         <span class="ticker-glpct-col">G/L %</span>
                         <span class="ticker-rsi-col">RSI</span>
                         <span class="ticker-day-col">Day %</span>
+                        <span class="ticker-momentum-col">Momentum</span>
                       </div>
                       @for (pos of ind.positions; track pos.symbol) {
                         <div class="ticker-row">
@@ -236,6 +237,21 @@
                               }}{{ pos.changePct | number: '1.2-2' }}%
                             } @else {
                               —
+                            }
+                          </span>
+                          <span
+                            class="ticker-momentum-col"
+                            [matTooltip]="pos.momentumActionTooltip ?? ''"
+                            matTooltipShowDelay="400"
+                          >
+                            @if (pos.momentumShift) {
+                              <span
+                                class="momentum-mini-badge"
+                                [ngClass]="momentumShiftClass(pos.momentumShift)"
+                                >{{ pos.momentumShift }}</span
+                              >
+                            } @else {
+                              <span class="ticker-num">—</span>
                             }
                           </span>
                         </div>

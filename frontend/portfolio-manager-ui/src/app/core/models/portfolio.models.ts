@@ -143,10 +143,12 @@ export interface RsiScanResult {
   rsiSignal: number | null;
   rsiSignalAvailable: boolean;
   // -- EOD Confirm data -------------------------------------------------------
-  /** 14-day Average True Range. 0 when insufficient data. */
+  /** 14-day Average True Range (Wilder's smoothing). 0 when insufficient data. */
   dailyAtr: number;
   /** 9-period EMA of closing price. */
   ema9Price: number;
+  /** 20-period SMA of closing price. Used by Momentum Shift Consolidation rule. */
+  sma20Price: number;
 }
 
 export interface ScannerResponse {
@@ -155,6 +157,24 @@ export interface ScannerResponse {
   scannedAt: string;
   isDemo: boolean;
   market: string;
+}
+
+// ── Yesterday's EOD Signals (overnight persistence / Gap 3) ──────────────────
+export interface EodSignalRecord {
+  symbol: string;
+  companyName: string;
+  scanType: string;
+  rsi: number;
+  price: number;
+  triggerDetails: string;
+  scannedAt: string;
+}
+
+export interface YesterdayEodResponse {
+  hasData: boolean;
+  signalDate: string;
+  isMorningWindow: boolean;
+  signals: EodSignalRecord[];
 }
 
 // ── Ad-Hoc Session Persistence ────────────────────────────────────────────────

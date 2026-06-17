@@ -15,6 +15,7 @@ public class ScannerController(
     IMemoryCache cache,
     AppDbContext db,
     ScannerRuntimeConfig runtimeConfig,
+    EodSignalPersistenceService eodPersistence,
     ILogger<ScannerController> logger) : ControllerBase
 {
     private const string CacheKeyPrefix = "rsi_scan";
@@ -269,6 +270,18 @@ public class ScannerController(
             eodWindowEnabled = runtimeConfig.EodWindowEnabled,
             serverTimeUtc    = DateTime.UtcNow.ToString("HH:mm:ss"),
         });
+    }
+
+    /// <summary>
+    /// Returns the EOD CONFIRM signals that were recorded during the most recent EOD window.
+    /// The <c>isMorningWindow</c> flag indicates whether the server time is currently before noon ET.
+    /// The frontend uses this to show a "Morning Check" panel during the next trading morning.
+    /// </summary>
+    [HttpGet("yesterday-eod")]
+    public async Task<IActionResult> GetYesterdayEodSignals(CancellationToken ct)
+    {
+        var response = await eodPersistence.GetYesterdayEodAsync(ct);
+        return Ok(response);
     }
 }
 

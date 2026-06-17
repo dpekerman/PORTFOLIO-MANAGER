@@ -17,6 +17,7 @@ public sealed class RsiAlertBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptionsMonitor<EmailSettings> settingsMonitor,
     ScannerRuntimeConfig runtimeConfig,
+    EodSignalPersistenceService eodPersistence,
     ILogger<RsiAlertBackgroundService> logger) : BackgroundService
 {
     private EmailSettings Settings => settingsMonitor.CurrentValue;
@@ -101,7 +102,16 @@ public sealed class RsiAlertBackgroundService(
                 runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd, totalEod);
 
             if (totalEod > 0)
+            {
                 await notifier.NotifyNewEodConfirmedSignalsAsync(result);
+
+                // Persist EOD signals to disk so the "Yesterday's EOD" morning panel can show them.
+                var allEod = (result.OversoldChain ?? [])
+                    .Concat(result.OverboughtChain ?? [])
+                    .Where(r => r.Status == SignalStatus.EodConfirm)
+                    .ToList();
+                await eodPersistence.SaveAsync(allEod, ct);
+            }
         }
     }
 }

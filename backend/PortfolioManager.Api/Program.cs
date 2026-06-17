@@ -83,6 +83,8 @@ builder.Services.AddSingleton<SectorIndustryService>();
 builder.Services.AddSingleton<SignalNotificationTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
+// Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
+builder.Services.AddSingleton<EodSignalPersistenceService>();
 // Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals
 // regardless of which page is open in the frontend
 builder.Services.AddHostedService<RsiAlertBackgroundService>();

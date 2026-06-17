@@ -173,22 +173,20 @@
         </div>
 
         <div class="fields-grid eod-fields-grid">
+          <mat-timepicker #startPicker interval="30m"></mat-timepicker>
           <mat-form-field appearance="outline">
             <mat-label>Window start time (ET)</mat-label>
-            <input matInput type="time" formControlName="eodWindowStart" step="60" />
-            <mat-hint>24-hour format · Eastern Time · Default: 15:30</mat-hint>
-            @if (eodForm.controls.eodWindowStart.errors?.['pattern']) {
-              <mat-error>Format: HH:mm (e.g. 15:30)</mat-error>
-            }
+            <input matInput [matTimepicker]="startPicker" formControlName="eodWindowStart" />
+            <mat-timepicker-toggle matSuffix [for]="startPicker"></mat-timepicker-toggle>
+            <mat-hint>Eastern Time · 30-min steps · Default: 3:30 PM</mat-hint>
           </mat-form-field>
 
+          <mat-timepicker #endPicker interval="30m"></mat-timepicker>
           <mat-form-field appearance="outline">
             <mat-label>Window end time (ET)</mat-label>
-            <input matInput type="time" formControlName="eodWindowEnd" step="60" />
-            <mat-hint>24-hour format · Eastern Time · Default: 16:00</mat-hint>
-            @if (eodForm.controls.eodWindowEnd.errors?.['pattern']) {
-              <mat-error>Format: HH:mm (e.g. 16:00)</mat-error>
-            }
+            <input matInput [matTimepicker]="endPicker" formControlName="eodWindowEnd" />
+            <mat-timepicker-toggle matSuffix [for]="endPicker"></mat-timepicker-toggle>
+            <mat-hint>Eastern Time · 30-min steps · Default: 4:00 PM</mat-hint>
           </mat-form-field>
         </div>
 
@@ -216,11 +214,15 @@
           matTooltip="Save EOD window and push to backend immediately"
         >
           @if (savingEodSettings()) {
-            <mat-icon class="spinning">sync</mat-icon>
-            Saving…
+            <ng-container>
+              <mat-icon class="spinning">sync</mat-icon>
+              Saving…
+            </ng-container>
           } @else {
-            <mat-icon>schedule_send</mat-icon>
-            Save EOD Window
+            <ng-container>
+              <mat-icon>schedule_send</mat-icon>
+              Save EOD Window
+            </ng-container>
           }
         </button>
       </mat-card-actions>

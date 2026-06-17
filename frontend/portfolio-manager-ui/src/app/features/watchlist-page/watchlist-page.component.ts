@@ -97,6 +97,11 @@ export class WatchlistPageComponent {
     if (!r) return '—';
     const rsi = r.rsi;
     const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
     if (rsi > 65) {
       if (r.status === 'Confirmed') return 'Active SELL Trigger';
       if (r.rsiSignalAvailable && rsi <= sig) return 'Bearish Shift';
@@ -107,6 +112,13 @@ export class WatchlistPageComponent {
       if (r.rsiSignalAvailable && rsi >= sig) return 'Bullish Shift';
       return 'Warning';
     }
+
+    // New price-action rules (neutral zone)
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'Uptrend';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Consolidation';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'Breakdown';
+
     if (rsi >= 55) return 'Uptrend';
     if (rsi >= 45) return 'Neutral';
     return 'Downtrend';
@@ -117,6 +129,11 @@ export class WatchlistPageComponent {
     if (!r) return '—';
     const rsi = r.rsi;
     const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
     if (rsi > 65) {
       if (r.status === 'Confirmed') return 'CONFIRMED SELL';
       if (r.rsiSignalAvailable && rsi <= sig) return 'EARLY WARNING';
@@ -127,6 +144,12 @@ export class WatchlistPageComponent {
       if (r.rsiSignalAvailable && rsi >= sig) return 'EARLY WARNING';
       return 'AVOID / WAIT';
     }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'HOLD LONGS';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'BUY / ACCUMULATE';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'REDUCE';
+
     if (rsi >= 55) return 'HOLD LONGS';
     if (rsi >= 45) return 'HANDS OFF';
     return 'STAND BY';
@@ -140,6 +163,8 @@ export class WatchlistPageComponent {
     if (s === 'Bearish Shift') return 'ms-bearish';
     if (s === 'Warning') return 'ms-warning';
     if (s === 'Uptrend') return 'ms-uptrend';
+    if (s === 'Consolidation') return 'ms-consolidation';
+    if (s === 'Breakdown') return 'ms-breakdown';
     if (s === 'Downtrend') return 'ms-downtrend';
     return 'ms-neutral';
   }
@@ -151,6 +176,8 @@ export class WatchlistPageComponent {
     if (a === 'EARLY WARNING') return 'ma-early-warning';
     if (a === 'AVOID / WAIT') return 'ma-avoid';
     if (a === 'HOLD LONGS') return 'ma-hold';
+    if (a === 'BUY / ACCUMULATE') return 'ma-accumulate';
+    if (a === 'REDUCE') return 'ma-reduce';
     return 'ma-standby';
   }
 
@@ -159,6 +186,11 @@ export class WatchlistPageComponent {
     if (!r) return 'No RSI data available';
     const rsi = r.rsi;
     const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
     if (rsi > 65) {
       if (r.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
       if (r.rsiSignalAvailable && rsi <= sig)
@@ -171,6 +203,14 @@ export class WatchlistPageComponent {
         return 'The selling speed has broken, but we need candle confirmation.';
       return 'The waterfall drop is still active. Do not try to catch the knife yet.';
     }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Price above 9-EMA with healthy RSI — trend is intact, do nothing.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Price holding near 20-SMA with elevated volume — institutional dip-buy confirmed.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Price broke below 9-EMA with RSI fading — defensive risk triggered.';
+
     if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
     if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
     return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
@@ -181,6 +221,11 @@ export class WatchlistPageComponent {
     if (!r) return 'No RSI data available';
     const rsi = r.rsi;
     const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
     if (rsi > 65) {
       if (r.status === 'Confirmed') return 'High-probability short or put entry.';
       if (r.rsiSignalAvailable && rsi <= sig)
@@ -193,6 +238,14 @@ export class WatchlistPageComponent {
         return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
       return 'The waterfall drop is still active. Do not try to catch the knife yet.';
     }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Do nothing — trend is healthy. Price above 9-EMA, let it run.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Institutional dip-buy confirmed. Staged accumulation zone — build position gradually.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Defensive risk triggered — reduce or hedge exposure until price reclaims 9-EMA.';
+
     if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
     if (rsi >= 45)
       return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';

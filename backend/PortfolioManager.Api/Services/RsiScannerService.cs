@@ -303,11 +303,14 @@ public sealed class RsiScannerService : IRsiScannerService
             decimal changePct  = prevClose > 0 ? (change / prevClose) * 100m : 0m;
             decimal range      = todayHigh - todayLow;
 
-            // ── ATR (14-day) — needed for EOD Confirm Condition 4 ───────────
+            // ── ATR (14-day, Wilder's) — needed for EOD Confirm Condition 4 ─
             decimal dailyAtr   = CalculateAtr(highs, lows, closes, 14);
 
-            // ── 9-day EMA of price — needed for EOD Confirm Condition 2 ─────
+            // ── 9-day EMA of price — EOD Confirm Condition 2 + Momentum Shift
             decimal ema9Price  = CalculateEma(closes, 9);
+
+            // ── 20-day SMA of price — needed for Momentum Shift Consolidation rule
+            decimal sma20Price = CalculateSma(closes, 20);
 
             // ── Indicator 1: Stochastics ────────────────────────────────────
             decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
@@ -359,11 +362,14 @@ public sealed class RsiScannerService : IRsiScannerService
                     : ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
 
                 // ── EOD Confirm override: evaluated on top of existing classification ──
-                // All 4 conditions must be met (RSI fixed at <25, Volume >1.5x avg)
-                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, volRatio, todayOpen, todayHigh, dailyAtr))
+                // Volume is scaled to a projected full-session equivalent so that partial-day
+                // intraday volume (e.g. at 3:45 PM ET = 93.6% through the session) is not
+                // unfairly penalised vs. the 20-day average which represents full-session volume.
+                decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
+                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr))
                 {
                     status  = SignalStatus.EodConfirm;
-                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, volRatio, todayOpen, todayHigh, dailyAtr);
+                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr);
                 }
             }
             else if (rsi >= overboughtThreshold)
@@ -376,12 +382,12 @@ public sealed class RsiScannerService : IRsiScannerService
                     ? ClassifyOverboughtEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi, macdHistSlope, macdHistDelta, bbBreakout, volRatio)
                     : ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
 
-                // ── EOD Confirm override: evaluated on top of existing classification ──
-                // All 4 conditions must be met (RSI fixed at >75, Volume >1.5x avg)
-                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, volRatio, todayOpen, todayLow, dailyAtr))
+                // ── EOD Confirm override: volume projected to full-session equivalent ──
+                decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
+                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr))
                 {
                     status  = SignalStatus.EodConfirm;
-                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, volRatio, todayOpen, todayLow, dailyAtr);
+                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr);
                 }
             }
             else
@@ -425,6 +431,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 LogicMode = enhanced ? "Enhanced" : "Legacy",
                 DailyAtr = Math.Round(dailyAtr, 4),
                 Ema9Price = Math.Round(ema9Price, 4),
+                Sma20Price = Math.Round(sma20Price, 4),
                 IsDemo = false
             };
         }
@@ -800,29 +807,92 @@ public sealed class RsiScannerService : IRsiScannerService
             "No structural distribution detected. Waiting for candle close to validate.");
     }
 
-    // ── ATR (14-day, simple average of True Range) ────────────────────────────
+    // ── ATR (14-day, Wilder's Smoothing Method) ───────────────────────────────
     /// <summary>
-    /// Calculates the 14-day Average True Range (ATR).
-    /// Step 1 — True Range per bar = Max of: (High-Low), |High-PrevClose|, |Low-PrevClose|
-    /// Step 2 — ATR = simple average of the last 14 True Range values.
+    /// Calculates the 14-day Average True Range using Wilder's Smoothing Method —
+    /// the industry-standard used by all major charting platforms (TradingView, TC2000, etc.).
+    ///
+    /// Step 1 — True Range per bar = Max of:
+    ///   TR₁ = High − Low
+    ///   TR₂ = |High − Yesterday's Close|
+    ///   TR₃ = |Low  − Yesterday's Close|
+    ///
+    /// Step 2 — Seed: simple average of the first 14 TR values.
+    ///
+    /// Step 3 — Wilder's EMA: ATRₙ = ((ATRₙ₋₁ × (period−1)) + TRₙ) / period
+    ///          This is equivalent to an EMA with multiplier 1/period (slower than standard EMA).
+    ///
+    /// Note: This matches the TradingView / StockCharts ATR indicator exactly, which
+    /// prevents the "platform mismatch" issue that the simple-average approximation causes.
     /// </summary>
     private static decimal CalculateAtr(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period = 14)
     {
         if (closes.Count < period + 1) return 0m;
 
-        var trueRanges = new List<decimal>(closes.Count);
+        // Step 1: Build True Range array (length = closes.Count − 1)
+        var tr = new decimal[closes.Count - 1];
         for (int i = 1; i < closes.Count; i++)
         {
-            decimal tr1 = highs[i] - lows[i];                              // High minus Low
-            decimal tr2 = Math.Abs(highs[i] - closes[i - 1]);             // |High − Yesterday's Close|
-            decimal tr3 = Math.Abs(lows[i]  - closes[i - 1]);             // |Low  − Yesterday's Close|
-            trueRanges.Add(Math.Max(tr1, Math.Max(tr2, tr3)));
+            decimal tr1 = highs[i] - lows[i];
+            decimal tr2 = Math.Abs(highs[i]  - closes[i - 1]);
+            decimal tr3 = Math.Abs(lows[i]   - closes[i - 1]);
+            tr[i - 1] = Math.Max(tr1, Math.Max(tr2, tr3));
         }
 
-        return trueRanges.TakeLast(period).Average();
+        if (tr.Length < period) return 0m;
+
+        // Step 2: Seed — simple average of the first 'period' TR values (Wilder's init)
+        decimal atr = tr.Take(period).Average();
+
+        // Step 3: Apply Wilder's smoothing over the remaining TR values
+        for (int i = period; i < tr.Length; i++)
+            atr = (atr * (period - 1) + tr[i]) / period;
+
+        return atr;
     }
 
     // ── EOD Confirm condition checkers ────────────────────────────────────────
+
+    /// <summary>
+    // ── Intraday Volume Projection ────────────────────────────────────────────
+    /// <summary>
+    /// Projects an intraday partial-day volume to its full-session equivalent so that
+    /// the EOD volume check is fair against a 20-day avg that represents whole-day volume.
+    ///
+    /// The NYSE/TSX regular session runs 9:30 AM – 4:00 PM Eastern Time = 390 minutes.
+    /// At 3:30 PM (EOD window start) only 360 of 390 minutes have elapsed, so raw volume
+    /// is ~92% of what a full day would show.  Without scaling this undercount the 1.5×
+    /// volume threshold would falsely reject valid signals in the last 30 minutes.
+    ///
+    /// Scale factor = 390 / elapsed_minutes, capped at 2.0× to guard against extreme
+    /// early-session projections.  If time cannot be determined (no TZ available) the
+    /// raw volume is returned unchanged.
+    /// </summary>
+    private static decimal ProjectIntradayVolume(decimal rawVolume)
+    {
+        const double sessionStartMinutes = 9.5 * 60;   // 09:30 ET in minutes from midnight
+        const double sessionTotalMinutes = 390.0;       // 9:30 AM – 4:00 PM = 390 min
+
+        TimeZoneInfo? tz = null;
+        foreach (var id in new[] { "Eastern Standard Time", "America/New_York" })
+        {
+            try { tz = TimeZoneInfo.FindSystemTimeZoneById(id); break; }
+            catch { /* try next id */ }
+        }
+        if (tz is null) return rawVolume;
+
+        var etNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        double elapsedMinutes = etNow.TimeOfDay.TotalMinutes - sessionStartMinutes;
+
+        // Only scale when meaningfully inside the trading session (> 15 min elapsed).
+        // Before open or after close: return raw volume unchanged.
+        if (elapsedMinutes < 15.0 || elapsedMinutes >= sessionTotalMinutes)
+            return rawVolume;
+
+        // Cap scale factor at 2.0× to avoid wild projections at session open.
+        double scaleFactor = Math.Min(2.0, sessionTotalMinutes / elapsedMinutes);
+        return rawVolume * (decimal)scaleFactor;
+    }
 
     /// <summary>
     /// Oversold EOD Confirm — all 4 conditions must be true:

@@ -69,44 +69,46 @@
       white-space: nowrap;
     }
   }
+}
 
-  .sector-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+// ── Shared right-side columns: used by BOTH .sector-header and .industry-header ──
+// Must be a standalone rule so both levels get the same column widths/alignment.
+.sector-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 
-    .bar-track {
-      width: 100px;
-      height: 6px;
-      background: var(--border-subtle);
+  .bar-track {
+    width: 100px;
+    height: 6px;
+    background: var(--border-subtle);
+    border-radius: 3px;
+    overflow: hidden;
+
+    .bar-fill {
+      height: 100%;
+      background: #1565c0;
       border-radius: 3px;
-      overflow: hidden;
-
-      .bar-fill {
-        height: 100%;
-        background: #1565c0;
-        border-radius: 3px;
-        transition: width 0.4s ease;
-      }
+      transition: width 0.4s ease;
     }
+  }
 
-    .pct {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: #64b5f6;
-      font-family: 'Roboto Mono', monospace;
-      min-width: 42px;
-      text-align: right;
-    }
+  .pct {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #64b5f6;
+    font-family: 'Roboto Mono', monospace;
+    min-width: 42px;
+    text-align: right;
+  }
 
-    .mv {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: 'Roboto Mono', monospace;
-      min-width: 50px;
-      text-align: right;
-    }
+  .mv {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'Roboto Mono', monospace;
+    min-width: 50px;
+    text-align: right;
   }
 }
 
@@ -211,8 +213,8 @@
 }
 
 // ── Grid column definition ────────────────────────────────────────────────────
-// Cols: ticker | description | bar | %total | mv | price | gain/loss | g/l% | rsi | day%
-$ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px;
+// Cols: ticker | description | bar | %total | mv | price | gain/loss | g/l% | rsi | day% | momentum
+$ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px 96px;
 
 .ticker-list {
   padding: 6px 14px 10px 56px;
@@ -257,6 +259,10 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px;
 
   .ticker-bar-spacer {
     // empty bar spacer — no text
+  }
+
+  .ticker-momentum-col {
+    text-align: right;
   }
 }
 
@@ -332,6 +338,76 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px;
   .ticker-num {
     color: var(--text-faint);
   }
+
+  .ticker-momentum-col {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
+// ── Momentum mini-badge (portfolio ticker rows) ───────────────────────────────
+.momentum-mini-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.35);
+}
+.ms-bullish {
+  background: rgba(0, 200, 83, 0.08);
+  color: #4caf50;
+  border-color: rgba(0, 200, 83, 0.2);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.35);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.2);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.25);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.2);
+}
+.ms-consolidation {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.28);
+}
+.ms-breakdown {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.3);
+  font-weight: 800;
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.08);
+  color: #9e9e9e;
+  border-color: rgba(158, 158, 158, 0.18);
+}
+.ms-neutral {
+  background: rgba(255, 255, 255, 0.04);
+  color: #757575;
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 // ── Gain/loss colours ─────────────────────────────────────────────────────────

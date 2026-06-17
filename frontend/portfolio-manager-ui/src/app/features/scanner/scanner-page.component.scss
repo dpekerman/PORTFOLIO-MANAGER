@@ -256,6 +256,152 @@
   }
 }
 
+// ── Morning Check Panel ────────────────────────────────────────────────────────
+.morning-panel {
+  margin-bottom: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 193, 7, 0.4);
+  background: rgba(255, 193, 7, 0.06);
+  overflow: hidden;
+}
+
+.morning-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.morning-icon {
+  color: #ffc107;
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.morning-panel-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.morning-panel-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffc107;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.morning-panel-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.morning-count-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 193, 7, 0.18);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  color: #ffc107;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.morning-signals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.morning-signal-card {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  background: var(--surface-color);
+
+  &.morning-oversold {
+    border-left: 3px solid #4caf50;
+  }
+  &.morning-overbought {
+    border-left: 3px solid #f44336;
+  }
+}
+
+.morning-signal-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.morning-symbol {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.morning-company {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.morning-type-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  &.morning-type-os {
+    background: rgba(76, 175, 80, 0.15);
+    color: #4caf50;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+  }
+  &.morning-type-ob {
+    background: rgba(244, 67, 54, 0.15);
+    color: #f44336;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+  }
+}
+
+.morning-signal-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.morning-stat {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  strong {
+    color: var(--text-primary);
+  }
+}
+
+.morning-trigger {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
 @keyframes pulse-orange {
   0%,
   100% {
