@@ -1,5 +1,12 @@
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -10,7 +17,9 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { WatchlistSummary } from '../../core/models/portfolio.models';
+import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
@@ -28,6 +37,7 @@ type SortDir = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
+    NgClass,
     CurrencyPipe,
     DecimalPipe,
     MatButtonModule,
@@ -45,11 +55,104 @@ type SortDir = 'asc' | 'desc';
 export class WatchlistPageComponent {
   protected readonly watchlist = inject(WatchlistStateService);
   private readonly dialog = inject(MatDialog);
+  private readonly api = inject(PortfolioApiService);
+  private readonly scanner = inject(ScannerStateService);
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
+
+  // ── RSI result map for watchlist symbols ──────────────────────────────────
+  protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
+
+  constructor() {
+    effect(() => {
+      const symbols = this.watchlist.items().map((w) => w.item.symbol);
+      if (symbols.length === 0) return;
+      this.api.analyzeSymbols(symbols, 30, 75, 'Enhanced').subscribe({
+        next: (results) => {
+          const map = new Map<string, RsiScanResult>();
+          for (const r of results) map.set(r.symbol.toUpperCase(), r);
+          this.watchlistRsiMap.set(map);
+        },
+        error: (err) => console.warn('Watchlist RSI fetch failed', err),
+      });
+    });
+  }
+
+  protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
+    const map = new Map<string, RsiScanResult>(this.watchlistRsiMap());
+    for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
+      map.set(r.symbol.toUpperCase(), r);
+    return map;
+  });
+
+  protected rsiForSymbol(symbol: string): number | null {
+    return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected momentumShift(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'Active SELL Trigger';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'Bearish Shift';
+      return 'Warning';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'Active BUY Trigger';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'Bullish Shift';
+      return 'Warning';
+    }
+    if (rsi >= 55) return 'Uptrend';
+    if (rsi >= 45) return 'Neutral';
+    return 'Downtrend';
+  }
+
+  protected momentumAction(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'CONFIRMED SELL';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'CONFIRMED BUY';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi >= 55) return 'HOLD LONGS';
+    if (rsi >= 45) return 'HANDS OFF';
+    return 'STAND BY';
+  }
+
+  protected momentumShiftClass(symbol: string): string {
+    const s = this.momentumShift(symbol);
+    if (s === 'Active BUY Trigger') return 'ms-confirmed-buy';
+    if (s === 'Bullish Shift') return 'ms-bullish';
+    if (s === 'Active SELL Trigger') return 'ms-confirmed-sell';
+    if (s === 'Bearish Shift') return 'ms-bearish';
+    if (s === 'Warning') return 'ms-warning';
+    if (s === 'Uptrend') return 'ms-uptrend';
+    if (s === 'Downtrend') return 'ms-downtrend';
+    return 'ms-neutral';
+  }
+
+  protected momentumActionClass(symbol: string): string {
+    const a = this.momentumAction(symbol);
+    if (a === 'CONFIRMED BUY') return 'ma-confirmed-buy';
+    if (a === 'CONFIRMED SELL') return 'ma-confirmed-sell';
+    if (a === 'EARLY WARNING') return 'ma-early-warning';
+    if (a === 'AVOID / WAIT') return 'ma-avoid';
+    if (a === 'HOLD LONGS') return 'ma-hold';
+    return 'ma-standby';
+  }
 
   protected readonly displayedColumns: string[] = [
     'symbol',
@@ -58,6 +161,9 @@ export class WatchlistPageComponent {
     'change',
     'changePct',
     'sector',
+    'rsi',
+    'momentumShift',
+    'momentumAction',
     'actions',
   ];
 

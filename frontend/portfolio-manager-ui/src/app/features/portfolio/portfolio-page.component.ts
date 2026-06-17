@@ -18,7 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PortfolioSummary } from '../../core/models/portfolio.models';
+import { PortfolioSummary, RsiScanResult } from '../../core/models/portfolio.models';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -116,19 +116,21 @@ export class PortfolioPageComponent {
     'shares',
     'avgCost',
     'price',
+    'changePct',
     'marketValue',
     'gainLoss',
     'gainLossPct',
     'rsi',
-    'changePct',
+    'momentumShift',
+    'momentumAction',
     'actions',
   ];
 
   /**
-   * RSI map fetched directly for all portfolio symbols.
-   * This covers ALL RSI values, not just oversold/overbought extremes from the scanner.
+   * Full RsiScanResult map for all portfolio symbols (keyed by UPPER symbol).
+   * Covers ALL symbols, not just oversold/overbought extremes.
    */
-  protected readonly portfolioRsiMap = signal<Map<string, number>>(new Map());
+  protected readonly portfolioRsiResultMap = signal<Map<string, RsiScanResult>>(new Map());
 
   constructor() {
     // Whenever portfolio summaries change, load RSI for ALL non-manual symbols.
@@ -146,38 +148,98 @@ export class PortfolioPageComponent {
       for (let i = 0; i < symbols.length; i += batchSize)
         batches.push(symbols.slice(i, i + batchSize));
 
-      const merged = new Map<string, number>();
+      const merged = new Map<string, RsiScanResult>();
       let completed = 0;
       for (const batch of batches) {
-        this.api.analyzeSymbols(batch, 30, 75, 'Legacy').subscribe({
+        this.api.analyzeSymbols(batch, 30, 75, 'Enhanced').subscribe({
           next: (results) => {
-            for (const r of results) merged.set(r.symbol.toUpperCase(), r.rsi);
+            for (const r of results) merged.set(r.symbol.toUpperCase(), r);
             completed++;
-            if (completed === batches.length) this.portfolioRsiMap.set(new Map(merged));
+            if (completed === batches.length) this.portfolioRsiResultMap.set(new Map(merged));
           },
           error: (err) => {
             console.warn('Portfolio RSI batch fetch failed', err);
             completed++;
-            if (completed === batches.length) this.portfolioRsiMap.set(new Map(merged));
+            if (completed === batches.length) this.portfolioRsiResultMap.set(new Map(merged));
           },
         });
       }
     });
   }
 
-  /** Flat RSI lookup: symbol (upper) â†’ RSI value */
-  protected readonly rsiMap = computed<Map<string, number>>(() => {
-    const map = new Map<string, number>();
-    // Start with dedicated portfolio RSI (covers all symbols)
-    for (const [sym, rsi] of this.portfolioRsiMap()) map.set(sym, rsi);
-    // Overlay scanner results (same values, just ensures consistency)
+  /** Full result map: symbol (upper) → RsiScanResult */
+  protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
+    const map = new Map<string, RsiScanResult>();
+    for (const [sym, r] of this.portfolioRsiResultMap()) map.set(sym, r);
     for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
-      map.set(r.symbol.toUpperCase(), r.rsi);
+      map.set(r.symbol.toUpperCase(), r);
     return map;
   });
 
   protected rsiForSymbol(symbol: string): number | null {
-    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+    return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected momentumShift(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'Active SELL Trigger';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'Bearish Shift';
+      return 'Warning';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'Active BUY Trigger';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'Bullish Shift';
+      return 'Warning';
+    }
+    if (rsi >= 55) return 'Uptrend';
+    if (rsi >= 45) return 'Neutral';
+    return 'Downtrend';
+  }
+
+  protected momentumAction(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'CONFIRMED SELL';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'CONFIRMED BUY';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi >= 55) return 'HOLD LONGS';
+    if (rsi >= 45) return 'HANDS OFF';
+    return 'STAND BY';
+  }
+
+  protected momentumShiftClass(symbol: string): string {
+    const s = this.momentumShift(symbol);
+    if (s === 'Active BUY Trigger') return 'ms-confirmed-buy';
+    if (s === 'Bullish Shift') return 'ms-bullish';
+    if (s === 'Active SELL Trigger') return 'ms-confirmed-sell';
+    if (s === 'Bearish Shift') return 'ms-bearish';
+    if (s === 'Warning') return 'ms-warning';
+    if (s === 'Uptrend') return 'ms-uptrend';
+    if (s === 'Downtrend') return 'ms-downtrend';
+    return 'ms-neutral';
+  }
+
+  protected momentumActionClass(symbol: string): string {
+    const a = this.momentumAction(symbol);
+    if (a === 'CONFIRMED BUY') return 'ma-confirmed-buy';
+    if (a === 'CONFIRMED SELL') return 'ma-confirmed-sell';
+    if (a === 'EARLY WARNING') return 'ma-early-warning';
+    if (a === 'AVOID / WAIT') return 'ma-avoid';
+    if (a === 'HOLD LONGS') return 'ma-hold';
+    return 'ma-standby';
   }
 
   protected readonly sortedSummaries = computed(() => {

@@ -43,6 +43,8 @@ export class RsiScannerTableComponent {
     'analystUpside',
     'indicators',
     'status',
+    'momentumShift',
+    'momentumAction',
     'trigger',
   ];
 
@@ -149,5 +151,131 @@ export class RsiScannerTableComponent {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
     return 'prob-low';
+  }
+
+  // ── Momentum Shift Engine ──────────────────────────────────────────────────
+  // Spec thresholds: RSI > 65 = Overbought chain, RSI < 30 = Oversold chain, else Neutral
+
+  protected momentumShift(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'Active SELL Trigger';
+      if (row.rsiSignalAvailable && rsi <= signal) return 'Bearish Shift';
+      return 'Warning';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'Active BUY Trigger';
+      if (row.rsiSignalAvailable && rsi >= signal) return 'Bullish Shift';
+      return 'Warning';
+    }
+    if (rsi >= 55) return 'Uptrend';
+    if (rsi >= 45) return 'Neutral';
+    return 'Downtrend';
+  }
+
+  protected momentumShiftTooltip(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
+      if (row.rsiSignalAvailable && rsi <= signal)
+        return 'The buying frenzy is starting to run out of steam.';
+      return 'The stock is surging upward rapidly and is heavily overbought.';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'Buyers have officially taken control of the day.';
+      if (row.rsiSignalAvailable && rsi >= signal)
+        return 'The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumShiftClass(row: RsiScanResult): string {
+    const shift = this.momentumShift(row);
+    switch (shift) {
+      case 'Active BUY Trigger':
+        return 'ms-confirmed-buy';
+      case 'Bullish Shift':
+        return 'ms-bullish';
+      case 'Active SELL Trigger':
+        return 'ms-confirmed-sell';
+      case 'Bearish Shift':
+        return 'ms-bearish';
+      case 'Warning':
+        return 'ms-warning';
+      case 'Uptrend':
+        return 'ms-uptrend';
+      case 'Downtrend':
+        return 'ms-downtrend';
+      default:
+        return 'ms-neutral';
+    }
+  }
+
+  protected momentumAction(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'CONFIRMED SELL SIGNAL';
+      if (row.rsiSignalAvailable && rsi <= signal) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'CONFIRMED BUY SIGNAL';
+      if (row.rsiSignalAvailable && rsi >= signal) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi >= 55) return 'HOLD LONGS';
+    if (rsi >= 45) return 'STAND BY / HANDS OFF';
+    return 'STAND BY';
+  }
+
+  protected momentumActionTooltip(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'High-probability short or put entry.';
+      if (row.rsiSignalAvailable && rsi <= signal)
+        return 'Get ready to short or buy puts. The buying speed has broken.';
+      return 'The stock is running hot and squeezing shorts. Do not stand in front of the train.';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'High-probability long entry.';
+      if (row.rsiSignalAvailable && rsi >= signal)
+        return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45)
+      return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumActionClass(row: RsiScanResult): string {
+    const action = this.momentumAction(row);
+    switch (action) {
+      case 'CONFIRMED BUY SIGNAL':
+        return 'ma-confirmed-buy';
+      case 'CONFIRMED SELL SIGNAL':
+        return 'ma-confirmed-sell';
+      case 'EARLY WARNING':
+        return 'ma-early-warning';
+      case 'AVOID / WAIT':
+        return 'ma-avoid';
+      case 'HOLD LONGS':
+        return 'ma-hold';
+      case 'STAND BY / HANDS OFF':
+        return 'ma-standby';
+      default:
+        return 'ma-standby';
+    }
   }
 }

@@ -366,3 +366,54 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px;
 .gl-sm {
   font-size: 0.72rem !important;
 }
+
+// ── Sector list column header row ─────────────────────────────────────────────
+// Must exactly mirror widths/gap used in .sector-header + .sector-right
+.sector-col-headers {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px; // matches .sector-header gap: 12px
+  padding: 2px 14px 8px; // matches .sector-header horizontal padding
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 4px;
+}
+
+.sector-col-headers-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.sector-col-headers-right {
+  display: flex;
+  align-items: center;
+  gap: 10px; // matches .sector-right gap: 10px
+  flex-shrink: 0;
+
+  > span {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    text-align: right;
+  }
+}
+
+.col-hdr-bar {
+  width: 100px; // fixed — matches .bar-track { width: 100px }
+  flex-shrink: 0;
+  text-align: center;
+}
+.col-hdr-pct {
+  min-width: 42px; // matches .pct { min-width: 42px }
+}
+.col-hdr-mv {
+  min-width: 50px; // matches .mv { min-width: 50px }
+}
+.col-hdr-gl {
+  min-width: 80px; // matches .gl-val { min-width: 80px }
+}
+.col-hdr-glpct {
+  min-width: 64px; // matches .gl-pct { min-width: 64px }
+}

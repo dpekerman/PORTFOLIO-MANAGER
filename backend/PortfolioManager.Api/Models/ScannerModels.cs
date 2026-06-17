@@ -89,3 +89,40 @@ public class ScannerResponse
     public bool IsDemo { get; set; }
     public string Market { get; set; } = string.Empty;
 }
+
+// ── Ad-Hoc Session Persistence ───────────────────────────────────────────────
+
+public class AdhocAnalysisSession
+{
+    public int Id { get; set; }
+    public string SessionKey { get; set; } = "default";
+    /// <summary>JSON-serialised string[] of ticker symbols.</summary>
+    public string Symbols { get; set; } = "[]";
+    /// <summary>JSON-serialised RsiScanResult[] — null when the user entered
+    /// symbols but has not yet run an analysis.</summary>
+    public string? ResultsJson { get; set; }
+    public decimal OversoldThreshold { get; set; } = 30m;
+    public decimal OverboughtThreshold { get; set; } = 75m;
+    public string LogicMode { get; set; } = "Legacy";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class SaveAdhocSessionRequest
+{
+    public List<string> Symbols { get; set; } = [];
+    public List<RsiScanResult>? Results { get; set; }
+    public decimal OversoldThreshold { get; set; } = 30m;
+    public decimal OverboughtThreshold { get; set; } = 75m;
+    public string LogicMode { get; set; } = "Legacy";
+}
+
+public class LoadAdhocSessionResponse
+{
+    public List<string> Symbols { get; set; } = [];
+    public List<RsiScanResult>? Results { get; set; }
+    public decimal OversoldThreshold { get; set; } = 30m;
+    public decimal OverboughtThreshold { get; set; } = 75m;
+    public string LogicMode { get; set; } = "Legacy";
+    public DateTime? UpdatedAt { get; set; }
+}

@@ -195,7 +195,7 @@
             <ng-container matColumnDef="sector">
               <th mat-header-cell *matHeaderCellDef mat-sort-header>SECTOR</th>
               <td mat-cell *matCellDef="let s">
-                <span class="pg-dim">{{ s.item.sector || s.quote?.sector || 'â€”' }}</span>
+                <span class="pg-dim">{{ s.item.sector || s.quote?.sector || '—' }}</span>
               </td>
             </ng-container>
 
@@ -203,7 +203,7 @@
             <ng-container matColumnDef="industry">
               <th mat-header-cell *matHeaderCellDef mat-sort-header>INDUSTRY</th>
               <td mat-cell *matCellDef="let s">
-                <span class="pg-dim">{{ s.item.industry || s.quote?.industry || 'â€”' }}</span>
+                <span class="pg-dim">{{ s.item.industry || s.quote?.industry || '—' }}</span>
               </td>
             </ng-container>
 
@@ -236,7 +236,7 @@
                 @if (!s.item.isManual && s.quote) {
                   {{ s.quote.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                 } @else {
-                  <span class="pg-dim">â€”</span>
+                  <span class="pg-dim">—</span>
                 }
               </td>
             </ng-container>
@@ -260,14 +260,14 @@
               <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                 GAIN/LOSS
               </th>
-              <td mat-cell *matCellDef="let s">
+              <td mat-cell *matCellDef="let s" class="pg-num">
                 @let price2 = s.quote?.currentPrice ?? s.item.averageCostBasis;
                 @let mv2 =
                   s.item.isManual
                     ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
                     : price2 * s.item.shares;
                 @let gl = mv2 - s.item.averageCostBasis * s.item.shares;
-                <span class="pg-num" [class.pg-pos]="gl >= 0" [class.pg-neg]="gl < 0">
+                <span [class.pg-pos]="gl >= 0" [class.pg-neg]="gl < 0">
                   {{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                 </span>
               </td>
@@ -278,7 +278,7 @@
               <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                 GAIN %
               </th>
-              <td mat-cell *matCellDef="let s">
+              <td mat-cell *matCellDef="let s" class="pg-num">
                 @let price3 = s.quote?.currentPrice ?? s.item.averageCostBasis;
                 @let mv3 =
                   s.item.isManual
@@ -286,7 +286,7 @@
                     : price3 * s.item.shares;
                 @let cost3 = s.item.averageCostBasis * s.item.shares;
                 @let glp = cost3 > 0 ? ((mv3 - cost3) / cost3) * 100 : 0;
-                <span class="pg-num" [class.pg-pos]="glp >= 0" [class.pg-neg]="glp < 0">
+                <span [class.pg-pos]="glp >= 0" [class.pg-neg]="glp < 0">
                   {{ glp >= 0 ? '+' : '' }}{{ glp | number: '1.1-1' }}%
                 </span>
               </td>
@@ -308,7 +308,7 @@
                     {{ rsi | number: '1.1-1' }}
                   </span>
                 } @else {
-                  <span class="pg-dim">â€”</span>
+                  <span class="pg-dim">—</span>
                 }
               </td>
             </ng-container>
@@ -316,10 +316,9 @@
             <!-- Daily Change % -->
             <ng-container matColumnDef="changePct">
               <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">DAY %</th>
-              <td mat-cell *matCellDef="let s">
+              <td mat-cell *matCellDef="let s" class="pg-num">
                 @if (s.quote && !s.item.isManual) {
                   <span
-                    class="pg-num"
                     [class.pg-pos]="s.quote.changePercent >= 0"
                     [class.pg-neg]="s.quote.changePercent < 0"
                   >
@@ -327,10 +326,58 @@
                     }}{{ s.quote.changePercent | number: '1.2-2' }}%
                   </span>
                 } @else {
-                  <span class="pg-dim">â€”</span>
+                  <span class="pg-dim">—</span>
                 }
               </td>
             </ng-container>
+            <!-- Momentum Shift -->
+            <ng-container matColumnDef="momentumShift">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="System setup classification based on current RSI momentum state"
+              >
+                MOMENTUM SHIFT
+              </th>
+              <td mat-cell *matCellDef="let s">
+                @if (rsiForSymbol(s.item.symbol) !== null) {
+                  <div
+                    class="pg-ms-badge"
+                    [ngClass]="momentumShiftClass(s.item.symbol)"
+                    [matTooltip]="momentumShift(s.item.symbol)"
+                  >
+                    {{ momentumShift(s.item.symbol) }}
+                  </div>
+                } @else {
+                  <span class="pg-dim">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Momentum Action -->
+            <ng-container matColumnDef="momentumAction">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Manual execution command based on current momentum state"
+              >
+                ACTION
+              </th>
+              <td mat-cell *matCellDef="let s">
+                @if (rsiForSymbol(s.item.symbol) !== null) {
+                  <div
+                    class="pg-ma-badge"
+                    [ngClass]="momentumActionClass(s.item.symbol)"
+                    [matTooltip]="momentumAction(s.item.symbol)"
+                  >
+                    {{ momentumAction(s.item.symbol) }}
+                  </div>
+                } @else {
+                  <span class="pg-dim">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- Actions -->
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>

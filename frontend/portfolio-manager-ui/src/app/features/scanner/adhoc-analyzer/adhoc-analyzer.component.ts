@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -6,7 +6,6 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RsiScanResult } from '../../../core/models/portfolio.models';
 import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
@@ -30,19 +29,21 @@ import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
     ScannerRowSkeletonComponent,
   ],
 })
-export class AdhocAnalyzerComponent {
+export class AdhocAnalyzerComponent implements OnDestroy {
   private readonly api = inject(PortfolioApiService);
   private readonly config = inject(ConfigService);
   private readonly scannerState = inject(ScannerStateService);
 
   protected readonly logicMode = this.scannerState.logicMode;
 
-  protected readonly symbols = signal<string[]>([]);
+  // ── State lives in the service so it survives navigation away and back ──
+  protected readonly symbols = this.scannerState.adhocSymbols;
+  protected readonly results = this.scannerState.adhocResults;
+  protected readonly analyzed = this.scannerState.adhocAnalyzed;
+
   protected readonly inputValue = signal('');
   protected readonly loading = signal(false);
-  protected readonly results = signal<RsiScanResult[]>([]);
   protected readonly error = signal<string | null>(null);
-  protected readonly analyzed = signal(false);
 
   protected readonly oversoldResults = () =>
     this.results().filter((r) => r.scanType === 'Oversold');
@@ -50,6 +51,23 @@ export class AdhocAnalyzerComponent {
     this.results().filter((r) => r.scanType === 'Overbought');
   protected readonly neutralResults = () =>
     this.results().filter((r) => r.scanType !== 'Oversold' && r.scanType !== 'Overbought');
+
+  ngOnDestroy(): void {
+    this.persistSession();
+  }
+
+  private persistSession(): void {
+    if (this.symbols().length === 0) return;
+    this.api
+      .saveAdhocSession({
+        symbols: this.symbols(),
+        results: this.analyzed() ? this.results() : null,
+        oversoldThreshold: this.config.rsiOversoldThreshold(),
+        overboughtThreshold: this.config.rsiOverboughtThreshold(),
+        logicMode: this.scannerState.logicMode(),
+      })
+      .subscribe({ error: () => {} });
+  }
 
   addSymbol(value: string): void {
     const sym = value.trim().toUpperCase();
@@ -61,10 +79,16 @@ export class AdhocAnalyzerComponent {
     if (this.symbols().length >= 20) return;
     this.symbols.update((list) => [...list, sym]);
     this.inputValue.set('');
+    this.persistSession();
   }
 
   removeSymbol(sym: string): void {
     this.symbols.update((list) => list.filter((s) => s !== sym));
+    this.results.update((list) => list.filter((r) => r.symbol.toUpperCase() !== sym.toUpperCase()));
+    if (this.results().length === 0) {
+      this.analyzed.set(false);
+    }
+    this.persistSession();
   }
 
   onInputKeydown(event: KeyboardEvent): void {
@@ -96,6 +120,7 @@ export class AdhocAnalyzerComponent {
           this.results.set(r);
           this.loading.set(false);
           this.analyzed.set(true);
+          this.persistSession();
         },
         error: () => {
           this.error.set('Analysis failed — check symbol format (e.g. RY.TO, AAPL)');

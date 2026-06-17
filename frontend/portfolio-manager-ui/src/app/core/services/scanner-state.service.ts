@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { interval, switchMap } from 'rxjs';
-import { LogicMode, ScannerResponse } from '../models/portfolio.models';
+import { LogicMode, RsiScanResult, ScannerResponse } from '../models/portfolio.models';
 import { ConfigService } from './config.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -33,8 +33,31 @@ export class ScannerStateService {
     this.overbought().filter((r) => r.status === 'Confirmed'),
   );
 
+  // ── Ad-hoc analyzer in-memory state (survives route navigation) ────────────
+  // These signals live in the root-scoped service so the component can be
+  // destroyed and recreated without losing the user's analysis session.
+  readonly adhocSymbols = signal<string[]>([]);
+  readonly adhocResults = signal<RsiScanResult[]>([]);
+  readonly adhocAnalyzed = signal(false);
+  /** True while the initial DB restore is in flight (first load only). */
+  readonly adhocSessionRestored = signal(false);
+
   constructor() {
     this.refresh();
+    // Restore ad-hoc session from DB once on service init
+    this.api.loadAdhocSession().subscribe({
+      next: (session) => {
+        if (session.symbols?.length && !this.adhocSessionRestored()) {
+          this.adhocSymbols.set(session.symbols);
+          if (session.results?.length) {
+            this.adhocResults.set(session.results);
+            this.adhocAnalyzed.set(true);
+          }
+        }
+        this.adhocSessionRestored.set(true);
+      },
+      error: () => this.adhocSessionRestored.set(true),
+    });
     // Restart auto-refresh whenever the configured interval changes
     toObservable(this.configService.config)
       .pipe(

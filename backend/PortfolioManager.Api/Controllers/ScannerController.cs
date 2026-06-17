@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Text.Json;
 
 namespace PortfolioManager.Api.Controllers;
 
@@ -10,6 +13,7 @@ namespace PortfolioManager.Api.Controllers;
 public class ScannerController(
     IRsiScannerService scanner,
     IMemoryCache cache,
+    AppDbContext db,
     ILogger<ScannerController> logger) : ControllerBase
 {
     private const string CacheKeyPrefix = "rsi_scan";
@@ -109,6 +113,90 @@ public class ScannerController(
         {
             return Ok(new { status = "exception", provider = "Yahoo Finance", message = ex.Message });
         }
+    }
+
+    // ── Ad-hoc Session Persistence ────────────────────────────────────────────
+
+    private static readonly JsonSerializerOptions JsonOpts =
+        new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    /// <summary>Save the current ad-hoc analysis session (symbols + results) to the database.</summary>
+    [HttpPost("adhoc-session")]
+    public async Task<IActionResult> SaveAdhocSession(
+        [FromBody] SaveAdhocSessionRequest request,
+        CancellationToken ct)
+    {
+        const string key = "default";
+
+        var symbolsJson  = JsonSerializer.Serialize(request.Symbols, JsonOpts);
+        var resultsJson  = request.Results is null ? null
+                         : JsonSerializer.Serialize(request.Results, JsonOpts);
+
+        var existing = await db.AdhocAnalysisSessions
+            .FirstOrDefaultAsync(s => s.SessionKey == key, ct);
+
+        if (existing is null)
+        {
+            db.AdhocAnalysisSessions.Add(new AdhocAnalysisSession
+            {
+                SessionKey           = key,
+                Symbols              = symbolsJson,
+                ResultsJson          = resultsJson,
+                OversoldThreshold    = request.OversoldThreshold,
+                OverboughtThreshold  = request.OverboughtThreshold,
+                LogicMode            = request.LogicMode,
+                CreatedAt            = DateTime.UtcNow,
+                UpdatedAt            = DateTime.UtcNow,
+            });
+        }
+        else
+        {
+            existing.Symbols             = symbolsJson;
+            existing.ResultsJson         = resultsJson;
+            existing.OversoldThreshold   = request.OversoldThreshold;
+            existing.OverboughtThreshold = request.OverboughtThreshold;
+            existing.LogicMode           = request.LogicMode;
+            existing.UpdatedAt           = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
+    /// <summary>Load the most-recent ad-hoc analysis session from the database.</summary>
+    [HttpGet("adhoc-session")]
+    public async Task<ActionResult<LoadAdhocSessionResponse>> LoadAdhocSession(CancellationToken ct)
+    {
+        const string key = "default";
+
+        var session = await db.AdhocAnalysisSessions
+            .Where(s => s.SessionKey == key)
+            .OrderByDescending(s => s.UpdatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (session is null)
+            return Ok(new LoadAdhocSessionResponse());
+
+        var symbols = JsonSerializer.Deserialize<List<string>>(session.Symbols, JsonOpts) ?? [];
+        List<RsiScanResult>? results = null;
+        if (session.ResultsJson is not null)
+        {
+            try { results = JsonSerializer.Deserialize<List<RsiScanResult>>(session.ResultsJson, JsonOpts); }
+            catch (JsonException ex)
+            {
+                logger.LogWarning(ex, "Failed to deserialise adhoc session results – returning symbols only.");
+            }
+        }
+
+        return Ok(new LoadAdhocSessionResponse
+        {
+            Symbols              = symbols,
+            Results              = results,
+            OversoldThreshold    = session.OversoldThreshold,
+            OverboughtThreshold  = session.OverboughtThreshold,
+            LogicMode            = session.LogicMode,
+            UpdatedAt            = session.UpdatedAt,
+        });
     }
 }
 

@@ -423,6 +423,97 @@
   }
 }
 
+// ── Momentum Shift & Action badges ────────────────────────────────────────────
+.momentum-shift-badge,
+.momentum-action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: default;
+}
+
+// Momentum Shift states
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.35);
+  box-shadow: 0 0 8px rgba(0, 200, 83, 0.18);
+}
+.ms-bullish {
+  background: rgba(0, 200, 83, 0.08);
+  color: #4caf50;
+  border-color: rgba(0, 200, 83, 0.2);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.35);
+  box-shadow: 0 0 8px rgba(255, 23, 68, 0.18);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.2);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.25);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.2);
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.08);
+  color: #9e9e9e;
+  border-color: rgba(158, 158, 158, 0.18);
+}
+.ms-neutral {
+  background: rgba(255, 255, 255, 0.04);
+  color: #757575;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+// Action states
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.35);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.35);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.25);
+}
+.ma-avoid {
+  background: rgba(158, 158, 158, 0.07);
+  color: #757575;
+  border-color: rgba(158, 158, 158, 0.15);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.2);
+}
+.ma-standby {
+  background: rgba(255, 255, 255, 0.04);
+  color: #616161;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
 // ── Mobile responsive ─────────────────────────────────────────────────────────
 // On small screens, convert to a card-based scrollable layout
 @media (max-width: 768px) {

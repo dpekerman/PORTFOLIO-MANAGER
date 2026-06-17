@@ -152,6 +152,24 @@ export interface ScannerResponse {
   market: string;
 }
 
+// ── Ad-Hoc Session Persistence ────────────────────────────────────────────────
+export interface AdhocSessionPayload {
+  symbols: string[];
+  results?: RsiScanResult[] | null;
+  oversoldThreshold: number;
+  overboughtThreshold: number;
+  logicMode: string;
+}
+
+export interface AdhocSessionResponse {
+  symbols: string[];
+  results?: RsiScanResult[] | null;
+  oversoldThreshold: number;
+  overboughtThreshold: number;
+  logicMode: string;
+  updatedAt?: string | null;
+}
+
 export interface AddManualPositionRequest {
   name: string;
   description: string;

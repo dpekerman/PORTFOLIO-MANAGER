@@ -180,6 +180,68 @@
             </td>
           </ng-container>
 
+          <!-- RSI (14) -->
+          <ng-container matColumnDef="rsi">
+            <th mat-header-cell *matHeaderCellDef class="wl-num-header">RSI (14)</th>
+            <td mat-cell *matCellDef="let w" class="wl-num">
+              @if (rsiForSymbol(w.item.symbol) !== null) {
+                <span
+                  class="wl-rsi"
+                  [class.wl-rsi-over]="rsiForSymbol(w.item.symbol)! >= 70"
+                  [class.wl-rsi-under]="rsiForSymbol(w.item.symbol)! <= 30"
+                >
+                  {{ rsiForSymbol(w.item.symbol)! | number: '1.1-1' }}
+                </span>
+              } @else {
+                <span class="grid-no-data">—</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Momentum Shift -->
+          <ng-container matColumnDef="momentumShift">
+            <th mat-header-cell *matHeaderCellDef matTooltip="RSI momentum state classification">
+              MOMENTUM SHIFT
+            </th>
+            <td mat-cell *matCellDef="let w">
+              @if (rsiForSymbol(w.item.symbol) !== null) {
+                <div
+                  class="wl-ms-badge"
+                  [ngClass]="momentumShiftClass(w.item.symbol)"
+                  [matTooltip]="momentumShift(w.item.symbol)"
+                >
+                  {{ momentumShift(w.item.symbol) }}
+                </div>
+              } @else {
+                <span class="grid-no-data">—</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Momentum Action -->
+          <ng-container matColumnDef="momentumAction">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              matTooltip="Execution command based on momentum state"
+            >
+              ACTION
+            </th>
+            <td mat-cell *matCellDef="let w">
+              @if (rsiForSymbol(w.item.symbol) !== null) {
+                <div
+                  class="wl-ma-badge"
+                  [ngClass]="momentumActionClass(w.item.symbol)"
+                  [matTooltip]="momentumAction(w.item.symbol)"
+                >
+                  {{ momentumAction(w.item.symbol) }}
+                </div>
+              } @else {
+                <span class="grid-no-data">—</span>
+              }
+            </td>
+          </ng-container>
+
           <!-- Actions -->
           <ng-container matColumnDef="actions">
             <th mat-header-cell *matHeaderCellDef></th>

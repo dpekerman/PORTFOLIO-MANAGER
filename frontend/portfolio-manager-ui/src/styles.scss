@@ -150,3 +150,19 @@ body.light-theme {
   transition: filter 0.2s ease;
   pointer-events: none;
 }
+
+// ── Button icon + text alignment (global fix) ─────────────────────────────────
+// Ensures mat-icon inside any flat/raised/stroked button is vertically centred
+// with the label text across all screens.
+.mdc-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+button.mat-mdc-button-base mat-icon,
+a.mat-mdc-button-base mat-icon {
+  vertical-align: middle;
+  flex-shrink: 0;
+}

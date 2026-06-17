@@ -690,31 +690,31 @@ public sealed class RsiScannerService : IRsiScannerService
 
         if (structuralAbs && close > prevHigh)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed above prior day's high with bullish structure. " +
+                $"Candle closed above prior day's high with bullish structure. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Selling pressure absorbed; execution phase.");
 
         if (structuralAbs)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed in upper half of range ({((close - low) / range * 100m):0}%) with momentum shift. " +
+                $"Candle closed in upper half of range ({((close - low) / range * 100m):0}%) with momentum shift. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Structural absorption of selling pressure validated.");
 
         if (bbBreakout && histRising)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Bollinger breakout with histogram slope turning positive (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Bollinger breakout with histogram slope turning positive (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Price discovery phase: volatility bands pierced, momentum shifting. Awaiting candle close confirmation.");
 
         if (rsi < 25 && histRising)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Momentum has shifted days before MACD crossover. Capital not deployed until candle close confirms.");
 
         string histNote = macdHistSlope == "Falling"
             ? $"Hist slope still falling (Δ={macdHistDelta:+0.0000;-0.0000}) — selling momentum intact."
             : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
         return (SignalStatus.EarlyWarning,
-            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} below oversold threshold. {histNote} " +
+            $"RSI {rsi:0.0} below oversold threshold. {histNote} " +
             "No structural absorption detected. Waiting for candle close to validate.");
     }
 
@@ -736,31 +736,31 @@ public sealed class RsiScannerService : IRsiScannerService
 
         if (structuralDist && close < prevLow)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed below prior day's low with bearish structure. " +
+                $"Candle closed below prior day's low with bearish structure. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Institutional distribution confirmed; execution phase.");
 
         if (structuralDist)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed in lower half of range ({((high - close) / range * 100m):0}% from top) with distribution signal. " +
+                $"Candle closed in lower half of range ({((high - close) / range * 100m):0}% from top) with distribution signal. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Structural distribution of buying pressure validated.");
 
         if (bbBreakout && histFalling)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extended above upper Bollinger Band with histogram slope turning negative (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extended above upper Bollinger Band with histogram slope turning negative (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Price discovery phase: parabolic extension, internal momentum waning. Awaiting candle close confirmation.");
 
         if (rsi > 80 && histFalling)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Buying velocity decelerating before MACD crossover. Capital not deployed until candle close confirms.");
 
         string histNote = macdHistSlope == "Rising"
             ? $"Hist slope still rising (Δ={macdHistDelta:+0.0000;-0.0000}) — buying momentum intact."
             : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
         return (SignalStatus.EarlyWarning,
-            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} above overbought threshold. {histNote} " +
+            $"RSI {rsi:0.0} above overbought threshold. {histNote} " +
             "No structural distribution detected. Waiting for candle close to validate.");
     }
 

@@ -82,9 +82,9 @@
     <th
       mat-header-cell
       *matHeaderCellDef
-      matTooltip="RSI Signal: 9-period EMA of RSI(14). When RSI crosses above the signal line it signals building momentum; below = fading momentum."
+      matTooltip="RSI (9 EMA): 9-period EMA of RSI(14). When RSI crosses above the signal line it signals building momentum; below = fading momentum."
     >
-      RSI Signal
+      RSI (9 EMA)
     </th>
     <td mat-cell *matCellDef="let row">
       @if (!row.rsiSignalAvailable) {
@@ -333,6 +333,56 @@
           <span>EARLY WARNING</span>
         </div>
       }
+    </td>
+  </ng-container>
+
+  <!-- Momentum Shift Column -->
+  <ng-container matColumnDef="momentumShift">
+    <th
+      mat-header-cell
+      *matHeaderCellDef
+      [matTooltip]="
+        isOversold()
+          ? 'System setup classification used when looking to align entries with momentum shifts.'
+          : !isNeutral()
+            ? 'Setup analyzed when looking to buy puts or take profits on existing long positions.'
+            : 'System setup classification used when looking to align entries with momentum shifts.'
+      "
+    >
+      Momentum Shift
+    </th>
+    <td mat-cell *matCellDef="let row">
+      <div
+        class="momentum-shift-badge"
+        [ngClass]="momentumShiftClass(row)"
+        [matTooltip]="momentumShiftTooltip(row)"
+      >
+        {{ momentumShift(row) }}
+      </div>
+    </td>
+  </ng-container>
+
+  <!-- Action Column -->
+  <ng-container matColumnDef="momentumAction">
+    <th
+      mat-header-cell
+      *matHeaderCellDef
+      [matTooltip]="
+        !isNeutral() && !isOversold()
+          ? 'Recommended manual execution action.'
+          : 'Manual execution command based on current momentum state.'
+      "
+    >
+      Action
+    </th>
+    <td mat-cell *matCellDef="let row">
+      <div
+        class="momentum-action-badge"
+        [ngClass]="momentumActionClass(row)"
+        [matTooltip]="momentumActionTooltip(row)"
+      >
+        {{ momentumAction(row) }}
+      </div>
     </td>
   </ng-container>
 

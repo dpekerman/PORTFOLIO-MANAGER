@@ -50,6 +50,17 @@
   @if (sectors().length === 0) {
     <p class="empty-msg">No sector data available yet. Add stocks or click Refresh Sectors.</p>
   } @else {
+    <!-- ── Column header row for sector/industry totals ── -->
+    <div class="sector-col-headers">
+      <div class="sector-col-headers-left"></div>
+      <div class="sector-col-headers-right">
+        <span class="col-hdr-bar">ALLOCATION</span>
+        <span class="col-hdr-pct">% TOTAL</span>
+        <span class="col-hdr-mv">TOTAL MV</span>
+        <span class="col-hdr-gl">GAIN / LOSS</span>
+        <span class="col-hdr-glpct">G/L %</span>
+      </div>
+    </div>
     <div class="sector-list">
       @for (row of sectors(); track row.sector) {
         <div class="sector-row">

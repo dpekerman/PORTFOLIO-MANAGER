@@ -114,6 +114,60 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.ToTable("WatchlistItems");
                 });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.AdhocAnalysisSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("SessionKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("default");
+
+                    b.Property<string>("Symbols")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]");
+
+                    b.Property<string>("ResultsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("OversoldThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(30m);
+
+                    b.Property<decimal>("OverboughtThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(75m);
+
+                    b.Property<string>("LogicMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Legacy");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionKey", "UpdatedAt");
+
+                    b.ToTable("AdhocAnalysisSessions");
+                });
 #pragma warning restore 612, 618
         }
     }

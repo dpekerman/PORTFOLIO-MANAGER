@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
+    public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,6 +32,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
             entity.HasIndex(e => e.Symbol).IsUnique();
+        });
+
+        modelBuilder.Entity<AdhocAnalysisSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionKey).IsRequired().HasMaxLength(100).HasDefaultValue("default");
+            entity.Property(e => e.Symbols).IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.OversoldThreshold).HasColumnType("decimal(5,2)").HasDefaultValue(30m);
+            entity.Property(e => e.OverboughtThreshold).HasColumnType("decimal(5,2)").HasDefaultValue(75m);
+            entity.Property(e => e.LogicMode).HasMaxLength(20).HasDefaultValue("Legacy");
+            entity.HasIndex(e => new { e.SessionKey, e.UpdatedAt });
         });
     }
 }

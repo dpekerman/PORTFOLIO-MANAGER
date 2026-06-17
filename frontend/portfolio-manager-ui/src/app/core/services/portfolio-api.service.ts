@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
+  AdhocSessionPayload,
+  AdhocSessionResponse,
   PortfolioItem,
   PortfolioSummary,
   RsiScanResult,
@@ -115,6 +117,18 @@ export class PortfolioApiService {
   /** Invalidate all server-side RSI scan cache entries (call after config/threshold change). */
   clearRsiCache(): Observable<void> {
     return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
+  }
+
+  // ── Ad-Hoc Session Persistence ──────────────────────────────────────────────
+
+  /** Save the current ad-hoc analysis session to the database. */
+  saveAdhocSession(payload: AdhocSessionPayload): Observable<void> {
+    return this.http.post<void>(`${this.base}/scanner/adhoc-session`, payload);
+  }
+
+  /** Load the last saved ad-hoc analysis session from the database. */
+  loadAdhocSession(): Observable<AdhocSessionResponse> {
+    return this.http.get<AdhocSessionResponse>(`${this.base}/scanner/adhoc-session`);
   }
 
   // ── Value Screener ──────────────────────────────────────────────────────────
