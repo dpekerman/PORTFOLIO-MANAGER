@@ -5,7 +5,11 @@ namespace PortfolioManager.Api.Services;
 
 public interface IRsiScannerService
 {
-    Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
+    /// <summary>
+    /// Scans the default TSX watchlist plus any <paramref name="extraSymbols"/> from the
+    /// user's portfolio and watchlist, returning oversold/overbought chains.
+    /// </summary>
+    Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
     Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
 }
@@ -69,15 +73,23 @@ public sealed class RsiScannerService : IRsiScannerService
         _marketData = marketData;
     }
 
-    public async Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
+    public async Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
     {
+        // Merge the default TSX universe with user-provided portfolio/watchlist symbols.
+        var symbolsToScan = TsxWatchlist
+            .Concat(extraSymbols ?? Enumerable.Empty<string>())
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Where(s => s.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         // Yahoo Finance requires no API key — go straight to live scan.
         // If Yahoo is unreachable (network error), fall back to demo data.
         try
         {
-            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols). Oversold<{OS} Overbought>{OB} Mode={Mode}",
-                TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
-            return await RunLiveScanAsync(oversoldThreshold, overboughtThreshold, logicMode, ct);
+            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols, {Extra} from portfolio/watchlist). Oversold<{OS} Overbought>{OB} Mode={Mode}",
+                symbolsToScan.Length, symbolsToScan.Length - TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
+            return await RunLiveScanAsync(symbolsToScan, oversoldThreshold, overboughtThreshold, logicMode, ct);
         }
         catch (Exception ex)
         {
@@ -115,14 +127,14 @@ public sealed class RsiScannerService : IRsiScannerService
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
     }
 
-    private async Task<ScannerResponse> RunLiveScanAsync(decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
+    private async Task<ScannerResponse> RunLiveScanAsync(string[] symbolsToScan, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
 
         // Yahoo Finance has no hard rate limit; ~2 req/s is courteous.
         // 3 symbols/batch with 1.5s delay → 50 symbols in ~25s.
-        var batches = TsxWatchlist
+        var batches = symbolsToScan
             .Select((sym, i) => new { sym, i })
             .GroupBy(x => x.i / 3)
             .Select(g => g.Select(x => x.sym).ToArray());

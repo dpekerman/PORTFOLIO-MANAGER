@@ -154,6 +154,51 @@ export class WatchlistPageComponent {
     return 'ma-standby';
   }
 
+  protected momentumShiftTooltip(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return 'No RSI data available';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
+      if (r.rsiSignalAvailable && rsi <= sig)
+        return 'The buying frenzy is starting to run out of steam.';
+      return 'The stock is surging upward rapidly and is heavily overbought.';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'Buyers have officially taken control of the day.';
+      if (r.rsiSignalAvailable && rsi >= sig)
+        return 'The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumActionTooltip(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return 'No RSI data available';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'High-probability short or put entry.';
+      if (r.rsiSignalAvailable && rsi <= sig)
+        return 'Get ready to short or buy puts. The buying speed has broken.';
+      return 'The stock is running hot and squeezing shorts. Do not stand in front of the train.';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'High-probability long entry.';
+      if (r.rsiSignalAvailable && rsi >= sig)
+        return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45)
+      return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
   protected readonly displayedColumns: string[] = [
     'symbol',
     'company',

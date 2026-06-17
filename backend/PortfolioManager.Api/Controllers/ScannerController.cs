@@ -36,7 +36,21 @@ public class ScannerController(
             return Ok(cached);
         }
 
-        var result = await scanner.ScanAsync(oversold, overbought, logicMode, ct);
+        // Pull all user-defined symbols so the scan covers the full portfolio + watchlist.
+        var portfolioSymbols = await db.PortfolioItems
+            .Where(p => !p.IsManual)
+            .Select(p => p.Symbol)
+            .ToListAsync(ct);
+        var watchlistSymbols = await db.WatchlistItems
+            .Select(w => w.Symbol)
+            .ToListAsync(ct);
+        var extraSymbols = portfolioSymbols
+            .Concat(watchlistSymbols)
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToList();
+
+        var result = await scanner.ScanAsync(extraSymbols, oversold, overbought, logicMode, ct);
 
         // Only cache live results — demo data has no TTL value
         if (!result.IsDemo)

@@ -344,7 +344,7 @@
                   <div
                     class="pg-ms-badge"
                     [ngClass]="momentumShiftClass(s.item.symbol)"
-                    [matTooltip]="momentumShift(s.item.symbol)"
+                    [matTooltip]="momentumShiftTooltip(s.item.symbol)"
                   >
                     {{ momentumShift(s.item.symbol) }}
                   </div>
@@ -368,7 +368,7 @@
                   <div
                     class="pg-ma-badge"
                     [ngClass]="momentumActionClass(s.item.symbol)"
-                    [matTooltip]="momentumAction(s.item.symbol)"
+                    [matTooltip]="momentumActionTooltip(s.item.symbol)"
                   >
                     {{ momentumAction(s.item.symbol) }}
                   </div>

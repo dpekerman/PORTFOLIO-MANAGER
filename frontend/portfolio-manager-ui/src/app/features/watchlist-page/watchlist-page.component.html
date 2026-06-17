@@ -5,7 +5,7 @@
       <mat-icon class="page-icon">visibility</mat-icon>
       <div>
         <h1 class="page-title">
-          MY WATCH LIST
+          MY WATCHLIST
           <span class="count-badge">{{ watchlist.count() }}</span>
         </h1>
         <p class="page-sub">Tracked symbols · Live prices · Auto-refreshes every 60s</p>
@@ -208,7 +208,7 @@
                 <div
                   class="wl-ms-badge"
                   [ngClass]="momentumShiftClass(w.item.symbol)"
-                  [matTooltip]="momentumShift(w.item.symbol)"
+                  [matTooltip]="momentumShiftTooltip(w.item.symbol)"
                 >
                   {{ momentumShift(w.item.symbol) }}
                 </div>
@@ -232,7 +232,7 @@
                 <div
                   class="wl-ma-badge"
                   [ngClass]="momentumActionClass(w.item.symbol)"
-                  [matTooltip]="momentumAction(w.item.symbol)"
+                  [matTooltip]="momentumActionTooltip(w.item.symbol)"
                 >
                   {{ momentumAction(w.item.symbol) }}
                 </div>

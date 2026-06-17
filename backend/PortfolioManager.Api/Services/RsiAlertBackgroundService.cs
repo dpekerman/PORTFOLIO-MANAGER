@@ -63,6 +63,7 @@ public sealed class RsiAlertBackgroundService(
             Settings.OversoldThreshold, Settings.OverboughtThreshold);
 
         var result = await scanner.ScanAsync(
+            null,                 // extraSymbols: background service scans default TSX universe only
             Settings.OversoldThreshold,
             Settings.OverboughtThreshold,
             "Enhanced",   // must match the UI logic mode so email status == displayed status

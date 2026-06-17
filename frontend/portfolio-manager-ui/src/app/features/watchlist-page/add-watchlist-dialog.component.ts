@@ -26,7 +26,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
     ReactiveFormsModule,
   ],
   template: `
-    <h2 mat-dialog-title>Add to Watch List</h2>
+    <h2 mat-dialog-title>Add to Watchlist</h2>
     <mat-dialog-content>
       <form [formGroup]="form">
         <mat-form-field appearance="outline" class="watchlist-symbol-field">

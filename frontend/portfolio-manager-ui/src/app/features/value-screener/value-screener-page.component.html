@@ -25,7 +25,7 @@
     <div class="source-bar">
       <span class="source-label">Analyze:</span>
 
-      <!-- Portfolio & Watch List: auto-execute on click, no Analyze button needed -->
+      <!-- Portfolio & Watchlist: auto-execute on click, no Analyze button needed -->
       <div class="source-options">
         <button
           class="source-chip"
@@ -50,7 +50,7 @@
           [class.source-active]="sourceMode() === 'watchlist'"
           (click)="selectWatchlist()"
           [disabled]="loading() && sourceMode() === 'watchlist'"
-          matTooltip="Analyze all symbols from your Watch List"
+          matTooltip="Analyze all symbols from your Watchlist"
         >
           @if (loading() && sourceMode() === 'watchlist') {
             <ng-container>
@@ -61,7 +61,7 @@
               <mat-icon>bookmark</mat-icon>
             </ng-container>
           }
-          Watch List
+          Watchlist
         </button>
       </div>
 
@@ -257,7 +257,7 @@
           sourceMode() === 'portfolio'
             ? 'Portfolio'
             : sourceMode() === 'watchlist'
-              ? 'Watch List'
+              ? 'Watchlist'
               : 'Ad-Hoc'
         }}
         symbols
@@ -269,7 +269,7 @@
       <mat-icon class="empty-icon">analytics</mat-icon>
       <h3 class="empty-title">No results yet</h3>
       <p class="empty-sub">
-        Select <strong>Portfolio</strong> or <strong>Watch List</strong> (or enter ad-hoc tickers),
+        Select <strong>Portfolio</strong> or <strong>Watchlist</strong> (or enter ad-hoc tickers),
         then click <strong>Analyze</strong> to run the Capital Valuation engine.
       </p>
       <div class="scoring-hint">
