@@ -303,6 +303,12 @@ public sealed class RsiScannerService : IRsiScannerService
             decimal changePct  = prevClose > 0 ? (change / prevClose) * 100m : 0m;
             decimal range      = todayHigh - todayLow;
 
+            // ── ATR (14-day) — needed for EOD Confirm Condition 4 ───────────
+            decimal dailyAtr   = CalculateAtr(highs, lows, closes, 14);
+
+            // ── 9-day EMA of price — needed for EOD Confirm Condition 2 ─────
+            decimal ema9Price  = CalculateEma(closes, 9);
+
             // ── Indicator 1: Stochastics ────────────────────────────────────
             decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
             bool stochConfirm = rsi < oversoldThreshold ? stochK < 20 : stochK > 80;
@@ -351,6 +357,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 (status, trigger) = enhanced
                     ? ClassifyOversoldEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi, macdHistSlope, macdHistDelta, bbBreakout)
                     : ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
+
+                // ── EOD Confirm override: evaluated on top of existing classification ──
+                // All 4 conditions must be met (RSI fixed at <25, Volume >1.5x avg)
+                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, volRatio, todayOpen, todayHigh, dailyAtr))
+                {
+                    status  = SignalStatus.EodConfirm;
+                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, volRatio, todayOpen, todayHigh, dailyAtr);
+                }
             }
             else if (rsi >= overboughtThreshold)
             {
@@ -361,6 +375,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 (status, trigger) = enhanced
                     ? ClassifyOverboughtEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi, macdHistSlope, macdHistDelta, bbBreakout, volRatio)
                     : ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
+
+                // ── EOD Confirm override: evaluated on top of existing classification ──
+                // All 4 conditions must be met (RSI fixed at >75, Volume >1.5x avg)
+                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, volRatio, todayOpen, todayLow, dailyAtr))
+                {
+                    status  = SignalStatus.EodConfirm;
+                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, volRatio, todayOpen, todayLow, dailyAtr);
+                }
             }
             else
             {
@@ -401,6 +423,8 @@ public sealed class RsiScannerService : IRsiScannerService
                 MacdHistDelta = Math.Round(macdHistDelta, 4),
                 MacdHistSlope = macdHistSlope,
                 LogicMode = enhanced ? "Enhanced" : "Legacy",
+                DailyAtr = Math.Round(dailyAtr, 4),
+                Ema9Price = Math.Round(ema9Price, 4),
                 IsDemo = false
             };
         }
@@ -774,6 +798,92 @@ public sealed class RsiScannerService : IRsiScannerService
         return (SignalStatus.EarlyWarning,
             $"RSI {rsi:0.0} above overbought threshold. {histNote} " +
             "No structural distribution detected. Waiting for candle close to validate.");
+    }
+
+    // ── ATR (14-day, simple average of True Range) ────────────────────────────
+    /// <summary>
+    /// Calculates the 14-day Average True Range (ATR).
+    /// Step 1 — True Range per bar = Max of: (High-Low), |High-PrevClose|, |Low-PrevClose|
+    /// Step 2 — ATR = simple average of the last 14 True Range values.
+    /// </summary>
+    private static decimal CalculateAtr(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period = 14)
+    {
+        if (closes.Count < period + 1) return 0m;
+
+        var trueRanges = new List<decimal>(closes.Count);
+        for (int i = 1; i < closes.Count; i++)
+        {
+            decimal tr1 = highs[i] - lows[i];                              // High minus Low
+            decimal tr2 = Math.Abs(highs[i] - closes[i - 1]);             // |High − Yesterday's Close|
+            decimal tr3 = Math.Abs(lows[i]  - closes[i - 1]);             // |Low  − Yesterday's Close|
+            trueRanges.Add(Math.Max(tr1, Math.Max(tr2, tr3)));
+        }
+
+        return trueRanges.TakeLast(period).Average();
+    }
+
+    // ── EOD Confirm condition checkers ────────────────────────────────────────
+
+    /// <summary>
+    /// Oversold EOD Confirm — all 4 conditions must be true:
+    /// 1. Daily RSI &lt; 25
+    /// 2. Current Price &gt; 9-day EMA
+    /// 3. Daily Volume &gt; 1.5x 20-day Avg
+    /// 4. Current Price &gt; Daily Open AND Current Price ≥ (Daily High − 0.25 × ATR)
+    /// </summary>
+    private static bool CheckOversoldEodConfirm(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal high, decimal atr)
+    {
+        if (rsi >= 25m) return false;                                      // Rule 1
+        if (close <= ema9) return false;                                   // Rule 2
+        if (volRatio < 1.5m) return false;                                 // Rule 3
+        if (atr <= 0m) return false;                                       // ATR must be computed
+        decimal priceThreshold = high - (0.25m * atr);                    // Rule 4 threshold
+        return close > open && close >= priceThreshold;                    // Rule 4
+    }
+
+    private static string BuildOversoldEodTrigger(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal high, decimal atr)
+    {
+        decimal priceThreshold = high - (0.25m * atr);
+        return $"EOD CONFIRM — All 4 rules met: " +
+               $"RSI {rsi:0.0} < 25 ✓ | " +
+               $"Price ${close:0.00} > 9-EMA ${ema9:0.00} ✓ | " +
+               $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
+               $"Price > Open ${open:0.00} and Price ${close:0.00} ≥ threshold ${priceThreshold:0.00} (High ${high:0.00} − 0.25×ATR ${atr:0.0000}) ✓";
+    }
+
+    /// <summary>
+    /// Overbought EOD Confirm — all 4 conditions must be true:
+    /// 1. Daily RSI &gt; 75
+    /// 2. Current Price &lt; 9-day EMA
+    /// 3. Daily Volume &gt; 1.5x 20-day Avg
+    /// 4. Current Price &lt; Daily Open AND Current Price ≤ (Daily Low + 0.25 × ATR)
+    /// </summary>
+    private static bool CheckOverboughtEodConfirm(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal low, decimal atr)
+    {
+        if (rsi <= 75m) return false;                                      // Rule 1
+        if (close >= ema9) return false;                                   // Rule 2
+        if (volRatio < 1.5m) return false;                                 // Rule 3
+        if (atr <= 0m) return false;                                       // ATR must be computed
+        decimal priceThreshold = low + (0.25m * atr);                     // Rule 4 threshold
+        return close < open && close <= priceThreshold;                    // Rule 4
+    }
+
+    private static string BuildOverboughtEodTrigger(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal low, decimal atr)
+    {
+        decimal priceThreshold = low + (0.25m * atr);
+        return $"EOD CONFIRM — All 4 rules met: " +
+               $"RSI {rsi:0.0} > 75 ✓ | " +
+               $"Price ${close:0.00} < 9-EMA ${ema9:0.00} ✓ | " +
+               $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
+               $"Price < Open ${open:0.00} and Price ${close:0.00} ≤ threshold ${priceThreshold:0.00} (Low ${low:0.00} + 0.25×ATR ${atr:0.0000}) ✓";
     }
 
     // ── Demo data (shown when no API key) ─────────────────────────────────────

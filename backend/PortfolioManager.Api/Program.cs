@@ -61,6 +61,20 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+// ── Scanner Runtime Config (singleton — EOD window overridable at runtime) ────
+builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
+{
+    var cfg = new ScannerRuntimeConfig();
+    var section = builder.Configuration.GetSection("ScannerSettings");
+    if (!string.IsNullOrWhiteSpace(section["EodWindowStart"]))
+        cfg.EodWindowStart = section["EodWindowStart"]!;
+    if (!string.IsNullOrWhiteSpace(section["EodWindowEnd"]))
+        cfg.EodWindowEnd = section["EodWindowEnd"]!;
+    if (bool.TryParse(section["EodWindowEnabled"], out var enabled))
+        cfg.EodWindowEnabled = enabled;
+    return cfg;
+});
+
 // ── Email Notification Services ───────────────────────────────────────────────
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailNotification"));

@@ -157,6 +157,123 @@
     color: #ff5252;
     border: 1px solid rgba(255, 82, 82, 0.2);
   }
+
+  &.eod-badge {
+    background: rgba(255, 152, 0, 0.15);
+    color: #ff9800;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+}
+
+// ── EOD Window Banner ──────────────────────────────────────────────────────────
+.eod-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 24px;
+  margin-bottom: 2px;
+  border-bottom: 2px solid;
+  flex-wrap: wrap;
+
+  &.eod-banner--active {
+    background: rgba(255, 152, 0, 0.07);
+    border-bottom-color: rgba(255, 152, 0, 0.4);
+  }
+
+  &.eod-banner--result {
+    background: rgba(79, 195, 247, 0.06);
+    border-bottom-color: rgba(79, 195, 247, 0.3);
+  }
+}
+
+.eod-banner-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+
+  .eod-banner--active & {
+    color: #ff9800;
+  }
+
+  .eod-banner--result & {
+    color: #4fc3f7;
+  }
+}
+
+.eod-pulse {
+  animation: pulse-orange 1.4s ease-in-out infinite;
+}
+
+.eod-banner-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.eod-banner-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  .eod-banner--active & {
+    color: #ff9800;
+  }
+  .eod-banner--result & {
+    color: #4fc3f7;
+  }
+}
+
+.eod-banner-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.eod-result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 16px;
+  background: rgba(255, 152, 0, 0.15);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  color: #ff9800;
+  font-size: 0.75rem;
+  font-weight: 700;
+  align-self: center;
+  flex-shrink: 0;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes pulse-badge {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .table-wrapper {

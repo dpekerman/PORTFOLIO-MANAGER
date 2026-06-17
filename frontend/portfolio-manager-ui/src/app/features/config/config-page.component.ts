@@ -14,6 +14,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfigService } from '../../core/services/config.service';
@@ -36,6 +37,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatIconModule,
     MatInputModule,
     MatListModule,
+    MatSlideToggleModule,
     MatTooltipModule,
   ],
 })
@@ -70,6 +72,22 @@ export class ConfigPageComponent implements OnInit {
       [Validators.required, Validators.min(51), Validators.max(99)],
     ],
   });
+
+  // ── EOD Window form ──────────────────────────────────────────────────────
+  protected readonly eodForm = this.fb.group({
+    eodWindowStart: [
+      this.configService.config().eodWindowStart,
+      [Validators.required, Validators.pattern(/^\d{2}:\d{2}$/)],
+    ],
+    eodWindowEnd: [
+      this.configService.config().eodWindowEnd,
+      [Validators.required, Validators.pattern(/^\d{2}:\d{2}$/)],
+    ],
+    eodWindowEnabled: [this.configService.config().eodWindowEnabled],
+  });
+
+  protected readonly savingEodSettings = signal(false);
+  protected readonly eodWindowActive = this.scannerState.eodWindowActive;
 
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
@@ -106,6 +124,23 @@ export class ConfigPageComponent implements OnInit {
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
     });
 
+    // Load EOD window settings from backend (to show current server-side state)
+    this.api.getEodSettings().subscribe({
+      next: (s) => {
+        this.eodForm.setValue({
+          eodWindowStart: s.eodWindowStart,
+          eodWindowEnd: s.eodWindowEnd,
+          eodWindowEnabled: s.eodWindowEnabled,
+        });
+        this.configService.update({
+          eodWindowStart: s.eodWindowStart,
+          eodWindowEnd: s.eodWindowEnd,
+          eodWindowEnabled: s.eodWindowEnabled,
+        });
+      },
+      error: () => {}, // Non-critical — keep form defaults
+    });
+
     // Load recipients from backend
     this.notificationApi.getRecipients().subscribe({
       next: (r) => {
@@ -127,6 +162,40 @@ export class ConfigPageComponent implements OnInit {
         });
       },
     });
+  }
+
+  // ── EOD Window settings ──────────────────────────────────────────────────
+  saveEodSettings(): void {
+    if (this.eodForm.invalid) return;
+    const start = this.eodForm.value.eodWindowStart ?? '15:30';
+    const end = this.eodForm.value.eodWindowEnd ?? '16:00';
+    const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+
+    this.savingEodSettings.set(true);
+    this.api
+      .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+      .subscribe({
+        next: () => {
+          this.configService.update({
+            eodWindowStart: start,
+            eodWindowEnd: end,
+            eodWindowEnabled: enabled,
+          });
+          this.savingEodSettings.set(false);
+          this.eodForm.markAsPristine();
+          this.snackBar.open(
+            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}).`,
+            'OK',
+            { duration: 4000 },
+          );
+        },
+        error: () => {
+          this.savingEodSettings.set(false);
+          this.snackBar.open('Failed to save EOD settings to server.', 'Dismiss', {
+            duration: 4000,
+          });
+        },
+      });
   }
 
   // ── Interval / RSI settings ──────────────────────────────────────────────
@@ -158,6 +227,11 @@ export class ConfigPageComponent implements OnInit {
       watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
+    });
+    this.eodForm.setValue({
+      eodWindowStart: cfg.eodWindowStart,
+      eodWindowEnd: cfg.eodWindowEnd,
+      eodWindowEnabled: cfg.eodWindowEnabled,
     });
     this.snackBar.open('Settings reset to defaults.', 'OK', { duration: 3000 });
   }

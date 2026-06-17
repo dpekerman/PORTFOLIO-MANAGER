@@ -1,4 +1,33 @@
 <div class="scanner-page">
+  <!-- ── EOD Window Indicator Banner ──────────────────────────────────────────── -->
+  @if (scanner.eodWindowActive()) {
+    <div class="eod-banner eod-banner--active" role="status" aria-live="polite">
+      <mat-icon class="eod-banner-icon eod-pulse">schedule</mat-icon>
+      <div class="eod-banner-content">
+        <span class="eod-banner-title">EOD WINDOW ACTIVE — Rules Executing</span>
+        <span class="eod-banner-sub">
+          EOD Confirm rules are being evaluated (RSI extreme · Price vs 9-EMA · Volume ≥ 1.5× · ATR
+          position). Matching signals are marked <strong>EOD CONFIRM</strong> and a dedicated email
+          will be sent.
+        </span>
+      </div>
+      @if (eodConfirmSummary()) {
+        <div class="eod-result-badge">
+          <mat-icon>verified</mat-icon>
+          {{ eodConfirmSummary() }}
+        </div>
+      }
+    </div>
+  } @else if (scanner.lastEodRunSummary()) {
+    <div class="eod-banner eod-banner--result" role="status">
+      <mat-icon class="eod-banner-icon">task_alt</mat-icon>
+      <div class="eod-banner-content">
+        <span class="eod-banner-title">Last EOD Run Result</span>
+        <span class="eod-banner-sub">{{ scanner.lastEodRunSummary() }}</span>
+      </div>
+    </div>
+  }
+
   <!-- ── Oversold Section ──────────────────────────────────────────────────── -->
   <section class="scanner-section">
     <div class="section-header">
@@ -8,10 +37,19 @@
           <h2 class="section-title">
             OVERSOLD CHAIN
             <span class="count-badge oversold-badge">{{ scanner.oversold().length }}</span>
+            @if (scanner.eodConfirmOversold().length > 0) {
+              <span
+                class="count-badge eod-badge"
+                [matTooltip]="'EOD Confirm signals: all 4 EOD rules met'"
+              >
+                🎯 {{ scanner.eodConfirmOversold().length }} EOD
+              </span>
+            }
           </h2>
           <p class="section-sub">
             RSI(14) &lt; 30 · Reversal Scanner ·
-            {{ scanner.confirmedOversold().length }} Confirmed Signals
+            {{ scanner.confirmedOversold().length }} Confirmed ·
+            {{ scanner.eodConfirmOversold().length }} EOD Confirm
           </p>
         </div>
       </div>
@@ -59,10 +97,19 @@
           <h2 class="section-title">
             OVERBOUGHT CHAIN
             <span class="count-badge overbought-badge">{{ scanner.overbought().length }}</span>
+            @if (scanner.eodConfirmOverbought().length > 0) {
+              <span
+                class="count-badge eod-badge"
+                [matTooltip]="'EOD Confirm signals: all 4 EOD rules met'"
+              >
+                🎯 {{ scanner.eodConfirmOverbought().length }} EOD
+              </span>
+            }
           </h2>
           <p class="section-sub">
             RSI(14) &gt; 75 · Distribution Scanner ·
-            {{ scanner.confirmedOverbought().length }} Confirmed Signals
+            {{ scanner.confirmedOverbought().length }} Confirmed ·
+            {{ scanner.eodConfirmOverbought().length }} EOD Confirm
           </p>
         </div>
       </div>

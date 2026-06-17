@@ -1,7 +1,15 @@
 namespace PortfolioManager.Api.Models;
 
 public enum ScanType { Oversold, Overbought, Neutral }
-public enum SignalStatus { Confirmed, EarlyWarning, Neutral }
+
+/// <summary>
+/// Signal classification levels (in descending priority):
+/// Confirmed    — price-action trigger met on candle close.
+/// EodConfirm   — end-of-day confirmation: all 4 EOD rules met near market close.
+/// EarlyWarning — RSI threshold crossed but no confirmation yet.
+/// Neutral      — no directional signal.
+/// </summary>
+public enum SignalStatus { Confirmed, EodConfirm, EarlyWarning, Neutral }
 
 public class RsiScanResult
 {
@@ -70,6 +78,13 @@ public class RsiScanResult
     /// <summary>"Legacy" (original logic) or "Enhanced" (histogram momentum + strict state machine).</summary>
     public string LogicMode { get; set; } = "Legacy";
 
+    // ── EOD Confirm Data ─────────────────────────────────────────────────────
+    /// <summary>14-day Average True Range (simple average of True Range over 14 bars).
+    /// 0 when insufficient data.</summary>
+    public decimal DailyAtr { get; set; }
+    /// <summary>9-period EMA of the closing price series.</summary>
+    public decimal Ema9Price { get; set; }
+
     // ── Analyst & Market Data ────────────────────────────────────────────────
     /// <summary>Analyst consensus 1-year target price. 0 when not available.</summary>
     public decimal AnalystTargetPrice { get; set; }
@@ -106,6 +121,17 @@ public class AdhocAnalysisSession
     public string LogicMode { get; set; } = "Legacy";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>DTO for reading / updating the EOD confirmation window settings at runtime.</summary>
+public class EodWindowSettingsDto
+{
+    /// <summary>Start time in "HH:mm" format (Eastern Time). Default: "15:30"</summary>
+    public string EodWindowStart { get; set; } = "15:30";
+    /// <summary>End time in "HH:mm" format (Eastern Time). Default: "16:00"</summary>
+    public string EodWindowEnd { get; set; } = "16:00";
+    /// <summary>Whether the EOD window is enabled.</summary>
+    public bool EodWindowEnabled { get; set; } = true;
 }
 
 public class SaveAdhocSessionRequest

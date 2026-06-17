@@ -93,7 +93,7 @@ export interface SymbolSearchResult {
 
 // ── RSI Scanner ────────────────────────────────────────────────────────────────
 export type ScanType = 'Oversold' | 'Overbought' | 'Neutral';
-export type SignalStatus = 'Confirmed' | 'EarlyWarning';
+export type SignalStatus = 'Confirmed' | 'EodConfirm' | 'EarlyWarning';
 export type ReversalProbability = 'Low' | 'Medium' | 'High';
 export type MacdCrossover = 'Bullish' | 'Bearish' | 'Neutral';
 export type VolumeSignal = 'Validated' | 'Low-Volume Trap' | 'Neutral';
@@ -142,6 +142,11 @@ export interface RsiScanResult {
   // -- RSI Signal (9-EMA of RSI) ----------------------------------------------
   rsiSignal: number | null;
   rsiSignalAvailable: boolean;
+  // -- EOD Confirm data -------------------------------------------------------
+  /** 14-day Average True Range. 0 when insufficient data. */
+  dailyAtr: number;
+  /** 9-period EMA of closing price. */
+  ema9Price: number;
 }
 
 export interface ScannerResponse {

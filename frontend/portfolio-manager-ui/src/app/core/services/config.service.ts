@@ -6,6 +6,12 @@ export interface AppConfig {
   watchlistRefreshSeconds: number;
   rsiOversoldThreshold: number;
   rsiOverboughtThreshold: number;
+  /** EOD confirmation window start time in HH:mm (Eastern Time). Default: 15:30 */
+  eodWindowStart: string;
+  /** EOD confirmation window end time in HH:mm (Eastern Time). Default: 16:00 */
+  eodWindowEnd: string;
+  /** Whether the EOD window is enabled. */
+  eodWindowEnabled: boolean;
 }
 
 const STORAGE_KEY = 'pm_app_config';
@@ -16,6 +22,9 @@ const DEFAULTS: AppConfig = {
   watchlistRefreshSeconds: 60, // 1 minute
   rsiOversoldThreshold: 30,
   rsiOverboughtThreshold: 75,
+  eodWindowStart: '15:30',
+  eodWindowEnd: '16:00',
+  eodWindowEnabled: true,
 };
 
 @Injectable({ providedIn: 'root' })

@@ -14,6 +14,7 @@ public class ScannerController(
     IRsiScannerService scanner,
     IMemoryCache cache,
     AppDbContext db,
+    ScannerRuntimeConfig runtimeConfig,
     ILogger<ScannerController> logger) : ControllerBase
 {
     private const string CacheKeyPrefix = "rsi_scan";
@@ -210,6 +211,63 @@ public class ScannerController(
             OverboughtThreshold  = session.OverboughtThreshold,
             LogicMode            = session.LogicMode,
             UpdatedAt            = session.UpdatedAt,
+        });
+    }
+
+    // ── EOD Window Settings ───────────────────────────────────────────────────
+
+    /// <summary>Returns the current EOD confirmation window settings.</summary>
+    [HttpGet("eod-settings")]
+    public IActionResult GetEodSettings()
+    {
+        return Ok(new EodWindowSettingsDto
+        {
+            EodWindowStart   = runtimeConfig.EodWindowStart,
+            EodWindowEnd     = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+        });
+    }
+
+    /// <summary>
+    /// Updates the EOD confirmation window at runtime.
+    /// Changes take effect immediately for the background service (no restart required).
+    /// </summary>
+    [HttpPut("eod-settings")]
+    public IActionResult UpdateEodSettings([FromBody] EodWindowSettingsDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.EodWindowStart) || string.IsNullOrWhiteSpace(dto.EodWindowEnd))
+            return BadRequest("EodWindowStart and EodWindowEnd are required (format: HH:mm).");
+
+        if (!TimeSpan.TryParse(dto.EodWindowStart, out _) || !TimeSpan.TryParse(dto.EodWindowEnd, out _))
+            return BadRequest("Invalid time format. Use HH:mm (e.g. '15:30', '16:00').");
+
+        runtimeConfig.EodWindowStart   = dto.EodWindowStart;
+        runtimeConfig.EodWindowEnd     = dto.EodWindowEnd;
+        runtimeConfig.EodWindowEnabled = dto.EodWindowEnabled;
+
+        logger.LogInformation(
+            "EOD window updated: {Start}–{End} ET, Enabled={Enabled}",
+            dto.EodWindowStart, dto.EodWindowEnd, dto.EodWindowEnabled);
+
+        return Ok(new EodWindowSettingsDto
+        {
+            EodWindowStart   = runtimeConfig.EodWindowStart,
+            EodWindowEnd     = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+        });
+    }
+
+    /// <summary>Returns whether the EOD window is currently active (for UI indicator).</summary>
+    [HttpGet("eod-window-active")]
+    public IActionResult GetEodWindowStatus()
+    {
+        return Ok(new
+        {
+            isActive         = runtimeConfig.IsEodWindowActive(),
+            eodWindowStart   = runtimeConfig.EodWindowStart,
+            eodWindowEnd     = runtimeConfig.EodWindowEnd,
+            eodWindowEnabled = runtimeConfig.EodWindowEnabled,
+            serverTimeUtc    = DateTime.UtcNow.ToString("HH:mm:ss"),
         });
     }
 }

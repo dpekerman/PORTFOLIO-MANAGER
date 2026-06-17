@@ -322,7 +322,15 @@
   <ng-container matColumnDef="status">
     <th mat-header-cell *matHeaderCellDef>Signal</th>
     <td mat-cell *matCellDef="let row">
-      @if (row.status === 'Confirmed') {
+      @if (row.status === 'EodConfirm') {
+        <div
+          class="status-badge eod-confirm"
+          [matTooltip]="'EOD CONFIRM — All 4 end-of-day rules met: RSI extreme · Price vs 9-EMA · Volume ≥1.5× · ATR price position'"
+        >
+          <mat-icon>target</mat-icon>
+          <span>EOD CONFIRM</span>
+        </div>
+      } @else if (row.status === 'Confirmed') {
         <div class="status-badge confirmed" [ngClass]="{ 'confirmed-bear': !isOversold() }">
           <mat-icon>verified</mat-icon>
           <span>CONFIRMED</span>

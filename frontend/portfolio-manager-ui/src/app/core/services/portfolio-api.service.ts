@@ -119,6 +119,47 @@ export class PortfolioApiService {
     return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
   }
 
+  // ── EOD Window Settings ──────────────────────────────────────────────────────
+
+  /** Get current EOD confirmation window settings from the backend. */
+  getEodSettings(): Observable<{
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+  }> {
+    return this.http.get<{
+      eodWindowStart: string;
+      eodWindowEnd: string;
+      eodWindowEnabled: boolean;
+    }>(`${this.base}/scanner/eod-settings`);
+  }
+
+  /** Update the EOD confirmation window settings on the backend (runtime — no restart needed). */
+  updateEodSettings(settings: {
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+  }): Observable<void> {
+    return this.http.put<void>(`${this.base}/scanner/eod-settings`, settings);
+  }
+
+  /** Check whether the EOD window is currently active on the server. */
+  getEodWindowStatus(): Observable<{
+    isActive: boolean;
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+    serverTimeUtc: string;
+  }> {
+    return this.http.get<{
+      isActive: boolean;
+      eodWindowStart: string;
+      eodWindowEnd: string;
+      eodWindowEnabled: boolean;
+      serverTimeUtc: string;
+    }>(`${this.base}/scanner/eod-window-active`);
+  }
+
   // ── Ad-Hoc Session Persistence ──────────────────────────────────────────────
 
   /** Save the current ad-hoc analysis session to the database. */

@@ -218,3 +218,109 @@
 .list-add-input {
   width: 100%;
 }
+
+/* ── EOD Confirmation Window ── */
+.eod-card {
+  margin-top: 20px;
+  border-color: rgba(255, 152, 0, 0.35) !important;
+}
+
+.eod-active-icon {
+  color: #ff9800 !important;
+  animation: pulse-orange 1.5s ease-in-out infinite;
+}
+
+.eod-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+}
+
+.eod-active-icon-sm {
+  font-size: 10px;
+  width: 10px;
+  height: 10px;
+  color: #ff9800;
+}
+
+.eod-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: rgba(255, 152, 0, 0.06);
+  border: 1px solid rgba(255, 152, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.eod-info-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #ff9800;
+}
+
+.eod-inline-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255, 152, 0, 0.18);
+  color: #ff9800;
+  font-weight: 700;
+  font-size: 0.74rem;
+}
+
+.eod-fields-grid {
+  margin-bottom: 16px;
+}
+
+.eod-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.eod-toggle-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+@keyframes pulse-orange {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* spinning utility */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

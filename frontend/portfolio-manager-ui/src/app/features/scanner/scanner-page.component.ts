@@ -40,6 +40,18 @@ export class ScannerPageComponent implements OnInit {
     () => new Set(this.watchlist.items().map((w) => w.item.symbol.toLowerCase())),
   );
 
+  /** Computed summary for EOD CONFIRM signals found in the current scan. */
+  protected readonly eodConfirmSummary = computed(() => {
+    const os = this.scanner.eodConfirmOversold().length;
+    const ob = this.scanner.eodConfirmOverbought().length;
+    const total = os + ob;
+    if (total === 0) return null;
+    const parts: string[] = [];
+    if (os > 0) parts.push(`${os} Oversold`);
+    if (ob > 0) parts.push(`${ob} Overbought`);
+    return `${total} EOD Confirm signal${total > 1 ? 's' : ''}: ${parts.join(' · ')}`;
+  });
+
   ngOnInit(): void {
     // Refresh when navigating back to this page if data is stale (> 5 min)
     const scanned = this.scanner.scannedAt();

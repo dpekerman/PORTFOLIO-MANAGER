@@ -15,6 +15,11 @@ export class ScannerStateService {
   private readonly _error = signal<string | null>(null);
   private readonly _logicMode = signal<LogicMode>('Enhanced');
 
+  /** True when the EOD window is currently active on the server. */
+  readonly eodWindowActive = signal(false);
+  /** Summary of the last EOD window run result (e.g. "3 EOD Confirm signals"). */
+  readonly lastEodRunSummary = signal<string | null>(null);
+
   readonly response = this._response.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
@@ -32,10 +37,17 @@ export class ScannerStateService {
   readonly confirmedOverbought = computed(() =>
     this.overbought().filter((r) => r.status === 'Confirmed'),
   );
+  readonly eodConfirmOversold = computed(() =>
+    this.oversold().filter((r) => r.status === 'EodConfirm'),
+  );
+  readonly eodConfirmOverbought = computed(() =>
+    this.overbought().filter((r) => r.status === 'EodConfirm'),
+  );
+  readonly totalEodConfirm = computed(
+    () => this.eodConfirmOversold().length + this.eodConfirmOverbought().length,
+  );
 
   // ── Ad-hoc analyzer in-memory state (survives route navigation) ────────────
-  // These signals live in the root-scoped service so the component can be
-  // destroyed and recreated without losing the user's analysis session.
   readonly adhocSymbols = signal<string[]>([]);
   readonly adhocResults = signal<RsiScanResult[]>([]);
   readonly adhocAnalyzed = signal(false);
@@ -73,7 +85,46 @@ export class ScannerStateService {
           );
         }),
       )
-      .subscribe({ next: (r) => this._response.set(r) });
+      .subscribe({
+        next: (r) => {
+          this._response.set(r);
+          this.updateEodSummary();
+        },
+      });
+
+    // Poll EOD window status every 30 seconds
+    interval(30_000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.checkEodWindowStatus());
+
+    // Initial check
+    this.checkEodWindowStatus();
+  }
+
+  private checkEodWindowStatus(): void {
+    this.api.getEodWindowStatus().subscribe({
+      next: (status) => {
+        const wasActive = this.eodWindowActive();
+        this.eodWindowActive.set(status.isActive);
+        // When window closes, update the EOD summary
+        if (wasActive && !status.isActive) {
+          this.updateEodSummary();
+        }
+      },
+      error: () => {}, // Silently fail — non-critical
+    });
+  }
+
+  private updateEodSummary(): void {
+    const count = this.totalEodConfirm();
+    if (count > 0) {
+      const os = this.eodConfirmOversold().length;
+      const ob = this.eodConfirmOverbought().length;
+      const parts: string[] = [];
+      if (os > 0) parts.push(`${os} oversold`);
+      if (ob > 0) parts.push(`${ob} overbought`);
+      this.lastEodRunSummary.set(`${count} EOD Confirm signal(s): ${parts.join(', ')}`);
+    }
   }
 
   toggleLogicMode(): void {
@@ -92,6 +143,7 @@ export class ScannerStateService {
         next: (r) => {
           this._response.set(r);
           this._loading.set(false);
+          this.updateEodSummary();
         },
         error: () => {
           this._error.set('Scanner unavailable');
