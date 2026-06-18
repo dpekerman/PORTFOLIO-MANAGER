@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -63,12 +65,29 @@ public sealed class RsiAlertBackgroundService(
         using var scope = scopeFactory.CreateScope();
         var scanner = scope.ServiceProvider.GetRequiredService<IRsiScannerService>();
         var notifier = scope.ServiceProvider.GetRequiredService<EmailNotificationService>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Mirror what ScannerController does: include all user-defined symbols from the
+        // portfolio and watchlist so that non-TSX stocks (e.g. BABA, US-listed holdings)
+        // are scanned by the background service exactly as they are on the frontend.
+        var portfolioSymbols = await db.PortfolioItems
+            .Where(p => !p.IsManual)
+            .Select(p => p.Symbol)
+            .ToListAsync(ct);
+        var watchlistSymbols = await db.WatchlistItems
+            .Select(w => w.Symbol)
+            .ToListAsync(ct);
+        var extraSymbols = portfolioSymbols
+            .Concat(watchlistSymbols)
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToList();
 
         logger.LogDebug("[RsiAlertBg] Running RSI scan (OS<{OS} OB>{OB})...",
             Settings.OversoldThreshold, Settings.OverboughtThreshold);
 
         var result = await scanner.ScanAsync(
-            null,                 // extraSymbols: background service scans default TSX universe only
+            extraSymbols,         // include portfolio + watchlist symbols (mirrors ScannerController)
             Settings.OversoldThreshold,
             Settings.OverboughtThreshold,
             "Enhanced",   // must match the UI logic mode so email status == displayed status

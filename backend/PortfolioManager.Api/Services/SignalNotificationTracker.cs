@@ -39,8 +39,11 @@ public class SignalNotificationTracker
             foreach (var key in confirmedKeys)
                 _notifiedKeys.Add(key);
 
-            // Remove keys that are no longer confirmed (so they can trigger again if they return)
-            _notifiedKeys.RemoveWhere(k => !confirmedKeys.Contains(k));
+            // Remove keys that are no longer confirmed (so they can trigger again if they return).
+            // IMPORTANT: do NOT remove EOD-prefixed keys here — those are managed separately by
+            // GetNewlyEodConfirmedAndSync and must survive across regular scan cycles so that
+            // the EOD email doesn't re-fire every scan during the EOD window.
+            _notifiedKeys.RemoveWhere(k => !k.StartsWith("EOD|") && !confirmedKeys.Contains(k));
 
             return newlyConfirmed;
         }
