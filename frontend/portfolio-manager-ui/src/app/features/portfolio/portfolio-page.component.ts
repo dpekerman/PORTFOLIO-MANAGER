@@ -25,6 +25,7 @@ import {
   RsiScanResult,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
@@ -105,6 +106,7 @@ export class PortfolioPageComponent {
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
+  protected readonly demoMode = inject(DemoModeService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
 

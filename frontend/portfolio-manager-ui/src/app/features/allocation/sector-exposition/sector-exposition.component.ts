@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RsiScanResult } from '../../../core/models/portfolio.models';
+import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
@@ -63,6 +64,7 @@ export class SectorExpositionComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly demoMode = inject(DemoModeService);
 
   protected readonly refreshing = signal(false);
   protected readonly expandedSectors = signal<Set<string>>(new Set());

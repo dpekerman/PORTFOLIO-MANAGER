@@ -4,6 +4,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CashStateService } from '../../../core/services/cash-state.service';
+import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
@@ -18,6 +19,7 @@ export class PortfolioSummaryBarComponent {
   protected readonly stockState = inject(PortfolioStateService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
+  protected readonly demoMode = inject(DemoModeService);
 
   /** Total portfolio value: stocks + cash + option market value */
   protected readonly totalValue = computed(

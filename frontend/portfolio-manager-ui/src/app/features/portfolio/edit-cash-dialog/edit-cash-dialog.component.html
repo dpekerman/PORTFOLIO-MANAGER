@@ -15,7 +15,7 @@
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Amount</mat-label>
-      <span matPrefix>$&nbsp;</span>
+      <span matTextPrefix>$&nbsp;</span>
       <input matInput type="number" formControlName="amount" step="0.01" min="0.01" />
       @if (form.controls.amount.hasError('required')) {
         <mat-error>Amount is required</mat-error>

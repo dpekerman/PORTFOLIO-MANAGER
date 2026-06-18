@@ -31,7 +31,9 @@
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Expiration Date</mat-label>
-      <input matInput type="date" formControlName="expirationDate" placeholder="e.g. 2026-07-17" />
+      <input matInput [matDatepicker]="expiryPicker" formControlName="expirationDate" />
+      <mat-datepicker-toggle matSuffix [for]="expiryPicker" />
+      <mat-datepicker #expiryPicker />
       @if (form.controls.expirationDate.hasError('required')) {
         <mat-error>Expiration date is required</mat-error>
       }
@@ -40,7 +42,7 @@
     <div class="form-row">
       <mat-form-field appearance="outline" class="field-half">
         <mat-label>Strike Price</mat-label>
-        <span matPrefix>$&nbsp;</span>
+        <span matTextPrefix>$&nbsp;</span>
         <input
           matInput
           type="number"
@@ -56,7 +58,7 @@
 
       <mat-form-field appearance="outline" class="field-half">
         <mat-label>Premium (per share)</mat-label>
-        <span matPrefix>$&nbsp;</span>
+        <span matTextPrefix>$&nbsp;</span>
         <input
           matInput
           type="number"
@@ -92,7 +94,7 @@
 
       <mat-form-field appearance="outline" class="field-half">
         <mat-label>Current Market Price</mat-label>
-        <span matPrefix>$&nbsp;</span>
+        <span matTextPrefix>$&nbsp;</span>
         <input
           matInput
           type="number"

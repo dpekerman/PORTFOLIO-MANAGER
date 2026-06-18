@@ -2,6 +2,8 @@ import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,6 +30,8 @@ export interface EditOptionDialogData {
     MatIconModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
     ReactiveFormsModule,
     CurrencyPipe,
   ],
@@ -40,9 +44,15 @@ export class EditOptionDialogComponent {
 
   protected readonly saving = signal(false);
 
-  /** Format date string to yyyy-MM-dd for the date input */
-  private toDateInputValue(dateStr: string): string {
-    return dateStr.split('T')[0];
+  /** Parse date string to Date object for the datepicker */
+  private toDate(dateStr: string): Date {
+    return new Date(dateStr.split('T')[0] + 'T12:00:00');
+  }
+
+  /** Format Date object back to yyyy-MM-dd string */
+  private formatDate(d: Date | string): string {
+    if (typeof d === 'string') return d.split('T')[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   readonly form = this.fb.group({
@@ -51,7 +61,10 @@ export class EditOptionDialogComponent {
       [Validators.required, Validators.maxLength(20)],
     ],
     positionType: [this.data.item.positionType, [Validators.required]],
-    expirationDate: [this.toDateInputValue(this.data.item.expirationDate), [Validators.required]],
+    expirationDate: [
+      this.toDate(this.data.item.expirationDate) as Date | null,
+      [Validators.required],
+    ],
     strike: [this.data.item.strike as number | null, [Validators.required, Validators.min(0.01)]],
     premium: [
       this.data.item.premium as number | null,
@@ -71,10 +84,12 @@ export class EditOptionDialogComponent {
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
+      const d = this.form.value.expirationDate!;
+      const expirationDate = this.formatDate(d instanceof Date ? d : new Date(d as string));
       await this.optionState.updateItem(this.data.item.id, {
         underlyingTicker: this.form.value.underlyingTicker!.toUpperCase(),
         positionType: this.form.value.positionType!,
-        expirationDate: this.form.value.expirationDate!,
+        expirationDate,
         strike: this.form.value.strike!,
         premium: this.form.value.premium!,
         numberOfContracts: this.form.value.numberOfContracts!,

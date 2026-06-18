@@ -100,13 +100,13 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Market Value</span>
-                  <span class="stat-value">{{
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
                     portfolio.totalValue() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Total Cost</span>
-                  <span class="stat-value">{{
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
                     portfolio.totalCost() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
@@ -116,6 +116,7 @@
                     class="stat-value"
                     [class.pg-pos]="portfolio.totalGainLoss() >= 0"
                     [class.pg-neg]="portfolio.totalGainLoss() < 0"
+                    [class.demo-redact]="demoMode.isDemoMode()"
                   >
                     {{ portfolio.totalGainLoss() >= 0 ? '+' : ''
                     }}{{ portfolio.totalGainLoss() | currency: 'USD' : 'symbol-narrow' : '1.0-0' }}
@@ -287,7 +288,12 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       AVG COST
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
                       {{ s.item.averageCostBasis | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                     </td>
                   </ng-container>
@@ -295,7 +301,12 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       LAST PRICE
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
                       @if (!s.item.isManual && s.quote) {
                         {{ s.quote.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                       } @else {
@@ -307,7 +318,12 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       MKT VALUE
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num pg-bold">
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num pg-bold"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
                       @let mv =
                         s.item.isManual
                           ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
@@ -326,9 +342,12 @@
                           ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
                           : price2 * s.item.shares;
                       @let gl = mv2 - s.item.averageCostBasis * s.item.shares;
-                      <span [class.pg-pos]="gl >= 0" [class.pg-neg]="gl < 0">{{
-                        gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
-                      }}</span>
+                      <span
+                        [class.pg-pos]="gl >= 0"
+                        [class.pg-neg]="gl < 0"
+                        [class.demo-redact]="demoMode.isDemoMode()"
+                        >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
+                      >
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="gainLossPct">
@@ -638,7 +657,12 @@
                   </ng-container>
                   <ng-container matColumnDef="amount">
                     <th mat-header-cell *matHeaderCellDef class="pg-num-header">AMOUNT</th>
-                    <td mat-cell *matCellDef="let c" class="pg-num pg-bold pg-pos">
+                    <td
+                      mat-cell
+                      *matCellDef="let c"
+                      class="pg-num pg-bold pg-pos"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
                       {{ c.amount | currency }}
                     </td>
                   </ng-container>
@@ -692,7 +716,9 @@
                       <mat-icon>payments</mat-icon>
                       <span class="cash-card-label">{{ c.description }}</span>
                     </div>
-                    <div class="cash-card-amount">{{ c.amount | currency }}</div>
+                    <div class="cash-card-amount" [class.demo-redact]="demoMode.isDemoMode()">
+                      {{ c.amount | currency }}
+                    </div>
                     <div class="cash-card-date">Added {{ c.addedAt | date: 'MMM d, yyyy' }}</div>
                     <div class="cash-card-actions">
                       <button mat-icon-button matTooltip="Edit" (click)="openEditCashDialog(c)">
@@ -803,13 +829,23 @@
                 </ng-container>
                 <ng-container matColumnDef="opt_strike">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">STRIKE</th>
-                  <td mat-cell *matCellDef="let a" class="pg-num">
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
                     {{ a.item.strike | currency }}
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_premium">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">PREMIUM</th>
-                  <td mat-cell *matCellDef="let a" class="pg-num">
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
                     {{ a.item.premium | currency }}
                   </td>
                 </ng-container>
@@ -850,26 +886,44 @@
                 </ng-container>
                 <ng-container matColumnDef="opt_cost">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">COST</th>
-                  <td mat-cell *matCellDef="let a" class="pg-num">{{ a.cost | currency }}</td>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ a.cost | currency }}
+                  </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_mv">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">MKT VALUE</th>
-                  <td mat-cell *matCellDef="let a" class="pg-num pg-bold">
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num pg-bold"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
                     {{ a.marketValue | currency }}
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_gl">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN/LOSS</th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
-                    <span [class.pg-pos]="a.gainLoss >= 0" [class.pg-neg]="a.gainLoss < 0">{{
-                      a.gainLoss | currency
-                    }}</span>
+                    <span
+                      [class.pg-pos]="a.gainLoss >= 0"
+                      [class.pg-neg]="a.gainLoss < 0"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                      >{{ a.gainLoss | currency }}</span
+                    >
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_glp">
                   <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN %</th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
-                    <span [class.pg-pos]="a.gainLossPct >= 0" [class.pg-neg]="a.gainLossPct < 0"
+                    <span
+                      [class.pg-pos]="a.gainLossPct >= 0"
+                      [class.pg-neg]="a.gainLossPct < 0"
+                      [class.demo-redact]="demoMode.isDemoMode()"
                       >{{ a.gainLossPct >= 0 ? '+' : ''
                       }}{{ a.gainLossPct | number: '1.1-1' }}%</span
                     >

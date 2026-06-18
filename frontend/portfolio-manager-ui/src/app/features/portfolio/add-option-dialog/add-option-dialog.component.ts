@@ -2,6 +2,8 @@ import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -23,6 +25,8 @@ import { OptionStateService } from '../../../core/services/option-state.service'
     MatIconModule,
     MatProgressSpinnerModule,
     MatSelectModule,
+    MatDatepickerModule,
+    MatNativeDateModule,
     ReactiveFormsModule,
     CurrencyPipe,
   ],
@@ -37,7 +41,7 @@ export class AddOptionDialogComponent {
   readonly form = this.fb.group({
     underlyingTicker: ['', [Validators.required, Validators.maxLength(20)]],
     positionType: ['PUT', [Validators.required]],
-    expirationDate: ['', [Validators.required]],
+    expirationDate: [new Date() as Date | null, [Validators.required]],
     strike: [null as number | null, [Validators.required, Validators.min(0.01)]],
     premium: [null as number | null, [Validators.required, Validators.min(0.001)]],
     numberOfContracts: [null as number | null, [Validators.required, Validators.min(1)]],
@@ -48,10 +52,15 @@ export class AddOptionDialogComponent {
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
+      const d = this.form.value.expirationDate!;
+      const expirationDate =
+        d instanceof Date
+          ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+          : (d as string);
       await this.optionState.addItem({
         underlyingTicker: this.form.value.underlyingTicker!.toUpperCase(),
         positionType: this.form.value.positionType!,
-        expirationDate: this.form.value.expirationDate!,
+        expirationDate,
         strike: this.form.value.strike!,
         premium: this.form.value.premium!,
         numberOfContracts: this.form.value.numberOfContracts!,
