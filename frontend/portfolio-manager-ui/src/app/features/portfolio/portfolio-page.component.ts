@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { CurrencyPipe, DatePipe, DecimalPipe, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,14 +18,31 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PortfolioSummary, RsiScanResult } from '../../core/models/portfolio.models';
+import {
+  CashItem,
+  OptionAnalysis,
+  PortfolioSummary,
+  RsiScanResult,
+} from '../../core/models/portfolio.models';
+import { CashStateService } from '../../core/services/cash-state.service';
+import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
+import { AddCashDialogComponent } from './add-cash-dialog/add-cash-dialog.component';
 import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.component';
+import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
 import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
+import {
+  EditCashDialogComponent,
+  EditCashDialogData,
+} from './edit-cash-dialog/edit-cash-dialog.component';
+import {
+  EditOptionDialogComponent,
+  EditOptionDialogData,
+} from './edit-option-dialog/edit-option-dialog.component';
 import {
   EditPositionDialogComponent,
   EditPositionDialogResult,
@@ -67,6 +84,7 @@ type GridSortCol =
     NgClass,
     FormsModule,
     CurrencyPipe,
+    DatePipe,
     DecimalPipe,
     MatButtonModule,
     MatButtonToggleModule,
@@ -84,12 +102,19 @@ type GridSortCol =
 })
 export class PortfolioPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
+  protected readonly cashState = inject(CashStateService);
+  protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
 
   /** Ghost cards displayed while portfolio loads for the first time */
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
+
+  // ── Section collapse state ──────────────────────────────────────────────────
+  protected readonly stocksExpanded = signal(true);
+  protected readonly cashExpanded = signal(true);
+  protected readonly optionsExpanded = signal(true);
 
   protected readonly sortField = signal<SortField>('marketValue');
   protected readonly sortDir = signal<SortDir>('desc');
@@ -124,6 +149,24 @@ export class PortfolioPageComponent {
     'momentumShift',
     'momentumAction',
     'actions',
+  ];
+
+  protected readonly optionDisplayedColumns: string[] = [
+    'opt_ticker',
+    'opt_type',
+    'opt_expiry',
+    'opt_strike',
+    'opt_premium',
+    'opt_contracts',
+    'opt_stockPrice',
+    'opt_dte',
+    'opt_cost',
+    'opt_mv',
+    'opt_gl',
+    'opt_glp',
+    'opt_state',
+    'opt_action',
+    'opt_actions',
   ];
 
   /**
@@ -551,6 +594,95 @@ export class PortfolioPageComponent {
 
   openAddManualDialog(): void {
     this.dialog.open(AddManualDialogComponent, { width: '480px', maxWidth: '95vw' });
+  }
+
+  openAddCashDialog(): void {
+    this.dialog.open(AddCashDialogComponent, { width: '420px', maxWidth: '95vw' });
+  }
+
+  openAddOptionDialog(): void {
+    this.dialog.open(AddOptionDialogComponent, { width: '540px', maxWidth: '95vw' });
+  }
+
+  openEditCashDialog(item: CashItem): void {
+    this.dialog.open(EditCashDialogComponent, {
+      data: { item } satisfies EditCashDialogData,
+      width: '420px',
+      maxWidth: '95vw',
+    });
+  }
+
+  openEditOptionDialog(analysis: OptionAnalysis): void {
+    this.dialog.open(EditOptionDialogComponent, {
+      data: { item: analysis.item } satisfies EditOptionDialogData,
+      width: '540px',
+      maxWidth: '95vw',
+    });
+  }
+
+  confirmDeleteCash(item: CashItem): void {
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        data: {
+          title: 'Remove Cash Position',
+          message: `Remove "${item.description}" ($${item.amount.toFixed(2)}) from your portfolio?`,
+          confirmLabel: 'Remove',
+          danger: true,
+        },
+        width: '400px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.cashState.deleteItem(item.id);
+      });
+  }
+
+  confirmDeleteOption(analysis: OptionAnalysis): void {
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        data: {
+          title: 'Remove Option Position',
+          message: `Remove ${analysis.item.underlyingTicker} ${analysis.item.positionType} $${analysis.item.strike} exp ${analysis.item.expirationDate.split('T')[0]}?`,
+          confirmLabel: 'Remove',
+          danger: true,
+        },
+        width: '400px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.optionState.deleteItem(analysis.item.id);
+      });
+  }
+
+  // ── Option state helpers ──────────────────────────────────────────────────
+  optionStateClass(state: string): string {
+    switch (state) {
+      case 'FREE_TRADE_MILESTONE':
+        return 'os-free-trade';
+      case 'INTRINSIC_CRACKED':
+        return 'os-cut';
+      case 'TEMPORARILY_BROKEN':
+        return 'os-cut';
+      case 'TARGET_ACHIEVED':
+        return 'os-target';
+      case 'VELOCITY_INVERSION':
+        return 'os-momentum';
+      case 'TREND_REVERSED':
+        return 'os-cut';
+      case 'VOLATILITY_EXPANSION':
+        return 'os-target';
+      case 'MONITOR':
+        return 'os-monitor';
+      default:
+        return 'os-monitor';
+    }
+  }
+
+  actionClass(action: string): string {
+    if (action.startsWith('🟥')) return 'oa-exit';
+    if (action.startsWith('🟩')) return 'oa-profit';
+    if (action.startsWith('🟨')) return 'oa-caution';
+    return 'oa-monitor';
   }
 
   openImportDialog(): void {

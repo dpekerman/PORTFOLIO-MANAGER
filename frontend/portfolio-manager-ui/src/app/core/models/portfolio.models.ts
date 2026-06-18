@@ -255,3 +255,100 @@ export interface ValueScreenerRequest {
   includeWatchlist: boolean;
   adHocSymbols: string[];
 }
+
+// ── Cash ─────────────────────────────────────────────────────────────────────
+export interface CashItem {
+  id: number;
+  description: string;
+  amount: number;
+  addedAt: string;
+}
+
+export interface AddCashItemRequest {
+  description: string;
+  amount: number;
+}
+
+export interface UpdateCashItemRequest {
+  description: string;
+  amount: number;
+}
+
+// ── Options ───────────────────────────────────────────────────────────────────
+export interface OptionItem {
+  id: number;
+  underlyingTicker: string;
+  positionType: 'CALL' | 'PUT';
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+  addedAt: string;
+}
+
+export interface AddOptionItemRequest {
+  underlyingTicker: string;
+  positionType: string;
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+}
+
+export interface UpdateOptionItemRequest {
+  underlyingTicker: string;
+  positionType: string;
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+}
+
+export interface OptionTechnicalData {
+  symbol: string;
+  currentPrice: number;
+  previousClose: number;
+  yesterdayHigh: number;
+  yesterdayLow: number;
+  rsi14: number;
+  rsiSignal9: number;
+  rsiSignalAvailable: boolean;
+  sma20: number;
+  sma50: number;
+  ema21: number;
+  atr14: number;
+  bollingerUpper: number;
+  bollingerLower: number;
+}
+
+export type OptionState =
+  | 'FREE_TRADE_MILESTONE'
+  | 'INTRINSIC_CRACKED'
+  | 'TEMPORARILY_BROKEN'
+  | 'TARGET_ACHIEVED'
+  | 'VELOCITY_INVERSION'
+  | 'TREND_REVERSED'
+  | 'VOLATILITY_EXPANSION'
+  | 'MONITOR';
+
+export interface OptionAnalysis {
+  item: OptionItem;
+  technical: OptionTechnicalData | null;
+  optionState: OptionState;
+  stateDescription: string;
+  action: string;
+  actionDescription: string;
+  /** Current stock price for the underlying ticker */
+  stockPrice: number | null;
+  /** Days to expiration */
+  dte: number;
+  /** Premium × contracts × 100 */
+  cost: number;
+  /** MarketPrice × contracts × 100 */
+  marketValue: number;
+  gainLoss: number;
+  gainLossPct: number;
+}

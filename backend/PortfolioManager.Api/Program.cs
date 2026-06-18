@@ -42,6 +42,13 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
+builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
+{
+    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddMemoryCache();          // used by ScannerController to cache scan results
 builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
 {

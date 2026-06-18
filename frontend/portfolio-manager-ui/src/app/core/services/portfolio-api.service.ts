@@ -2,10 +2,15 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  AddCashItemRequest,
   AddManualPositionRequest,
+  AddOptionItemRequest,
   AddPortfolioItemRequest,
   AdhocSessionPayload,
   AdhocSessionResponse,
+  CashItem,
+  OptionItem,
+  OptionTechnicalData,
   PortfolioItem,
   PortfolioSummary,
   RsiScanResult,
@@ -13,6 +18,8 @@ import {
   SectorIndustryLists,
   StockQuote,
   SymbolSearchResult,
+  UpdateCashItemRequest,
+  UpdateOptionItemRequest,
   UpdatePortfolioItemRequest,
   ValueScreenerRequest,
   ValueScreenerResult,
@@ -190,5 +197,43 @@ export class PortfolioApiService {
 
   saveSectorIndustryLists(lists: SectorIndustryLists): Observable<SectorIndustryLists> {
     return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
+  }
+
+  // ── Cash CRUD ───────────────────────────────────────────────────────────────
+  getCashItems(): Observable<CashItem[]> {
+    return this.http.get<CashItem[]>(`${this.base}/cash`);
+  }
+
+  addCashItem(request: AddCashItemRequest): Observable<CashItem> {
+    return this.http.post<CashItem>(`${this.base}/cash`, request);
+  }
+
+  updateCashItem(id: number, request: UpdateCashItemRequest): Observable<CashItem> {
+    return this.http.put<CashItem>(`${this.base}/cash/${id}`, request);
+  }
+
+  deleteCashItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/cash/${id}`);
+  }
+
+  // ── Options CRUD ────────────────────────────────────────────────────────────
+  getOptionItems(): Observable<OptionItem[]> {
+    return this.http.get<OptionItem[]>(`${this.base}/options`);
+  }
+
+  addOptionItem(request: AddOptionItemRequest): Observable<OptionItem> {
+    return this.http.post<OptionItem>(`${this.base}/options`, request);
+  }
+
+  updateOptionItem(id: number, request: UpdateOptionItemRequest): Observable<OptionItem> {
+    return this.http.put<OptionItem>(`${this.base}/options/${id}`, request);
+  }
+
+  deleteOptionItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/options/${id}`);
+  }
+
+  getOptionTechnicalData(symbol: string): Observable<OptionTechnicalData> {
+    return this.http.get<OptionTechnicalData>(`${this.base}/options/technical/${symbol}`);
   }
 }

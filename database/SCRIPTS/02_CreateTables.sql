@@ -17,22 +17,24 @@ GO
 --   AddSectorOverride      : SectorIsOverridden
 -- ────────────────────────────────────────────────────────────────────────────
 IF NOT EXISTS (
-    SELECT 1 FROM sys.objects
-    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND type = N'U'
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND type = N'U'
 )
 BEGIN
-    CREATE TABLE [dbo].[PortfolioItems] (
-        [Id]                INT IDENTITY(1,1)    NOT NULL,
-        [Symbol]            NVARCHAR(20)         NOT NULL,
-        [CompanyName]       NVARCHAR(200)        NOT NULL,
-        [Shares]            DECIMAL(18,6)        NOT NULL,
-        [AverageCostBasis]  DECIMAL(18,4)        NOT NULL,
-        [AddedAt]           DATETIME2            NOT NULL DEFAULT GETUTCDATE(),
-        [Sector]            NVARCHAR(100)        NOT NULL DEFAULT '',
-        [Industry]          NVARCHAR(100)        NOT NULL DEFAULT '',
-        [IsManual]          BIT                  NOT NULL DEFAULT 0,
-        [ManualMarketValue] DECIMAL(18,4)            NULL,
-        [SectorIsOverridden] BIT                 NOT NULL DEFAULT 0,
+    CREATE TABLE [dbo].[PortfolioItems]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Symbol] NVARCHAR(20) NOT NULL,
+        [CompanyName] NVARCHAR(200) NOT NULL,
+        [Shares] DECIMAL(18,6) NOT NULL,
+        [AverageCostBasis] DECIMAL(18,4) NOT NULL,
+        [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [Sector] NVARCHAR(100) NOT NULL DEFAULT '',
+        [Industry] NVARCHAR(100) NOT NULL DEFAULT '',
+        [IsManual] BIT NOT NULL DEFAULT 0,
+        [ManualMarketValue] DECIMAL(18,4) NULL,
+        [SectorIsOverridden] BIT NOT NULL DEFAULT 0,
 
         CONSTRAINT [PK_PortfolioItems] PRIMARY KEY CLUSTERED ([Id] ASC)
     );
@@ -43,33 +45,43 @@ BEGIN
     PRINT 'Table PortfolioItems already exists – checking for missing columns...';
 
     -- AddWatchlistAndSector columns
-    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'Sector')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'Sector')
     BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [Sector] NVARCHAR(100) NOT NULL DEFAULT '';
         PRINT '  + Column Sector added.';
     END
 
-    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'Industry')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'Industry')
     BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [Industry] NVARCHAR(100) NOT NULL DEFAULT '';
         PRINT '  + Column Industry added.';
     END
 
     -- AddManualPosition columns
-    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'IsManual')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'IsManual')
     BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [IsManual] BIT NOT NULL DEFAULT 0;
         PRINT '  + Column IsManual added.';
     END
 
-    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'ManualMarketValue')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'ManualMarketValue')
     BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [ManualMarketValue] DECIMAL(18,4) NULL;
         PRINT '  + Column ManualMarketValue added.';
     END
 
     -- AddSectorOverride column
-    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'SectorIsOverridden')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'SectorIsOverridden')
     BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [SectorIsOverridden] BIT NOT NULL DEFAULT 0;
         PRINT '  + Column SectorIsOverridden added.';
@@ -79,9 +91,10 @@ GO
 
 -- Unique index on Symbol
 IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = N'IX_PortfolioItems_Symbol'
-      AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
+    SELECT 1
+FROM sys.indexes
+WHERE name = N'IX_PortfolioItems_Symbol'
+    AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
 )
 BEGIN
     CREATE UNIQUE NONCLUSTERED INDEX [IX_PortfolioItems_Symbol]
@@ -96,15 +109,17 @@ GO
 -- Added by the AddWatchlistAndSector migration.
 -- ────────────────────────────────────────────────────────────────────────────
 IF NOT EXISTS (
-    SELECT 1 FROM sys.objects
-    WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND type = N'U'
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND type = N'U'
 )
 BEGIN
-    CREATE TABLE [dbo].[WatchlistItems] (
-        [Id]      INT IDENTITY(1,1) NOT NULL,
-        [Symbol]  NVARCHAR(20)      NOT NULL,
-        [Notes]   NVARCHAR(500)     NOT NULL DEFAULT '',
-        [AddedAt] DATETIME2         NOT NULL DEFAULT GETUTCDATE(),
+    CREATE TABLE [dbo].[WatchlistItems]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Symbol] NVARCHAR(20) NOT NULL,
+        [Notes] NVARCHAR(500) NOT NULL DEFAULT '',
+        [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
 
         CONSTRAINT [PK_WatchlistItems] PRIMARY KEY CLUSTERED ([Id] ASC)
     );
@@ -118,14 +133,75 @@ GO
 
 -- Unique index on WatchlistItems.Symbol
 IF NOT EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = N'IX_WatchlistItems_Symbol'
-      AND object_id = OBJECT_ID(N'[dbo].[WatchlistItems]')
+    SELECT 1
+FROM sys.indexes
+WHERE name = N'IX_WatchlistItems_Symbol'
+    AND object_id = OBJECT_ID(N'[dbo].[WatchlistItems]')
 )
 BEGIN
     CREATE UNIQUE NONCLUSTERED INDEX [IX_WatchlistItems_Symbol]
         ON [dbo].[WatchlistItems] ([Symbol] ASC);
     PRINT 'Index IX_WatchlistItems_Symbol created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: CashItems
+-- Cash positions in the portfolio.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[CashItems]') AND type = N'U'
+)
+BEGIN
+    CREATE TABLE [dbo].[CashItems]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Description] NVARCHAR(200) NOT NULL DEFAULT 'CASH',
+        [Amount] DECIMAL(18,4) NOT NULL,
+        [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+
+        CONSTRAINT [PK_CashItems] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table CashItems created.';
+END
+ELSE
+BEGIN
+    PRINT 'Table CashItems already exists – skipping.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: OptionItems
+-- Options positions in the portfolio.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND type = N'U'
+)
+BEGIN
+    CREATE TABLE [dbo].[OptionItems]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [UnderlyingTicker] NVARCHAR(20) NOT NULL,
+        [PositionType] NVARCHAR(10) NOT NULL,
+        -- CALL or PUT
+        [ExpirationDate] DATETIME2 NOT NULL,
+        [Strike] DECIMAL(18,4) NOT NULL,
+        [Premium] DECIMAL(18,4) NOT NULL,
+        [NumberOfContracts] INT NOT NULL,
+        [MarketPrice] DECIMAL(18,4) NOT NULL,
+        [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+
+        CONSTRAINT [PK_OptionItems] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table OptionItems created.';
+END
+ELSE
+BEGIN
+    PRINT 'Table OptionItems already exists – skipping.';
 END
 GO
 
@@ -136,15 +212,18 @@ GO
 -- because it contains personal data).
 -- ────────────────────────────────────────────────────────────────────────────
 IF NOT EXISTS (
-    SELECT 1 FROM sys.objects
-    WHERE object_id = OBJECT_ID(N'[dbo].[NotificationRecipients]') AND type = N'U'
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[NotificationRecipients]') AND type = N'U'
 )
 BEGIN
-    CREATE TABLE [dbo].[NotificationRecipients] (
-        [Id]        INT IDENTITY(1,1)  NOT NULL,
-        [Email]     NVARCHAR(254)      NOT NULL,   -- max RFC 5321 length
-        [IsActive]  BIT                NOT NULL DEFAULT 1,
-        [AddedAt]   DATETIME2          NOT NULL DEFAULT GETUTCDATE(),
+    CREATE TABLE [dbo].[NotificationRecipients]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Email] NVARCHAR(254) NOT NULL,
+        -- max RFC 5321 length
+        [IsActive] BIT NOT NULL DEFAULT 1,
+        [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
 
         CONSTRAINT [PK_NotificationRecipients] PRIMARY KEY CLUSTERED ([Id] ASC),
         CONSTRAINT [UQ_NotificationRecipients_Email] UNIQUE ([Email])
@@ -163,13 +242,15 @@ GO
 -- when setting up the database manually.
 -- ────────────────────────────────────────────────────────────────────────────
 IF NOT EXISTS (
-    SELECT 1 FROM sys.objects
-    WHERE object_id = OBJECT_ID(N'[dbo].[__EFMigrationsHistory]') AND type = N'U'
+    SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[__EFMigrationsHistory]') AND type = N'U'
 )
 BEGIN
-    CREATE TABLE [dbo].[__EFMigrationsHistory] (
-        [MigrationId]    NVARCHAR(150) NOT NULL,
-        [ProductVersion] NVARCHAR(32)  NOT NULL,
+    CREATE TABLE [dbo].[__EFMigrationsHistory]
+    (
+        [MigrationId] NVARCHAR(150) NOT NULL,
+        [ProductVersion] NVARCHAR(32) NOT NULL,
         CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
     );
     PRINT 'Table __EFMigrationsHistory created.';

@@ -1,27 +1,32 @@
 <div class="summary-bar">
   <div class="summary-tile">
     <span class="label">Portfolio Value</span>
-    <span class="value primary">{{ state.displayTotalValue() | currency }}</span>
+    <span class="value primary">{{ totalValue() | currency }}</span>
   </div>
   <div class="summary-tile">
     <span class="label">Total Cost</span>
-    <span class="value">{{ state.displayTotalCost() | currency }}</span>
+    <span class="value">{{ totalCost() | currency }}</span>
   </div>
   <div class="summary-tile">
     <span class="label">Total Gain / Loss</span>
     <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
       <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
-      {{ state.displayTotalGainLoss() | currency }}
+      {{ totalGainLoss() | currency }}
     </span>
   </div>
   <div class="summary-tile">
     <span class="label">Return</span>
     <span class="value" [ngClass]="{ positive: isPositive(), negative: !isPositive() }">
-      {{ state.displayTotalGainLossPct() | number: '1.2-2' }}%
+      {{ totalGainLossPct() | number: '1.2-2' }}%
     </span>
   </div>
-  <div class="summary-tile">
+  <div
+    class="summary-tile"
+    matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{
+      cashState.items().length
+    }} · Options: {{ optionState.items().length }}"
+  >
     <span class="label">Positions</span>
-    <span class="value">{{ state.summaries().length }}</span>
+    <span class="value">{{ totalPositions() }}</span>
   </div>
 </div>

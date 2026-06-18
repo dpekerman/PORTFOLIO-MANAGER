@@ -1,0 +1,97 @@
+<h2 mat-dialog-title>
+  <mat-icon>edit</mat-icon>
+  Edit Option Position
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" class="option-form">
+    <div class="form-row">
+      <mat-form-field appearance="outline" class="field-ticker">
+        <mat-label>Underlying Ticker</mat-label>
+        <input
+          matInput
+          formControlName="underlyingTicker"
+          autocomplete="off"
+          style="text-transform: uppercase"
+        />
+        @if (form.controls.underlyingTicker.hasError('required')) {
+          <mat-error>Ticker is required</mat-error>
+        }
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="field-type">
+        <mat-label>Position Type</mat-label>
+        <mat-select formControlName="positionType">
+          <mat-option value="PUT">PUT</mat-option>
+          <mat-option value="CALL">CALL</mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Expiration Date</mat-label>
+      <input matInput type="date" formControlName="expirationDate" />
+      @if (form.controls.expirationDate.hasError('required')) {
+        <mat-error>Expiration date is required</mat-error>
+      }
+    </mat-form-field>
+
+    <div class="form-row">
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Strike Price</mat-label>
+        <span matPrefix>$&nbsp;</span>
+        <input matInput type="number" formControlName="strike" step="0.01" min="0.01" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Premium (per share)</mat-label>
+        <span matPrefix>$&nbsp;</span>
+        <input matInput type="number" formControlName="premium" step="0.01" />
+      </mat-form-field>
+    </div>
+
+    <div class="form-row">
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Number of Contracts</mat-label>
+        <input matInput type="number" formControlName="numberOfContracts" step="1" min="1" />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Current Market Price</mat-label>
+        <span matPrefix>$&nbsp;</span>
+        <input matInput type="number" formControlName="marketPrice" step="0.01" min="0" />
+      </mat-form-field>
+    </div>
+
+    <div class="cost-preview">
+      @if (
+        form.value.premium &&
+        form.value.numberOfContracts &&
+        form.value.marketPrice !== null &&
+        form.value.marketPrice !== undefined
+      ) {
+        <div class="cost-line">
+          <span
+            >Cost: {{ form.value.premium! * form.value.numberOfContracts! * 100 | currency }}</span
+          >
+          <span>
+            Market Value:
+            {{ form.value.marketPrice! * form.value.numberOfContracts! * 100 | currency }}
+          </span>
+        </div>
+      }
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="saving()">Cancel</button>
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || saving()">
+    @if (saving()) {
+      <mat-spinner diameter="18" />
+    } @else {
+      <mat-icon>save</mat-icon>
+    }
+    Save Changes
+  </button>
+</mat-dialog-actions>
