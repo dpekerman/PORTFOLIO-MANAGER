@@ -1,7 +1,7 @@
 -- ============================================================
--- 01_CreateDatabase.sql
--- Creates the PortfolioManagerDb database if it does not exist
--- Run as: sa or a login with dbcreator role
+-- SCRIPTS/01_CreateDatabase.sql
+-- Creates the PortfolioManagerDb database if it doesn't exist.
+-- Safe to re-run.
 -- ============================================================
 
 USE master;
@@ -17,6 +17,6 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'Database PortfolioManagerDb already exists - skipping creation.';
+    PRINT 'Database PortfolioManagerDb already exists - skipping.';
 END
 GO

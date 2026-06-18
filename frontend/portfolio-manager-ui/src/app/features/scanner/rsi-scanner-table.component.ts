@@ -37,12 +37,14 @@ export class RsiScannerTableComponent {
     'tracking',
     'symbol',
     'rsi',
+    'rsiSignal',
     'price',
     'change',
     'analystUpside',
     'indicators',
-    'probability',
     'status',
+    'momentumShift',
+    'momentumAction',
     'trigger',
   ];
 
@@ -149,5 +151,190 @@ export class RsiScannerTableComponent {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
     return 'prob-low';
+  }
+
+  // ── Momentum Shift Engine ──────────────────────────────────────────────────
+  // Extreme RSI zones (rsi < 30 / rsi > 65) keep the existing rich signals.
+  // Neutral zone (30–65) checks new price-action rules first, then RSI-only fallback.
+  //
+  // New rules (in priority order within neutral zone):
+  //   Rule 1 — Uptrend:       Price > 9-EMA  AND  RSI 50–65
+  //   Rule 2 — Consolidation: Price ≈ 20-SMA (±2%)  AND  RSI 40–50  AND  Vol > 1.2×
+  //   Rule 3 — Breakdown:     Price < 9-EMA  AND  RSI < 40
+
+  protected momentumShift(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+    const price = row.currentPrice;
+    const ema9 = row.ema9Price ?? 0;
+    const sma20 = row.sma20Price ?? 0;
+    const vol = row.volumeRatio ?? 1;
+
+    // Extreme RSI zones — keep existing rich signal classification
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'Active SELL Trigger';
+      if (row.rsiSignalAvailable && rsi <= signal) return 'Bearish Shift';
+      return 'Warning';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'Active BUY Trigger';
+      if (row.rsiSignalAvailable && rsi >= signal) return 'Bullish Shift';
+      return 'Warning';
+    }
+
+    // Neutral zone: new price-action rules (priority over RSI-only fallback)
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'Uptrend';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Consolidation';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'Breakdown';
+
+    // RSI-only fallback
+    if (rsi >= 55) return 'Uptrend';
+    if (rsi >= 45) return 'Neutral';
+    return 'Downtrend';
+  }
+
+  protected momentumShiftTooltip(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+    const price = row.currentPrice;
+    const ema9 = row.ema9Price ?? 0;
+    const sma20 = row.sma20Price ?? 0;
+    const vol = row.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
+      if (row.rsiSignalAvailable && rsi <= signal)
+        return 'The buying frenzy is starting to run out of steam.';
+      return 'The stock is surging upward rapidly and is heavily overbought.';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'Buyers have officially taken control of the day.';
+      if (row.rsiSignalAvailable && rsi >= signal)
+        return 'The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Price above 9-EMA with healthy RSI — trend is intact, do nothing.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Price holding near 20-SMA with elevated volume — institutional dip-buy confirmed.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Price broke below 9-EMA with RSI fading — defensive risk triggered.';
+
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumShiftClass(row: RsiScanResult): string {
+    const shift = this.momentumShift(row);
+    switch (shift) {
+      case 'Active BUY Trigger':
+        return 'ms-confirmed-buy';
+      case 'Bullish Shift':
+        return 'ms-bullish';
+      case 'Active SELL Trigger':
+        return 'ms-confirmed-sell';
+      case 'Bearish Shift':
+        return 'ms-bearish';
+      case 'Warning':
+        return 'ms-warning';
+      case 'Uptrend':
+        return 'ms-uptrend';
+      case 'Consolidation':
+        return 'ms-consolidation';
+      case 'Breakdown':
+        return 'ms-breakdown';
+      case 'Downtrend':
+        return 'ms-downtrend';
+      default:
+        return 'ms-neutral';
+    }
+  }
+
+  protected momentumAction(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+    const price = row.currentPrice;
+    const ema9 = row.ema9Price ?? 0;
+    const sma20 = row.sma20Price ?? 0;
+    const vol = row.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'CONFIRMED SELL SIGNAL';
+      if (row.rsiSignalAvailable && rsi <= signal) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'CONFIRMED BUY SIGNAL';
+      if (row.rsiSignalAvailable && rsi >= signal) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'HOLD LONGS';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'BUY / ACCUMULATE';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'REDUCE';
+
+    if (rsi >= 55) return 'HOLD LONGS';
+    if (rsi >= 45) return 'STAND BY / HANDS OFF';
+    return 'STAND BY';
+  }
+
+  protected momentumActionTooltip(row: RsiScanResult): string {
+    const rsi = row.rsi;
+    const signal = row.rsiSignal ?? rsi;
+    const price = row.currentPrice;
+    const ema9 = row.ema9Price ?? 0;
+    const sma20 = row.sma20Price ?? 0;
+    const vol = row.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (row.status === 'Confirmed') return 'High-probability short or put entry.';
+      if (row.rsiSignalAvailable && rsi <= signal)
+        return 'Get ready to short or buy puts. The buying speed has broken.';
+      return 'The stock is running hot and squeezing shorts. Do not stand in front of the train.';
+    }
+    if (rsi < 30) {
+      if (row.status === 'Confirmed') return 'High-probability long entry.';
+      if (row.rsiSignalAvailable && rsi >= signal)
+        return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Do nothing — trend is healthy. Price above 9-EMA, let it run.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Institutional dip-buy confirmed. Staged accumulation zone — build position gradually.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Defensive risk triggered — reduce or hedge exposure until price reclaims 9-EMA.';
+
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45)
+      return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumActionClass(row: RsiScanResult): string {
+    const action = this.momentumAction(row);
+    switch (action) {
+      case 'CONFIRMED BUY SIGNAL':
+        return 'ma-confirmed-buy';
+      case 'CONFIRMED SELL SIGNAL':
+        return 'ma-confirmed-sell';
+      case 'EARLY WARNING':
+        return 'ma-early-warning';
+      case 'AVOID / WAIT':
+        return 'ma-avoid';
+      case 'HOLD LONGS':
+        return 'ma-hold';
+      case 'BUY / ACCUMULATE':
+        return 'ma-accumulate';
+      case 'REDUCE':
+        return 'ma-reduce';
+      default:
+        return 'ma-standby';
+    }
   }
 }

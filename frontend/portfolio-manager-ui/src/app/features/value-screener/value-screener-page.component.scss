@@ -80,13 +80,31 @@
   white-space: nowrap;
 }
 
-// The 3-option toggle group
+// The Portfolio + WatchList toggle group (left side)
 .source-options {
   display: flex;
   gap: 0;
   border: 2px solid var(--border-subtle);
   border-radius: 8px;
   overflow: hidden;
+}
+
+// Ad-Hoc: separate trigger group (right side, after a visual separator)
+.adhoc-trigger-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-left: 12px;
+  border-left: 2px solid var(--border-subtle);
+
+  .source-chip {
+    border-radius: 8px;
+    border: 2px solid var(--border-subtle);
+    &.source-active {
+      border-color: #1565c0;
+    }
+  }
 }
 .source-chip {
   display: inline-flex;
@@ -127,16 +145,10 @@
   }
 }
 
-// Ad-hoc section
-.adhoc-section {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 200px;
-  max-width: 340px;
-}
+// Ad-hoc field
 .adhoc-field {
-  width: 100%;
+  width: 260px;
+  min-width: 160px;
 }
 .adhoc-hint {
   font-size: 0.65rem;
@@ -159,6 +171,12 @@
 .btn-spinner {
   display: inline-block;
   vertical-align: middle;
+}
+.chip-spinner {
+  display: inline-block;
+  vertical-align: middle;
+  width: 14px;
+  height: 14px;
 }
 
 // Tier summary

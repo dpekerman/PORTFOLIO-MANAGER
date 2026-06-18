@@ -140,6 +140,95 @@
     </div>
   </form>
 
+  <!-- ── EOD Confirmation Window (separate form — saved to backend) ── -->
+  <form [formGroup]="eodForm" (ngSubmit)="saveEodSettings()" class="config-form">
+    <mat-card class="config-card eod-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar [class.eod-active-icon]="eodWindowActive()">schedule</mat-icon>
+        <mat-card-title>
+          EOD Confirmation Window
+          @if (eodWindowActive()) {
+            <span class="eod-active-badge">
+              <mat-icon class="eod-active-icon-sm">fiber_manual_record</mat-icon>
+              ACTIVE NOW
+            </span>
+          }
+        </mat-card-title>
+        <mat-card-subtitle>
+          Time window (Eastern Time) when EOD CONFIRM signals are evaluated and emailed. Default:
+          3:30 PM – 4:00 PM ET. Changes take effect immediately — no restart needed.
+        </mat-card-subtitle>
+      </mat-card-header>
+
+      <mat-card-content>
+        <div class="eod-info-banner">
+          <mat-icon class="eod-info-icon">info_outline</mat-icon>
+          <span>
+            During this window the scanner evaluates 4 EOD rules:
+            <strong>RSI &lt; 25 / &gt; 75</strong> · <strong>Price vs 9-EMA</strong> ·
+            <strong>Volume &gt; 1.5× avg</strong> · <strong>Price position vs ATR</strong>. Matching
+            stocks are flagged as <span class="eod-inline-badge">EOD CONFIRM</span> and a dedicated
+            high-priority email is sent.
+          </span>
+        </div>
+
+        <div class="fields-grid eod-fields-grid">
+          <mat-timepicker #startPicker interval="30m"></mat-timepicker>
+          <mat-form-field appearance="outline">
+            <mat-label>Window start time (ET)</mat-label>
+            <input matInput [matTimepicker]="startPicker" formControlName="eodWindowStart" />
+            <mat-timepicker-toggle matSuffix [for]="startPicker"></mat-timepicker-toggle>
+            <mat-hint>Eastern Time · 30-min steps · Default: 3:30 PM</mat-hint>
+          </mat-form-field>
+
+          <mat-timepicker #endPicker interval="30m"></mat-timepicker>
+          <mat-form-field appearance="outline">
+            <mat-label>Window end time (ET)</mat-label>
+            <input matInput [matTimepicker]="endPicker" formControlName="eodWindowEnd" />
+            <mat-timepicker-toggle matSuffix [for]="endPicker"></mat-timepicker-toggle>
+            <mat-hint>Eastern Time · 30-min steps · Default: 4:00 PM</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="eod-toggle-row">
+          <mat-slide-toggle formControlName="eodWindowEnabled" color="accent">
+            EOD window enabled
+          </mat-slide-toggle>
+          <span class="eod-toggle-hint">
+            @if (eodForm.value.eodWindowEnabled) {
+              EOD CONFIRM signals will be evaluated and emailed during the configured window.
+            } @else {
+              EOD CONFIRM rules are disabled — only standard Confirmed / Early Warning signals
+              apply.
+            }
+          </span>
+        </div>
+      </mat-card-content>
+
+      <mat-card-actions>
+        <button
+          mat-flat-button
+          type="submit"
+          color="accent"
+          [disabled]="eodForm.invalid || eodForm.pristine || savingEodSettings()"
+          matTooltip="Save EOD window and push to backend immediately"
+        >
+          @if (savingEodSettings()) {
+            <ng-container>
+              <mat-icon class="spinning">sync</mat-icon>
+              Saving…
+            </ng-container>
+          } @else {
+            <ng-container>
+              <mat-icon>schedule_send</mat-icon>
+              Save EOD Window
+            </ng-container>
+          }
+        </button>
+      </mat-card-actions>
+    </mat-card>
+  </form>
+
   <!-- ── Email Alert Recipients (outside the form — saved separately to backend) ── -->
   <mat-card class="config-card email-card">
     <mat-card-header>

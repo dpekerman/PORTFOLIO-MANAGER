@@ -93,7 +93,7 @@ export interface SymbolSearchResult {
 
 // ── RSI Scanner ────────────────────────────────────────────────────────────────
 export type ScanType = 'Oversold' | 'Overbought' | 'Neutral';
-export type SignalStatus = 'Confirmed' | 'EarlyWarning';
+export type SignalStatus = 'Confirmed' | 'EodConfirm' | 'EarlyWarning';
 export type ReversalProbability = 'Low' | 'Medium' | 'High';
 export type MacdCrossover = 'Bullish' | 'Bearish' | 'Neutral';
 export type VolumeSignal = 'Validated' | 'Low-Volume Trap' | 'Neutral';
@@ -139,6 +139,16 @@ export interface RsiScanResult {
   analystTargetUpside: number;
   week52High: number;
   week52Low: number;
+  // -- RSI Signal (9-EMA of RSI) ----------------------------------------------
+  rsiSignal: number | null;
+  rsiSignalAvailable: boolean;
+  // -- EOD Confirm data -------------------------------------------------------
+  /** 14-day Average True Range (Wilder's smoothing). 0 when insufficient data. */
+  dailyAtr: number;
+  /** 9-period EMA of closing price. */
+  ema9Price: number;
+  /** 20-period SMA of closing price. Used by Momentum Shift Consolidation rule. */
+  sma20Price: number;
 }
 
 export interface ScannerResponse {
@@ -147,6 +157,42 @@ export interface ScannerResponse {
   scannedAt: string;
   isDemo: boolean;
   market: string;
+}
+
+// ── Yesterday's EOD Signals (overnight persistence / Gap 3) ──────────────────
+export interface EodSignalRecord {
+  symbol: string;
+  companyName: string;
+  scanType: string;
+  rsi: number;
+  price: number;
+  triggerDetails: string;
+  scannedAt: string;
+}
+
+export interface YesterdayEodResponse {
+  hasData: boolean;
+  signalDate: string;
+  isMorningWindow: boolean;
+  signals: EodSignalRecord[];
+}
+
+// ── Ad-Hoc Session Persistence ────────────────────────────────────────────────
+export interface AdhocSessionPayload {
+  symbols: string[];
+  results?: RsiScanResult[] | null;
+  oversoldThreshold: number;
+  overboughtThreshold: number;
+  logicMode: string;
+}
+
+export interface AdhocSessionResponse {
+  symbols: string[];
+  results?: RsiScanResult[] | null;
+  oversoldThreshold: number;
+  overboughtThreshold: number;
+  logicMode: string;
+  updatedAt?: string | null;
 }
 
 export interface AddManualPositionRequest {
@@ -208,4 +254,101 @@ export interface ValueScreenerRequest {
   includePortfolio: boolean;
   includeWatchlist: boolean;
   adHocSymbols: string[];
+}
+
+// ── Cash ─────────────────────────────────────────────────────────────────────
+export interface CashItem {
+  id: number;
+  description: string;
+  amount: number;
+  addedAt: string;
+}
+
+export interface AddCashItemRequest {
+  description: string;
+  amount: number;
+}
+
+export interface UpdateCashItemRequest {
+  description: string;
+  amount: number;
+}
+
+// ── Options ───────────────────────────────────────────────────────────────────
+export interface OptionItem {
+  id: number;
+  underlyingTicker: string;
+  positionType: 'CALL' | 'PUT';
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+  addedAt: string;
+}
+
+export interface AddOptionItemRequest {
+  underlyingTicker: string;
+  positionType: string;
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+}
+
+export interface UpdateOptionItemRequest {
+  underlyingTicker: string;
+  positionType: string;
+  expirationDate: string;
+  strike: number;
+  premium: number;
+  numberOfContracts: number;
+  marketPrice: number;
+}
+
+export interface OptionTechnicalData {
+  symbol: string;
+  currentPrice: number;
+  previousClose: number;
+  yesterdayHigh: number;
+  yesterdayLow: number;
+  rsi14: number;
+  rsiSignal9: number;
+  rsiSignalAvailable: boolean;
+  sma20: number;
+  sma50: number;
+  ema21: number;
+  atr14: number;
+  bollingerUpper: number;
+  bollingerLower: number;
+}
+
+export type OptionState =
+  | 'FREE_TRADE_MILESTONE'
+  | 'INTRINSIC_CRACKED'
+  | 'TEMPORARILY_BROKEN'
+  | 'TARGET_ACHIEVED'
+  | 'VELOCITY_INVERSION'
+  | 'TREND_REVERSED'
+  | 'VOLATILITY_EXPANSION'
+  | 'MONITOR';
+
+export interface OptionAnalysis {
+  item: OptionItem;
+  technical: OptionTechnicalData | null;
+  optionState: OptionState;
+  stateDescription: string;
+  action: string;
+  actionDescription: string;
+  /** Current stock price for the underlying ticker */
+  stockPrice: number | null;
+  /** Days to expiration */
+  dte: number;
+  /** Premium × contracts × 100 */
+  cost: number;
+  /** MarketPrice × contracts × 100 */
+  marketValue: number;
+  gainLoss: number;
+  gainLossPct: number;
 }

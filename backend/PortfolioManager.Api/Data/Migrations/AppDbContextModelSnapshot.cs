@@ -22,6 +22,127 @@ namespace PortfolioManager.Api.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.AdhocAnalysisSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LogicMode")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Legacy");
+
+                    b.Property<decimal>("OverboughtThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(75m);
+
+                    b.Property<decimal>("OversoldThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(5,2)")
+                        .HasDefaultValue(30m);
+
+                    b.Property<string>("ResultsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SessionKey")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("default");
+
+                    b.Property<string>("Symbols")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("nvarchar(max)")
+                        .HasDefaultValue("[]");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionKey", "UpdatedAt");
+
+                    b.ToTable("AdhocAnalysisSessions");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.CashItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasDefaultValue("CASH");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CashItems");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.OptionItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpirationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("MarketPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("NumberOfContracts")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PositionType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<decimal>("Premium")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<decimal>("Strike")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("UnderlyingTicker")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OptionItems");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.PortfolioItem", b =>
                 {
                     b.Property<int>("Id")

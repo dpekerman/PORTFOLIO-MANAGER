@@ -14,7 +14,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ConfigService } from '../../core/services/config.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
@@ -36,6 +38,8 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatIconModule,
     MatInputModule,
     MatListModule,
+    MatSlideToggleModule,
+    MatTimepickerModule,
     MatTooltipModule,
   ],
 })
@@ -70,6 +74,24 @@ export class ConfigPageComponent implements OnInit {
       [Validators.required, Validators.min(51), Validators.max(99)],
     ],
   });
+
+  // ── EOD Window form ──────────────────────────────────────────────────────
+  // Form controls use Date | null — required by MatTimepickerInput.
+  // Use ConfigPageComponent.timeStrToDate / dateToTimeString to convert to/from backend "HH:mm".
+  protected readonly eodForm = this.fb.group({
+    eodWindowStart: [
+      ConfigPageComponent.timeStrToDate(this.configService.config().eodWindowStart),
+      [Validators.required],
+    ],
+    eodWindowEnd: [
+      ConfigPageComponent.timeStrToDate(this.configService.config().eodWindowEnd),
+      [Validators.required],
+    ],
+    eodWindowEnabled: [this.configService.config().eodWindowEnabled],
+  });
+
+  protected readonly savingEodSettings = signal(false);
+  protected readonly eodWindowActive = this.scannerState.eodWindowActive;
 
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
@@ -106,6 +128,23 @@ export class ConfigPageComponent implements OnInit {
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
     });
 
+    // Load EOD window settings from backend (to show current server-side state)
+    this.api.getEodSettings().subscribe({
+      next: (s) => {
+        this.eodForm.setValue({
+          eodWindowStart: ConfigPageComponent.timeStrToDate(s.eodWindowStart),
+          eodWindowEnd: ConfigPageComponent.timeStrToDate(s.eodWindowEnd),
+          eodWindowEnabled: s.eodWindowEnabled,
+        });
+        this.configService.update({
+          eodWindowStart: s.eodWindowStart,
+          eodWindowEnd: s.eodWindowEnd,
+          eodWindowEnabled: s.eodWindowEnabled,
+        });
+      },
+      error: () => {}, // Non-critical — keep form defaults
+    });
+
     // Load recipients from backend
     this.notificationApi.getRecipients().subscribe({
       next: (r) => {
@@ -127,6 +166,55 @@ export class ConfigPageComponent implements OnInit {
         });
       },
     });
+  }
+
+  // ── EOD Window settings ──────────────────────────────────────────────────
+  // Static so it can be called from field initializers (before instance methods are accessible).
+  static timeStrToDate(timeStr: string): Date | null {
+    if (!timeStr) return null;
+    const parts = timeStr.split(':').map(Number);
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+    const d = new Date();
+    d.setHours(parts[0], parts[1], 0, 0);
+    return d;
+  }
+
+  private dateToTimeString(date: Date | null | undefined): string {
+    if (!date) return '00:00';
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  }
+
+  saveEodSettings(): void {
+    if (this.eodForm.invalid) return;
+    const start = this.dateToTimeString(this.eodForm.value.eodWindowStart);
+    const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
+    const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+
+    this.savingEodSettings.set(true);
+    this.api
+      .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+      .subscribe({
+        next: () => {
+          this.configService.update({
+            eodWindowStart: start,
+            eodWindowEnd: end,
+            eodWindowEnabled: enabled,
+          });
+          this.savingEodSettings.set(false);
+          this.eodForm.markAsPristine();
+          this.snackBar.open(
+            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}).`,
+            'OK',
+            { duration: 4000 },
+          );
+        },
+        error: () => {
+          this.savingEodSettings.set(false);
+          this.snackBar.open('Failed to save EOD settings to server.', 'Dismiss', {
+            duration: 4000,
+          });
+        },
+      });
   }
 
   // ── Interval / RSI settings ──────────────────────────────────────────────
@@ -158,6 +246,11 @@ export class ConfigPageComponent implements OnInit {
       watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
+    });
+    this.eodForm.setValue({
+      eodWindowStart: ConfigPageComponent.timeStrToDate(cfg.eodWindowStart),
+      eodWindowEnd: ConfigPageComponent.timeStrToDate(cfg.eodWindowEnd),
+      eodWindowEnabled: cfg.eodWindowEnabled,
     });
     this.snackBar.open('Settings reset to defaults.', 'OK', { duration: 3000 });
   }

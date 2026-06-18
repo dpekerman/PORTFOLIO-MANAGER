@@ -2,8 +2,15 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  AddCashItemRequest,
   AddManualPositionRequest,
+  AddOptionItemRequest,
   AddPortfolioItemRequest,
+  AdhocSessionPayload,
+  AdhocSessionResponse,
+  CashItem,
+  OptionItem,
+  OptionTechnicalData,
   PortfolioItem,
   PortfolioSummary,
   RsiScanResult,
@@ -11,10 +18,13 @@ import {
   SectorIndustryLists,
   StockQuote,
   SymbolSearchResult,
+  UpdateCashItemRequest,
+  UpdateOptionItemRequest,
   UpdatePortfolioItemRequest,
   ValueScreenerRequest,
   ValueScreenerResult,
   WatchlistSummary,
+  YesterdayEodResponse,
 } from '../models/portfolio.models';
 
 @Injectable({ providedIn: 'root' })
@@ -117,6 +127,64 @@ export class PortfolioApiService {
     return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
   }
 
+  // ── EOD Window Settings ──────────────────────────────────────────────────────
+
+  /** Get current EOD confirmation window settings from the backend. */
+  getEodSettings(): Observable<{
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+  }> {
+    return this.http.get<{
+      eodWindowStart: string;
+      eodWindowEnd: string;
+      eodWindowEnabled: boolean;
+    }>(`${this.base}/scanner/eod-settings`);
+  }
+
+  /** Update the EOD confirmation window settings on the backend (runtime — no restart needed). */
+  updateEodSettings(settings: {
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+  }): Observable<void> {
+    return this.http.put<void>(`${this.base}/scanner/eod-settings`, settings);
+  }
+
+  /** Check whether the EOD window is currently active on the server. */
+  getEodWindowStatus(): Observable<{
+    isActive: boolean;
+    eodWindowStart: string;
+    eodWindowEnd: string;
+    eodWindowEnabled: boolean;
+    serverTimeUtc: string;
+  }> {
+    return this.http.get<{
+      isActive: boolean;
+      eodWindowStart: string;
+      eodWindowEnd: string;
+      eodWindowEnabled: boolean;
+      serverTimeUtc: string;
+    }>(`${this.base}/scanner/eod-window-active`);
+  }
+
+  /** Returns the most-recently persisted EOD CONFIRM signals plus morning-window metadata. */
+  getYesterdayEod(): Observable<YesterdayEodResponse> {
+    return this.http.get<YesterdayEodResponse>(`${this.base}/scanner/yesterday-eod`);
+  }
+
+  // ── Ad-Hoc Session Persistence ──────────────────────────────────────────────
+
+  /** Save the current ad-hoc analysis session to the database. */
+  saveAdhocSession(payload: AdhocSessionPayload): Observable<void> {
+    return this.http.post<void>(`${this.base}/scanner/adhoc-session`, payload);
+  }
+
+  /** Load the last saved ad-hoc analysis session from the database. */
+  loadAdhocSession(): Observable<AdhocSessionResponse> {
+    return this.http.get<AdhocSessionResponse>(`${this.base}/scanner/adhoc-session`);
+  }
+
   // ── Value Screener ──────────────────────────────────────────────────────────
   runValueScreener(request: ValueScreenerRequest): Observable<ValueScreenerResult[]> {
     return this.http.post<ValueScreenerResult[]>(`${this.base}/valuescreener/analyze`, request);
@@ -129,5 +197,43 @@ export class PortfolioApiService {
 
   saveSectorIndustryLists(lists: SectorIndustryLists): Observable<SectorIndustryLists> {
     return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
+  }
+
+  // ── Cash CRUD ───────────────────────────────────────────────────────────────
+  getCashItems(): Observable<CashItem[]> {
+    return this.http.get<CashItem[]>(`${this.base}/cash`);
+  }
+
+  addCashItem(request: AddCashItemRequest): Observable<CashItem> {
+    return this.http.post<CashItem>(`${this.base}/cash`, request);
+  }
+
+  updateCashItem(id: number, request: UpdateCashItemRequest): Observable<CashItem> {
+    return this.http.put<CashItem>(`${this.base}/cash/${id}`, request);
+  }
+
+  deleteCashItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/cash/${id}`);
+  }
+
+  // ── Options CRUD ────────────────────────────────────────────────────────────
+  getOptionItems(): Observable<OptionItem[]> {
+    return this.http.get<OptionItem[]>(`${this.base}/options`);
+  }
+
+  addOptionItem(request: AddOptionItemRequest): Observable<OptionItem> {
+    return this.http.post<OptionItem>(`${this.base}/options`, request);
+  }
+
+  updateOptionItem(id: number, request: UpdateOptionItemRequest): Observable<OptionItem> {
+    return this.http.put<OptionItem>(`${this.base}/options/${id}`, request);
+  }
+
+  deleteOptionItem(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/options/${id}`);
+  }
+
+  getOptionTechnicalData(symbol: string): Observable<OptionTechnicalData> {
+    return this.http.get<OptionTechnicalData>(`${this.base}/options/technical/${symbol}`);
   }
 }

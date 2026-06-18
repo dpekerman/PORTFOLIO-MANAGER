@@ -54,3 +54,55 @@ public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
 public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries);
 public record UpdateSectorIndustryListsRequest(List<string> Sectors, List<string> Industries);
 
+// ── Cash ─────────────────────────────────────────────────────────────────────
+public record AddCashItemRequest(string Description, decimal Amount);
+public record UpdateCashItemRequest(string Description, decimal Amount);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt);
+
+// ── Options ───────────────────────────────────────────────────────────────────
+public record AddOptionItemRequest(
+    string UnderlyingTicker,
+    string PositionType,
+    DateTime ExpirationDate,
+    decimal Strike,
+    decimal Premium,
+    int NumberOfContracts,
+    decimal MarketPrice);
+
+public record UpdateOptionItemRequest(
+    string UnderlyingTicker,
+    string PositionType,
+    DateTime ExpirationDate,
+    decimal Strike,
+    decimal Premium,
+    int NumberOfContracts,
+    decimal MarketPrice);
+
+public record OptionItemDto(
+    int Id,
+    string UnderlyingTicker,
+    string PositionType,
+    DateTime ExpirationDate,
+    decimal Strike,
+    decimal Premium,
+    int NumberOfContracts,
+    decimal MarketPrice,
+    DateTime AddedAt);
+
+/// <summary>Technical indicators for the underlying ticker, used by the frontend option state engine.</summary>
+public record OptionTechnicalDataDto(
+    string Symbol,
+    decimal CurrentPrice,
+    decimal PreviousClose,
+    decimal YesterdayHigh,
+    decimal YesterdayLow,
+    decimal Rsi14,
+    decimal RsiSignal9,
+    bool RsiSignalAvailable,
+    decimal Sma20,
+    decimal Sma50,
+    decimal Ema21,
+    decimal Atr14,
+    decimal BollingerUpper,
+    decimal BollingerLower);
+

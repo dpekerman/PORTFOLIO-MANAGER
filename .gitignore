@@ -25,6 +25,9 @@ appsettings.Staging.json
 appsettings.*.json
 !appsettings.json
 
+# Notification recipients contain personal email addresses — managed at runtime
+notification-recipients.json
+
 # ========================================
 # Interview prep / TEST folder
 # ========================================

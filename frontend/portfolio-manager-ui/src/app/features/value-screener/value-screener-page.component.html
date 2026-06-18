@@ -25,26 +25,48 @@
     <div class="source-bar">
       <span class="source-label">Analyze:</span>
 
-      <!-- Option group -->
+      <!-- Portfolio & Watchlist: auto-execute on click, no Analyze button needed -->
       <div class="source-options">
         <button
           class="source-chip"
           [class.source-active]="sourceMode() === 'portfolio'"
           (click)="selectPortfolio()"
+          [disabled]="loading() && sourceMode() === 'portfolio'"
           matTooltip="Analyze all positions from your Portfolio"
         >
-          <mat-icon>account_balance_wallet</mat-icon>
+          @if (loading() && sourceMode() === 'portfolio') {
+            <ng-container>
+              <mat-spinner diameter="14" class="chip-spinner" />
+            </ng-container>
+          } @else {
+            <ng-container>
+              <mat-icon>account_balance_wallet</mat-icon>
+            </ng-container>
+          }
           Portfolio
         </button>
         <button
           class="source-chip"
           [class.source-active]="sourceMode() === 'watchlist'"
           (click)="selectWatchlist()"
-          matTooltip="Analyze all symbols from your Watch List"
+          [disabled]="loading() && sourceMode() === 'watchlist'"
+          matTooltip="Analyze all symbols from your Watchlist"
         >
-          <mat-icon>bookmark</mat-icon>
-          Watch List
+          @if (loading() && sourceMode() === 'watchlist') {
+            <ng-container>
+              <mat-spinner diameter="14" class="chip-spinner" />
+            </ng-container>
+          } @else {
+            <ng-container>
+              <mat-icon>bookmark</mat-icon>
+            </ng-container>
+          }
+          Watchlist
         </button>
+      </div>
+
+      <!-- Ad-Hoc: separate button + input + Analyze -->
+      <div class="adhoc-trigger-group">
         <button
           class="source-chip"
           [class.source-active]="sourceMode() === 'adhoc'"
@@ -54,11 +76,8 @@
           <mat-icon>search</mat-icon>
           Ad-Hoc
         </button>
-      </div>
 
-      <!-- Ad-Hoc input: only visible when Ad-Hoc mode is selected -->
-      @if (sourceMode() === 'adhoc') {
-        <div class="adhoc-section">
+        @if (sourceMode() === 'adhoc') {
           <mat-form-field class="adhoc-field" appearance="outline" subscriptSizing="dynamic">
             <mat-label>Ticker symbols</mat-label>
             <input
@@ -70,21 +89,21 @@
             />
             <mat-icon matSuffix>search</mat-icon>
           </mat-form-field>
-          <p class="adhoc-hint">
-            Separate symbols with commas or spaces &bull; Press Enter to Analyze
-          </p>
-        </div>
-      }
-
-      <button mat-flat-button class="analyze-btn" (click)="analyze()" [disabled]="loading()">
-        @if (loading()) {
-          <mat-spinner diameter="18" class="btn-spinner" />
-          Analyzing...
-        } @else {
-          <mat-icon>bar_chart</mat-icon>
-          Analyze
+          <button mat-flat-button class="analyze-btn" (click)="analyze()" [disabled]="loading()">
+            @if (loading()) {
+              <ng-container>
+                <mat-spinner diameter="18" class="btn-spinner" />
+                Analyzing...
+              </ng-container>
+            } @else {
+              <ng-container>
+                <mat-icon>bar_chart</mat-icon>
+                Analyze
+              </ng-container>
+            }
+          </button>
         }
-      </button>
+      </div>
     </div>
 
     <!-- TIER SUMMARY (shown after analysis) -->
@@ -238,7 +257,7 @@
           sourceMode() === 'portfolio'
             ? 'Portfolio'
             : sourceMode() === 'watchlist'
-              ? 'Watch List'
+              ? 'Watchlist'
               : 'Ad-Hoc'
         }}
         symbols
@@ -250,7 +269,7 @@
       <mat-icon class="empty-icon">analytics</mat-icon>
       <h3 class="empty-title">No results yet</h3>
       <p class="empty-sub">
-        Select <strong>Portfolio</strong> or <strong>Watch List</strong> (or enter ad-hoc tickers),
+        Select <strong>Portfolio</strong> or <strong>Watchlist</strong> (or enter ad-hoc tickers),
         then click <strong>Analyze</strong> to run the Capital Valuation engine.
       </p>
       <div class="scoring-hint">

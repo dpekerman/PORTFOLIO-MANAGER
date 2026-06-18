@@ -1,4 +1,4 @@
-import { DatePipe, NgClass } from '@angular/common';
+import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -17,6 +17,7 @@ import { RsiScannerTableComponent } from './rsi-scanner-table.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DatePipe,
+    DecimalPipe,
     NgClass,
     MatButtonModule,
     MatIconModule,
@@ -39,6 +40,27 @@ export class ScannerPageComponent implements OnInit {
   protected readonly watchlistSymbols = computed<ReadonlySet<string>>(
     () => new Set(this.watchlist.items().map((w) => w.item.symbol.toLowerCase())),
   );
+
+  /** Computed summary for EOD CONFIRM signals found in the current scan. */
+  protected readonly eodConfirmSummary = computed(() => {
+    const os = this.scanner.eodConfirmOversold().length;
+    const ob = this.scanner.eodConfirmOverbought().length;
+    const total = os + ob;
+    if (total === 0) return null;
+    const parts: string[] = [];
+    if (os > 0) parts.push(`${os} Oversold`);
+    if (ob > 0) parts.push(`${ob} Overbought`);
+    return `${total} EOD Confirm signal${total > 1 ? 's' : ''}: ${parts.join(' · ')}`;
+  });
+
+  /** Yesterday's persisted EOD CONFIRM signals (for morning check panel). */
+  protected readonly yesterdayEod = this.scanner.yesterdayEod;
+
+  /** True when there are yesterday EOD signals AND it's the morning window (before noon ET). */
+  protected readonly showMorningPanel = computed(() => {
+    const data = this.yesterdayEod();
+    return !!data?.hasData && !!data.isMorningWindow && (data.signals?.length ?? 0) > 0;
+  });
 
   ngOnInit(): void {
     // Refresh when navigating back to this page if data is stale (> 5 min)

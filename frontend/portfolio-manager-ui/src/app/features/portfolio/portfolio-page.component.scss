@@ -233,3 +233,635 @@
     transform: rotate(360deg);
   }
 }
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+.view-toggle {
+  height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// ── Grid filters bar ──────────────────────────────────────────────────────────
+.grid-filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 10px;
+
+  .gf-field {
+    min-width: 160px;
+  }
+  .gf-ticker {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+  .gf-select {
+    min-width: 160px;
+    max-width: 240px;
+  }
+  .gf-rsi {
+    min-width: 100px;
+    max-width: 120px;
+  }
+}
+
+.gf-clear-btn {
+  height: 36px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.gf-count {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+// ── Portfolio grid table ──────────────────────────────────────────────────────
+.portfolio-table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.portfolio-grid-table {
+  width: 100%;
+  background: var(--bg-surface) !important;
+
+  th.mat-mdc-header-cell {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: var(--bg-elevated);
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  tr.pg-row:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.pg-num-header {
+  text-align: right !important;
+}
+.pg-num {
+  text-align: right !important;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+.pg-bold {
+  font-weight: 700;
+}
+.pg-pos {
+  color: #43a047 !important;
+}
+.pg-neg {
+  color: #e53935 !important;
+}
+.pg-dim {
+  color: var(--text-faint);
+}
+
+.pg-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(21, 101, 192, 0.15);
+  color: #64b5f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.pg-symbol {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.pg-manual-tag {
+  font-size: 0.6rem;
+  background: rgba(255, 160, 0, 0.12);
+  color: #ffa000;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+}
+
+.pg-company {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  display: block;
+}
+
+.pg-rsi {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+
+  &.pg-rsi-over {
+    color: #ef6c00;
+  }
+  &.pg-rsi-under {
+    color: #43a047;
+  }
+}
+
+.pg-no-results {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-faint);
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    display: block;
+    margin: 0 auto 8px;
+  }
+  span {
+    font-size: 0.85rem;
+  }
+  button {
+    margin-top: 8px;
+  }
+}
+
+// ── Grid actions column ───────────────────────────────────────────────────────
+.pg-actions-header {
+  width: 72px;
+  padding: 0 !important;
+}
+
+.pg-actions-cell {
+  white-space: nowrap;
+  padding: 0 4px !important;
+}
+
+.pg-action-btn {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--text-faint);
+  }
+
+  &:hover mat-icon {
+    color: var(--text-primary);
+  }
+}
+
+.pg-action-delete:hover mat-icon {
+  color: #ef5350 !important;
+}
+
+// ── Portfolio Momentum Shift & Action badges ───────────────────────────────────
+.pg-ms-badge,
+.pg-ma-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: default;
+}
+
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.3);
+}
+.ms-bullish {
+  background: rgba(0, 200, 83, 0.08);
+  color: #4caf50;
+  border-color: rgba(0, 200, 83, 0.18);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.18);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.22);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.18);
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border-color: rgba(158, 158, 158, 0.15);
+}
+.ms-neutral {
+  background: rgba(255, 255, 255, 0.03);
+  color: #757575;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.3);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.22);
+}
+.ma-avoid {
+  background: rgba(158, 158, 158, 0.07);
+  color: #757575;
+  border-color: rgba(158, 158, 158, 0.13);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.18);
+}
+.ma-standby {
+  background: rgba(255, 255, 255, 0.03);
+  color: #616161;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+// ============================================================
+// Add Stock / Cash / Option action buttons
+// ============================================================
+.action-btn-cash {
+  background: #00796b;
+  color: #fff;
+  &:hover {
+    background: #00897b;
+  }
+}
+.action-btn-option {
+  background: #6a1b9a;
+  color: #fff;
+  &:hover {
+    background: #7b1fa2;
+  }
+}
+
+// ============================================================
+// Collapsible subsections
+// ============================================================
+.subsection {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  margin: 14px 0;
+  overflow: hidden;
+  background: var(--bg-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-elevated);
+  border-bottom: 2px solid transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  }
+
+  // Section-specific accent via modifier on the .subsection wrapper
+  .subsection--stocks & {
+    border-bottom-color: #1565c0;
+  }
+  .subsection--cash & {
+    border-bottom-color: #00796b;
+  }
+  .subsection--options & {
+    border-bottom-color: #6a1b9a;
+  }
+}
+
+// Collapsed: remove bottom border when not expanded
+.subsection.collapsed .subsection-header {
+  border-bottom-color: transparent;
+}
+
+.subsection-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.subsection-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #1565c0;
+  .subsection--cash & {
+    color: #00796b;
+  }
+  .subsection--options & {
+    color: #6a1b9a;
+  }
+}
+.subsection-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.subsection-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 20px;
+  flex-wrap: wrap;
+}
+.subsection-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  .stat-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .stat-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #212121);
+    font-family: 'Roboto Mono', monospace;
+  }
+}
+.subsection-total {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+.subsection-chevron {
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.subsection-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 20px;
+  color: var(--text-faint);
+  font-size: 0.82rem;
+  mat-icon {
+    color: var(--text-faint);
+    opacity: 0.5;
+  }
+}
+
+// ============================================================
+// Cash card grid
+// ============================================================
+.cash-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+.cash-card {
+  background: rgba(0, 121, 107, 0.08);
+  border: 1px solid rgba(0, 121, 107, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cash-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4db6ac;
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+.cash-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b0bec5;
+}
+.cash-card-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #4db6ac;
+}
+.cash-card-date {
+  font-size: 11px;
+  color: #616161;
+}
+.cash-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+// ============================================================
+// Options table
+// ============================================================
+.options-table-wrapper {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.options-grid-table {
+  min-width: 1400px;
+}
+
+// Option type badges
+.opt-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  &.put-badge {
+    background: rgba(239, 83, 80, 0.12);
+    color: #ef5350;
+    border: 1px solid rgba(239, 83, 80, 0.25);
+  }
+  &.call-badge {
+    background: rgba(102, 187, 106, 0.12);
+    color: #66bb6a;
+    border: 1px solid rgba(102, 187, 106, 0.25);
+  }
+}
+
+// Badge variant for the ticker cell
+.badge-put {
+  background: rgba(239, 83, 80, 0.15) !important;
+  color: #ef5350 !important;
+}
+.badge-call {
+  background: rgba(102, 187, 106, 0.15) !important;
+  color: #66bb6a !important;
+}
+
+// DTE coloring
+.dte-urgent {
+  color: #ef5350;
+  font-weight: 700;
+}
+.dte-warning {
+  color: #ffa726;
+  font-weight: 600;
+}
+
+// Option state badges
+.opt-state-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.os-free-trade {
+  background: rgba(102, 187, 106, 0.12);
+  color: #66bb6a;
+  border: 1px solid rgba(102, 187, 106, 0.25);
+}
+.os-cut {
+  background: rgba(239, 83, 80, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.25);
+}
+.os-target {
+  background: rgba(102, 187, 106, 0.08);
+  color: #a5d6a7;
+  border: 1px solid rgba(102, 187, 106, 0.2);
+}
+.os-momentum {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.os-monitor {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.13);
+}
+.os-unknown {
+  background: rgba(97, 97, 97, 0.08);
+  color: #757575;
+  border: 1px solid rgba(97, 97, 97, 0.15);
+}
+
+// Option action badges
+.opt-action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.oa-exit {
+  background: rgba(239, 83, 80, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.25);
+}
+.oa-profit {
+  background: rgba(102, 187, 106, 0.12);
+  color: #66bb6a;
+  border: 1px solid rgba(102, 187, 106, 0.25);
+}
+.oa-caution {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.oa-monitor {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.13);
+}
+
+// Empty-state action group
+.empty-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}

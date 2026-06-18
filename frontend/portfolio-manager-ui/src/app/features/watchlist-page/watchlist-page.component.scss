@@ -148,3 +148,326 @@ button[mat-icon-button] {
     transform: rotate(360deg);
   }
 }
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+.view-toggle {
+  height: 32px;
+
+  .mat-button-toggle {
+    font-size: 0; // hide any accidental text
+    width: 36px;
+  }
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// ── Grid filter bar ───────────────────────────────────────────────────────────
+.grid-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px 12px;
+  flex-wrap: wrap;
+
+  @media (max-width: 600px) {
+    padding: 0 16px 10px;
+  }
+}
+
+.grid-filter-field {
+  flex: 1;
+  min-width: 240px;
+  max-width: 480px;
+}
+
+.grid-count-label {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+// ── Sortable grid table ────────────────────────────────────────────────────────
+.grid-table-wrapper {
+  padding: 0 24px 32px;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+
+  @media (max-width: 600px) {
+    padding: 0 0 24px;
+  }
+}
+
+.watchlist-table {
+  width: 100%;
+  background: var(--bg-surface) !important;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+
+  th.mat-mdc-header-cell {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: var(--bg-elevated);
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+
+  tr.watchlist-row:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.wl-num-header {
+  text-align: right !important;
+}
+.wl-num {
+  text-align: right !important;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+.wl-rsi {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+  &.wl-rsi-over {
+    color: #ef6c00;
+  }
+  &.wl-rsi-under {
+    color: #43a047;
+  }
+}
+
+// ── Watchlist Momentum Shift & Action badges ──────────────────────────────────
+.wl-ms-badge,
+.wl-ma-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: default;
+}
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.3);
+}
+.ms-bullish {
+  background: rgba(0, 200, 83, 0.08);
+  color: #4caf50;
+  border-color: rgba(0, 200, 83, 0.18);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.18);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.22);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.18);
+}
+.ms-consolidation {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.25);
+}
+.ms-breakdown {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.28);
+  font-weight: 800;
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border-color: rgba(158, 158, 158, 0.15);
+}
+.ms-neutral {
+  background: rgba(255, 255, 255, 0.03);
+  color: #757575;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.14);
+  color: #00e676;
+  border-color: rgba(0, 200, 83, 0.3);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.22);
+}
+.ma-avoid {
+  background: rgba(158, 158, 158, 0.07);
+  color: #757575;
+  border-color: rgba(158, 158, 158, 0.13);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.08);
+  color: #42a5f5;
+  border-color: rgba(33, 150, 243, 0.18);
+}
+.ma-accumulate {
+  background: rgba(0, 188, 212, 0.1);
+  color: #00bcd4;
+  border-color: rgba(0, 188, 212, 0.25);
+}
+.ma-reduce {
+  background: rgba(255, 87, 34, 0.1);
+  color: #ff7043;
+  border-color: rgba(255, 87, 34, 0.25);
+}
+.ma-standby {
+  background: rgba(255, 255, 255, 0.03);
+  color: #616161;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.grid-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  flex-shrink: 0;
+
+  &.up {
+    background: rgba(56, 142, 60, 0.15);
+    color: #388e3c;
+  }
+  &.down {
+    background: rgba(211, 47, 47, 0.12);
+    color: #c62828;
+  }
+}
+
+.grid-symbol {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text-primary);
+}
+
+.grid-company-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.grid-company-name {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.grid-sector-tag {
+  font-size: 0.65rem;
+  color: var(--text-faint);
+}
+
+.grid-price {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+}
+
+.grid-change-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+  font-size: 0.8rem;
+
+  &.up {
+    color: #43a047;
+  }
+  &.down {
+    color: #e53935;
+  }
+
+  .grid-change-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+}
+
+.grid-sector {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.grid-no-data {
+  color: var(--text-faint);
+  font-size: 0.75rem;
+}
+
+.remove-btn-grid {
+  color: var(--text-faint);
+  &:hover {
+    color: #e53935;
+  }
+}
+
+.grid-no-results {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-faint);
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    display: block;
+    margin: 0 auto 8px;
+  }
+  span {
+    font-size: 0.85rem;
+  }
+}

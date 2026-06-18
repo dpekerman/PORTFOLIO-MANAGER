@@ -35,12 +35,4 @@ export class MarketHeaderComponent {
   });
 
   protected readonly isPortfolioPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
-
-  protected readonly displayPortfolioValue = computed(() =>
-    this.demoMode.maskValue(this.portfolio.totalValue()),
-  );
-
-  protected readonly displayGainLossPct = computed(() =>
-    this.demoMode.maskPercent(this.portfolio.totalGainLossPct()),
-  );
 }

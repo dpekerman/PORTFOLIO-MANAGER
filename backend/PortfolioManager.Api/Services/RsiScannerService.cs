@@ -5,7 +5,11 @@ namespace PortfolioManager.Api.Services;
 
 public interface IRsiScannerService
 {
-    Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
+    /// <summary>
+    /// Scans the default TSX watchlist plus any <paramref name="extraSymbols"/> from the
+    /// user's portfolio and watchlist, returning oversold/overbought chains.
+    /// </summary>
+    Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
     Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
 }
@@ -69,15 +73,23 @@ public sealed class RsiScannerService : IRsiScannerService
         _marketData = marketData;
     }
 
-    public async Task<ScannerResponse> ScanAsync(decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
+    public async Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
     {
+        // Merge the default TSX universe with user-provided portfolio/watchlist symbols.
+        var symbolsToScan = TsxWatchlist
+            .Concat(extraSymbols ?? Enumerable.Empty<string>())
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Where(s => s.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         // Yahoo Finance requires no API key — go straight to live scan.
         // If Yahoo is unreachable (network error), fall back to demo data.
         try
         {
-            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols). Oversold<{OS} Overbought>{OB} Mode={Mode}",
-                TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
-            return await RunLiveScanAsync(oversoldThreshold, overboughtThreshold, logicMode, ct);
+            _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols, {Extra} from portfolio/watchlist). Oversold<{OS} Overbought>{OB} Mode={Mode}",
+                symbolsToScan.Length, symbolsToScan.Length - TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
+            return await RunLiveScanAsync(symbolsToScan, oversoldThreshold, overboughtThreshold, logicMode, ct);
         }
         catch (Exception ex)
         {
@@ -115,14 +127,14 @@ public sealed class RsiScannerService : IRsiScannerService
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
     }
 
-    private async Task<ScannerResponse> RunLiveScanAsync(decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
+    private async Task<ScannerResponse> RunLiveScanAsync(string[] symbolsToScan, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
 
         // Yahoo Finance has no hard rate limit; ~2 req/s is courteous.
         // 3 symbols/batch with 1.5s delay → 50 symbols in ~25s.
-        var batches = TsxWatchlist
+        var batches = symbolsToScan
             .Select((sym, i) => new { sym, i })
             .GroupBy(x => x.i / 3)
             .Select(g => g.Select(x => x.sym).ToArray());
@@ -267,6 +279,9 @@ public sealed class RsiScannerService : IRsiScannerService
             // ── Core RSI ────────────────────────────────────────────────────
             decimal rsi = CalculateRsi(closes, 14);
 
+            // ── RSI Signal: 9-period EMA of RSI(14) ─────────────────────────
+            var (rsiSignalValue, rsiSignalAvailable) = CalculateRsiSignal(closes);
+
             // ── Volume ratio ────────────────────────────────────────────────
             decimal avgVol = volumes.Count >= 21
                 ? volumes.TakeLast(21).SkipLast(1).Select(v => (decimal)v).Average()
@@ -287,6 +302,15 @@ public sealed class RsiScannerService : IRsiScannerService
             decimal change     = todayClose - prevClose;
             decimal changePct  = prevClose > 0 ? (change / prevClose) * 100m : 0m;
             decimal range      = todayHigh - todayLow;
+
+            // ── ATR (14-day, Wilder's) — needed for EOD Confirm Condition 4 ─
+            decimal dailyAtr   = CalculateAtr(highs, lows, closes, 14);
+
+            // ── 9-day EMA of price — EOD Confirm Condition 2 + Momentum Shift
+            decimal ema9Price  = CalculateEma(closes, 9);
+
+            // ── 20-day SMA of price — needed for Momentum Shift Consolidation rule
+            decimal sma20Price = CalculateSma(closes, 20);
 
             // ── Indicator 1: Stochastics ────────────────────────────────────
             decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
@@ -336,6 +360,17 @@ public sealed class RsiScannerService : IRsiScannerService
                 (status, trigger) = enhanced
                     ? ClassifyOversoldEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi, macdHistSlope, macdHistDelta, bbBreakout)
                     : ClassifyOversold(todayOpen, todayHigh, todayLow, todayClose, prevHigh, range, volRatio, rsi);
+
+                // ── EOD Confirm override: evaluated on top of existing classification ──
+                // Volume is scaled to a projected full-session equivalent so that partial-day
+                // intraday volume (e.g. at 3:45 PM ET = 93.6% through the session) is not
+                // unfairly penalised vs. the 20-day average which represents full-session volume.
+                decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
+                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr))
+                {
+                    status  = SignalStatus.EodConfirm;
+                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr);
+                }
             }
             else if (rsi >= overboughtThreshold)
             {
@@ -346,6 +381,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 (status, trigger) = enhanced
                     ? ClassifyOverboughtEnhanced(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi, macdHistSlope, macdHistDelta, bbBreakout, volRatio)
                     : ClassifyOverbought(todayOpen, todayHigh, todayLow, todayClose, prevLow, range, rsi);
+
+                // ── EOD Confirm override: volume projected to full-session equivalent ──
+                decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
+                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr))
+                {
+                    status  = SignalStatus.EodConfirm;
+                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr);
+                }
             }
             else
             {
@@ -360,6 +403,8 @@ public sealed class RsiScannerService : IRsiScannerService
                 Symbol = symbol,
                 CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
                 Rsi = Math.Round(rsi, 2),
+                RsiSignal = rsiSignalAvailable ? rsiSignalValue : null,
+                RsiSignalAvailable = rsiSignalAvailable,
                 CurrentPrice = todayClose,
                 Change = Math.Round(change, 2),
                 ChangePercent = Math.Round(changePct, 2),
@@ -384,6 +429,9 @@ public sealed class RsiScannerService : IRsiScannerService
                 MacdHistDelta = Math.Round(macdHistDelta, 4),
                 MacdHistSlope = macdHistSlope,
                 LogicMode = enhanced ? "Enhanced" : "Legacy",
+                DailyAtr = Math.Round(dailyAtr, 4),
+                Ema9Price = Math.Round(ema9Price, 4),
+                Sma20Price = Math.Round(sma20Price, 4),
                 IsDemo = false
             };
         }
@@ -393,6 +441,54 @@ public sealed class RsiScannerService : IRsiScannerService
         }
 
         return null;
+    }
+
+    // ── RSI full series (Wilder's smoothed method) ───────────────────────────
+    /// <summary>Returns the complete RSI series for use in further calculations (e.g. RSI Signal EMA).</summary>
+    private static List<decimal> CalculateRsiSeries(List<decimal> closes, int period)
+    {
+        var result = new List<decimal>();
+        if (closes.Count < period + 1) return result;
+
+        decimal avgGain = 0, avgLoss = 0;
+        for (int i = 1; i <= period; i++)
+        {
+            var diff = closes[i] - closes[i - 1];
+            if (diff >= 0) avgGain += diff; else avgLoss -= diff;
+        }
+        avgGain /= period;
+        avgLoss /= period;
+
+        decimal rs = avgLoss == 0 ? 100m : avgGain / avgLoss;
+        result.Add(100m - (100m / (1m + rs)));
+
+        for (int i = period + 1; i < closes.Count; i++)
+        {
+            var diff = closes[i] - closes[i - 1];
+            decimal gain = diff >= 0 ? diff : 0;
+            decimal loss = diff < 0 ? -diff : 0;
+            avgGain = (avgGain * (period - 1) + gain) / period;
+            avgLoss = (avgLoss * (period - 1) + loss) / period;
+            rs = avgLoss == 0 ? 100m : avgGain / avgLoss;
+            result.Add(100m - (100m / (1m + rs)));
+        }
+
+        return result;
+    }
+
+    /// <summary>Calculates the RSI Signal: a 9-period EMA of the RSI(14) series.
+    /// Returns (value, available=true) or (0, available=false) when data is insufficient.</summary>
+    private static (decimal value, bool available) CalculateRsiSignal(List<decimal> closes, int rsiPeriod = 14, int emaPeriod = 9)
+    {
+        var rsiSeries = CalculateRsiSeries(closes, rsiPeriod);
+        if (rsiSeries.Count < emaPeriod) return (0m, false);
+
+        decimal mult = 2m / (emaPeriod + 1);                        // multiplier = 0.2 for period=9
+        decimal ema  = rsiSeries.Take(emaPeriod).Average();          // seed: simple average of first 9 RSI values
+        for (int i = emaPeriod; i < rsiSeries.Count; i++)
+            ema = rsiSeries[i] * mult + ema * (1m - mult);
+
+        return (Math.Round(ema, 2), true);
     }
 
     // ── RSI Calculation (Wilder's smoothed method) ────────────────────────────
@@ -637,31 +733,31 @@ public sealed class RsiScannerService : IRsiScannerService
 
         if (structuralAbs && close > prevHigh)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed above prior day's high with bullish structure. " +
+                $"Candle closed above prior day's high with bullish structure. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Selling pressure absorbed; execution phase.");
 
         if (structuralAbs)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed in upper half of range ({((close - low) / range * 100m):0}%) with momentum shift. " +
+                $"Candle closed in upper half of range ({((close - low) / range * 100m):0}%) with momentum shift. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Structural absorption of selling pressure validated.");
 
         if (bbBreakout && histRising)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Bollinger breakout with histogram slope turning positive (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Bollinger breakout with histogram slope turning positive (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Price discovery phase: volatility bands pierced, momentum shifting. Awaiting candle close confirmation.");
 
         if (rsi < 25 && histRising)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Momentum has shifted days before MACD crossover. Capital not deployed until candle close confirms.");
 
         string histNote = macdHistSlope == "Falling"
             ? $"Hist slope still falling (Δ={macdHistDelta:+0.0000;-0.0000}) — selling momentum intact."
             : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
         return (SignalStatus.EarlyWarning,
-            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} below oversold threshold. {histNote} " +
+            $"RSI {rsi:0.0} below oversold threshold. {histNote} " +
             "No structural absorption detected. Waiting for candle close to validate.");
     }
 
@@ -683,32 +779,181 @@ public sealed class RsiScannerService : IRsiScannerService
 
         if (structuralDist && close < prevLow)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed below prior day's low with bearish structure. " +
+                $"Candle closed below prior day's low with bearish structure. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Institutional distribution confirmed; execution phase.");
 
         if (structuralDist)
             return (SignalStatus.Confirmed,
-                $"[Enhanced] State: Confirmed — Candle closed in lower half of range ({((high - close) / range * 100m):0}% from top) with distribution signal. " +
+                $"Candle closed in lower half of range ({((high - close) / range * 100m):0}% from top) with distribution signal. " +
                 $"Hist Δ={macdHistDelta:+0.0000;-0.0000} ({macdHistSlope}), Vol={volRatio:0.0}x. " +
                 "Structural distribution of buying pressure validated.");
 
         if (bbBreakout && histFalling)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extended above upper Bollinger Band with histogram slope turning negative (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extended above upper Bollinger Band with histogram slope turning negative (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Price discovery phase: parabolic extension, internal momentum waning. Awaiting candle close confirmation.");
 
         if (rsi > 80 && histFalling)
             return (SignalStatus.EarlyWarning,
-                $"[Enhanced] State: EarlyWarning — Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
+                $"Extreme RSI ({rsi:0.0}) with histogram internally reversing (Δ={macdHistDelta:+0.0000;-0.0000}). " +
                 "Buying velocity decelerating before MACD crossover. Capital not deployed until candle close confirms.");
 
         string histNote = macdHistSlope == "Rising"
             ? $"Hist slope still rising (Δ={macdHistDelta:+0.0000;-0.0000}) — buying momentum intact."
             : $"Hist neutral (Δ={macdHistDelta:+0.0000;-0.0000}).";
         return (SignalStatus.EarlyWarning,
-            $"[Enhanced] State: EarlyWarning — RSI {rsi:0.0} above overbought threshold. {histNote} " +
+            $"RSI {rsi:0.0} above overbought threshold. {histNote} " +
             "No structural distribution detected. Waiting for candle close to validate.");
+    }
+
+    // ── ATR (14-day, Wilder's Smoothing Method) ───────────────────────────────
+    /// <summary>
+    /// Calculates the 14-day Average True Range using Wilder's Smoothing Method —
+    /// the industry-standard used by all major charting platforms (TradingView, TC2000, etc.).
+    ///
+    /// Step 1 — True Range per bar = Max of:
+    ///   TR₁ = High − Low
+    ///   TR₂ = |High − Yesterday's Close|
+    ///   TR₃ = |Low  − Yesterday's Close|
+    ///
+    /// Step 2 — Seed: simple average of the first 14 TR values.
+    ///
+    /// Step 3 — Wilder's EMA: ATRₙ = ((ATRₙ₋₁ × (period−1)) + TRₙ) / period
+    ///          This is equivalent to an EMA with multiplier 1/period (slower than standard EMA).
+    ///
+    /// Note: This matches the TradingView / StockCharts ATR indicator exactly, which
+    /// prevents the "platform mismatch" issue that the simple-average approximation causes.
+    /// </summary>
+    private static decimal CalculateAtr(List<decimal> highs, List<decimal> lows, List<decimal> closes, int period = 14)
+    {
+        if (closes.Count < period + 1) return 0m;
+
+        // Step 1: Build True Range array (length = closes.Count − 1)
+        var tr = new decimal[closes.Count - 1];
+        for (int i = 1; i < closes.Count; i++)
+        {
+            decimal tr1 = highs[i] - lows[i];
+            decimal tr2 = Math.Abs(highs[i]  - closes[i - 1]);
+            decimal tr3 = Math.Abs(lows[i]   - closes[i - 1]);
+            tr[i - 1] = Math.Max(tr1, Math.Max(tr2, tr3));
+        }
+
+        if (tr.Length < period) return 0m;
+
+        // Step 2: Seed — simple average of the first 'period' TR values (Wilder's init)
+        decimal atr = tr.Take(period).Average();
+
+        // Step 3: Apply Wilder's smoothing over the remaining TR values
+        for (int i = period; i < tr.Length; i++)
+            atr = (atr * (period - 1) + tr[i]) / period;
+
+        return atr;
+    }
+
+    // ── EOD Confirm condition checkers ────────────────────────────────────────
+
+    /// <summary>
+    // ── Intraday Volume Projection ────────────────────────────────────────────
+    /// <summary>
+    /// Projects an intraday partial-day volume to its full-session equivalent so that
+    /// the EOD volume check is fair against a 20-day avg that represents whole-day volume.
+    ///
+    /// The NYSE/TSX regular session runs 9:30 AM – 4:00 PM Eastern Time = 390 minutes.
+    /// At 3:30 PM (EOD window start) only 360 of 390 minutes have elapsed, so raw volume
+    /// is ~92% of what a full day would show.  Without scaling this undercount the 1.5×
+    /// volume threshold would falsely reject valid signals in the last 30 minutes.
+    ///
+    /// Scale factor = 390 / elapsed_minutes, capped at 2.0× to guard against extreme
+    /// early-session projections.  If time cannot be determined (no TZ available) the
+    /// raw volume is returned unchanged.
+    /// </summary>
+    private static decimal ProjectIntradayVolume(decimal rawVolume)
+    {
+        const double sessionStartMinutes = 9.5 * 60;   // 09:30 ET in minutes from midnight
+        const double sessionTotalMinutes = 390.0;       // 9:30 AM – 4:00 PM = 390 min
+
+        TimeZoneInfo? tz = null;
+        foreach (var id in new[] { "Eastern Standard Time", "America/New_York" })
+        {
+            try { tz = TimeZoneInfo.FindSystemTimeZoneById(id); break; }
+            catch { /* try next id */ }
+        }
+        if (tz is null) return rawVolume;
+
+        var etNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        double elapsedMinutes = etNow.TimeOfDay.TotalMinutes - sessionStartMinutes;
+
+        // Only scale when meaningfully inside the trading session (> 15 min elapsed).
+        // Before open or after close: return raw volume unchanged.
+        if (elapsedMinutes < 15.0 || elapsedMinutes >= sessionTotalMinutes)
+            return rawVolume;
+
+        // Cap scale factor at 2.0× to avoid wild projections at session open.
+        double scaleFactor = Math.Min(2.0, sessionTotalMinutes / elapsedMinutes);
+        return rawVolume * (decimal)scaleFactor;
+    }
+
+    /// <summary>
+    /// Oversold EOD Confirm — all 4 conditions must be true:
+    /// 1. Daily RSI &lt; 25
+    /// 2. Current Price &gt; 9-day EMA
+    /// 3. Daily Volume &gt; 1.5x 20-day Avg
+    /// 4. Current Price &gt; Daily Open AND Current Price ≥ (Daily High − 0.25 × ATR)
+    /// </summary>
+    private static bool CheckOversoldEodConfirm(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal high, decimal atr)
+    {
+        if (rsi >= 25m) return false;                                      // Rule 1
+        if (close <= ema9) return false;                                   // Rule 2
+        if (volRatio < 1.5m) return false;                                 // Rule 3
+        if (atr <= 0m) return false;                                       // ATR must be computed
+        decimal priceThreshold = high - (0.25m * atr);                    // Rule 4 threshold
+        return close > open && close >= priceThreshold;                    // Rule 4
+    }
+
+    private static string BuildOversoldEodTrigger(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal high, decimal atr)
+    {
+        decimal priceThreshold = high - (0.25m * atr);
+        return $"EOD CONFIRM — All 4 rules met: " +
+               $"RSI {rsi:0.0} < 25 ✓ | " +
+               $"Price ${close:0.00} > 9-EMA ${ema9:0.00} ✓ | " +
+               $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
+               $"Price > Open ${open:0.00} and Price ${close:0.00} ≥ threshold ${priceThreshold:0.00} (High ${high:0.00} − 0.25×ATR ${atr:0.0000}) ✓";
+    }
+
+    /// <summary>
+    /// Overbought EOD Confirm — all 4 conditions must be true:
+    /// 1. Daily RSI &gt; 75
+    /// 2. Current Price &lt; 9-day EMA
+    /// 3. Daily Volume &gt; 1.5x 20-day Avg
+    /// 4. Current Price &lt; Daily Open AND Current Price ≤ (Daily Low + 0.25 × ATR)
+    /// </summary>
+    private static bool CheckOverboughtEodConfirm(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal low, decimal atr)
+    {
+        if (rsi <= 75m) return false;                                      // Rule 1
+        if (close >= ema9) return false;                                   // Rule 2
+        if (volRatio < 1.5m) return false;                                 // Rule 3
+        if (atr <= 0m) return false;                                       // ATR must be computed
+        decimal priceThreshold = low + (0.25m * atr);                     // Rule 4 threshold
+        return close < open && close <= priceThreshold;                    // Rule 4
+    }
+
+    private static string BuildOverboughtEodTrigger(
+        decimal rsi, decimal close, decimal ema9,
+        decimal volRatio, decimal open, decimal low, decimal atr)
+    {
+        decimal priceThreshold = low + (0.25m * atr);
+        return $"EOD CONFIRM — All 4 rules met: " +
+               $"RSI {rsi:0.0} > 75 ✓ | " +
+               $"Price ${close:0.00} < 9-EMA ${ema9:0.00} ✓ | " +
+               $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
+               $"Price < Open ${open:0.00} and Price ${close:0.00} ≤ threshold ${priceThreshold:0.00} (Low ${low:0.00} + 0.25×ATR ${atr:0.0000}) ✓";
     }
 
     // ── Demo data (shown when no API key) ─────────────────────────────────────

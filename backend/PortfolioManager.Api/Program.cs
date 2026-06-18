@@ -42,6 +42,13 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
+builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
+{
+    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 builder.Services.AddMemoryCache();          // used by ScannerController to cache scan results
 builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
 {
@@ -61,6 +68,20 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
+// ── Scanner Runtime Config (singleton — EOD window overridable at runtime) ────
+builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
+{
+    var cfg = new ScannerRuntimeConfig();
+    var section = builder.Configuration.GetSection("ScannerSettings");
+    if (!string.IsNullOrWhiteSpace(section["EodWindowStart"]))
+        cfg.EodWindowStart = section["EodWindowStart"]!;
+    if (!string.IsNullOrWhiteSpace(section["EodWindowEnd"]))
+        cfg.EodWindowEnd = section["EodWindowEnd"]!;
+    if (bool.TryParse(section["EodWindowEnabled"], out var enabled))
+        cfg.EodWindowEnabled = enabled;
+    return cfg;
+});
+
 // ── Email Notification Services ───────────────────────────────────────────────
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailNotification"));
@@ -69,6 +90,8 @@ builder.Services.AddSingleton<SectorIndustryService>();
 builder.Services.AddSingleton<SignalNotificationTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
+// Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
+builder.Services.AddSingleton<EodSignalPersistenceService>();
 // Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals
 // regardless of which page is open in the frontend
 builder.Services.AddHostedService<RsiAlertBackgroundService>();

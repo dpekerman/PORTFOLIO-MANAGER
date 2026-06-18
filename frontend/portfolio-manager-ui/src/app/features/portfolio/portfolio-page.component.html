@@ -1,5 +1,5 @@
-<div class="portfolio-page">
-  <!-- ── Section Header ──────────────────────────────────────────────────── -->
+﻿<div class="portfolio-page">
+  <!-- Section Header -->
   <section class="portfolio-section">
     <div class="section-header">
       <div class="section-title-group">
@@ -7,13 +7,30 @@
         <div>
           <h2 class="section-title">
             MY PORTFOLIO
-            <span class="count-badge">{{ portfolio.summaries().length }}</span>
+            <span class="count-badge">{{
+              portfolio.summaries().length + cashState.items().length + optionState.items().length
+            }}</span>
           </h2>
-          <p class="section-sub">Tracked positions · Live prices active with API key</p>
+          <p class="section-sub">Stocks · Cash · Options · Live prices active with API key</p>
         </div>
       </div>
 
       <div class="section-actions">
+        <mat-button-toggle-group
+          [value]="viewMode()"
+          (change)="viewMode.set($event.value)"
+          class="view-toggle"
+          aria-label="View mode"
+          hideSingleSelectionIndicator
+        >
+          <mat-button-toggle value="card" matTooltip="Card view">
+            <mat-icon>view_module</mat-icon>
+          </mat-button-toggle>
+          <mat-button-toggle value="grid" matTooltip="Grid view">
+            <mat-icon>table_rows</mat-icon>
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+
         <button
           mat-icon-button
           matTooltip="Refresh live prices"
@@ -45,147 +62,952 @@
           <mat-icon>add</mat-icon>
           <span class="btn-text">Add Stock</span>
         </button>
+        <button mat-flat-button class="action-btn-cash" (click)="openAddCashDialog()">
+          <mat-icon>payments</mat-icon>
+          <span class="btn-text">Add Cash</span>
+        </button>
+        <button mat-flat-button class="action-btn-option" (click)="openAddOptionDialog()">
+          <mat-icon>trending_up</mat-icon>
+          <span class="btn-text">Add Option</span>
+        </button>
       </div>
     </div>
 
     @if (portfolio.loading()) {
-      <!-- ── Skeleton Grid (loading / refresh) ────────────────────────────── -->
-      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio…">
+      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio...">
         @for (i of skeletonItems; track i) {
           <app-stock-card-skeleton />
         }
       </div>
-    } @else if (portfolio.summaries().length > 0) {
-      <!-- ── Summary Bar ────────────────────────────────────────────── -->
+    } @else if (
+      portfolio.summaries().length > 0 ||
+      cashState.items().length > 0 ||
+      optionState.items().length > 0
+    ) {
       <app-portfolio-summary-bar />
 
-      <!-- ── Bulk-action toolbar ───────────────────────────────────── -->
-      @if (portfolio.hasSelection()) {
-        <div class="bulk-toolbar bulk-active">
-          <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
-          <button mat-stroked-button (click)="portfolio.clearSelection()">
-            <mat-icon>deselect</mat-icon> Clear
-          </button>
-          <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
-            <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
-          </button>
+      <!-- ============================================================ -->
+      <!-- SECTION 1 – STOCKS                                            -->
+      <!-- ============================================================ -->
+      <div class="subsection subsection--stocks" [class.collapsed]="!stocksExpanded()">
+        <div class="subsection-header" (click)="stocksExpanded.set(!stocksExpanded())">
+          <div class="subsection-title-group">
+            <mat-icon class="subsection-icon">bar_chart</mat-icon>
+            <span class="subsection-title"
+              >Stocks <span class="count-badge">{{ portfolio.summaries().length }}</span></span
+            >
+            @if (portfolio.summaries().length > 0) {
+              <div class="subsection-meta">
+                <div class="subsection-stat">
+                  <span class="stat-label">Market Value</span>
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
+                    portfolio.totalValue() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  }}</span>
+                </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Total Cost</span>
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
+                    portfolio.totalCost() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  }}</span>
+                </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Gain / Loss</span>
+                  <span
+                    class="stat-value"
+                    [class.pg-pos]="portfolio.totalGainLoss() >= 0"
+                    [class.pg-neg]="portfolio.totalGainLoss() < 0"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ portfolio.totalGainLoss() >= 0 ? '+' : ''
+                    }}{{ portfolio.totalGainLoss() | currency: 'USD' : 'symbol-narrow' : '1.0-0' }}
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+          <mat-icon class="subsection-chevron">{{
+            stocksExpanded() ? 'expand_less' : 'expand_more'
+          }}</mat-icon>
         </div>
-      } @else {
-        <div class="bulk-toolbar bulk-hint">
-          <mat-icon>check_box_outline_blank</mat-icon>
-          <span>Check boxes on cards to select multiple positions for bulk removal</span>
-          <button mat-button (click)="portfolio.selectAll()">Select All</button>
-        </div>
-      }
 
-      <!-- ── Sort Controls ─────────────────────────────────────────── -->
-      <div class="sort-bar">
-        <span class="sort-label">Sort by:</span>
-        <div class="sort-chips">
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'default'"
-            (click)="setSortField('default')"
-            class="sort-chip"
-          >
-            Default
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'marketValue'"
-            (click)="setSortField('marketValue')"
-            class="sort-chip"
-          >
-            Market Value
-            @if (sortField() === 'marketValue') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
+        @if (stocksExpanded()) {
+          @if (portfolio.summaries().length === 0) {
+            <div class="subsection-empty">
+              <mat-icon>add_chart</mat-icon>
+              <span>No stock positions. Click "+ Add Stock" to get started.</span>
+            </div>
+          } @else {
+            @if (viewMode() === 'grid') {
+              <!-- STOCKS: GRID VIEW -->
+              <div class="grid-filters-bar">
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="gf-field gf-ticker"
+                >
+                  <mat-icon matPrefix>search</mat-icon>
+                  <input
+                    matInput
+                    placeholder="Ticker / Company"
+                    [ngModel]="filterTicker()"
+                    (ngModelChange)="filterTicker.set($event)"
+                    autocomplete="off"
+                  />
+                  @if (filterTicker()) {
+                    <button matSuffix mat-icon-button (click)="filterTicker.set('')">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  }
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="gf-field gf-select"
+                >
+                  <mat-label>Sector</mat-label>
+                  <mat-select [ngModel]="filterSector()" (ngModelChange)="filterSector.set($event)">
+                    <mat-option value="">All sectors</mat-option>
+                    @for (s of uniqueSectors(); track s) {
+                      <mat-option [value]="s">{{ s }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="gf-field gf-select"
+                >
+                  <mat-label>Industry</mat-label>
+                  <mat-select
+                    [ngModel]="filterIndustry()"
+                    (ngModelChange)="filterIndustry.set($event)"
+                  >
+                    <mat-option value="">All industries</mat-option>
+                    @for (i of uniqueIndustries(); track i) {
+                      <mat-option [value]="i">{{ i }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="gf-field gf-rsi"
+                >
+                  <mat-label>RSI min</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    max="100"
+                    [ngModel]="filterRsiMin()"
+                    (ngModelChange)="filterRsiMin.set($event ? +$event : null)"
+                    placeholder="0"
+                  />
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="gf-field gf-rsi"
+                >
+                  <mat-label>RSI max</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    max="100"
+                    [ngModel]="filterRsiMax()"
+                    (ngModelChange)="filterRsiMax.set($event ? +$event : null)"
+                    placeholder="100"
+                  />
+                </mat-form-field>
+                @if (hasActiveFilters) {
+                  <button
+                    mat-stroked-button
+                    class="gf-clear-btn"
+                    (click)="clearGridFilters()"
+                    matTooltip="Clear all filters"
+                  >
+                    <mat-icon>filter_list_off</mat-icon> Clear
+                  </button>
+                }
+                <span class="gf-count"
+                  >{{ gridRows().length }} / {{ portfolio.summaries().length }}</span
+                >
+              </div>
+              <div class="portfolio-table-wrapper">
+                <table
+                  mat-table
+                  [dataSource]="gridRows()"
+                  matSort
+                  (matSortChange)="onGridSortChange($event)"
+                  class="portfolio-grid-table"
+                >
+                  <ng-container matColumnDef="symbol">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
+                    <td mat-cell *matCellDef="let s">
+                      <div class="pg-symbol-cell">
+                        <div class="pg-badge">
+                          {{ s.item.symbol.replace('.TO', '').replace('.UN', '').substring(0, 2) }}
+                        </div>
+                        <div>
+                          <div class="pg-symbol">{{ s.item.symbol }}</div>
+                          @if (s.item.isManual) {
+                            <span class="pg-manual-tag">manual</span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="company">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>COMPANY</th>
+                    <td mat-cell *matCellDef="let s">
+                      <span class="pg-company">{{ s.item.companyName }}</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="sector">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>SECTOR</th>
+                    <td mat-cell *matCellDef="let s">
+                      <span class="pg-dim">{{ s.item.sector || s.quote?.sector || '—' }}</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="industry">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>INDUSTRY</th>
+                    <td mat-cell *matCellDef="let s">
+                      <span class="pg-dim">{{ s.item.industry || s.quote?.industry || '—' }}</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="shares">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      SHARES
+                    </th>
+                    <td mat-cell *matCellDef="let s" class="pg-num">
+                      {{ s.item.shares | number: '1.0-4' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="avgCost">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      AVG COST
+                    </th>
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      {{ s.item.averageCostBasis | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="price">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      LAST PRICE
+                    </th>
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      @if (!s.item.isManual && s.quote) {
+                        {{ s.quote.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="marketValue">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      MKT VALUE
+                    </th>
+                    <td
+                      mat-cell
+                      *matCellDef="let s"
+                      class="pg-num pg-bold"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      @let mv =
+                        s.item.isManual
+                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+                          : (s.quote?.currentPrice ?? s.item.averageCostBasis) * s.item.shares;
+                      {{ mv | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="gainLoss">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      GAIN/LOSS
+                    </th>
+                    <td mat-cell *matCellDef="let s" class="pg-num">
+                      @let price2 = s.quote?.currentPrice ?? s.item.averageCostBasis;
+                      @let mv2 =
+                        s.item.isManual
+                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+                          : price2 * s.item.shares;
+                      @let gl = mv2 - s.item.averageCostBasis * s.item.shares;
+                      <span
+                        [class.pg-pos]="gl >= 0"
+                        [class.pg-neg]="gl < 0"
+                        [class.demo-redact]="demoMode.isDemoMode()"
+                        >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
+                      >
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="gainLossPct">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      GAIN %
+                    </th>
+                    <td mat-cell *matCellDef="let s" class="pg-num">
+                      @let price3 = s.quote?.currentPrice ?? s.item.averageCostBasis;
+                      @let mv3 =
+                        s.item.isManual
+                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+                          : price3 * s.item.shares;
+                      @let cost3 = s.item.averageCostBasis * s.item.shares;
+                      @let glp = cost3 > 0 ? ((mv3 - cost3) / cost3) * 100 : 0;
+                      <span [class.pg-pos]="glp >= 0" [class.pg-neg]="glp < 0"
+                        >{{ glp >= 0 ? '+' : '' }}{{ glp | number: '1.1-1' }}%</span
+                      >
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="rsi">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      RSI (14)
+                    </th>
+                    <td mat-cell *matCellDef="let s" class="pg-num">
+                      @let rsiVal = rsiForSymbol(s.item.symbol);
+                      @if (rsiVal !== null) {
+                        <span
+                          class="pg-rsi"
+                          [class.pg-rsi-over]="rsiVal >= 70"
+                          [class.pg-rsi-under]="rsiVal <= 30"
+                          >{{ rsiVal | number: '1.1-1' }}</span
+                        >
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="changePct">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      DAY %
+                    </th>
+                    <td mat-cell *matCellDef="let s" class="pg-num">
+                      @if (s.quote && !s.item.isManual) {
+                        <span
+                          [class.pg-pos]="s.quote.changePercent >= 0"
+                          [class.pg-neg]="s.quote.changePercent < 0"
+                          >{{ s.quote.changePercent >= 0 ? '+' : ''
+                          }}{{ s.quote.changePercent | number: '1.2-2' }}%</span
+                        >
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="momentumShift">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      matTooltip="System setup classification based on current RSI momentum state"
+                    >
+                      MOMENTUM SHIFT
+                    </th>
+                    <td mat-cell *matCellDef="let s">
+                      @if (rsiForSymbol(s.item.symbol) !== null) {
+                        <div
+                          class="pg-ms-badge"
+                          [ngClass]="momentumShiftClass(s.item.symbol)"
+                          [matTooltip]="momentumShiftTooltip(s.item.symbol)"
+                        >
+                          {{ momentumShift(s.item.symbol) }}
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="momentumAction">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      matTooltip="Manual execution command based on current momentum state"
+                    >
+                      ACTION
+                    </th>
+                    <td mat-cell *matCellDef="let s">
+                      @if (rsiForSymbol(s.item.symbol) !== null) {
+                        <div
+                          class="pg-ma-badge"
+                          [ngClass]="momentumActionClass(s.item.symbol)"
+                          [matTooltip]="momentumActionTooltip(s.item.symbol)"
+                        >
+                          {{ momentumAction(s.item.symbol) }}
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="actions">
+                    <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
+                    <td mat-cell *matCellDef="let s" class="pg-actions-cell">
+                      <button
+                        mat-icon-button
+                        matTooltip="Edit position"
+                        (click)="openEditGridRow(s); $event.stopPropagation()"
+                        class="pg-action-btn"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        matTooltip="Remove position"
+                        (click)="confirmDeleteGridRow(s); $event.stopPropagation()"
+                        class="pg-action-btn pg-action-delete"
+                      >
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+                  <tr mat-header-row *matHeaderRowDef="gridDisplayedColumns; sticky: true"></tr>
+                  <tr
+                    mat-row
+                    *matRowDef="let row; columns: gridDisplayedColumns"
+                    class="pg-row"
+                  ></tr>
+                  @if (gridRows().length === 0) {
+                    <tr class="mat-mdc-no-data-row">
+                      <td [attr.colspan]="gridDisplayedColumns.length" class="pg-no-results">
+                        <mat-icon>search_off</mat-icon>
+                        <span>No positions match the active filters</span>
+                        <button mat-button (click)="clearGridFilters()">Clear filters</button>
+                      </td>
+                    </tr>
+                  }
+                </table>
+              </div>
+            } @else {
+              <!-- STOCKS: CARD VIEW -->
+              @if (portfolio.hasSelection()) {
+                <div class="bulk-toolbar bulk-active">
+                  <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+                  <button mat-stroked-button (click)="portfolio.clearSelection()">
+                    <mat-icon>deselect</mat-icon> Clear
+                  </button>
+                  <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+                    <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
+                  </button>
+                </div>
+              } @else {
+                <div class="bulk-toolbar bulk-hint">
+                  <mat-icon>check_box_outline_blank</mat-icon>
+                  <span>Check boxes on cards to select multiple positions for bulk removal</span>
+                  <button mat-button (click)="portfolio.selectAll()">Select All</button>
+                </div>
+              }
+              <div class="sort-bar">
+                <span class="sort-label">Sort by:</span>
+                <div class="sort-chips">
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'default'"
+                    (click)="setSortField('default')"
+                    class="sort-chip"
+                  >
+                    Default
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'marketValue'"
+                    (click)="setSortField('marketValue')"
+                    class="sort-chip"
+                  >
+                    Market Value
+                    @if (sortField() === 'marketValue') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'gainLoss'"
+                    (click)="setSortField('gainLoss')"
+                    class="sort-chip"
+                  >
+                    Gain / Loss
+                    @if (sortField() === 'gainLoss') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'gainLossPct'"
+                    (click)="setSortField('gainLossPct')"
+                    class="sort-chip"
+                  >
+                    Gain %
+                    @if (sortField() === 'gainLossPct') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'sector'"
+                    (click)="setSortField('sector')"
+                    class="sort-chip"
+                  >
+                    Sector
+                    @if (sortField() === 'sector') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'industry'"
+                    (click)="setSortField('industry')"
+                    class="sort-chip"
+                  >
+                    Industry
+                    @if (sortField() === 'industry') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                  <button
+                    mat-button
+                    [class.sort-active]="sortField() === 'symbol'"
+                    (click)="setSortField('symbol')"
+                    class="sort-chip"
+                  >
+                    Ticker
+                    @if (sortField() === 'symbol') {
+                      <mat-icon class="sort-dir-icon">{{
+                        sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </button>
+                </div>
+              </div>
+              <div class="stock-grid" role="list" aria-label="Portfolio positions">
+                @for (summary of sortedSummaries(); track summary.item.id) {
+                  <app-stock-card [summary]="summary" [rsi]="rsiForSymbol(summary.item.symbol)" />
+                }
+              </div>
             }
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'gainLoss'"
-            (click)="setSortField('gainLoss')"
-            class="sort-chip"
-          >
-            Gain / Loss
-            @if (sortField() === 'gainLoss') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
-            }
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'gainLossPct'"
-            (click)="setSortField('gainLossPct')"
-            class="sort-chip"
-          >
-            Gain %
-            @if (sortField() === 'gainLossPct') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
-            }
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'sector'"
-            (click)="setSortField('sector')"
-            class="sort-chip"
-          >
-            Sector
-            @if (sortField() === 'sector') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
-            }
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'industry'"
-            (click)="setSortField('industry')"
-            class="sort-chip"
-          >
-            Industry
-            @if (sortField() === 'industry') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
-            }
-          </button>
-          <button
-            mat-button
-            [class.sort-active]="sortField() === 'symbol'"
-            (click)="setSortField('symbol')"
-            class="sort-chip"
-          >
-            Ticker
-            @if (sortField() === 'symbol') {
-              <mat-icon class="sort-dir-icon">{{
-                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
-              }}</mat-icon>
-            }
-          </button>
-        </div>
+          }
+        }
       </div>
 
-      <!-- ── Stock Grid ─────────────────────────────────────────────── -->
-      <div class="stock-grid" role="list" aria-label="Portfolio positions">
-        @for (summary of sortedSummaries(); track summary.item.id) {
-          <app-stock-card [summary]="summary" [rsi]="rsiForSymbol(summary.item.symbol)" />
+      <!-- ============================================================ -->
+      <!-- SECTION 2 – CASH                                              -->
+      <!-- ============================================================ -->
+      <div class="subsection subsection--cash" [class.collapsed]="!cashExpanded()">
+        <div class="subsection-header" (click)="cashExpanded.set(!cashExpanded())">
+          <div class="subsection-title-group">
+            <mat-icon class="subsection-icon">payments</mat-icon>
+            <span class="subsection-title"
+              >Cash <span class="count-badge">{{ cashState.items().length }}</span></span
+            >
+            @if (cashState.items().length > 0) {
+              <div class="subsection-meta">
+                <div class="subsection-stat">
+                  <span class="stat-label">Total Cash</span>
+                  <span class="stat-value pg-pos">{{
+                    cashState.totalCash() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  }}</span>
+                </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Positions</span>
+                  <span class="stat-value">{{ cashState.items().length }}</span>
+                </div>
+              </div>
+            }
+          </div>
+          <mat-icon class="subsection-chevron">{{
+            cashExpanded() ? 'expand_less' : 'expand_more'
+          }}</mat-icon>
+        </div>
+
+        @if (cashExpanded()) {
+          @if (cashState.items().length === 0) {
+            <div class="subsection-empty">
+              <mat-icon>payments</mat-icon>
+              <span>No cash positions. Click "+ Add Cash" to add a cash balance.</span>
+            </div>
+          } @else {
+            @if (viewMode() === 'grid') {
+              <!-- CASH: TABLE VIEW -->
+              <div class="portfolio-table-wrapper">
+                <table
+                  class="portfolio-grid-table mat-elevation-z0"
+                  mat-table
+                  [dataSource]="cashState.items()"
+                >
+                  <ng-container matColumnDef="description">
+                    <th mat-header-cell *matHeaderCellDef>DESCRIPTION</th>
+                    <td mat-cell *matCellDef="let c">
+                      <span class="pg-company">{{ c.description }}</span>
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="amount">
+                    <th mat-header-cell *matHeaderCellDef class="pg-num-header">AMOUNT</th>
+                    <td
+                      mat-cell
+                      *matCellDef="let c"
+                      class="pg-num pg-bold pg-pos"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      {{ c.amount | currency }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="addedAt">
+                    <th mat-header-cell *matHeaderCellDef>ADDED</th>
+                    <td mat-cell *matCellDef="let c" class="pg-dim">
+                      {{ c.addedAt | date: 'yyyy-MM-dd' }}
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="cashActions">
+                    <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
+                    <td mat-cell *matCellDef="let c" class="pg-actions-cell">
+                      <button
+                        mat-icon-button
+                        matTooltip="Edit"
+                        (click)="openEditCashDialog(c); $event.stopPropagation()"
+                        class="pg-action-btn"
+                      >
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        matTooltip="Remove"
+                        (click)="confirmDeleteCash(c); $event.stopPropagation()"
+                        class="pg-action-btn pg-action-delete"
+                      >
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </td>
+                  </ng-container>
+                  <tr
+                    mat-header-row
+                    *matHeaderRowDef="['description', 'amount', 'addedAt', 'cashActions']"
+                  ></tr>
+                  <tr
+                    mat-row
+                    *matRowDef="
+                      let row;
+                      columns: ['description', 'amount', 'addedAt', 'cashActions']
+                    "
+                    class="pg-row"
+                  ></tr>
+                </table>
+              </div>
+            } @else {
+              <!-- CASH: CARD VIEW -->
+              <div class="cash-card-grid">
+                @for (c of cashState.items(); track c.id) {
+                  <div class="cash-card">
+                    <div class="cash-card-header">
+                      <mat-icon>payments</mat-icon>
+                      <span class="cash-card-label">{{ c.description }}</span>
+                    </div>
+                    <div class="cash-card-amount" [class.demo-redact]="demoMode.isDemoMode()">
+                      {{ c.amount | currency }}
+                    </div>
+                    <div class="cash-card-date">Added {{ c.addedAt | date: 'MMM d, yyyy' }}</div>
+                    <div class="cash-card-actions">
+                      <button mat-icon-button matTooltip="Edit" (click)="openEditCashDialog(c)">
+                        <mat-icon>edit</mat-icon>
+                      </button>
+                      <button mat-icon-button matTooltip="Remove" (click)="confirmDeleteCash(c)">
+                        <mat-icon>delete_outline</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          }
+        }
+      </div>
+
+      <!-- ============================================================ -->
+      <!-- SECTION 3 – OPTIONS                                           -->
+      <!-- ============================================================ -->
+      <div class="subsection subsection--options" [class.collapsed]="!optionsExpanded()">
+        <div class="subsection-header" (click)="optionsExpanded.set(!optionsExpanded())">
+          <div class="subsection-title-group">
+            <mat-icon class="subsection-icon">trending_up</mat-icon>
+            <span class="subsection-title"
+              >Options <span class="count-badge">{{ optionState.items().length }}</span></span
+            >
+            @if (optionState.items().length > 0) {
+              <div class="subsection-meta">
+                <div class="subsection-stat">
+                  <span class="stat-label">Market Value</span>
+                  <span class="stat-value">{{
+                    optionState.totalMarketValue() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  }}</span>
+                </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Cost</span>
+                  <span class="stat-value">{{
+                    optionState.totalCost() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  }}</span>
+                </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Gain / Loss</span>
+                  <span
+                    class="stat-value"
+                    [class.pg-pos]="optionState.totalMarketValue() - optionState.totalCost() >= 0"
+                    [class.pg-neg]="optionState.totalMarketValue() - optionState.totalCost() < 0"
+                  >
+                    {{ optionState.totalMarketValue() - optionState.totalCost() >= 0 ? '+' : ''
+                    }}{{
+                      optionState.totalMarketValue() - optionState.totalCost()
+                        | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                    }}
+                  </span>
+                </div>
+              </div>
+            }
+          </div>
+          <mat-icon class="subsection-chevron">{{
+            optionsExpanded() ? 'expand_less' : 'expand_more'
+          }}</mat-icon>
+        </div>
+
+        @if (optionsExpanded()) {
+          @if (optionState.items().length === 0) {
+            <div class="subsection-empty">
+              <mat-icon>trending_up</mat-icon>
+              <span>No option positions. Click "+ Add Option" to track an options contract.</span>
+            </div>
+          } @else {
+            <div class="portfolio-table-wrapper options-table-wrapper">
+              <table
+                class="portfolio-grid-table options-grid-table mat-elevation-z0"
+                mat-table
+                [dataSource]="optionState.analyses()"
+              >
+                <ng-container matColumnDef="opt_ticker">
+                  <th mat-header-cell *matHeaderCellDef>UNDERLYING</th>
+                  <td mat-cell *matCellDef="let a">
+                    <div class="pg-symbol-cell">
+                      <div
+                        class="pg-badge"
+                        [class.badge-put]="a.item.positionType === 'PUT'"
+                        [class.badge-call]="a.item.positionType === 'CALL'"
+                      >
+                        {{ a.item.positionType.substring(0, 1) }}
+                      </div>
+                      <span class="pg-symbol">{{ a.item.underlyingTicker }}</span>
+                    </div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_type">
+                  <th mat-header-cell *matHeaderCellDef>TYPE</th>
+                  <td mat-cell *matCellDef="let a">
+                    <span
+                      class="opt-type-badge"
+                      [class.put-badge]="a.item.positionType === 'PUT'"
+                      [class.call-badge]="a.item.positionType === 'CALL'"
+                      >{{ a.item.positionType }}</span
+                    >
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_expiry">
+                  <th mat-header-cell *matHeaderCellDef>EXPIRY</th>
+                  <td mat-cell *matCellDef="let a" class="pg-dim">
+                    {{ a.item.expirationDate | date: 'yyyy-MM-dd' }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_strike">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">STRIKE</th>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ a.item.strike | currency }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_premium">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">PREMIUM</th>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ a.item.premium | currency }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_contracts">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">CONTRACTS</th>
+                  <td mat-cell *matCellDef="let a" class="pg-num">
+                    {{ a.item.numberOfContracts }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_stockPrice">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">STOCK PRICE</th>
+                  <td mat-cell *matCellDef="let a" class="pg-num">
+                    @if (a.stockPrice !== null) {
+                      {{ a.stockPrice | currency }}
+                    } @else {
+                      <span class="pg-dim">—</span>
+                    }
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_dte">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    class="pg-num-header"
+                    matTooltip="Days to Expiration"
+                  >
+                    DTE
+                  </th>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.dte-urgent]="a.dte < 14"
+                    [class.dte-warning]="a.dte >= 14 && a.dte < 44"
+                  >
+                    {{ a.dte }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_cost">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">COST</th>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ a.cost | currency }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_mv">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">MKT VALUE</th>
+                  <td
+                    mat-cell
+                    *matCellDef="let a"
+                    class="pg-num pg-bold"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ a.marketValue | currency }}
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_gl">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN/LOSS</th>
+                  <td mat-cell *matCellDef="let a" class="pg-num">
+                    <span
+                      [class.pg-pos]="a.gainLoss >= 0"
+                      [class.pg-neg]="a.gainLoss < 0"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                      >{{ a.gainLoss | currency }}</span
+                    >
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_glp">
+                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN %</th>
+                  <td mat-cell *matCellDef="let a" class="pg-num">
+                    <span
+                      [class.pg-pos]="a.gainLossPct >= 0"
+                      [class.pg-neg]="a.gainLossPct < 0"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                      >{{ a.gainLossPct >= 0 ? '+' : ''
+                      }}{{ a.gainLossPct | number: '1.1-1' }}%</span
+                    >
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_state">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    matTooltip="Current option state based on market conditions"
+                  >
+                    OPTION STATE
+                  </th>
+                  <td mat-cell *matCellDef="let a">
+                    <div
+                      class="opt-state-badge"
+                      [ngClass]="optionStateClass(a.optionState)"
+                      [matTooltip]="a.stateDescription"
+                    >
+                      {{ a.optionState.replaceAll('_', ' ') }}
+                    </div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_action">
+                  <th mat-header-cell *matHeaderCellDef>ACTION</th>
+                  <td mat-cell *matCellDef="let a">
+                    <div
+                      class="opt-action-badge"
+                      [ngClass]="actionClass(a.action)"
+                      [matTooltip]="a.actionDescription"
+                    >
+                      {{ a.action }}
+                    </div>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="opt_actions">
+                  <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
+                  <td mat-cell *matCellDef="let a" class="pg-actions-cell">
+                    <button
+                      mat-icon-button
+                      matTooltip="Edit"
+                      (click)="openEditOptionDialog(a); $event.stopPropagation()"
+                      class="pg-action-btn"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      matTooltip="Remove"
+                      (click)="confirmDeleteOption(a); $event.stopPropagation()"
+                      class="pg-action-btn pg-action-delete"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="optionDisplayedColumns; sticky: true"></tr>
+                <tr
+                  mat-row
+                  *matRowDef="let row; columns: optionDisplayedColumns"
+                  class="pg-row"
+                ></tr>
+              </table>
+            </div>
+          }
         }
       </div>
     } @else {
-      <!-- ── Empty State ────────────────────────────────────────────── -->
+      <!-- Empty State -->
       <div class="empty-state">
         <mat-icon class="empty-icon">add_chart</mat-icon>
         <h3 class="empty-title">No positions yet</h3>
-        <p class="empty-sub">Start tracking your investments by adding your first stock.</p>
-        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
-          <mat-icon>add</mat-icon> Add your first stock
-        </button>
+        <p class="empty-sub">Start tracking your investments by adding stocks, cash, or options.</p>
+        <div class="empty-actions">
+          <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+            <mat-icon>add</mat-icon> Add Stock
+          </button>
+          <button mat-flat-button class="action-btn-cash" (click)="openAddCashDialog()">
+            <mat-icon>payments</mat-icon> Add Cash
+          </button>
+          <button mat-flat-button class="action-btn-option" (click)="openAddOptionDialog()">
+            <mat-icon>trending_up</mat-icon> Add Option
+          </button>
+        </div>
       </div>
     }
   </section>

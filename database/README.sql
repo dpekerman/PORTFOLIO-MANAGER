@@ -1,7 +1,0 @@
--- ============================================================
--- Portfolio Manager Database Setup
--- Run scripts in order:
---   01_CreateDatabase.sql
---   02_CreateTables.sql
---   03_SeedData.sql  (optional demo data)
--- ============================================================

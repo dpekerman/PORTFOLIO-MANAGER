@@ -1,12 +1,34 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
 import { AddWatchlistDialogComponent } from './add-watchlist-dialog.component';
 import { WatchlistCardComponent } from './watchlist-card.component';
+
+type ViewMode = 'card' | 'grid';
+type SortColumn = 'symbol' | 'company' | 'price' | 'change' | 'changePct' | 'sector';
+type SortDir = 'asc' | 'desc';
 
 @Component({
   selector: 'app-watchlist-page',
@@ -14,8 +36,17 @@ import { WatchlistCardComponent } from './watchlist-card.component';
   styleUrl: './watchlist-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FormsModule,
+    NgClass,
+    CurrencyPipe,
+    DecimalPipe,
     MatButtonModule,
+    MatButtonToggleModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
+    MatSortModule,
+    MatTableModule,
     MatTooltipModule,
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
@@ -24,6 +55,283 @@ import { WatchlistCardComponent } from './watchlist-card.component';
 export class WatchlistPageComponent {
   protected readonly watchlist = inject(WatchlistStateService);
   private readonly dialog = inject(MatDialog);
+  private readonly api = inject(PortfolioApiService);
+  private readonly scanner = inject(ScannerStateService);
+
+  protected readonly viewMode = signal<ViewMode>('grid');
+  protected readonly filterText = signal('');
+  protected readonly sortCol = signal<SortColumn>('symbol');
+  protected readonly sortDir = signal<SortDir>('asc');
+
+  // ── RSI result map for watchlist symbols ──────────────────────────────────
+  protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
+
+  constructor() {
+    effect(() => {
+      const symbols = this.watchlist.items().map((w) => w.item.symbol);
+      if (symbols.length === 0) return;
+      this.api.analyzeSymbols(symbols, 30, 75, 'Enhanced').subscribe({
+        next: (results) => {
+          const map = new Map<string, RsiScanResult>();
+          for (const r of results) map.set(r.symbol.toUpperCase(), r);
+          this.watchlistRsiMap.set(map);
+        },
+        error: (err) => console.warn('Watchlist RSI fetch failed', err),
+      });
+    });
+  }
+
+  protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
+    const map = new Map<string, RsiScanResult>(this.watchlistRsiMap());
+    for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
+      map.set(r.symbol.toUpperCase(), r);
+    return map;
+  });
+
+  protected rsiForSymbol(symbol: string): number | null {
+    return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected momentumShift(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'Active SELL Trigger';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'Bearish Shift';
+      return 'Warning';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'Active BUY Trigger';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'Bullish Shift';
+      return 'Warning';
+    }
+
+    // New price-action rules (neutral zone)
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'Uptrend';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Consolidation';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'Breakdown';
+
+    if (rsi >= 55) return 'Uptrend';
+    if (rsi >= 45) return 'Neutral';
+    return 'Downtrend';
+  }
+
+  protected momentumAction(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return '—';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'CONFIRMED SELL';
+      if (r.rsiSignalAvailable && rsi <= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'CONFIRMED BUY';
+      if (r.rsiSignalAvailable && rsi >= sig) return 'EARLY WARNING';
+      return 'AVOID / WAIT';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65) return 'HOLD LONGS';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'BUY / ACCUMULATE';
+    if (ema9 > 0 && price < ema9 && rsi < 40) return 'REDUCE';
+
+    if (rsi >= 55) return 'HOLD LONGS';
+    if (rsi >= 45) return 'HANDS OFF';
+    return 'STAND BY';
+  }
+
+  protected momentumShiftClass(symbol: string): string {
+    const s = this.momentumShift(symbol);
+    if (s === 'Active BUY Trigger') return 'ms-confirmed-buy';
+    if (s === 'Bullish Shift') return 'ms-bullish';
+    if (s === 'Active SELL Trigger') return 'ms-confirmed-sell';
+    if (s === 'Bearish Shift') return 'ms-bearish';
+    if (s === 'Warning') return 'ms-warning';
+    if (s === 'Uptrend') return 'ms-uptrend';
+    if (s === 'Consolidation') return 'ms-consolidation';
+    if (s === 'Breakdown') return 'ms-breakdown';
+    if (s === 'Downtrend') return 'ms-downtrend';
+    return 'ms-neutral';
+  }
+
+  protected momentumActionClass(symbol: string): string {
+    const a = this.momentumAction(symbol);
+    if (a === 'CONFIRMED BUY') return 'ma-confirmed-buy';
+    if (a === 'CONFIRMED SELL') return 'ma-confirmed-sell';
+    if (a === 'EARLY WARNING') return 'ma-early-warning';
+    if (a === 'AVOID / WAIT') return 'ma-avoid';
+    if (a === 'HOLD LONGS') return 'ma-hold';
+    if (a === 'BUY / ACCUMULATE') return 'ma-accumulate';
+    if (a === 'REDUCE') return 'ma-reduce';
+    return 'ma-standby';
+  }
+
+  protected momentumShiftTooltip(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return 'No RSI data available';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
+      if (r.rsiSignalAvailable && rsi <= sig)
+        return 'The buying frenzy is starting to run out of steam.';
+      return 'The stock is surging upward rapidly and is heavily overbought.';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'Buyers have officially taken control of the day.';
+      if (r.rsiSignalAvailable && rsi >= sig)
+        return 'The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Price above 9-EMA with healthy RSI — trend is intact, do nothing.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Price holding near 20-SMA with elevated volume — institutional dip-buy confirmed.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Price broke below 9-EMA with RSI fading — defensive risk triggered.';
+
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected momentumActionTooltip(symbol: string): string {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return 'No RSI data available';
+    const rsi = r.rsi;
+    const sig = r.rsiSignal ?? rsi;
+    const price = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const sma20 = r.sma20Price ?? 0;
+    const vol = r.volumeRatio ?? 1;
+
+    if (rsi > 65) {
+      if (r.status === 'Confirmed') return 'High-probability short or put entry.';
+      if (r.rsiSignalAvailable && rsi <= sig)
+        return 'Get ready to short or buy puts. The buying speed has broken.';
+      return 'The stock is running hot and squeezing shorts. Do not stand in front of the train.';
+    }
+    if (rsi < 30) {
+      if (r.status === 'Confirmed') return 'High-probability long entry.';
+      if (r.rsiSignalAvailable && rsi >= sig)
+        return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
+      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
+    }
+
+    if (ema9 > 0 && price > ema9 && rsi >= 50 && rsi <= 65)
+      return 'Do nothing — trend is healthy. Price above 9-EMA, let it run.';
+    if (sma20 > 0 && Math.abs(price - sma20) / sma20 <= 0.02 && rsi >= 40 && rsi <= 50 && vol > 1.2)
+      return 'Institutional dip-buy confirmed. Staged accumulation zone — build position gradually.';
+    if (ema9 > 0 && price < ema9 && rsi < 40)
+      return 'Defensive risk triggered — reduce or hedge exposure until price reclaims 9-EMA.';
+
+    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
+    if (rsi >= 45)
+      return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';
+    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+  }
+
+  protected readonly displayedColumns: string[] = [
+    'symbol',
+    'company',
+    'price',
+    'change',
+    'changePct',
+    'sector',
+    'rsi',
+    'momentumShift',
+    'momentumAction',
+    'actions',
+  ];
+
+  protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
+    const filter = this.filterText().trim().toLowerCase();
+    let items = this.watchlist.items();
+
+    if (filter) {
+      items = items.filter(
+        (w) =>
+          w.item.symbol.toLowerCase().includes(filter) ||
+          (w.quote?.companyName ?? '').toLowerCase().includes(filter) ||
+          (w.quote?.sector ?? '').toLowerCase().includes(filter),
+      );
+    }
+
+    const col = this.sortCol();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+
+    return [...items].sort((a, b) => {
+      let av: string | number;
+      let bv: string | number;
+      switch (col) {
+        case 'symbol':
+          av = a.item.symbol;
+          bv = b.item.symbol;
+          break;
+        case 'company':
+          av = a.quote?.companyName ?? '';
+          bv = b.quote?.companyName ?? '';
+          break;
+        case 'price':
+          av = a.quote?.currentPrice ?? 0;
+          bv = b.quote?.currentPrice ?? 0;
+          break;
+        case 'change':
+          av = a.quote?.change ?? 0;
+          bv = b.quote?.change ?? 0;
+          break;
+        case 'changePct':
+          av = a.quote?.changePercent ?? 0;
+          bv = b.quote?.changePercent ?? 0;
+          break;
+        case 'sector':
+          av = a.quote?.sector ?? '';
+          bv = b.quote?.sector ?? '';
+          break;
+        default:
+          av = a.item.symbol;
+          bv = b.item.symbol;
+      }
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  setSort(col: SortColumn): void {
+    if (this.sortCol() === col) {
+      this.sortDir.update((d) => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      this.sortCol.set(col);
+      this.sortDir.set('asc');
+    }
+  }
+
+  onMatSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.sortCol.set(sort.active as SortColumn);
+    this.sortDir.set(sort.direction as SortDir);
+  }
 
   openAddDialog(): void {
     this.dialog
@@ -36,5 +344,22 @@ export class WatchlistPageComponent {
 
   refresh(): void {
     this.watchlist.refresh();
+  }
+
+  remove(w: WatchlistSummary): void {
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        data: {
+          title: 'Remove Symbol',
+          message: `Remove ${w.item.symbol} from your watchlist?`,
+          confirmLabel: 'Remove',
+          danger: true,
+        },
+        width: '360px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.watchlist.deleteItem(w.item.id, w.item.symbol);
+      });
   }
 }

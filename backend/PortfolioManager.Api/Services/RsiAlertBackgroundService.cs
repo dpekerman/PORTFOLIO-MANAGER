@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -7,12 +9,17 @@ namespace PortfolioManager.Api.Services;
 /// A long-running background service that periodically runs the RSI scanner
 /// and fires email notifications whenever a new CONFIRMED signal is detected.
 ///
+/// Additionally, during the configured EOD window (default 3:30–4:00 PM Eastern),
+/// it evaluates the EOD CONFIRM rules and sends a separate email for new EOD signals.
+///
 /// This runs independently of the frontend — emails go out as long as the
 /// backend process is alive, regardless of which page the user has open.
 /// </summary>
 public sealed class RsiAlertBackgroundService(
     IServiceScopeFactory scopeFactory,
     IOptionsMonitor<EmailSettings> settingsMonitor,
+    ScannerRuntimeConfig runtimeConfig,
+    EodSignalPersistenceService eodPersistence,
     ILogger<RsiAlertBackgroundService> logger) : BackgroundService
 {
     private EmailSettings Settings => settingsMonitor.CurrentValue;
@@ -58,14 +65,32 @@ public sealed class RsiAlertBackgroundService(
         using var scope = scopeFactory.CreateScope();
         var scanner = scope.ServiceProvider.GetRequiredService<IRsiScannerService>();
         var notifier = scope.ServiceProvider.GetRequiredService<EmailNotificationService>();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        // Mirror what ScannerController does: include all user-defined symbols from the
+        // portfolio and watchlist so that non-TSX stocks (e.g. BABA, US-listed holdings)
+        // are scanned by the background service exactly as they are on the frontend.
+        var portfolioSymbols = await db.PortfolioItems
+            .Where(p => !p.IsManual)
+            .Select(p => p.Symbol)
+            .ToListAsync(ct);
+        var watchlistSymbols = await db.WatchlistItems
+            .Select(w => w.Symbol)
+            .ToListAsync(ct);
+        var extraSymbols = portfolioSymbols
+            .Concat(watchlistSymbols)
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToList();
 
         logger.LogDebug("[RsiAlertBg] Running RSI scan (OS<{OS} OB>{OB})...",
             Settings.OversoldThreshold, Settings.OverboughtThreshold);
 
         var result = await scanner.ScanAsync(
+            extraSymbols,         // include portfolio + watchlist symbols (mirrors ScannerController)
             Settings.OversoldThreshold,
             Settings.OverboughtThreshold,
-            "Legacy",
+            "Enhanced",   // must match the UI logic mode so email status == displayed status
             ct);
 
         if (result.IsDemo)
@@ -74,6 +99,7 @@ public sealed class RsiAlertBackgroundService(
             return;
         }
 
+        // ── Standard Confirmed signal notifications ───────────────────────────
         var totalConfirmed =
             (result.OversoldChain?.Count(r => r.Status == SignalStatus.Confirmed) ?? 0) +
             (result.OverboughtChain?.Count(r => r.Status == SignalStatus.Confirmed) ?? 0);
@@ -81,5 +107,30 @@ public sealed class RsiAlertBackgroundService(
         logger.LogDebug("[RsiAlertBg] Scan complete. {TotalConfirmed} CONFIRMED signal(s) found.", totalConfirmed);
 
         await notifier.NotifyNewConfirmedSignalsAsync(result);
+
+        // ── EOD Confirm notifications (only during the configured EOD window) ──
+        bool inEodWindow = runtimeConfig.IsEodWindowActive();
+        if (inEodWindow)
+        {
+            var totalEod =
+                (result.OversoldChain?.Count(r => r.Status == SignalStatus.EodConfirm) ?? 0) +
+                (result.OverboughtChain?.Count(r => r.Status == SignalStatus.EodConfirm) ?? 0);
+
+            logger.LogInformation(
+                "[RsiAlertBg] EOD Window active ({Start}–{End} ET). {EodCount} EOD CONFIRM signal(s) found.",
+                runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd, totalEod);
+
+            if (totalEod > 0)
+            {
+                await notifier.NotifyNewEodConfirmedSignalsAsync(result);
+
+                // Persist EOD signals to disk so the "Yesterday's EOD" morning panel can show them.
+                var allEod = (result.OversoldChain ?? [])
+                    .Concat(result.OverboughtChain ?? [])
+                    .Where(r => r.Status == SignalStatus.EodConfirm)
+                    .ToList();
+                await eodPersistence.SaveAsync(allEod, ct);
+            }
+        }
     }
 }

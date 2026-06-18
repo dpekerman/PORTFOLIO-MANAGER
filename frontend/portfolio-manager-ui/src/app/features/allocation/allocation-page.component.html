@@ -40,7 +40,7 @@
             <mat-icon>account_balance</mat-icon>
             Portfolio Value
           </div>
-          <div class="kpi-value kpi-neutral">
+          <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
             {{ portfolio.displayTotalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Current market value</div>
@@ -53,7 +53,7 @@
             <mat-icon>payments</mat-icon>
             Total Cost Basis
           </div>
-          <div class="kpi-value kpi-neutral">
+          <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
             {{ portfolio.displayTotalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Invested capital</div>
@@ -70,6 +70,7 @@
             class="kpi-value"
             [class.kpi-positive]="isPositive()"
             [class.kpi-negative]="!isPositive()"
+            [class.demo-redact]="demoMode.isDemoMode()"
           >
             {{ portfolio.displayTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
@@ -77,6 +78,7 @@
             class="kpi-sub"
             [class.kpi-positive]="isPositive()"
             [class.kpi-negative]="!isPositive()"
+            [class.demo-redact]="demoMode.isDemoMode()"
           >
             {{ returnPct() | percent: '1.2-2' }} total return
           </div>
