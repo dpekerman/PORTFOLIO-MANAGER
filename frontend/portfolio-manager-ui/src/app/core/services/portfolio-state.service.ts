@@ -182,6 +182,11 @@ export class PortfolioStateService {
                     sector: updated.sector ?? s.item.sector,
                     industry: updated.industry ?? s.item.industry,
                     sectorIsOverridden: updated.sectorIsOverridden,
+                    transactionType: updated.transactionType ?? null,
+                    accountType: updated.accountType ?? null,
+                    openDate: updated.openDate ?? null,
+                    closeDate: updated.closeDate ?? null,
+                    closingPrice: updated.closingPrice ?? null,
                   },
                 }
               : s,

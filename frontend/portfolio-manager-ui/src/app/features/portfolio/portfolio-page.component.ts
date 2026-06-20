@@ -23,6 +23,7 @@ import {
   OptionAnalysis,
   PortfolioSummary,
   RsiScanResult,
+  StockQuote,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
@@ -62,9 +63,31 @@ type SortField =
   | 'symbol';
 type SortDir = 'asc' | 'desc';
 type ViewMode = 'card' | 'grid';
+
+interface AggregatePortfolioRow {
+  kind: 'aggregate';
+  symbol: string;
+  company: string;
+  rowCount: number;
+  totalShares: number;
+  weightedAvgCost: number;
+  totalCost: number;
+  totalMarketValue: number;
+  totalGainLoss: number;
+  totalGainLossPct: number;
+  totalDayGain: number;
+  accountsList: string[];
+  sector: string;
+  industry: string;
+  quote: StockQuote | null;
+}
+
+type GridRow = PortfolioSummary | AggregatePortfolioRow;
+
 type GridSortCol =
   | 'symbol'
   | 'company'
+  | 'accountType'
   | 'sector'
   | 'industry'
   | 'shares'
@@ -74,7 +97,26 @@ type GridSortCol =
   | 'gainLoss'
   | 'gainLossPct'
   | 'rsi'
-  | 'changePct';
+  | 'changePct'
+  | 'dayGain'
+  | 'momentumShift'
+  | 'momentumAction';
+
+type OptionSortCol =
+  | 'opt_ticker'
+  | 'opt_type'
+  | 'opt_expiry'
+  | 'opt_strike'
+  | 'opt_premium'
+  | 'opt_contracts'
+  | 'opt_stockPrice'
+  | 'opt_dte'
+  | 'opt_cost'
+  | 'opt_mv'
+  | 'opt_gl'
+  | 'opt_glp'
+  | 'opt_state'
+  | 'opt_action';
 
 @Component({
   selector: 'app-portfolio-page',
@@ -121,29 +163,28 @@ export class PortfolioPageComponent {
   protected readonly sortField = signal<SortField>('marketValue');
   protected readonly sortDir = signal<SortDir>('desc');
 
-  // â”€â”€ View mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly viewMode = signal<ViewMode>('grid');
 
-  // â”€â”€ Grid filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly filterTicker = signal('');
   protected readonly filterSector = signal('');
   protected readonly filterIndustry = signal('');
   protected readonly filterRsiMin = signal<number | null>(null);
   protected readonly filterRsiMax = signal<number | null>(null);
 
-  // â”€â”€ Grid sort â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
 
   protected readonly gridDisplayedColumns: string[] = [
     'symbol',
     'company',
+    'accountType',
     'sector',
     'industry',
     'shares',
     'avgCost',
     'price',
     'changePct',
+    'dayGain',
     'marketValue',
     'gainLoss',
     'gainLossPct',
@@ -152,6 +193,13 @@ export class PortfolioPageComponent {
     'momentumAction',
     'actions',
   ];
+
+  // Track which multi-account groups are collapsed (default: all expanded)
+  protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
+
+  // ── Option grid sort ────────────────────────────────────────────────────
+  protected readonly optionSortCol = signal<OptionSortCol>('opt_ticker');
+  protected readonly optionSortDir = signal<SortDir>('asc');
 
   protected readonly optionDisplayedColumns: string[] = [
     'opt_ticker',
@@ -170,6 +218,67 @@ export class PortfolioPageComponent {
     'opt_action',
     'opt_actions',
   ];
+
+  protected readonly totalDayGain = computed<number>(() =>
+    this.portfolio.summaries().reduce((sum, s) => {
+      if (s.item.isManual) return sum;
+      return sum + s.item.shares * (s.quote?.change ?? 0);
+    }, 0),
+  );
+
+  protected readonly sortedOptionAnalyses = computed(() => {
+    const col = this.optionSortCol();
+    const dir = this.optionSortDir() === 'asc' ? 1 : -1;
+    return [...this.optionState.analyses()]
+      .filter((a) => a.item.transactionType !== 'CLOSE')
+      .sort((a, b) => {
+        const av = this.optionSortValue(a, col);
+        const bv = this.optionSortValue(b, col);
+        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+        return String(av).localeCompare(String(bv)) * dir;
+      });
+  });
+
+  private optionSortValue(a: OptionAnalysis, col: OptionSortCol): number | string {
+    switch (col) {
+      case 'opt_ticker':
+        return a.item.underlyingTicker;
+      case 'opt_type':
+        return a.item.positionType;
+      case 'opt_expiry':
+        return a.item.expirationDate;
+      case 'opt_strike':
+        return a.item.strike;
+      case 'opt_premium':
+        return a.item.premium;
+      case 'opt_contracts':
+        return a.item.numberOfContracts;
+      case 'opt_stockPrice':
+        return a.stockPrice ?? 0;
+      case 'opt_dte':
+        return a.dte;
+      case 'opt_cost':
+        return a.cost;
+      case 'opt_mv':
+        return a.marketValue;
+      case 'opt_gl':
+        return a.gainLoss;
+      case 'opt_glp':
+        return a.gainLossPct;
+      case 'opt_state':
+        return a.optionState;
+      case 'opt_action':
+        return a.action;
+      default:
+        return 0;
+    }
+  }
+
+  onOptionSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.optionSortCol.set(sort.active as OptionSortCol);
+    this.optionSortDir.set(sort.direction as SortDir);
+  }
 
   /**
    * Full RsiScanResult map for all portfolio symbols (keyed by UPPER symbol).
@@ -333,7 +442,7 @@ export class PortfolioPageComponent {
   }
 
   protected readonly sortedSummaries = computed(() => {
-    const list = [...this.portfolio.summaries()];
+    const list = [...this.portfolio.summaries()].filter((s) => s.item.transactionType !== 'CLOSE');
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
 
@@ -367,14 +476,15 @@ export class PortfolioPageComponent {
   });
 
   // â”€â”€ Grid filtered + sorted rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  protected readonly gridRows = computed<PortfolioSummary[]>(() => {
+  protected readonly gridRows = computed<GridRow[]>(() => {
     const ticker = this.filterTicker().trim().toLowerCase();
     const sector = this.filterSector();
     const industry = this.filterIndustry();
     const rsiMin = this.filterRsiMin();
     const rsiMax = this.filterRsiMax();
 
-    let rows = this.portfolio.summaries().filter((s) => {
+    const rows = this.portfolio.summaries().filter((s) => {
+      if (s.item.transactionType === 'CLOSE') return false;
       if (
         ticker &&
         !s.item.symbol.toLowerCase().includes(ticker) &&
@@ -392,13 +502,106 @@ export class PortfolioPageComponent {
     const col = this.gridSortCol();
     const dir = this.gridSortDir() === 'asc' ? 1 : -1;
 
-    return [...rows].sort((a, b) => {
+    const sorted = [...rows].sort((a, b) => {
       const av = this.gridSortValue(a, col);
       const bv = this.gridSortValue(b, col);
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
+
+    // Group by symbol – tickers with 2+ entries get a collapsible aggregate group header
+    const groups = new Map<string, PortfolioSummary[]>();
+    for (const s of sorted) {
+      const sym = s.item.symbol;
+      if (!groups.has(sym)) groups.set(sym, []);
+      groups.get(sym)!.push(s);
+    }
+
+    const collapsed = this.collapsedSymbols();
+    const result: GridRow[] = [];
+    for (const [sym, group] of groups) {
+      if (group.length === 1) {
+        // Single-account ticker: show row directly
+        result.push(group[0]);
+      } else {
+        // Multi-account ticker: show aggregate header first
+        const totalShares = group.reduce((sum, s) => sum + s.item.shares, 0);
+        const totalCost = group.reduce(
+          (sum, s) => sum + s.item.averageCostBasis * s.item.shares,
+          0,
+        );
+        const totalMv = group.reduce((sum, s) => {
+          const p = s.quote?.currentPrice ?? s.item.averageCostBasis;
+          return (
+            sum +
+            (s.item.isManual
+              ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+              : p * s.item.shares)
+          );
+        }, 0);
+        const totalDayGain = group.reduce(
+          (sum, s) => sum + (s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0)),
+          0,
+        );
+        const accountsList = [
+          ...new Set(group.map((s) => s.item.accountType).filter((a): a is string => !!a)),
+        ];
+        result.push({
+          kind: 'aggregate',
+          symbol: group[0].item.symbol,
+          company: group[0].item.companyName,
+          rowCount: group.length,
+          totalShares,
+          weightedAvgCost: totalShares > 0 ? totalCost / totalShares : 0,
+          totalCost,
+          totalMarketValue: totalMv,
+          totalGainLoss: totalMv - totalCost,
+          totalGainLossPct: totalCost > 0 ? ((totalMv - totalCost) / totalCost) * 100 : 0,
+          totalDayGain,
+          accountsList,
+          sector: group[0].item.sector || group[0].quote?.sector || '',
+          industry: group[0].item.industry || group[0].quote?.industry || '',
+          quote: group[0].quote,
+        } satisfies AggregatePortfolioRow);
+        // Individual rows only shown when group is expanded
+        if (!collapsed.has(sym)) {
+          result.push(...group);
+        }
+      }
+    }
+    return result;
   });
+
+  protected readonly gridItemCount = computed(
+    () => this.gridRows().filter((r) => !('kind' in r)).length,
+  );
+
+  protected isItemRow = (_i: number, row: GridRow): row is PortfolioSummary => !('kind' in row);
+  protected isAggRow = (_i: number, row: GridRow): row is AggregatePortfolioRow =>
+    'kind' in row && (row as AggregatePortfolioRow).kind === 'aggregate';
+
+  // Template cast helpers (Angular doesn't narrow union types in @if blocks)
+  protected asItem = (row: GridRow) => row as PortfolioSummary;
+  protected asAgg = (row: GridRow) => row as AggregatePortfolioRow;
+
+  // Symbols that have a group header (used to style child rows with indentation)
+  protected readonly groupedSymbols = computed<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const r of this.gridRows()) {
+      if ('kind' in r) set.add(r.symbol);
+    }
+    return set;
+  });
+
+  protected toggleGroup(symbol: string, event: Event): void {
+    event.stopPropagation();
+    this.collapsedSymbols.update((set) => {
+      const next = new Set(set);
+      if (next.has(symbol)) next.delete(symbol);
+      else next.add(symbol);
+      return next;
+    });
+  }
 
   private gridSortValue(s: PortfolioSummary, col: GridSortCol): number | string {
     const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
@@ -412,6 +615,8 @@ export class PortfolioPageComponent {
         return s.item.symbol;
       case 'company':
         return s.item.companyName;
+      case 'accountType':
+        return s.item.accountType ?? '';
       case 'sector':
         return s.item.sector || s.quote?.sector || '';
       case 'industry':
@@ -432,6 +637,12 @@ export class PortfolioPageComponent {
         return rsi;
       case 'changePct':
         return s.quote?.changePercent ?? 0;
+      case 'dayGain':
+        return s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0);
+      case 'momentumShift':
+        return this.momentumShift(s.item.symbol);
+      case 'momentumAction':
+        return this.momentumAction(s.item.symbol);
       default:
         return 0;
     }
@@ -499,10 +710,12 @@ export class PortfolioPageComponent {
   }
 
   exportCsv(): void {
+    const grouped = this.groupedSymbols();
     const rows: string[][] = [
       [
         'Symbol',
         'Company',
+        'Account Type',
         'Sector',
         'Industry',
         'Shares',
@@ -513,30 +726,67 @@ export class PortfolioPageComponent {
         'Gain/Loss %',
         'Daily Change',
         'Daily Change %',
+        'RSI (14)',
+        'Momentum Shift',
+        'Action',
       ],
     ];
-    for (const s of this.sortedSummaries()) {
-      const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-      const marketValue = s.item.isManual
-        ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-        : price * s.item.shares;
-      const cost = s.item.averageCostBasis * s.item.shares;
-      const gainLoss = marketValue - cost;
-      const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
-      rows.push([
-        s.item.symbol,
-        s.item.companyName,
-        s.item.sector ?? '',
-        s.item.industry ?? '',
-        s.item.shares.toString(),
-        s.item.averageCostBasis.toFixed(2),
-        price.toFixed(2),
-        marketValue.toFixed(2),
-        gainLoss.toFixed(2),
-        gainLossPct,
-        (s.quote?.change ?? 0).toFixed(2),
-        (s.quote?.changePercent ?? 0).toFixed(2),
-      ]);
+
+    for (const row of this.gridRows()) {
+      if (this.isAggRow(0, row)) {
+        // Multi-account ticker: export one aggregated row listing all accounts
+        const agg = row as AggregatePortfolioRow;
+        const rsiVal = this.rsiForSymbol(agg.symbol);
+        rows.push([
+          agg.symbol,
+          agg.company,
+          agg.accountsList.join(', '),
+          agg.sector,
+          agg.industry,
+          agg.totalShares.toString(),
+          agg.weightedAvgCost.toFixed(2),
+          (agg.quote?.currentPrice ?? 0).toFixed(2),
+          agg.totalMarketValue.toFixed(2),
+          agg.totalGainLoss.toFixed(2),
+          agg.totalGainLossPct.toFixed(2),
+          (agg.quote?.change ?? 0).toFixed(2),
+          (agg.quote?.changePercent ?? 0).toFixed(2),
+          rsiVal !== null ? rsiVal.toFixed(1) : '',
+          this.momentumShift(agg.symbol),
+          this.momentumAction(agg.symbol),
+        ]);
+      } else {
+        // Skip individual child rows that belong to a multi-account group
+        const s = row as PortfolioSummary;
+        if (grouped.has(s.item.symbol)) continue;
+
+        const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
+        const marketValue = s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+          : price * s.item.shares;
+        const cost = s.item.averageCostBasis * s.item.shares;
+        const gainLoss = marketValue - cost;
+        const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
+        const rsiVal = this.rsiForSymbol(s.item.symbol);
+        rows.push([
+          s.item.symbol,
+          s.item.companyName,
+          s.item.accountType ?? '',
+          s.item.sector ?? s.quote?.sector ?? '',
+          s.item.industry ?? s.quote?.industry ?? '',
+          s.item.shares.toString(),
+          s.item.averageCostBasis.toFixed(2),
+          price.toFixed(2),
+          marketValue.toFixed(2),
+          gainLoss.toFixed(2),
+          gainLossPct,
+          (s.quote?.change ?? 0).toFixed(2),
+          (s.quote?.changePercent ?? 0).toFixed(2),
+          rsiVal !== null ? rsiVal.toFixed(1) : '',
+          this.momentumShift(s.item.symbol),
+          this.momentumAction(s.item.symbol),
+        ]);
+      }
     }
     this.downloadCsv(rows, 'portfolio.csv');
   }
@@ -556,8 +806,9 @@ export class PortfolioPageComponent {
     this.dialog
       .open(EditPositionDialogComponent, {
         data: { item: s.item },
-        width: '480px',
+        width: '620px',
         maxWidth: '95vw',
+        maxHeight: '95vh',
       })
       .afterClosed()
       .subscribe((result: EditPositionDialogResult | undefined) => {
@@ -569,6 +820,11 @@ export class PortfolioPageComponent {
           sector: result.sector,
           industry: result.industry,
           overrideSector: result.overrideSector,
+          transactionType: result.transactionType,
+          accountType: result.accountType,
+          openDate: result.openDate,
+          closeDate: result.closeDate,
+          closingPrice: result.closingPrice,
         });
       });
   }
@@ -591,7 +847,11 @@ export class PortfolioPageComponent {
   }
 
   openAddStockDialog(): void {
-    this.dialog.open(AddStockDialogComponent, { width: '480px', maxWidth: '95vw' });
+    this.dialog.open(AddStockDialogComponent, {
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   openAddManualDialog(): void {
@@ -603,7 +863,11 @@ export class PortfolioPageComponent {
   }
 
   openAddOptionDialog(): void {
-    this.dialog.open(AddOptionDialogComponent, { width: '540px', maxWidth: '95vw' });
+    this.dialog.open(AddOptionDialogComponent, {
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   openEditCashDialog(item: CashItem): void {
@@ -617,8 +881,9 @@ export class PortfolioPageComponent {
   openEditOptionDialog(analysis: OptionAnalysis): void {
     this.dialog.open(EditOptionDialogComponent, {
       data: { item: analysis.item } satisfies EditOptionDialogData,
-      width: '540px',
+      width: '620px',
       maxWidth: '95vw',
+      maxHeight: '95vh',
     });
   }
 

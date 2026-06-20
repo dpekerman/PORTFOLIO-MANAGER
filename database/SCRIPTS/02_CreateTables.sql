@@ -86,6 +86,47 @@ BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [SectorIsOverridden] BIT NOT NULL DEFAULT 0;
         PRINT '  + Column SectorIsOverridden added.';
     END
+
+    -- AddTransactionFields columns
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'TransactionType')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [TransactionType] NVARCHAR(10) NULL;
+        PRINT '  + Column TransactionType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'AccountType')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [AccountType] NVARCHAR(30) NULL;
+        PRINT '  + Column AccountType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'OpenDate')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [OpenDate] DATETIME2 NULL;
+        PRINT '  + Column OpenDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'CloseDate')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [CloseDate] DATETIME2 NULL;
+        PRINT '  + Column CloseDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'ClosingPrice')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [ClosingPrice] DECIMAL(18,4) NULL;
+        PRINT '  + Column ClosingPrice added.';
+    END
 END
 GO
 
@@ -201,7 +242,48 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'Table OptionItems already exists – skipping.';
+    PRINT 'Table OptionItems already exists – checking for missing columns...';
+
+    -- AddTransactionFields columns
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'TransactionType')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [TransactionType] NVARCHAR(10) NULL;
+        PRINT '  + Column TransactionType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'AccountType')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [AccountType] NVARCHAR(30) NULL;
+        PRINT '  + Column AccountType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'OpenDate')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [OpenDate] DATETIME2 NULL;
+        PRINT '  + Column OpenDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'CloseDate')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [CloseDate] DATETIME2 NULL;
+        PRINT '  + Column CloseDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'ClosingPrice')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [ClosingPrice] DECIMAL(18,4) NULL;
+        PRINT '  + Column ClosingPrice added.';
+    END
 END
 GO
 

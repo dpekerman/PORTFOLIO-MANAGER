@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { OptionItem } from '../../../core/models/portfolio.models';
 import { OptionStateService } from '../../../core/services/option-state.service';
+import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
 export interface EditOptionDialogData {
   item: OptionItem;
@@ -43,19 +44,23 @@ export class EditOptionDialogComponent {
   protected readonly data = inject<EditOptionDialogData>(MAT_DIALOG_DATA);
 
   protected readonly saving = signal(false);
+  protected readonly accountTypes = ACCOUNT_TYPES;
 
   /** Parse date string to Date object for the datepicker */
-  private toDate(dateStr: string): Date {
+  private toDate(dateStr: string | null | undefined): Date | null {
+    if (!dateStr) return null;
     return new Date(dateStr.split('T')[0] + 'T12:00:00');
   }
 
   /** Format Date object back to yyyy-MM-dd string */
-  private formatDate(d: Date | string): string {
+  private formatDate(d: Date | string | null | undefined): string | null {
+    if (!d) return null;
     if (typeof d === 'string') return d.split('T')[0];
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   readonly form = this.fb.group({
+    transactionType: [this.data.item.transactionType ?? 'OPEN'],
     underlyingTicker: [
       this.data.item.underlyingTicker,
       [Validators.required, Validators.maxLength(20)],
@@ -78,14 +83,17 @@ export class EditOptionDialogComponent {
       this.data.item.marketPrice as number | null,
       [Validators.required, Validators.min(0)],
     ],
+    accountType: [this.data.item.accountType ?? (null as string | null)],
+    openDate: [this.toDate(this.data.item.openDate) as Date | null],
+    closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
+    closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
   });
 
   async submit(): Promise<void> {
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
-      const d = this.form.value.expirationDate!;
-      const expirationDate = this.formatDate(d instanceof Date ? d : new Date(d as string));
+      const expirationDate = this.formatDate(this.form.value.expirationDate)!;
       await this.optionState.updateItem(this.data.item.id, {
         underlyingTicker: this.form.value.underlyingTicker!.toUpperCase(),
         positionType: this.form.value.positionType!,
@@ -94,6 +102,11 @@ export class EditOptionDialogComponent {
         premium: this.form.value.premium!,
         numberOfContracts: this.form.value.numberOfContracts!,
         marketPrice: this.form.value.marketPrice!,
+        transactionType: this.form.value.transactionType ?? null,
+        accountType: this.form.value.accountType ?? null,
+        openDate: this.formatDate(this.form.value.openDate),
+        closeDate: this.formatDate(this.form.value.closeDate),
+        closingPrice: this.form.value.closingPrice ?? null,
       });
       this.dialogRef.close(true);
     } finally {

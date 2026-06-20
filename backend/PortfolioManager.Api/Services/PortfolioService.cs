@@ -47,7 +47,12 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             AverageCostBasis = request.AverageCostBasis,
             Sector           = sector,
             Industry         = industry,
-            AddedAt          = DateTime.UtcNow
+            AddedAt          = DateTime.UtcNow,
+            TransactionType  = request.TransactionType,
+            AccountType      = request.AccountType,
+            OpenDate         = request.OpenDate,
+            CloseDate        = request.CloseDate,
+            ClosingPrice     = request.ClosingPrice
         };
 
         db.PortfolioItems.Add(item);
@@ -102,6 +107,12 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
         }
 
+        item.TransactionType = request.TransactionType;
+        item.AccountType     = request.AccountType;
+        item.OpenDate        = request.OpenDate;
+        item.CloseDate       = request.CloseDate;
+        item.ClosingPrice    = request.ClosingPrice;
+
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -118,7 +129,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     private static PortfolioItemDto ToDto(PortfolioItem item) =>
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
-            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt);
+            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

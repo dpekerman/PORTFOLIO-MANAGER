@@ -11,6 +11,11 @@ export const routes: Routes = [
           import('./features/portfolio/portfolio.routes').then((m) => m.PORTFOLIO_ROUTES),
       },
       {
+        path: 'transactions',
+        loadChildren: () =>
+          import('./features/transactions/transactions.routes').then((m) => m.TRANSACTION_ROUTES),
+      },
+      {
         path: 'scanner',
         loadChildren: () =>
           import('./features/scanner/scanner.routes').then((m) => m.SCANNER_ROUTES),

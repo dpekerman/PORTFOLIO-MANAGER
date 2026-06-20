@@ -5,6 +5,18 @@
 
 <mat-dialog-content>
   <form [formGroup]="form" class="option-form">
+    <!-- Transaction Type (first field) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Transaction Type</mat-label>
+      <mat-select formControlName="transactionType">
+        <mat-option value="OPEN">OPEN</mat-option>
+        <mat-option value="CLOSE">CLOSE</mat-option>
+      </mat-select>
+      @if (form.controls.transactionType.hasError('required')) {
+        <mat-error>Required</mat-error>
+      }
+    </mat-form-field>
+
     <div class="form-row">
       <mat-form-field appearance="outline" class="field-ticker">
         <mat-label>Underlying Ticker</mat-label>
@@ -108,6 +120,44 @@
         }
       </mat-form-field>
     </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Account Type</mat-label>
+      <mat-select formControlName="accountType">
+        @for (acct of accountTypes; track acct) {
+          <mat-option [value]="acct">{{ acct }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <div class="form-row">
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Transaction Open Date</mat-label>
+        <input matInput [matDatepicker]="openPicker" formControlName="openDate" />
+        <mat-datepicker-toggle matSuffix [for]="openPicker" />
+        <mat-datepicker #openPicker />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" class="field-half">
+        <mat-label>Transaction Close Date</mat-label>
+        <input matInput [matDatepicker]="closePicker" formControlName="closeDate" />
+        <mat-datepicker-toggle matSuffix [for]="closePicker" />
+        <mat-datepicker #closePicker />
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Closing Price ($)</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input
+        matInput
+        type="number"
+        formControlName="closingPrice"
+        placeholder="0.00"
+        step="0.01"
+        min="0"
+      />
+    </mat-form-field>
 
     <div class="cost-preview">
       @if (

@@ -27,7 +27,16 @@ import { AddWatchlistDialogComponent } from './add-watchlist-dialog.component';
 import { WatchlistCardComponent } from './watchlist-card.component';
 
 type ViewMode = 'card' | 'grid';
-type SortColumn = 'symbol' | 'company' | 'price' | 'change' | 'changePct' | 'sector';
+type SortColumn =
+  | 'symbol'
+  | 'company'
+  | 'price'
+  | 'change'
+  | 'changePct'
+  | 'sector'
+  | 'rsi'
+  | 'momentumShift'
+  | 'momentumAction';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -308,6 +317,18 @@ export class WatchlistPageComponent {
         case 'sector':
           av = a.quote?.sector ?? '';
           bv = b.quote?.sector ?? '';
+          break;
+        case 'rsi':
+          av = this.rsiForSymbol(a.item.symbol) ?? -1;
+          bv = this.rsiForSymbol(b.item.symbol) ?? -1;
+          break;
+        case 'momentumShift':
+          av = this.momentumShift(a.item.symbol);
+          bv = this.momentumShift(b.item.symbol);
+          break;
+        case 'momentumAction':
+          av = this.momentumAction(a.item.symbol);
+          bv = this.momentumAction(b.item.symbol);
           break;
         default:
           av = a.item.symbol;

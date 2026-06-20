@@ -10,6 +10,12 @@ export interface PortfolioItem {
   isManual: boolean;
   manualMarketValue: number | null;
   addedAt: string;
+  // Transaction tracking fields
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface StockQuote {
@@ -60,6 +66,11 @@ export interface AddPortfolioItemRequest {
   companyName: string;
   shares: number;
   averageCostBasis: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -69,6 +80,11 @@ export interface UpdatePortfolioItemRequest {
   sector?: string;
   industry?: string;
   overrideSector?: boolean;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface SectorIndustryLists {
@@ -285,6 +301,12 @@ export interface OptionItem {
   numberOfContracts: number;
   marketPrice: number;
   addedAt: string;
+  // Transaction tracking fields
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface AddOptionItemRequest {
@@ -295,6 +317,11 @@ export interface AddOptionItemRequest {
   premium: number;
   numberOfContracts: number;
   marketPrice: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface UpdateOptionItemRequest {
@@ -305,6 +332,11 @@ export interface UpdateOptionItemRequest {
   premium: number;
   numberOfContracts: number;
   marketPrice: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface OptionTechnicalData {

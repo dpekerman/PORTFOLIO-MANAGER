@@ -45,7 +45,12 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
             Premium           = request.Premium,
             NumberOfContracts = request.NumberOfContracts,
             MarketPrice       = request.MarketPrice,
-            AddedAt           = DateTime.UtcNow
+            AddedAt           = DateTime.UtcNow,
+            TransactionType   = request.TransactionType,
+            AccountType       = request.AccountType,
+            OpenDate          = request.OpenDate,
+            CloseDate         = request.CloseDate,
+            ClosingPrice      = request.ClosingPrice
         };
         db.OptionItems.Add(item);
         await db.SaveChangesAsync(ct);
@@ -63,6 +68,11 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         item.Premium           = request.Premium;
         item.NumberOfContracts = request.NumberOfContracts;
         item.MarketPrice       = request.MarketPrice;
+        item.TransactionType   = request.TransactionType;
+        item.AccountType       = request.AccountType;
+        item.OpenDate          = request.OpenDate;
+        item.CloseDate         = request.CloseDate;
+        item.ClosingPrice      = request.ClosingPrice;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -244,5 +254,6 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
 
     private static OptionItemDto ToDto(OptionItem item) =>
         new(item.Id, item.UnderlyingTicker, item.PositionType, item.ExpirationDate,
-            item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt);
+            item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice);
 }

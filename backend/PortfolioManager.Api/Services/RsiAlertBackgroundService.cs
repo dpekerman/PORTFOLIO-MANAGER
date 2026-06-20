@@ -106,7 +106,9 @@ public sealed class RsiAlertBackgroundService(
 
         logger.LogDebug("[RsiAlertBg] Scan complete. {TotalConfirmed} CONFIRMED signal(s) found.", totalConfirmed);
 
-        await notifier.NotifyNewConfirmedSignalsAsync(result);
+        // Standard "Confirmed" email notifications are intentionally suppressed.
+        // Only EOD Confirm signals trigger email alerts (see EOD window below).
+        // await notifier.NotifyNewConfirmedSignalsAsync(result);
 
         // ── EOD Confirm notifications (only during the configured EOD window) ──
         bool inEodWindow = runtimeConfig.IsEodWindowActive();
