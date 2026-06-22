@@ -312,6 +312,11 @@ public sealed class RsiScannerService : IRsiScannerService
             // ── 20-day SMA of price — needed for Momentum Shift Consolidation rule
             decimal sma20Price = CalculateSma(closes, 20);
 
+            // ── Additional indicators for Trend Setup / Decision Engine ──────
+            decimal sma50Price = closes.Count >= 50 ? CalculateSma(closes, 50) : 0m;
+            decimal ema10Price = closes.Count >= 10 ? CalculateEma(closes, 10) : 0m;
+            decimal ema20Price = closes.Count >= 20 ? CalculateEma(closes, 20) : 0m;
+
             // ── Indicator 1: Stochastics ────────────────────────────────────
             decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
             bool stochConfirm = rsi < oversoldThreshold ? stochK < 20 : stochK > 80;
@@ -432,6 +437,11 @@ public sealed class RsiScannerService : IRsiScannerService
                 DailyAtr = Math.Round(dailyAtr, 4),
                 Ema9Price = Math.Round(ema9Price, 4),
                 Sma20Price = Math.Round(sma20Price, 4),
+                Sma50Price = Math.Round(sma50Price, 4),
+                Ema10Price = Math.Round(ema10Price, 4),
+                Ema20Price = Math.Round(ema20Price, 4),
+                DayHigh = Math.Round(todayHigh, 4),
+                DayLow = Math.Round(todayLow, 4),
                 IsDemo = false
             };
         }

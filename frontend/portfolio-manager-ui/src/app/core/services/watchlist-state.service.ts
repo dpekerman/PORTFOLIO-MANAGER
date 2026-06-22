@@ -49,9 +49,9 @@ export class WatchlistStateService {
     });
   }
 
-  addItem(symbol: string): Promise<void> {
+  addItem(symbol: string, role = 'Strategic'): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.api.addWatchlistItem(symbol.toUpperCase()).subscribe({
+      this.api.addWatchlistItem(symbol.toUpperCase(), '', role).subscribe({
         next: () => {
           this.snackBar.open(`${symbol.toUpperCase()} added to watchlist`, 'Close', {
             duration: 3000,
@@ -75,6 +75,17 @@ export class WatchlistStateService {
         this.snackBar.open(`${symbol} removed from watchlist`, 'Close', { duration: 3000 });
       },
       error: () => this.snackBar.open('Failed to remove', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateRole(id: number, role: string): void {
+    this.api.updateWatchlistRole(id, role).subscribe({
+      next: () => {
+        this._items.update((items) =>
+          items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, role } } : s)),
+        );
+      },
+      error: () => this.snackBar.open('Failed to update role', 'Close', { duration: 4000 }),
     });
   }
 }

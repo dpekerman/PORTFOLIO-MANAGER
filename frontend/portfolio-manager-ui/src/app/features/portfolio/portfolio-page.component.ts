@@ -26,6 +26,7 @@ import {
   StockQuote,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
+import { DecisionEngineService } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -99,8 +100,10 @@ type GridSortCol =
   | 'rsi'
   | 'changePct'
   | 'dayGain'
+  | 'holdingRole'
+  | 'trendSetup'
   | 'momentumShift'
-  | 'momentumAction';
+  | 'finalAction';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -151,6 +154,7 @@ export class PortfolioPageComponent {
   protected readonly demoMode = inject(DemoModeService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
+  protected readonly engine = inject(DecisionEngineService);
 
   /** Ghost cards displayed while portfolio loads for the first time */
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
@@ -189,8 +193,10 @@ export class PortfolioPageComponent {
     'gainLoss',
     'gainLossPct',
     'rsi',
+    'holdingRole',
+    'trendSetup',
     'momentumShift',
-    'momentumAction',
+    'finalAction',
     'actions',
   ];
 
@@ -334,111 +340,36 @@ export class PortfolioPageComponent {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
   }
 
-  protected momentumShift(symbol: string): string {
+  protected readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
+
+  protected roleClass(role: string | null | undefined): string {
+    switch (role) {
+      case 'Core':
+        return 'role-core';
+      case 'Strategic':
+        return 'role-strategic';
+      case 'Swing':
+        return 'role-swing';
+      case 'Speculative':
+        return 'role-speculative';
+      case 'Options':
+        return 'role-options';
+      default:
+        return 'role-strategic';
+    }
+  }
+
+  updateHoldingRole(row: PortfolioSummary, role: string): void {
+    this.portfolio.updateHoldingRole(row.item.id, role);
+  }
+
+  protected decisionForPortfolio(
+    symbol: string,
+    holdingRole: string | null | undefined,
+  ): import('../../core/services/decision-engine.service').PageDecision | null {
     const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return '—';
-    const rsi = r.rsi;
-    const sig = r.rsiSignal ?? rsi;
-    if (rsi > 65) {
-      if (r.status === 'Confirmed') return 'Active SELL Trigger';
-      if (r.rsiSignalAvailable && rsi <= sig) return 'Bearish Shift';
-      return 'Warning';
-    }
-    if (rsi < 30) {
-      if (r.status === 'Confirmed') return 'Active BUY Trigger';
-      if (r.rsiSignalAvailable && rsi >= sig) return 'Bullish Shift';
-      return 'Warning';
-    }
-    if (rsi >= 55) return 'Uptrend';
-    if (rsi >= 45) return 'Neutral';
-    return 'Downtrend';
-  }
-
-  protected momentumAction(symbol: string): string {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return '—';
-    const rsi = r.rsi;
-    const sig = r.rsiSignal ?? rsi;
-    if (rsi > 65) {
-      if (r.status === 'Confirmed') return 'CONFIRMED SELL';
-      if (r.rsiSignalAvailable && rsi <= sig) return 'EARLY WARNING';
-      return 'AVOID / WAIT';
-    }
-    if (rsi < 30) {
-      if (r.status === 'Confirmed') return 'CONFIRMED BUY';
-      if (r.rsiSignalAvailable && rsi >= sig) return 'EARLY WARNING';
-      return 'AVOID / WAIT';
-    }
-    if (rsi >= 55) return 'HOLD LONGS';
-    if (rsi >= 45) return 'HANDS OFF';
-    return 'STAND BY';
-  }
-
-  protected momentumShiftClass(symbol: string): string {
-    const s = this.momentumShift(symbol);
-    if (s === 'Active BUY Trigger') return 'ms-confirmed-buy';
-    if (s === 'Bullish Shift') return 'ms-bullish';
-    if (s === 'Active SELL Trigger') return 'ms-confirmed-sell';
-    if (s === 'Bearish Shift') return 'ms-bearish';
-    if (s === 'Warning') return 'ms-warning';
-    if (s === 'Uptrend') return 'ms-uptrend';
-    if (s === 'Downtrend') return 'ms-downtrend';
-    return 'ms-neutral';
-  }
-
-  protected momentumActionClass(symbol: string): string {
-    const a = this.momentumAction(symbol);
-    if (a === 'CONFIRMED BUY') return 'ma-confirmed-buy';
-    if (a === 'CONFIRMED SELL') return 'ma-confirmed-sell';
-    if (a === 'EARLY WARNING') return 'ma-early-warning';
-    if (a === 'AVOID / WAIT') return 'ma-avoid';
-    if (a === 'HOLD LONGS') return 'ma-hold';
-    return 'ma-standby';
-  }
-
-  protected momentumShiftTooltip(symbol: string): string {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return 'No RSI data available';
-    const rsi = r.rsi;
-    const sig = r.rsiSignal ?? rsi;
-    if (rsi > 65) {
-      if (r.status === 'Confirmed') return 'Sellers have officially taken control of the day.';
-      if (r.rsiSignalAvailable && rsi <= sig)
-        return 'The buying frenzy is starting to run out of steam.';
-      return 'The stock is surging upward rapidly and is heavily overbought.';
-    }
-    if (rsi < 30) {
-      if (r.status === 'Confirmed') return 'Buyers have officially taken control of the day.';
-      if (r.rsiSignalAvailable && rsi >= sig)
-        return 'The selling speed has broken, but we need candle confirmation.';
-      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
-    }
-    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
-    if (rsi >= 45) return 'Equilibrium Chop, keep hands off Options.';
-    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
-  }
-
-  protected momentumActionTooltip(symbol: string): string {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return 'No RSI data available';
-    const rsi = r.rsi;
-    const sig = r.rsiSignal ?? rsi;
-    if (rsi > 65) {
-      if (r.status === 'Confirmed') return 'High-probability short or put entry.';
-      if (r.rsiSignalAvailable && rsi <= sig)
-        return 'Get ready to short or buy puts. The buying speed has broken.';
-      return 'The stock is running hot and squeezing shorts. Do not stand in front of the train.';
-    }
-    if (rsi < 30) {
-      if (r.status === 'Confirmed') return 'High-probability long entry.';
-      if (r.rsiSignalAvailable && rsi >= sig)
-        return 'Get ready to buy. The selling speed has broken, but we need candle confirmation.';
-      return 'The waterfall drop is still active. Do not try to catch the knife yet.';
-    }
-    if (rsi >= 55) return 'Gentle Uptrend. No exhaustion in sight. Let the trend run.';
-    if (rsi >= 45)
-      return 'Sideways range. Avoid buying short-term options; time decay (Theta) will eat your contracts.';
-    return 'Gentle Downtrend. Asset is gently bleeding lower due to a lack of buyers.';
+    if (!r) return null;
+    return this.engine.translateForPortfolio(r, holdingRole ?? null, true);
   }
 
   protected readonly sortedSummaries = computed(() => {
@@ -639,10 +570,12 @@ export class PortfolioPageComponent {
         return s.quote?.changePercent ?? 0;
       case 'dayGain':
         return s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0);
+      case 'trendSetup':
+        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.trendSetup ?? '';
       case 'momentumShift':
-        return this.momentumShift(s.item.symbol);
-      case 'momentumAction':
-        return this.momentumAction(s.item.symbol);
+        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '';
+      case 'finalAction':
+        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.finalAction ?? '';
       default:
         return 0;
     }
@@ -752,8 +685,8 @@ export class PortfolioPageComponent {
           (agg.quote?.change ?? 0).toFixed(2),
           (agg.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
-          this.momentumShift(agg.symbol),
-          this.momentumAction(agg.symbol),
+          this.decisionForPortfolio(agg.symbol, null)?.trendSetup ?? '',
+          this.decisionForPortfolio(agg.symbol, null)?.finalAction ?? '',
         ]);
       } else {
         // Skip individual child rows that belong to a multi-account group
@@ -783,8 +716,8 @@ export class PortfolioPageComponent {
           (s.quote?.change ?? 0).toFixed(2),
           (s.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
-          this.momentumShift(s.item.symbol),
-          this.momentumAction(s.item.symbol),
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.trendSetup ?? '',
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.finalAction ?? '',
         ]);
       }
     }

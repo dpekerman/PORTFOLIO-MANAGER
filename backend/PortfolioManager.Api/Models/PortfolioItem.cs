@@ -22,4 +22,6 @@ public class PortfolioItem
     public DateTime? OpenDate { get; set; }
     public DateTime? CloseDate { get; set; }
     public decimal? ClosingPrice { get; set; }
+    /// <summary>Holding role: Core | Strategic | Swing | Speculative | Options. Default: Strategic.</summary>
+    public string? HoldingRole { get; set; }
 }

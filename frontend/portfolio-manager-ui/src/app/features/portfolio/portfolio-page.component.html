@@ -582,52 +582,111 @@
                       }
                     </td>
                   </ng-container>
-                  <ng-container matColumnDef="momentumShift">
+                  <!-- Holding Role -->
+                  <ng-container matColumnDef="holdingRole">
                     <th
                       mat-header-cell
                       *matHeaderCellDef
                       mat-sort-header
-                      matTooltip="System setup classification based on current RSI momentum state"
+                      matTooltip="Investment role classification"
                     >
-                      MOMENTUM SHIFT
+                      ROLE
                     </th>
                     <td mat-cell *matCellDef="let row">
-                      @let msSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @if (!isAggRow(0, row)) {
+                        <mat-select
+                          [value]="asItem(row).item.holdingRole || 'Strategic'"
+                          (selectionChange)="updateHoldingRole(asItem(row), $event.value)"
+                          class="role-select"
+                          [ngClass]="roleClass(asItem(row).item.holdingRole)"
+                        >
+                          @for (r of roles; track r) {
+                            <mat-option [value]="r">{{ r }}</mat-option>
+                          }
+                        </mat-select>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="trendSetup">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      matTooltip="Market structure and trend classification"
+                    >
+                      TREND SETUP
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let tsSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let tsRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
                       @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
                         <span class="pg-dim">—</span>
-                      } @else if (rsiForSymbol(msSym) !== null) {
+                      } @else if (decisionForPortfolio(tsSym, tsRole); as dec) {
                         <div
                           class="pg-ms-badge"
-                          [ngClass]="momentumShiftClass(msSym)"
-                          [matTooltip]="momentumShiftTooltip(msSym)"
+                          [ngClass]="dec.trendSetupClass"
+                          [matTooltip]="dec.trendSetupReason"
                         >
-                          {{ momentumShift(msSym) }}
+                          {{ dec.trendSetup }}
                         </div>
                       } @else {
                         <span class="pg-dim">—</span>
                       }
                     </td>
                   </ng-container>
-                  <ng-container matColumnDef="momentumAction">
+                  <ng-container matColumnDef="momentumShift">
                     <th
                       mat-header-cell
                       *matHeaderCellDef
                       mat-sort-header
-                      matTooltip="Manual execution command based on current momentum state"
+                      matTooltip="Short-term momentum signal"
                     >
-                      ACTION
+                      MOMENTUM SHIFT
                     </th>
                     <td mat-cell *matCellDef="let row">
-                      @let maSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let msSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let msRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
                       @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
                         <span class="pg-dim">—</span>
-                      } @else if (rsiForSymbol(maSym) !== null) {
+                      } @else if (decisionForPortfolio(msSym, msRole); as dec) {
+                        <div
+                          class="pg-ms-badge"
+                          [ngClass]="dec.momentumShiftClass"
+                          [matTooltip]="dec.momentumShiftReason"
+                        >
+                          {{ dec.momentumShift }}
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="finalAction">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      matTooltip="Role-adjusted portfolio action"
+                    >
+                      FINAL ACTION
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let faSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let faRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (decisionForPortfolio(faSym, faRole); as dec) {
                         <div
                           class="pg-ma-badge"
-                          [ngClass]="momentumActionClass(maSym)"
-                          [matTooltip]="momentumActionTooltip(maSym)"
+                          [ngClass]="dec.finalActionClass"
+                          [matTooltip]="dec.hoverDescription"
                         >
-                          {{ momentumAction(maSym) }}
+                          {{ dec.finalAction }}
                         </div>
                       } @else {
                         <span class="pg-dim">—</span>

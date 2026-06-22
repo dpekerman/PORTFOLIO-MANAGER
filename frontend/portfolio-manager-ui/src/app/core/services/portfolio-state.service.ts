@@ -197,4 +197,17 @@ export class PortfolioStateService {
       error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });
   }
+
+  updateHoldingRole(id: number, holdingRole: string): void {
+    // Optimistic update
+    this._summaries.update((items) =>
+      items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, holdingRole } } : s)),
+    );
+    this.api.updatePortfolioHoldingRole(id, holdingRole).subscribe({
+      error: () => {
+        this.snackBar.open('Failed to update holding role', 'Close', { duration: 4000 });
+        this.refresh(); // revert by reloading
+      },
+    });
+  }
 }

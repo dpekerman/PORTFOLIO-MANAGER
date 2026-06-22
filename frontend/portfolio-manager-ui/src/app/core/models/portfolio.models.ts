@@ -16,6 +16,8 @@ export interface PortfolioItem {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  /** @optional Holding role for portfolio items: Core | Strategic | Swing | Speculative | Options */
+  holdingRole?: string | null;
 }
 
 export interface StockQuote {
@@ -54,6 +56,8 @@ export interface WatchlistItem {
   symbol: string;
   notes: string;
   addedAt: string;
+  /** Investment role: Core | Strategic | Swing | Speculative. Default: Strategic. */
+  role: string;
 }
 
 export interface WatchlistSummary {
@@ -85,6 +89,7 @@ export interface UpdatePortfolioItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  holdingRole?: string | null;
 }
 
 export interface SectorIndustryLists {
@@ -165,6 +170,16 @@ export interface RsiScanResult {
   ema9Price: number;
   /** 20-period SMA of closing price. Used by Momentum Shift Consolidation rule. */
   sma20Price: number;
+  /** 50-period SMA. Used by Trend Setup engine. */
+  sma50Price: number;
+  /** 10-period EMA. Used by Trend Setup engine. */
+  ema10Price: number;
+  /** 20-period EMA. Used by Trend Setup engine. */
+  ema20Price: number;
+  /** Today's session high price. Used for BottomHalfClose / TopHalfClose calculation. */
+  dayHigh: number;
+  /** Today's session low price. Used for BottomHalfClose / TopHalfClose calculation. */
+  dayLow: number;
 }
 
 export interface ScannerResponse {

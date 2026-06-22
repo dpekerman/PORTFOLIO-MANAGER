@@ -34,7 +34,8 @@ public record UpdatePortfolioItemRequest(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? HoldingRole = null);
 
 public record PortfolioItemDto(
     int Id,
@@ -52,16 +53,20 @@ public record PortfolioItemDto(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? HoldingRole = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
     StockQuote? Quote);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
-public record AddWatchlistItemRequest(string Symbol, string Notes = "");
+public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic");
 
-public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt);
+public record UpdateWatchlistRoleRequest(string Role);
+public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
+
+public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic");
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
 
