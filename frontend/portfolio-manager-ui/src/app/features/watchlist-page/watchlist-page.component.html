@@ -81,6 +81,11 @@
         >
       </div>
 
+      <!-- ── RSI loading progress bar ────────────────────────────────────── -->
+      @if (rsiLoading()) {
+        <mat-progress-bar mode="indeterminate" class="rsi-progress-bar" />
+      }
+
       <!-- ── Sortable Grid Table ──────────────────────────────────────── -->
       <div class="grid-table-wrapper">
         <table
@@ -194,6 +199,8 @@
                 >
                   {{ rsiForSymbol(w.item.symbol)! | number: '1.1-1' }}
                 </span>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }
@@ -219,6 +226,8 @@
                 >
                   {{ momentumShift(w.item.symbol) }}
                 </div>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }
@@ -244,6 +253,8 @@
                 >
                   {{ momentumAction(w.item.symbol) }}
                 </div>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }

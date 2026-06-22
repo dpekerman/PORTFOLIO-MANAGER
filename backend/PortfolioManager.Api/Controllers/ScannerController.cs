@@ -90,8 +90,8 @@ public class ScannerController(
         if (request.Symbols is null || request.Symbols.Count == 0)
             return BadRequest("Provide at least one symbol.");
 
-        if (request.Symbols.Count > 50)
-            return BadRequest("Maximum 50 symbols per request.");
+        if (request.Symbols.Count > 100)
+            return BadRequest("Maximum 100 symbols per request.");
 
         logger.LogInformation("Ad-hoc analysis requested for {Count} symbols. Oversold<{OS} Overbought>{OB} Mode={Mode}",
             request.Symbols.Count, request.OversoldThreshold, request.OverboughtThreshold, request.LogicMode);

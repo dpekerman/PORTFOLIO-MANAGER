@@ -2,11 +2,13 @@ import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
   signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -14,9 +16,11 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Subject, catchError, forkJoin, map, of, switchMap, tap } from 'rxjs';
 import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -54,6 +58,7 @@ type SortDir = 'asc' | 'desc';
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatProgressBarModule,
     MatSortModule,
     MatTableModule,
     MatTooltipModule,
@@ -66,6 +71,7 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
@@ -74,19 +80,51 @@ export class WatchlistPageComponent {
 
   // ── RSI result map for watchlist symbols ──────────────────────────────────
   protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
+  private readonly _rsiLoading = signal(false);
+  protected readonly rsiLoading = this._rsiLoading.asReadonly();
+
+  /** Emits the full symbol list whenever an RSI refresh is requested. */
+  private readonly rsiTrigger$ = new Subject<string[]>();
 
   constructor() {
-    effect(() => {
-      const symbols = this.watchlist.items().map((w) => w.item.symbol);
-      if (symbols.length === 0) return;
-      this.api.analyzeSymbols(symbols, 30, 75, 'Enhanced').subscribe({
+    // Pipeline: batches symbols (max 50/request), cancels in-flight on new trigger.
+    this.rsiTrigger$
+      .pipe(
+        takeUntilDestroyed(this.destroyRef),
+        tap(() => this._rsiLoading.set(true)),
+        switchMap((symbols) => {
+          const batchSize = 50;
+          const batches: string[][] = [];
+          for (let i = 0; i < symbols.length; i += batchSize)
+            batches.push(symbols.slice(i, i + batchSize));
+
+          return forkJoin(
+            batches.map((batch) =>
+              this.api.analyzeSymbols(batch, 30, 75, 'Enhanced').pipe(
+                catchError((err) => {
+                  console.warn('Watchlist RSI batch fetch failed', err);
+                  return of([] as RsiScanResult[]);
+                }),
+              ),
+            ),
+          ).pipe(map((batchResults) => batchResults.flat()));
+        }),
+      )
+      .subscribe({
         next: (results) => {
           const map = new Map<string, RsiScanResult>();
           for (const r of results) map.set(r.symbol.toUpperCase(), r);
           this.watchlistRsiMap.set(map);
+          this._rsiLoading.set(false);
         },
-        error: (err) => console.warn('Watchlist RSI fetch failed', err),
+        error: () => this._rsiLoading.set(false),
       });
+
+    // Re-fetch RSI whenever the watchlist items change (initial load + auto-refresh).
+    effect(() => {
+      const symbols = this.watchlist.items().map((w) => w.item.symbol);
+      if (symbols.length === 0) return;
+      this.rsiTrigger$.next(symbols);
     });
   }
 
@@ -365,6 +403,10 @@ export class WatchlistPageComponent {
 
   refresh(): void {
     this.watchlist.refresh();
+    // Immediately re-trigger RSI for current symbols; effect will fire again after
+    // watchlist items reload but switchMap ensures only one in-flight request.
+    const symbols = this.watchlist.items().map((w) => w.item.symbol);
+    if (symbols.length > 0) this.rsiTrigger$.next(symbols);
   }
 
   remove(w: WatchlistSummary): void {
