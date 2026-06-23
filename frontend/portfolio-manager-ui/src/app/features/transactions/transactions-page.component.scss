@@ -1,7 +1,13 @@
 .transactions-page {
-  padding: 24px;
-  max-width: 1600px;
-  margin: 0 auto;
+  padding: 0 0 48px;
+}
+
+.tx-section {
+  padding: 20px 24px 16px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
 }
 
 .tx-page-header {
@@ -116,13 +122,12 @@
 
 .tx-table-wrapper {
   overflow-x: auto;
-  overflow-y: auto;
-  max-height: 600px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tx-grid-table {
   width: 100%;
-  min-width: 1100px;
+  min-width: 900px;
 }
 
 // ── Shared table cell styles ──────────────────────────────────────────────────
@@ -236,5 +241,26 @@
     width: 32px;
     height: 32px;
     line-height: 32px;
+  }
+}
+
+// -- Mobile responsiveness ----------------------------------------------------
+@media (max-width: 768px) {
+  .tx-subsection-header {
+    padding: 12px 14px;
+  }
+
+  .tx-subsection-title {
+    font-size: 0.9rem;
+  }
+
+  .tx-grid-table {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 600px) {
+  .tx-page-title {
+    font-size: 1.1rem;
   }
 }

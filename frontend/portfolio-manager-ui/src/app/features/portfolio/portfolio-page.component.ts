@@ -660,6 +660,8 @@ export class PortfolioPageComponent {
         'Daily Change',
         'Daily Change %',
         'RSI (14)',
+        'Role',
+        'Trend Setup',
         'Momentum Shift',
         'Action',
       ],
@@ -685,7 +687,9 @@ export class PortfolioPageComponent {
           (agg.quote?.change ?? 0).toFixed(2),
           (agg.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
+          '',
           this.decisionForPortfolio(agg.symbol, null)?.trendSetup ?? '',
+          this.decisionForPortfolio(agg.symbol, null)?.momentumShift ?? '',
           this.decisionForPortfolio(agg.symbol, null)?.finalAction ?? '',
         ]);
       } else {
@@ -716,7 +720,9 @@ export class PortfolioPageComponent {
           (s.quote?.change ?? 0).toFixed(2),
           (s.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
+          s.item.holdingRole ?? 'Strategic',
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.trendSetup ?? '',
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '',
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.finalAction ?? '',
         ]);
       }

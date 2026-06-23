@@ -38,14 +38,14 @@ GO
 MERGE [dbo].[WatchlistItems] AS target
 USING (
     VALUES
-    ('AAPL', 'Watching for oversold entry'),
-    ('MSFT', ''),
-    ('BNS.TO', 'Bank of Nova Scotia – dividend tracking')
-) AS source ([Symbol], [Notes])
+    ('AAPL', 'Watching for oversold entry', 'Strategic'),
+    ('MSFT', '', 'Core'),
+    ('BNS.TO', 'Bank of Nova Scotia – dividend tracking', 'Core')
+) AS source ([Symbol], [Notes], [Role])
 ON target.[Symbol] = source.[Symbol]
 WHEN NOT MATCHED THEN
-    INSERT ([Symbol], [Notes], [AddedAt])
-    VALUES (source.[Symbol], source.[Notes], GETUTCDATE());
+    INSERT ([Symbol], [Notes], [Role], [AddedAt])
+    VALUES (source.[Symbol], source.[Notes], source.[Role], GETUTCDATE());
 PRINT 'Demo WatchlistItems applied (3 rows).';
 GO
 
@@ -57,13 +57,17 @@ USING (
     ('20260611201226_InitialCreate', '8.0.0'),
     ('20260611235305_AddWatchlistAndSector', '8.0.0'),
     ('20260612030112_AddManualPosition', '8.0.0'),
-    ('20260615120000_AddSectorOverride', '8.0.0')
+    ('20260615120000_AddSectorOverride', '8.0.0'),
+    ('20260618010551_AddCashOptionAndAdhocTables', '8.0.0'),
+    ('20260619000000_AddTransactionFields', '8.0.0'),
+    ('20260619000002_RemovePortfolioSymbolUniqueConstraint', '8.0.0'),
+    ('20260622183326_AddRoleAndHoldingRole', '8.0.0')
 ) AS source ([MigrationId], [ProductVersion])
 ON target.[MigrationId] = source.[MigrationId]
 WHEN NOT MATCHED THEN
     INSERT ([MigrationId], [ProductVersion])
     VALUES (source.[MigrationId], source.[ProductVersion]);
-PRINT 'EF Migrations history stamped (4 entries).';
+PRINT 'EF Migrations history stamped (8 entries).';
 GO
 
 PRINT '';

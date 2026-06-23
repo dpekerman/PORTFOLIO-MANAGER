@@ -16,6 +16,8 @@ GO
 DELETE FROM [dbo].[NotificationRecipients];
 DELETE FROM [dbo].[WatchlistItems];
 DELETE FROM [dbo].[PortfolioItems];
+DELETE FROM [dbo].[CashItems];
+DELETE FROM [dbo].[OptionItems];
 -- Do NOT delete __EFMigrationsHistory – that would confuse EF Core.
 
 -- Re-enable constraints
@@ -26,6 +28,8 @@ GO
 DBCC CHECKIDENT('[dbo].[NotificationRecipients]', RESEED, 0);
 DBCC CHECKIDENT('[dbo].[WatchlistItems]',          RESEED, 0);
 DBCC CHECKIDENT('[dbo].[PortfolioItems]',          RESEED, 0);
+DBCC CHECKIDENT('[dbo].[CashItems]',               RESEED, 0);
+DBCC CHECKIDENT('[dbo].[OptionItems]',             RESEED, 0);
 GO
 
 PRINT 'All application data deleted.  Identity columns reset to 1.';
