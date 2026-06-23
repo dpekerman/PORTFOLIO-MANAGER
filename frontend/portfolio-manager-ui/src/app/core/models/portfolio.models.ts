@@ -10,6 +10,14 @@ export interface PortfolioItem {
   isManual: boolean;
   manualMarketValue: number | null;
   addedAt: string;
+  // Transaction tracking fields
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
+  /** @optional Holding role for portfolio items: Core | Strategic | Swing | Speculative | Options */
+  holdingRole?: string | null;
 }
 
 export interface StockQuote {
@@ -48,6 +56,8 @@ export interface WatchlistItem {
   symbol: string;
   notes: string;
   addedAt: string;
+  /** Investment role: Core | Strategic | Swing | Speculative. Default: Strategic. */
+  role: string;
 }
 
 export interface WatchlistSummary {
@@ -60,6 +70,11 @@ export interface AddPortfolioItemRequest {
   companyName: string;
   shares: number;
   averageCostBasis: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -69,6 +84,12 @@ export interface UpdatePortfolioItemRequest {
   sector?: string;
   industry?: string;
   overrideSector?: boolean;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
+  holdingRole?: string | null;
 }
 
 export interface SectorIndustryLists {
@@ -149,6 +170,16 @@ export interface RsiScanResult {
   ema9Price: number;
   /** 20-period SMA of closing price. Used by Momentum Shift Consolidation rule. */
   sma20Price: number;
+  /** 50-period SMA. Used by Trend Setup engine. */
+  sma50Price: number;
+  /** 10-period EMA. Used by Trend Setup engine. */
+  ema10Price: number;
+  /** 20-period EMA. Used by Trend Setup engine. */
+  ema20Price: number;
+  /** Today's session high price. Used for BottomHalfClose / TopHalfClose calculation. */
+  dayHigh: number;
+  /** Today's session low price. Used for BottomHalfClose / TopHalfClose calculation. */
+  dayLow: number;
 }
 
 export interface ScannerResponse {
@@ -285,6 +316,12 @@ export interface OptionItem {
   numberOfContracts: number;
   marketPrice: number;
   addedAt: string;
+  // Transaction tracking fields
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface AddOptionItemRequest {
@@ -295,6 +332,11 @@ export interface AddOptionItemRequest {
   premium: number;
   numberOfContracts: number;
   marketPrice: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface UpdateOptionItemRequest {
@@ -305,6 +347,11 @@ export interface UpdateOptionItemRequest {
   premium: number;
   numberOfContracts: number;
   marketPrice: number;
+  transactionType?: string | null;
+  accountType?: string | null;
+  openDate?: string | null;
+  closeDate?: string | null;
+  closingPrice?: number | null;
 }
 
 export interface OptionTechnicalData {

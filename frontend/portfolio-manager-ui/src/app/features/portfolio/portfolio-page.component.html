@@ -122,6 +122,18 @@
                     }}{{ portfolio.totalGainLoss() | currency: 'USD' : 'symbol-narrow' : '1.0-0' }}
                   </span>
                 </div>
+                <div class="subsection-stat">
+                  <span class="stat-label">Total Day Gain / Loss</span>
+                  <span
+                    class="stat-value"
+                    [class.pg-pos]="totalDayGain() >= 0"
+                    [class.pg-neg]="totalDayGain() < 0"
+                    [class.demo-redact]="demoMode.isDemoMode()"
+                  >
+                    {{ totalDayGain() >= 0 ? '+' : ''
+                    }}{{ totalDayGain() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  </span>
+                </div>
               </div>
             }
           </div>
@@ -231,7 +243,7 @@
                   </button>
                 }
                 <span class="gf-count"
-                  >{{ gridRows().length }} / {{ portfolio.summaries().length }}</span
+                  >{{ gridItemCount() }} / {{ portfolio.summaries().length }}</span
                 >
               </div>
               <div class="portfolio-table-wrapper">
@@ -244,44 +256,118 @@
                 >
                   <ng-container matColumnDef="symbol">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
-                    <td mat-cell *matCellDef="let s">
-                      <div class="pg-symbol-cell">
-                        <div class="pg-badge">
-                          {{ s.item.symbol.replace('.TO', '').replace('.UN', '').substring(0, 2) }}
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <div
+                          class="pg-symbol-cell"
+                          style="cursor: pointer"
+                          (click)="toggleGroup(asAgg(row).symbol, $event)"
+                        >
+                          <div class="pg-badge">
+                            {{
+                              asAgg(row)
+                                .symbol.replace('.TO', '')
+                                .replace('.UN', '')
+                                .substring(0, 2)
+                            }}
+                          </div>
+                          <div>
+                            <div class="pg-symbol pg-agg-symbol-line">
+                              {{ asAgg(row).symbol }}
+                              <mat-icon class="pg-inline-expand">{{
+                                collapsedSymbols().has(asAgg(row).symbol)
+                                  ? 'keyboard_arrow_right'
+                                  : 'keyboard_arrow_down'
+                              }}</mat-icon>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div class="pg-symbol">{{ s.item.symbol }}</div>
-                          @if (s.item.isManual) {
-                            <span class="pg-manual-tag">manual</span>
-                          }
+                      } @else if (groupedSymbols().has(asItem(row).item.symbol)) {
+                        <!-- Child row under a group: show account as primary identifier -->
+                        <!--
+                         <div class="pg-child-id-cell">
+                          <span class="pg-child-connector">└</span>
+                          <span class="pg-account-badge">{{
+                            asItem(row).item.accountType || '—'
+                          }}</span>
                         </div>
-                      </div>
+                        -->
+                      } @else {
+                        <div class="pg-symbol-cell">
+                          <div class="pg-badge">
+                            {{
+                              asItem(row)
+                                .item.symbol.replace('.TO', '')
+                                .replace('.UN', '')
+                                .substring(0, 2)
+                            }}
+                          </div>
+                          <div>
+                            <div class="pg-symbol">{{ asItem(row).item.symbol }}</div>
+                            @if (asItem(row).item.isManual) {
+                              <span class="pg-manual-tag">manual</span>
+                            }
+                          </div>
+                        </div>
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="company">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>COMPANY</th>
-                    <td mat-cell *matCellDef="let s">
-                      <span class="pg-company">{{ s.item.companyName }}</span>
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <span class="pg-company pg-agg-company">{{ asAgg(row).company }}</span>
+                      } @else {
+                        <span class="pg-company">{{ asItem(row).item.companyName }}</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="accountType">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header>ACCOUNT</th>
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <span class="pg-dim">—</span>
+                      } @else {
+                        <span class="pg-account-badge">{{
+                          asItem(row).item.accountType || '—'
+                        }}</span>
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="sector">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>SECTOR</th>
-                    <td mat-cell *matCellDef="let s">
-                      <span class="pg-dim">{{ s.item.sector || s.quote?.sector || '—' }}</span>
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <span class="pg-dim">{{ asAgg(row).sector || '—' }}</span>
+                      } @else {
+                        <span class="pg-dim">{{
+                          asItem(row).item.sector || asItem(row).quote?.sector || '—'
+                        }}</span>
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="industry">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header>INDUSTRY</th>
-                    <td mat-cell *matCellDef="let s">
-                      <span class="pg-dim">{{ s.item.industry || s.quote?.industry || '—' }}</span>
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <span class="pg-dim">{{ asAgg(row).industry || '—' }}</span>
+                      } @else {
+                        <span class="pg-dim">{{
+                          asItem(row).item.industry || asItem(row).quote?.industry || '—'
+                        }}</span>
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="shares">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       SHARES
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
-                      {{ s.item.shares | number: '1.0-4' }}
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @if (isAggRow(0, row)) {
+                        <strong>{{ asAgg(row).totalShares | number: '1.0-4' }}</strong>
+                      } @else {
+                        {{ asItem(row).item.shares | number: '1.0-4' }}
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="avgCost">
@@ -290,11 +376,20 @@
                     </th>
                     <td
                       mat-cell
-                      *matCellDef="let s"
+                      *matCellDef="let row"
                       class="pg-num"
                       [class.demo-redact]="demoMode.isDemoMode()"
                     >
-                      {{ s.item.averageCostBasis | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      @if (isAggRow(0, row)) {
+                        <strong>{{
+                          asAgg(row).weightedAvgCost | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+                        }}</strong>
+                      } @else {
+                        {{
+                          asItem(row).item.averageCostBasis
+                            | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+                        }}
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="price">
@@ -303,12 +398,26 @@
                     </th>
                     <td
                       mat-cell
-                      *matCellDef="let s"
+                      *matCellDef="let row"
                       class="pg-num"
                       [class.demo-redact]="demoMode.isDemoMode()"
                     >
-                      @if (!s.item.isManual && s.quote) {
-                        {{ s.quote.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      @if (isAggRow(0, row)) {
+                        @if (asAgg(row).quote) {
+                          {{
+                            asAgg(row).quote!.currentPrice
+                              | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+                          }}
+                        } @else {
+                          <span class="pg-dim">—</span>
+                        }
+                      } @else if (groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (!asItem(row).item.isManual && asItem(row).quote) {
+                        {{
+                          asItem(row).quote!.currentPrice
+                            | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+                        }}
                       } @else {
                         <span class="pg-dim">—</span>
                       }
@@ -320,59 +429,94 @@
                     </th>
                     <td
                       mat-cell
-                      *matCellDef="let s"
+                      *matCellDef="let row"
                       class="pg-num pg-bold"
                       [class.demo-redact]="demoMode.isDemoMode()"
                     >
-                      @let mv =
-                        s.item.isManual
-                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-                          : (s.quote?.currentPrice ?? s.item.averageCostBasis) * s.item.shares;
-                      {{ mv | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                      @if (isAggRow(0, row)) {
+                        <strong>{{
+                          asAgg(row).totalMarketValue | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+                        }}</strong>
+                      } @else {
+                        @let mv =
+                          asItem(row).item.isManual
+                            ? (asItem(row).item.manualMarketValue ??
+                              asItem(row).item.averageCostBasis)
+                            : (asItem(row).quote?.currentPrice ??
+                                asItem(row).item.averageCostBasis) * asItem(row).item.shares;
+                        {{ mv | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="gainLoss">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       GAIN/LOSS
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
-                      @let price2 = s.quote?.currentPrice ?? s.item.averageCostBasis;
-                      @let mv2 =
-                        s.item.isManual
-                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-                          : price2 * s.item.shares;
-                      @let gl = mv2 - s.item.averageCostBasis * s.item.shares;
-                      <span
-                        [class.pg-pos]="gl >= 0"
-                        [class.pg-neg]="gl < 0"
-                        [class.demo-redact]="demoMode.isDemoMode()"
-                        >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
-                      >
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @if (isAggRow(0, row)) {
+                        <span
+                          [class.pg-pos]="asAgg(row).totalGainLoss >= 0"
+                          [class.pg-neg]="asAgg(row).totalGainLoss < 0"
+                          [class.demo-redact]="demoMode.isDemoMode()"
+                          ><strong>{{
+                            asAgg(row).totalGainLoss | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+                          }}</strong></span
+                        >
+                      } @else {
+                        @let price2 =
+                          asItem(row).quote?.currentPrice ?? asItem(row).item.averageCostBasis;
+                        @let mv2 =
+                          asItem(row).item.isManual
+                            ? (asItem(row).item.manualMarketValue ??
+                              asItem(row).item.averageCostBasis)
+                            : price2 * asItem(row).item.shares;
+                        @let gl = mv2 - asItem(row).item.averageCostBasis * asItem(row).item.shares;
+                        <span
+                          [class.pg-pos]="gl >= 0"
+                          [class.pg-neg]="gl < 0"
+                          [class.demo-redact]="demoMode.isDemoMode()"
+                          >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
+                        >
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="gainLossPct">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       GAIN %
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
-                      @let price3 = s.quote?.currentPrice ?? s.item.averageCostBasis;
-                      @let mv3 =
-                        s.item.isManual
-                          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-                          : price3 * s.item.shares;
-                      @let cost3 = s.item.averageCostBasis * s.item.shares;
-                      @let glp = cost3 > 0 ? ((mv3 - cost3) / cost3) * 100 : 0;
-                      <span [class.pg-pos]="glp >= 0" [class.pg-neg]="glp < 0"
-                        >{{ glp >= 0 ? '+' : '' }}{{ glp | number: '1.1-1' }}%</span
-                      >
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @if (isAggRow(0, row)) {
+                        <span
+                          [class.pg-pos]="asAgg(row).totalGainLossPct >= 0"
+                          [class.pg-neg]="asAgg(row).totalGainLossPct < 0"
+                          ><strong
+                            >{{ asAgg(row).totalGainLossPct >= 0 ? '+' : ''
+                            }}{{ asAgg(row).totalGainLossPct | number: '1.1-1' }}%</strong
+                          ></span
+                        >
+                      } @else {
+                        @let price3 =
+                          asItem(row).quote?.currentPrice ?? asItem(row).item.averageCostBasis;
+                        @let mv3 =
+                          asItem(row).item.isManual
+                            ? (asItem(row).item.manualMarketValue ??
+                              asItem(row).item.averageCostBasis)
+                            : price3 * asItem(row).item.shares;
+                        @let cost3 = asItem(row).item.averageCostBasis * asItem(row).item.shares;
+                        @let glp = cost3 > 0 ? ((mv3 - cost3) / cost3) * 100 : 0;
+                        <span [class.pg-pos]="glp >= 0" [class.pg-neg]="glp < 0"
+                          >{{ glp >= 0 ? '+' : '' }}{{ glp | number: '1.1-1' }}%</span
+                        >
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="rsi">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       RSI (14)
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
-                      @let rsiVal = rsiForSymbol(s.item.symbol);
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @let rsiSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let rsiVal = rsiForSymbol(rsiSym);
                       @if (rsiVal !== null) {
                         <span
                           class="pg-rsi"
@@ -389,14 +533,105 @@
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       DAY %
                     </th>
-                    <td mat-cell *matCellDef="let s" class="pg-num">
-                      @if (s.quote && !s.item.isManual) {
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @let q = isAggRow(0, row) ? asAgg(row).quote : asItem(row).quote;
+                      @let isManual = !isAggRow(0, row) && asItem(row).item.isManual;
+                      @let isChild =
+                        !isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol);
+                      @if (isChild) {
+                        <span class="pg-dim">—</span>
+                      } @else if (q && !isManual) {
                         <span
-                          [class.pg-pos]="s.quote.changePercent >= 0"
-                          [class.pg-neg]="s.quote.changePercent < 0"
-                          >{{ s.quote.changePercent >= 0 ? '+' : ''
-                          }}{{ s.quote.changePercent | number: '1.2-2' }}%</span
+                          [class.pg-pos]="q.changePercent >= 0"
+                          [class.pg-neg]="q.changePercent < 0"
+                          >{{ q.changePercent >= 0 ? '+' : ''
+                          }}{{ q.changePercent | number: '1.2-2' }}%</span
                         >
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="dayGain">
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                      DAY $
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @if (isAggRow(0, row)) {
+                        @let adg = asAgg(row).totalDayGain;
+                        <span
+                          [class.pg-pos]="adg >= 0"
+                          [class.pg-neg]="adg < 0"
+                          [class.demo-redact]="demoMode.isDemoMode()"
+                          ><strong
+                            >{{ adg >= 0 ? '+' : ''
+                            }}{{ adg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</strong
+                          ></span
+                        >
+                      } @else if (asItem(row).quote && !asItem(row).item.isManual) {
+                        @let dg = asItem(row).item.shares * asItem(row).quote!.change;
+                        <span
+                          [class.pg-pos]="dg >= 0"
+                          [class.pg-neg]="dg < 0"
+                          [class.demo-redact]="demoMode.isDemoMode()"
+                          >{{ dg >= 0 ? '+' : ''
+                          }}{{ dg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</span
+                        >
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <!-- Holding Role -->
+                  <ng-container matColumnDef="holdingRole">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      matTooltip="Investment role classification"
+                    >
+                      ROLE
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @if (!isAggRow(0, row)) {
+                        <mat-select
+                          [value]="asItem(row).item.holdingRole || 'Strategic'"
+                          (selectionChange)="updateHoldingRole(asItem(row), $event.value)"
+                          class="role-select"
+                          [ngClass]="roleClass(asItem(row).item.holdingRole)"
+                        >
+                          @for (r of roles; track r) {
+                            <mat-option [value]="r">{{ r }}</mat-option>
+                          }
+                        </mat-select>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="trendSetup">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      matTooltip="Market structure and trend classification"
+                    >
+                      TREND SETUP
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let tsSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let tsRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (decisionForPortfolio(tsSym, tsRole); as dec) {
+                        <div
+                          class="pg-ms-badge"
+                          [ngClass]="dec.trendSetupClass"
+                          [matTooltip]="dec.trendSetupReason"
+                        >
+                          {{ dec.trendSetup }}
+                        </div>
                       } @else {
                         <span class="pg-dim">—</span>
                       }
@@ -406,40 +641,52 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
-                      matTooltip="System setup classification based on current RSI momentum state"
+                      mat-sort-header
+                      matTooltip="Short-term momentum signal"
                     >
                       MOMENTUM SHIFT
                     </th>
-                    <td mat-cell *matCellDef="let s">
-                      @if (rsiForSymbol(s.item.symbol) !== null) {
+                    <td mat-cell *matCellDef="let row">
+                      @let msSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let msRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (decisionForPortfolio(msSym, msRole); as dec) {
                         <div
                           class="pg-ms-badge"
-                          [ngClass]="momentumShiftClass(s.item.symbol)"
-                          [matTooltip]="momentumShiftTooltip(s.item.symbol)"
+                          [ngClass]="dec.momentumShiftClass"
+                          [matTooltip]="dec.momentumShiftReason"
                         >
-                          {{ momentumShift(s.item.symbol) }}
+                          {{ dec.momentumShift }}
                         </div>
                       } @else {
                         <span class="pg-dim">—</span>
                       }
                     </td>
                   </ng-container>
-                  <ng-container matColumnDef="momentumAction">
+                  <ng-container matColumnDef="finalAction">
                     <th
                       mat-header-cell
                       *matHeaderCellDef
-                      matTooltip="Manual execution command based on current momentum state"
+                      mat-sort-header
+                      matTooltip="Role-adjusted portfolio action"
                     >
-                      ACTION
+                      FINAL ACTION
                     </th>
-                    <td mat-cell *matCellDef="let s">
-                      @if (rsiForSymbol(s.item.symbol) !== null) {
+                    <td mat-cell *matCellDef="let row">
+                      @let faSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let faRole =
+                        isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (decisionForPortfolio(faSym, faRole); as dec) {
                         <div
                           class="pg-ma-badge"
-                          [ngClass]="momentumActionClass(s.item.symbol)"
-                          [matTooltip]="momentumActionTooltip(s.item.symbol)"
+                          [ngClass]="dec.finalActionClass"
+                          [matTooltip]="dec.hoverDescription"
                         >
-                          {{ momentumAction(s.item.symbol) }}
+                          {{ dec.finalAction }}
                         </div>
                       } @else {
                         <span class="pg-dim">—</span>
@@ -448,30 +695,39 @@
                   </ng-container>
                   <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
-                    <td mat-cell *matCellDef="let s" class="pg-actions-cell">
-                      <button
-                        mat-icon-button
-                        matTooltip="Edit position"
-                        (click)="openEditGridRow(s); $event.stopPropagation()"
-                        class="pg-action-btn"
-                      >
-                        <mat-icon>edit</mat-icon>
-                      </button>
-                      <button
-                        mat-icon-button
-                        matTooltip="Remove position"
-                        (click)="confirmDeleteGridRow(s); $event.stopPropagation()"
-                        class="pg-action-btn pg-action-delete"
-                      >
-                        <mat-icon>delete_outline</mat-icon>
-                      </button>
+                    <td mat-cell *matCellDef="let row" class="pg-actions-cell">
+                      @if (!isAggRow(0, row)) {
+                        <button
+                          mat-icon-button
+                          matTooltip="Edit position"
+                          (click)="openEditGridRow(asItem(row)); $event.stopPropagation()"
+                          class="pg-action-btn"
+                        >
+                          <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          mat-icon-button
+                          matTooltip="Remove position"
+                          (click)="confirmDeleteGridRow(asItem(row)); $event.stopPropagation()"
+                          class="pg-action-btn pg-action-delete"
+                        >
+                          <mat-icon>delete_outline</mat-icon>
+                        </button>
+                      }
                     </td>
                   </ng-container>
                   <tr mat-header-row *matHeaderRowDef="gridDisplayedColumns; sticky: true"></tr>
                   <tr
                     mat-row
-                    *matRowDef="let row; columns: gridDisplayedColumns"
+                    *matRowDef="let row; columns: gridDisplayedColumns; when: isAggRow"
+                    class="pg-agg-row"
+                    (click)="toggleGroup(asAgg(row).symbol, $event)"
+                  ></tr>
+                  <tr
+                    mat-row
+                    *matRowDef="let row; columns: gridDisplayedColumns; when: isItemRow"
                     class="pg-row"
+                    [class.pg-child-row]="groupedSymbols().has(asItem(row).item.symbol)"
                   ></tr>
                   @if (gridRows().length === 0) {
                     <tr class="mat-mdc-no-data-row">
@@ -793,10 +1049,12 @@
               <table
                 class="portfolio-grid-table options-grid-table mat-elevation-z0"
                 mat-table
-                [dataSource]="optionState.analyses()"
+                [dataSource]="sortedOptionAnalyses()"
+                matSort
+                (matSortChange)="onOptionSortChange($event)"
               >
                 <ng-container matColumnDef="opt_ticker">
-                  <th mat-header-cell *matHeaderCellDef>UNDERLYING</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>UNDERLYING</th>
                   <td mat-cell *matCellDef="let a">
                     <div class="pg-symbol-cell">
                       <div
@@ -811,7 +1069,7 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_type">
-                  <th mat-header-cell *matHeaderCellDef>TYPE</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>TYPE</th>
                   <td mat-cell *matCellDef="let a">
                     <span
                       class="opt-type-badge"
@@ -822,13 +1080,15 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_expiry">
-                  <th mat-header-cell *matHeaderCellDef>EXPIRY</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>EXPIRY</th>
                   <td mat-cell *matCellDef="let a" class="pg-dim">
                     {{ a.item.expirationDate | date: 'yyyy-MM-dd' }}
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_strike">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">STRIKE</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    STRIKE
+                  </th>
                   <td
                     mat-cell
                     *matCellDef="let a"
@@ -839,7 +1099,9 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_premium">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">PREMIUM</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    PREMIUM
+                  </th>
                   <td
                     mat-cell
                     *matCellDef="let a"
@@ -850,13 +1112,17 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_contracts">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">CONTRACTS</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    CONTRACTS
+                  </th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
                     {{ a.item.numberOfContracts }}
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_stockPrice">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">STOCK PRICE</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    STOCK PRICE
+                  </th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
                     @if (a.stockPrice !== null) {
                       {{ a.stockPrice | currency }}
@@ -869,6 +1135,7 @@
                   <th
                     mat-header-cell
                     *matHeaderCellDef
+                    mat-sort-header
                     class="pg-num-header"
                     matTooltip="Days to Expiration"
                   >
@@ -885,7 +1152,9 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_cost">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">COST</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    COST
+                  </th>
                   <td
                     mat-cell
                     *matCellDef="let a"
@@ -896,7 +1165,9 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_mv">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">MKT VALUE</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    MKT VALUE
+                  </th>
                   <td
                     mat-cell
                     *matCellDef="let a"
@@ -907,7 +1178,9 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_gl">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN/LOSS</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    GAIN/LOSS
+                  </th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
                     <span
                       [class.pg-pos]="a.gainLoss >= 0"
@@ -918,7 +1191,9 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_glp">
-                  <th mat-header-cell *matHeaderCellDef class="pg-num-header">GAIN %</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                    GAIN %
+                  </th>
                   <td mat-cell *matCellDef="let a" class="pg-num">
                     <span
                       [class.pg-pos]="a.gainLossPct >= 0"
@@ -933,6 +1208,7 @@
                   <th
                     mat-header-cell
                     *matHeaderCellDef
+                    mat-sort-header
                     matTooltip="Current option state based on market conditions"
                   >
                     OPTION STATE
@@ -948,7 +1224,7 @@
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_action">
-                  <th mat-header-cell *matHeaderCellDef>ACTION</th>
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>ACTION</th>
                   <td mat-cell *matCellDef="let a">
                     <div
                       class="opt-action-badge"

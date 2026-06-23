@@ -6,7 +6,12 @@ public record AddPortfolioItemRequest(
     string Symbol,
     string CompanyName,
     decimal Shares,
-    decimal AverageCostBasis);
+    decimal AverageCostBasis,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null);
 
 /// <summary>
 /// Request to add a manual (non-ticker) position such as Cash, Options, Bonds, etc.
@@ -24,7 +29,13 @@ public record UpdatePortfolioItemRequest(
     decimal AverageCostBasis,
     string Sector = "",
     string Industry = "",
-    bool OverrideSector = false);
+    bool OverrideSector = false,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null,
+    string? HoldingRole = null);
 
 public record PortfolioItemDto(
     int Id,
@@ -37,16 +48,25 @@ public record PortfolioItemDto(
     bool SectorIsOverridden,
     bool IsManual,
     decimal? ManualMarketValue,
-    DateTime AddedAt);
+    DateTime AddedAt,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null,
+    string? HoldingRole = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
     StockQuote? Quote);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
-public record AddWatchlistItemRequest(string Symbol, string Notes = "");
+public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic");
 
-public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt);
+public record UpdateWatchlistRoleRequest(string Role);
+public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
+
+public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic");
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
 
@@ -67,7 +87,12 @@ public record AddOptionItemRequest(
     decimal Strike,
     decimal Premium,
     int NumberOfContracts,
-    decimal MarketPrice);
+    decimal MarketPrice,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null);
 
 public record UpdateOptionItemRequest(
     string UnderlyingTicker,
@@ -76,7 +101,12 @@ public record UpdateOptionItemRequest(
     decimal Strike,
     decimal Premium,
     int NumberOfContracts,
-    decimal MarketPrice);
+    decimal MarketPrice,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null);
 
 public record OptionItemDto(
     int Id,
@@ -87,7 +117,12 @@ public record OptionItemDto(
     decimal Premium,
     int NumberOfContracts,
     decimal MarketPrice,
-    DateTime AddedAt);
+    DateTime AddedAt,
+    string? TransactionType = null,
+    string? AccountType = null,
+    DateTime? OpenDate = null,
+    DateTime? CloseDate = null,
+    decimal? ClosingPrice = null);
 
 /// <summary>Technical indicators for the underlying ticker, used by the frontend option state engine.</summary>
 public record OptionTechnicalDataDto(

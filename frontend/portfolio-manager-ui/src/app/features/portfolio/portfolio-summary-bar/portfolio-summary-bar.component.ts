@@ -43,6 +43,15 @@ export class PortfolioSummaryBarComponent {
 
   protected readonly isPositive = computed(() => this.totalGainLoss() >= 0);
 
+  protected readonly totalDayGain = computed<number>(() =>
+    this.stockState.summaries().reduce((sum, s) => {
+      if (s.item.isManual) return sum;
+      return sum + s.item.shares * (s.quote?.change ?? 0);
+    }, 0),
+  );
+
+  protected readonly dayGainIsPositive = computed(() => this.totalDayGain() >= 0);
+
   protected readonly totalPositions = computed(
     () =>
       this.stockState.summaries().length +

@@ -14,6 +14,7 @@ public interface IPortfolioService
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     /// <summary>Fetches sector/industry from Yahoo Finance for every non-manual portfolio item that lacks one and persists the data.</summary>
     Task<int> RefreshSectorsAsync(CancellationToken ct = default);
+    Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
 }
 
 public sealed class PortfolioService(AppDbContext db, IMarketDataProvider marketData) : IPortfolioService
@@ -47,7 +48,12 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             AverageCostBasis = request.AverageCostBasis,
             Sector           = sector,
             Industry         = industry,
-            AddedAt          = DateTime.UtcNow
+            AddedAt          = DateTime.UtcNow,
+            TransactionType  = request.TransactionType,
+            AccountType      = request.AccountType,
+            OpenDate         = request.OpenDate,
+            CloseDate        = request.CloseDate,
+            ClosingPrice     = request.ClosingPrice
         };
 
         db.PortfolioItems.Add(item);
@@ -102,8 +108,24 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
         }
 
+        item.TransactionType = request.TransactionType;
+        item.AccountType     = request.AccountType;
+        item.OpenDate        = request.OpenDate;
+        item.CloseDate       = request.CloseDate;
+        item.ClosingPrice    = request.ClosingPrice;
+        if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
+
         await db.SaveChangesAsync(ct);
         return ToDto(item);
+    }
+
+    public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
+    {
+        var item = await db.PortfolioItems.FindAsync([id], ct);
+        if (item is null) return false;
+        item.HoldingRole = holdingRole;
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
@@ -118,7 +140,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     private static PortfolioItemDto ToDto(PortfolioItem item) =>
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
-            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt);
+            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

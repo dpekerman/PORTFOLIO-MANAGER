@@ -38,6 +38,14 @@
       >
         <mat-icon [class.spinning]="watchlist.loading()">refresh</mat-icon>
       </button>
+      <button
+        mat-icon-button
+        matTooltip="Export to Excel"
+        (click)="exportToExcel()"
+        aria-label="Export watchlist to Excel"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
       <button mat-flat-button class="add-btn" (click)="openAddDialog()">
         <mat-icon>add</mat-icon>
         <span class="btn-text">Add Symbol</span>
@@ -81,6 +89,11 @@
         >
       </div>
 
+      <!-- ── RSI loading progress bar ────────────────────────────────────── -->
+      @if (rsiLoading()) {
+        <mat-progress-bar mode="indeterminate" class="rsi-progress-bar" />
+      }
+
       <!-- ── Sortable Grid Table ──────────────────────────────────────── -->
       <div class="grid-table-wrapper">
         <table
@@ -120,33 +133,29 @@
             </td>
           </ng-container>
 
+          <!-- Role -->
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>ROLE</th>
+            <td mat-cell *matCellDef="let w">
+              <mat-select
+                [value]="w.item.role || 'Strategic'"
+                (selectionChange)="updateRole(w, $event.value)"
+                class="role-select"
+                [ngClass]="roleClass(w.item.role || 'Strategic')"
+              >
+                @for (r of roles; track r) {
+                  <mat-option [value]="r">{{ r }}</mat-option>
+                }
+              </mat-select>
+            </td>
+          </ng-container>
+
           <!-- Price -->
           <ng-container matColumnDef="price">
             <th mat-header-cell *matHeaderCellDef mat-sort-header>LAST PRICE</th>
             <td mat-cell *matCellDef="let w">
               @if (w.quote) {
                 <span class="grid-price">{{ w.quote.currentPrice | currency }}</span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Change $ -->
-          <ng-container matColumnDef="change">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>CHANGE $</th>
-            <td mat-cell *matCellDef="let w">
-              @if (w.quote) {
-                <div
-                  class="grid-change-cell"
-                  [class.up]="w.quote.change >= 0"
-                  [class.down]="w.quote.change < 0"
-                >
-                  <mat-icon class="grid-change-icon">{{
-                    w.quote.change >= 0 ? 'arrow_upward' : 'arrow_downward'
-                  }}</mat-icon>
-                  {{ w.quote.change | number: '1.2-2' }}
-                </div>
               } @else {
                 <span class="grid-no-data">—</span>
               }
@@ -182,7 +191,9 @@
 
           <!-- RSI (14) -->
           <ng-container matColumnDef="rsi">
-            <th mat-header-cell *matHeaderCellDef class="wl-num-header">RSI (14)</th>
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="wl-num-header">
+              RSI (14)
+            </th>
             <td mat-cell *matCellDef="let w" class="wl-num">
               @if (rsiForSymbol(w.item.symbol) !== null) {
                 <span
@@ -192,6 +203,35 @@
                 >
                   {{ rsiForSymbol(w.item.symbol)! | number: '1.1-1' }}
                 </span>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer"></span>
+              } @else {
+                <span class="grid-no-data">—</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Trend Setup -->
+          <ng-container matColumnDef="trendSetup">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              mat-sort-header
+              matTooltip="Market structure and trend classification"
+            >
+              TREND SETUP
+            </th>
+            <td mat-cell *matCellDef="let w">
+              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
+                <div
+                  class="wl-ts-badge"
+                  [ngClass]="dec.trendSetupClass"
+                  [matTooltip]="dec.trendSetupReason"
+                >
+                  {{ dec.trendSetup }}
+                </div>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }
@@ -200,42 +240,52 @@
 
           <!-- Momentum Shift -->
           <ng-container matColumnDef="momentumShift">
-            <th mat-header-cell *matHeaderCellDef matTooltip="RSI momentum state classification">
+            <th
+              mat-header-cell
+              *matHeaderCellDef
+              mat-sort-header
+              matTooltip="Short-term momentum signal"
+            >
               MOMENTUM SHIFT
             </th>
             <td mat-cell *matCellDef="let w">
-              @if (rsiForSymbol(w.item.symbol) !== null) {
+              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                 <div
                   class="wl-ms-badge"
-                  [ngClass]="momentumShiftClass(w.item.symbol)"
-                  [matTooltip]="momentumShiftTooltip(w.item.symbol)"
+                  [ngClass]="dec.momentumShiftClass"
+                  [matTooltip]="dec.momentumShiftReason"
                 >
-                  {{ momentumShift(w.item.symbol) }}
+                  {{ dec.momentumShift }}
                 </div>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }
             </td>
           </ng-container>
 
-          <!-- Momentum Action -->
-          <ng-container matColumnDef="momentumAction">
+          <!-- Final Action -->
+          <ng-container matColumnDef="finalAction">
             <th
               mat-header-cell
               *matHeaderCellDef
-              matTooltip="Execution command based on momentum state"
+              mat-sort-header
+              matTooltip="Role-adjusted recommendation"
             >
-              ACTION
+              FINAL ACTION
             </th>
             <td mat-cell *matCellDef="let w">
-              @if (rsiForSymbol(w.item.symbol) !== null) {
+              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                 <div
                   class="wl-ma-badge"
-                  [ngClass]="momentumActionClass(w.item.symbol)"
-                  [matTooltip]="momentumActionTooltip(w.item.symbol)"
+                  [ngClass]="dec.finalActionClass"
+                  [matTooltip]="dec.hoverDescription"
                 >
-                  {{ momentumAction(w.item.symbol) }}
+                  {{ dec.finalAction }}
                 </div>
+              } @else if (rsiLoading()) {
+                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
               } @else {
                 <span class="grid-no-data">—</span>
               }

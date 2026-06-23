@@ -86,6 +86,12 @@ public class RsiScanResult
     /// <summary>20-period Simple Moving Average of the closing price series.
     /// Used by the Momentum Shift engine (Consolidation rule: price near SMA-20).</summary>
     public decimal Sma20Price { get; set; }
+    /// <summary>50-period Simple Moving Average. Used by Trend Setup engine.</summary>
+    public decimal Sma50Price { get; set; }
+    /// <summary>10-period Exponential Moving Average. Used by Trend Setup engine.</summary>
+    public decimal Ema10Price { get; set; }
+    /// <summary>20-period Exponential Moving Average. Used by Trend Setup engine.</summary>
+    public decimal Ema20Price { get; set; }
 
     // ── Analyst & Market Data ────────────────────────────────────────────────
     /// <summary>Analyst consensus 1-year target price. 0 when not available.</summary>
@@ -96,6 +102,11 @@ public class RsiScanResult
     public decimal Week52High { get; set; }
     /// <summary>52-week low price.</summary>
     public decimal Week52Low { get; set; }
+
+    /// <summary>Today's intraday high price (from last completed candle).</summary>
+    public decimal DayHigh { get; set; }
+    /// <summary>Today's intraday low price (from last completed candle).</summary>
+    public decimal DayLow { get; set; }
 }
 
 public class ScannerResponse

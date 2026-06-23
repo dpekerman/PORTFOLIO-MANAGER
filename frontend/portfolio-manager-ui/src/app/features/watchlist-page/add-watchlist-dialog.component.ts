@@ -8,9 +8,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../core/models/portfolio.models';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+
+export interface AddWatchlistDialogResult {
+  symbol: string;
+  role: string;
+}
 
 @Component({
   selector: 'app-add-watchlist-dialog',
@@ -23,6 +29,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
     MatIconModule,
     MatAutocompleteModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     ReactiveFormsModule,
   ],
   template: `
@@ -55,6 +62,15 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
             }
           </mat-autocomplete>
         </mat-form-field>
+
+        <mat-form-field appearance="outline" class="watchlist-role-field">
+          <mat-label>Investment Role</mat-label>
+          <mat-select formControlName="role">
+            @for (r of roles; track r) {
+              <mat-option [value]="r">{{ r }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       </form>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -69,9 +85,13 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
       :host {
         display: block;
       }
-      .watchlist-symbol-field {
+      .watchlist-symbol-field,
+      .watchlist-role-field {
         width: 100%;
         display: block;
+      }
+      .watchlist-role-field {
+        margin-top: 8px;
       }
       .search-result {
         display: flex;
@@ -107,10 +127,13 @@ export class AddWatchlistDialogComponent {
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
 
+  readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'];
+
   private readonly searchSubject = new Subject<string>();
 
   readonly form = this.fb.group({
     symbol: ['', [Validators.required, Validators.maxLength(20)]],
+    role: ['Strategic', [Validators.required]],
   });
 
   constructor() {
@@ -149,7 +172,11 @@ export class AddWatchlistDialogComponent {
 
   confirm(): void {
     if (this.form.invalid) return;
-    this.dialogRef.close(this.form.value.symbol!.toUpperCase());
+    const result: AddWatchlistDialogResult = {
+      symbol: this.form.value.symbol!.toUpperCase(),
+      role: this.form.value.role ?? 'Strategic',
+    };
+    this.dialogRef.close(result);
   }
 
   cancel(): void {

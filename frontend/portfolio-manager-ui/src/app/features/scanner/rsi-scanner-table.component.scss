@@ -704,3 +704,50 @@
   color: #424242;
   font-size: 0.8rem;
 }
+
+// ── Scanner table wrapper & export toolbar ─────────────────────────────────
+.scanner-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+
+// ── Mobile: hide less critical columns, shrink padding ───────────────────────
+@media (max-width: 768px) {
+  .scanner-table {
+    th.mat-mdc-header-cell,
+    td.mat-mdc-cell {
+      padding: 8px 6px;
+      font-size: 0.75rem;
+    }
+  }
+
+  .symbol-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 0.55rem;
+  }
+
+  .symbol-ticker {
+    font-size: 0.85rem;
+  }
+
+  .symbol-company {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .scanner-table {
+    th.mat-mdc-header-cell,
+    td.mat-mdc-cell {
+      padding: 6px 4px;
+    }
+  }
+}

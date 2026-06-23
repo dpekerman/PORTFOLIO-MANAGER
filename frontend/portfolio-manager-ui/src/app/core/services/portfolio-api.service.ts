@@ -80,15 +80,27 @@ export class PortfolioApiService {
   addWatchlistItem(
     symbol: string,
     notes = '',
-  ): Observable<{ id: number; symbol: string; notes: string; addedAt: string }> {
-    return this.http.post<{ id: number; symbol: string; notes: string; addedAt: string }>(
-      `${this.base}/watchlist`,
-      { symbol, notes },
-    );
+    role = 'Strategic',
+  ): Observable<{ id: number; symbol: string; notes: string; addedAt: string; role: string }> {
+    return this.http.post<{
+      id: number;
+      symbol: string;
+      notes: string;
+      addedAt: string;
+      role: string;
+    }>(`${this.base}/watchlist`, { symbol, notes, role });
   }
 
   deleteWatchlistItem(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/watchlist/${id}`);
+  }
+
+  updateWatchlistRole(id: number, role: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/role`, { role });
+  }
+
+  updatePortfolioHoldingRole(id: number, holdingRole: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/portfolio/${id}/holding-role`, { holdingRole });
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────

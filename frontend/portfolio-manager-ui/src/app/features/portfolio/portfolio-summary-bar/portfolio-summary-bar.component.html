@@ -32,6 +32,18 @@
       {{ totalGainLossPct() | number: '1.2-2' }}%
     </span>
   </div>
+  <div class="summary-tile">
+    <span class="label">Day Gain / Loss</span>
+    <span
+      class="value"
+      [ngClass]="{ positive: dayGainIsPositive(), negative: !dayGainIsPositive() }"
+      [class.demo-redact]="demoMode.isDemoMode()"
+    >
+      <mat-icon>{{ dayGainIsPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+      {{ totalDayGain() >= 0 ? '+' : ''
+      }}{{ totalDayGain() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+    </span>
+  </div>
   <div
     class="summary-tile"
     matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{

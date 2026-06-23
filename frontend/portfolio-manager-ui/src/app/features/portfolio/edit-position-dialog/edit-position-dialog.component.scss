@@ -13,26 +13,17 @@ h2[mat-dialog-title] {
   }
 }
 
-mat-dialog-content {
-  padding-top: 8px !important;
-  overflow: visible !important;
-  min-width: 360px;
-}
-
 .edit-form {
   display: flex;
   flex-direction: column;
-  // Give each form field enough room for hint + error text below it
-  // so the next field's label never overlaps
-  gap: 20px;
+  gap: 8px;
   padding: 4px 0 8px;
+  min-width: 520px;
+  width: 100%;
 }
 
 .full-width {
   width: 100%;
-  .mat-mdc-form-field-subscript-wrapper {
-    min-height: 18px;
-  }
 }
 
 .field-row {

@@ -86,10 +86,73 @@ BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [SectorIsOverridden] BIT NOT NULL DEFAULT 0;
         PRINT '  + Column SectorIsOverridden added.';
     END
+
+    -- AddTransactionFields columns
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'TransactionType')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [TransactionType] NVARCHAR(10) NULL;
+        PRINT '  + Column TransactionType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'AccountType')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [AccountType] NVARCHAR(30) NULL;
+        PRINT '  + Column AccountType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'OpenDate')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [OpenDate] DATETIME2 NULL;
+        PRINT '  + Column OpenDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'CloseDate')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [CloseDate] DATETIME2 NULL;
+        PRINT '  + Column CloseDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'ClosingPrice')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [ClosingPrice] DECIMAL(18,4) NULL;
+        PRINT '  + Column ClosingPrice added.';
+    END
+
+    -- AddRoleAndHoldingRole column
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'HoldingRole')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [HoldingRole] NVARCHAR(20) NULL;
+        PRINT '  + Column HoldingRole added.';
+    END
 END
 GO
 
--- Unique index on Symbol
+-- Non-unique index on Symbol (allows multiple positions in same symbol across accounts)
+-- Note: was unique in early migrations; constraint removed by RemovePortfolioSymbolUniqueConstraint
+IF EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'IX_PortfolioItems_Symbol'
+      AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
+      AND is_unique = 1
+)
+BEGIN
+    -- Drop the old unique index and recreate as non-unique
+    DROP INDEX [IX_PortfolioItems_Symbol] ON [dbo].[PortfolioItems];
+    PRINT 'Dropped unique index IX_PortfolioItems_Symbol (will recreate as non-unique).';
+END
+
 IF NOT EXISTS (
     SELECT 1
 FROM sys.indexes
@@ -97,9 +160,9 @@ WHERE name = N'IX_PortfolioItems_Symbol'
     AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
 )
 BEGIN
-    CREATE UNIQUE NONCLUSTERED INDEX [IX_PortfolioItems_Symbol]
+    CREATE NONCLUSTERED INDEX [IX_PortfolioItems_Symbol]
         ON [dbo].[PortfolioItems] ([Symbol] ASC);
-    PRINT 'Index IX_PortfolioItems_Symbol created.';
+    PRINT 'Index IX_PortfolioItems_Symbol created (non-unique).';
 END
 GO
 
@@ -120,6 +183,7 @@ BEGIN
         [Symbol] NVARCHAR(20) NOT NULL,
         [Notes] NVARCHAR(500) NOT NULL DEFAULT '',
         [AddedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [Role] NVARCHAR(20) NOT NULL DEFAULT 'Strategic',
 
         CONSTRAINT [PK_WatchlistItems] PRIMARY KEY CLUSTERED ([Id] ASC)
     );
@@ -127,7 +191,14 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'Table WatchlistItems already exists – skipping.';
+    PRINT 'Table WatchlistItems already exists – checking for missing columns...';
+
+    IF NOT EXISTS (SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND name = N'Role')
+    BEGIN
+        ALTER TABLE [dbo].[WatchlistItems] ADD [Role] NVARCHAR(20) NOT NULL DEFAULT 'Strategic';
+        PRINT '  + Column Role added.';
+    END
 END
 GO
 
@@ -201,7 +272,48 @@ BEGIN
 END
 ELSE
 BEGIN
-    PRINT 'Table OptionItems already exists – skipping.';
+    PRINT 'Table OptionItems already exists – checking for missing columns...';
+
+    -- AddTransactionFields columns
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'TransactionType')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [TransactionType] NVARCHAR(10) NULL;
+        PRINT '  + Column TransactionType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'AccountType')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [AccountType] NVARCHAR(30) NULL;
+        PRINT '  + Column AccountType added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'OpenDate')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [OpenDate] DATETIME2 NULL;
+        PRINT '  + Column OpenDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'CloseDate')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [CloseDate] DATETIME2 NULL;
+        PRINT '  + Column CloseDate added.';
+    END
+
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'ClosingPrice')
+    BEGIN
+        ALTER TABLE [dbo].[OptionItems] ADD [ClosingPrice] DECIMAL(18,4) NULL;
+        PRINT '  + Column ClosingPrice added.';
+    END
 END
 GO
 

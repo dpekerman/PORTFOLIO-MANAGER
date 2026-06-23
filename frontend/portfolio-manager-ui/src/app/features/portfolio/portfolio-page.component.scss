@@ -865,3 +865,70 @@
   justify-content: center;
   margin-top: 12px;
 }
+
+// ── Multi-account group header row ────────────────────────────────────────────
+tr.pg-agg-row {
+  cursor: pointer;
+
+  td {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  &:hover td {
+    background: var(--bg-hover) !important;
+  }
+}
+
+// ── Child rows: look identical to regular rows ────────────────────────────────
+tr.pg-child-row td {
+  background: transparent !important;
+}
+
+tr.pg-child-row:hover td {
+  background: var(--bg-hover) !important;
+}
+
+// Child row ticker-column: account badge as primary identifier
+.pg-child-id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.pg-child-connector {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+// ── Inline expand/collapse arrow inside the symbol text ──────────────────────
+.pg-agg-symbol-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pg-inline-expand {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--text-faint);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+// ── Account badge ─────────────────────────────────────────────────────────────
+.pg-account-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(100, 181, 246, 0.12);
+  color: #64b5f6;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  display: inline-block;
+}

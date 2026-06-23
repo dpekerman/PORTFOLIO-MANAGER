@@ -1,0 +1,266 @@
+.transactions-page {
+  padding: 0 0 48px;
+}
+
+.tx-section {
+  padding: 20px 24px 16px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+.tx-page-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.tx-page-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: var(--mat-sys-primary);
+}
+
+.tx-page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.tx-page-sub {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tx-subsection {
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  overflow: hidden;
+
+  &.collapsed .tx-table-wrapper,
+  &.collapsed .tx-empty {
+    display: none;
+  }
+}
+
+.tx-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--mat-sys-surface-container-low);
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--mat-sys-surface-container);
+  }
+}
+
+.tx-subsection-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tx-subsection-icon {
+  color: var(--mat-sys-primary);
+}
+
+.tx-subsection-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.tx-chevron {
+  color: var(--mat-sys-on-surface-variant);
+  transition: transform 0.2s;
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.tx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    font-size: 40px;
+    width: 40px;
+    height: 40px;
+    opacity: 0.4;
+  }
+
+  span {
+    font-size: 0.9rem;
+  }
+}
+
+.tx-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tx-grid-table {
+  width: 100%;
+  min-width: 900px;
+}
+
+// ── Shared table cell styles ──────────────────────────────────────────────────
+.pg-num {
+  text-align: right;
+}
+.pg-num-header {
+  text-align: right !important;
+}
+.pg-bold {
+  font-weight: 600;
+}
+.pg-dim {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.85rem;
+}
+.pg-pos {
+  color: #2e7d32;
+  font-weight: 600;
+}
+.pg-neg {
+  color: #c62828;
+  font-weight: 600;
+}
+.pg-symbol {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.pg-company {
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.pg-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+
+.badge-put {
+  background: #fce4ec;
+  color: #c62828;
+}
+.badge-call {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.put-badge {
+  color: #c62828;
+  font-weight: 600;
+}
+.call-badge {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.opt-type-badge {
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+// ── Transaction type badge ────────────────────────────────────────────────────
+.tx-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+
+  &.tx-open {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  &.tx-close {
+    background: #fce4ec;
+    color: #c62828;
+  }
+}
+
+.pg-row {
+  &:hover {
+    background: var(--mat-sys-surface-container-low);
+  }
+}
+
+.actions-header {
+  width: 88px;
+  min-width: 88px;
+}
+
+.actions-cell {
+  white-space: nowrap;
+
+  button {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
+}
+
+// -- Mobile responsiveness ----------------------------------------------------
+@media (max-width: 768px) {
+  .tx-subsection-header {
+    padding: 12px 14px;
+  }
+
+  .tx-subsection-title {
+    font-size: 0.9rem;
+  }
+
+  .tx-grid-table {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 600px) {
+  .tx-page-title {
+    font-size: 1.1rem;
+  }
+}

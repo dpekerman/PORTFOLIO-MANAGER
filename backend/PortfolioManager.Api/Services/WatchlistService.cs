@@ -9,6 +9,7 @@ public interface IWatchlistService
     Task<IReadOnlyList<WatchlistItemDto>> GetAllAsync(CancellationToken ct = default);
     Task<WatchlistItemDto> AddAsync(AddWatchlistItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
 }
 
 public sealed class WatchlistService(AppDbContext db) : IWatchlistService
@@ -29,6 +30,7 @@ public sealed class WatchlistService(AppDbContext db) : IWatchlistService
         {
             Symbol  = request.Symbol.ToUpperInvariant(),
             Notes   = request.Notes ?? "",
+            Role    = request.Role ?? "Strategic",
             AddedAt = DateTime.UtcNow
         };
 
@@ -47,6 +49,16 @@ public sealed class WatchlistService(AppDbContext db) : IWatchlistService
         return true;
     }
 
+    public async Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default)
+    {
+        var item = await db.WatchlistItems.FindAsync([id], ct);
+        if (item is null) return false;
+
+        item.Role = role;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     private static WatchlistItemDto ToDto(WatchlistItem item) =>
-        new(item.Id, item.Symbol, item.Notes, item.AddedAt);
+        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic");
 }

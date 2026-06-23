@@ -10,6 +10,7 @@ h2[mat-dialog-title] {
   flex-direction: column;
   gap: 4px;
   padding-top: 8px;
+  min-width: 520px;
   width: 100%;
 
   .full-width {

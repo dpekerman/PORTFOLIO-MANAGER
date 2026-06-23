@@ -14,4 +14,14 @@ public class PortfolioItem
     public bool IsManual { get; set; } = false;
     public decimal? ManualMarketValue { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+    // ── Transaction tracking fields ─────────────────────────────────────────
+    /// <summary>OPEN or CLOSE</summary>
+    public string? TransactionType { get; set; }
+    /// <summary>Account type e.g. TFSA_L_RBC, Margin_D_TD, Corp_TD</summary>
+    public string? AccountType { get; set; }
+    public DateTime? OpenDate { get; set; }
+    public DateTime? CloseDate { get; set; }
+    public decimal? ClosingPrice { get; set; }
+    /// <summary>Holding role: Core | Strategic | Swing | Speculative | Options. Default: Strategic.</summary>
+    public string? HoldingRole { get; set; }
 }

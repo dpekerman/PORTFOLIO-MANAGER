@@ -41,4 +41,12 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
         var deleted = await watchlistService.DeleteAsync(id, ct);
         return deleted ? NoContent() : NotFound();
     }
+
+    /// <summary>Updates the role for a watchlist item.</summary>
+    [HttpPatch("{id:int}/role")]
+    public async Task<IActionResult> UpdateRole(int id, [FromBody] UpdateWatchlistRoleRequest request, CancellationToken ct)
+    {
+        var updated = await watchlistService.UpdateRoleAsync(id, request.Role, ct);
+        return updated ? NoContent() : NotFound();
+    }
 }

@@ -25,7 +25,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.SectorIsOverridden).HasDefaultValue(false);
             entity.Property(e => e.IsManual).HasDefaultValue(false);
             entity.Property(e => e.ManualMarketValue).HasColumnType("decimal(18,4)");
-            entity.HasIndex(e => e.Symbol).IsUnique();
+            entity.Property(e => e.TransactionType).HasMaxLength(10);
+            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.HoldingRole).HasMaxLength(20);
+            entity.HasIndex(e => e.Symbol); // non-unique: same ticker can exist across multiple accounts
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
@@ -33,6 +37,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
+            entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
             entity.HasIndex(e => e.Symbol).IsUnique();
         });
 
@@ -62,6 +67,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Strike).HasColumnType("decimal(18,4)");
             entity.Property(e => e.Premium).HasColumnType("decimal(18,4)");
             entity.Property(e => e.MarketPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TransactionType).HasMaxLength(10);
+            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
         });
     }
 }

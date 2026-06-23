@@ -47,6 +47,14 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return item is null ? NotFound() : Ok(item);
     }
 
+    /// <summary>Updates the holding role for a portfolio item.</summary>
+    [HttpPatch("{id:int}/holding-role")]
+    public async Task<IActionResult> UpdateHoldingRole(int id, [FromBody] UpdatePortfolioHoldingRoleRequest request, CancellationToken ct)
+    {
+        var updated = await portfolioService.UpdateHoldingRoleAsync(id, request.HoldingRole, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
