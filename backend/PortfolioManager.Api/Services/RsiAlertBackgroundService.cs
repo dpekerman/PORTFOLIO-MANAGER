@@ -110,28 +110,37 @@ public sealed class RsiAlertBackgroundService(
         // Only EOD Confirm signals trigger email alerts (see EOD window below).
         // await notifier.NotifyNewConfirmedSignalsAsync(result);
 
-        // ── EOD Confirm notifications (only during the configured EOD window) ──
+        // ── EOD window: persist Confirmed + EodConfirm signals to DailySignals table ──
         bool inEodWindow = runtimeConfig.IsEodWindowActive();
         if (inEodWindow)
         {
-            var totalEod =
-                (result.OversoldChain?.Count(r => r.Status == SignalStatus.EodConfirm) ?? 0) +
-                (result.OverboughtChain?.Count(r => r.Status == SignalStatus.EodConfirm) ?? 0);
+            // Collect ALL signals that qualify for DB persistence during the EOD window:
+            // - EodConfirm: all 4 EOD rules met (RSI, Price vs EMA, Volume, ATR position)
+            // - Confirmed:  price-action trigger met on candle close
+            // Both OVERSOLD and OVERBOUGHT chains are included.
+            var allQualified = (result.OversoldChain ?? [])
+                .Concat(result.OverboughtChain ?? [])
+                .Where(r => r.Status == SignalStatus.EodConfirm || r.Status == SignalStatus.Confirmed)
+                .ToList();
+
+            var eodConfirmCount = allQualified.Count(r => r.Status == SignalStatus.EodConfirm);
+            var confirmedCount  = allQualified.Count(r => r.Status == SignalStatus.Confirmed);
 
             logger.LogInformation(
-                "[RsiAlertBg] EOD Window active ({Start}–{End} ET). {EodCount} EOD CONFIRM signal(s) found.",
-                runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd, totalEod);
+                "[RsiAlertBg] EOD Window active ({Start}–{End} ET). " +
+                "{EodCount} EodConfirm + {ConfCount} Confirmed signal(s) qualify for persistence.",
+                runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd,
+                eodConfirmCount, confirmedCount);
 
-            if (totalEod > 0)
+            if (allQualified.Count > 0)
             {
-                await notifier.NotifyNewEodConfirmedSignalsAsync(result);
+                // Email notifications only for EodConfirm signals (high-priority alert)
+                if (eodConfirmCount > 0)
+                    await notifier.NotifyNewEodConfirmedSignalsAsync(result);
 
-                // Persist EOD signals to disk so the "Yesterday's EOD" morning panel can show them.
-                var allEod = (result.OversoldChain ?? [])
-                    .Concat(result.OverboughtChain ?? [])
-                    .Where(r => r.Status == SignalStatus.EodConfirm)
-                    .ToList();
-                await eodPersistence.SaveAsync(allEod, ct);
+                // Persist all qualified signals (EodConfirm + Confirmed) to the DailySignals DB
+                // table and to the JSON file for the morning panel.
+                await eodPersistence.SaveAsync(allQualified, ct);
             }
         }
     }

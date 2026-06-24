@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
+    public DbSet<DailySignal> DailySignals => Set<DailySignal>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,6 +71,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.TransactionType).HasMaxLength(10);
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+        });
+
+        modelBuilder.Entity<DailySignal>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CompanyName).HasMaxLength(200).HasDefaultValue("");
+            entity.Property(e => e.ScanType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SignalType).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Rsi).HasColumnType("decimal(7,4)");
+            entity.Property(e => e.Price).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TriggerDetails).HasMaxLength(1000).HasDefaultValue("");
+            entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
+            entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
+            entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.ReversalProbability).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.VolumeSignal).HasMaxLength(30).HasDefaultValue("");
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.SignalDate);
+            entity.HasIndex(e => new { e.Symbol, e.SignalDate });
         });
     }
 }

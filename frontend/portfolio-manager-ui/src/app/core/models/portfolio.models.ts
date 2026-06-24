@@ -403,3 +403,61 @@ export interface OptionAnalysis {
   gainLoss: number;
   gainLossPct: number;
 }
+
+// ── EOD Signals Dashboard ─────────────────────────────────────────────────────
+
+export type SignalState = 'Active' | 'FollowThrough' | 'Invalidated' | 'Expired' | 'Reversed';
+
+export interface DailySignal {
+  id: number;
+  symbol: string;
+  companyName: string;
+  /** Oversold | Overbought */
+  scanType: string;
+  /** EodConfirm | Confirmed | EarlyWarning */
+  signalType: string;
+  rsi: number;
+  price: number;
+  triggerDetails: string;
+  /** yyyy-MM-dd (ET) */
+  signalDate: string;
+  recordedAt: string;
+  /** Legacy | Enhanced */
+  ruleVersion: string;
+  signalState: SignalState;
+  sector: string;
+  reversalProbability: string;
+  volumeSignal: string;
+  notes: string | null;
+  updatedAt: string | null;
+}
+
+export interface DailySignalPagedResponse {
+  items: DailySignal[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EodSignalsMeta {
+  tickers: string[];
+  scanTypes: string[];
+  signalTypes: string[];
+  signalStates: string[];
+  ruleVersions: string[];
+  minDate: string | null;
+  maxDate: string | null;
+  totalCount: number;
+}
+
+export interface EodSignalFilters {
+  ticker?: string;
+  scanType?: string;
+  signalType?: string;
+  signalState?: string;
+  ruleVersion?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}

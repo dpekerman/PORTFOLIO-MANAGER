@@ -9,6 +9,9 @@ import {
   AdhocSessionPayload,
   AdhocSessionResponse,
   CashItem,
+  DailySignalPagedResponse,
+  EodSignalFilters,
+  EodSignalsMeta,
   OptionItem,
   OptionTechnicalData,
   PortfolioItem,
@@ -255,5 +258,58 @@ export class PortfolioApiService {
 
   getOptionTechnicalData(symbol: string): Observable<OptionTechnicalData> {
     return this.http.get<OptionTechnicalData>(`${this.base}/options/technical/${symbol}`);
+  }
+
+  // ── EOD Signals Dashboard ───────────────────────────────────────────────────
+
+  getEodSignals(filters: EodSignalFilters): Observable<DailySignalPagedResponse> {
+    let params = new HttpParams().set('page', filters.page).set('pageSize', filters.pageSize);
+    if (filters.ticker) params = params.set('ticker', filters.ticker);
+    if (filters.scanType) params = params.set('scanType', filters.scanType);
+    if (filters.signalType) params = params.set('signalType', filters.signalType);
+    if (filters.signalState) params = params.set('signalState', filters.signalState);
+    if (filters.ruleVersion) params = params.set('ruleVersion', filters.ruleVersion);
+    if (filters.dateFrom) params = params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params = params.set('dateTo', filters.dateTo);
+    return this.http.get<DailySignalPagedResponse>(`${this.base}/eod-signals`, { params });
+  }
+
+  getEodSignalsMeta(): Observable<EodSignalsMeta> {
+    return this.http.get<EodSignalsMeta>(`${this.base}/eod-signals/meta`);
+  }
+
+  updateEodSignalState(id: number, signalState: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/eod-signals/${id}/state`, { signalState });
+  }
+
+  updateEodSignalNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/eod-signals/${id}/notes`, { notes });
+  }
+
+  deleteEodSignal(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/eod-signals/${id}`);
+  }
+
+  deleteAllEodSignals(
+    ticker?: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Observable<{ deleted: number }> {
+    let params = new HttpParams().set('confirm', 'true');
+    if (ticker) params = params.set('ticker', ticker);
+    if (dateFrom) params = params.set('dateFrom', dateFrom);
+    if (dateTo) params = params.set('dateTo', dateTo);
+    return this.http.delete<{ deleted: number }>(`${this.base}/eod-signals`, { params });
+  }
+
+  seedEodSignals(): Observable<{ seeded: number; skipped: number }> {
+    return this.http.post<{ seeded: number; skipped: number }>(`${this.base}/eod-signals/seed`, {});
+  }
+
+  persistEodSignalsNow(): Observable<{ persisted: number; eodConfirm: number; confirmed: number }> {
+    return this.http.post<{ persisted: number; eodConfirm: number; confirmed: number }>(
+      `${this.base}/eod-signals/persist-now`,
+      {},
+    );
   }
 }

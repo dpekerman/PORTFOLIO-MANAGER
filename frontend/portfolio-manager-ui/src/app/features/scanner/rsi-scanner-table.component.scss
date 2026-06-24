@@ -308,6 +308,11 @@
   line-height: 1.4;
 }
 
+.signal-history-cell {
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
 // Empty state
 .no-data-cell {
   padding: 32px !important;

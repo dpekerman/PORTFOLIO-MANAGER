@@ -50,6 +50,7 @@ export class LayoutComponent {
 
   protected readonly navLinks = [
     { path: '/scanner', label: 'RSI Scanner', icon: 'radar' },
+    { path: '/eod-signals', label: 'EOD Signals', icon: 'timeline' },
     { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },

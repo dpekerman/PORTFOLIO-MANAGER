@@ -429,10 +429,26 @@
       </td>
     </ng-container>
 
-    <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+    <!-- Signal History Column -->
+    <ng-container matColumnDef="signalHistory">
+      <th mat-header-cell *matHeaderCellDef></th>
+      <td mat-cell *matCellDef="let row" class="signal-history-cell">
+        <a
+          mat-icon-button
+          [routerLink]="['/eod-signals']"
+          [queryParams]="{ ticker: row.symbol }"
+          [matTooltip]="'View signal history for ' + row.symbol"
+          aria-label="View signal history"
+        >
+          <mat-icon>timeline</mat-icon>
+        </a>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
     <tr
       mat-row
-      *matRowDef="let row; columns: displayedColumns"
+      *matRowDef="let row; columns: displayedColumns()"
       [ngClass]="{
         'row-confirmed': row.status === 'Confirmed',
         'row-warning': row.status === 'EarlyWarning',
@@ -441,7 +457,7 @@
 
     @if (!loading() && results().length === 0) {
       <tr class="mat-mdc-no-data-row">
-        <td [attr.colspan]="displayedColumns.length" class="no-data-cell">
+        <td [attr.colspan]="displayedColumns().length" class="no-data-cell">
           <mat-icon>search_off</mat-icon>
           <span>No signals detected at this time</span>
         </td>

@@ -99,15 +99,23 @@ builder.Services.AddHostedService<RsiAlertBackgroundService>();
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
+// Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
+catch (Exception ex)
+{
+    var startupLog = app.Services.GetRequiredService<ILogger<Program>>();
+    startupLog.LogError(ex, "EF migration failed on startup — some tables may be missing.");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
-    // Auto-apply EF migrations on startup in development
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
 }
 
 app.UseCors("AngularDevPolicy");

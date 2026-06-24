@@ -1,0 +1,421 @@
+﻿// EOD Signals Page — follows scanner-page/watchlist-page patterns
+.eod-page {
+  padding: 0 0 48px;
+}
+
+// ── Page Header ─────────────────────────────────────────────────────────────
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.page-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  margin-top: 4px;
+  color: var(--mat-primary-color, #1976d2);
+}
+
+.page-title {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+}
+
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 100px;
+  background: rgba(25, 118, 210, 0.15);
+  color: #1976d2;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.page-sub {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
+}
+
+.last-checked {
+  margin: 4px 0 0;
+  font-size: 0.7rem;
+  font-family: monospace;
+  color: var(--text-secondary, rgba(0, 0, 0, 0.4));
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+// ── EOD Window Active Banner ─────────────────────────────────────────────────
+.eod-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}
+
+.eod-banner--active {
+  background: rgba(76, 175, 80, 0.12);
+  border-left: 3px solid #4caf50;
+  color: #2e7d32;
+
+  .eod-banner-hint {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: rgba(46, 125, 50, 0.75);
+    margin-left: auto;
+  }
+}
+
+// Tiny spinning sync icon used in last-checked timestamp
+.spin-xs {
+  font-size: 13px !important;
+  width: 13px !important;
+  height: 13px !important;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.date-range {
+  font-family: monospace;
+  font-size: 0.78rem;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.delete-all-btn {
+  color: #d32f2f;
+  border-color: rgba(211, 47, 47, 0.4);
+}
+
+// ── Filter Bar ───────────────────────────────────────────────────────────────
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 16px 24px;
+  background: color-mix(in srgb, var(--surface-color, #fff) 90%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.f-ticker {
+  min-width: 170px;
+  flex: 1 1 170px;
+  max-width: 220px;
+}
+
+.f-select {
+  min-width: 130px;
+  flex: 1 1 130px;
+  max-width: 170px;
+}
+
+.f-date {
+  min-width: 150px;
+  flex: 1 1 150px;
+  max-width: 185px;
+}
+
+.clear-btn {
+  align-self: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+// ── Progress bar ─────────────────────────────────────────────────────────────
+.progress-bar {
+  margin: 0;
+}
+
+// ── Error Banner ──────────────────────────────────────────────────────────────
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 24px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: rgba(211, 47, 47, 0.08);
+  border: 1px solid rgba(211, 47, 47, 0.3);
+  color: #c62828;
+  font-size: 0.875rem;
+
+  button {
+    margin-left: auto;
+  }
+}
+
+// ── Empty State ───────────────────────────────────────────────────────────────
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
+}
+
+.empty-icon {
+  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  opacity: 0.25;
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+
+.empty-sub {
+  font-size: 0.875rem;
+  max-width: 480px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+.inline-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+.table-wrapper {
+  overflow-x: auto;
+  padding: 0;
+}
+
+.signals-table {
+  width: 100%;
+
+  th.mat-mdc-header-cell {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    padding: 0 10px;
+    user-select: none;
+  }
+
+  td.mat-mdc-cell {
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    vertical-align: middle;
+  }
+}
+
+.num-col {
+  text-align: right;
+}
+
+// ── Row States ────────────────────────────────────────────────────────────────
+.signal-row {
+  &.state-invalidated,
+  &.state-expired {
+    opacity: 0.5;
+  }
+  &.state-follow-through {
+    background: rgba(76, 175, 80, 0.04);
+  }
+  &.state-reversed {
+    background: rgba(244, 67, 54, 0.04);
+  }
+}
+
+// ── Symbol Cell ───────────────────────────────────────────────────────────────
+.symbol-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.symbol-text {
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.company-name {
+  font-size: 0.68rem;
+  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Mono ──────────────────────────────────────────────────────────────────────
+.mono {
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+// ── Tags / Chips ──────────────────────────────────────────────────────────────
+.tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+
+  &.tag-oversold {
+    background: rgba(33, 150, 243, 0.12);
+    color: #1565c0;
+  }
+  &.tag-overbought {
+    background: rgba(244, 67, 54, 0.1);
+    color: #c62828;
+  }
+  &.tag-eod-confirm {
+    background: rgba(156, 39, 176, 0.1);
+    color: #6a1b9a;
+  }
+  &.tag-confirmed {
+    background: rgba(76, 175, 80, 0.13);
+    color: #2e7d32;
+  }
+  &.tag-early-warning {
+    background: rgba(255, 152, 0, 0.13);
+    color: #e65100;
+  }
+  &.tag-prob-high {
+    background: rgba(244, 67, 54, 0.1);
+    color: #b71c1c;
+  }
+  &.tag-prob-medium {
+    background: rgba(255, 152, 0, 0.12);
+    color: #e65100;
+  }
+  &.tag-prob-low {
+    background: rgba(0, 0, 0, 0.06);
+    color: rgba(0, 0, 0, 0.54);
+  }
+}
+
+// ── RSI Value ─────────────────────────────────────────────────────────────────
+.rsi-val {
+  font-weight: 700;
+  font-size: 0.9rem;
+  &.tag-oversold {
+    color: #1565c0;
+  }
+  &.tag-overbought {
+    color: #c62828;
+  }
+}
+
+// ── Volume ────────────────────────────────────────────────────────────────────
+.vol-label {
+  font-size: 0.72rem;
+  &.vol-validated {
+    color: #2e7d32;
+    font-weight: 600;
+  }
+  &.vol-trap {
+    color: #e65100;
+  }
+}
+
+// ── Rule Version ──────────────────────────────────────────────────────────────
+.rule-ver {
+  font-size: 0.75rem;
+  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
+  &.enhanced {
+    color: #6a1b9a;
+    font-weight: 600;
+  }
+}
+
+// ── State select ──────────────────────────────────────────────────────────────
+.state-sel {
+  font-size: 0.8rem;
+  min-width: 120px;
+
+  .state-active {
+    color: #1976d2;
+  }
+  .state-follow-through {
+    color: #2e7d32;
+    font-weight: 600;
+  }
+  .state-invalidated {
+    color: rgba(0, 0, 0, 0.38);
+  }
+  .state-expired {
+    color: rgba(0, 0, 0, 0.38);
+  }
+  .state-reversed {
+    color: #c62828;
+  }
+}
+
+// ── Actions Cell ──────────────────────────────────────────────────────────────
+.actions-cell {
+  white-space: nowrap;
+  padding: 0 6px;
+}
+
+// ── Muted ─────────────────────────────────────────────────────────────────────
+.muted {
+  color: var(--text-secondary, rgba(0, 0, 0, 0.38));
+  font-size: 0.78rem;
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

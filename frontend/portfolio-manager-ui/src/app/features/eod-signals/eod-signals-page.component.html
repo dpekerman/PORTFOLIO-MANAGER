@@ -1,0 +1,373 @@
+﻿<div class="eod-page">
+  <!-- ── Page Header ──────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div class="page-title-group">
+      <mat-icon class="page-icon">timeline</mat-icon>
+      <div>
+        <h1 class="page-title">
+          EOD SIGNALS
+          @if (totalCount() > 0) {
+            <span class="count-badge">{{ totalCount() }}</span>
+          }
+        </h1>
+        <p class="page-sub">
+          Confirmed end-of-day signals · Lifecycle tracking · History
+          @if (meta(); as m) {
+            @if (m.minDate && m.maxDate) {
+              · <span class="date-range">{{ m.minDate }} – {{ m.maxDate }}</span>
+            }
+          }
+        </p>
+        @if (lastCheckedAt()) {
+          <p class="last-checked">
+            @if (autoRefreshing()) {
+              <mat-icon class="spin-xs">sync</mat-icon>
+            }
+            CHECKED {{ lastCheckedAt() | date: 'HH:mm:ss' }}
+          </p>
+        }
+      </div>
+    </div>
+
+    <div class="page-actions">
+      <button mat-icon-button matTooltip="Refresh" (click)="loadSignals()" [disabled]="loading()">
+        <mat-icon [class.spinning]="loading()">refresh</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="Persist current scanner results to EOD Signals (EodConfirm + Confirmed)"
+        (click)="persistNow()"
+        [disabled]="persistingNow()"
+      >
+        <mat-icon [class.spinning]="persistingNow()">save_alt</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="Seed 15 test records (dev only)"
+        (click)="seedTestData()"
+        [disabled]="seeding()"
+      >
+        <mat-icon>science</mat-icon>
+      </button>
+      @if (totalCount() > 0) {
+        <button
+          mat-stroked-button
+          class="delete-all-btn"
+          matTooltip="Delete all visible records"
+          (click)="deleteAll()"
+        >
+          <mat-icon>delete_sweep</mat-icon>
+          Delete All
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- ── EOD Window Active Banner ─────────────────────────────────────── -->
+  @if (eodWindowActive()) {
+    <div class="eod-banner eod-banner--active">
+      <mat-icon>access_time</mat-icon>
+      <span>EOD WINDOW ACTIVE — Background scanner is capturing signals</span>
+      <span class="eod-banner-hint"
+        >Records will appear automatically · use <strong>Persist Now</strong> to capture
+        immediately</span
+      >
+    </div>
+  }
+
+  <!-- ── Filter Bar ────────────────────────────────────────────────────── -->
+  <div class="filter-bar">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-ticker">
+      <mat-icon matPrefix>search</mat-icon>
+      <mat-label>Ticker</mat-label>
+      <input matInput [formControl]="tickerControl" placeholder="e.g. TD.TO" autocomplete="off" />
+      @if (tickerControl.value) {
+        <button matSuffix mat-icon-button (click)="tickerControl.setValue('')">
+          <mat-icon>close</mat-icon>
+        </button>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+      <mat-label>Scan Type</mat-label>
+      <mat-select
+        [value]="scanTypeFilter()"
+        (selectionChange)="scanTypeFilter.set($event.value); onFilterChange()"
+      >
+        <mat-option value="">All</mat-option>
+        @for (opt of scanTypeOptions; track opt) {
+          <mat-option [value]="opt">{{ opt }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+      <mat-label>Signal Type</mat-label>
+      <mat-select
+        [value]="signalTypeFilter()"
+        (selectionChange)="signalTypeFilter.set($event.value); onFilterChange()"
+      >
+        <mat-option value="">All</mat-option>
+        @for (opt of signalTypeOptions; track opt) {
+          <mat-option [value]="opt">{{ opt }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+      <mat-label>Signal State</mat-label>
+      <mat-select
+        [value]="signalStateFilter()"
+        (selectionChange)="signalStateFilter.set($event.value); onFilterChange()"
+      >
+        <mat-option value="">All</mat-option>
+        @for (opt of signalStateOptions; track opt) {
+          <mat-option [value]="opt">{{ opt }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+      <mat-label>Rule Version</mat-label>
+      <mat-select
+        [value]="ruleVersionFilter()"
+        (selectionChange)="ruleVersionFilter.set($event.value); onFilterChange()"
+      >
+        <mat-option value="">All</mat-option>
+        @for (opt of ruleVersionOptions; track opt) {
+          <mat-option [value]="opt">{{ opt }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
+      <mat-label>Date From</mat-label>
+      <input
+        matInput
+        [matDatepicker]="fromPicker"
+        [formControl]="dateFromControl"
+        placeholder="yyyy-mm-dd"
+      />
+      <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
+      <mat-datepicker #fromPicker></mat-datepicker>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
+      <mat-label>Date To</mat-label>
+      <input
+        matInput
+        [matDatepicker]="toPicker"
+        [formControl]="dateToControl"
+        placeholder="yyyy-mm-dd"
+      />
+      <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
+      <mat-datepicker #toPicker></mat-datepicker>
+    </mat-form-field>
+
+    @if (hasFilters()) {
+      <button mat-stroked-button class="clear-btn" (click)="clearFilters()">
+        <mat-icon>filter_list_off</mat-icon>
+        Clear
+      </button>
+    }
+  </div>
+
+  <!-- ── Progress bar ─────────────────────────────────────────────────── -->
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="progress-bar" />
+  }
+
+  <!-- ── Error Banner ──────────────────────────────────────────────────── -->
+  @if (error()) {
+    <div class="error-banner" role="alert">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ error() }}</span>
+      <button mat-stroked-button (click)="loadSignals()">Retry</button>
+    </div>
+  }
+
+  <!-- ── Empty State ───────────────────────────────────────────────────── -->
+  @if (!loading() && !error() && sortedSignals().length === 0) {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">timeline</mat-icon>
+      <p class="empty-title">No EOD signals found</p>
+      @if (hasFilters()) {
+        <p class="empty-sub">
+          No signals match the current filters.
+          <button mat-button (click)="clearFilters()">Clear filters</button>
+        </p>
+      } @else {
+        <p class="empty-sub">
+          EOD CONFIRM signals are recorded automatically when the end-of-day window closes. Click
+          <mat-icon class="inline-icon">science</mat-icon> to load test data.
+        </p>
+      }
+    </div>
+  }
+
+  <!-- ── Table ─────────────────────────────────────────────────────────── -->
+  @if (sortedSignals().length > 0) {
+    <div class="table-wrapper">
+      <table
+        mat-table
+        [dataSource]="sortedSignals()"
+        matSort
+        (matSortChange)="onMatSortChange($event)"
+        class="signals-table"
+      >
+        <!-- Date -->
+        <ng-container matColumnDef="signalDate">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="signalDate">DATE</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="mono">{{ row.signalDate }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Symbol -->
+        <ng-container matColumnDef="symbol">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="symbol">TICKER</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="symbol-cell">
+              <span class="symbol-text">{{ row.symbol }}</span>
+              <span class="company-name">{{ row.companyName }}</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Scan Type -->
+        <ng-container matColumnDef="scanType">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="scanType">SCAN</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="tag" [ngClass]="scanTypeClass(row.scanType)">{{ row.scanType }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Signal Type -->
+        <ng-container matColumnDef="signalType">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="signalType">SIGNAL</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="tag" [ngClass]="signalTypeClass(row.signalType)">{{
+              row.signalType
+            }}</span>
+          </td>
+        </ng-container>
+
+        <!-- RSI -->
+        <ng-container matColumnDef="rsi">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="rsi" class="num-col">RSI</th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            <span class="rsi-val" [ngClass]="scanTypeClass(row.scanType)">{{
+              row.rsi | number: '1.1-1'
+            }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Price -->
+        <ng-container matColumnDef="price">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="price" class="num-col">PRICE</th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            <span class="mono">${{ row.price | number: '1.2-2' }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Reversal -->
+        <ng-container matColumnDef="reversalProbability">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="reversalProbability">REVERSAL</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.reversalProbability) {
+              <span class="tag" [ngClass]="reversalClass(row.reversalProbability)">{{
+                row.reversalProbability
+              }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Volume -->
+        <ng-container matColumnDef="volumeSignal">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="volumeSignal">VOLUME</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.volumeSignal && row.volumeSignal !== 'Neutral') {
+              <span
+                class="vol-label"
+                [class.vol-validated]="row.volumeSignal === 'Validated'"
+                [class.vol-trap]="row.volumeSignal === 'Low-Volume Trap'"
+                >{{ row.volumeSignal }}</span
+              >
+            } @else {
+              <span class="muted">Neutral</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Rule Version -->
+        <ng-container matColumnDef="ruleVersion">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="ruleVersion">MODE</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="rule-ver" [class.enhanced]="row.ruleVersion === 'Enhanced'">{{
+              row.ruleVersion
+            }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Signal State -->
+        <ng-container matColumnDef="signalState">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="signalState">STATE</th>
+          <td mat-cell *matCellDef="let row">
+            <mat-select
+              class="state-sel"
+              [value]="row.signalState"
+              (selectionChange)="updateState(row, $event.value)"
+            >
+              @for (state of signalStateOptions; track state) {
+                <mat-option [value]="state">
+                  <span [ngClass]="signalStateClass(state)">{{ state }}</span>
+                </mat-option>
+              }
+            </mat-select>
+          </td>
+        </ng-container>
+
+        <!-- Actions -->
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row" class="actions-cell">
+            <button
+              mat-icon-button
+              [matTooltip]="row.triggerDetails || 'No details'"
+              aria-label="Details"
+            >
+              <mat-icon>info_outline</mat-icon>
+            </button>
+            <button
+              mat-icon-button
+              color="warn"
+              [matTooltip]="'Delete signal for ' + row.symbol"
+              (click)="deleteSignal(row)"
+            >
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns"
+          class="signal-row"
+          [ngClass]="signalStateClass(row.signalState)"
+        ></tr>
+      </table>
+    </div>
+
+    <mat-paginator
+      [length]="totalCount()"
+      [pageIndex]="pageIndex()"
+      [pageSize]="pageSize()"
+      [pageSizeOptions]="[25, 50, 100]"
+      (page)="onPage($event)"
+      aria-label="EOD signals pagination"
+    />
+  }
+</div>

@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
 import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
 import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
@@ -22,6 +23,7 @@ import { DecisionEngineService, PageDecision } from '../../core/services/decisio
     MatTooltipModule,
     MatChipsModule,
     MatProgressBarModule,
+    RouterLink,
     DecimalPipe,
     CurrencyPipe,
     NgClass,
@@ -34,24 +36,29 @@ export class RsiScannerTableComponent {
   readonly loading = input(false);
   readonly portfolioSymbols = input<ReadonlySet<string>>(new Set());
   readonly watchlistSymbols = input<ReadonlySet<string>>(new Set());
+  readonly showHistory = input(true);
 
   private readonly engine = inject(DecisionEngineService);
 
-  protected readonly displayedColumns = [
-    'tracking',
-    'symbol',
-    'rsi',
-    'rsiSignal',
-    'price',
-    'change',
-    'analystUpside',
-    'probability',
-    'trendSetup',
-    'momentumShift',
-    'baseAction',
-    'status',
-    'trigger',
-  ];
+  protected readonly displayedColumns = computed(() => {
+    const cols = [
+      'tracking',
+      'symbol',
+      'rsi',
+      'rsiSignal',
+      'price',
+      'change',
+      'analystUpside',
+      'probability',
+      'trendSetup',
+      'momentumShift',
+      'baseAction',
+      'status',
+      'trigger',
+    ];
+    if (this.showHistory()) cols.push('signalHistory');
+    return cols;
+  });
 
   protected readonly isOversold = computed(() => this.scanType() === 'Oversold');
   protected readonly isNeutral = computed(() => this.scanType() === 'Neutral');

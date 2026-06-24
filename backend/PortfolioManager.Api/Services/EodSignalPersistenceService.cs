@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -20,6 +22,7 @@ public class EodSignalPersistenceService
 {
     private readonly string _filePath;
     private readonly ILogger<EodSignalPersistenceService> _logger;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     private static readonly JsonSerializerOptions _json = new()
     {
@@ -30,9 +33,12 @@ public class EodSignalPersistenceService
 
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
 
-    public EodSignalPersistenceService(ILogger<EodSignalPersistenceService> logger)
+    public EodSignalPersistenceService(
+        ILogger<EodSignalPersistenceService> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _logger = logger;
+        _scopeFactory = scopeFactory;
         // Resolve path relative to the application's base directory
         var baseDir = AppContext.BaseDirectory;
         _filePath = Path.Combine(baseDir, "eod-signal-history.json");
@@ -43,6 +49,7 @@ public class EodSignalPersistenceService
     /// <summary>
     /// Persists the supplied EOD CONFIRM signals to disk, tagged with today's ET date.
     /// Overwrites any previously saved signals (only the latest EOD window is kept).
+    /// Also appends to the DailySignals database table for full history tracking.
     /// </summary>
     public async Task SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
     {
@@ -51,10 +58,12 @@ public class EodSignalPersistenceService
             ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).ToString("yyyy-MM-dd")
             : DateTime.UtcNow.ToString("yyyy-MM-dd");
 
+        var resultList = eodResults.ToList();
+
         var history = new EodSignalHistory
         {
             Date = etToday,
-            Signals = eodResults.Select(r => new EodSignalRecord
+            Signals = resultList.Select(r => new EodSignalRecord
             {
                 Symbol        = r.Symbol,
                 CompanyName   = r.CompanyName ?? string.Empty,
@@ -66,6 +75,7 @@ public class EodSignalPersistenceService
             }).ToList()
         };
 
+        // ── 1. Write to JSON file (overnight persistence / morning panel) ──────
         try
         {
             var json = JsonSerializer.Serialize(history, _json);
@@ -76,6 +86,57 @@ public class EodSignalPersistenceService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to persist EOD signals to {Path}", _filePath);
+        }
+
+        // ── 2. Append to DailySignals DB table (full history for EOD Dashboard) ─
+        if (resultList.Count > 0)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                // Avoid duplicates: skip symbols already recorded for this date
+                var existingSymbols = await db.DailySignals
+                    .Where(s => s.SignalDate == etToday)
+                    .Select(s => s.Symbol)
+                    .ToListAsync(ct);
+
+                var existingSet = new HashSet<string>(existingSymbols, StringComparer.OrdinalIgnoreCase);
+
+                var newRecords = resultList
+                    .Where(r => !existingSet.Contains(r.Symbol))
+                    .Select(r => new DailySignal
+                    {
+                        Symbol             = r.Symbol,
+                        CompanyName        = r.CompanyName ?? string.Empty,
+                        ScanType           = r.ScanType.ToString(),
+                        SignalType         = r.Status.ToString(),
+                        Rsi                = Math.Round(r.Rsi, 2),
+                        Price              = r.CurrentPrice,
+                        TriggerDetails     = r.TriggerDetails ?? string.Empty,
+                        SignalDate         = etToday,
+                        RecordedAt         = r.ScannedAt,
+                        RuleVersion        = r.LogicMode ?? "Legacy",
+                        SignalState        = "Active",
+                        Sector             = r.Sector ?? string.Empty,
+                        ReversalProbability = r.ReversalProbability ?? string.Empty,
+                        VolumeSignal       = r.VolumeSignal ?? string.Empty,
+                    })
+                    .ToList();
+
+                if (newRecords.Count > 0)
+                {
+                    db.DailySignals.AddRange(newRecords);
+                    await db.SaveChangesAsync(ct);
+                    _logger.LogInformation("Appended {Count} new EOD signal(s) to DailySignals table for {Date}",
+                        newRecords.Count, etToday);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist EOD signals to DailySignals table");
+            }
         }
     }
 
