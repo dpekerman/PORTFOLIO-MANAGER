@@ -9,6 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { OptionAnalysis, PortfolioSummary } from '../../core/models/portfolio.models';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import {
   ConfirmDialogComponent,
@@ -23,6 +24,11 @@ import {
   EditPositionDialogData,
   EditPositionDialogResult,
 } from '../portfolio/edit-position-dialog/edit-position-dialog.component';
+import {
+  TransactionNotesDialogComponent,
+  TransactionNotesDialogData,
+  TransactionNotesDialogResult,
+} from './transaction-notes-dialog/transaction-notes-dialog.component';
 
 type SortDir = 'asc' | 'desc';
 
@@ -78,6 +84,7 @@ export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeService);
+  private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
 
   // ── Section collapse ────────────────────────────────────────────────────────
@@ -340,6 +347,37 @@ export class TransactionsPageComponent {
       .afterClosed()
       .subscribe((confirmed: boolean) => {
         if (confirmed) this.optionState.deleteItem(analysis.item.id);
+      });
+  }
+
+  openStockNotes(s: PortfolioSummary): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: { symbol: s.item.symbol, notes: s.item.notes } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.api.updatePortfolioNotes(s.item.id, result.notes).subscribe();
+        this.portfolio.patchItemNotes(s.item.id, result.notes);
+      });
+  }
+
+  openOptionNotes(analysis: OptionAnalysis): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: {
+          symbol: analysis.item.underlyingTicker,
+          notes: analysis.item.notes,
+        } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.api.updateOptionNotes(analysis.item.id, result.notes).subscribe();
+        this.optionState.patchItemNotes(analysis.item.id, result.notes);
       });
   }
 }

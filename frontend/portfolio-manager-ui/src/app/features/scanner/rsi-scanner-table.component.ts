@@ -45,7 +45,7 @@ export class RsiScannerTableComponent {
     'price',
     'change',
     'analystUpside',
-    'indicators',
+    'probability',
     'trendSetup',
     'momentumShift',
     'baseAction',

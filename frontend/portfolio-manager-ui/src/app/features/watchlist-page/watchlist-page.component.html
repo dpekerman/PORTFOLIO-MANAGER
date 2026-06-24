@@ -84,6 +84,44 @@
             </button>
           }
         </mat-form-field>
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="grid-filter-field grid-filter-select"
+        >
+          <mat-label>Trend Setup</mat-label>
+          <mat-select [ngModel]="filterTrendSetup()" (ngModelChange)="filterTrendSetup.set($event)">
+            <mat-option value="">All setups</mat-option>
+            @for (ts of trendSetupOptions; track ts) {
+              <mat-option [value]="ts">{{ ts }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="grid-filter-field grid-filter-select"
+        >
+          <mat-label>Final Action</mat-label>
+          <mat-select
+            [ngModel]="filterFinalAction()"
+            (ngModelChange)="filterFinalAction.set($event)"
+          >
+            <mat-option value="">All actions</mat-option>
+            @for (fa of finalActionOptions(); track fa) {
+              <mat-option [value]="fa">{{ fa }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        @if (filterText() || filterTrendSetup() || filterFinalAction()) {
+          <button
+            mat-icon-button
+            matTooltip="Clear all filters"
+            (click)="filterText.set(''); filterTrendSetup.set(''); filterFinalAction.set('')"
+          >
+            <mat-icon>filter_list_off</mat-icon>
+          </button>
+        }
         <span class="grid-count-label"
           >{{ filteredSorted().length }} of {{ watchlist.count() }}</span
         >
@@ -162,19 +200,56 @@
             </td>
           </ng-container>
 
-          <!-- Change % -->
-          <ng-container matColumnDef="changePct">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>CHANGE %</th>
+          <!-- Change $ / % -->
+          <ng-container matColumnDef="change">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>CHANGE</th>
             <td mat-cell *matCellDef="let w">
-              @if (w.quote) {
+              @if (changeForSymbol(w.item.symbol); as ch) {
                 <div
                   class="grid-change-cell"
-                  [class.up]="w.quote.changePercent >= 0"
-                  [class.down]="w.quote.changePercent < 0"
+                  [class.up]="(ch.changePct ?? 0) >= 0"
+                  [class.down]="(ch.changePct ?? 0) < 0"
                 >
-                  {{ w.quote.changePercent >= 0 ? '+' : ''
-                  }}{{ w.quote.changePercent | number: '1.2-2' }}%
+                  <span class="change-dollar">{{
+                    ch.change !== null
+                      ? (ch.change >= 0 ? '+' : '') + (ch.change | number: '1.2-2')
+                      : '—'
+                  }}</span>
+                  <span class="change-pct"
+                    >({{
+                      ch.changePct !== null
+                        ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
+                        : '—'
+                    }})</span
+                  >
                 </div>
+              } @else {
+                <span class="grid-no-data">—</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Analyst Target -->
+          <ng-container matColumnDef="analystTarget">
+            <th mat-header-cell *matHeaderCellDef>ANALYST TARGET</th>
+            <td mat-cell *matCellDef="let w">
+              @if (analystForSymbol(w.item.symbol); as at) {
+                @if (at.price) {
+                  <div class="analyst-target-cell">
+                    <span class="at-price">{{ at.price | currency }}</span>
+                    @if (at.upside !== null) {
+                      <span
+                        class="at-upside"
+                        [class.up]="at.upside >= 0"
+                        [class.down]="at.upside < 0"
+                      >
+                        {{ at.upside >= 0 ? '+' : '' }}{{ at.upside | number: '1.1-1' }}%
+                      </span>
+                    }
+                  </div>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
               } @else {
                 <span class="grid-no-data">—</span>
               }
@@ -191,10 +266,10 @@
 
           <!-- RSI (14) -->
           <ng-container matColumnDef="rsi">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header class="wl-num-header">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header class="wl-rsi-header">
               RSI (14)
             </th>
-            <td mat-cell *matCellDef="let w" class="wl-num">
+            <td mat-cell *matCellDef="let w" class="wl-rsi-cell">
               @if (rsiForSymbol(w.item.symbol) !== null) {
                 <span
                   class="wl-rsi"

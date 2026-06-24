@@ -184,6 +184,11 @@ button[mat-icon-button] {
   max-width: 480px;
 }
 
+.grid-filter-select {
+  min-width: 180px;
+  max-width: 260px;
+}
+
 .grid-count-label {
   font-size: 0.75rem;
   color: var(--text-faint);
@@ -237,6 +242,14 @@ button[mat-icon-button] {
 }
 .wl-num {
   text-align: right !important;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+.wl-rsi-header {
+  text-align: center !important;
+}
+.wl-rsi-cell {
+  text-align: center !important;
   font-family: 'Roboto Mono', monospace;
   font-size: 0.78rem;
 }
@@ -435,6 +448,40 @@ button[mat-icon-button] {
     font-size: 14px;
     width: 14px;
     height: 14px;
+  }
+
+  .change-dollar {
+    font-size: 0.8rem;
+  }
+
+  .change-pct {
+    font-size: 0.72rem;
+    opacity: 0.85;
+  }
+}
+
+.analyst-target-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+
+  .at-price {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+
+  .at-upside {
+    font-size: 0.72rem;
+    font-weight: 600;
+
+    &.up {
+      color: #43a047;
+    }
+    &.down {
+      color: #e53935;
+    }
   }
 }
 

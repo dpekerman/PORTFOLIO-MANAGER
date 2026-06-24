@@ -203,34 +203,31 @@
                 <mat-form-field
                   appearance="outline"
                   subscriptSizing="dynamic"
-                  class="gf-field gf-rsi"
+                  class="gf-field gf-select"
                 >
-                  <mat-label>RSI min</mat-label>
-                  <input
-                    matInput
-                    type="number"
-                    min="0"
-                    max="100"
-                    [ngModel]="filterRsiMin()"
-                    (ngModelChange)="filterRsiMin.set($event ? +$event : null)"
-                    placeholder="0"
-                  />
+                  <mat-label>Role</mat-label>
+                  <mat-select [ngModel]="filterRole()" (ngModelChange)="filterRole.set($event)">
+                    <mat-option value="">All roles</mat-option>
+                    @for (r of roles; track r) {
+                      <mat-option [value]="r">{{ r }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
                 <mat-form-field
                   appearance="outline"
                   subscriptSizing="dynamic"
-                  class="gf-field gf-rsi"
+                  class="gf-field gf-select"
                 >
-                  <mat-label>RSI max</mat-label>
-                  <input
-                    matInput
-                    type="number"
-                    min="0"
-                    max="100"
-                    [ngModel]="filterRsiMax()"
-                    (ngModelChange)="filterRsiMax.set($event ? +$event : null)"
-                    placeholder="100"
-                  />
+                  <mat-label>Momentum Shift</mat-label>
+                  <mat-select
+                    [ngModel]="filterMomentumShift()"
+                    (ngModelChange)="filterMomentumShift.set($event)"
+                  >
+                    <mat-option value="">All signals</mat-option>
+                    @for (m of momentumShiftOptions; track m) {
+                      <mat-option [value]="m">{{ m }}</mat-option>
+                    }
+                  </mat-select>
                 </mat-form-field>
                 @if (hasActiveFilters) {
                   <button
@@ -389,6 +386,37 @@
                           asItem(row).item.averageCostBasis
                             | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
                         }}
+                      }
+                    </td>
+                  </ng-container>
+                  <!-- Analyst Target -->
+                  <ng-container matColumnDef="analystTarget">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      class="pg-num-header"
+                      matTooltip="Mean analyst 12-month price target and upside % from current price"
+                    >
+                      ANALYST TARGET
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @let atSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let at = analystForSymbol(atSym);
+                      @if (at && at.price > 0) {
+                        <div class="analyst-target-cell">
+                          <span class="analyst-price">{{
+                            at.price | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+                          }}</span>
+                          <span
+                            class="analyst-upside"
+                            [class.at-positive]="at.upside >= 0"
+                            [class.at-negative]="at.upside < 0"
+                          >
+                            {{ at.upside >= 0 ? '+' : '' }}{{ at.upside | number: '1.1-1' }}%
+                          </span>
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
                       }
                     </td>
                   </ng-container>
@@ -593,7 +621,18 @@
                       ROLE
                     </th>
                     <td mat-cell *matCellDef="let row">
-                      @if (!isAggRow(0, row)) {
+                      @if (isAggRow(0, row)) {
+                        <mat-select
+                          [value]="asAgg(row).holdingRole || 'Strategic'"
+                          (selectionChange)="updateAggHoldingRole(asAgg(row), $event.value)"
+                          class="role-select"
+                          [ngClass]="roleClass(asAgg(row).holdingRole)"
+                        >
+                          @for (r of roles; track r) {
+                            <mat-option [value]="r">{{ r }}</mat-option>
+                          }
+                        </mat-select>
+                      } @else if (!groupedSymbols().has(asItem(row).item.symbol)) {
                         <mat-select
                           [value]="asItem(row).item.holdingRole || 'Strategic'"
                           (selectionChange)="updateHoldingRole(asItem(row), $event.value)"

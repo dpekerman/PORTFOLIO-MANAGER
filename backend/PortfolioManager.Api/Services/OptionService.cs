@@ -12,6 +12,7 @@ public interface IOptionService
     Task<OptionItemDto> AddAsync(AddOptionItemRequest request, CancellationToken ct = default);
     Task<OptionItemDto?> UpdateAsync(int id, UpdateOptionItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
     Task<OptionTechnicalDataDto?> GetTechnicalDataAsync(string symbol, CancellationToken ct = default);
 }
 
@@ -82,6 +83,15 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         var item = await db.OptionItems.FindAsync([id], ct);
         if (item is null) return false;
         db.OptionItems.Remove(item);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
+    {
+        var item = await db.OptionItems.FindAsync([id], ct);
+        if (item is null) return false;
+        item.Notes = notes;
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -255,5 +265,6 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
     private static OptionItemDto ToDto(OptionItem item) =>
         new(item.Id, item.UnderlyingTicker, item.PositionType, item.ExpirationDate,
             item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
-            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice);
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice,
+            item.Notes);
 }

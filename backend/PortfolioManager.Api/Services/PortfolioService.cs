@@ -15,6 +15,7 @@ public interface IPortfolioService
     /// <summary>Fetches sector/industry from Yahoo Finance for every non-manual portfolio item that lacks one and persists the data.</summary>
     Task<int> RefreshSectorsAsync(CancellationToken ct = default);
     Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
 }
 
 public sealed class PortfolioService(AppDbContext db, IMarketDataProvider marketData) : IPortfolioService
@@ -128,6 +129,15 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         return true;
     }
 
+    public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
+    {
+        var item = await db.PortfolioItems.FindAsync([id], ct);
+        if (item is null) return false;
+        item.Notes = notes;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
         var item = await db.PortfolioItems.FindAsync([id], ct);
@@ -141,7 +151,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
     private static PortfolioItemDto ToDto(PortfolioItem item) =>
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
             item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
-            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole);
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole,
+            item.Notes);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

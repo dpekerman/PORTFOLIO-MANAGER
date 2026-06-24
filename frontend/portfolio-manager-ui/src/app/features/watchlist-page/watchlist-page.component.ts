@@ -94,6 +94,8 @@ export class WatchlistPageComponent {
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
+  protected readonly filterTrendSetup = signal('');
+  protected readonly filterFinalAction = signal('');
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
   protected readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'];
@@ -188,12 +190,29 @@ export class WatchlistPageComponent {
     return this.engine.translateForWatchlist(r, role);
   }
 
+  protected analystForSymbol(
+    symbol: string,
+  ): { price: number | null; upside: number | null } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    return { price: r.analystTargetPrice ?? null, upside: r.analystTargetUpside ?? null };
+  }
+
+  protected changeForSymbol(
+    symbol: string,
+  ): { change: number | null; changePct: number | null } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    return { change: r.change ?? null, changePct: r.changePercent ?? null };
+  }
+
   protected readonly displayedColumns: string[] = [
     'symbol',
     'company',
     'role',
     'price',
-    'changePct',
+    'change',
+    'analystTarget',
     'sector',
     'rsi',
     'trendSetup',
@@ -204,6 +223,8 @@ export class WatchlistPageComponent {
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();
+    const filterTrendSetup = this.filterTrendSetup();
+    const filterFinalAction = this.filterFinalAction();
     let items = this.watchlist.items();
 
     if (filter) {
@@ -212,6 +233,22 @@ export class WatchlistPageComponent {
           w.item.symbol.toLowerCase().includes(filter) ||
           (w.quote?.companyName ?? '').toLowerCase().includes(filter) ||
           (w.quote?.sector ?? '').toLowerCase().includes(filter),
+      );
+    }
+
+    if (filterTrendSetup) {
+      items = items.filter(
+        (w) =>
+          (this.decisionForSymbol(w.item.symbol, w.item.role)?.trendSetup ?? '') ===
+          filterTrendSetup,
+      );
+    }
+
+    if (filterFinalAction) {
+      items = items.filter(
+        (w) =>
+          (this.decisionForSymbol(w.item.symbol, w.item.role)?.finalAction ?? '') ===
+          filterFinalAction,
       );
     }
 
@@ -291,6 +328,27 @@ export class WatchlistPageComponent {
         return 'role-strategic';
     }
   }
+
+  protected readonly trendSetupOptions = [
+    'Waterfall / Falling Knife',
+    'Oversold Reversal Watch',
+    'Constructive Extended',
+    'Quality Trend Entry',
+    'Confirmed Constructive',
+    'Early Reversal',
+    'Cooling',
+    'Technical Caution',
+    'Neutral / No Setup',
+  ] as const;
+
+  protected readonly finalActionOptions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const w of this.watchlist.items()) {
+      const fa = this.decisionForSymbol(w.item.symbol, w.item.role)?.finalAction;
+      if (fa) set.add(fa);
+    }
+    return [...set].sort();
+  });
 
   setSort(col: SortColumn): void {
     if (this.sortCol() === col) {

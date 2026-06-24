@@ -81,6 +81,7 @@ interface AggregatePortfolioRow {
   sector: string;
   industry: string;
   quote: StockQuote | null;
+  holdingRole: string | null;
 }
 
 type GridRow = PortfolioSummary | AggregatePortfolioRow;
@@ -172,8 +173,8 @@ export class PortfolioPageComponent {
   protected readonly filterTicker = signal('');
   protected readonly filterSector = signal('');
   protected readonly filterIndustry = signal('');
-  protected readonly filterRsiMin = signal<number | null>(null);
-  protected readonly filterRsiMax = signal<number | null>(null);
+  protected readonly filterRole = signal('');
+  protected readonly filterMomentumShift = signal('');
 
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
@@ -187,6 +188,7 @@ export class PortfolioPageComponent {
     'shares',
     'avgCost',
     'price',
+    'analystTarget',
     'changePct',
     'dayGain',
     'marketValue',
@@ -363,6 +365,22 @@ export class PortfolioPageComponent {
     this.portfolio.updateHoldingRole(row.item.id, role);
   }
 
+  updateAggHoldingRole(agg: AggregatePortfolioRow, role: string): void {
+    // Update all individual positions that belong to this grouped symbol
+    const items = this.portfolio
+      .summaries()
+      .filter((s) => s.item.symbol === agg.symbol && s.item.transactionType !== 'CLOSE');
+    for (const item of items) {
+      this.portfolio.updateHoldingRole(item.item.id, role);
+    }
+  }
+
+  protected analystForSymbol(symbol: string): { price: number; upside: number } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r || !r.analystTargetPrice) return null;
+    return { price: r.analystTargetPrice, upside: r.analystTargetUpside };
+  }
+
   protected decisionForPortfolio(
     symbol: string,
     holdingRole: string | null | undefined,
@@ -406,13 +424,26 @@ export class PortfolioPageComponent {
     return [...set].sort();
   });
 
+  protected readonly momentumShiftOptions = [
+    'Active Buy Trigger',
+    'Active Sell Trigger',
+    'Warning',
+    'Warning — Overbought Run',
+    'Bullish Shift',
+    'Bearish Shift',
+    'Breakdown',
+    'Consolidation / Dip-Buy',
+    'Uptrend',
+    'Neutral',
+  ] as const;
+
   // â”€â”€ Grid filtered + sorted rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly gridRows = computed<GridRow[]>(() => {
     const ticker = this.filterTicker().trim().toLowerCase();
     const sector = this.filterSector();
     const industry = this.filterIndustry();
-    const rsiMin = this.filterRsiMin();
-    const rsiMax = this.filterRsiMax();
+    const filterRole = this.filterRole();
+    const filterMomentum = this.filterMomentumShift();
 
     const rows = this.portfolio.summaries().filter((s) => {
       if (s.item.transactionType === 'CLOSE') return false;
@@ -424,9 +455,12 @@ export class PortfolioPageComponent {
         return false;
       if (sector && (s.item.sector || s.quote?.sector || '') !== sector) return false;
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
-      const rsi = this.rsiForSymbol(s.item.symbol);
-      if (rsiMin !== null && rsiMin !== undefined && (rsi === null || rsi < rsiMin)) return false;
-      if (rsiMax !== null && rsiMax !== undefined && (rsi === null || rsi > rsiMax)) return false;
+      if (filterRole && (s.item.holdingRole ?? 'Strategic') !== filterRole) return false;
+      if (filterMomentum) {
+        const ms =
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '';
+        if (ms !== filterMomentum) return false;
+      }
       return true;
     });
 
@@ -493,6 +527,7 @@ export class PortfolioPageComponent {
           sector: group[0].item.sector || group[0].quote?.sector || '',
           industry: group[0].item.industry || group[0].quote?.industry || '',
           quote: group[0].quote,
+          holdingRole: group[0].item.holdingRole ?? null,
         } satisfies AggregatePortfolioRow);
         // Individual rows only shown when group is expanded
         if (!collapsed.has(sym)) {
@@ -591,8 +626,8 @@ export class PortfolioPageComponent {
     this.filterTicker.set('');
     this.filterSector.set('');
     this.filterIndustry.set('');
-    this.filterRsiMin.set(null);
-    this.filterRsiMax.set(null);
+    this.filterRole.set('');
+    this.filterMomentumShift.set('');
   }
 
   get hasActiveFilters(): boolean {
@@ -600,8 +635,8 @@ export class PortfolioPageComponent {
       this.filterTicker() ||
       this.filterSector() ||
       this.filterIndustry() ||
-      this.filterRsiMin() !== null ||
-      this.filterRsiMax() !== null
+      this.filterRole() ||
+      this.filterMomentumShift()
     );
   }
 

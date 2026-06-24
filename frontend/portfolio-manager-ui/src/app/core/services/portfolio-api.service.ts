@@ -103,6 +103,10 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/holding-role`, { holdingRole });
   }
 
+  updatePortfolioNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/portfolio/${id}/notes`, { notes });
+  }
+
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
   /** @param force true = bypass server-side 4-minute cache (use on manual refresh only) */
   getRsiScan(
@@ -243,6 +247,10 @@ export class PortfolioApiService {
 
   deleteOptionItem(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/options/${id}`);
+  }
+
+  updateOptionNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/options/${id}/notes`, { notes });
   }
 
   getOptionTechnicalData(symbol: string): Observable<OptionTechnicalData> {

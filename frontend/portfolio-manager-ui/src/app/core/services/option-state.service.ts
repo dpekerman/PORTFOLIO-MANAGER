@@ -116,6 +116,10 @@ export class OptionStateService {
     });
   }
 
+  patchItemNotes(id: number, notes: string | null): void {
+    this._items.update((list) => list.map((x) => (x.id === id ? { ...x, notes } : x)));
+  }
+
   private buildAnalysis(item: OptionItem): OptionAnalysis {
     const technical = this._technicalMap().get(item.underlyingTicker.toUpperCase()) ?? null;
     const cost = item.premium * item.numberOfContracts * 100;

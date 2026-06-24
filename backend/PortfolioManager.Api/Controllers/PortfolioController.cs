@@ -55,6 +55,13 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return updated ? NoContent() : NotFound();
     }
 
+    [HttpPatch("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdatePortfolioNotesRequest request, CancellationToken ct)
+    {
+        var updated = await portfolioService.UpdateNotesAsync(id, request.Notes, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {

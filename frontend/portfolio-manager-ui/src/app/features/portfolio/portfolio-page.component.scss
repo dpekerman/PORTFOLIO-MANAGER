@@ -932,3 +932,30 @@ tr.pg-child-row:hover td {
   white-space: nowrap;
   display: inline-block;
 }
+
+// -- Analyst Target cell ------------------------------------------------------
+.analyst-target-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.analyst-price {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.analyst-upside {
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &.at-positive {
+    color: #43a047;
+  }
+
+  &.at-negative {
+    color: #e53935;
+  }
+}

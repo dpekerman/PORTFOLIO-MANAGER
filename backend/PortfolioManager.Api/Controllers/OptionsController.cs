@@ -36,6 +36,13 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [HttpPatch("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateOptionNotesRequest request, CancellationToken ct)
+    {
+        var updated = await optionService.UpdateNotesAsync(id, request.Notes, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {

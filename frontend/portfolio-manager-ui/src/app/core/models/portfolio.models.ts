@@ -18,6 +18,8 @@ export interface PortfolioItem {
   closingPrice?: number | null;
   /** @optional Holding role for portfolio items: Core | Strategic | Swing | Speculative | Options */
   holdingRole?: string | null;
+  /** @optional Free-text notes stored per transaction record */
+  notes?: string | null;
 }
 
 export interface StockQuote {
@@ -322,6 +324,8 @@ export interface OptionItem {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  /** @optional Free-text notes stored per transaction record */
+  notes?: string | null;
 }
 
 export interface AddOptionItemRequest {

@@ -210,4 +210,10 @@ export class PortfolioStateService {
       },
     });
   }
+
+  patchItemNotes(id: number, notes: string | null): void {
+    this._summaries.update((items) =>
+      items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, notes } } : s)),
+    );
+  }
 }

@@ -188,6 +188,13 @@
                 <td mat-cell *matCellDef="let s" class="actions-cell">
                   <button
                     mat-icon-button
+                    (click)="openStockNotes(s); $event.stopPropagation()"
+                    [matTooltip]="s.item.notes ? s.item.notes : 'Add note'"
+                  >
+                    <mat-icon>{{ s.item.notes ? 'sticky_note_2' : 'note_add' }}</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
                     (click)="openEditStockTransaction(s); $event.stopPropagation()"
                     matTooltip="Edit position"
                   >
@@ -425,6 +432,13 @@
               <ng-container matColumnDef="otx_actions">
                 <th mat-header-cell *matHeaderCellDef class="actions-header">ACTIONS</th>
                 <td mat-cell *matCellDef="let a" class="actions-cell">
+                  <button
+                    mat-icon-button
+                    (click)="openOptionNotes(a); $event.stopPropagation()"
+                    [matTooltip]="a.item.notes ? a.item.notes : 'Add note'"
+                  >
+                    <mat-icon>{{ a.item.notes ? 'sticky_note_2' : 'note_add' }}</mat-icon>
+                  </button>
                   <button
                     mat-icon-button
                     (click)="openEditOptionTransaction(a); $event.stopPropagation()"

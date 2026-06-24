@@ -54,7 +54,8 @@ public record PortfolioItemDto(
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
-    string? HoldingRole = null);
+    string? HoldingRole = null,
+    string? Notes = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
@@ -65,6 +66,7 @@ public record AddWatchlistItemRequest(string Symbol, string Notes = "", string R
 
 public record UpdateWatchlistRoleRequest(string Role);
 public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
+public record UpdatePortfolioNotesRequest(string? Notes);
 
 public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic");
 
@@ -108,6 +110,8 @@ public record UpdateOptionItemRequest(
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null);
 
+public record UpdateOptionNotesRequest(string? Notes);
+
 public record OptionItemDto(
     int Id,
     string UnderlyingTicker,
@@ -122,7 +126,8 @@ public record OptionItemDto(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? Notes = null);
 
 /// <summary>Technical indicators for the underlying ticker, used by the frontend option state engine.</summary>
 public record OptionTechnicalDataDto(

@@ -20,4 +20,6 @@ public class OptionItem
     public DateTime? OpenDate { get; set; }
     public DateTime? CloseDate { get; set; }
     public decimal? ClosingPrice { get; set; }
+    /// <summary>Free-text notes stored per transaction record. Not shown in main grid.</summary>
+    public string? Notes { get; set; }
 }
