@@ -38,17 +38,19 @@
         matTooltip="Persist current scanner results to EOD Signals (EodConfirm + Confirmed)"
         (click)="persistNow()"
         [disabled]="persistingNow()"
+        [class.persist-active]="persistingNow()"
       >
         <mat-icon [class.spinning]="persistingNow()">save_alt</mat-icon>
       </button>
-      <button
+      <!-- Seed button hidden (dev only) -->
+      <!-- <button
         mat-icon-button
         matTooltip="Seed 15 test records (dev only)"
         (click)="seedTestData()"
         [disabled]="seeding()"
       >
         <mat-icon>science</mat-icon>
-      </button>
+      </button> -->
       @if (totalCount() > 0) {
         <button
           mat-stroked-button
@@ -62,6 +64,20 @@
       }
     </div>
   </div>
+
+  <!-- ── Persist Progress Banner ──────────────────────────────────────── -->
+  @if (persistingNow()) {
+    <div class="persist-banner" role="status" aria-live="polite">
+      <mat-icon class="persist-banner-icon spinning">save_alt</mat-icon>
+      <div class="persist-banner-text">
+        <span class="persist-banner-title">Persisting Scanner Results…</span>
+        <span class="persist-banner-sub">
+          Evaluating EodConfirm + Confirmed signals from live scanner. This may take a few seconds.
+        </span>
+      </div>
+    </div>
+    <mat-progress-bar mode="indeterminate" class="persist-progress-bar" />
+  }
 
   <!-- ── EOD Window Active Banner ─────────────────────────────────────── -->
   @if (eodWindowActive()) {

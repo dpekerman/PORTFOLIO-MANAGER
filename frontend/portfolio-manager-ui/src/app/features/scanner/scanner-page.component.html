@@ -28,25 +28,65 @@
     </div>
   }
 
-  <!-- ── Morning Check Panel (Yesterday's EOD CONFIRM signals) ─────────────── -->
-  @if (showMorningPanel()) {
-    <div class="morning-panel" role="complementary" aria-label="Yesterday's EOD Confirm signals">
-      <div class="morning-panel-header">
+  <!-- ── Morning Check Sidebar ─────────────────────────────────────────────── -->
+  @if (hasMorningSignals()) {
+    <!-- Backdrop overlay (click to close) -->
+    <div
+      class="morning-backdrop"
+      [class.morning-backdrop--visible]="morningPanelOpen()"
+      (click)="closeMorningPanel()"
+      aria-hidden="true"
+    ></div>
+
+    <!-- Floating trigger tab (visible when sidebar is closed) -->
+    @if (!morningPanelOpen()) {
+      <button
+        class="morning-tab"
+        (click)="openMorningPanel()"
+        matTooltip="Yesterday's EOD Confirms — click to review"
+        aria-label="Open yesterday's EOD confirm signals"
+      >
+        <mat-icon class="morning-tab-icon">wb_sunny</mat-icon>
+        <span class="morning-tab-label">Morning Check</span>
+        <span class="morning-tab-badge">{{ yesterdayEod()?.signals?.length }}</span>
+      </button>
+    }
+
+    <!-- Sliding sidebar panel -->
+    <aside
+      class="morning-sidebar"
+      [class.morning-sidebar--open]="morningPanelOpen()"
+      role="complementary"
+      aria-label="Yesterday's EOD Confirm signals"
+    >
+      <div class="morning-sidebar-header">
         <mat-icon class="morning-icon">wb_sunny</mat-icon>
         <div class="morning-panel-titles">
-          <span class="morning-panel-title">Morning Check — Yesterday's EOD Confirms</span>
-          <span class="morning-panel-sub">
-            These signals fired during yesterday's EOD window ({{ yesterdayEod()?.signalDate }}).
-            Verify the setup is still valid before trading.
-          </span>
+          <span class="morning-panel-title">Morning Check</span>
+          <span class="morning-panel-sub"> EOD Confirms · {{ yesterdayEod()?.signalDate }} </span>
         </div>
-        <span class="morning-count-badge"
-          >{{ yesterdayEod()?.signals?.length }} signal{{
+        <span class="morning-count-badge">
+          {{ yesterdayEod()?.signals?.length }} signal{{
             (yesterdayEod()?.signals?.length ?? 0) > 1 ? 's' : ''
-          }}</span
+          }}
+        </span>
+        <button
+          mat-icon-button
+          class="morning-close-btn"
+          (click)="closeMorningPanel()"
+          matTooltip="Dismiss until tomorrow"
+          aria-label="Close morning check panel"
         >
+          <mat-icon>close</mat-icon>
+        </button>
       </div>
-      <div class="morning-signals-grid">
+
+      <p class="morning-sidebar-hint">
+        These signals fired during yesterday's EOD window. Verify the setup is still valid before
+        trading.
+      </p>
+
+      <div class="morning-sidebar-signals">
         @for (sig of yesterdayEod()?.signals ?? []; track sig.symbol) {
           <div
             class="morning-signal-card"
@@ -55,7 +95,6 @@
           >
             <div class="morning-signal-top">
               <span class="morning-symbol">{{ sig.symbol }}</span>
-              <span class="morning-company">{{ sig.companyName }}</span>
               <span
                 class="morning-type-badge"
                 [class.morning-type-os]="sig.scanType === 'Oversold'"
@@ -64,6 +103,7 @@
                 {{ sig.scanType === 'Oversold' ? '▼ Oversold' : '▲ Overbought' }}
               </span>
             </div>
+            <span class="morning-company">{{ sig.companyName }}</span>
             <div class="morning-signal-stats">
               <span class="morning-stat"><strong>RSI</strong> {{ sig.rsi | number: '1.1-1' }}</span>
               <span class="morning-stat"
@@ -74,7 +114,7 @@
           </div>
         }
       </div>
-    </div>
+    </aside>
   }
 
   <!-- ── Oversold Section ──────────────────────────────────────────────────── -->

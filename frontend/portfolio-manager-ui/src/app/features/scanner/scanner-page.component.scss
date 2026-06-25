@@ -9,13 +9,13 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 24px;
-  background: color-mix(in srgb, var(--surface-color) 85%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 85%, transparent);
   border-bottom: 2px solid color-mix(in srgb, #546e7a 30%, transparent);
   flex-wrap: wrap;
 
   &.mode-enhanced {
     border-bottom-color: color-mix(in srgb, #7c4dff 40%, transparent);
-    background: color-mix(in srgb, #7c4dff 6%, var(--surface-color));
+    background: color-mix(in srgb, #7c4dff 6%, var(--bg-surface));
   }
 }
 
@@ -256,21 +256,114 @@
   }
 }
 
-// ── Morning Check Panel ────────────────────────────────────────────────────────
-.morning-panel {
-  margin-bottom: 16px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 193, 7, 0.4);
-  background: rgba(255, 193, 7, 0.06);
-  overflow: hidden;
+// ── Morning Check Sidebar ──────────────────────────────────────────────────────
+
+// Backdrop overlay
+.morning-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0);
+  pointer-events: none;
+  transition: background 300ms ease;
+
+  &--visible {
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+  }
 }
 
-.morning-panel-header {
+// Floating trigger tab — sits on the right edge when the sidebar is closed
+.morning-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) translateX(0);
+  z-index: 1001;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 193, 7, 0.55);
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  cursor: pointer;
+  transition:
+    background 200ms,
+    box-shadow 200ms;
+  box-shadow: -3px 0 16px rgba(0, 0, 0, 0.25);
+
+  &:hover {
+    background: color-mix(in srgb, #ffc107 12%, var(--bg-elevated));
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.35);
+  }
+}
+
+.morning-tab-icon {
+  color: #ffc107;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  animation: pulse-sun 2s ease-in-out infinite;
+}
+
+.morning-tab-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffc107;
+}
+
+.morning-tab-badge {
+  background: #ffc107;
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 800;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Sidebar panel
+.morning-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 400px;
+  max-width: 92vw;
+  z-index: 1002;
+  background: var(--bg-elevated);
+  border-left: 2px solid rgba(255, 193, 7, 0.5);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  transform: translateX(100%);
+  transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &--open {
+    transform: translateX(0);
+  }
+}
+
+.morning-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
   border-bottom: 1px solid rgba(255, 193, 7, 0.2);
+  background: rgba(255, 193, 7, 0.06);
+  flex-shrink: 0;
 }
 
 .morning-icon {
@@ -279,7 +372,7 @@
   width: 22px;
   height: 22px;
   flex-shrink: 0;
-  margin-top: 2px;
+  animation: pulse-sun 2.5s ease-in-out infinite;
 }
 
 .morning-panel-titles {
@@ -287,53 +380,97 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .morning-panel-title {
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: #ffc107;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .morning-panel-sub {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  opacity: 0.8;
+  line-height: 1.3;
 }
 
 .morning-count-badge {
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: 12px;
-  background: rgba(255, 193, 7, 0.18);
-  border: 1px solid rgba(255, 193, 7, 0.35);
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid rgba(255, 193, 7, 0.5);
   color: #ffc107;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 800;
   white-space: nowrap;
-  align-self: center;
   flex-shrink: 0;
 }
 
-.morning-signals-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  padding: 14px 16px;
+.morning-close-btn {
+  flex-shrink: 0;
+  color: var(--text-primary) !important;
+  opacity: 0.6;
+
+  &:hover {
+    color: #ffc107 !important;
+    opacity: 1;
+  }
+}
+
+.morning-sidebar-hint {
+  margin: 0;
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  opacity: 0.75;
+  background: rgba(255, 193, 7, 0.05);
+  border-bottom: 1px solid rgba(255, 193, 7, 0.15);
+  line-height: 1.55;
+  flex-shrink: 0;
+}
+
+.morning-sidebar-signals {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 193, 7, 0.25);
+    border-radius: 2px;
+  }
 }
 
 .morning-signal-card {
   border-radius: 8px;
-  border: 1px solid var(--border-color);
-  padding: 12px;
-  background: var(--surface-color);
+  border: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  transition: border-color 200ms;
 
   &.morning-oversold {
     border-left: 3px solid #4caf50;
+    &:hover {
+      border-color: rgba(76, 175, 80, 0.5);
+    }
   }
   &.morning-overbought {
     border-left: 3px solid #f44336;
+    &:hover {
+      border-color: rgba(244, 67, 54, 0.5);
+    }
   }
 }
 
@@ -341,28 +478,28 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
 .morning-symbol {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
 .morning-company {
-  font-size: 0.72rem;
+  display: block;
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  flex: 1;
-  min-width: 0;
+  margin-bottom: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .morning-type-badge {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
@@ -385,21 +522,34 @@
 }
 
 .morning-stat {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  font-size: 0.8rem;
+  color: var(--text-primary);
   strong {
     color: var(--text-primary);
+    font-weight: 700;
   }
 }
 
 .morning-trigger {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-secondary);
-  line-height: 1.45;
+  line-height: 1.5;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+
+@keyframes pulse-sun {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.08);
+  }
 }
 
 @keyframes pulse-orange {

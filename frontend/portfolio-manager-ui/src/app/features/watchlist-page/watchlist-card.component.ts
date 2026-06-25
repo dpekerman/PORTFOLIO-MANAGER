@@ -2,10 +2,15 @@ import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { WatchlistSummary } from '../../core/models/portfolio.models';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import {
+  ConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../../shared/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-watchlist-card',
@@ -25,12 +30,27 @@ import { WatchlistStateService } from '../../core/services/watchlist-state.servi
 export class WatchlistCardComponent {
   readonly summary = input.required<WatchlistSummary>();
   private readonly watchlist = inject(WatchlistStateService);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly quote = computed(() => this.summary().quote);
   protected readonly isUp = computed(() => (this.quote()?.change ?? 0) >= 0);
   protected readonly hasData = computed(() => this.quote() !== null);
 
   remove(): void {
-    this.watchlist.deleteItem(this.summary().item.id, this.summary().item.symbol);
+    const symbol = this.summary().item.symbol;
+    this.dialog
+      .open<ConfirmDialogComponent, ConfirmDialogData, boolean>(ConfirmDialogComponent, {
+        data: {
+          title: 'Remove from Watchlist',
+          message: `Remove ${symbol} from your watchlist?`,
+          confirmLabel: 'Remove',
+          danger: true,
+        },
+        width: '360px',
+      })
+      .afterClosed()
+      .subscribe((confirmed) => {
+        if (confirmed) this.watchlist.deleteItem(this.summary().item.id, symbol);
+      });
   }
 }

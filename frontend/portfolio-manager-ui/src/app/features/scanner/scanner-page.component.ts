@@ -1,5 +1,13 @@
 import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -9,6 +17,8 @@ import { WatchlistStateService } from '../../core/services/watchlist-state.servi
 import { ScannerRowSkeletonComponent } from '../../shared/skeleton/scanner-row-skeleton.component';
 import { AdhocAnalyzerComponent } from './adhoc-analyzer/adhoc-analyzer.component';
 import { RsiScannerTableComponent } from './rsi-scanner-table.component';
+
+const MORNING_DISMISSED_KEY = 'morning-check-dismissed';
 
 @Component({
   selector: 'app-scanner-page',
@@ -57,10 +67,39 @@ export class ScannerPageComponent implements OnInit {
   protected readonly yesterdayEod = this.scanner.yesterdayEod;
 
   /** True when there are yesterday EOD signals AND it's the morning window (before noon ET). */
-  protected readonly showMorningPanel = computed(() => {
+  protected readonly hasMorningSignals = computed(() => {
     const data = this.yesterdayEod();
     return !!data?.hasData && !!data.isMorningWindow && (data.signals?.length ?? 0) > 0;
   });
+
+  /** Whether the morning sidebar is currently open. */
+  protected readonly morningPanelOpen = signal(false);
+
+  constructor() {
+    // Auto-open the sidebar when morning signals arrive, unless dismissed today
+    effect(() => {
+      if (this.hasMorningSignals() && !this.wasDismissedToday()) {
+        this.morningPanelOpen.set(true);
+      }
+    });
+  }
+
+  private wasDismissedToday(): boolean {
+    const dismissed = localStorage.getItem(MORNING_DISMISSED_KEY);
+    if (!dismissed) return false;
+    const today = new Date().toISOString().split('T')[0];
+    return dismissed === today;
+  }
+
+  protected openMorningPanel(): void {
+    this.morningPanelOpen.set(true);
+  }
+
+  protected closeMorningPanel(): void {
+    this.morningPanelOpen.set(false);
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem(MORNING_DISMISSED_KEY, today);
+  }
 
   ngOnInit(): void {
     // Refresh when navigating back to this page if data is stale (> 5 min)

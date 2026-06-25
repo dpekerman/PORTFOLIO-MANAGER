@@ -69,6 +69,61 @@
   gap: 4px;
 }
 
+// ── Persist Progress Banner ──────────────────────────────────────────────────
+.persist-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 24px;
+  background: rgba(33, 150, 243, 0.08);
+  border-left: 3px solid #2196f3;
+  animation: fadeIn 250ms ease;
+}
+
+.persist-banner-icon {
+  color: #2196f3;
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.persist-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.persist-banner-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1976d2;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.persist-banner-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.persist-progress-bar {
+  height: 3px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 // ── EOD Window Active Banner ─────────────────────────────────────────────────
 .eod-banner {
   display: flex;
@@ -131,6 +186,10 @@
   border-color: rgba(211, 47, 47, 0.4);
 }
 
+.persist-active {
+  color: #2196f3 !important;
+}
+
 // ── Filter Bar ───────────────────────────────────────────────────────────────
 .filter-bar {
   display: flex;
@@ -138,8 +197,8 @@
   gap: 10px;
   align-items: flex-end;
   padding: 16px 24px;
-  background: color-mix(in srgb, var(--surface-color, #fff) 90%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .f-ticker {
