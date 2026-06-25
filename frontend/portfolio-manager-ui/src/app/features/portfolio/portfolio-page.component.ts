@@ -26,7 +26,10 @@ import {
   StockQuote,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
-import { DecisionEngineService } from '../../core/services/decision-engine.service';
+import {
+  DecisionEngineService,
+  PortfolioItemContext,
+} from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -384,10 +387,28 @@ export class PortfolioPageComponent {
   protected decisionForPortfolio(
     symbol: string,
     holdingRole: string | null | undefined,
+    item?: import('../../core/models/portfolio.models').PortfolioItem,
   ): import('../../core/services/decision-engine.service').PageDecision | null {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r) return null;
-    return this.engine.translateForPortfolio(r, holdingRole ?? null, true);
+
+    let context: PortfolioItemContext | undefined;
+    if (item) {
+      const unrealizedGainPct =
+        item.averageCostBasis && item.averageCostBasis > 0
+          ? ((r.currentPrice - item.averageCostBasis) / item.averageCostBasis) * 100
+          : null;
+      const holdingDays = item.openDate
+        ? Math.floor((Date.now() - new Date(item.openDate).getTime()) / (1000 * 60 * 60 * 24))
+        : null;
+      context = {
+        accountType: item.accountType ?? null,
+        unrealizedGainPct,
+        holdingDays,
+      };
+    }
+
+    return this.engine.translateForPortfolio(r, holdingRole ?? null, true, context);
   }
 
   protected readonly sortedSummaries = computed(() => {
@@ -458,7 +479,7 @@ export class PortfolioPageComponent {
       if (filterRole && (s.item.holdingRole ?? 'Strategic') !== filterRole) return false;
       if (filterMomentum) {
         const ms =
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '';
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '';
         if (ms !== filterMomentum) return false;
       }
       return true;
@@ -606,11 +627,17 @@ export class PortfolioPageComponent {
       case 'dayGain':
         return s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0);
       case 'trendSetup':
-        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.trendSetup ?? '';
+        return (
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? ''
+        );
       case 'momentumShift':
-        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '';
+        return (
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? ''
+        );
       case 'finalAction':
-        return this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.finalAction ?? '';
+        return (
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? ''
+        );
       default:
         return 0;
     }
@@ -756,9 +783,9 @@ export class PortfolioPageComponent {
           (s.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
           s.item.holdingRole ?? 'Strategic',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.trendSetup ?? '',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.momentumShift ?? '',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole)?.finalAction ?? '',
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? '',
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
         ]);
       }
     }

@@ -370,6 +370,14 @@ button[mat-icon-button] {
   border-color: rgba(255, 255, 255, 0.05);
 }
 
+// TFSA profit-taking rule – amber/gold badge
+.ma-tfsa-profit {
+  background: rgba(255, 193, 7, 0.14);
+  color: #ffca28;
+  border-color: rgba(255, 193, 7, 0.35);
+  font-weight: 600;
+}
+
 .grid-symbol-cell {
   display: flex;
   align-items: center;

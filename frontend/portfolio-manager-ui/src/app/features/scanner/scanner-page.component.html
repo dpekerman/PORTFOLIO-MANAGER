@@ -147,6 +147,22 @@
         @if (scanner.scannedAt()) {
           <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
         }
+        <!-- Morning Check force-show toggle -->
+        @if (yesterdayEod()?.hasData) {
+          <button
+            mat-icon-button
+            [matTooltip]="
+              morningForced()
+                ? 'Morning Check: always visible (click to reset to time-based)'
+                : 'Morning Check: time-based (click to force-show anytime)'
+            "
+            (click)="toggleMorningForce()"
+            [class.morning-force-active]="morningForced()"
+            aria-label="Toggle morning check force-show"
+          >
+            <mat-icon>wb_sunny</mat-icon>
+          </button>
+        }
         <button
           mat-icon-button
           matTooltip="Force new scan (bypasses cache)"

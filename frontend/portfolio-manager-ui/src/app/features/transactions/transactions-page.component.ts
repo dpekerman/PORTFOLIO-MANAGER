@@ -1,6 +1,7 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSortModule, Sort } from '@angular/material/sort';
@@ -31,6 +32,10 @@ import {
 } from './transaction-notes-dialog/transaction-notes-dialog.component';
 
 type SortDir = 'asc' | 'desc';
+type TxTypeFilter = 'ALL' | 'OPEN' | 'CLOSE';
+
+/** Show OPEN records opened after this date (inclusive day after). */
+const OPEN_DATE_THRESHOLD = '2026-06-01';
 
 type StockTxCol =
   | 'tx_type'
@@ -74,6 +79,7 @@ type OptionTxCol =
     DatePipe,
     DecimalPipe,
     MatButtonModule,
+    MatButtonToggleModule,
     MatIconModule,
     MatSortModule,
     MatTableModule,
@@ -90,6 +96,9 @@ export class TransactionsPageComponent {
   // ── Section collapse ────────────────────────────────────────────────────────
   protected readonly stocksExpanded = signal(true);
   protected readonly optionsExpanded = signal(true);
+
+  // ── Type filter (ALL | OPEN | CLOSE) ────────────────────────────────────────
+  protected readonly txTypeFilter = signal<TxTypeFilter>('ALL');
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
   protected readonly stockSortCol = signal<StockTxCol>('tx_open_date');
@@ -136,8 +145,19 @@ export class TransactionsPageComponent {
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();
     const dir = this.stockSortDir() === 'asc' ? 1 : -1;
+    const filter = this.txTypeFilter();
     return [...this.portfolio.summaries()]
-      .filter((s) => !s.item.isManual && s.item.transactionType === 'CLOSE')
+      .filter((s) => {
+        if (s.item.isManual) return false;
+        const type = s.item.transactionType;
+        if (filter === 'CLOSE') return type === 'CLOSE';
+        if (filter === 'OPEN')
+          return type === 'OPEN' && (s.item.openDate ?? '') > OPEN_DATE_THRESHOLD;
+        // ALL: every CLOSE + OPEN after threshold
+        if (type === 'CLOSE') return true;
+        if (type === 'OPEN') return (s.item.openDate ?? '') > OPEN_DATE_THRESHOLD;
+        return false;
+      })
       .sort((a, b) => {
         const av = this.stockSortValue(a, col);
         const bv = this.stockSortValue(b, col);
@@ -149,8 +169,17 @@ export class TransactionsPageComponent {
   protected readonly sortedOptionTransactions = computed(() => {
     const col = this.optionSortCol();
     const dir = this.optionSortDir() === 'asc' ? 1 : -1;
+    const filter = this.txTypeFilter();
     return [...this.optionState.analyses()]
-      .filter((a) => a.item.transactionType === 'CLOSE')
+      .filter((a) => {
+        const type = a.item.transactionType;
+        if (filter === 'CLOSE') return type === 'CLOSE';
+        if (filter === 'OPEN')
+          return type === 'OPEN' && (a.item.openDate ?? '') > OPEN_DATE_THRESHOLD;
+        if (type === 'CLOSE') return true;
+        if (type === 'OPEN') return (a.item.openDate ?? '') > OPEN_DATE_THRESHOLD;
+        return false;
+      })
       .sort((a, b) => {
         const av = this.optionTxSortValue(a, col);
         const bv = this.optionTxSortValue(b, col);
@@ -199,6 +228,22 @@ export class TransactionsPageComponent {
   protected optionMktValue(a: any): number {
     return a.item.numberOfContracts * 100 * a.item.marketPrice;
   }
+
+  // ── Totals row computed signals (always based on CLOSE records only) ────────
+  protected readonly stockTotalGainLoss = computed(() =>
+    this.sortedStockTransactions()
+      .filter((s) => s.item.transactionType === 'CLOSE')
+      .reduce((sum, s) => sum + (this.stockGainLoss(s) ?? 0), 0),
+  );
+
+  protected readonly optionTotalGainLoss = computed(() =>
+    this.sortedOptionTransactions()
+      .filter((a) => a.item.transactionType === 'CLOSE')
+      .reduce((sum, a) => sum + (this.optionGainLoss(a) ?? 0), 0),
+  );
+
+  /** Whether the current filter includes CLOSE records (show totals row). */
+  protected readonly showTotalsRow = computed(() => this.txTypeFilter() !== 'OPEN');
 
   onStockSortChange(sort: Sort): void {
     if (!sort.active || sort.direction === '') return;

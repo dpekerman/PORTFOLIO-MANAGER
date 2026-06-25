@@ -98,6 +98,19 @@ export interface PageDecision extends DecisionResult {
 const ROLE_VALUES = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
 export type InvestmentRole = (typeof ROLE_VALUES)[number];
 
+/**
+ * Optional portfolio-item context for account-specific rule overrides.
+ * Passed to `translateForPortfolio` when item metadata is available.
+ */
+export interface PortfolioItemContext {
+  /** Full account label, e.g. "Corp_TD", "TFSA_RBC". Rule matches if contains "TFSA". */
+  accountType?: string | null;
+  /** Unrealized gain as a percentage, e.g. 22 = +22%. */
+  unrealizedGainPct?: number | null;
+  /** Calendar days since the position was opened. */
+  holdingDays?: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DecisionEngineService {
   calculateDecision(r: RsiScanResult, role?: string | null, page = 'Unknown'): DecisionResult {
@@ -182,10 +195,25 @@ export class DecisionEngineService {
     };
   }
 
-  translateForPortfolio(r: RsiScanResult, role: string | null, isOwned: boolean): PageDecision {
+  translateForPortfolio(
+    r: RsiScanResult,
+    role: string | null,
+    isOwned: boolean,
+    context?: PortfolioItemContext,
+  ): PageDecision {
     const dec = this.calculateDecision(r, role, 'Portfolio');
     const effectiveRole = (role ?? 'Strategic') as InvestmentRole;
-    const rawAction = this.portfolioFinalAction(dec, effectiveRole, isOwned);
+    let rawAction = this.portfolioFinalAction(dec, effectiveRole, isOwned);
+
+    // ── TFSA Profit-Taking Override ──────────────────────────────────────────
+    // Fires before role-based action when ALL conditions are met:
+    //   account contains "TFSA" AND unrealized gain ≥ 20%
+    //   AND holding period ≤ 6 months AND RSI14 ≥ 65
+    //   AND current price ≥ analyst target
+    if (this.tfsaProfitTakeTriggered(r, context)) {
+      rawAction = 'Take Partial Profit / No Chase';
+    }
+
     const finalAction = this.accumulateStarterGuard(
       rawAction,
       dec.trendSetup,
@@ -195,11 +223,31 @@ export class DecisionEngineService {
     return {
       ...dec,
       finalAction,
-      hoverDescription: this.portfolioHover(dec, effectiveRole, isOwned),
+      hoverDescription: this.portfolioHover(dec, effectiveRole, isOwned, context),
       finalActionClass: this.finalActionClass(finalAction),
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
     };
+  }
+
+  /**
+   * TFSA profit-taking rule.
+   * Returns true when the position is in a TFSA account, has appreciated ≥20%,
+   * was held ≤ 6 months, RSI14 ≥ 65, and price has reached/exceeded analyst target.
+   */
+  private tfsaProfitTakeTriggered(
+    r: RsiScanResult,
+    context: PortfolioItemContext | undefined,
+  ): boolean {
+    if (!context) return false;
+    const account = (context.accountType ?? '').toUpperCase();
+    if (!account.includes('TFSA')) return false;
+    if ((context.unrealizedGainPct ?? 0) < 20) return false;
+    if ((context.holdingDays ?? Infinity) > 183) return false; // 6 calendar months ≈ 183 days
+    if (r.rsi < 65) return false;
+    if (!r.analystTargetPrice || r.analystTargetPrice <= 0) return false;
+    if (r.currentPrice < r.analystTargetPrice) return false;
+    return true;
   }
 
   private buildContext(r: RsiScanResult) {
@@ -692,9 +740,17 @@ export class DecisionEngineService {
     return dec.trendSetupReason;
   }
 
-  private portfolioHover(dec: DecisionResult, role: InvestmentRole, isOwned: boolean): string {
+  private portfolioHover(
+    dec: DecisionResult,
+    role: InvestmentRole,
+    isOwned: boolean,
+    context?: PortfolioItemContext,
+  ): string {
     const { trendSetup: ts, momentumShift: ms } = dec;
     if (!isOwned) return this.watchlistHover(dec, role);
+    // TFSA profit-take rule fires first when triggered
+    if (context && this.tfsaProfitTakeTriggered({} as any, context))
+      return 'TFSA account with ≥20% gain, ≤6 month hold, RSI≥65 and price at/above analyst target. Consider taking partial profits — do not chase further.';
     if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend') {
       if (role === 'Core')
         return 'Core holding is technically healthy. Continue holding. Add only if under target weight.';
@@ -790,6 +846,8 @@ export class DecisionEngineService {
 
   private finalActionClass(action: string): string {
     const a = action.toLowerCase();
+    // TFSA profit-taking rule gets its own amber class
+    if (a.includes('partial profit')) return 'ma-tfsa-profit';
     if (
       a.includes('buy') ||
       a.includes('accumulate') ||

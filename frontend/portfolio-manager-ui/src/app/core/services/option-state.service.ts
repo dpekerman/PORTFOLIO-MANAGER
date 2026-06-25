@@ -27,10 +27,16 @@ export class OptionStateService {
   });
 
   readonly totalMarketValue = computed(() =>
-    this.analyses().reduce((acc, a) => acc + a.marketValue, 0),
+    this.analyses()
+      .filter((a) => a.item.transactionType !== 'CLOSE')
+      .reduce((acc, a) => acc + a.marketValue, 0),
   );
 
-  readonly totalCost = computed(() => this.analyses().reduce((acc, a) => acc + a.cost, 0));
+  readonly totalCost = computed(() =>
+    this.analyses()
+      .filter((a) => a.item.transactionType !== 'CLOSE')
+      .reduce((acc, a) => acc + a.cost, 0),
+  );
 
   constructor() {
     this.refresh();

@@ -14,7 +14,20 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
+}
+
+// ── Type filter toggle ────────────────────────────────────────────────────────
+.tx-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+
+  mat-button-toggle-group {
+    border-radius: 8px;
+    overflow: hidden;
+  }
 }
 
 .tx-page-icon {
@@ -227,6 +240,30 @@
   &:hover {
     background: var(--mat-sys-surface-container-low);
   }
+}
+
+// ── Totals footer row ────────────────────────────────────────────────────────
+.tx-totals-row {
+  background: var(--bg-elevated, #1e1e1e);
+  border-top: 2px solid var(--border-subtle, #2a2a2a);
+  font-weight: 600;
+
+  td {
+    color: var(--text-primary, #e0e0e0);
+    font-size: 0.82rem;
+  }
+}
+
+.tx-totals-label {
+  color: var(--text-secondary, #9e9e9e) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tx-totals-cost {
+  color: var(--text-secondary, #9e9e9e) !important;
 }
 
 .actions-header {

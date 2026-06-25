@@ -540,6 +540,11 @@
   -webkit-box-orient: vertical;
 }
 
+// Morning force-show toggle button — amber when active
+.morning-force-active {
+  color: #ffc107 !important;
+}
+
 @keyframes pulse-sun {
   0%,
   100% {

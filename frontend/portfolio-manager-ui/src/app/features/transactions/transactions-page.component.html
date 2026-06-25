@@ -8,6 +8,20 @@
       </div>
     </div>
 
+    <!-- ── Type filter toggle ────────────────────────────────────── -->
+    <div class="tx-filter-bar">
+      <mat-button-toggle-group
+        [value]="txTypeFilter()"
+        (change)="txTypeFilter.set($event.value)"
+        hideSingleSelectionIndicator
+        aria-label="Filter by transaction type"
+      >
+        <mat-button-toggle value="ALL">All</mat-button-toggle>
+        <mat-button-toggle value="OPEN">Open</mat-button-toggle>
+        <mat-button-toggle value="CLOSE">Closed</mat-button-toggle>
+      </mat-button-toggle-group>
+    </div>
+
     <!-- ================================================================ -->
     <!-- SECTION 1 – STOCKS                                                -->
     <!-- ================================================================ -->
@@ -29,7 +43,10 @@
         @if (sortedStockTransactions().length === 0) {
           <div class="tx-empty">
             <mat-icon>bar_chart</mat-icon>
-            <span>No closed stock transactions recorded yet.</span>
+            <span
+              >No {{ txTypeFilter() === 'ALL' ? '' : txTypeFilter().toLowerCase() + ' ' }}stock
+              transactions found.</span
+            >
           </div>
         } @else {
           <div class="tx-table-wrapper">
@@ -55,6 +72,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="tx-totals-label">TOTALS</td>
               </ng-container>
 
               <ng-container matColumnDef="tx_account">
@@ -62,6 +80,7 @@
                 <td mat-cell *matCellDef="let s">
                   <span class="pg-dim">{{ s.item.accountType || '—' }}</span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_symbol">
@@ -69,6 +88,7 @@
                 <td mat-cell *matCellDef="let s">
                   <span class="pg-symbol">{{ s.item.symbol }}</span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_company">
@@ -76,6 +96,7 @@
                 <td mat-cell *matCellDef="let s">
                   <span class="pg-company">{{ s.item.companyName }}</span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_shares">
@@ -85,6 +106,7 @@
                 <td mat-cell *matCellDef="let s" class="pg-num">
                   {{ s.item.shares | number: '1.0-4' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_avg_cost">
@@ -99,6 +121,12 @@
                 >
                   {{ s.item.averageCostBasis | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                 </td>
+                <td
+                  mat-footer-cell
+                  *matFooterCellDef
+                  class="pg-num"
+                  [class.demo-redact]="demoMode.isDemoMode()"
+                ></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_open_date">
@@ -106,6 +134,7 @@
                 <td mat-cell *matCellDef="let s" class="pg-dim">
                   {{ s.item.openDate ? (s.item.openDate | date: 'yyyy-MM-dd') : '—' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_close_date">
@@ -113,6 +142,7 @@
                 <td mat-cell *matCellDef="let s" class="pg-dim">
                   {{ s.item.closeDate ? (s.item.closeDate | date: 'yyyy-MM-dd') : '—' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_closing_price">
@@ -131,6 +161,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_gain_loss">
@@ -151,6 +182,20 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td
+                  mat-footer-cell
+                  *matFooterCellDef
+                  class="pg-num pg-bold"
+                  [class.demo-redact]="demoMode.isDemoMode()"
+                >
+                  <span
+                    [class.pg-pos]="stockTotalGainLoss() >= 0"
+                    [class.pg-neg]="stockTotalGainLoss() < 0"
+                  >
+                    {{ stockTotalGainLoss() >= 0 ? '+' : ''
+                    }}{{ stockTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  </span>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="tx_gain_pct">
@@ -167,6 +212,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="pg-num"></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_mkt_value">
@@ -181,6 +227,7 @@
                 >
                   {{ stockMktValue(s) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="tx_actions">
@@ -209,10 +256,14 @@
                     <mat-icon>delete</mat-icon>
                   </button>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="stockColumns; sticky: true"></tr>
               <tr mat-row *matRowDef="let row; columns: stockColumns" class="pg-row"></tr>
+              @if (showTotalsRow()) {
+                <tr mat-footer-row *matFooterRowDef="stockColumns" class="tx-totals-row"></tr>
+              }
             </table>
           </div>
         }
@@ -240,7 +291,10 @@
         @if (sortedOptionTransactions().length === 0) {
           <div class="tx-empty">
             <mat-icon>trending_up</mat-icon>
-            <span>No closed option transactions recorded yet.</span>
+            <span
+              >No {{ txTypeFilter() === 'ALL' ? '' : txTypeFilter().toLowerCase() + ' ' }}option
+              transactions found.</span
+            >
           </div>
         } @else {
           <div class="tx-table-wrapper">
@@ -266,6 +320,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="tx-totals-label">TOTALS</td>
               </ng-container>
 
               <ng-container matColumnDef="otx_account">
@@ -273,6 +328,7 @@
                 <td mat-cell *matCellDef="let a">
                   <span class="pg-dim">{{ a.item.accountType || '—' }}</span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_ticker">
@@ -289,6 +345,7 @@
                     <span class="pg-symbol">{{ a.item.underlyingTicker }}</span>
                   </div>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_position">
@@ -302,6 +359,7 @@
                     {{ a.item.positionType }}
                   </span>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_expiry">
@@ -309,6 +367,7 @@
                 <td mat-cell *matCellDef="let a" class="pg-dim">
                   {{ a.item.expirationDate | date: 'yyyy-MM-dd' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_strike">
@@ -323,6 +382,7 @@
                 >
                   {{ a.item.strike | currency }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_premium">
@@ -337,6 +397,7 @@
                 >
                   {{ a.item.premium | currency }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="pg-num"></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_contracts">
@@ -344,6 +405,7 @@
                   CONTRACTS
                 </th>
                 <td mat-cell *matCellDef="let a" class="pg-num">{{ a.item.numberOfContracts }}</td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_open_date">
@@ -351,6 +413,7 @@
                 <td mat-cell *matCellDef="let a" class="pg-dim">
                   {{ a.item.openDate ? (a.item.openDate | date: 'yyyy-MM-dd') : '—' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_close_date">
@@ -358,6 +421,7 @@
                 <td mat-cell *matCellDef="let a" class="pg-dim">
                   {{ a.item.closeDate ? (a.item.closeDate | date: 'yyyy-MM-dd') : '—' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_closing_price">
@@ -376,6 +440,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_gain_loss">
@@ -397,6 +462,20 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td
+                  mat-footer-cell
+                  *matFooterCellDef
+                  class="pg-num pg-bold"
+                  [class.demo-redact]="demoMode.isDemoMode()"
+                >
+                  <span
+                    [class.pg-pos]="optionTotalGainLoss() >= 0"
+                    [class.pg-neg]="optionTotalGainLoss() < 0"
+                  >
+                    {{ optionTotalGainLoss() >= 0 ? '+' : ''
+                    }}{{ optionTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  </span>
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="otx_gain_pct">
@@ -413,6 +492,7 @@
                     <span class="pg-dim">—</span>
                   }
                 </td>
+                <td mat-footer-cell *matFooterCellDef class="pg-num"></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_mkt_value">
@@ -427,6 +507,7 @@
                 >
                   {{ optionMktValue(a) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <ng-container matColumnDef="otx_actions">
@@ -455,10 +536,14 @@
                     <mat-icon>delete</mat-icon>
                   </button>
                 </td>
+                <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="optionColumns; sticky: true"></tr>
               <tr mat-row *matRowDef="let row; columns: optionColumns" class="pg-row"></tr>
+              @if (showTotalsRow()) {
+                <tr mat-footer-row *matFooterRowDef="optionColumns" class="tx-totals-row"></tr>
+              }
             </table>
           </div>
         }

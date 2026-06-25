@@ -661,9 +661,13 @@
                       @let tsSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let tsRole =
                         isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @let tsItem = isAggRow(0, row) ? null : asItem(row).item;
                       @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
                         <span class="pg-dim">—</span>
-                      } @else if (decisionForPortfolio(tsSym, tsRole); as dec) {
+                      } @else if (
+                        decisionForPortfolio(tsSym, tsRole, tsItem ?? undefined);
+                        as dec
+                      ) {
                         <div
                           class="pg-ms-badge"
                           [ngClass]="dec.trendSetupClass"
@@ -689,9 +693,13 @@
                       @let msSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let msRole =
                         isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @let msItem = isAggRow(0, row) ? null : asItem(row).item;
                       @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
                         <span class="pg-dim">—</span>
-                      } @else if (decisionForPortfolio(msSym, msRole); as dec) {
+                      } @else if (
+                        decisionForPortfolio(msSym, msRole, msItem ?? undefined);
+                        as dec
+                      ) {
                         <div
                           class="pg-ms-badge"
                           [ngClass]="dec.momentumShiftClass"
@@ -717,9 +725,13 @@
                       @let faSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let faRole =
                         isAggRow(0, row) ? null : (asItem(row).item.holdingRole ?? null);
+                      @let faItem = isAggRow(0, row) ? null : asItem(row).item;
                       @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
                         <span class="pg-dim">—</span>
-                      } @else if (decisionForPortfolio(faSym, faRole); as dec) {
+                      } @else if (
+                        decisionForPortfolio(faSym, faRole, faItem ?? undefined);
+                        as dec
+                      ) {
                         <div
                           class="pg-ma-badge"
                           [ngClass]="dec.finalActionClass"

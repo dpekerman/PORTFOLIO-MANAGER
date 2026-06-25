@@ -32,14 +32,20 @@ export class PortfolioStateService {
   readonly hasSelection = computed(() => this._selectedIds().size > 0);
 
   readonly totalValue = computed(() =>
-    this._summaries().reduce((acc, s) => {
-      const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-      return acc + price * s.item.shares;
-    }, 0),
+    this._summaries()
+      .filter((s) => s.item.transactionType !== 'CLOSE')
+      .reduce((acc, s) => {
+        const mv = s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis * s.item.shares)
+          : (s.quote?.currentPrice ?? s.item.averageCostBasis) * s.item.shares;
+        return acc + mv;
+      }, 0),
   );
 
   readonly totalCost = computed(() =>
-    this._summaries().reduce((acc, s) => acc + s.item.averageCostBasis * s.item.shares, 0),
+    this._summaries()
+      .filter((s) => s.item.transactionType !== 'CLOSE')
+      .reduce((acc, s) => acc + s.item.averageCostBasis * s.item.shares, 0),
   );
 
   readonly totalGainLoss = computed(() => this.totalValue() - this.totalCost());

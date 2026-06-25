@@ -19,6 +19,7 @@ import { AdhocAnalyzerComponent } from './adhoc-analyzer/adhoc-analyzer.componen
 import { RsiScannerTableComponent } from './rsi-scanner-table.component';
 
 const MORNING_DISMISSED_KEY = 'morning-check-dismissed';
+const MORNING_FORCE_KEY = 'morning-check-force-show';
 
 @Component({
   selector: 'app-scanner-page',
@@ -66,10 +67,21 @@ export class ScannerPageComponent implements OnInit {
   /** Yesterday's persisted EOD CONFIRM signals (for morning check panel). */
   protected readonly yesterdayEod = this.scanner.yesterdayEod;
 
-  /** True when there are yesterday EOD signals AND it's the morning window (before noon ET). */
+  /**
+   * Whether the morning window is force-enabled via localStorage override.
+   * When true, the morning check sidebar is shown regardless of server time.
+   */
+  protected readonly morningForced = signal(localStorage.getItem(MORNING_FORCE_KEY) === 'true');
+
+  /**
+   * True when there are yesterday EOD signals AND either:
+   *  - it is the morning window (server time before noon ET), OR
+   *  - the force-show override is enabled.
+   */
   protected readonly hasMorningSignals = computed(() => {
     const data = this.yesterdayEod();
-    return !!data?.hasData && !!data.isMorningWindow && (data.signals?.length ?? 0) > 0;
+    if (!data?.hasData || (data.signals?.length ?? 0) === 0) return false;
+    return !!data.isMorningWindow || this.morningForced();
   });
 
   /** Whether the morning sidebar is currently open. */
@@ -85,6 +97,8 @@ export class ScannerPageComponent implements OnInit {
   }
 
   private wasDismissedToday(): boolean {
+    // Force-show bypasses the dismissed-today check so the override always works
+    if (this.morningForced()) return false;
     const dismissed = localStorage.getItem(MORNING_DISMISSED_KEY);
     if (!dismissed) return false;
     const today = new Date().toISOString().split('T')[0];
@@ -97,8 +111,23 @@ export class ScannerPageComponent implements OnInit {
 
   protected closeMorningPanel(): void {
     this.morningPanelOpen.set(false);
-    const today = new Date().toISOString().split('T')[0];
-    localStorage.setItem(MORNING_DISMISSED_KEY, today);
+    if (!this.morningForced()) {
+      const today = new Date().toISOString().split('T')[0];
+      localStorage.setItem(MORNING_DISMISSED_KEY, today);
+    }
+  }
+
+  protected toggleMorningForce(): void {
+    const next = !this.morningForced();
+    this.morningForced.set(next);
+    localStorage.setItem(MORNING_FORCE_KEY, String(next));
+    if (next && this.yesterdayEod()?.hasData) {
+      // Clear dismissed flag so the panel opens
+      localStorage.removeItem(MORNING_DISMISSED_KEY);
+      this.morningPanelOpen.set(true);
+    } else if (!next) {
+      this.morningPanelOpen.set(false);
+    }
   }
 
   ngOnInit(): void {
