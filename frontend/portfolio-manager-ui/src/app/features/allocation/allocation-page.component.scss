@@ -196,3 +196,419 @@
   font-size: 0.82rem;
   height: 36px;
 }
+
+// ── Sector-aligned rows (Cash & Options): mirror sector-exposition row layout ──
+.alloc-sector-row {
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  margin-bottom: 6px;
+
+  &:hover .alloc-sector-header {
+    background: var(--bg-hover);
+  }
+}
+
+.alloc-sector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+
+.alloc-sector-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.alloc-expand-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.alloc-section-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+
+  &.cash-icon {
+    color: #4db6ac;
+  }
+  &.options-icon {
+    color: #ab47bc;
+  }
+}
+
+.alloc-sector-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+// Right-side columns: matches .sector-right in sector-exposition.component.scss
+.alloc-sector-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.alloc-bar-track {
+  width: 100px;
+  height: 6px;
+  background: var(--border-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+
+  .alloc-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+
+    &.alloc-bar-cash {
+      background: #4db6ac;
+    }
+    &.alloc-bar-options {
+      background: #ab47bc;
+    }
+  }
+}
+
+.alloc-col-pct-val {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64b5f6;
+  font-family: 'Roboto Mono', monospace;
+  min-width: 42px;
+  text-align: right;
+}
+
+.alloc-col-mv {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: 'Roboto Mono', monospace;
+  min-width: 50px;
+  text-align: right;
+}
+
+.alloc-col-gl {
+  font-size: 0.75rem;
+  font-family: 'Roboto Mono', monospace;
+  min-width: 58px;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+.alloc-col-glpct {
+  font-size: 0.72rem;
+  font-family: 'Roboto Mono', monospace;
+  min-width: 44px;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+.alloc-gl-pos {
+  color: #66bb6a !important;
+}
+.alloc-gl-neg {
+  color: #ef5350 !important;
+}
+
+// ── Net Portfolio Totals row ───────────────────────────────────────────────────
+.alloc-net-totals-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-top: 8px;
+  gap: 12px;
+}
+
+.alloc-net-totals-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.alloc-net-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #7e57c2;
+}
+
+.alloc-net-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.alloc-net-totals-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.alloc-net-val {
+  font-weight: 700;
+  font-size: 0.82rem !important;
+}
+
+.alloc-net-pct {
+  font-size: 0.82rem;
+  color: var(--text-secondary) !important;
+}
+
+// -- Cash / Options allocation sections ---------------------------------------
+.alloc-subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  border: 1px solid var(--bg-border);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.alloc-subsection-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.alloc-subsection-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+
+  &.cash-icon {
+    color: #4db6ac;
+  }
+  &.options-icon {
+    color: #ab47bc;
+  }
+}
+
+.alloc-subsection-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.alloc-count-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.alloc-subsection-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alloc-subsection-pct {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+}
+
+.alloc-chevron {
+  color: var(--text-faint);
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+// Ticker-level group header inside options
+.alloc-ticker-group {
+  margin: 0 24px 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--bg-border);
+}
+
+.alloc-ticker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+}
+
+.alloc-ticker-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.alloc-ticker-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  background: rgba(171, 71, 188, 0.15);
+  color: #ab47bc;
+  border: 1px solid rgba(171, 71, 188, 0.25);
+}
+
+.alloc-ticker-symbol {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+// Items table (shared between cash and options)
+.alloc-items-table {
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px 16px;
+}
+
+.alloc-items-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--bg-border);
+}
+
+.alloc-item-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.alloc-total-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  border-top: 1px solid var(--bg-border);
+}
+
+.alloc-grand-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24px;
+  padding: 10px 24px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--bg-border);
+  margin-top: 4px;
+}
+
+// Column widths
+.alloc-col-desc {
+  flex: 2;
+}
+.alloc-col-date {
+  flex: 1;
+}
+.alloc-col-val {
+  flex: 1;
+  text-align: right;
+}
+.alloc-col-pct {
+  flex: 1;
+  text-align: right;
+}
+.alloc-col-type {
+  flex: 1;
+}
+.alloc-col-strike {
+  flex: 1;
+}
+.alloc-col-exp {
+  flex: 1;
+}
+.alloc-col-contracts {
+  flex: 0.6;
+  text-align: right;
+}
+
+.cash-label {
+  color: #4db6ac;
+  font-weight: 600;
+}
+
+.dim-text {
+  color: var(--text-faint);
+}
+
+// Re-use call/put badge styles from portfolio
+.opt-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  &.call-badge {
+    background: rgba(102, 187, 106, 0.12);
+    color: #66bb6a;
+    border: 1px solid rgba(102, 187, 106, 0.25);
+  }
+
+  &.put-badge {
+    background: rgba(239, 83, 80, 0.12);
+    color: #ef5350;
+    border: 1px solid rgba(239, 83, 80, 0.25);
+  }
+}

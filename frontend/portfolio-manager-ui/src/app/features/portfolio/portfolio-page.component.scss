@@ -2,6 +2,42 @@
   padding: 0 0 48px;
 }
 
+// ── Inline editable price input for options grid ──────────────────────────────
+.inline-price-input {
+  width: 72px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: 'Roboto Mono', monospace;
+  padding: 3px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--border-subtle);
+  }
+
+  &:focus {
+    border-color: #1565c0;
+    background: rgba(21, 101, 192, 0.06);
+  }
+
+  /* Hide spinners in Chrome/Edge */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide spinners in Firefox */
+  &[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
 .portfolio-section {
   padding: 20px 24px;
 
@@ -875,6 +911,35 @@
 }
 
 // ── Multi-account group header row ────────────────────────────────────────────
+
+// ── Role select inline ─────────────────────────────────────────────────────────
+.role-select {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  min-width: 130px;
+
+  .mat-mdc-select-value-text {
+    font-size: 0.6rem;
+    font-weight: 800;
+  }
+}
+.role-core {
+  color: #00bcd4;
+}
+.role-strategic {
+  color: #42a5f5;
+}
+.role-swing {
+  color: #ffa726;
+}
+.role-speculative {
+  color: #ef5350;
+}
+.role-options {
+  color: #ab47bc;
+}
+
 tr.pg-agg-row {
   cursor: pointer;
 

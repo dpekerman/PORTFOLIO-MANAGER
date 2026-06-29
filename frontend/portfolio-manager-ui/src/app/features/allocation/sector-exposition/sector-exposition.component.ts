@@ -206,14 +206,28 @@ export class SectorExpositionComponent {
   }
 
   protected readonly sectors = computed<SectorRow[]>(() => {
-    const summaries = this.portfolio.summaries();
+    const summaries = this.portfolio.summaries().filter((s) => s.item.transactionType !== 'CLOSE');
     const totalValue = this.portfolio.totalValue();
     if (totalValue === 0) return [];
 
     const rsiMap = this.rsiMap();
 
-    // sector → industry → positions map
-    const sectorMap = new Map<string, Map<string, PositionRow[]>>();
+    // sector → industry → symbol → aggregated position accumulators
+    const sectorMap = new Map<
+      string,
+      Map<
+        string,
+        Map<
+          string,
+          {
+            companyName: string;
+            marketValue: number;
+            cost: number;
+            quote: (typeof summaries)[0]['quote'] | null;
+          }
+        >
+      >
+    >();
 
     for (const s of summaries) {
       const isManual = s.item.isManual;
@@ -222,50 +236,60 @@ export class SectorExpositionComponent {
         ? (s.item.manualMarketValue ?? s.item.averageCostBasis * s.item.shares)
         : price * s.item.shares;
       const cost = s.item.averageCostBasis * s.item.shares;
-      const gainLoss = mv - cost;
-      const gainLossPct = cost > 0 ? (gainLoss / cost) * 100 : null;
 
-      // If the user manually overrode the sector, always prefer the stored value
       const sector =
         s.item.sectorIsOverridden && s.item.sector
           ? s.item.sector
           : s.quote?.sector || s.item.sector || 'Unclassified';
       const industry = s.item.industry || s.quote?.industry || '';
+      const industryKey = industry || sector;
 
       if (!sectorMap.has(sector)) sectorMap.set(sector, new Map());
       const industryMap = sectorMap.get(sector)!;
+      if (!industryMap.has(industryKey)) industryMap.set(industryKey, new Map());
+      const symbolMap = industryMap.get(industryKey)!;
 
-      const industryKey = industry || sector; // use sector name when industry is blank
-      if (!industryMap.has(industryKey)) industryMap.set(industryKey, []);
-      industryMap.get(industryKey)!.push({
-        symbol: s.item.symbol,
-        companyName: s.item.companyName,
-        marketValue: mv,
-        pct: (mv / totalValue) * 100,
-        lastPrice: isManual ? null : (s.quote?.currentPrice ?? null),
-        gainLoss,
-        gainLossPct,
-        changePct: isManual ? null : (s.quote?.changePercent ?? null),
-        rsi: rsiMap.get(s.item.symbol.toUpperCase()) ?? null,
-        momentumShift: (() => {
-          const r = this.scannerMap().get(s.item.symbol.toUpperCase());
-          return r ? this.momentumShiftFor(r) : null;
-        })(),
-        momentumAction: (() => {
-          const r = this.scannerMap().get(s.item.symbol.toUpperCase());
-          return r ? this.momentumActionFor(r) : null;
-        })(),
-        momentumActionTooltip: (() => {
-          const r = this.scannerMap().get(s.item.symbol.toUpperCase());
-          return r ? this.momentumActionTooltipFor(r) : null;
-        })(),
-      });
+      const sym = s.item.symbol;
+      if (!symbolMap.has(sym)) {
+        symbolMap.set(sym, {
+          companyName: s.item.companyName,
+          marketValue: 0,
+          cost: 0,
+          quote: s.quote,
+        });
+      }
+      const agg = symbolMap.get(sym)!;
+      agg.marketValue += mv;
+      agg.cost += cost;
+      if (!agg.quote && s.quote) agg.quote = s.quote;
     }
 
     return [...sectorMap.entries()]
       .map(([sector, industryMap]) => {
         const industries: IndustryRow[] = [...industryMap.entries()]
-          .map(([industry, positions]) => {
+          .map(([industry, symbolMap]) => {
+            const positions: PositionRow[] = [...symbolMap.entries()]
+              .map(([sym, agg]) => {
+                const gainLoss = agg.marketValue - agg.cost;
+                const gainLossPct = agg.cost > 0 ? (gainLoss / agg.cost) * 100 : null;
+                const r = this.scannerMap().get(sym.toUpperCase());
+                return {
+                  symbol: sym,
+                  companyName: agg.companyName,
+                  marketValue: agg.marketValue,
+                  pct: (agg.marketValue / totalValue) * 100,
+                  lastPrice: agg.quote?.currentPrice ?? null,
+                  gainLoss,
+                  gainLossPct,
+                  changePct: agg.quote?.changePercent ?? null,
+                  rsi: rsiMap.get(sym.toUpperCase()) ?? null,
+                  momentumShift: r ? this.momentumShiftFor(r) : null,
+                  momentumAction: r ? this.momentumActionFor(r) : null,
+                  momentumActionTooltip: r ? this.momentumActionTooltipFor(r) : null,
+                };
+              })
+              .sort((a, b) => b.marketValue - a.marketValue);
+
             const mv = positions.reduce((sum, p) => sum + p.marketValue, 0);
             const totalGl = positions.reduce((sum, p) => sum + (p.gainLoss ?? 0), 0);
             const totalCost = positions.reduce(
@@ -278,7 +302,7 @@ export class SectorExpositionComponent {
               pct: (mv / totalValue) * 100,
               gainLoss: totalGl,
               gainLossPct: totalCost > 0 ? (totalGl / totalCost) * 100 : 0,
-              positions: [...positions].sort((a, b) => b.marketValue - a.marketValue),
+              positions,
             };
           })
           .sort((a, b) => b.marketValue - a.marketValue);

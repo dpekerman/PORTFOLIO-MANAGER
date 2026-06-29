@@ -116,6 +116,7 @@ type OptionSortCol =
   | 'opt_strike'
   | 'opt_premium'
   | 'opt_contracts'
+  | 'opt_cmp'
   | 'opt_stockPrice'
   | 'opt_dte'
   | 'opt_cost'
@@ -208,6 +209,9 @@ export class PortfolioPageComponent {
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
 
+  // Flag to ensure initial collapse only happens once
+  private initialCollapseApplied = false;
+
   // ── Option grid sort ────────────────────────────────────────────────────
   protected readonly optionSortCol = signal<OptionSortCol>('opt_ticker');
   protected readonly optionSortDir = signal<SortDir>('asc');
@@ -219,6 +223,7 @@ export class PortfolioPageComponent {
     'opt_strike',
     'opt_premium',
     'opt_contracts',
+    'opt_cmp',
     'opt_stockPrice',
     'opt_dte',
     'opt_cost',
@@ -264,6 +269,8 @@ export class PortfolioPageComponent {
         return a.item.premium;
       case 'opt_contracts':
         return a.item.numberOfContracts;
+      case 'opt_cmp':
+        return a.item.marketPrice;
       case 'opt_stockPrice':
         return a.stockPrice ?? 0;
       case 'opt_dte':
@@ -328,6 +335,26 @@ export class PortfolioPageComponent {
             if (completed === batches.length) this.portfolioRsiResultMap.set(new Map(merged));
           },
         });
+      }
+    });
+
+    // On initial data load, collapse all multi-transaction symbol groups
+    effect(() => {
+      const summaries = this.portfolio.summaries();
+      if (summaries.length > 0 && !this.initialCollapseApplied) {
+        this.initialCollapseApplied = true;
+        const counts = new Map<string, number>();
+        for (const s of summaries) {
+          if (s.item.transactionType === 'CLOSE') continue;
+          counts.set(s.item.symbol, (counts.get(s.item.symbol) ?? 0) + 1);
+        }
+        const toCollapse = new Set<string>();
+        for (const [sym, count] of counts) {
+          if (count > 1) toCollapse.add(sym);
+        }
+        if (toCollapse.size > 0) {
+          this.collapsedSymbols.set(toCollapse);
+        }
       }
     });
   }
@@ -885,6 +912,26 @@ export class PortfolioPageComponent {
       width: '620px',
       maxWidth: '95vw',
       maxHeight: '95vh',
+    });
+  }
+
+  /** Inline update of the option's current market price from the grid cell */
+  updateOptionMarketPrice(analysis: OptionAnalysis, rawValue: string): void {
+    const price = parseFloat(rawValue);
+    if (!isFinite(price) || price < 0) return;
+    this.optionState.updateItem(analysis.item.id, {
+      underlyingTicker: analysis.item.underlyingTicker,
+      positionType: analysis.item.positionType,
+      expirationDate: analysis.item.expirationDate,
+      strike: analysis.item.strike,
+      premium: analysis.item.premium,
+      numberOfContracts: analysis.item.numberOfContracts,
+      marketPrice: price,
+      transactionType: analysis.item.transactionType,
+      accountType: analysis.item.accountType,
+      openDate: analysis.item.openDate,
+      closeDate: analysis.item.closeDate,
+      closingPrice: analysis.item.closingPrice,
     });
   }
 

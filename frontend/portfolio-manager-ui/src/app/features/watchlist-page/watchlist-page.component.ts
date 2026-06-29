@@ -405,6 +405,17 @@ export class WatchlistPageComponent {
     const today = new Date().toISOString().slice(0, 10);
     const data = this.filteredSorted().map((w) => {
       const dec = this.decisionForSymbol(w.item.symbol, w.item.role);
+      const r = this.rsiMap().get(w.item.symbol.toUpperCase());
+
+      // CloseLocation: where the close sits within the daily range (0–1)
+      let closeLocation: number | string = '';
+      if (r && r.dayHigh > 0 && r.dayLow >= 0) {
+        const range = r.dayHigh - r.dayLow;
+        closeLocation = range > 0 ? +((r.currentPrice - r.dayLow) / range).toFixed(4) : 0.5;
+      }
+
+      const prevMacdHist = r ? +(r.macdHistogram - r.macdHistDelta).toFixed(4) : '';
+
       return {
         Symbol: w.item.symbol,
         Company: w.quote?.companyName ?? '',
@@ -420,6 +431,26 @@ export class WatchlistPageComponent {
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
         'Hover Note': dec?.hoverDescription ?? '',
+        EMA9: r?.ema9Price ?? '',
+        EMA10: r?.ema10Price ?? '',
+        EMA20: r?.ema20Price ?? '',
+        SMA20: r?.sma20Price ?? '',
+        SMA50: r?.sma50Price ?? '',
+        RSI9EMA: r?.rsiSignal ?? '',
+        VolumeRatio20: r?.volumeRatio ?? '',
+        CloseLocation: closeLocation,
+        TopHalfClose: r
+          ? r.dayHigh > 0 && r.dayLow >= 0 && r.dayHigh - r.dayLow > 0
+            ? (r.currentPrice - r.dayLow) / (r.dayHigh - r.dayLow) >= 0.5
+            : false
+          : '',
+        BottomHalfClose: r
+          ? r.dayHigh > 0 && r.dayLow >= 0 && r.dayHigh - r.dayLow > 0
+            ? (r.currentPrice - r.dayLow) / (r.dayHigh - r.dayLow) < 0.5
+            : false
+          : '',
+        MACDHistogram: r?.macdHistogram ?? '',
+        PrevMACDHistogram: prevMacdHist,
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);

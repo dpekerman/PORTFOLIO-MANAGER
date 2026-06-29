@@ -41,9 +41,9 @@
             Portfolio Value
           </div>
           <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
-            {{ portfolio.displayTotalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ grandTotal() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
-          <div class="kpi-sub">Current market value</div>
+          <div class="kpi-sub">Stocks · Cash · Options</div>
         </mat-card-content>
       </mat-card>
 
@@ -54,33 +54,36 @@
             Total Cost Basis
           </div>
           <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
-            {{ portfolio.displayTotalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ grandTotalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
-          <div class="kpi-sub">Invested capital</div>
+          <div class="kpi-sub">Stocks · Cash · Options</div>
         </mat-card-content>
       </mat-card>
 
       <mat-card class="kpi-card">
         <mat-card-content class="kpi-content">
           <div class="kpi-label">
-            <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
+            <mat-icon>{{
+              grandTotalGainLossIsPositive() ? 'trending_up' : 'trending_down'
+            }}</mat-icon>
             Total Gain / Loss
           </div>
           <div
             class="kpi-value"
-            [class.kpi-positive]="isPositive()"
-            [class.kpi-negative]="!isPositive()"
+            [class.kpi-positive]="grandTotalGainLossIsPositive()"
+            [class.kpi-negative]="!grandTotalGainLossIsPositive()"
             [class.demo-redact]="demoMode.isDemoMode()"
           >
-            {{ portfolio.displayTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+            {{ grandTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div
             class="kpi-sub"
-            [class.kpi-positive]="isPositive()"
-            [class.kpi-negative]="!isPositive()"
+            [class.kpi-positive]="grandTotalGainLossIsPositive()"
+            [class.kpi-negative]="!grandTotalGainLossIsPositive()"
             [class.demo-redact]="demoMode.isDemoMode()"
           >
-            {{ returnPct() | percent: '1.2-2' }} total return
+            {{ grandTotalGainLossIsPositive() ? '+' : ''
+            }}{{ grandTotalGainLossPct() | number: '1.2-2' }}% total return
           </div>
         </mat-card-content>
       </mat-card>
@@ -107,5 +110,236 @@
       </div>
       <app-sector-exposition />
     </section>
+
+    <!-- ── Cash Section ─────────────────────────────────────────────────────── -->
+    @if (cashState.items().length > 0) {
+      <section class="breakdown-section">
+        <!-- Sector-aligned header row -->
+        <div class="alloc-sector-row">
+          <div class="alloc-sector-header" (click)="cashExpanded.set(!cashExpanded())">
+            <div class="alloc-sector-left">
+              <mat-icon class="alloc-expand-icon">{{
+                cashExpanded() ? 'expand_less' : 'expand_more'
+              }}</mat-icon>
+              <mat-icon class="alloc-section-icon cash-icon">payments</mat-icon>
+              <span class="alloc-sector-name">CASH</span>
+              <span class="alloc-count-badge">{{ cashState.items().length }}</span>
+            </div>
+            <div class="alloc-sector-right">
+              <div class="alloc-bar-track">
+                <div class="alloc-bar-fill alloc-bar-cash" [style.width.%]="cashPct() * 100"></div>
+              </div>
+              <span class="alloc-col-pct-val">{{ cashPct() | number: '1.1-1' }}%</span>
+              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
+                ${{ cashState.totalCash() / 1000 | number: '1.0-0' }}k
+              </span>
+              <span class="alloc-col-gl">—</span>
+              <span class="alloc-col-glpct">—</span>
+            </div>
+          </div>
+        </div>
+        @if (cashExpanded()) {
+          <div class="alloc-items-table">
+            <div class="alloc-items-header">
+              <span class="alloc-col alloc-col-desc">Description</span>
+              <span class="alloc-col alloc-col-date">Added</span>
+              <span class="alloc-col alloc-col-val">Amount</span>
+              <span class="alloc-col alloc-col-pct">% of Total</span>
+            </div>
+            @for (c of cashItemsWithPct(); track c.id) {
+              <div class="alloc-item-row">
+                <span class="alloc-col alloc-col-desc cash-label">{{ c.description }}</span>
+                <span class="alloc-col alloc-col-date dim-text">{{
+                  c.addedAt | slice: 0 : 10
+                }}</span>
+                <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode()">
+                  {{ c.amount | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                </span>
+                <span class="alloc-col alloc-col-pct">{{ c.pct | percent: '1.2-2' }}</span>
+              </div>
+            }
+            <div class="alloc-total-row">
+              <span class="alloc-col alloc-col-desc">Total Cash</span>
+              <span class="alloc-col alloc-col-date"></span>
+              <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode()">
+                {{ cashState.totalCash() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+              </span>
+              <span class="alloc-col alloc-col-pct">{{ cashPct() | percent: '1.2-2' }}</span>
+            </div>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ── Options Section ──────────────────────────────────────────────────── -->
+    @if (optionGroups().length > 0) {
+      <section class="breakdown-section">
+        <!-- Sector-aligned header row -->
+        <div class="alloc-sector-row">
+          <div class="alloc-sector-header" (click)="optionsExpanded.set(!optionsExpanded())">
+            <div class="alloc-sector-left">
+              <mat-icon class="alloc-expand-icon">{{
+                optionsExpanded() ? 'expand_less' : 'expand_more'
+              }}</mat-icon>
+              <mat-icon class="alloc-section-icon options-icon">trending_up</mat-icon>
+              <span class="alloc-sector-name">OPTIONS</span>
+              <span class="alloc-count-badge">{{ optionGroups().length }}</span>
+            </div>
+            <div class="alloc-sector-right">
+              <div class="alloc-bar-track">
+                <div
+                  class="alloc-bar-fill alloc-bar-options"
+                  [style.width.%]="optionsPct() * 100"
+                ></div>
+              </div>
+              <span class="alloc-col-pct-val">{{ optionsPct() | number: '1.1-1' }}%</span>
+              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
+                ${{ optionsTotalValue() / 1000 | number: '1.0-0' }}k
+              </span>
+              <span
+                class="alloc-col-gl"
+                [class.alloc-gl-pos]="optionsGainLossIsPositive()"
+                [class.alloc-gl-neg]="!optionsGainLossIsPositive()"
+                [class.demo-redact]="demoMode.isDemoMode()"
+              >
+                {{ optionsGainLoss() >= 0 ? '+' : '' }}${{
+                  optionsGainLoss() / 1000 | number: '1.1-1'
+                }}k
+              </span>
+              <span
+                class="alloc-col-glpct"
+                [class.alloc-gl-pos]="optionsGainLossIsPositive()"
+                [class.alloc-gl-neg]="!optionsGainLossIsPositive()"
+              >
+                {{ optionsGainLoss() >= 0 ? '+' : '' }}{{ optionsGainLossPct() | number: '1.1-1' }}%
+              </span>
+            </div>
+          </div>
+        </div>
+        @if (optionsExpanded()) {
+          @for (g of optionGroups(); track g.ticker) {
+            <div class="alloc-ticker-group">
+              <div class="alloc-ticker-header" (click)="toggleOptionTicker(g.ticker)">
+                <div class="alloc-ticker-title-group">
+                  <div class="alloc-ticker-badge" [class.call-bg]="true">
+                    {{ g.ticker.substring(0, 2) }}
+                  </div>
+                  <span class="alloc-ticker-symbol">{{ g.ticker }}</span>
+                  <span class="alloc-count-badge">{{ g.items.length }}</span>
+                  <span class="alloc-subsection-value" [class.demo-redact]="demoMode.isDemoMode()">
+                    {{ g.totalValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  </span>
+                  <span class="alloc-subsection-pct">{{ g.pct | percent: '1.2-2' }} of Total</span>
+                </div>
+                <mat-icon class="alloc-chevron">{{
+                  expandedOptionTickers().has(g.ticker) ? 'expand_less' : 'expand_more'
+                }}</mat-icon>
+              </div>
+              @if (expandedOptionTickers().has(g.ticker)) {
+                <div class="alloc-items-table alloc-options-table">
+                  <div class="alloc-items-header">
+                    <span class="alloc-col alloc-col-type">Type</span>
+                    <span class="alloc-col alloc-col-strike">Strike</span>
+                    <span class="alloc-col alloc-col-exp">Expiry</span>
+                    <span class="alloc-col alloc-col-contracts">Contracts</span>
+                    <span class="alloc-col alloc-col-val">Mkt Value</span>
+                    <span class="alloc-col alloc-col-pct">% of Total</span>
+                  </div>
+                  @for (opt of g.items; track opt.id) {
+                    <div class="alloc-item-row">
+                      <span class="alloc-col alloc-col-type">
+                        <span
+                          class="opt-type-badge"
+                          [class.call-badge]="opt.positionType === 'CALL'"
+                          [class.put-badge]="opt.positionType === 'PUT'"
+                        >
+                          {{ opt.positionType }}
+                        </span>
+                      </span>
+                      <span class="alloc-col alloc-col-strike"
+                        >${{ opt.strike | number: '1.2-2' }}</span
+                      >
+                      <span class="alloc-col alloc-col-exp dim-text">{{ opt.expirationDate }}</span>
+                      <span class="alloc-col alloc-col-contracts">{{ opt.numberOfContracts }}</span>
+                      <span
+                        class="alloc-col alloc-col-val"
+                        [class.demo-redact]="demoMode.isDemoMode()"
+                      >
+                        {{ opt.marketValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      </span>
+                      <span class="alloc-col alloc-col-pct">{{ opt.pct | percent: '1.2-2' }}</span>
+                    </div>
+                  }
+                  <div class="alloc-total-row">
+                    <span class="alloc-col alloc-col-type">Total</span>
+                    <span class="alloc-col alloc-col-strike"></span>
+                    <span class="alloc-col alloc-col-exp"></span>
+                    <span class="alloc-col alloc-col-contracts"></span>
+                    <span
+                      class="alloc-col alloc-col-val"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      {{ g.totalValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                    </span>
+                    <span class="alloc-col alloc-col-pct">{{ g.pct | percent: '1.2-2' }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+          <div class="alloc-grand-total-row">
+            <span>Total Options</span>
+            <span [class.demo-redact]="demoMode.isDemoMode()">{{
+              optionsTotalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+            }}</span>
+            <span>{{ optionsPct() | percent: '1.2-2' }} of Total</span>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ── Net Portfolio Totals ─────────────────────────────────────────────── -->
+    @if (
+      portfolio.summaries().length > 0 || cashState.items().length > 0 || optionGroups().length > 0
+    ) {
+      <section class="breakdown-section">
+        <div class="alloc-net-totals-row">
+          <div class="alloc-net-totals-left">
+            <mat-icon class="alloc-net-icon">account_balance_wallet</mat-icon>
+            <span class="alloc-net-label">PORTFOLIO NET TOTAL</span>
+          </div>
+          <div class="alloc-net-totals-right">
+            <div class="alloc-bar-track">
+              <div
+                class="alloc-bar-fill"
+                style="width: 100%; background: var(--border-subtle)"
+              ></div>
+            </div>
+            <span class="alloc-col-pct-val alloc-net-pct">100.0%</span>
+            <span class="alloc-col-mv alloc-net-val" [class.demo-redact]="demoMode.isDemoMode()">
+              ${{ grandTotal() / 1000 | number: '1.0-0' }}k
+            </span>
+            <span
+              class="alloc-col-gl alloc-net-val"
+              [class.alloc-gl-pos]="grandTotalGainLossIsPositive()"
+              [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
+              [class.demo-redact]="demoMode.isDemoMode()"
+            >
+              {{ grandTotalGainLoss() >= 0 ? '+' : '' }}${{
+                grandTotalGainLoss() / 1000 | number: '1.1-1'
+              }}k
+            </span>
+            <span
+              class="alloc-col-glpct alloc-net-val"
+              [class.alloc-gl-pos]="grandTotalGainLossIsPositive()"
+              [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
+            >
+              {{ grandTotalGainLoss() >= 0 ? '+' : ''
+              }}{{ grandTotalGainLossPct() | number: '1.1-1' }}%
+            </span>
+          </div>
+        </div>
+      </section>
+    }
   }
 </div>

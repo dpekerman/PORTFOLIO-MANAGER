@@ -178,7 +178,7 @@ export class DecisionEngineService {
   translateForWatchlist(r: RsiScanResult, role: string | null): PageDecision {
     const dec = this.calculateDecision(r, role, 'Watchlist');
     const effectiveRole = (role ?? 'Strategic') as InvestmentRole;
-    const rawAction = this.watchlistFinalAction(dec, effectiveRole);
+    const rawAction = this.watchlistFinalAction(dec, effectiveRole, r);
     const finalAction = this.accumulateStarterGuard(
       rawAction,
       dec.trendSetup,
@@ -203,7 +203,7 @@ export class DecisionEngineService {
   ): PageDecision {
     const dec = this.calculateDecision(r, role, 'Portfolio');
     const effectiveRole = (role ?? 'Strategic') as InvestmentRole;
-    let rawAction = this.portfolioFinalAction(dec, effectiveRole, isOwned);
+    let rawAction = this.portfolioFinalAction(dec, effectiveRole, isOwned, r);
 
     // ── TFSA Profit-Taking Override ──────────────────────────────────────────
     // Fires before role-based action when ALL conditions are met:
@@ -326,7 +326,8 @@ export class DecisionEngineService {
     if (rsi < 35 && rsiAvail && rsi >= sig) return 'Oversold Reversal Watch';
     if (ema10 > 0 && ema20 > 0 && sma50 > 0 && ema10 > ema20 && close > sma50 && rsi > 70)
       return 'Constructive Extended';
-    const isQualityRole = role === 'Core' || role === 'Strategic';
+    // Quality Trend Entry: Core / Strategic / Swing in RSI 50–65 with healthy trend
+    const isQualityRole = role === 'Core' || role === 'Strategic' || role === 'Swing';
     if (
       isQualityRole &&
       ema10 > 0 &&
@@ -388,7 +389,10 @@ export class DecisionEngineService {
       sig = ctx.sig,
       close = r.currentPrice;
     const ema9 = r.ema9Price ?? 0,
-      sma20 = r.sma20Price ?? 0;
+      ema10 = r.ema10Price ?? 0,
+      ema20 = r.ema20Price ?? 0,
+      sma20 = r.sma20Price ?? 0,
+      sma50 = r.sma50Price ?? 0;
     const {
       topHalfClose,
       bottomHalfClose,
@@ -427,12 +431,20 @@ export class DecisionEngineService {
     // 6. Breakdown
     if (ema9 > 0 && close < ema9 && rsi < 40) return 'Breakdown';
 
-    // 7. Consolidation / Dip-Buy
+    // 7. Consolidation / Dip-Buy — full spec rule
+    //    Close > SMA50, EMA10 > EMA20, RSI 40–55, |Close – SMA20|/SMA20 ≤ 1%,
+    //    CloseLocation ≥ 0.50, VolumeRatio20 ≥ 1.2
     if (
+      sma50 > 0 &&
+      close > sma50 &&
+      ema10 > 0 &&
+      ema20 > 0 &&
+      ema10 > ema20 &&
+      rsi >= 40 &&
+      rsi <= 55 &&
       sma20 > 0 &&
       Math.abs(close - sma20) / sma20 <= 0.01 &&
-      rsi >= 40 &&
-      rsi <= 50 &&
+      topHalfClose &&
       vol >= 1.2
     )
       return 'Consolidation / Dip-Buy';
@@ -506,17 +518,36 @@ export class DecisionEngineService {
     return overbought ? 'Watch / No Chase' : action;
   }
 
-  private watchlistFinalAction(dec: DecisionResult, role: InvestmentRole): string {
+  private watchlistFinalAction(
+    dec: DecisionResult,
+    role: InvestmentRole,
+    r?: RsiScanResult,
+  ): string {
     const { trendSetup: ts, momentumShift: ms, baseAction: ba } = dec;
-    if (ba === 'Hold Longs') return this.translateHoldLongsForWatchlist(role, ts);
+
+    // ── Priority 1: Hard risk rules ──────────────────────────────────────────
+    if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Avoid / Wait';
+    if ((ts === 'Technical Caution' || ms === 'Breakdown') && ms !== 'Active Buy Trigger')
+      return role === 'Swing' ? 'Avoid / Wait' : 'Wait / Technical Caution';
+    if (ms === 'Active Sell Trigger')
+      return role === 'Swing' || role === 'Options' || role === 'Speculative'
+        ? 'Avoid / Short Watch'
+        : 'Avoid New Buy / Review';
+
+    // ── Priority 2: Extension / no-chase rules ───────────────────────────────
+    if (ms === 'Warning — Overbought Run') return this.translateWatchDoNotChase(role, ms);
+    if (ts === 'Constructive Extended') return this.translateWatchDoNotChase(role, ms);
+
+    if (ba === 'Hold Longs') return this.translateHoldLongsForWatchlist(role, ts, ms, r);
     if (ba === 'Watch / Do Not Chase') return this.translateWatchDoNotChase(role, ms);
+
     switch (role) {
       case 'Core':
-        return this.coreWatchlistAction(ts, ms, ba);
+        return this.coreWatchlistAction(ts, ms, ba, r);
       case 'Strategic':
-        return this.strategicWatchlistAction(ts, ms, ba);
+        return this.strategicWatchlistAction(ts, ms, ba, r);
       case 'Swing':
-        return this.swingWatchlistAction(ts, ms, ba);
+        return this.swingWatchlistAction(ts, ms, ba, r);
       case 'Options':
         return this.optionsWatchlistAction(ts, ms, ba);
       case 'Speculative':
@@ -526,12 +557,27 @@ export class DecisionEngineService {
     }
   }
 
-  private translateHoldLongsForWatchlist(role: InvestmentRole, ts: TrendSetup): string {
+  private translateHoldLongsForWatchlist(
+    role: InvestmentRole,
+    ts: TrendSetup,
+    ms: MomentumShift,
+    r?: RsiScanResult,
+  ): string {
+    const rsi = r?.rsi ?? 0;
     switch (role) {
       case 'Core':
       case 'Strategic':
+        if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+          if (rsi >= 50 && rsi <= 64.99) return 'Accumulate Starter';
+          if (rsi >= 65 && rsi < 70) return 'Hold / No Chase / Profit Watch';
+          if (rsi >= 70) return 'No Chase / Extended / Profit Watch';
+        }
         return ts === 'Quality Trend Entry' ? 'Accumulate Starter' : 'Watch / Starter OK';
       case 'Swing':
+        if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+          if (rsi >= 65) return 'No Chase / Profit Watch';
+          if (rsi > 60) return 'Watch / Starter Only';
+        }
         return 'Watch / No Chase';
       case 'Options':
         return 'Call Watch / Entry OK';
@@ -558,47 +604,89 @@ export class DecisionEngineService {
     }
   }
 
-  private coreWatchlistAction(ts: TrendSetup, ms: MomentumShift, ba: BaseAction): string {
-    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') return 'Accumulate Starter';
+  private coreWatchlistAction(
+    ts: TrendSetup,
+    ms: MomentumShift,
+    ba: BaseAction,
+    r?: RsiScanResult,
+  ): string {
+    const rsi = r?.rsi ?? 0;
+    // Quality Trend Entry + Uptrend: RSI-gated accumulation
+    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+      if (rsi >= 50 && rsi <= 64.99) return 'Accumulate Starter';
+      if (rsi >= 65 && rsi < 70) return 'Hold / No Chase / Profit Watch';
+      if (rsi >= 70) return 'No Chase / Extended / Profit Watch';
+    }
+    // Consolidation / Dip-Buy
+    if (ms === 'Consolidation / Dip-Buy') return 'Accumulate on Pullback';
     if (ts === 'Confirmed Constructive' && ms === 'Uptrend') return 'Watch / Starter OK';
     if (ms === 'Active Buy Trigger') return 'Buy Candidate';
     if (ms === 'Bullish Shift') return 'Core Add Watch';
-    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Watch / Do Not Chase';
     if (ts === 'Cooling') return 'Watch / No New Buy';
-    if (ts === 'Technical Caution' || ms === 'Breakdown') return 'Wait / Review';
-    if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Avoid / Wait';
-    if (ms === 'Active Sell Trigger') return 'Avoid New Buy / Review';
     return ba;
   }
 
-  private strategicWatchlistAction(ts: TrendSetup, ms: MomentumShift, ba: BaseAction): string {
-    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') return 'Accumulate Starter';
+  private strategicWatchlistAction(
+    ts: TrendSetup,
+    ms: MomentumShift,
+    ba: BaseAction,
+    r?: RsiScanResult,
+  ): string {
+    const rsi = r?.rsi ?? 0;
+    // Quality Trend Entry + Uptrend: RSI-gated accumulation
+    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+      if (rsi >= 50 && rsi <= 64.99) return 'Accumulate Starter';
+      if (rsi >= 65 && rsi < 70) return 'Hold / No Chase / Profit Watch';
+      if (rsi >= 70) return 'No Chase / Extended / Profit Watch';
+    }
+    // Consolidation / Dip-Buy
+    if (ms === 'Consolidation / Dip-Buy') return 'Accumulate on Pullback';
     if (ts === 'Confirmed Constructive' && ms === 'Uptrend') return 'Watch / Starter OK';
     if (ms === 'Active Buy Trigger') return 'Buy Candidate / Staged Entry';
-    if (ms === 'Consolidation / Dip-Buy') return 'Accumulate on Pullback';
     if (ms === 'Bullish Shift') return 'Early Buy Watch';
-    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Watch / Do Not Chase';
     if (ts === 'Cooling') return 'Watch / No Entry';
-    if (ts === 'Technical Caution' || ms === 'Breakdown') return 'Wait / Technical Caution';
-    if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Avoid / Wait';
-    if (ms === 'Active Sell Trigger') return 'Avoid New Buy / Review';
     return ba;
   }
 
-  private swingWatchlistAction(ts: TrendSetup, ms: MomentumShift, ba: BaseAction): string {
+  private swingWatchlistAction(
+    ts: TrendSetup,
+    ms: MomentumShift,
+    ba: BaseAction,
+    r?: RsiScanResult,
+  ): string {
+    const rsi = r?.rsi ?? 0;
+    const close = r?.currentPrice ?? 0;
+    const sma50 = r?.sma50Price ?? 0;
+    const ema10 = r?.ema10Price ?? 0;
+    const ema20 = r?.ema20Price ?? 0;
+    const ctx = r ? this.buildContext(r) : null;
+    const closeLocation = ctx?.normalizedClose ?? 0;
+
+    // Priority: Consolidation / Dip-Buy for Swing (best entry setup)
+    if (
+      ms === 'Consolidation / Dip-Buy' &&
+      (ts === 'Quality Trend Entry' || ts === 'Confirmed Constructive') &&
+      rsi >= 40 &&
+      rsi <= 55 &&
+      sma50 > 0 &&
+      close > sma50 &&
+      ema10 > ema20 &&
+      closeLocation >= 0.5
+    )
+      return 'Buy Pullback Trade / Starter Only';
+
+    // Quality Trend Entry + Uptrend: stricter RSI gates for Swing
+    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+      if (rsi >= 50 && rsi <= 60 && closeLocation >= 0.5) return 'Buy Trade / Starter Only';
+      if (rsi > 60 && rsi < 65) return 'Watch / Starter Only';
+      if (rsi >= 65) return 'No Chase / Profit Watch';
+    }
+
     if (ms === 'Active Buy Trigger') return 'Buy Trade / Starter Only';
     if (ms === 'Bullish Shift') return 'Starter Buy Watch';
-    if (ms === 'Consolidation / Dip-Buy') return 'Buy Pullback Trade';
-    if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend')
-      return 'Watch / No Chase';
-    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'No Chase / Extended Risk';
+    if (ms === 'Consolidation / Dip-Buy') return 'Buy Pullback Trade / Starter Only';
     if (ts === 'Cooling') return 'No Entry / Wait';
     if (ms === 'Breakdown') return 'Avoid / Wait';
-    if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Avoid / Wait';
-    if (ms === 'Active Sell Trigger') return 'Avoid / Short Watch';
     return ba;
   }
 
@@ -631,16 +719,17 @@ export class DecisionEngineService {
     dec: DecisionResult,
     role: InvestmentRole,
     isOwned: boolean,
+    r?: RsiScanResult,
   ): string {
-    if (!isOwned) return this.watchlistFinalAction(dec, role);
+    if (!isOwned) return this.watchlistFinalAction(dec, role, r);
     const { trendSetup: ts, momentumShift: ms, baseAction: ba } = dec;
     switch (role) {
       case 'Core':
-        return this.corePortfolioAction(ts, ms);
+        return this.corePortfolioAction(ts, ms, r);
       case 'Strategic':
-        return this.strategicPortfolioAction(ts, ms);
+        return this.strategicPortfolioAction(ts, ms, r);
       case 'Swing':
-        return this.swingPortfolioAction(ts, ms);
+        return this.swingPortfolioAction(ts, ms, r);
       case 'Options':
         return this.optionsPortfolioAction(ts, ms);
       case 'Speculative':
@@ -650,13 +739,17 @@ export class DecisionEngineService {
     }
   }
 
-  private corePortfolioAction(ts: TrendSetup, ms: MomentumShift): string {
-    if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend')
-      return 'Hold / Add If Underweight';
+  private corePortfolioAction(ts: TrendSetup, ms: MomentumShift, r?: RsiScanResult): string {
+    const rsi = r?.rsi ?? 0;
+    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+      if (rsi >= 50 && rsi <= 64.99) return 'Hold / Add If Underweight';
+      if (rsi >= 65 && rsi < 70) return 'Hold / No Chase / Profit Watch';
+      if (rsi >= 70) return 'No Chase / Extended / Profit Watch';
+    }
+    if (ts === 'Confirmed Constructive' && ms === 'Uptrend') return 'Hold / Add If Underweight';
+    if (ms === 'Consolidation / Dip-Buy') return 'Hold / Add on Pullback';
     if (ms === 'Active Buy Trigger') return 'Add to Position';
     if (ms === 'Bullish Shift') return 'Hold / Watch for Add';
-    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Hold / Do Not Chase';
     if (ts === 'Cooling') return 'Hold / No New Buy';
     if (ts === 'Technical Caution' || ms === 'Breakdown' || ms === 'Active Sell Trigger')
       return 'Hold / Review';
@@ -665,14 +758,17 @@ export class DecisionEngineService {
     return 'Hold';
   }
 
-  private strategicPortfolioAction(ts: TrendSetup, ms: MomentumShift): string {
-    if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend')
-      return 'Hold / No Chase';
+  private strategicPortfolioAction(ts: TrendSetup, ms: MomentumShift, r?: RsiScanResult): string {
+    const rsi = r?.rsi ?? 0;
+    if (ts === 'Quality Trend Entry' && ms === 'Uptrend') {
+      if (rsi >= 50 && rsi <= 64.99) return 'Hold / No Chase';
+      if (rsi >= 65 && rsi < 70) return 'Hold / No Chase / Profit Watch';
+      if (rsi >= 70) return 'No Chase / Extended / Profit Watch';
+    }
+    if (ts === 'Confirmed Constructive' && ms === 'Uptrend') return 'Hold / No Chase';
     if (ms === 'Active Buy Trigger') return 'Add / Staged Entry';
     if (ms === 'Consolidation / Dip-Buy') return 'Add on Pullback';
     if (ms === 'Bullish Shift') return 'Hold / Watch for Add';
-    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Hold / Do Not Chase';
     if (ts === 'Cooling') return 'Hold / No Add';
     if (ts === 'Technical Caution' || ms === 'Breakdown') return 'Hold / Technical Caution';
     if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Hold / Risk Review';
@@ -681,13 +777,18 @@ export class DecisionEngineService {
     return 'Hold';
   }
 
-  private swingPortfolioAction(ts: TrendSetup, ms: MomentumShift): string {
+  private swingPortfolioAction(ts: TrendSetup, ms: MomentumShift, r?: RsiScanResult): string {
+    const rsi = r?.rsi ?? 0;
     if (ms === 'Active Buy Trigger') return 'Add to Trade';
     if (ms === 'Active Sell Trigger') return 'Exit / Take Profit';
     if (ms === 'Bullish Shift') return 'Hold Swing / Watch';
     if (ms === 'Bearish Shift') return 'Trim / Exit Watch';
-    if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend')
+    if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend') {
+      if (rsi >= 65) return 'No Chase / Profit Watch';
+      if (rsi > 60) return 'Hold / Trail Stop';
       return 'Hold / Trail Stop';
+    }
+    if (ms === 'Consolidation / Dip-Buy') return 'Hold / Trail Stop';
     if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
       return 'Trail Stop / Trim';
     if (ts === 'Cooling' || ms === 'Breakdown') return 'Exit / Cut Loss';
