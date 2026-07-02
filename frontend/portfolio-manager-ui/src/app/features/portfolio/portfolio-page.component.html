@@ -499,6 +499,41 @@
                       }
                     </td>
                   </ng-container>
+
+                  <!-- % of Total Portfolio -->
+                  <ng-container matColumnDef="portfolioPct">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      class="pg-num-header"
+                      matTooltip="Position as % of total portfolio value"
+                    >
+                      % TOTAL
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-num pg-pct-total">
+                      @if (isAggRow(0, row)) {
+                        @let aggPct =
+                          portfolio.totalValue() > 0
+                            ? (asAgg(row).totalMarketValue / portfolio.totalValue()) * 100
+                            : 0;
+                        <strong>{{ aggPct | number: '1.1-1' }}%</strong>
+                      } @else {
+                        @let priceP =
+                          asItem(row).quote?.currentPrice ?? asItem(row).item.averageCostBasis;
+                        @let mvP =
+                          asItem(row).item.isManual
+                            ? (asItem(row).item.manualMarketValue ??
+                              asItem(row).item.averageCostBasis)
+                            : priceP * asItem(row).item.shares;
+                        @let pctP =
+                          portfolio.totalValue() > 0 ? (mvP / portfolio.totalValue()) * 100 : 0;
+                        <span class="pg-pct-pill" [class.pg-pct-large]="pctP >= 5">
+                          {{ pctP | number: '1.1-1' }}%
+                        </span>
+                      }
+                    </td>
+                  </ng-container>
+
                   <ng-container matColumnDef="gainLoss">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       GAIN/LOSS

@@ -138,8 +138,8 @@ export class AllocationPageComponent {
       .sort((a, b) => b.totalValue - a.totalValue);
   });
 
-  protected readonly cashExpanded = signal(true);
-  protected readonly optionsExpanded = signal(true);
+  protected readonly cashExpanded = signal(false);
+  protected readonly optionsExpanded = signal(false);
   protected readonly expandedOptionTickers = signal<Set<string>>(new Set());
 
   toggleOptionTicker(ticker: string): void {

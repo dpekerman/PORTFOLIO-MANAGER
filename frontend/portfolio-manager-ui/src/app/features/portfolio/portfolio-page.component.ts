@@ -196,6 +196,7 @@ export class PortfolioPageComponent {
     'changePct',
     'dayGain',
     'marketValue',
+    'portfolioPct',
     'gainLoss',
     'gainLossPct',
     'rsi',

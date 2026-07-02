@@ -206,6 +206,58 @@ export class WatchlistPageComponent {
     return { change: r.change ?? null, changePct: r.changePercent ?? null };
   }
 
+  /**
+   * Computes BUY Score (0–5) for a symbol from the RSI scan result.
+   * Each of 5 checks contributes 1 point:
+   *  1. Close > EMA9
+   *  2. RSI14 > RSI9EMA (only when signal available)
+   *  3. MACD Histogram Improving (macdHistDelta > 0)
+   *  4. CloseLocation >= 0.50
+   *  5. VolumeRatio20 >= 1.0
+   */
+  protected buyScoreForSymbol(symbol: string): {
+    score: number;
+    tooltip: string;
+    available: boolean;
+  } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+
+    const close = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const rsi = r.rsi;
+    const rsiSig = r.rsiSignal ?? rsi;
+    const rsiSigAvail = r.rsiSignalAvailable;
+    const macdImproving = r.macdHistDelta > 0;
+
+    // CloseLocation: where close sits in today's high-low range
+    const dayH = r.dayHigh > 0 ? r.dayHigh : close;
+    const dayL = r.dayLow > 0 ? r.dayLow : close;
+    const range = dayH - dayL;
+    const closeLocation = range > 0 ? (close - dayL) / range : 0.5;
+
+    const vol = r.volumeRatio ?? 0;
+
+    const c1 = ema9 > 0 && close > ema9;
+    const c2 = rsiSigAvail ? rsi > rsiSig : false;
+    const c3 = macdImproving;
+    const c4 = closeLocation >= 0.5;
+    const c5 = vol >= 1.0;
+
+    const score = [c1, c2, c3, c4, c5].filter(Boolean).length;
+
+    const ck = (v: boolean) => (v ? '✅' : '❌');
+    const tooltip = [
+      `${ck(c1)} Close > EMA9`,
+      `${ck(c2)} RSI14 > RSI9EMA${rsiSigAvail ? '' : ' (unavailable)'}`,
+      `${ck(c3)} MACD Histogram Improving`,
+      `${ck(c4)} CloseLocation >= 0.50`,
+      `${ck(c5)} VolumeRatio20 >= 1.0`,
+    ].join('\n');
+
+    return { score, tooltip, available: true };
+  }
+
   protected readonly displayedColumns: string[] = [
     'symbol',
     'company',
@@ -218,6 +270,7 @@ export class WatchlistPageComponent {
     'rsi',
     'trendSetup',
     'momentumShift',
+    'buyScore',
     'finalAction',
     'actions',
   ];

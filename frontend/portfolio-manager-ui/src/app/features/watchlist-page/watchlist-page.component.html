@@ -403,6 +403,39 @@
               </td>
             </ng-container>
 
+            <!-- BUY Score -->
+            <ng-container matColumnDef="buyScore">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="BUY Score 0–5: checks Close>EMA9, RSI14>RSI9EMA, MACD improving, CloseLocation≥0.5, Volume≥1.0x"
+                class="wl-buy-score-header"
+              >
+                BUY SCORE
+              </th>
+              <td mat-cell *matCellDef="let w" class="wl-buy-score-cell">
+                @if (buyScoreForSymbol(w.item.symbol); as bs) {
+                  <div
+                    class="buy-score-badge"
+                    [class.bs-5]="bs.score === 5"
+                    [class.bs-4]="bs.score === 4"
+                    [class.bs-3]="bs.score === 3"
+                    [class.bs-2]="bs.score === 2"
+                    [class.bs-1]="bs.score === 1"
+                    [class.bs-0]="bs.score === 0"
+                    [matTooltip]="bs.tooltip"
+                    matTooltipClass="buy-score-tooltip"
+                  >
+                    {{ bs.score }}/5
+                  </div>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- Final Action -->
             <ng-container matColumnDef="finalAction">
               <th
