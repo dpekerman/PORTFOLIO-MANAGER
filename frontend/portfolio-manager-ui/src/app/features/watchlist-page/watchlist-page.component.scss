@@ -646,3 +646,49 @@ button[mat-icon-button] {
 .role-options {
   color: #ab47bc;
 }
+
+// ── 52-Week Range column ──────────────────────────────────────────────────────
+.week52-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.week52-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  .week52-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 10px;
+  }
+
+  .week52-price {
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-secondary);
+    min-width: 64px;
+  }
+
+  .week52-pct {
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+
+    &.up {
+      color: #00c853;
+    }
+    &.down {
+      color: #ff5252;
+    }
+  }
+}
+
+// ── Defer placeholder ─────────────────────────────────────────────────────────
+.wl-table-placeholder {
+  padding: 16px 24px;
+}

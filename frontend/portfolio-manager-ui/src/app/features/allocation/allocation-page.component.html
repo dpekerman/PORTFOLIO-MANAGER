@@ -11,6 +11,29 @@
     <div class="page-actions">
       <button
         mat-icon-button
+        matTooltip="Backup allocation data (Cash + Options) to JSON"
+        (click)="backupAllocationData()"
+        aria-label="Backup allocation data"
+      >
+        <mat-icon>cloud_download</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="Restore allocation data (Cash + Options) from JSON backup"
+        (click)="restoreFileInput.click()"
+        aria-label="Restore allocation data"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+      </button>
+      <input
+        #restoreFileInput
+        type="file"
+        accept=".json"
+        hidden
+        (change)="onRestoreFileSelected($event)"
+      />
+      <button
+        mat-icon-button
         matTooltip="Export allocation to CSV (opens in Excel)"
         (click)="exportCsv()"
         [disabled]="portfolio.summaries().length === 0"
@@ -108,7 +131,14 @@
         <mat-icon class="breakdown-icon">pie_chart</mat-icon>
         <h2 class="breakdown-title">Sector &amp; Industry Breakdown</h2>
       </div>
-      <app-sector-exposition />
+      @defer (on viewport) {
+        <app-sector-exposition />
+      } @placeholder {
+        <div class="sector-placeholder">
+          <mat-icon class="sector-placeholder-icon">pie_chart</mat-icon>
+          <span>Loading sector breakdown…</span>
+        </div>
+      }
     </section>
 
     <!-- ── Cash Section ─────────────────────────────────────────────────────── -->
@@ -129,7 +159,7 @@
               <div class="alloc-bar-track">
                 <div class="alloc-bar-fill alloc-bar-cash" [style.width.%]="cashPct() * 100"></div>
               </div>
-              <span class="alloc-col-pct-val">{{ cashPct() | number: '1.1-1' }}%</span>
+              <span class="alloc-col-pct-val">{{ cashPct() * 100 | number: '1.1-1' }}%</span>
               <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
                 ${{ cashState.totalCash() / 1000 | number: '1.0-0' }}k
               </span>
@@ -192,7 +222,7 @@
                   [style.width.%]="optionsPct() * 100"
                 ></div>
               </div>
-              <span class="alloc-col-pct-val">{{ optionsPct() | number: '1.1-1' }}%</span>
+              <span class="alloc-col-pct-val">{{ optionsPct() * 100 | number: '1.1-1' }}%</span>
               <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
                 ${{ optionsTotalValue() / 1000 | number: '1.0-0' }}k
               </span>

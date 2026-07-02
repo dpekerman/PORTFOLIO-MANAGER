@@ -1,9 +1,8 @@
-import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DemoModeService } from '../../core/services/demo-mode.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 
 @Component({
@@ -11,11 +10,10 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
   templateUrl: './market-header.component.html',
   styleUrl: './market-header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIconModule, MatTooltipModule, DecimalPipe, CurrencyPipe, NgClass],
+  imports: [MatIconModule, MatTooltipModule, NgClass],
 })
 export class MarketHeaderComponent {
   protected readonly scanner = inject(ScannerStateService);
-  protected readonly portfolio = inject(PortfolioStateService);
   protected readonly demoMode = inject(DemoModeService);
 
   protected readonly signalBias = computed(() => {
@@ -33,6 +31,4 @@ export class MarketHeaderComponent {
     if (b === 'OVERBOUGHT BIAS') return 'bias-overbought';
     return 'bias-neutral';
   });
-
-  protected readonly isPortfolioPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
 }

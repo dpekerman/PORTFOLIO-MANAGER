@@ -146,3 +146,56 @@ public record OptionTechnicalDataDto(
     decimal BollingerUpper,
     decimal BollingerLower);
 
+// ── Backup / Restore ───────────────────────────────────────────────────────────
+
+/// <summary>Single watchlist item in a backup export.</summary>
+public record WatchlistBackupItem(string Symbol, string Notes, string Role, DateTime AddedAt);
+/// <summary>Restore request: clears existing watchlist and inserts all provided items.</summary>
+public record RestoreWatchlistRequest(List<WatchlistBackupItem> Items);
+
+/// <summary>Single cash item in a backup export.</summary>
+public record CashBackupItem(string Description, decimal Amount, DateTime AddedAt);
+/// <summary>Restore request: clears existing cash items and inserts all provided items.</summary>
+public record RestoreCashRequest(List<CashBackupItem> Items);
+
+/// <summary>Single option item in a backup export.</summary>
+public record OptionBackupItem(
+    string UnderlyingTicker,
+    string PositionType,
+    DateTime ExpirationDate,
+    decimal Strike,
+    decimal Premium,
+    int NumberOfContracts,
+    decimal MarketPrice,
+    string? TransactionType,
+    string? AccountType,
+    DateTime? OpenDate,
+    DateTime? CloseDate,
+    decimal? ClosingPrice,
+    string? Notes,
+    DateTime AddedAt);
+/// <summary>Restore request: clears existing options and inserts all provided items.</summary>
+public record RestoreOptionsRequest(List<OptionBackupItem> Items);
+
+/// <summary>Single portfolio item in a backup export.</summary>
+public record PortfolioBackupItem(
+    string Symbol,
+    string CompanyName,
+    decimal Shares,
+    decimal AverageCostBasis,
+    string Sector,
+    string Industry,
+    bool SectorIsOverridden,
+    bool IsManual,
+    decimal? ManualMarketValue,
+    string? TransactionType,
+    string? AccountType,
+    DateTime? OpenDate,
+    DateTime? CloseDate,
+    decimal? ClosingPrice,
+    string? HoldingRole,
+    string? Notes,
+    DateTime AddedAt);
+/// <summary>Restore request: clears existing portfolio items and inserts all provided items.</summary>
+public record RestorePortfolioRequest(List<PortfolioBackupItem> Items);
+

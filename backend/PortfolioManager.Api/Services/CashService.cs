@@ -11,6 +11,8 @@ public interface ICashService
     Task<CashItemDto> AddAsync(AddCashItemRequest request, CancellationToken ct = default);
     Task<CashItemDto?> UpdateAsync(int id, UpdateCashItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<IReadOnlyList<CashBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<CashBackupItem> items, CancellationToken ct = default);
 }
 
 public sealed class CashService(AppDbContext db) : ICashService
@@ -64,4 +66,27 @@ public sealed class CashService(AppDbContext db) : ICashService
 
     private static CashItemDto ToDto(CashItem item) =>
         new(item.Id, item.Description, item.Amount, item.AddedAt);
+
+    public async Task<IReadOnlyList<CashBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.CashItems.AsNoTracking().OrderBy(x => x.AddedAt).ToListAsync(ct);
+        return items.Select(x => new CashBackupItem(x.Description, x.Amount, x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<CashBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.CashItems.ToListAsync(ct);
+        db.CashItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new CashItem
+        {
+            Description = string.IsNullOrWhiteSpace(i.Description) ? "CASH" : i.Description,
+            Amount      = i.Amount,
+            AddedAt     = i.AddedAt
+        }).ToList();
+
+        db.CashItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
 }

@@ -49,4 +49,20 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
         var updated = await watchlistService.UpdateRoleAsync(id, request.Role, ct);
         return updated ? NoContent() : NotFound();
     }
+
+    /// <summary>Exports all watchlist items as a JSON backup payload.</summary>
+    [HttpGet("backup")]
+    public async Task<ActionResult<IReadOnlyList<WatchlistBackupItem>>> Backup(CancellationToken ct)
+    {
+        var items = await watchlistService.BackupAsync(ct);
+        return Ok(items);
+    }
+
+    /// <summary>Clears the watchlist and restores from the provided backup payload.</summary>
+    [HttpPost("restore")]
+    public async Task<IActionResult> Restore([FromBody] RestoreWatchlistRequest request, CancellationToken ct)
+    {
+        var count = await watchlistService.RestoreAsync(request.Items, ct);
+        return Ok(new { restored = count });
+    }
 }

@@ -42,6 +42,29 @@
         </button>
         <button
           mat-icon-button
+          matTooltip="Backup portfolio data to JSON"
+          (click)="backupPortfolioData()"
+          aria-label="Backup portfolio"
+        >
+          <mat-icon>cloud_download</mat-icon>
+        </button>
+        <button
+          mat-icon-button
+          matTooltip="Restore portfolio data from JSON backup"
+          (click)="portfolioRestoreInput.click()"
+          aria-label="Restore portfolio"
+        >
+          <mat-icon>cloud_upload</mat-icon>
+        </button>
+        <input
+          #portfolioRestoreInput
+          type="file"
+          accept=".json"
+          hidden
+          (change)="onPortfolioRestoreFileSelected($event)"
+        />
+        <button
+          mat-icon-button
           matTooltip="Export to CSV (opens in Excel)"
           (click)="exportCsv()"
           [disabled]="portfolio.summaries().length === 0"

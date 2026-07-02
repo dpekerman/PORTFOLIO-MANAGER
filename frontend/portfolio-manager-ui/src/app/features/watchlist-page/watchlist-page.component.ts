@@ -213,6 +213,7 @@ export class WatchlistPageComponent {
     'price',
     'change',
     'analystTarget',
+    'week52',
     'sector',
     'rsi',
     'trendSetup',
@@ -457,5 +458,59 @@ export class WatchlistPageComponent {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Watchlist');
     XLSX.writeFile(wb, `watchlist-${today}.xlsx`);
+  }
+
+  backupWatchlist(): void {
+    this.api.backupWatchlist().subscribe({
+      next: (items) => {
+        const backup = {
+          exportedAt: new Date().toISOString(),
+          type: 'watchlist',
+          items,
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], {
+          type: 'application/json;charset=utf-8;',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `watchlist-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => console.error('[Watchlist] Backup failed'),
+    });
+  }
+
+  onRestoreFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const backup = JSON.parse(e.target?.result as string);
+        if (backup.type !== 'watchlist') {
+          console.error('[Watchlist] Invalid backup type:', backup.type);
+          return;
+        }
+        const confirmed = window.confirm(
+          `This will REPLACE all ${this.watchlist.count()} watchlist items with the backup from ${backup.exportedAt?.slice(0, 10) ?? 'unknown date'} (${backup.items?.length ?? 0} items). Continue?`,
+        );
+        if (!confirmed) return;
+
+        this.api.restoreWatchlist({ items: backup.items ?? [] }).subscribe({
+          next: () => {
+            this.watchlist.refresh();
+          },
+          error: () => console.error('[Watchlist] Restore failed'),
+        });
+      } catch {
+        console.error('[Watchlist] Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
   }
 }

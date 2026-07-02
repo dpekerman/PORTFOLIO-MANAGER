@@ -1030,4 +1030,56 @@ export class PortfolioPageComponent {
   refresh(): void {
     this.portfolio.refresh();
   }
+
+  backupPortfolioData(): void {
+    this.api.backupPortfolio().subscribe({
+      next: (items) => {
+        const backup = {
+          exportedAt: new Date().toISOString(),
+          type: 'portfolio',
+          items,
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], {
+          type: 'application/json;charset=utf-8;',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `portfolio-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => console.error('[Portfolio] Backup failed'),
+    });
+  }
+
+  onPortfolioRestoreFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const backup = JSON.parse(e.target?.result as string);
+        if (backup.type !== 'portfolio') {
+          console.error('[Portfolio] Invalid backup type:', backup.type);
+          return;
+        }
+        const confirmed = window.confirm(
+          `This will REPLACE all ${this.portfolio.summaries().length} portfolio items with the backup from ${backup.exportedAt?.slice(0, 10) ?? 'unknown date'} (${backup.items?.length ?? 0} items). Continue?`,
+        );
+        if (!confirmed) return;
+
+        this.api.restorePortfolio({ items: backup.items ?? [] }).subscribe({
+          next: () => this.portfolio.refresh(),
+          error: () => console.error('[Portfolio] Restore failed'),
+        });
+      } catch {
+        console.error('[Portfolio] Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
+  }
 }

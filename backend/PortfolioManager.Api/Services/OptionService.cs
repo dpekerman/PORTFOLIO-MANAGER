@@ -14,6 +14,8 @@ public interface IOptionService
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
     Task<OptionTechnicalDataDto?> GetTechnicalDataAsync(string symbol, CancellationToken ct = default);
+    Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<OptionBackupItem> items, CancellationToken ct = default);
 }
 
 public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<OptionService> logger) : IOptionService
@@ -267,4 +269,42 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
             item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
             item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice,
             item.Notes);
+
+    public async Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.OptionItems.AsNoTracking().OrderBy(x => x.AddedAt).ToListAsync(ct);
+        return items.Select(x => new OptionBackupItem(
+            x.UnderlyingTicker, x.PositionType, x.ExpirationDate,
+            x.Strike, x.Premium, x.NumberOfContracts, x.MarketPrice,
+            x.TransactionType, x.AccountType, x.OpenDate, x.CloseDate, x.ClosingPrice,
+            x.Notes, x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<OptionBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.OptionItems.ToListAsync(ct);
+        db.OptionItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new OptionItem
+        {
+            UnderlyingTicker  = i.UnderlyingTicker.ToUpperInvariant(),
+            PositionType      = i.PositionType.ToUpperInvariant(),
+            ExpirationDate    = i.ExpirationDate,
+            Strike            = i.Strike,
+            Premium           = i.Premium,
+            NumberOfContracts = i.NumberOfContracts,
+            MarketPrice       = i.MarketPrice,
+            TransactionType   = i.TransactionType,
+            AccountType       = i.AccountType,
+            OpenDate          = i.OpenDate,
+            CloseDate         = i.CloseDate,
+            ClosingPrice      = i.ClosingPrice,
+            Notes             = i.Notes,
+            AddedAt           = i.AddedAt
+        }).ToList();
+
+        db.OptionItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
 }

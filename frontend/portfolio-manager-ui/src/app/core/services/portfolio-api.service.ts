@@ -312,4 +312,38 @@ export class PortfolioApiService {
       {},
     );
   }
+
+  // ── Backup / Restore ────────────────────────────────────────────────────────
+
+  backupWatchlist(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/watchlist/backup`);
+  }
+
+  restoreWatchlist(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/watchlist/restore`, request);
+  }
+
+  backupCash(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/cash/backup`);
+  }
+
+  restoreCash(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/cash/restore`, request);
+  }
+
+  backupOptions(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/options/backup`);
+  }
+
+  restoreOptions(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/options/restore`, request);
+  }
+
+  backupPortfolio(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/portfolio/backup`);
+  }
+
+  restorePortfolio(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/portfolio/restore`, request);
+  }
 }

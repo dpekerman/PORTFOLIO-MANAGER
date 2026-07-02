@@ -3,12 +3,14 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
@@ -43,6 +45,8 @@ export class AllocationPageComponent {
   protected readonly demoMode = inject(DemoModeService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
+  private readonly api = inject(PortfolioApiService);
+  private readonly snackBar = inject(MatSnackBar);
 
   protected readonly isPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
   protected readonly returnPct = computed(() => this.portfolio.displayTotalGainLossPct() / 100);
@@ -199,5 +203,79 @@ export class AllocationPageComponent {
     a.download = 'allocation.csv';
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  backupAllocationData(): void {
+    this.api.backupCash().subscribe({
+      next: (cashItems) => {
+        this.api.backupOptions().subscribe({
+          next: (optionItems) => {
+            const backup = {
+              exportedAt: new Date().toISOString(),
+              type: 'allocation',
+              cash: cashItems,
+              options: optionItems,
+            };
+            const blob = new Blob([JSON.stringify(backup, null, 2)], {
+              type: 'application/json;charset=utf-8;',
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `allocation-backup-${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            this.snackBar.open('Allocation backup downloaded', 'Dismiss', { duration: 3000 });
+          },
+        });
+      },
+    });
+  }
+
+  onRestoreFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const backup = JSON.parse(e.target?.result as string);
+        if (backup.type !== 'allocation') {
+          this.snackBar.open('Invalid backup file: expected allocation backup', 'Dismiss', {
+            duration: 4000,
+          });
+          return;
+        }
+        const confirmed = window.confirm(
+          `This will REPLACE all current cash (${this.cashState.items().length} items) and options data with the backup from ${backup.exportedAt?.slice(0, 10) ?? 'unknown date'}. Continue?`,
+        );
+        if (!confirmed) return;
+
+        this.api.restoreCash({ items: backup.cash ?? [] }).subscribe({
+          next: () => {
+            this.cashState.refresh();
+            this.api.restoreOptions({ items: backup.options ?? [] }).subscribe({
+              next: () => {
+                this.optionState.refresh();
+                this.snackBar.open('Allocation data restored successfully', 'Dismiss', {
+                  duration: 4000,
+                });
+              },
+              error: () =>
+                this.snackBar.open('Failed to restore options data', 'Dismiss', {
+                  duration: 4000,
+                }),
+            });
+          },
+          error: () =>
+            this.snackBar.open('Failed to restore cash data', 'Dismiss', { duration: 4000 }),
+        });
+      } catch {
+        this.snackBar.open('Invalid JSON backup file', 'Dismiss', { duration: 4000 });
+      }
+    };
+    reader.readAsText(file);
   }
 }

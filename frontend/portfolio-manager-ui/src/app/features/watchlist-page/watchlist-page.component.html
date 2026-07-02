@@ -40,6 +40,29 @@
       </button>
       <button
         mat-icon-button
+        matTooltip="Backup watchlist to JSON file"
+        (click)="backupWatchlist()"
+        aria-label="Backup watchlist"
+      >
+        <mat-icon>cloud_download</mat-icon>
+      </button>
+      <button
+        mat-icon-button
+        matTooltip="Restore watchlist from JSON backup"
+        (click)="restoreInput.click()"
+        aria-label="Restore watchlist"
+      >
+        <mat-icon>cloud_upload</mat-icon>
+      </button>
+      <input
+        #restoreInput
+        type="file"
+        accept=".json"
+        hidden
+        (change)="onRestoreFileSelected($event)"
+      />
+      <button
+        mat-icon-button
         matTooltip="Export to Excel"
         (click)="exportToExcel()"
         aria-label="Export watchlist to Excel"
@@ -133,268 +156,313 @@
       }
 
       <!-- ── Sortable Grid Table ──────────────────────────────────────── -->
-      <div class="grid-table-wrapper">
-        <table
-          mat-table
-          [dataSource]="filteredSorted()"
-          matSort
-          (matSortChange)="onMatSortChange($event)"
-          class="watchlist-table"
-        >
-          <!-- Symbol -->
-          <ng-container matColumnDef="symbol">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
-            <td mat-cell *matCellDef="let w">
-              <div class="grid-symbol-cell">
-                <div
-                  class="grid-badge"
-                  [class.up]="(w.quote?.change ?? 0) >= 0"
-                  [class.down]="(w.quote?.change ?? 0) < 0"
-                >
-                  {{ w.item.symbol.substring(0, 2) }}
-                </div>
-                <span class="grid-symbol">{{ w.item.symbol }}</span>
-              </div>
-            </td>
-          </ng-container>
-
-          <!-- Company / Description -->
-          <ng-container matColumnDef="company">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>DESCRIPTION</th>
-            <td mat-cell *matCellDef="let w">
-              <div class="grid-company-cell">
-                <span class="grid-company-name">{{ w.quote?.companyName ?? w.item.symbol }}</span>
-                @if (w.quote?.sector) {
-                  <span class="grid-sector-tag">{{ w.quote!.sector }}</span>
-                }
-              </div>
-            </td>
-          </ng-container>
-
-          <!-- Role -->
-          <ng-container matColumnDef="role">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>ROLE</th>
-            <td mat-cell *matCellDef="let w">
-              <mat-select
-                [value]="w.item.role || 'Strategic'"
-                (selectionChange)="updateRole(w, $event.value)"
-                class="role-select"
-                [ngClass]="roleClass(w.item.role || 'Strategic')"
-              >
-                @for (r of roles; track r) {
-                  <mat-option [value]="r">{{ r }}</mat-option>
-                }
-              </mat-select>
-            </td>
-          </ng-container>
-
-          <!-- Price -->
-          <ng-container matColumnDef="price">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>LAST PRICE</th>
-            <td mat-cell *matCellDef="let w">
-              @if (w.quote) {
-                <span class="grid-price">{{ w.quote.currentPrice | currency }}</span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Change $ / % -->
-          <ng-container matColumnDef="change">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>CHANGE</th>
-            <td mat-cell *matCellDef="let w">
-              @if (changeForSymbol(w.item.symbol); as ch) {
-                <div
-                  class="grid-change-cell"
-                  [class.up]="(ch.changePct ?? 0) >= 0"
-                  [class.down]="(ch.changePct ?? 0) < 0"
-                >
-                  <span class="change-dollar">{{
-                    ch.change !== null
-                      ? (ch.change >= 0 ? '+' : '') + (ch.change | number: '1.2-2')
-                      : '—'
-                  }}</span>
-                  <span class="change-pct"
-                    >({{
-                      ch.changePct !== null
-                        ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
-                        : '—'
-                    }})</span
+      @defer (on idle) {
+        <div class="grid-table-wrapper">
+          <table
+            mat-table
+            [dataSource]="filteredSorted()"
+            matSort
+            (matSortChange)="onMatSortChange($event)"
+            class="watchlist-table"
+          >
+            <!-- Symbol -->
+            <ng-container matColumnDef="symbol">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
+              <td mat-cell *matCellDef="let w">
+                <div class="grid-symbol-cell">
+                  <div
+                    class="grid-badge"
+                    [class.up]="(w.quote?.change ?? 0) >= 0"
+                    [class.down]="(w.quote?.change ?? 0) < 0"
                   >
+                    {{ w.item.symbol.substring(0, 2) }}
+                  </div>
+                  <span class="grid-symbol">{{ w.item.symbol }}</span>
                 </div>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
+              </td>
+            </ng-container>
 
-          <!-- Analyst Target -->
-          <ng-container matColumnDef="analystTarget">
-            <th mat-header-cell *matHeaderCellDef>ANALYST TARGET</th>
-            <td mat-cell *matCellDef="let w">
-              @if (analystForSymbol(w.item.symbol); as at) {
-                @if (at.price) {
-                  <div class="analyst-target-cell">
-                    <span class="at-price">{{ at.price | currency }}</span>
-                    @if (at.upside !== null) {
-                      <span
-                        class="at-upside"
-                        [class.up]="at.upside >= 0"
-                        [class.down]="at.upside < 0"
-                      >
-                        {{ at.upside >= 0 ? '+' : '' }}{{ at.upside | number: '1.1-1' }}%
-                      </span>
-                    }
+            <!-- Company / Description -->
+            <ng-container matColumnDef="company">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>DESCRIPTION</th>
+              <td mat-cell *matCellDef="let w">
+                <div class="grid-company-cell">
+                  <span class="grid-company-name">{{ w.quote?.companyName ?? w.item.symbol }}</span>
+                  @if (w.quote?.sector) {
+                    <span class="grid-sector-tag">{{ w.quote!.sector }}</span>
+                  }
+                </div>
+              </td>
+            </ng-container>
+
+            <!-- Role -->
+            <ng-container matColumnDef="role">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>ROLE</th>
+              <td mat-cell *matCellDef="let w">
+                <mat-select
+                  [value]="w.item.role || 'Strategic'"
+                  (selectionChange)="updateRole(w, $event.value)"
+                  class="role-select"
+                  [ngClass]="roleClass(w.item.role || 'Strategic')"
+                >
+                  @for (r of roles; track r) {
+                    <mat-option [value]="r">{{ r }}</mat-option>
+                  }
+                </mat-select>
+              </td>
+            </ng-container>
+
+            <!-- Price -->
+            <ng-container matColumnDef="price">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>LAST PRICE</th>
+              <td mat-cell *matCellDef="let w">
+                @if (w.quote) {
+                  <span class="grid-price">{{ w.quote.currentPrice | currency }}</span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Change $ / % -->
+            <ng-container matColumnDef="change">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>CHANGE</th>
+              <td mat-cell *matCellDef="let w">
+                @if (changeForSymbol(w.item.symbol); as ch) {
+                  <div
+                    class="grid-change-cell"
+                    [class.up]="(ch.changePct ?? 0) >= 0"
+                    [class.down]="(ch.changePct ?? 0) < 0"
+                  >
+                    <span class="change-dollar">{{
+                      ch.change !== null
+                        ? (ch.change >= 0 ? '+' : '') + (ch.change | number: '1.2-2')
+                        : '—'
+                    }}</span>
+                    <span class="change-pct"
+                      >({{
+                        ch.changePct !== null
+                          ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
+                          : '—'
+                      }})</span
+                    >
                   </div>
                 } @else {
                   <span class="grid-no-data">—</span>
                 }
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Sector -->
-          <ng-container matColumnDef="sector">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header>SECTOR</th>
-            <td mat-cell *matCellDef="let w">
-              <span class="grid-sector">{{ w.quote?.sector ?? '—' }}</span>
-            </td>
-          </ng-container>
-
-          <!-- RSI (14) -->
-          <ng-container matColumnDef="rsi">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header class="wl-rsi-header">
-              RSI (14)
-            </th>
-            <td mat-cell *matCellDef="let w" class="wl-rsi-cell">
-              @if (rsiForSymbol(w.item.symbol) !== null) {
-                <span
-                  class="wl-rsi"
-                  [class.wl-rsi-over]="rsiForSymbol(w.item.symbol)! >= 70"
-                  [class.wl-rsi-under]="rsiForSymbol(w.item.symbol)! <= 30"
-                >
-                  {{ rsiForSymbol(w.item.symbol)! | number: '1.1-1' }}
-                </span>
-              } @else if (rsiLoading()) {
-                <span class="wl-cell-shimmer"></span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Trend Setup -->
-          <ng-container matColumnDef="trendSetup">
-            <th
-              mat-header-cell
-              *matHeaderCellDef
-              mat-sort-header
-              matTooltip="Market structure and trend classification"
-            >
-              TREND SETUP
-            </th>
-            <td mat-cell *matCellDef="let w">
-              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
-                <div
-                  class="wl-ts-badge"
-                  [ngClass]="dec.trendSetupClass"
-                  [matTooltip]="dec.trendSetupReason"
-                >
-                  {{ dec.trendSetup }}
-                </div>
-              } @else if (rsiLoading()) {
-                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Momentum Shift -->
-          <ng-container matColumnDef="momentumShift">
-            <th
-              mat-header-cell
-              *matHeaderCellDef
-              mat-sort-header
-              matTooltip="Short-term momentum signal"
-            >
-              MOMENTUM SHIFT
-            </th>
-            <td mat-cell *matCellDef="let w">
-              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
-                <div
-                  class="wl-ms-badge"
-                  [ngClass]="dec.momentumShiftClass"
-                  [matTooltip]="dec.momentumShiftReason"
-                >
-                  {{ dec.momentumShift }}
-                </div>
-              } @else if (rsiLoading()) {
-                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Final Action -->
-          <ng-container matColumnDef="finalAction">
-            <th
-              mat-header-cell
-              *matHeaderCellDef
-              mat-sort-header
-              matTooltip="Role-adjusted recommendation"
-            >
-              FINAL ACTION
-            </th>
-            <td mat-cell *matCellDef="let w">
-              @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
-                <div
-                  class="wl-ma-badge"
-                  [ngClass]="dec.finalActionClass"
-                  [matTooltip]="dec.hoverDescription"
-                >
-                  {{ dec.finalAction }}
-                </div>
-              } @else if (rsiLoading()) {
-                <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
-              } @else {
-                <span class="grid-no-data">—</span>
-              }
-            </td>
-          </ng-container>
-
-          <!-- Actions -->
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let w">
-              <button
-                mat-icon-button
-                (click)="remove(w)"
-                matTooltip="Remove from watchlist"
-                class="remove-btn-grid"
-              >
-                <mat-icon>delete_outline</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-          <tr mat-row *matRowDef="let row; columns: displayedColumns" class="watchlist-row"></tr>
-
-          @if (filteredSorted().length === 0) {
-            <tr class="mat-mdc-no-data-row">
-              <td [attr.colspan]="displayedColumns.length" class="grid-no-results">
-                <mat-icon>search_off</mat-icon>
-                <span>No symbols match your filter</span>
               </td>
-            </tr>
-          }
-        </table>
-      </div>
+            </ng-container>
+
+            <!-- Analyst Target -->
+            <ng-container matColumnDef="analystTarget">
+              <th mat-header-cell *matHeaderCellDef>ANALYST TARGET</th>
+              <td mat-cell *matCellDef="let w">
+                @if (analystForSymbol(w.item.symbol); as at) {
+                  @if (at.price) {
+                    <div class="analyst-target-cell">
+                      <span class="at-price">{{ at.price | currency }}</span>
+                      @if (at.upside !== null) {
+                        <span
+                          class="at-upside"
+                          [class.up]="at.upside >= 0"
+                          [class.down]="at.upside < 0"
+                        >
+                          {{ at.upside >= 0 ? '+' : '' }}{{ at.upside | number: '1.1-1' }}%
+                        </span>
+                      }
+                    </div>
+                  } @else {
+                    <span class="grid-no-data">—</span>
+                  }
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- 52-Week Range -->
+            <ng-container matColumnDef="week52">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="52-week high / low and distance from current price"
+              >
+                52W RANGE
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (w.quote && w.quote.week52High > 0) {
+                  <div class="week52-cell">
+                    <div class="week52-row">
+                      <span class="week52-label">H</span>
+                      <span class="week52-price">{{ w.quote.week52High | currency }}</span>
+                      <span class="week52-pct down" [matTooltip]="'% below 52-week high'">
+                        {{
+                          ((w.quote.currentPrice - w.quote.week52High) / w.quote.week52High) * 100
+                            | number: '1.1-1'
+                        }}%
+                      </span>
+                    </div>
+                    <div class="week52-row">
+                      <span class="week52-label">L</span>
+                      <span class="week52-price">{{ w.quote.week52Low | currency }}</span>
+                      <span class="week52-pct up" [matTooltip]="'% above 52-week low'">
+                        +{{
+                          ((w.quote.currentPrice - w.quote.week52Low) / w.quote.week52Low) * 100
+                            | number: '1.1-1'
+                        }}%
+                      </span>
+                    </div>
+                  </div>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Sector -->
+            <ng-container matColumnDef="sector">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header>SECTOR</th>
+              <td mat-cell *matCellDef="let w">
+                <span class="grid-sector">{{ w.quote?.sector ?? '—' }}</span>
+              </td>
+            </ng-container>
+
+            <!-- RSI (14) -->
+            <ng-container matColumnDef="rsi">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header class="wl-rsi-header">
+                RSI (14)
+              </th>
+              <td mat-cell *matCellDef="let w" class="wl-rsi-cell">
+                @if (rsiForSymbol(w.item.symbol) !== null) {
+                  <span
+                    class="wl-rsi"
+                    [class.wl-rsi-over]="rsiForSymbol(w.item.symbol)! >= 70"
+                    [class.wl-rsi-under]="rsiForSymbol(w.item.symbol)! <= 30"
+                  >
+                    {{ rsiForSymbol(w.item.symbol)! | number: '1.1-1' }}
+                  </span>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Trend Setup -->
+            <ng-container matColumnDef="trendSetup">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                matTooltip="Market structure and trend classification"
+              >
+                TREND SETUP
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
+                  <div
+                    class="wl-ts-badge"
+                    [ngClass]="dec.trendSetupClass"
+                    [matTooltip]="dec.trendSetupReason"
+                  >
+                    {{ dec.trendSetup }}
+                  </div>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Momentum Shift -->
+            <ng-container matColumnDef="momentumShift">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                matTooltip="Short-term momentum signal"
+              >
+                MOMENTUM SHIFT
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
+                  <div
+                    class="wl-ms-badge"
+                    [ngClass]="dec.momentumShiftClass"
+                    [matTooltip]="dec.momentumShiftReason"
+                  >
+                    {{ dec.momentumShift }}
+                  </div>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Final Action -->
+            <ng-container matColumnDef="finalAction">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                matTooltip="Role-adjusted recommendation"
+              >
+                FINAL ACTION
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
+                  <div
+                    class="wl-ma-badge"
+                    [ngClass]="dec.finalActionClass"
+                    [matTooltip]="dec.hoverDescription"
+                  >
+                    {{ dec.finalAction }}
+                  </div>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Actions -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let w">
+                <button
+                  mat-icon-button
+                  (click)="remove(w)"
+                  matTooltip="Remove from watchlist"
+                  class="remove-btn-grid"
+                >
+                  <mat-icon>delete_outline</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns" class="watchlist-row"></tr>
+
+            @if (filteredSorted().length === 0) {
+              <tr class="mat-mdc-no-data-row">
+                <td [attr.colspan]="displayedColumns.length" class="grid-no-results">
+                  <mat-icon>search_off</mat-icon>
+                  <span>No symbols match your filter</span>
+                </td>
+              </tr>
+            }
+          </table>
+        </div>
+      } @placeholder {
+        <div class="wl-table-placeholder">
+          <mat-progress-bar mode="indeterminate" />
+        </div>
+      }
     } @else {
       <!-- ── Watchlist Card Grid ────────────────────────────────────── -->
       <div class="watchlist-grid" role="list" aria-label="Watchlist symbols">

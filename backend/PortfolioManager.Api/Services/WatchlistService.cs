@@ -10,6 +10,8 @@ public interface IWatchlistService
     Task<WatchlistItemDto> AddAsync(AddWatchlistItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
+    Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<WatchlistBackupItem> items, CancellationToken ct = default);
 }
 
 public sealed class WatchlistService(AppDbContext db) : IWatchlistService
@@ -61,4 +63,31 @@ public sealed class WatchlistService(AppDbContext db) : IWatchlistService
 
     private static WatchlistItemDto ToDto(WatchlistItem item) =>
         new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic");
+
+    public async Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.WatchlistItems
+            .AsNoTracking()
+            .OrderBy(x => x.Symbol)
+            .ToListAsync(ct);
+        return items.Select(x => new WatchlistBackupItem(x.Symbol, x.Notes, x.Role ?? "Strategic", x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<WatchlistBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.WatchlistItems.ToListAsync(ct);
+        db.WatchlistItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new WatchlistItem
+        {
+            Symbol  = i.Symbol.ToUpperInvariant(),
+            Notes   = i.Notes ?? "",
+            Role    = i.Role ?? "Strategic",
+            AddedAt = i.AddedAt
+        }).ToList();
+
+        db.WatchlistItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
 }

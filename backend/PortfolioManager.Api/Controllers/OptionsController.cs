@@ -57,4 +57,20 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         var data = await optionService.GetTechnicalDataAsync(symbol, ct);
         return data is null ? NotFound() : Ok(data);
     }
+
+    /// <summary>Exports all option items as a JSON backup payload.</summary>
+    [HttpGet("backup")]
+    public async Task<ActionResult<IReadOnlyList<OptionBackupItem>>> Backup(CancellationToken ct)
+    {
+        var items = await optionService.BackupAsync(ct);
+        return Ok(items);
+    }
+
+    /// <summary>Clears all option items and restores from the provided backup payload.</summary>
+    [HttpPost("restore")]
+    public async Task<IActionResult> Restore([FromBody] RestoreOptionsRequest request, CancellationToken ct)
+    {
+        var count = await optionService.RestoreAsync(request.Items, ct);
+        return Ok(new { restored = count });
+    }
 }
