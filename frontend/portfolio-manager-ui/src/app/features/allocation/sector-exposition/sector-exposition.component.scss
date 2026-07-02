@@ -359,14 +359,14 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px 9
   border: 1px solid transparent;
 }
 .ms-confirmed-buy {
-  background: rgba(0, 200, 83, 0.14);
-  color: #00e676;
-  border-color: rgba(0, 200, 83, 0.35);
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
 }
 .ms-bullish {
-  background: rgba(0, 200, 83, 0.08);
-  color: #4caf50;
-  border-color: rgba(0, 200, 83, 0.2);
+  background: rgba(76, 175, 80, 0.72);
+  color: #000;
+  border-color: rgba(76, 175, 80, 0.82);
 }
 .ms-confirmed-sell {
   background: rgba(255, 23, 68, 0.14);

@@ -421,17 +421,33 @@ export class PortfolioPageComponent {
 
     let context: PortfolioItemContext | undefined;
     if (item) {
+      const price = r.currentPrice;
       const unrealizedGainPct =
         item.averageCostBasis && item.averageCostBasis > 0
-          ? ((r.currentPrice - item.averageCostBasis) / item.averageCostBasis) * 100
+          ? ((price - item.averageCostBasis) / item.averageCostBasis) * 100
           : null;
       const holdingDays = item.openDate
         ? Math.floor((Date.now() - new Date(item.openDate).getTime()) / (1000 * 60 * 60 * 24))
         : null;
+      // Distance from 52-week high: negative means below high (e.g. -5 = 5% below high)
+      const distanceFrom52WeekHighPct =
+        r.week52High > 0 ? ((price - r.week52High) / r.week52High) * 100 : null;
+      // Position size as % of portfolio grand total
+      const marketValue = item.isManual
+        ? (item.manualMarketValue ?? item.averageCostBasis)
+        : price * item.shares;
+      const grandTotal =
+        this.portfolio.totalValue() +
+        this.cashState.totalCash() +
+        this.optionState.totalMarketValue();
+      const positionSizePct = grandTotal > 0 ? (marketValue / grandTotal) * 100 : null;
+
       context = {
         accountType: item.accountType ?? null,
         unrealizedGainPct,
         holdingDays,
+        distanceFrom52WeekHighPct,
+        positionSizePct,
       };
     }
 
@@ -735,12 +751,13 @@ export class PortfolioPageComponent {
     const grouped = this.groupedSymbols();
     const rows: string[][] = [
       [
+        'Asset Type',
         'Symbol',
         'Company',
         'Account Type',
         'Sector',
         'Industry',
-        'Shares',
+        'Shares / Contracts',
         'Avg Cost',
         'Current Price',
         'Market Value',
@@ -756,12 +773,14 @@ export class PortfolioPageComponent {
       ],
     ];
 
+    // ── Stocks ──────────────────────────────────────────────────────────────
     for (const row of this.gridRows()) {
       if (this.isAggRow(0, row)) {
         // Multi-account ticker: export one aggregated row listing all accounts
         const agg = row as AggregatePortfolioRow;
         const rsiVal = this.rsiForSymbol(agg.symbol);
         rows.push([
+          'Stock',
           agg.symbol,
           agg.company,
           agg.accountsList.join(', '),
@@ -776,10 +795,10 @@ export class PortfolioPageComponent {
           (agg.quote?.change ?? 0).toFixed(2),
           (agg.quote?.changePercent ?? 0).toFixed(2),
           rsiVal !== null ? rsiVal.toFixed(1) : '',
-          '',
-          this.decisionForPortfolio(agg.symbol, null)?.trendSetup ?? '',
-          this.decisionForPortfolio(agg.symbol, null)?.momentumShift ?? '',
-          this.decisionForPortfolio(agg.symbol, null)?.finalAction ?? '',
+          agg.holdingRole ?? 'Strategic',
+          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.trendSetup ?? '',
+          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.momentumShift ?? '',
+          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.finalAction ?? '',
         ]);
       } else {
         // Skip individual child rows that belong to a multi-account group
@@ -795,6 +814,7 @@ export class PortfolioPageComponent {
         const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
         const rsiVal = this.rsiForSymbol(s.item.symbol);
         rows.push([
+          'Stock',
           s.item.symbol,
           s.item.companyName,
           s.item.accountType ?? '',
@@ -816,6 +836,68 @@ export class PortfolioPageComponent {
         ]);
       }
     }
+
+    // ── Cash ────────────────────────────────────────────────────────────────
+    const grandTotal =
+      this.portfolio.totalValue() +
+      this.cashState.totalCash() +
+      this.optionState.totalMarketValue();
+
+    for (const c of this.cashState.items()) {
+      const pct = grandTotal > 0 ? ((c.amount / grandTotal) * 100).toFixed(2) : '0';
+      rows.push([
+        'Cash',
+        'CASH',
+        c.description,
+        '',
+        '',
+        '',
+        '',
+        c.amount.toFixed(2),
+        '',
+        c.amount.toFixed(2),
+        '0.00',
+        pct,
+        '0.00',
+        '0.00',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    }
+
+    // ── Options ─────────────────────────────────────────────────────────────
+    for (const a of this.optionState.analyses().filter((a) => a.item.transactionType !== 'CLOSE')) {
+      const pct = grandTotal > 0 ? ((a.marketValue / grandTotal) * 100).toFixed(2) : '0';
+      const cost = a.item.premium * a.item.numberOfContracts * 100;
+      const gainLoss = a.marketValue - cost;
+      const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
+      const desc = `${a.item.positionType} $${a.item.strike} exp ${a.item.expirationDate.split('T')[0]}`;
+      rows.push([
+        'Option',
+        a.item.underlyingTicker,
+        desc,
+        a.item.accountType ?? '',
+        '',
+        '',
+        a.item.numberOfContracts.toString(),
+        a.item.premium.toFixed(2),
+        a.item.marketPrice.toFixed(2),
+        a.marketValue.toFixed(2),
+        gainLoss.toFixed(2),
+        gainLossPct,
+        '0.00',
+        '0.00',
+        '',
+        'Options',
+        '',
+        '',
+        '',
+      ]);
+    }
+
     this.downloadCsv(rows, 'portfolio.csv');
   }
 

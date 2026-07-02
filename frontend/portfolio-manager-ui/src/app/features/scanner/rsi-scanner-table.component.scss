@@ -260,9 +260,9 @@
   }
 
   &.confirmed {
-    background: rgba(0, 200, 83, 0.12);
-    color: #00c853;
-    border: 1px solid rgba(0, 200, 83, 0.3);
+    background: rgba(0, 200, 83, 0.82);
+    color: #000;
+    border: 1px solid rgba(0, 200, 83, 0.9);
   }
 
   &.confirmed-bear {
@@ -360,9 +360,9 @@
   }
 
   &.ind-bull {
-    background: rgba(0, 200, 83, 0.1);
-    color: #00c853;
-    border-color: rgba(0, 200, 83, 0.2);
+    background: rgba(0, 200, 83, 0.78);
+    color: #000;
+    border-color: rgba(0, 200, 83, 0.88);
   }
 
   &.ind-bear {
@@ -462,15 +462,15 @@
 
 // Momentum Shift states
 .ms-confirmed-buy {
-  background: rgba(0, 200, 83, 0.14);
-  color: #00e676;
-  border-color: rgba(0, 200, 83, 0.35);
-  box-shadow: 0 0 8px rgba(0, 200, 83, 0.18);
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+  box-shadow: 0 0 8px rgba(0, 200, 83, 0.25);
 }
 .ms-bullish {
-  background: rgba(0, 200, 83, 0.08);
-  color: #4caf50;
-  border-color: rgba(0, 200, 83, 0.2);
+  background: rgba(76, 175, 80, 0.72);
+  color: #000;
+  border-color: rgba(76, 175, 80, 0.82);
 }
 .ms-confirmed-sell {
   background: rgba(255, 23, 68, 0.14);
@@ -517,9 +517,9 @@
 
 // Action states
 .ma-confirmed-buy {
-  background: rgba(0, 200, 83, 0.14);
-  color: #00e676;
-  border-color: rgba(0, 200, 83, 0.35);
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
 }
 .ma-confirmed-sell {
   background: rgba(255, 23, 68, 0.14);

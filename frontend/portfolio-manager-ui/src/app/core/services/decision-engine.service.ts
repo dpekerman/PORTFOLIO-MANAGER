@@ -109,6 +109,16 @@ export interface PortfolioItemContext {
   unrealizedGainPct?: number | null;
   /** Calendar days since the position was opened. */
   holdingDays?: number | null;
+  /**
+   * % distance of current price from the 52-week high.
+   * e.g. -2 means "within 2% below the 52W high". >= -2 means near/at the high.
+   */
+  distanceFrom52WeekHighPct?: number | null;
+  /**
+   * Position market value as % of the total portfolio grand total.
+   * e.g. 3.5 means the position represents 3.5% of the portfolio.
+   */
+  positionSizePct?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -214,6 +224,14 @@ export class DecisionEngineService {
       rawAction = 'Take Partial Profit / No Chase';
     }
 
+    // ── Profit-Taking Rules (Rules 1-10) ─────────────────────────────────────
+    // These override the role-based action when the position has gained significantly
+    // and is near or at its 52-week high, or when a sell trigger fires.
+    const profitAction = this.profitTakingAction(dec, context);
+    if (profitAction) {
+      rawAction = profitAction;
+    }
+
     const finalAction = this.accumulateStarterGuard(
       rawAction,
       dec.trendSetup,
@@ -248,6 +266,84 @@ export class DecisionEngineService {
     if (!r.analystTargetPrice || r.analystTargetPrice <= 0) return false;
     if (r.currentPrice < r.analystTargetPrice) return false;
     return true;
+  }
+
+  /**
+   * Profit-Taking Rules 1–10.
+   *
+   * Evaluated after role-based logic and TFSA override. Returns the matching
+   * profit-taking action string, or null if no rule fires.
+   *
+   * Priority ordering (highest gain + sell trigger = highest priority):
+   *   Rule 10 > Rule 7 > Rule 6 > Rule 5 > Rule 9 > Rule 4 > Rule 3 > Rule 2 > Rule 8 > Rule 1
+   */
+  private profitTakingAction(
+    dec: DecisionResult,
+    context: PortfolioItemContext | undefined,
+  ): string | null {
+    if (!context) return null;
+
+    const pnl = context.unrealizedGainPct ?? 0;
+    const dist52H = context.distanceFrom52WeekHighPct ?? null;
+    const posSize = context.positionSizePct ?? 0;
+    const ms = dec.momentumShift;
+    const nearHigh = dist52H !== null && dist52H >= -2;
+
+    // ── Sell-trigger momentum rules (Rules 8-10) take precedence over 52W high rules ──
+
+    // Rule 10: ≥50% gain + Active Sell Trigger → Sell Majority
+    if (pnl >= 50 && ms === 'Active Sell Trigger') {
+      return 'Sell Majority / Keep Small Runner';
+    }
+
+    // Rule 9: ≥30% gain + Active Sell Trigger + position ≥ 2% → Trim 33-50% + trail
+    if (pnl >= 30 && ms === 'Active Sell Trigger' && posSize >= 2) {
+      return 'Trim 33–50% / Trail Remainder';
+    }
+
+    // Rule 8: ≥20% gain + Active Sell Trigger → Partial profit
+    if (pnl >= 20 && ms === 'Active Sell Trigger') {
+      return 'Take Partial Profit / Protect Gain';
+    }
+
+    // ── 52-week high proximity rules (Rules 1-7) ──
+
+    // Rule 7: ≥50% gain, near 52W high, large position
+    if (pnl >= 50 && nearHigh && posSize >= 4) {
+      return 'Sell 50% / Keep Runner / Rebuy on Pullback';
+    }
+
+    // Rule 6: ≥50% gain, near 52W high, medium position
+    if (pnl >= 50 && nearHigh && posSize >= 2 && posSize < 4) {
+      return 'Trim 33–50% / Keep Runner';
+    }
+
+    // Rule 5: ≥50% gain, near 52W high, small position
+    if (pnl >= 50 && nearHigh && posSize < 2) {
+      return 'Trim 25% / Keep Runner';
+    }
+
+    // Rule 4: 30-50% gain, near 52W high, large position
+    if (pnl >= 30 && pnl < 50 && nearHigh && posSize >= 4) {
+      return 'Trim 25–40% / Hold Runner';
+    }
+
+    // Rule 3: 30-50% gain, near 52W high, medium position
+    if (pnl >= 30 && pnl < 50 && nearHigh && posSize >= 2 && posSize < 4) {
+      return 'Trim 20–33% / Hold Runner';
+    }
+
+    // Rule 2: 30-50% gain, near 52W high, small position
+    if (pnl >= 30 && pnl < 50 && nearHigh && posSize < 2) {
+      return 'Trim 10–20% / Hold Runner';
+    }
+
+    // Rule 1: ≥20% gain, near 52W high (catch-all for moderate gains near high)
+    if (pnl >= 20 && nearHigh) {
+      return 'Profit Watch / No Add / Trail Stop';
+    }
+
+    return null;
   }
 
   private buildContext(r: RsiScanResult) {
@@ -948,7 +1044,20 @@ export class DecisionEngineService {
   private finalActionClass(action: string): string {
     const a = action.toLowerCase();
     // TFSA profit-taking rule gets its own amber class
-    if (a.includes('partial profit')) return 'ma-tfsa-profit';
+    if (a.includes('partial profit') || a.includes('profit watch') || a.includes('protect gain'))
+      return 'ma-tfsa-profit';
+    // Profit-taking trim/sell actions → orange/amber
+    if (
+      a.includes('trim') ||
+      a.includes('sell 50%') ||
+      a.includes('sell majority') ||
+      a.includes('keep runner') ||
+      a.includes('keep small runner') ||
+      a.includes('hold runner') ||
+      a.includes('trail remainder') ||
+      a.includes('no add / trail stop')
+    )
+      return 'ma-reduce';
     if (
       a.includes('buy') ||
       a.includes('accumulate') ||
@@ -957,13 +1066,7 @@ export class DecisionEngineService {
       a.includes('call entry')
     )
       return 'ma-confirmed-buy';
-    if (
-      a.includes('sell') ||
-      a.includes('exit') ||
-      a.includes('cut') ||
-      a.includes('trim') ||
-      a.includes('put entry')
-    )
+    if (a.includes('sell') || a.includes('exit') || a.includes('cut') || a.includes('put entry'))
       return 'ma-confirmed-sell';
     if (a.includes('avoid') || a.includes('caution') || a.includes('review') || a.includes('wait'))
       return 'ma-avoid';
