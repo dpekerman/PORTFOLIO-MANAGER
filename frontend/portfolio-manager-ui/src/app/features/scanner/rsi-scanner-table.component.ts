@@ -10,6 +10,8 @@ import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
 import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
 import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 @Component({
   selector: 'app-rsi-scanner-table',
@@ -27,6 +29,7 @@ import { DecisionEngineService, PageDecision } from '../../core/services/decisio
     DecimalPipe,
     CurrencyPipe,
     NgClass,
+    GridColumnButtonComponent,
   ],
 })
 export class RsiScannerTableComponent {
@@ -39,24 +42,14 @@ export class RsiScannerTableComponent {
   readonly showHistory = input(true);
 
   private readonly engine = inject(DecisionEngineService);
+  private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');
 
+  /** Effective displayed columns: service order/visibility, minus signalHistory when showHistory=false. */
   protected readonly displayedColumns = computed(() => {
-    const cols = [
-      'tracking',
-      'symbol',
-      'rsi',
-      'rsiSignal',
-      'price',
-      'change',
-      'analystUpside',
-      'probability',
-      'trendSetup',
-      'momentumShift',
-      'baseAction',
-      'status',
-      'trigger',
-    ];
-    if (this.showHistory()) cols.push('signalHistory');
+    const cols = this._serviceColumns();
+    if (!this.showHistory()) {
+      return cols.filter((c) => c !== 'signalHistory');
+    }
     return cols;
   });
 

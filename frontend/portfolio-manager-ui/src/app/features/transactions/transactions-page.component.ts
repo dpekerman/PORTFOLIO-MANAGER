@@ -9,9 +9,11 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { OptionAnalysis, PortfolioSummary } from '../../core/models/portfolio.models';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -84,6 +86,7 @@ type OptionTxCol =
     MatSortModule,
     MatTableModule,
     MatTooltipModule,
+    GridColumnButtonComponent,
   ],
 })
 export class TransactionsPageComponent {
@@ -108,39 +111,10 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns: string[] = [
-    'tx_type',
-    'tx_account',
-    'tx_symbol',
-    'tx_company',
-    'tx_shares',
-    'tx_avg_cost',
-    'tx_open_date',
-    'tx_close_date',
-    'tx_closing_price',
-    'tx_gain_loss',
-    'tx_gain_pct',
-    'tx_mkt_value',
-    'tx_actions',
-  ];
+  protected readonly stockColumns = inject(GridColumnService).getColumnKeys('transactions-stocks');
 
-  protected readonly optionColumns: string[] = [
-    'otx_type',
-    'otx_account',
-    'otx_ticker',
-    'otx_position',
-    'otx_expiry',
-    'otx_strike',
-    'otx_premium',
-    'otx_contracts',
-    'otx_open_date',
-    'otx_close_date',
-    'otx_closing_price',
-    'otx_gain_loss',
-    'otx_gain_pct',
-    'otx_mkt_value',
-    'otx_actions',
-  ];
+  protected readonly optionColumns =
+    inject(GridColumnService).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();

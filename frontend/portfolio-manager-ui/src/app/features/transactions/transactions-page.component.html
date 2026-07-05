@@ -34,6 +34,7 @@
             <span class="count-badge">{{ sortedStockTransactions().length }}</span>
           </span>
         </div>
+        <app-grid-column-btn gridId="transactions-stocks" />
         <mat-icon class="tx-chevron">{{
           stocksExpanded() ? 'expand_less' : 'expand_more'
         }}</mat-icon>
@@ -259,10 +260,10 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="stockColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: stockColumns" class="pg-row"></tr>
+              <tr mat-header-row *matHeaderRowDef="stockColumns(); sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: stockColumns()" class="pg-row"></tr>
               @if (showTotalsRow()) {
-                <tr mat-footer-row *matFooterRowDef="stockColumns" class="tx-totals-row"></tr>
+                <tr mat-footer-row *matFooterRowDef="stockColumns()" class="tx-totals-row"></tr>
               }
             </table>
           </div>
@@ -282,6 +283,7 @@
             <span class="count-badge">{{ sortedOptionTransactions().length }}</span>
           </span>
         </div>
+        <app-grid-column-btn gridId="transactions-options" />
         <mat-icon class="tx-chevron">{{
           optionsExpanded() ? 'expand_less' : 'expand_more'
         }}</mat-icon>
@@ -539,10 +541,10 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
-              <tr mat-header-row *matHeaderRowDef="optionColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: optionColumns" class="pg-row"></tr>
+              <tr mat-header-row *matHeaderRowDef="optionColumns(); sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: optionColumns()" class="pg-row"></tr>
               @if (showTotalsRow()) {
-                <tr mat-footer-row *matFooterRowDef="optionColumns" class="tx-totals-row"></tr>
+                <tr mat-footer-row *matFooterRowDef="optionColumns()" class="tx-totals-row"></tr>
               }
             </table>
           </div>

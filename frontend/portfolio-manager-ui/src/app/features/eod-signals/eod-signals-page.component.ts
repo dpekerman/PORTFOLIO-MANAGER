@@ -32,8 +32,10 @@ import {
   EodSignalsMeta,
   SignalState,
 } from '../../core/models/portfolio.models';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -73,6 +75,7 @@ type SortDir = 'asc' | 'desc';
     MatSortModule,
     MatTableModule,
     MatTooltipModule,
+    GridColumnButtonComponent,
   ],
 })
 export class EodSignalsPageComponent implements OnInit {
@@ -171,19 +174,7 @@ export class EodSignalsPageComponent implements OnInit {
     });
   });
 
-  protected readonly displayedColumns: string[] = [
-    'signalDate',
-    'symbol',
-    'scanType',
-    'signalType',
-    'rsi',
-    'price',
-    'reversalProbability',
-    'volumeSignal',
-    'ruleVersion',
-    'signalState',
-    'actions',
-  ];
+  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('eod-signals');
 
   protected readonly scanTypeOptions = ['Oversold', 'Overbought'];
   protected readonly signalTypeOptions = ['EodConfirm', 'Confirmed', 'EarlyWarning'];

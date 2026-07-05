@@ -320,6 +320,14 @@
   margin-left: auto;
 }
 
+// ── Column config button action bar (cash / options) ─────────────────────────
+.pg-table-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
+}
+
 // ── Portfolio grid table ──────────────────────────────────────────────────────
 .portfolio-table-wrapper {
   overflow-x: auto;

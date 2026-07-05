@@ -34,9 +34,11 @@ import {
 import * as XLSX from 'xlsx';
 import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
 import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
 import {
@@ -82,6 +84,7 @@ type SortDir = 'asc' | 'desc';
     MatTooltipModule,
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
+    GridColumnButtonComponent,
   ],
 })
 export class WatchlistPageComponent {
@@ -258,22 +261,7 @@ export class WatchlistPageComponent {
     return { score, tooltip, available: true };
   }
 
-  protected readonly displayedColumns: string[] = [
-    'symbol',
-    'company',
-    'role',
-    'price',
-    'change',
-    'analystTarget',
-    'week52',
-    'sector',
-    'rsi',
-    'trendSetup',
-    'momentumShift',
-    'buyScore',
-    'finalAction',
-    'actions',
-  ];
+  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();

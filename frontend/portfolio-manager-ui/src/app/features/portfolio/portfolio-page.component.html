@@ -265,6 +265,7 @@
                 <span class="gf-count"
                   >{{ gridItemCount() }} / {{ portfolio.summaries().length }}</span
                 >
+                <app-grid-column-btn gridId="portfolio-stocks" />
               </div>
               <div class="portfolio-table-wrapper">
                 <table
@@ -825,22 +826,22 @@
                       }
                     </td>
                   </ng-container>
-                  <tr mat-header-row *matHeaderRowDef="gridDisplayedColumns; sticky: true"></tr>
+                  <tr mat-header-row *matHeaderRowDef="gridDisplayedColumns(); sticky: true"></tr>
                   <tr
                     mat-row
-                    *matRowDef="let row; columns: gridDisplayedColumns; when: isAggRow"
+                    *matRowDef="let row; columns: gridDisplayedColumns(); when: isAggRow"
                     class="pg-agg-row"
                     (click)="toggleGroup(asAgg(row).symbol, $event)"
                   ></tr>
                   <tr
                     mat-row
-                    *matRowDef="let row; columns: gridDisplayedColumns; when: isItemRow"
+                    *matRowDef="let row; columns: gridDisplayedColumns(); when: isItemRow"
                     class="pg-row"
                     [class.pg-child-row]="groupedSymbols().has(asItem(row).item.symbol)"
                   ></tr>
                   @if (gridRows().length === 0) {
                     <tr class="mat-mdc-no-data-row">
-                      <td [attr.colspan]="gridDisplayedColumns.length" class="pg-no-results">
+                      <td [attr.colspan]="gridDisplayedColumns().length" class="pg-no-results">
                         <mat-icon>search_off</mat-icon>
                         <span>No positions match the active filters</span>
                         <button mat-button (click)="clearGridFilters()">Clear filters</button>
@@ -1008,6 +1009,9 @@
           } @else {
             @if (viewMode() === 'grid') {
               <!-- CASH: TABLE VIEW -->
+              <div class="pg-table-action-bar">
+                <app-grid-column-btn gridId="portfolio-cash" />
+              </div>
               <div class="portfolio-table-wrapper">
                 <table
                   class="portfolio-grid-table mat-elevation-z0"
@@ -1058,16 +1062,10 @@
                       </button>
                     </td>
                   </ng-container>
-                  <tr
-                    mat-header-row
-                    *matHeaderRowDef="['description', 'amount', 'addedAt', 'cashActions']"
-                  ></tr>
+                  <tr mat-header-row *matHeaderRowDef="cashDisplayedColumns()"></tr>
                   <tr
                     mat-row
-                    *matRowDef="
-                      let row;
-                      columns: ['description', 'amount', 'addedAt', 'cashActions']
-                    "
+                    *matRowDef="let row; columns: cashDisplayedColumns()"
                     class="pg-row"
                   ></tr>
                 </table>
@@ -1154,6 +1152,9 @@
               <span>No option positions. Click "+ Add Option" to track an options contract.</span>
             </div>
           } @else {
+            <div class="pg-table-action-bar">
+              <app-grid-column-btn gridId="portfolio-options" />
+            </div>
             <div class="portfolio-table-wrapper options-table-wrapper">
               <table
                 class="portfolio-grid-table options-grid-table mat-elevation-z0"
@@ -1389,10 +1390,10 @@
                     </button>
                   </td>
                 </ng-container>
-                <tr mat-header-row *matHeaderRowDef="optionDisplayedColumns; sticky: true"></tr>
+                <tr mat-header-row *matHeaderRowDef="optionDisplayedColumns(); sticky: true"></tr>
                 <tr
                   mat-row
-                  *matRowDef="let row; columns: optionDisplayedColumns"
+                  *matRowDef="let row; columns: optionDisplayedColumns()"
                   class="pg-row"
                 ></tr>
               </table>

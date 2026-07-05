@@ -140,6 +140,9 @@
   <!-- RESULTS TABLE -->
   @if (results().length > 0) {
     <div class="table-wrapper">
+      <div class="screener-table-toolbar">
+        <app-grid-column-btn gridId="value-screener" />
+      </div>
       <table mat-table [dataSource]="filteredSortedResults()" class="screener-table">
         <!-- TICKER Column -->
         <ng-container matColumnDef="ticker">
@@ -238,10 +241,10 @@
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
         <tr
           mat-row
-          *matRowDef="let row; columns: displayedColumns"
+          *matRowDef="let row; columns: displayedColumns()"
           [ngClass]="tierClass(row.tier) + '-row'"
         ></tr>
       </table>

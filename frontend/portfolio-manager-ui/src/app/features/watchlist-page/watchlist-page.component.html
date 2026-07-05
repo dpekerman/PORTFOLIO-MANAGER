@@ -148,6 +148,7 @@
         <span class="grid-count-label"
           >{{ filteredSorted().length }} of {{ watchlist.count() }}</span
         >
+        <app-grid-column-btn gridId="watchlist" />
       </div>
 
       <!-- ── RSI loading progress bar ────────────────────────────────────── -->
@@ -478,12 +479,16 @@
               </td>
             </ng-container>
 
-            <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-            <tr mat-row *matRowDef="let row; columns: displayedColumns" class="watchlist-row"></tr>
+            <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+            <tr
+              mat-row
+              *matRowDef="let row; columns: displayedColumns()"
+              class="watchlist-row"
+            ></tr>
 
             @if (filteredSorted().length === 0) {
               <tr class="mat-mdc-no-data-row">
-                <td [attr.colspan]="displayedColumns.length" class="grid-no-results">
+                <td [attr.colspan]="displayedColumns().length" class="grid-no-results">
                   <mat-icon>search_off</mat-icon>
                   <span>No symbols match your filter</span>
                 </td>

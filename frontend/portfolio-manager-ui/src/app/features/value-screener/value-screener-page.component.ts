@@ -24,7 +24,9 @@ import {
   ValueScreenerResult,
   ValueTier,
 } from '../../core/models/portfolio.models';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
 
@@ -46,6 +48,7 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
     MatProgressSpinnerModule,
     MatTableModule,
     MatTooltipModule,
+    GridColumnButtonComponent,
   ],
 })
 export class ValueScreenerPageComponent implements OnInit {
@@ -64,13 +67,7 @@ export class ValueScreenerPageComponent implements OnInit {
   protected readonly includePortfolio = computed(() => this.sourceMode() === 'portfolio');
   protected readonly includeWatchlist = computed(() => this.sourceMode() === 'watchlist');
 
-  protected readonly displayedColumns = [
-    'ticker',
-    'description',
-    'technicalState',
-    'score',
-    'actionTrigger',
-  ];
+  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('value-screener');
 
   protected readonly filteredSortedResults = computed<ValueScreenerResult[]>(() => {
     const list = [...this.results()];

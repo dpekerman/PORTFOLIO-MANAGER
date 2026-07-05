@@ -252,6 +252,11 @@
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
 }
+.screener-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
+}
 .screener-table {
   width: 100%;
   background: transparent;

@@ -31,10 +31,12 @@ import {
   PortfolioItemContext,
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
 import { AddCashDialogComponent } from './add-cash-dialog/add-cash-dialog.component';
@@ -149,6 +151,7 @@ type OptionSortCol =
     StockCardComponent,
     PortfolioSummaryBarComponent,
     StockCardSkeletonComponent,
+    GridColumnButtonComponent,
   ],
 })
 export class PortfolioPageComponent {
@@ -183,29 +186,8 @@ export class PortfolioPageComponent {
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
 
-  protected readonly gridDisplayedColumns: string[] = [
-    'symbol',
-    'company',
-    'accountType',
-    'sector',
-    'industry',
-    'shares',
-    'avgCost',
-    'price',
-    'analystTarget',
-    'changePct',
-    'dayGain',
-    'marketValue',
-    'portfolioPct',
-    'gainLoss',
-    'gainLossPct',
-    'rsi',
-    'holdingRole',
-    'trendSetup',
-    'momentumShift',
-    'finalAction',
-    'actions',
-  ];
+  protected readonly gridDisplayedColumns =
+    inject(GridColumnService).getColumnKeys('portfolio-stocks');
 
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
@@ -217,24 +199,10 @@ export class PortfolioPageComponent {
   protected readonly optionSortCol = signal<OptionSortCol>('opt_ticker');
   protected readonly optionSortDir = signal<SortDir>('asc');
 
-  protected readonly optionDisplayedColumns: string[] = [
-    'opt_ticker',
-    'opt_type',
-    'opt_expiry',
-    'opt_strike',
-    'opt_premium',
-    'opt_contracts',
-    'opt_cmp',
-    'opt_stockPrice',
-    'opt_dte',
-    'opt_cost',
-    'opt_mv',
-    'opt_gl',
-    'opt_glp',
-    'opt_state',
-    'opt_action',
-    'opt_actions',
-  ];
+  protected readonly optionDisplayedColumns =
+    inject(GridColumnService).getColumnKeys('portfolio-options');
+  protected readonly cashDisplayedColumns =
+    inject(GridColumnService).getColumnKeys('portfolio-cash');
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {

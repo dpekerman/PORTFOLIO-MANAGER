@@ -1,0 +1,170 @@
+// ── Dialog layout ─────────────────────────────────────────────────────────────
+
+.ccd-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px 8px;
+}
+
+.ccd-title-icon {
+  color: var(--mat-sys-primary);
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.ccd-title-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ccd-title-label {
+  font-size: 1.05rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ccd-page-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-variant);
+  border-radius: 12px;
+  padding: 2px 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ccd-visible-count {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container);
+  border-radius: 10px;
+  padding: 2px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &.ccd-count-custom {
+    color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+  }
+}
+
+.ccd-content {
+  min-width: 420px;
+  max-width: 520px;
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 0 24px 8px;
+}
+
+.ccd-hint {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.5;
+}
+
+// ── Column list ───────────────────────────────────────────────────────────────
+
+.ccd-col-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ccd-col-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 4px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: background 120ms;
+
+  &:hover {
+    background: var(--mat-sys-surface-container);
+  }
+
+  &.ccd-col-hidden {
+    opacity: 0.4;
+  }
+
+  &.ccd-col-pinned {
+    opacity: 0.55;
+    background: var(--mat-sys-surface-container-low);
+    border-color: var(--mat-sys-outline-variant);
+    margin-top: 6px;
+  }
+}
+
+.ccd-order-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ccd-order-btn.mat-mdc-icon-button {
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  padding: 0;
+
+  .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.ccd-col-index {
+  min-width: 22px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--mat-sys-on-surface-variant);
+  text-align: right;
+}
+
+.ccd-col-label {
+  flex: 1;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--mat-sys-on-surface);
+}
+
+.ccd-toggle {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.ccd-pinned-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-variant);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+// ── Actions bar ───────────────────────────────────────────────────────────────
+
+.ccd-actions {
+  padding: 12px 16px;
+  gap: 8px;
+}
+
+.ccd-actions-spacer {
+  flex: 1;
+}
