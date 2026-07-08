@@ -108,15 +108,15 @@
   align-items: center;
   gap: 10px;
   padding: 14px 20px 12px;
-  border-bottom: 1px solid var(--border-color);
-  background: var(--bg-elevated);
+  border-bottom: 2px solid var(--border-color);
+  //background: rgba(0, 0, 0, 0.42);
 }
 
 .section-header mat-icon {
   font-size: 20px;
   width: 20px;
   height: 20px;
-  color: var(--text-secondary);
+  color: var(--mat-sys-primary, #64b5f6);
   flex-shrink: 0;
 }
 
@@ -126,10 +126,11 @@
 }
 
 .section-title {
-  font-size: 0.84rem;
+  font-size: 0.88rem;
   font-weight: 700;
   color: var(--text-primary);
-  margin: 0 0 1px;
+  margin: 0 0 2px;
+  letter-spacing: 0.02em;
 }
 
 .section-subtitle {

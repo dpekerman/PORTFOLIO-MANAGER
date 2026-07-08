@@ -10,6 +10,7 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -19,6 +20,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Observable, forkJoin, of } from 'rxjs';
 import {
   AllocationRiskConfig,
   AllocationRiskTarget,
@@ -48,6 +50,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatSelectModule,
     MatSlideToggleModule,
     MatTimepickerModule,
+    MatDialogModule,
     MatTooltipModule,
   ],
 })
@@ -58,6 +61,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly scannerState = inject(ScannerStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
 
   // ── Refresh interval + RSI form ──────────────────────────────────────────
   protected readonly form = this.fb.group({
@@ -132,6 +136,13 @@ export class ConfigPageComponent implements OnInit {
   protected readonly sectorTargets = signal<AllocationSectorTarget[]>([]);
   protected readonly positionLimits = signal<SinglePositionLimit[]>([]);
   protected readonly savingAllocation = signal(false);
+  protected readonly allocationDirty = signal(false);
+
+  // Pending server-side deletes (IDs removed locally but not yet deleted on server)
+  private pendingRiskDeletes: number[] = [];
+  private pendingSectorDeletes: number[] = [];
+  private pendingLimitDeletes: number[] = [];
+  private _tempIdCounter = -1;
 
   // Edit state for inline editing
   protected readonly editingRisk = signal<{
@@ -180,16 +191,42 @@ export class ConfigPageComponent implements OnInit {
   protected saveRisk(): void {
     const e = this.editingRisk();
     if (!e || !e.role.trim() || !e.targetPct) return;
-    this.api.upsertRiskTarget(e.id, e.role.trim(), e.targetPct).subscribe({
-      next: () => {
-        this.editingRisk.set(null);
-        this.loadAllocationRisk();
-      },
-      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
-    });
+    if (e.id === null) {
+      this.riskTargets.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          role: e.role.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.riskTargets.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, role: e.role.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingRisk.set(null);
+    this.allocationDirty.set(true);
   }
   protected deleteRisk(id: number): void {
-    this.api.deleteRiskTarget(id).subscribe({ next: () => this.loadAllocationRisk() });
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingRiskDeletes.push(id);
+        this.riskTargets.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
   }
 
   // ── Sector Targets ────────────────────────────────────────────────────────
@@ -205,16 +242,42 @@ export class ConfigPageComponent implements OnInit {
   protected saveSector(): void {
     const e = this.editingSector();
     if (!e || !e.sector.trim() || !e.targetPct) return;
-    this.api.upsertSectorTarget(e.id, e.sector.trim(), e.targetPct).subscribe({
-      next: () => {
-        this.editingSector.set(null);
-        this.loadAllocationRisk();
-      },
-      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
-    });
+    if (e.id === null) {
+      this.sectorTargets.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          sector: e.sector.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.sectorTargets.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, sector: e.sector.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingSector.set(null);
+    this.allocationDirty.set(true);
   }
   protected deleteSector(id: number): void {
-    this.api.deleteSectorTarget(id).subscribe({ next: () => this.loadAllocationRisk() });
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingSectorDeletes.push(id);
+        this.sectorTargets.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
   }
 
   // ── Position Limits ───────────────────────────────────────────────────────
@@ -230,16 +293,75 @@ export class ConfigPageComponent implements OnInit {
   protected saveLimit(): void {
     const e = this.editingLimit();
     if (!e || !e.role.trim() || !e.targetPct) return;
-    this.api.upsertPositionLimit(e.id, e.role.trim(), e.targetPct).subscribe({
-      next: () => {
-        this.editingLimit.set(null);
-        this.loadAllocationRisk();
-      },
-      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
-    });
+    if (e.id === null) {
+      this.positionLimits.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          role: e.role.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.positionLimits.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, role: e.role.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingLimit.set(null);
+    this.allocationDirty.set(true);
   }
   protected deleteLimit(id: number): void {
-    this.api.deletePositionLimit(id).subscribe({ next: () => this.loadAllocationRisk() });
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingLimitDeletes.push(id);
+        this.positionLimits.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
+  }
+
+  protected saveAllocationRisk(): void {
+    this.savingAllocation.set(true);
+    const calls: Observable<unknown>[] = [
+      ...this.pendingRiskDeletes.map((id) => this.api.deleteRiskTarget(id)),
+      ...this.pendingSectorDeletes.map((id) => this.api.deleteSectorTarget(id)),
+      ...this.pendingLimitDeletes.map((id) => this.api.deletePositionLimit(id)),
+      ...this.riskTargets().map((r) =>
+        this.api.upsertRiskTarget(r.id > 0 ? r.id : null, r.role, r.targetPct),
+      ),
+      ...this.sectorTargets().map((s) =>
+        this.api.upsertSectorTarget(s.id > 0 ? s.id : null, s.sector, s.targetPct),
+      ),
+      ...this.positionLimits().map((l) =>
+        this.api.upsertPositionLimit(l.id > 0 ? l.id : null, l.role, l.targetPct),
+      ),
+    ];
+    (calls.length ? forkJoin(calls) : of([])).subscribe({
+      next: () => {
+        this.pendingRiskDeletes = [];
+        this.pendingSectorDeletes = [];
+        this.pendingLimitDeletes = [];
+        this.allocationDirty.set(false);
+        this.savingAllocation.set(false);
+        this.loadAllocationRisk();
+        this.snackBar.open('Allocation & Risk settings saved.', 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.savingAllocation.set(false);
+        this.snackBar.open('Failed to save allocation settings.', 'Dismiss', { duration: 4000 });
+      },
+    });
   }
 
   ngOnInit(): void {
@@ -531,7 +653,7 @@ export class ConfigPageComponent implements OnInit {
    * 2. EOD window settings (backend)
    * 3. Email recipients (backend)
    * 4. Sector & industry lists (backend)
-   * Allocation & Risk rows are already saved per-edit, so no action needed here.
+   * Allocation & Risk changes are staged in memory — use the dedicated Save button in that section.
    */
   saveAll(): void {
     if (this.isSavingAll()) return;
@@ -596,4 +718,22 @@ export class ConfigPageComponent implements OnInit {
   resetAll(): void {
     this.reset(); // resets scanner form + EOD form to defaults
   }
+}
+
+@Component({
+  selector: 'app-alloc-confirm-dialog',
+  template: `
+    <h2 mat-dialog-title>{{ data.title }}</h2>
+    <mat-dialog-content>{{ data.message }}</mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button [mat-dialog-close]="false">Cancel</button>
+      <button mat-flat-button color="warn" [mat-dialog-close]="true">
+        <mat-icon>delete</mat-icon> Delete
+      </button>
+    </mat-dialog-actions>
+  `,
+  imports: [MatButtonModule, MatDialogModule, MatIconModule],
+})
+export class AllocConfirmDialogComponent {
+  readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
 }

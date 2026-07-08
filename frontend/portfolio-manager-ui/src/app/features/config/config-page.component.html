@@ -882,18 +882,45 @@
 
     <div class="section-footer">
       <span class="section-footer-hint">
-        <mat-icon
-          style="
-            font-size: 14px;
-            width: 14px;
-            height: 14px;
-            vertical-align: middle;
-            margin-right: 4px;
-          "
-          >check_circle</mat-icon
-        >
-        Each row is saved automatically when you confirm the edit (✓ button)
+        @if (allocationDirty()) {
+          <mat-icon
+            style="
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+              vertical-align: middle;
+              margin-right: 4px;
+              color: #ff9800;
+            "
+            >warning_amber</mat-icon
+          >
+          Unsaved changes — click Save to persist to backend
+        } @else {
+          <mat-icon
+            style="
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+            >check_circle</mat-icon
+          >
+          All changes saved to backend
+        }
       </span>
+      <button
+        mat-flat-button
+        (click)="saveAllocationRisk()"
+        [disabled]="savingAllocation() || !allocationDirty()"
+        matTooltip="Persist all allocation & risk changes to backend"
+      >
+        @if (savingAllocation()) {
+          <ng-container><mat-icon class="spinning">sync</mat-icon> Saving…</ng-container>
+        } @else {
+          <ng-container><mat-icon>save</mat-icon> Save Allocation Settings</ng-container>
+        }
+      </button>
     </div>
   </div>
 </div>
