@@ -8,6 +8,9 @@ import {
   AddPortfolioItemRequest,
   AdhocSessionPayload,
   AdhocSessionResponse,
+  AllocationRiskConfig,
+  AllocationRiskTarget,
+  AllocationSectorTarget,
   CashItem,
   DailySignalPagedResponse,
   EodSignalFilters,
@@ -19,6 +22,7 @@ import {
   RsiScanResult,
   ScannerResponse,
   SectorIndustryLists,
+  SinglePositionLimit,
   StockQuote,
   SymbolSearchResult,
   UpdateCashItemRequest,
@@ -353,5 +357,70 @@ export class PortfolioApiService {
 
   restorePortfolio(request: { items: unknown[] }): Observable<{ restored: number }> {
     return this.http.post<{ restored: number }>(`${this.base}/portfolio/restore`, request);
+  }
+
+  // ── Allocation & Risk Management ────────────────────────────────────────────
+  getAllocationRiskConfig(): Observable<AllocationRiskConfig> {
+    return this.http.get<AllocationRiskConfig>(`${this.base}/allocation-risk`);
+  }
+
+  upsertRiskTarget(
+    id: number | null,
+    role: string,
+    targetPct: number,
+  ): Observable<AllocationRiskTarget> {
+    if (id)
+      return this.http.put<AllocationRiskTarget>(
+        `${this.base}/allocation-risk/risk-targets/${id}`,
+        { role, targetPct },
+      );
+    return this.http.post<AllocationRiskTarget>(`${this.base}/allocation-risk/risk-targets`, {
+      role,
+      targetPct,
+    });
+  }
+
+  deleteRiskTarget(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/risk-targets/${id}`);
+  }
+
+  upsertSectorTarget(
+    id: number | null,
+    sector: string,
+    targetPct: number,
+  ): Observable<AllocationSectorTarget> {
+    if (id)
+      return this.http.put<AllocationSectorTarget>(
+        `${this.base}/allocation-risk/sector-targets/${id}`,
+        { sector, targetPct },
+      );
+    return this.http.post<AllocationSectorTarget>(`${this.base}/allocation-risk/sector-targets`, {
+      sector,
+      targetPct,
+    });
+  }
+
+  deleteSectorTarget(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/sector-targets/${id}`);
+  }
+
+  upsertPositionLimit(
+    id: number | null,
+    role: string,
+    targetPct: number,
+  ): Observable<SinglePositionLimit> {
+    if (id)
+      return this.http.put<SinglePositionLimit>(
+        `${this.base}/allocation-risk/position-limits/${id}`,
+        { role, targetPct },
+      );
+    return this.http.post<SinglePositionLimit>(`${this.base}/allocation-risk/position-limits`, {
+      role,
+      targetPct,
+    });
+  }
+
+  deletePositionLimit(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/position-limits/${id}`);
   }
 }

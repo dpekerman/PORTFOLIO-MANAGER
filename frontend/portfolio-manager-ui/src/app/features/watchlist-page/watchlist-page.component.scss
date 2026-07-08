@@ -172,6 +172,10 @@ button[mat-icon-button] {
   gap: 12px;
   padding: 0 24px 12px;
   flex-wrap: wrap;
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg-page);
 
   @media (max-width: 600px) {
     padding: 0 16px 10px;
@@ -200,7 +204,8 @@ button[mat-icon-button] {
   padding: 0 24px 32px;
   overflow-x: auto;
   overflow-y: auto;
-  max-height: calc(100vh - 280px);
+  // Calculated to prevent outer body scroll: nav(56) + page-header(88) + filter-bar(72) + bottom-padding(48) + buffer(56) = 320
+  max-height: calc(100dvh - 320px);
 
   @media (max-width: 600px) {
     padding: 0 0 24px;
@@ -211,25 +216,27 @@ button[mat-icon-button] {
   width: 100%;
   background: var(--bg-surface) !important;
   border-radius: 10px;
-  overflow: hidden;
+  /* overflow: hidden removed — it breaks position:sticky on header cells */
   border: 1px solid var(--border-color);
 
   th.mat-mdc-header-cell {
     position: sticky;
     top: 0;
     z-index: 2;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     color: var(--text-faint);
     background: var(--bg-elevated);
     white-space: nowrap;
+    padding: 0 8px;
   }
 
   td.mat-mdc-cell {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     color: var(--text-primary);
     vertical-align: middle;
+    padding: 5px 8px;
   }
 
   tr.watchlist-row:hover td {
@@ -507,6 +514,24 @@ button[mat-icon-button] {
   color: var(--text-faint);
   &:hover {
     color: #e53935;
+  }
+}
+
+// ── Merged actions cell (star + notes + delete horizontally aligned) ──────────
+.wl-actions-cell {
+  white-space: nowrap;
+  padding: 0 2px !important;
+}
+
+.wl-action-btn.mat-mdc-icon-button {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+
+  .mat-icon {
+    font-size: 17px;
+    width: 17px;
+    height: 17px;
   }
 }
 

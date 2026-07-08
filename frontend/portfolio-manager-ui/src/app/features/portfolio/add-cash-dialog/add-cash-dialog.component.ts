@@ -6,7 +6,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
 import { CashStateService } from '../../../core/services/cash-state.service';
+import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
 @Component({
   selector: 'app-add-cash-dialog',
@@ -20,6 +22,7 @@ import { CashStateService } from '../../../core/services/cash-state.service';
     MatButtonModule,
     MatIconModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
     ReactiveFormsModule,
   ],
 })
@@ -29,10 +32,12 @@ export class AddCashDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<AddCashDialogComponent>);
 
   protected readonly saving = signal(false);
+  protected readonly accountTypes = ACCOUNT_TYPES;
 
   readonly form = this.fb.group({
     description: ['CASH', [Validators.required, Validators.maxLength(200)]],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
+    accountType: [null as string | null],
   });
 
   async submit(): Promise<void> {
@@ -42,6 +47,7 @@ export class AddCashDialogComponent {
       await this.cashState.addItem({
         description: this.form.value.description ?? 'CASH',
         amount: this.form.value.amount!,
+        accountType: this.form.value.accountType ?? null,
       });
       this.dialogRef.close(true);
     } finally {

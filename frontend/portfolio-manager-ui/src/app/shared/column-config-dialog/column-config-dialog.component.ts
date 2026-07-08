@@ -1,6 +1,7 @@
+import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogClose, MatDialogModule } from '@angular/material/dialog';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
@@ -22,11 +23,14 @@ export interface ColumnConfigDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatDialogModule,
+    MatDialogClose,
     MatButtonModule,
     MatIconModule,
     MatDividerModule,
     MatSlideToggleModule,
     MatTooltipModule,
+    CdkDropList,
+    CdkDrag,
   ],
 })
 export class ColumnConfigDialogComponent {
@@ -76,6 +80,16 @@ export class ColumnConfigDialogComponent {
     this.workingPrefs.update((prefs) => {
       const copy = [...prefs];
       [copy[index], copy[index + 1]] = [copy[index + 1], copy[index]];
+      return copy;
+    });
+    this.persist();
+  }
+
+  protected onDrop(event: CdkDragDrop<ColumnPreference[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    this.workingPrefs.update((prefs) => {
+      const copy = [...prefs];
+      moveItemInArray(copy, event.previousIndex, event.currentIndex);
       return copy;
     });
     this.persist();

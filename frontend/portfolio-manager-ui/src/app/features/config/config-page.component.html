@@ -479,4 +479,368 @@
       </button>
     </mat-card-actions>
   </mat-card>
+
+  <!-- ── Allocation & Risk Management ── -->
+  <mat-card class="config-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>pie_chart</mat-icon>
+      <mat-card-title>Allocation &amp; Risk Management</mat-card-title>
+      <mat-card-subtitle>
+        Target allocations by role and sector. Single-position size limits. Changes are saved
+        immediately.
+      </mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="alloc-grid">
+        <!-- ── Allocation by Role ── -->
+        <div class="alloc-panel">
+          <div class="alloc-header">
+            <span class="alloc-title">Allocation by Role</span>
+            <span class="alloc-badge">{{ riskTargets().length }} rows</span>
+            <button
+              mat-icon-button
+              matTooltip="Add row"
+              (click)="startAddRisk()"
+              class="alloc-add-btn"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+
+          @if (editingRisk()?.id === null) {
+            <div class="alloc-edit-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                <mat-label>Role</mat-label>
+                <input
+                  matInput
+                  [ngModel]="editingRisk()!.role"
+                  (ngModelChange)="editingRisk.update((e) => (e ? { ...e, role: $event } : e))"
+                />
+              </mat-form-field>
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="alloc-pct-field"
+              >
+                <mat-label>%</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  [ngModel]="editingRisk()!.targetPct"
+                  (ngModelChange)="
+                    editingRisk.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                  "
+                />
+              </mat-form-field>
+              <button mat-icon-button (click)="saveRisk()" matTooltip="Save">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button mat-icon-button (click)="cancelEditRisk()" matTooltip="Cancel">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+
+          <div class="alloc-list">
+            @for (item of riskTargets(); track item.id) {
+              @if (editingRisk()?.id === item.id) {
+                <div class="alloc-edit-row">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-field"
+                  >
+                    <input
+                      matInput
+                      [ngModel]="editingRisk()!.role"
+                      (ngModelChange)="editingRisk.update((e) => (e ? { ...e, role: $event } : e))"
+                    />
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-pct-field"
+                  >
+                    <input
+                      matInput
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      [ngModel]="editingRisk()!.targetPct"
+                      (ngModelChange)="
+                        editingRisk.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                      "
+                    />
+                  </mat-form-field>
+                  <button mat-icon-button (click)="saveRisk()"><mat-icon>check</mat-icon></button>
+                  <button mat-icon-button (click)="cancelEditRisk()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              } @else {
+                <div class="alloc-row">
+                  <span class="alloc-name">{{ item.role }}</span>
+                  <span class="alloc-pct">{{ item.targetPct }}%</span>
+                  <button
+                    mat-icon-button
+                    (click)="startEditRisk(item)"
+                    matTooltip="Edit"
+                    class="alloc-act"
+                  >
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    (click)="deleteRisk(item.id)"
+                    matTooltip="Delete"
+                    class="alloc-act alloc-del"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            }
+          </div>
+          <div class="alloc-total">
+            <span>TOTAL</span>
+            <span
+              [class.alloc-total-ok]="riskTotal() === 100"
+              [class.alloc-total-warn]="riskTotal() !== 100"
+              >{{ riskTotal() }}%</span
+            >
+          </div>
+        </div>
+
+        <!-- ── Allocation by Sector ── -->
+        <div class="alloc-panel">
+          <div class="alloc-header">
+            <span class="alloc-title">Allocation by Sector</span>
+            <span class="alloc-badge">{{ sectorTargets().length }} rows</span>
+            <button
+              mat-icon-button
+              matTooltip="Add row"
+              (click)="startAddSector()"
+              class="alloc-add-btn"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+
+          @if (editingSector()?.id === null) {
+            <div class="alloc-edit-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                <mat-label>Sector</mat-label>
+                <input
+                  matInput
+                  [ngModel]="editingSector()!.sector"
+                  (ngModelChange)="editingSector.update((e) => (e ? { ...e, sector: $event } : e))"
+                />
+              </mat-form-field>
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="alloc-pct-field"
+              >
+                <mat-label>%</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  [ngModel]="editingSector()!.targetPct"
+                  (ngModelChange)="
+                    editingSector.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                  "
+                />
+              </mat-form-field>
+              <button mat-icon-button (click)="saveSector()"><mat-icon>check</mat-icon></button>
+              <button mat-icon-button (click)="cancelEditSector()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+
+          <div class="alloc-list">
+            @for (item of sectorTargets(); track item.id) {
+              @if (editingSector()?.id === item.id) {
+                <div class="alloc-edit-row">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-field"
+                  >
+                    <input
+                      matInput
+                      [ngModel]="editingSector()!.sector"
+                      (ngModelChange)="
+                        editingSector.update((e) => (e ? { ...e, sector: $event } : e))
+                      "
+                    />
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-pct-field"
+                  >
+                    <input
+                      matInput
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      [ngModel]="editingSector()!.targetPct"
+                      (ngModelChange)="
+                        editingSector.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                      "
+                    />
+                  </mat-form-field>
+                  <button mat-icon-button (click)="saveSector()"><mat-icon>check</mat-icon></button>
+                  <button mat-icon-button (click)="cancelEditSector()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              } @else {
+                <div class="alloc-row">
+                  <span class="alloc-name">{{ item.sector }}</span>
+                  <span class="alloc-pct">{{ item.targetPct }}%</span>
+                  <button mat-icon-button (click)="startEditSector(item)" class="alloc-act">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    (click)="deleteSector(item.id)"
+                    class="alloc-act alloc-del"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            }
+          </div>
+          <div class="alloc-total">
+            <span>TOTAL</span>
+            <span
+              [class.alloc-total-ok]="sectorTotal() === 100"
+              [class.alloc-total-warn]="sectorTotal() !== 100"
+              >{{ sectorTotal() }}%</span
+            >
+          </div>
+        </div>
+
+        <!-- ── Single Position Limits ── -->
+        <div class="alloc-panel">
+          <div class="alloc-header">
+            <span class="alloc-title">Single Position Limits</span>
+            <span class="alloc-badge">{{ positionLimits().length }} rows</span>
+            <button
+              mat-icon-button
+              matTooltip="Add row"
+              (click)="startAddLimit()"
+              class="alloc-add-btn"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+
+          @if (editingLimit()?.id === null) {
+            <div class="alloc-edit-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                <mat-label>Role</mat-label>
+                <input
+                  matInput
+                  [ngModel]="editingLimit()!.role"
+                  (ngModelChange)="editingLimit.update((e) => (e ? { ...e, role: $event } : e))"
+                />
+              </mat-form-field>
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="alloc-pct-field"
+              >
+                <mat-label>Max %</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.5"
+                  [ngModel]="editingLimit()!.targetPct"
+                  (ngModelChange)="
+                    editingLimit.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                  "
+                />
+              </mat-form-field>
+              <button mat-icon-button (click)="saveLimit()"><mat-icon>check</mat-icon></button>
+              <button mat-icon-button (click)="cancelEditLimit()">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+
+          <div class="alloc-list">
+            @for (item of positionLimits(); track item.id) {
+              @if (editingLimit()?.id === item.id) {
+                <div class="alloc-edit-row">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-field"
+                  >
+                    <input
+                      matInput
+                      [ngModel]="editingLimit()!.role"
+                      (ngModelChange)="editingLimit.update((e) => (e ? { ...e, role: $event } : e))"
+                    />
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-pct-field"
+                  >
+                    <input
+                      matInput
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      [ngModel]="editingLimit()!.targetPct"
+                      (ngModelChange)="
+                        editingLimit.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                      "
+                    />
+                  </mat-form-field>
+                  <button mat-icon-button (click)="saveLimit()"><mat-icon>check</mat-icon></button>
+                  <button mat-icon-button (click)="cancelEditLimit()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              } @else {
+                <div class="alloc-row">
+                  <span class="alloc-name">{{ item.role }}</span>
+                  <span class="alloc-pct">{{ item.targetPct }}%</span>
+                  <button mat-icon-button (click)="startEditLimit(item)" class="alloc-act">
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    (click)="deleteLimit(item.id)"
+                    class="alloc-act alloc-del"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            }
+          </div>
+          <p class="alloc-no-total-hint">No total — these are per-position maximums.</p>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
 </div>

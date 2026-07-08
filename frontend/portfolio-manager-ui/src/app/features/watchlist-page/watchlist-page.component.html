@@ -493,23 +493,32 @@
               </td>
             </ng-container>
 
-            <!-- Actions -->
+            <!-- Actions (star + notes + delete) -->
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef></th>
-              <td mat-cell *matCellDef="let w">
+              <td mat-cell *matCellDef="let w" class="wl-actions-cell">
                 <button
                   mat-icon-button
                   (click)="toggleFavorite(w); $event.stopPropagation()"
                   [matTooltip]="w.item.isFavorite ? 'Remove from favourites' : 'Mark as favourite'"
                   [color]="w.item.isFavorite ? 'warn' : undefined"
+                  class="wl-action-btn"
                 >
                   <mat-icon>{{ w.item.isFavorite ? 'star' : 'star_border' }}</mat-icon>
                 </button>
                 <button
                   mat-icon-button
+                  (click)="openNotes(w); $event.stopPropagation()"
+                  [matTooltip]="w.item.notes ? w.item.notes : 'Add note'"
+                  class="wl-action-btn"
+                >
+                  <mat-icon>{{ w.item.notes ? 'sticky_note_2' : 'note_add' }}</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
                   (click)="remove(w)"
                   matTooltip="Remove from watchlist"
-                  class="remove-btn-grid"
+                  class="remove-btn-grid wl-action-btn"
                 >
                   <mat-icon>delete_outline</mat-icon>
                 </button>

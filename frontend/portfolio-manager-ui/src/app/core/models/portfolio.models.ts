@@ -20,6 +20,8 @@ export interface PortfolioItem {
   holdingRole?: string | null;
   /** @optional Free-text notes stored per transaction record */
   notes?: string | null;
+  /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
+  decisionSource?: string | null;
 }
 
 export interface StockQuote {
@@ -79,6 +81,7 @@ export interface AddPortfolioItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -94,6 +97,7 @@ export interface UpdatePortfolioItemRequest {
   closeDate?: string | null;
   closingPrice?: number | null;
   holdingRole?: string | null;
+  decisionSource?: string | null;
 }
 
 export interface SectorIndustryLists {
@@ -297,16 +301,19 @@ export interface CashItem {
   description: string;
   amount: number;
   addedAt: string;
+  accountType?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
+  accountType?: string | null;
 }
 
 export interface UpdateCashItemRequest {
   description: string;
   amount: number;
+  accountType?: string | null;
 }
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -328,6 +335,8 @@ export interface OptionItem {
   closingPrice?: number | null;
   /** @optional Free-text notes stored per transaction record */
   notes?: string | null;
+  /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
+  decisionSource?: string | null;
 }
 
 export interface AddOptionItemRequest {
@@ -343,6 +352,7 @@ export interface AddOptionItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface UpdateOptionItemRequest {
@@ -358,6 +368,7 @@ export interface UpdateOptionItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface OptionTechnicalData {
@@ -462,4 +473,32 @@ export interface EodSignalFilters {
   dateTo?: string;
   page: number;
   pageSize: number;
+}
+
+// ── Allocation & Risk Management ────────────────────────────────────────────────
+export interface AllocationRiskTarget {
+  id: number;
+  role: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface AllocationSectorTarget {
+  id: number;
+  sector: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface SinglePositionLimit {
+  id: number;
+  role: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface AllocationRiskConfig {
+  riskTargets: AllocationRiskTarget[];
+  sectorTargets: AllocationSectorTarget[];
+  positionLimits: SinglePositionLimit[];
 }

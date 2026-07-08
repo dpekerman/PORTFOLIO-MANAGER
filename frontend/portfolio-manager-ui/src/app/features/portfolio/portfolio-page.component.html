@@ -281,6 +281,12 @@
                 <span class="gf-count"
                   >{{ gridItemCount() }} / {{ portfolio.summaries().length }}</span
                 >
+                @if (filteredTotalMktValue() !== null) {
+                  <span class="gf-filtered-total" [class.demo-redact]="demoMode.isDemoMode()">
+                    <span class="gf-ft-label">{{ filterAccount() }} total:</span>
+                    {{ filteredTotalMktValue()! | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                  </span>
+                }
                 <app-grid-column-btn gridId="portfolio-stocks" />
               </div>
               <div class="portfolio-table-wrapper">
@@ -723,6 +729,33 @@
                       }
                     </td>
                   </ng-container>
+                  <!-- Decision Source -->
+                  <ng-container matColumnDef="decisionSource">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      matTooltip="Reason this position was entered or changed"
+                    >
+                      DECISION SOURCE
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @if (isAggRow(0, row)) {
+                        <span class="pg-dim">—</span>
+                      } @else {
+                        <mat-select
+                          [value]="asItem(row).item.decisionSource || null"
+                          (selectionChange)="updateDecisionSource(asItem(row), $event.value)"
+                          class="role-select pg-dim"
+                          placeholder="—"
+                        >
+                          <mat-option [value]="null">— None —</mat-option>
+                          @for (ds of decisionSources; track ds) {
+                            <mat-option [value]="ds">{{ ds }}</mat-option>
+                          }
+                        </mat-select>
+                      }
+                    </td>
+                  </ng-container>
                   <ng-container matColumnDef="trendSetup">
                     <th
                       mat-header-cell
@@ -1057,6 +1090,13 @@
                       {{ c.addedAt | date: 'yyyy-MM-dd' }}
                     </td>
                   </ng-container>
+                  <!-- Cash Account Type -->
+                  <ng-container matColumnDef="cashAccountType">
+                    <th mat-header-cell *matHeaderCellDef>ACCOUNT TYPE</th>
+                    <td mat-cell *matCellDef="let c">
+                      <span class="pg-account-badge">{{ c.accountType || '—' }}</span>
+                    </td>
+                  </ng-container>
                   <ng-container matColumnDef="cashActions">
                     <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
                     <td mat-cell *matCellDef="let c" class="pg-actions-cell">
@@ -1383,6 +1423,22 @@
                     >
                       {{ a.action }}
                     </div>
+                  </td>
+                </ng-container>
+                <!-- Option Account Type -->
+                <ng-container matColumnDef="opt_account">
+                  <th mat-header-cell *matHeaderCellDef>ACCOUNT</th>
+                  <td mat-cell *matCellDef="let a">
+                    <span class="pg-account-badge">{{ a.item.accountType || '—' }}</span>
+                  </td>
+                </ng-container>
+                <!-- Option Decision Source -->
+                <ng-container matColumnDef="opt_decision_source">
+                  <th mat-header-cell *matHeaderCellDef matTooltip="Decision source for this option position">
+                    DECISION SOURCE
+                  </th>
+                  <td mat-cell *matCellDef="let a">
+                    <span class="pg-dim">{{ a.item.decisionSource || '—' }}</span>
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_actions">

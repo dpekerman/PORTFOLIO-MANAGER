@@ -53,7 +53,8 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
             AccountType       = request.AccountType,
             OpenDate          = request.OpenDate,
             CloseDate         = request.CloseDate,
-            ClosingPrice      = request.ClosingPrice
+            ClosingPrice      = request.ClosingPrice,
+            DecisionSource    = request.DecisionSource
         };
         db.OptionItems.Add(item);
         await db.SaveChangesAsync(ct);
@@ -76,6 +77,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         item.OpenDate          = request.OpenDate;
         item.CloseDate         = request.CloseDate;
         item.ClosingPrice      = request.ClosingPrice;
+        if (request.DecisionSource is not null) item.DecisionSource = request.DecisionSource;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -268,7 +270,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         new(item.Id, item.UnderlyingTicker, item.PositionType, item.ExpirationDate,
             item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
             item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice,
-            item.Notes);
+            item.Notes, item.DecisionSource);
 
     public async Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default)
     {

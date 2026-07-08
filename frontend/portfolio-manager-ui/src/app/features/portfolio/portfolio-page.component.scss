@@ -288,6 +288,11 @@
   flex-wrap: wrap;
   gap: 10px;
   margin: 14px 0 10px;
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg-page);
+  padding: 6px 0;
 
   .gf-field {
     min-width: 160px;
@@ -318,6 +323,25 @@
   color: var(--text-faint);
   white-space: nowrap;
   margin-left: auto;
+}
+
+.gf-filtered-total {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(21, 101, 192, 0.1);
+  border: 1px solid rgba(21, 101, 192, 0.25);
+  border-radius: 8px;
+  padding: 3px 10px;
+  color: #64b5f6;
+
+  .gf-ft-label {
+    font-weight: 500;
+    opacity: 0.8;
+  }
 }
 
 // ── Column config button action bar (cash / options) ─────────────────────────

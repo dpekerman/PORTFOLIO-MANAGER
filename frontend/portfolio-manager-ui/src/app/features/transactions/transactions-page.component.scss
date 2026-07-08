@@ -135,12 +135,22 @@
 
 .tx-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100dvh - 340px);
   -webkit-overflow-scrolling: touch;
 }
 
 .tx-grid-table {
   width: 100%;
   min-width: 900px;
+
+  th.mat-mdc-header-cell {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--mat-sys-surface-container-low);
+    white-space: nowrap;
+  }
 }
 
 // ── Shared table cell styles ──────────────────────────────────────────────────

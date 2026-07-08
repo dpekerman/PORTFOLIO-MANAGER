@@ -230,6 +230,21 @@ export class PortfolioPageComponent {
     return [...set].sort();
   });
 
+  /** When account filter is active, show the total market value for filtered positions. */
+  protected readonly filteredTotalMktValue = computed<number | null>(() => {
+    if (!this.filterAccount()) return null;
+    return this.gridRows()
+      .filter((r) => !('kind' in r))
+      .reduce((sum, r) => {
+        const s = r as import('../../core/models/portfolio.models').PortfolioSummary;
+        const p = s.quote?.currentPrice ?? s.item.averageCostBasis;
+        const mv = s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+          : p * s.item.shares;
+        return sum + mv;
+      }, 0);
+  });
+
   protected readonly sortedOptionAnalyses = computed(() => {
     const col = this.optionSortCol();
     const dir = this.optionSortDir() === 'asc' ? 1 : -1;
@@ -369,6 +384,15 @@ export class PortfolioPageComponent {
     'Options',
   ] as const;
 
+  protected readonly decisionSources = [
+    'App Signal',
+    'Manual',
+    'Catalyst',
+    'Rebalance',
+    'Risk Control',
+    'Loss Harvest',
+  ] as const;
+
   protected roleClass(role: string | null | undefined): string {
     switch (role) {
       case 'Core':
@@ -390,6 +414,15 @@ export class PortfolioPageComponent {
 
   updateHoldingRole(row: PortfolioSummary, role: string): void {
     this.portfolio.updateHoldingRole(row.item.id, role);
+  }
+
+  updateDecisionSource(row: PortfolioSummary, decisionSource: string | null): void {
+    this.portfolio.updateItem(row.item.id, {
+      companyName: row.item.companyName,
+      shares: row.item.shares,
+      averageCostBasis: row.item.averageCostBasis,
+      decisionSource,
+    });
   }
 
   updateAggHoldingRole(agg: AggregatePortfolioRow, role: string): void {
@@ -820,7 +853,6 @@ export class PortfolioPageComponent {
   }
 
   exportCsv(): void {
-    const grouped = this.groupedSymbols();
     const rows: string[][] = [
       [
         'Asset Type',
@@ -846,67 +878,39 @@ export class PortfolioPageComponent {
     ];
 
     // ── Stocks ──────────────────────────────────────────────────────────────
-    for (const row of this.gridRows()) {
-      if (this.isAggRow(0, row)) {
-        // Multi-account ticker: export one aggregated row listing all accounts
-        const agg = row as AggregatePortfolioRow;
-        const rsiVal = this.rsiForSymbol(agg.symbol);
-        rows.push([
-          'Stock',
-          agg.symbol,
-          agg.company,
-          agg.accountsList.join(', '),
-          agg.sector,
-          agg.industry,
-          agg.totalShares.toString(),
-          agg.weightedAvgCost.toFixed(2),
-          (agg.quote?.currentPrice ?? 0).toFixed(2),
-          agg.totalMarketValue.toFixed(2),
-          agg.totalGainLoss.toFixed(2),
-          agg.totalGainLossPct.toFixed(2),
-          (agg.quote?.change ?? 0).toFixed(2),
-          (agg.quote?.changePercent ?? 0).toFixed(2),
-          rsiVal !== null ? rsiVal.toFixed(1) : '',
-          agg.holdingRole ?? 'Strategic',
-          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.trendSetup ?? '',
-          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.momentumShift ?? '',
-          this.decisionForPortfolio(agg.symbol, agg.holdingRole)?.finalAction ?? '',
-        ]);
-      } else {
-        // Skip individual child rows that belong to a multi-account group
-        const s = row as PortfolioSummary;
-        if (grouped.has(s.item.symbol)) continue;
-
-        const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-        const marketValue = s.item.isManual
-          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-          : price * s.item.shares;
-        const cost = s.item.averageCostBasis * s.item.shares;
-        const gainLoss = marketValue - cost;
-        const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
-        const rsiVal = this.rsiForSymbol(s.item.symbol);
-        rows.push([
-          'Stock',
-          s.item.symbol,
-          s.item.companyName,
-          s.item.accountType ?? '',
-          s.item.sector ?? s.quote?.sector ?? '',
-          s.item.industry ?? s.quote?.industry ?? '',
-          s.item.shares.toString(),
-          s.item.averageCostBasis.toFixed(2),
-          price.toFixed(2),
-          marketValue.toFixed(2),
-          gainLoss.toFixed(2),
-          gainLossPct,
-          (s.quote?.change ?? 0).toFixed(2),
-          (s.quote?.changePercent ?? 0).toFixed(2),
-          rsiVal !== null ? rsiVal.toFixed(1) : '',
-          s.item.holdingRole ?? 'Strategic',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? '',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
-          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
-        ]);
-      }
+    // Export ALL individual open stock records directly from portfolio.summaries()
+    // to avoid the collapsed-group issue where gridRows() omits child rows.
+    const openSummaries = this.portfolio
+      .summaries()
+      .filter((s) => s.item.transactionType !== 'CLOSE' && !s.item.isManual);
+    for (const s of openSummaries) {
+      const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
+      const marketValue = price * s.item.shares;
+      const cost = s.item.averageCostBasis * s.item.shares;
+      const gainLoss = marketValue - cost;
+      const gainLossPct = cost > 0 ? ((gainLoss / cost) * 100).toFixed(2) : '0';
+      const rsiVal = this.rsiForSymbol(s.item.symbol);
+      rows.push([
+        'Stock',
+        s.item.symbol,
+        s.item.companyName,
+        s.item.accountType ?? '',
+        s.item.sector ?? s.quote?.sector ?? '',
+        s.item.industry ?? s.quote?.industry ?? '',
+        s.item.shares.toString(),
+        s.item.averageCostBasis.toFixed(2),
+        price.toFixed(2),
+        marketValue.toFixed(2),
+        gainLoss.toFixed(2),
+        gainLossPct,
+        (s.quote?.change ?? 0).toFixed(2),
+        (s.quote?.changePercent ?? 0).toFixed(2),
+        rsiVal !== null ? rsiVal.toFixed(1) : '',
+        s.item.holdingRole ?? 'Strategic',
+        this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? '',
+        this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
+        this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
+      ]);
     }
 
     // ── Cash ────────────────────────────────────────────────────────────────
@@ -1007,6 +1011,7 @@ export class PortfolioPageComponent {
           openDate: result.openDate,
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
+          decisionSource: result.decisionSource,
         });
       });
   }

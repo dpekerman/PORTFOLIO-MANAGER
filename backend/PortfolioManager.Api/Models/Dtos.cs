@@ -11,7 +11,8 @@ public record AddPortfolioItemRequest(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? DecisionSource = null);
 
 /// <summary>
 /// Request to add a manual (non-ticker) position such as Cash, Options, Bonds, etc.
@@ -35,7 +36,8 @@ public record UpdatePortfolioItemRequest(
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
-    string? HoldingRole = null);
+    string? HoldingRole = null,
+    string? DecisionSource = null);
 
 public record PortfolioItemDto(
     int Id,
@@ -55,7 +57,8 @@ public record PortfolioItemDto(
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
     string? HoldingRole = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? DecisionSource = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
@@ -80,9 +83,9 @@ public record SectorIndustryListsDto(List<string> Sectors, List<string> Industri
 public record UpdateSectorIndustryListsRequest(List<string> Sectors, List<string> Industries);
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
-public record AddCashItemRequest(string Description, decimal Amount);
-public record UpdateCashItemRequest(string Description, decimal Amount);
-public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt);
+public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null);
+public record UpdateCashItemRequest(string Description, decimal Amount, string? AccountType = null);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null);
 
 // ── Options ───────────────────────────────────────────────────────────────────
 public record AddOptionItemRequest(
@@ -97,7 +100,8 @@ public record AddOptionItemRequest(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? DecisionSource = null);
 
 public record UpdateOptionItemRequest(
     string UnderlyingTicker,
@@ -111,7 +115,8 @@ public record UpdateOptionItemRequest(
     string? AccountType = null,
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
-    decimal? ClosingPrice = null);
+    decimal? ClosingPrice = null,
+    string? DecisionSource = null);
 
 public record UpdateOptionNotesRequest(string? Notes);
 
@@ -130,7 +135,8 @@ public record OptionItemDto(
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
-    string? Notes = null);
+    string? Notes = null,
+    string? DecisionSource = null);
 
 /// <summary>Technical indicators for the underlying ticker, used by the frontend option state engine.</summary>
 public record OptionTechnicalDataDto(
@@ -201,4 +207,18 @@ public record PortfolioBackupItem(
     DateTime AddedAt);
 /// <summary>Restore request: clears existing portfolio items and inserts all provided items.</summary>
 public record RestorePortfolioRequest(List<PortfolioBackupItem> Items);
+
+// ── Allocation & Risk Management ────────────────────────────────────────────────
+public record AllocationRiskTargetDto(int Id, string Role, decimal TargetPct, int DisplayOrder);
+public record AllocationSectorTargetDto(int Id, string Sector, decimal TargetPct, int DisplayOrder);
+public record SinglePositionLimitDto(int Id, string Role, decimal TargetPct, int DisplayOrder);
+
+public record UpsertAllocationRiskTargetRequest(string Role, decimal TargetPct);
+public record UpsertAllocationSectorTargetRequest(string Sector, decimal TargetPct);
+public record UpsertSinglePositionLimitRequest(string Role, decimal TargetPct);
+
+public record AllocationRiskConfigDto(
+    List<AllocationRiskTargetDto> RiskTargets,
+    List<AllocationSectorTargetDto> SectorTargets,
+    List<SinglePositionLimitDto> PositionLimits);
 

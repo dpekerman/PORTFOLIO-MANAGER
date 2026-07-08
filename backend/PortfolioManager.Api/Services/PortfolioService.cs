@@ -56,7 +56,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             AccountType      = request.AccountType,
             OpenDate         = request.OpenDate,
             CloseDate        = request.CloseDate,
-            ClosingPrice     = request.ClosingPrice
+            ClosingPrice     = request.ClosingPrice,
+            DecisionSource   = request.DecisionSource
         };
 
         db.PortfolioItems.Add(item);
@@ -117,6 +118,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         item.CloseDate       = request.CloseDate;
         item.ClosingPrice    = request.ClosingPrice;
         if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
+        if (request.DecisionSource is not null) item.DecisionSource = request.DecisionSource;
 
         await db.SaveChangesAsync(ct);
         return ToDto(item);
@@ -154,7 +156,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
             item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
             item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole,
-            item.Notes);
+            item.Notes, item.DecisionSource);
 
     public async Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default)
     {

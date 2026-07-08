@@ -14,10 +14,17 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import {
+  AllocationRiskConfig,
+  AllocationRiskTarget,
+  AllocationSectorTarget,
+  SinglePositionLimit,
+} from '../../core/models/portfolio.models';
 import { ConfigService } from '../../core/services/config.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -38,6 +45,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatIconModule,
     MatInputModule,
     MatListModule,
+    MatSelectModule,
     MatSlideToggleModule,
     MatTimepickerModule,
     MatTooltipModule,
@@ -118,6 +126,121 @@ export class ConfigPageComponent implements OnInit {
     return f ? this.industries().filter((i) => i.toLowerCase().includes(f)) : this.industries();
   });
 
+  // ── Allocation & Risk Management ─────────────────────────────────────────
+  protected readonly riskTargets = signal<AllocationRiskTarget[]>([]);
+  protected readonly sectorTargets = signal<AllocationSectorTarget[]>([]);
+  protected readonly positionLimits = signal<SinglePositionLimit[]>([]);
+  protected readonly savingAllocation = signal(false);
+
+  // Edit state for inline editing
+  protected readonly editingRisk = signal<{
+    id: number | null;
+    role: string;
+    targetPct: number | null;
+  } | null>(null);
+  protected readonly editingSector = signal<{
+    id: number | null;
+    sector: string;
+    targetPct: number | null;
+  } | null>(null);
+  protected readonly editingLimit = signal<{
+    id: number | null;
+    role: string;
+    targetPct: number | null;
+  } | null>(null);
+
+  protected readonly riskTotal = computed(() =>
+    this.riskTargets().reduce((s, r) => s + r.targetPct, 0),
+  );
+  protected readonly sectorTotal = computed(() =>
+    this.sectorTargets().reduce((s, r) => s + r.targetPct, 0),
+  );
+
+  private loadAllocationRisk(): void {
+    this.api.getAllocationRiskConfig().subscribe({
+      next: (cfg: AllocationRiskConfig) => {
+        this.riskTargets.set(cfg.riskTargets);
+        this.sectorTargets.set(cfg.sectorTargets);
+        this.positionLimits.set(cfg.positionLimits);
+      },
+    });
+  }
+
+  // ── Risk Targets ──────────────────────────────────────────────────────────
+  protected startAddRisk(): void {
+    this.editingRisk.set({ id: null, role: '', targetPct: null });
+  }
+  protected startEditRisk(item: AllocationRiskTarget): void {
+    this.editingRisk.set({ id: item.id, role: item.role, targetPct: item.targetPct });
+  }
+  protected cancelEditRisk(): void {
+    this.editingRisk.set(null);
+  }
+  protected saveRisk(): void {
+    const e = this.editingRisk();
+    if (!e || !e.role.trim() || !e.targetPct) return;
+    this.api.upsertRiskTarget(e.id, e.role.trim(), e.targetPct).subscribe({
+      next: () => {
+        this.editingRisk.set(null);
+        this.loadAllocationRisk();
+      },
+      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
+    });
+  }
+  protected deleteRisk(id: number): void {
+    this.api.deleteRiskTarget(id).subscribe({ next: () => this.loadAllocationRisk() });
+  }
+
+  // ── Sector Targets ────────────────────────────────────────────────────────
+  protected startAddSector(): void {
+    this.editingSector.set({ id: null, sector: '', targetPct: null });
+  }
+  protected startEditSector(item: AllocationSectorTarget): void {
+    this.editingSector.set({ id: item.id, sector: item.sector, targetPct: item.targetPct });
+  }
+  protected cancelEditSector(): void {
+    this.editingSector.set(null);
+  }
+  protected saveSector(): void {
+    const e = this.editingSector();
+    if (!e || !e.sector.trim() || !e.targetPct) return;
+    this.api.upsertSectorTarget(e.id, e.sector.trim(), e.targetPct).subscribe({
+      next: () => {
+        this.editingSector.set(null);
+        this.loadAllocationRisk();
+      },
+      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
+    });
+  }
+  protected deleteSector(id: number): void {
+    this.api.deleteSectorTarget(id).subscribe({ next: () => this.loadAllocationRisk() });
+  }
+
+  // ── Position Limits ───────────────────────────────────────────────────────
+  protected startAddLimit(): void {
+    this.editingLimit.set({ id: null, role: '', targetPct: null });
+  }
+  protected startEditLimit(item: SinglePositionLimit): void {
+    this.editingLimit.set({ id: item.id, role: item.role, targetPct: item.targetPct });
+  }
+  protected cancelEditLimit(): void {
+    this.editingLimit.set(null);
+  }
+  protected saveLimit(): void {
+    const e = this.editingLimit();
+    if (!e || !e.role.trim() || !e.targetPct) return;
+    this.api.upsertPositionLimit(e.id, e.role.trim(), e.targetPct).subscribe({
+      next: () => {
+        this.editingLimit.set(null);
+        this.loadAllocationRisk();
+      },
+      error: () => this.snackBar.open('Failed to save.', 'Dismiss', { duration: 3000 }),
+    });
+  }
+  protected deleteLimit(id: number): void {
+    this.api.deletePositionLimit(id).subscribe({ next: () => this.loadAllocationRisk() });
+  }
+
   ngOnInit(): void {
     const cfg = this.configService.config();
     this.form.setValue({
@@ -166,6 +289,9 @@ export class ConfigPageComponent implements OnInit {
         });
       },
     });
+
+    // Load allocation & risk config
+    this.loadAllocationRisk();
   }
 
   // ── EOD Window settings ──────────────────────────────────────────────────

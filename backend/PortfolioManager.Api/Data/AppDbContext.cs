@@ -11,6 +11,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
     public DbSet<DailySignal> DailySignals => Set<DailySignal>();
+    public DbSet<AllocationRiskTarget> AllocationRiskTargets => Set<AllocationRiskTarget>();
+    public DbSet<AllocationSectorTarget> AllocationSectorTargets => Set<AllocationSectorTarget>();
+    public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,7 +33,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.HoldingRole).HasMaxLength(20);
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
             entity.HasIndex(e => e.Symbol); // non-unique: same ticker can exist across multiple accounts
+        });
+
+        modelBuilder.Entity<CashItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.AccountType).HasMaxLength(30);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
@@ -72,6 +84,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.TransactionType).HasMaxLength(10);
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
         });
 
         modelBuilder.Entity<DailySignal>(entity =>
@@ -93,6 +106,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+        });
+
+        modelBuilder.Entity<AllocationRiskTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<AllocationSectorTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sector).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<SinglePositionLimit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
         });
     }
 }
