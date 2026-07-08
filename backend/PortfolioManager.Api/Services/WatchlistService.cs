@@ -10,6 +10,8 @@ public interface IWatchlistService
     Task<WatchlistItemDto> AddAsync(AddWatchlistItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
+    Task<bool> UpdateFavoriteAsync(int id, bool isFavorite, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string notes, CancellationToken ct = default);
     Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default);
     Task<int> RestoreAsync(IReadOnlyList<WatchlistBackupItem> items, CancellationToken ct = default);
 }
@@ -61,8 +63,28 @@ public sealed class WatchlistService(AppDbContext db) : IWatchlistService
         return true;
     }
 
+    public async Task<bool> UpdateFavoriteAsync(int id, bool isFavorite, CancellationToken ct = default)
+    {
+        var item = await db.WatchlistItems.FindAsync([id], ct);
+        if (item is null) return false;
+
+        item.IsFavorite = isFavorite;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateNotesAsync(int id, string notes, CancellationToken ct = default)
+    {
+        var item = await db.WatchlistItems.FindAsync([id], ct);
+        if (item is null) return false;
+
+        item.Notes = notes ?? "";
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     private static WatchlistItemDto ToDto(WatchlistItem item) =>
-        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic");
+        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic", item.IsFavorite);
 
     public async Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default)
     {

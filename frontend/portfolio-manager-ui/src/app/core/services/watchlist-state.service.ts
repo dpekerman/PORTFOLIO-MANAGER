@@ -88,4 +88,26 @@ export class WatchlistStateService {
       error: () => this.snackBar.open('Failed to update role', 'Close', { duration: 4000 }),
     });
   }
+
+  updateFavorite(id: number, isFavorite: boolean): void {
+    this.api.updateWatchlistFavorite(id, isFavorite).subscribe({
+      next: () => {
+        this._items.update((items) =>
+          items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, isFavorite } } : s)),
+        );
+      },
+      error: () => this.snackBar.open('Failed to update favourite', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateNotes(id: number, notes: string): void {
+    this.api.updateWatchlistNotes(id, notes).subscribe({
+      next: () => {
+        this._items.update((items) =>
+          items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, notes } } : s)),
+        );
+      },
+      error: () => this.snackBar.open('Failed to update notes', 'Close', { duration: 4000 }),
+    });
+  }
 }

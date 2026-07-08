@@ -102,6 +102,14 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/role`, { role });
   }
 
+  updateWatchlistFavorite(id: number, isFavorite: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/favorite`, { isFavorite });
+  }
+
+  updateWatchlistNotes(id: number, notes: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/notes`, { notes });
+  }
+
   updatePortfolioHoldingRole(id: number, holdingRole: string): Observable<void> {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/holding-role`, { holdingRole });
   }

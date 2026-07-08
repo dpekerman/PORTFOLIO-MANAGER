@@ -95,6 +95,9 @@ export class EodSignalsPageComponent implements OnInit {
   protected readonly persistingNow = signal(false);
   protected readonly lastCheckedAt = signal<Date | null>(null);
   protected readonly autoRefreshing = signal(false);
+  /** Tracks the last unfiltered total count seen during background polling. Used to detect genuine new signals
+   *  without being affected by active filter state (which changes the filtered totalCount). */
+  private readonly lastKnownMetaCount = signal<number | null>(null);
 
   // EOD window status (reuses scanner state service — already polled every 30 s)
   protected readonly eodWindowActive = computed(() => this.scannerState.eodWindowActive());
@@ -207,7 +210,12 @@ export class EodSignalsPageComponent implements OnInit {
     this.api
       .getEodSignalsMeta()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (m) => this.meta.set(m) });
+      .subscribe({
+        next: (m) => {
+          this.meta.set(m);
+          this.lastKnownMetaCount.set(m.totalCount);
+        },
+      });
 
     this.tickerControl.valueChanges
       .pipe(debounceTime(400), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
@@ -273,20 +281,22 @@ export class EodSignalsPageComponent implements OnInit {
   }
 
   /** Silent background poll: fetches only meta (totalCount).
-   *  If new records were added since the last full load, triggers a full reload. */
+   *  Compares against lastKnownMetaCount (unfiltered) to avoid false positives
+   *  when the user has active filters that reduce the displayed count. */
   private pollForUpdates(): void {
-    const prevCount = this.totalCount();
     this.autoRefreshing.set(true);
     this.api
       .getEodSignalsMeta()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (m) => {
+          const prev = this.lastKnownMetaCount();
           this.meta.set(m);
           this.autoRefreshing.set(false);
           this.lastCheckedAt.set(new Date());
-          if (m.totalCount > prevCount) {
-            const diff = m.totalCount - prevCount;
+          // Only show snack-bar when total unfiltered count has actually increased
+          if (prev !== null && m.totalCount > prev) {
+            const diff = m.totalCount - prev;
             this.snackBar
               .open(
                 `${diff} new EOD signal${diff > 1 ? 's' : ''} added by background scanner`,
@@ -298,6 +308,7 @@ export class EodSignalsPageComponent implements OnInit {
               .subscribe(() => this.loadSignals());
             this.loadSignals();
           }
+          this.lastKnownMetaCount.set(m.totalCount);
         },
         error: () => this.autoRefreshing.set(false),
       });
@@ -360,7 +371,12 @@ export class EodSignalsPageComponent implements OnInit {
     this.api
       .getEodSignalsMeta()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (m) => this.meta.set(m) });
+      .subscribe({
+        next: (m) => {
+          this.meta.set(m);
+          this.lastKnownMetaCount.set(m.totalCount);
+        },
+      });
   }
 
   protected updateState(row: DailySignal, newState: SignalState): void {

@@ -216,17 +216,21 @@
                 <td mat-footer-cell *matFooterCellDef class="pg-num"></td>
               </ng-container>
 
-              <ng-container matColumnDef="tx_mkt_value">
+              <ng-container matColumnDef="tx_last_price">
                 <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
-                  CURRENT MKT VALUE
+                  LAST PRICE
                 </th>
                 <td
                   mat-cell
                   *matCellDef="let s"
-                  class="pg-num pg-bold"
+                  class="pg-num"
                   [class.demo-redact]="demoMode.isDemoMode()"
                 >
-                  {{ stockMktValue(s) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                  @if (stockLastPrice(s) != null) {
+                    {{ stockLastPrice(s) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  } @else {
+                    <span class="pg-dim">—</span>
+                  }
                 </td>
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>

@@ -101,6 +101,7 @@ type GridSortCol =
   | 'avgCost'
   | 'price'
   | 'marketValue'
+  | 'portfolioPct'
   | 'gainLoss'
   | 'gainLossPct'
   | 'rsi'
@@ -182,6 +183,7 @@ export class PortfolioPageComponent {
   protected readonly filterIndustry = signal('');
   protected readonly filterRole = signal('');
   protected readonly filterMomentumShift = signal('');
+  protected readonly filterAccount = signal('');
 
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
@@ -210,6 +212,23 @@ export class PortfolioPageComponent {
       return sum + s.item.shares * (s.quote?.change ?? 0);
     }, 0),
   );
+
+  /** Total portfolio value: stocks + cash + options. Used for % TOTAL calculations. */
+  protected readonly portfolioGrandTotal = computed<number>(
+    () =>
+      this.portfolio.totalValue() +
+      this.cashState.totalCash() +
+      this.optionState.totalMarketValue(),
+  );
+
+  /** Unique account types across all portfolio positions for filtering. */
+  protected readonly uniqueAccounts = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const s of this.portfolio.summaries()) {
+      if (s.item.accountType) set.add(s.item.accountType);
+    }
+    return [...set].sort();
+  });
 
   protected readonly sortedOptionAnalyses = computed(() => {
     const col = this.optionSortCol();
@@ -341,7 +360,14 @@ export class PortfolioPageComponent {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
   }
 
-  protected readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
+  protected readonly roles = [
+    'Core',
+    'Strategic',
+    'Strategic-Income',
+    'Swing',
+    'Speculative',
+    'Options',
+  ] as const;
 
   protected roleClass(role: string | null | undefined): string {
     switch (role) {
@@ -349,6 +375,8 @@ export class PortfolioPageComponent {
         return 'role-core';
       case 'Strategic':
         return 'role-strategic';
+      case 'Strategic-Income':
+        return 'role-strategic-income';
       case 'Swing':
         return 'role-swing';
       case 'Speculative':
@@ -471,12 +499,14 @@ export class PortfolioPageComponent {
   ] as const;
 
   // â”€â”€ Grid filtered + sorted rows â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // -- Grid filtered + sorted rows ------------------------------------------
   protected readonly gridRows = computed<GridRow[]>(() => {
     const ticker = this.filterTicker().trim().toLowerCase();
     const sector = this.filterSector();
     const industry = this.filterIndustry();
     const filterRole = this.filterRole();
     const filterMomentum = this.filterMomentumShift();
+    const filterAccount = this.filterAccount();
 
     const rows = this.portfolio.summaries().filter((s) => {
       if (s.item.transactionType === 'CLOSE') return false;
@@ -489,6 +519,7 @@ export class PortfolioPageComponent {
       if (sector && (s.item.sector || s.quote?.sector || '') !== sector) return false;
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
       if (filterRole && (s.item.holdingRole ?? 'Strategic') !== filterRole) return false;
+      if (filterAccount && (s.item.accountType ?? '') !== filterAccount) return false;
       if (filterMomentum) {
         const ms =
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '';
@@ -500,29 +531,46 @@ export class PortfolioPageComponent {
     const col = this.gridSortCol();
     const dir = this.gridSortDir() === 'asc' ? 1 : -1;
 
-    const sorted = [...rows].sort((a, b) => {
-      const av = this.gridSortValue(a, col);
-      const bv = this.gridSortValue(b, col);
-      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
-    });
-
-    // Group by symbol – tickers with 2+ entries get a collapsible aggregate group header
+    // 1. Group by symbol first (before sorting) to enable aggregate-level sorting
     const groups = new Map<string, PortfolioSummary[]>();
-    for (const s of sorted) {
+    for (const s of rows) {
       const sym = s.item.symbol;
       if (!groups.has(sym)) groups.set(sym, []);
       groups.get(sym)!.push(s);
     }
 
+    // 2. Sort within each multi-position group by individual row sort value
+    for (const group of groups.values()) {
+      if (group.length > 1) {
+        group.sort((a, b) => {
+          const av = this.gridSortValue(a, col);
+          const bv = this.gridSortValue(b, col);
+          if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+          return String(av).localeCompare(String(bv)) * dir;
+        });
+      }
+    }
+
+    // 3. Sort groups by aggregate value so multi-account groups sort correctly
+    const sortedSymbols = [...groups.keys()].sort((symA, symB) => {
+      const groupA = groups.get(symA)!;
+      const groupB = groups.get(symB)!;
+      const av =
+        groupA.length === 1 ? this.gridSortValue(groupA[0], col) : this.aggSortValue(groupA, col);
+      const bv =
+        groupB.length === 1 ? this.gridSortValue(groupB[0], col) : this.aggSortValue(groupB, col);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+
+    // 4. Build result rows in sorted group order
     const collapsed = this.collapsedSymbols();
     const result: GridRow[] = [];
-    for (const [sym, group] of groups) {
+    for (const sym of sortedSymbols) {
+      const group = groups.get(sym)!;
       if (group.length === 1) {
-        // Single-account ticker: show row directly
         result.push(group[0]);
       } else {
-        // Multi-account ticker: show aggregate header first
         const totalShares = group.reduce((sum, s) => sum + s.item.shares, 0);
         const totalCost = group.reduce(
           (sum, s) => sum + s.item.averageCostBasis * s.item.shares,
@@ -562,7 +610,6 @@ export class PortfolioPageComponent {
           quote: group[0].quote,
           holdingRole: group[0].item.holdingRole ?? null,
         } satisfies AggregatePortfolioRow);
-        // Individual rows only shown when group is expanded
         if (!collapsed.has(sym)) {
           result.push(...group);
         }
@@ -628,6 +675,10 @@ export class PortfolioPageComponent {
         return price;
       case 'marketValue':
         return mv;
+      case 'portfolioPct': {
+        const grandTotal = this.portfolioGrandTotal();
+        return grandTotal > 0 ? (mv / grandTotal) * 100 : 0;
+      }
       case 'gainLoss':
         return mv - cost;
       case 'gainLossPct':
@@ -638,6 +689,8 @@ export class PortfolioPageComponent {
         return s.quote?.changePercent ?? 0;
       case 'dayGain':
         return s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0);
+      case 'holdingRole':
+        return s.item.holdingRole ?? 'Strategic';
       case 'trendSetup':
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? ''
@@ -655,6 +708,54 @@ export class PortfolioPageComponent {
     }
   }
 
+  /** Computes a sort value for a multi-account aggregate group. */
+  private aggSortValue(group: PortfolioSummary[], col: GridSortCol): number | string {
+    const grandTotal = this.portfolioGrandTotal();
+    const totalMv = group.reduce((sum, s) => {
+      const p = s.quote?.currentPrice ?? s.item.averageCostBasis;
+      return (
+        sum +
+        (s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+          : p * s.item.shares)
+      );
+    }, 0);
+    const totalCost = group.reduce((sum, s) => sum + s.item.averageCostBasis * s.item.shares, 0);
+    switch (col) {
+      case 'symbol':
+        return group[0].item.symbol;
+      case 'company':
+        return group[0].item.companyName;
+      case 'sector':
+        return group[0].item.sector || group[0].quote?.sector || '';
+      case 'industry':
+        return group[0].item.industry || group[0].quote?.industry || '';
+      case 'shares':
+        return group.reduce((sum, s) => sum + s.item.shares, 0);
+      case 'price':
+        return group[0].quote?.currentPrice ?? group[0].item.averageCostBasis;
+      case 'marketValue':
+        return totalMv;
+      case 'portfolioPct':
+        return grandTotal > 0 ? (totalMv / grandTotal) * 100 : 0;
+      case 'gainLoss':
+        return totalMv - totalCost;
+      case 'gainLossPct':
+        return totalCost > 0 ? ((totalMv - totalCost) / totalCost) * 100 : 0;
+      case 'dayGain':
+        return group.reduce(
+          (sum, s) => sum + (s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0)),
+          0,
+        );
+      case 'changePct':
+        return group[0].quote?.changePercent ?? 0;
+      case 'holdingRole':
+        return group[0].item.holdingRole ?? 'Strategic';
+      default:
+        return this.gridSortValue(group[0], col);
+    }
+  }
+
   onGridSortChange(sort: Sort): void {
     if (!sort.active || sort.direction === '') return;
     this.gridSortCol.set(sort.active as GridSortCol);
@@ -667,6 +768,7 @@ export class PortfolioPageComponent {
     this.filterIndustry.set('');
     this.filterRole.set('');
     this.filterMomentumShift.set('');
+    this.filterAccount.set('');
   }
 
   get hasActiveFilters(): boolean {
@@ -675,7 +777,8 @@ export class PortfolioPageComponent {
       this.filterSector() ||
       this.filterIndustry() ||
       this.filterRole() ||
-      this.filterMomentumShift()
+      this.filterMomentumShift() ||
+      this.filterAccount()
     );
   }
 

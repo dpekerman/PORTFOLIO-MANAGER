@@ -42,6 +42,11 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
 import {
+  TransactionNotesDialogComponent,
+  TransactionNotesDialogData,
+  TransactionNotesDialogResult,
+} from '../transactions/transaction-notes-dialog/transaction-notes-dialog.component';
+import {
   AddWatchlistDialogComponent,
   AddWatchlistDialogResult,
 } from './add-watchlist-dialog.component';
@@ -57,6 +62,7 @@ type SortColumn =
   | 'changePct'
   | 'sector'
   | 'rsi'
+  | 'buyScore'
   | 'trendSetup'
   | 'momentumShift'
   | 'finalAction';
@@ -99,9 +105,17 @@ export class WatchlistPageComponent {
   protected readonly filterText = signal('');
   protected readonly filterTrendSetup = signal('');
   protected readonly filterFinalAction = signal('');
+  protected readonly filterFavorites = signal(false);
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
-  protected readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'];
+  protected readonly roles = [
+    'Core',
+    'Strategic',
+    'Strategic-Income',
+    'Swing',
+    'Speculative',
+    'Options',
+  ];
 
   // â”€â”€ RSI result map for watchlist symbols â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
@@ -267,7 +281,12 @@ export class WatchlistPageComponent {
     const filter = this.filterText().trim().toLowerCase();
     const filterTrendSetup = this.filterTrendSetup();
     const filterFinalAction = this.filterFinalAction();
+    const filterFavorites = this.filterFavorites();
     let items = this.watchlist.items();
+
+    if (filterFavorites) {
+      items = items.filter((w) => w.item.isFavorite);
+    }
 
     if (filter) {
       items = items.filter(
@@ -333,6 +352,10 @@ export class WatchlistPageComponent {
           av = this.rsiForSymbol(a.item.symbol) ?? -1;
           bv = this.rsiForSymbol(b.item.symbol) ?? -1;
           break;
+        case 'buyScore':
+          av = this.buyScoreForSymbol(a.item.symbol)?.score ?? -1;
+          bv = this.buyScoreForSymbol(b.item.symbol)?.score ?? -1;
+          break;
         case 'trendSetup':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.trendSetup ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.trendSetup ?? '';
@@ -360,6 +383,8 @@ export class WatchlistPageComponent {
         return 'role-core';
       case 'Strategic':
         return 'role-strategic';
+      case 'Strategic-Income':
+        return 'role-strategic-income';
       case 'Swing':
         return 'role-swing';
       case 'Speculative':
@@ -553,5 +578,22 @@ export class WatchlistPageComponent {
       }
     };
     reader.readAsText(file);
+  }
+
+  toggleFavorite(w: WatchlistSummary): void {
+    this.watchlist.updateFavorite(w.item.id, !w.item.isFavorite);
+  }
+
+  openNotes(w: WatchlistSummary): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: { symbol: w.item.symbol, notes: w.item.notes } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.watchlist.updateNotes(w.item.id, result.notes ?? '');
+      });
   }
 }

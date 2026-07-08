@@ -50,6 +50,22 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
         return updated ? NoContent() : NotFound();
     }
 
+    /// <summary>Toggles the favourite flag for a watchlist item.</summary>
+    [HttpPatch("{id:int}/favorite")]
+    public async Task<IActionResult> UpdateFavorite(int id, [FromBody] UpdateWatchlistFavoriteRequest request, CancellationToken ct)
+    {
+        var updated = await watchlistService.UpdateFavoriteAsync(id, request.IsFavorite, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
+    /// <summary>Updates notes for a watchlist item.</summary>
+    [HttpPatch("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateWatchlistNotesRequest request, CancellationToken ct)
+    {
+        var updated = await watchlistService.UpdateNotesAsync(id, request.Notes, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     /// <summary>Exports all watchlist items as a JSON backup payload.</summary>
     [HttpGet("backup")]
     public async Task<ActionResult<IReadOnlyList<WatchlistBackupItem>>> Backup(CancellationToken ct)

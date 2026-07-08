@@ -68,9 +68,12 @@ public record UpdateWatchlistRoleRequest(string Role);
 public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
 public record UpdatePortfolioNotesRequest(string? Notes);
 
-public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic");
+public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false);
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
+
+public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
+public record UpdateWatchlistNotesRequest(string Notes);
 
 // ── Sector / Industry Lists ─────────────────────────────────────────────────────
 public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries);

@@ -60,6 +60,8 @@ export interface WatchlistItem {
   addedAt: string;
   /** Investment role: Core | Strategic | Swing | Speculative. Default: Strategic. */
   role: string;
+  /** Whether this symbol is marked as a favourite. */
+  isFavorite: boolean;
 }
 
 export interface WatchlistSummary {

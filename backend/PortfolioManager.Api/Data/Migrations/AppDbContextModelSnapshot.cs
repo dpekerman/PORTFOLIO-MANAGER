@@ -365,6 +365,11 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsFavorite")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Notes")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

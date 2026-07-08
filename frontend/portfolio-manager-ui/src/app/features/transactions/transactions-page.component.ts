@@ -51,7 +51,7 @@ type StockTxCol =
   | 'tx_closing_price'
   | 'tx_gain_loss'
   | 'tx_gain_pct'
-  | 'tx_mkt_value'
+  | 'tx_last_price'
   | 'tx_actions';
 
 type OptionTxCol =
@@ -183,6 +183,11 @@ export class TransactionsPageComponent {
     return s.item.shares * price;
   }
 
+  /** Last price (current market price) */
+  protected stockLastPrice(s: { item: any; quote: any }): number | null {
+    return s.quote?.currentPrice ?? null;
+  }
+
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
   protected optionGainLoss(a: any): number | null {
     const cp = a.item.closingPrice;
@@ -255,8 +260,8 @@ export class TransactionsPageComponent {
         return this.stockGainLoss(s) ?? 0;
       case 'tx_gain_pct':
         return this.stockGainPct(s) ?? 0;
-      case 'tx_mkt_value':
-        return this.stockMktValue(s);
+      case 'tx_last_price':
+        return s.quote?.currentPrice ?? 0;
       default:
         return 0;
     }

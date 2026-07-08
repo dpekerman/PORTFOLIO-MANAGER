@@ -1058,6 +1058,9 @@ export class DecisionEngineService {
       a.includes('no add / trail stop')
     )
       return 'ma-reduce';
+    // Avoid/caution/review/wait — check BEFORE generic 'buy' to prevent "avoid new buy" mapping to green
+    if (a.includes('avoid') || a.includes('caution') || a.includes('review') || a.includes('wait'))
+      return 'ma-avoid';
     if (
       a.includes('buy') ||
       a.includes('accumulate') ||
@@ -1068,8 +1071,6 @@ export class DecisionEngineService {
       return 'ma-confirmed-buy';
     if (a.includes('sell') || a.includes('exit') || a.includes('cut') || a.includes('put entry'))
       return 'ma-confirmed-sell';
-    if (a.includes('avoid') || a.includes('caution') || a.includes('review') || a.includes('wait'))
-      return 'ma-avoid';
     if (a.includes('hold') || a.includes('no chase') || a.includes('watch')) return 'ma-hold';
     if (a.includes('reduce') || a.includes('trail') || a.includes('protect')) return 'ma-reduce';
     return 'ma-standby';

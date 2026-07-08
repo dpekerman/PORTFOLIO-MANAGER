@@ -39,6 +39,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
             entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
+            entity.Property(e => e.IsFavorite).HasDefaultValue(false);
             entity.HasIndex(e => e.Symbol).IsUnique();
         });
 

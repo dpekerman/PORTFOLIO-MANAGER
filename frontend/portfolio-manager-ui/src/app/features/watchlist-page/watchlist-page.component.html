@@ -136,15 +136,29 @@
             }
           </mat-select>
         </mat-form-field>
-        @if (filterText() || filterTrendSetup() || filterFinalAction()) {
+        @if (filterText() || filterTrendSetup() || filterFinalAction() || filterFavorites()) {
           <button
             mat-icon-button
             matTooltip="Clear all filters"
-            (click)="filterText.set(''); filterTrendSetup.set(''); filterFinalAction.set('')"
+            (click)="
+              filterText.set('');
+              filterTrendSetup.set('');
+              filterFinalAction.set('');
+              filterFavorites.set(false)
+            "
           >
             <mat-icon>filter_list_off</mat-icon>
           </button>
         }
+        <!-- Favorites toggle -->
+        <button
+          mat-icon-button
+          [color]="filterFavorites() ? 'warn' : undefined"
+          (click)="filterFavorites.set(!filterFavorites())"
+          [matTooltip]="filterFavorites() ? 'Show all' : 'Show favourites only'"
+        >
+          <mat-icon>{{ filterFavorites() ? 'star' : 'star_border' }}</mat-icon>
+        </button>
         <span class="grid-count-label"
           >{{ filteredSorted().length }} of {{ watchlist.count() }}</span
         >
@@ -409,6 +423,7 @@
               <th
                 mat-header-cell
                 *matHeaderCellDef
+                mat-sort-header
                 matTooltip="BUY Score 0–5: checks Close>EMA9, RSI14>RSI9EMA, MACD improving, CloseLocation≥0.5, Volume≥1.0x"
                 class="wl-buy-score-header"
               >
@@ -464,10 +479,32 @@
               </td>
             </ng-container>
 
+            <!-- Notes (pinned) -->
+            <ng-container matColumnDef="notes">
+              <th mat-header-cell *matHeaderCellDef></th>
+              <td mat-cell *matCellDef="let w">
+                <button
+                  mat-icon-button
+                  (click)="openNotes(w); $event.stopPropagation()"
+                  [matTooltip]="w.item.notes ? w.item.notes : 'Add note'"
+                >
+                  <mat-icon>{{ w.item.notes ? 'sticky_note_2' : 'note_add' }}</mat-icon>
+                </button>
+              </td>
+            </ng-container>
+
             <!-- Actions -->
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let w">
+                <button
+                  mat-icon-button
+                  (click)="toggleFavorite(w); $event.stopPropagation()"
+                  [matTooltip]="w.item.isFavorite ? 'Remove from favourites' : 'Mark as favourite'"
+                  [color]="w.item.isFavorite ? 'warn' : undefined"
+                >
+                  <mat-icon>{{ w.item.isFavorite ? 'star' : 'star_border' }}</mat-icon>
+                </button>
                 <button
                   mat-icon-button
                   (click)="remove(w)"
