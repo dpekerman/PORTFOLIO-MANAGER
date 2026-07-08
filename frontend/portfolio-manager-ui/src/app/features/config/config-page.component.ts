@@ -100,6 +100,7 @@ export class ConfigPageComponent implements OnInit {
 
   protected readonly savingEodSettings = signal(false);
   protected readonly eodWindowActive = this.scannerState.eodWindowActive;
+  protected readonly isSavingAll = signal(false);
 
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
@@ -522,5 +523,77 @@ export class ConfigPageComponent implements OnInit {
           this.snackBar.open('Failed to save lists.', 'Dismiss', { duration: 4000 });
         },
       });
+  }
+
+  /**
+   * Saves ALL configuration sections in one action:
+   * 1. Scanner intervals + RSI thresholds (browser storage)
+   * 2. EOD window settings (backend)
+   * 3. Email recipients (backend)
+   * 4. Sector & industry lists (backend)
+   * Allocation & Risk rows are already saved per-edit, so no action needed here.
+   */
+  saveAll(): void {
+    if (this.isSavingAll()) return;
+    this.isSavingAll.set(true);
+
+    // 1. Scanner settings (synchronous config service)
+    if (this.form.valid) {
+      this.configService.update({
+        scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
+        portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
+        watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+        rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
+        rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
+      });
+      this.form.markAsPristine();
+      this.api
+        .clearRsiCache()
+        .subscribe({ complete: () => this.scannerState.refresh(true), error: () => {} });
+    }
+
+    // 2. EOD window (async backend)
+    if (this.eodForm.valid && !this.eodForm.pristine) {
+      const start = this.dateToTimeString(this.eodForm.value.eodWindowStart);
+      const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
+      const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+      this.api
+        .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+        .subscribe({
+          next: () => {
+            this.configService.update({
+              eodWindowStart: start,
+              eodWindowEnd: end,
+              eodWindowEnabled: enabled,
+            });
+            this.eodForm.markAsPristine();
+          },
+          error: () => {},
+        });
+    }
+
+    // 3. Email recipients (async backend)
+    this.notificationApi.updateRecipients(this.recipientEmails()).subscribe({ error: () => {} });
+
+    // 4. Sector & industry lists (async backend)
+    this.api
+      .saveSectorIndustryLists({ sectors: this.sectors(), industries: this.industries() })
+      .subscribe({
+        next: (lists) => {
+          this.sectors.set(lists.sectors);
+          this.industries.set(lists.industries);
+        },
+        error: () => {},
+      });
+
+    // Brief visual feedback, then clear the saving state
+    setTimeout(() => {
+      this.isSavingAll.set(false);
+      this.snackBar.open('All configuration settings saved.', 'OK', { duration: 4000 });
+    }, 800);
+  }
+
+  resetAll(): void {
+    this.reset(); // resets scanner form + EOD form to defaults
   }
 }
