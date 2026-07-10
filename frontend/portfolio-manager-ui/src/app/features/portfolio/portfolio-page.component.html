@@ -1163,7 +1163,7 @@
           <div class="subsection-title-group">
             <mat-icon class="subsection-icon">trending_up</mat-icon>
             <span class="subsection-title"
-              >Options <span class="count-badge">{{ optionState.items().length }}</span></span
+              >Options <span class="count-badge">{{ sortedOptionAnalyses().length }}</span></span
             >
             @if (optionState.items().length > 0) {
               <div class="subsection-meta">
@@ -1434,11 +1434,25 @@
                 </ng-container>
                 <!-- Option Decision Source -->
                 <ng-container matColumnDef="opt_decision_source">
-                  <th mat-header-cell *matHeaderCellDef matTooltip="Decision source for this option position">
+                  <th
+                    mat-header-cell
+                    *matHeaderCellDef
+                    matTooltip="Decision source for this option position"
+                  >
                     DECISION SOURCE
                   </th>
                   <td mat-cell *matCellDef="let a">
-                    <span class="pg-dim">{{ a.item.decisionSource || '—' }}</span>
+                    <mat-select
+                      [value]="a.item.decisionSource || null"
+                      (selectionChange)="updateOptionDecisionSource(a, $event.value)"
+                      class="role-select pg-dim"
+                      placeholder="—"
+                    >
+                      <mat-option [value]="null">— None —</mat-option>
+                      @for (ds of decisionSources; track ds) {
+                        <mat-option [value]="ds">{{ ds }}</mat-option>
+                      }
+                    </mat-select>
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_actions">

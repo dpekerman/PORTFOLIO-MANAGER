@@ -596,4 +596,69 @@ export class WatchlistPageComponent {
         this.watchlist.updateNotes(w.item.id, result.notes ?? '');
       });
   }
+
+  // ── Column resize ───────────────────────────────────────────────────────────
+  private static readonly COL_WIDTHS_KEY = 'wl_col_widths_v1';
+
+  protected readonly colWidths = signal<Map<string, number>>(
+    WatchlistPageComponent.loadColWidths(),
+  );
+
+  private static loadColWidths(): Map<string, number> {
+    try {
+      const raw = localStorage.getItem(WatchlistPageComponent.COL_WIDTHS_KEY);
+      if (raw) return new Map<string, number>(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+    return new Map();
+  }
+
+  /** Returns width as CSS string for use in colgroup <col> elements */
+  protected colWidthStyle(col: string): string {
+    const w = this.colWidths().get(col);
+    return w ? `${w}px` : '';
+  }
+
+  protected startResize(event: MouseEvent, col: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const th = (event.target as HTMLElement).closest('th') as HTMLElement;
+    const startX = event.clientX;
+    const startWidth = th.offsetWidth;
+
+    const onMove = (e: MouseEvent) => {
+      const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+      this.colWidths.update((m) => {
+        const copy = new Map(m);
+        copy.set(col, newWidth);
+        return copy;
+      });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      try {
+        localStorage.setItem(
+          WatchlistPageComponent.COL_WIDTHS_KEY,
+          JSON.stringify([...this.colWidths()]),
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  resetColWidths(): void {
+    this.colWidths.set(new Map());
+    try {
+      localStorage.removeItem(WatchlistPageComponent.COL_WIDTHS_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
 }

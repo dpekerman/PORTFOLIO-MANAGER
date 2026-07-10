@@ -40,6 +40,15 @@ export class AddOptionDialogComponent {
   protected readonly saving = signal(false);
   protected readonly accountTypes = ACCOUNT_TYPES;
 
+  protected readonly decisionSources = [
+    'App Signal',
+    'Manual',
+    'Catalyst',
+    'Rebalance',
+    'Risk Control',
+    'Loss Harvest',
+  ] as const;
+
   readonly form = this.fb.group({
     transactionType: ['OPEN', [Validators.required]],
     underlyingTicker: ['', [Validators.required, Validators.maxLength(20)]],
@@ -53,6 +62,7 @@ export class AddOptionDialogComponent {
     openDate: [new Date() as Date | null],
     closeDate: [new Date() as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
+    decisionSource: [null as string | null],
   });
 
   private formatDate(d: Date | null | undefined): string | null {
@@ -61,6 +71,7 @@ export class AddOptionDialogComponent {
   }
 
   async submit(): Promise<void> {
+    this.form.markAllAsTouched();
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
@@ -82,6 +93,7 @@ export class AddOptionDialogComponent {
         openDate: this.formatDate(this.form.value.openDate),
         closeDate: this.formatDate(this.form.value.closeDate),
         closingPrice: this.form.value.closingPrice,
+        decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
     } finally {

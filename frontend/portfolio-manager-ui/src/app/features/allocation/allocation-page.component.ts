@@ -138,6 +138,10 @@ export class AllocationPageComponent {
       .sort((a, b) => b.totalValue - a.totalValue);
   });
 
+  protected readonly optionTransactionCount = computed(() =>
+    this.optionGroups().reduce((sum, g) => sum + g.items.length, 0),
+  );
+
   protected readonly cashExpanded = signal(false);
   protected readonly optionsExpanded = signal(false);
   protected readonly expandedOptionTickers = signal<Set<string>>(new Set());

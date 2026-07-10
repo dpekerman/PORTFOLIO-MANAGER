@@ -177,12 +177,22 @@
         </div>
       }
     </div>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Decision Source</mat-label>
+      <mat-select formControlName="decisionSource">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (ds of decisionSources; track ds) {
+          <mat-option [value]="ds">{{ ds }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
   </form>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
   <button mat-button (click)="cancel()" [disabled]="saving()">Cancel</button>
-  <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || saving()">
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="saving()">
     @if (saving()) {
       <mat-spinner diameter="18" />
     } @else {

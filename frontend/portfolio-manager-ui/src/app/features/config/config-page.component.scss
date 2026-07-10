@@ -603,6 +603,36 @@
   letter-spacing: 0.05em;
 }
 
+.alloc-col-headers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px 4px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  margin-bottom: 2px;
+}
+
+.alloc-col-header-name {
+  flex: 1;
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+
+.alloc-col-header-pct {
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  min-width: 38px;
+  text-align: right;
+  // leave space for the two action icon buttons (26px × 2 + gaps)
+  padding-right: 58px;
+}
+
 .alloc-total-ok {
   color: #43a047;
 }

@@ -1074,6 +1074,24 @@ export class PortfolioPageComponent {
     });
   }
 
+  updateOptionDecisionSource(analysis: OptionAnalysis, decisionSource: string | null): void {
+    this.optionState.updateItem(analysis.item.id, {
+      underlyingTicker: analysis.item.underlyingTicker,
+      positionType: analysis.item.positionType,
+      expirationDate: analysis.item.expirationDate,
+      strike: analysis.item.strike,
+      premium: analysis.item.premium,
+      numberOfContracts: analysis.item.numberOfContracts,
+      marketPrice: analysis.item.marketPrice,
+      transactionType: analysis.item.transactionType,
+      accountType: analysis.item.accountType,
+      openDate: analysis.item.openDate,
+      closeDate: analysis.item.closeDate,
+      closingPrice: analysis.item.closingPrice,
+      decisionSource,
+    });
+  }
+
   /** Inline update of the option's current market price from the grid cell */
   updateOptionMarketPrice(analysis: OptionAnalysis, rawValue: string): void {
     const price = parseFloat(rawValue);

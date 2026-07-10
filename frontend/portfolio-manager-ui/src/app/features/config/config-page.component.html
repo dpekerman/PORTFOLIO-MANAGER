@@ -586,6 +586,10 @@
               </button>
             </div>
           }
+          <div class="alloc-col-headers">
+            <span class="alloc-col-header-name">Role</span>
+            <span class="alloc-col-header-pct">Target</span>
+          </div>
           <div class="alloc-list">
             @for (item of riskTargets(); track item.id) {
               @if (editingRisk()?.id === item.id) {
@@ -705,6 +709,10 @@
               </button>
             </div>
           }
+          <div class="alloc-col-headers">
+            <span class="alloc-col-header-name">Sector</span>
+            <span class="alloc-col-header-pct">Target</span>
+          </div>
           <div class="alloc-list">
             @for (item of sectorTargets(); track item.id) {
               @if (editingSector()?.id === item.id) {
@@ -820,6 +828,10 @@
               </button>
             </div>
           }
+          <div class="alloc-col-headers">
+            <span class="alloc-col-header-name">Role</span>
+            <span class="alloc-col-header-pct">Target</span>
+          </div>
           <div class="alloc-list">
             @for (item of positionLimits(); track item.id) {
               @if (editingLimit()?.id === item.id) {
