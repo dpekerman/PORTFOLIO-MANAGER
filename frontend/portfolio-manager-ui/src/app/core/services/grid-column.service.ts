@@ -190,6 +190,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'technicalState', label: 'Technical State' },
       { key: 'score', label: 'Score' },
       { key: 'actionTrigger', label: 'Action Trigger' },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -211,6 +212,9 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'momentumShift', label: 'Momentum Shift' },
       { key: 'buyScore', label: 'Buy Score' },
       { key: 'finalAction', label: 'Final Action' },
+      { key: 'technical', label: 'Technical' },
+      { key: 'valueScore', label: 'Value Score' },
+      { key: 'valueStatus', label: 'Value Status' },
       { key: 'actions', label: 'Actions', pinned: true },
     ],
   },

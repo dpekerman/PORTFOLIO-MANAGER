@@ -273,7 +273,78 @@
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════════
-       SECTION 3 — RSI SIGNAL ALERT RECIPIENTS
+       SECTION 3 — VALUE SCREENER SCHEDULE
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="config-section">
+    <div class="section-header">
+      <mat-icon>query_stats</mat-icon>
+      <div class="section-header-text">
+        <h2 class="section-title">Value Screener Schedule</h2>
+        <p class="section-subtitle">
+          Automatic run time for Portfolio and Watchlist · Results saved to database · Default: 5:00
+          PM ET on weekdays
+        </p>
+      </div>
+    </div>
+
+    <form [formGroup]="vsForm" (ngSubmit)="saveVsSchedule()" id="vs-form">
+      <div class="section-body">
+        <div class="eod-info-banner">
+          <mat-icon class="eod-info-icon">info_outline</mat-icon>
+          <span>
+            The Value Screener runs automatically at the configured time on weekdays. Results are
+            saved to the database so the Value Screener page loads instantly. Use the
+            <strong>Refresh</strong> button on the Value Screener page to run it on demand.
+          </span>
+        </div>
+
+        <div class="eod-time-row">
+          <mat-timepicker #vsPicker interval="30m"></mat-timepicker>
+          <mat-form-field appearance="outline">
+            <mat-label>Run time (Eastern Time)</mat-label>
+            <input matInput [matTimepicker]="vsPicker" formControlName="vsScheduleTime" />
+            <mat-timepicker-toggle matSuffix [for]="vsPicker"></mat-timepicker-toggle>
+            <mat-hint>Eastern Time · 30-min steps · Default: 5:00 PM</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <div class="eod-toggle-row">
+          <mat-slide-toggle formControlName="vsScheduleEnabled" color="accent">
+            Scheduled run enabled
+          </mat-slide-toggle>
+          <span class="eod-toggle-hint">
+            @if (vsForm.value.vsScheduleEnabled) {
+              Value Screener will run automatically at the configured time on weekdays.
+            } @else {
+              Scheduled runs are disabled. Use the Refresh button on the Value Screener page to run
+              manually.
+            }
+          </span>
+        </div>
+      </div>
+
+      <div class="section-footer">
+        <span class="section-footer-hint">Saved to database — persists across server restarts</span>
+        <button
+          mat-flat-button
+          type="submit"
+          form="vs-form"
+          color="accent"
+          [disabled]="vsForm.invalid || vsForm.pristine || savingVsSchedule()"
+          matTooltip="Save Value Screener schedule to the database"
+        >
+          @if (savingVsSchedule()) {
+            <mat-icon class="spinning">sync</mat-icon> Saving…
+          } @else {
+            <mat-icon>save</mat-icon> Save VS Schedule
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 4 — RSI SIGNAL ALERT RECIPIENTS
        ════════════════════════════════════════════════════════════════════ -->
   <div class="config-section">
     <div class="section-header">

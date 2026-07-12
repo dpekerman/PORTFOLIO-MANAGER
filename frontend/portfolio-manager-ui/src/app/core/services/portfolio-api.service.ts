@@ -221,6 +221,49 @@ export class PortfolioApiService {
     return this.http.post<ValueScreenerResult[]>(`${this.base}/valuescreener/analyze`, request);
   }
 
+  getLatestValueScreener(): Observable<{
+    portfolio: ValueScreenerResult[];
+    portfolioRunAt: string | null;
+    watchlist: ValueScreenerResult[];
+    watchlistRunAt: string | null;
+  }> {
+    return this.http.get<{
+      portfolio: ValueScreenerResult[];
+      portfolioRunAt: string | null;
+      watchlist: ValueScreenerResult[];
+      watchlistRunAt: string | null;
+    }>(`${this.base}/valuescreener/latest`);
+  }
+
+  refreshValueScreener(): Observable<{
+    portfolio: ValueScreenerResult[];
+    portfolioRunAt: string | null;
+    watchlist: ValueScreenerResult[];
+    watchlistRunAt: string | null;
+  }> {
+    return this.http.post<{
+      portfolio: ValueScreenerResult[];
+      portfolioRunAt: string | null;
+      watchlist: ValueScreenerResult[];
+      watchlistRunAt: string | null;
+    }>(`${this.base}/valuescreener/refresh`, {});
+  }
+
+  getValueScreenerSchedule(): Observable<{ scheduledTimeEt: string; enabled: boolean }> {
+    return this.http.get<{ scheduledTimeEt: string; enabled: boolean }>(
+      `${this.base}/valuescreener/schedule`,
+    );
+  }
+
+  updateValueScreenerSchedule(scheduledTimeEt: string, enabled: boolean): Observable<void> {
+    return this.http.put<void>(`${this.base}/valuescreener/schedule`, { scheduledTimeEt, enabled });
+  }
+
+  clearValueScreenerData(origin?: string): Observable<void> {
+    const params = origin ? `?origin=${origin}` : '';
+    return this.http.delete<void>(`${this.base}/valuescreener/data${params}`);
+  }
+
   // ── Sector / Industry Lists ─────────────────────────────────────────────────
   getSectorIndustryLists(): Observable<SectorIndustryLists> {
     return this.http.get<SectorIndustryLists>(`${this.base}/sector-industry`);

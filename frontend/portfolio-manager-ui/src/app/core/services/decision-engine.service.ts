@@ -98,6 +98,16 @@ export interface PageDecision extends DecisionResult {
 const ROLE_VALUES = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
 export type InvestmentRole = (typeof ROLE_VALUES)[number];
 
+/** Optional Value Screener context for enhanced Watchlist FINAL ACTION logic. */
+export interface WatchlistValueContext {
+  /** 0–10 score from Value Screener */
+  valueScore?: number | null;
+  /** True if ActionTrigger = 'ValueTrapWarning' */
+  valueTrapWarning?: boolean;
+  /** 0–5 buy signal score */
+  buyScore?: number | null;
+}
+
 /**
  * Optional portfolio-item context for account-specific rule overrides.
  * Passed to `translateForPortfolio` when item metadata is available.
@@ -185,16 +195,74 @@ export class DecisionEngineService {
     };
   }
 
-  translateForWatchlist(r: RsiScanResult, role: string | null): PageDecision {
+  translateForWatchlist(
+    r: RsiScanResult,
+    role: string | null,
+    valueCtx?: WatchlistValueContext,
+  ): PageDecision {
     const dec = this.calculateDecision(r, role, 'Watchlist');
     const effectiveRole = (role ?? 'Strategic') as InvestmentRole;
     const rawAction = this.watchlistFinalAction(dec, effectiveRole, r);
-    const finalAction = this.accumulateStarterGuard(
+
+    // Compute buy score from RSI result if not provided
+    const buyScore = valueCtx?.buyScore ?? this.calcBuyScore(r);
+    const valueTrapWarning = valueCtx?.valueTrapWarning ?? false;
+    const valueScore = valueCtx?.valueScore ?? null;
+
+    let finalAction = this.accumulateStarterGuard(
       rawAction,
       dec.trendSetup,
       dec.momentumShift,
       r.changePercent ?? 0,
     );
+
+    // ── New FINAL ACTION overrides ────────────────────────────────────────────
+
+    // Rule: TrendSetup = 'Quality Trend Entry' AND MomentumShift = 'Uptrend' AND BuyScore <= 2
+    if (
+      dec.trendSetup === 'Quality Trend Entry' &&
+      dec.momentumShift === 'Uptrend' &&
+      buyScore !== null &&
+      buyScore <= 2
+    ) {
+      finalAction = 'Stand By / No Add';
+    }
+
+    // Rule: MomentumShift = 'Active Sell Trigger' → always force avoiding action
+    if (dec.momentumShift === 'Active Sell Trigger') {
+      if (
+        !['Avoid / Short Watch', 'Avoid New Buy / Review', 'Avoid / Wait'].includes(finalAction)
+      ) {
+        finalAction = 'Avoid New Buy / Review';
+      }
+    }
+
+    // Rule: MomentumShift = 'Warning' or TrendSetup has bearish signals AND BuyScore <= 2
+    if (dec.momentumShift === 'Warning' && buyScore !== null && buyScore <= 2) {
+      finalAction = 'Stand By';
+    }
+
+    // Rule: BuyScore <= 2 on key sell signals
+    if (buyScore !== null && buyScore <= 2) {
+      const sellSignals: string[] = ['Overbought Pullback', 'Active Sell Trigger', 'Breakdown'];
+      if (sellSignals.includes(dec.momentumShift) || sellSignals.includes(dec.trendSetup)) {
+        finalAction = 'Stand By';
+      }
+    }
+
+    // Rule: ValueTrapWarning = true AND ValueScore < 5 → 'Accumulate Starter' not allowed
+    const isValueTrap = valueTrapWarning || (valueScore !== null && valueScore < 5);
+    if (isValueTrap && finalAction === 'Accumulate Starter') {
+      // Downgrade to safer action
+      finalAction = 'Watch Only';
+    }
+    if (
+      isValueTrap &&
+      ['Accumulate Starter', 'Buy / Accumulate', 'Confirmed Buy Signal'].includes(finalAction)
+    ) {
+      finalAction = 'Review Fundamentals';
+    }
+
     return {
       ...dec,
       finalAction,
@@ -203,6 +271,28 @@ export class DecisionEngineService {
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
     };
+  }
+
+  /** Computes 0-5 buy score from RSI scan result. */
+  private calcBuyScore(r: RsiScanResult): number | null {
+    if (!r) return null;
+    const close = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const rsi = r.rsi;
+    const rsiSig = r.rsiSignal ?? rsi;
+    const macdImproving = r.macdHistDelta > 0;
+    const dayH = r.dayHigh > 0 ? r.dayHigh : close;
+    const dayL = r.dayLow > 0 ? r.dayLow : close;
+    const range = dayH - dayL;
+    const closeLocation = range > 0 ? (close - dayL) / range : 0.5;
+    const vol = r.volumeRatio ?? 0;
+
+    const c1 = ema9 > 0 && close > ema9;
+    const c2 = r.rsiSignalAvailable ? rsi > rsiSig : false;
+    const c3 = macdImproving;
+    const c4 = closeLocation >= 0.5;
+    const c5 = vol >= 1.0;
+    return [c1, c2, c3, c4, c5].filter(Boolean).length;
   }
 
   translateForPortfolio(

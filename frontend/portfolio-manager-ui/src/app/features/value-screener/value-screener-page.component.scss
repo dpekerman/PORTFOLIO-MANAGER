@@ -62,6 +62,51 @@
   letter-spacing: 0.5px;
 }
 
+// Header actions
+.section-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.refresh-btn,
+.export-btn,
+.clear-data-btn {
+  font-size: 0.8rem;
+  height: 34px;
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+.clear-data-btn {
+  color: #ef9a9a;
+  border-color: rgba(239, 154, 154, 0.3);
+  &:not([disabled]):hover {
+    background: rgba(255, 82, 82, 0.08);
+  }
+}
+.clear-filter-btn {
+  font-size: 0.75rem;
+  height: 32px;
+  color: var(--text-secondary);
+}
+
+// Tier card active/dimmed states
+.tier-card {
+  transition:
+    opacity 0.15s,
+    box-shadow 0.15s;
+  &--active {
+    box-shadow: 0 0 0 2px currentColor;
+    opacity: 1 !important;
+  }
+  &--dimmed {
+    opacity: 0.35;
+  }
+}
+
 // Source bar
 .source-bar {
   display: flex;
@@ -252,10 +297,13 @@
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
 }
-.screener-table-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 4px 0 2px;
+// Column config embedded in table header — no separate toolbar needed
+.col-config-th {
+  width: 44px;
+  min-width: 44px;
+  padding: 4px 6px !important;
+  text-align: right;
+  vertical-align: middle;
 }
 .screener-table {
   width: 100%;

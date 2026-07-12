@@ -14,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AllocationRiskTarget> AllocationRiskTargets => Set<AllocationRiskTarget>();
     public DbSet<AllocationSectorTarget> AllocationSectorTargets => Set<AllocationSectorTarget>();
     public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
+    public DbSet<ValueScreenerSnapshot> ValueScreenerSnapshots => Set<ValueScreenerSnapshot>();
+    public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -127,6 +129,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
             entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<ValueScreenerSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Origin).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ResultsJson).IsRequired().HasDefaultValue("[]");
+            entity.HasIndex(e => new { e.Origin, e.RunAt });
+        });
+
+        modelBuilder.Entity<ValueScreenerScheduleConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ScheduledTimeEt).IsRequired().HasMaxLength(10).HasDefaultValue("17:00");
+            entity.Property(e => e.Enabled).HasDefaultValue(true);
         });
     }
 }

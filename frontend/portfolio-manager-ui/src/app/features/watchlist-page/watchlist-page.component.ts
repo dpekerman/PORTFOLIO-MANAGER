@@ -32,8 +32,16 @@ import {
   tap,
 } from 'rxjs';
 import * as XLSX from 'xlsx';
-import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
-import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import {
+  RsiScanResult,
+  ValueScreenerResult,
+  WatchlistSummary,
+} from '../../core/models/portfolio.models';
+import {
+  DecisionEngineService,
+  PageDecision,
+  WatchlistValueContext,
+} from '../../core/services/decision-engine.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -98,6 +106,10 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+
+  // ── Value Screener data map (symbol → result) ─────────────────────────────
+  // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
+  protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
   private readonly destroyRef = inject(DestroyRef);
   private readonly engine = inject(DecisionEngineService);
 
@@ -188,6 +200,18 @@ export class WatchlistPageComponent {
         map((key) => key.split(',')),
       )
       .subscribe((symbols) => this.rsiTrigger$.next(symbols));
+
+    // Load latest Value Screener results for watchlist context
+    this.api.getLatestValueScreener().subscribe({
+      next: (dto) => {
+        const map = new Map<string, ValueScreenerResult>();
+        for (const r of [...(dto.watchlist ?? []), ...(dto.portfolio ?? [])]) {
+          map.set(r.symbol.toUpperCase(), r);
+        }
+        this.vsMap.set(map);
+      },
+      error: () => {}, // Non-critical
+    });
   }
 
   protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
@@ -204,7 +228,56 @@ export class WatchlistPageComponent {
   protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r) return null;
-    return this.engine.translateForWatchlist(r, role);
+    const vs = this.vsMap().get(symbol.toUpperCase());
+    const bs = this.buyScoreForSymbol(symbol);
+    const ctx: WatchlistValueContext = {
+      buyScore: bs?.score ?? null,
+      valueTrapWarning: vs?.actionTrigger === 'ValueTrapWarning',
+      valueScore: vs?.score ?? null,
+    };
+    return this.engine.translateForWatchlist(r, role, ctx);
+  }
+
+  protected valueDataForSymbol(
+    symbol: string,
+  ): { technical: string; score: number; status: string } | null {
+    const vs = this.vsMap().get(symbol.toUpperCase());
+    if (!vs) return null;
+    const techLabels: Record<string, string> = {
+      DeepValueReversal: 'Deep Value Reversal',
+      OverboughtMomentum: 'Overbought Momentum',
+      OverboughtPullback: 'Overbought Pullback',
+      SidewaysConsolidation: 'Sideways Consolidation',
+      MeanReversion: 'Mean Reversion',
+      HighVolumeExhaustion: 'High-Volume Exhaustion',
+    };
+    const actionLabels: Record<string, string> = {
+      AccumulateYield: 'Accumulate Yield',
+      AccumulateValue: 'Accumulate Value',
+      BuyLimitAlert: 'Buy Limit Alert',
+      HoldRideTrend: 'Hold / Ride Trend',
+      ValueTrapWarning: 'Value Trap Warning',
+      Observe: 'Observe',
+    };
+    return {
+      technical: techLabels[vs.technicalState] ?? vs.technicalState,
+      score: vs.score,
+      status: actionLabels[vs.actionTrigger] ?? vs.actionTrigger,
+    };
+  }
+
+  protected valueScoreClass(score: number): string {
+    if (score >= 8) return 'vs-high';
+    if (score >= 5) return 'vs-fair';
+    return 'vs-trap';
+  }
+
+  protected valueStatusClass(status: string): string {
+    if (status.includes('Trap')) return 'action-trap';
+    if (status.includes('Accumulate')) return 'action-buy';
+    if (status.includes('Hold')) return 'action-hold';
+    if (status.includes('Buy Limit')) return 'action-limit';
+    return 'action-observe';
   }
 
   protected analystForSymbol(

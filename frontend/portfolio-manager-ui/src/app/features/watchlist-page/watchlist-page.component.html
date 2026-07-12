@@ -584,6 +584,92 @@
               </td>
             </ng-container>
 
+            <!-- Technical (from Value Screener: Technical State) -->
+            <ng-container matColumnDef="technical">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Technical State from Value Screener (latest saved run)"
+                class="resizable-th"
+              >
+                TECHNICAL
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'technical')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (valueDataForSymbol(w.item.symbol); as vd) {
+                  <span class="wl-vs-badge state-badge" [matTooltip]="vd.technical">{{
+                    vd.technical
+                  }}</span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Value Score (from Value Screener: Score) -->
+            <ng-container matColumnDef="valueScore">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Value Score (0-10) from Value Screener (latest saved run)"
+                class="resizable-th"
+              >
+                VALUE SCORE
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'valueScore')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (valueDataForSymbol(w.item.symbol); as vd) {
+                  <span
+                    class="wl-vs-score"
+                    [ngClass]="valueScoreClass(vd.score)"
+                    [matTooltip]="'Value Score: ' + vd.score + '/10'"
+                  >
+                    {{ vd.score | number: '1.1-1' }}/10
+                  </span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Value Status (from Value Screener: Action Trigger) -->
+            <ng-container matColumnDef="valueStatus">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Value Status (Action Trigger) from Value Screener (latest saved run)"
+                class="resizable-th"
+              >
+                VALUE STATUS
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'valueStatus')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (valueDataForSymbol(w.item.symbol); as vd) {
+                  <span
+                    class="action-badge"
+                    [ngClass]="valueStatusClass(vd.status)"
+                    [matTooltip]="vd.status"
+                  >
+                    {{ vd.status }}
+                  </span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- Notes (pinned) -->
             <ng-container matColumnDef="notes">
               <th mat-header-cell *matHeaderCellDef></th>

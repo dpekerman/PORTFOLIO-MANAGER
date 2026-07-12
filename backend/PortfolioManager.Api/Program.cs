@@ -59,6 +59,10 @@ builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 builder.Services.AddScoped<ValueScreenerService>();
+// Singleton: persists/reads Value Screener results from DB
+builder.Services.AddSingleton<ValueScreenerPersistenceService>();
+// Background service: runs Value Screener at configured time (default 5 PM ET weekdays)
+builder.Services.AddHostedService<ValueScreenerSchedulerService>();
 
 // ── CORS (allow Angular dev server) ──────────────────────────────────────────
 builder.Services.AddCors(options =>

@@ -198,7 +198,8 @@ export class PortfolioPageComponent {
   private initialCollapseApplied = false;
 
   // ── Option grid sort ────────────────────────────────────────────────────
-  protected readonly optionSortCol = signal<OptionSortCol>('opt_ticker');
+  // Default: sort by expiry date ascending (closest expiry first)
+  protected readonly optionSortCol = signal<OptionSortCol>('opt_expiry');
   protected readonly optionSortDir = signal<SortDir>('asc');
 
   protected readonly optionDisplayedColumns =

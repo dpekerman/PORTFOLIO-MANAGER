@@ -106,6 +106,14 @@ export class ConfigPageComponent implements OnInit {
   protected readonly eodWindowActive = this.scannerState.eodWindowActive;
   protected readonly isSavingAll = signal(false);
 
+  // ── Value Screener Schedule form ─────────────────────────────────────────
+  // Mirrors EOD form approach: Date | null for timepicker, convert to/from HH:mm string.
+  protected readonly vsForm = this.fb.group({
+    vsScheduleTime: [ConfigPageComponent.timeStrToDate('17:00'), [Validators.required]],
+    vsScheduleEnabled: [true],
+  });
+  protected readonly savingVsSchedule = signal(false);
+
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
   protected readonly emailInputValue = signal('');
@@ -415,6 +423,18 @@ export class ConfigPageComponent implements OnInit {
 
     // Load allocation & risk config
     this.loadAllocationRisk();
+
+    // Load Value Screener schedule
+    this.api.getValueScreenerSchedule().subscribe({
+      next: (s) => {
+        this.vsForm.setValue({
+          vsScheduleTime: ConfigPageComponent.timeStrToDate(s.scheduledTimeEt ?? '17:00'),
+          vsScheduleEnabled: s.enabled ?? true,
+        });
+        this.vsForm.markAsPristine();
+      },
+      error: () => {},
+    });
   }
 
   // ── EOD Window settings ──────────────────────────────────────────────────
@@ -464,6 +484,31 @@ export class ConfigPageComponent implements OnInit {
           });
         },
       });
+  }
+
+  // ── Value Screener Schedule ───────────────────────────────────────────────
+  saveVsSchedule(): void {
+    if (this.vsForm.invalid) return;
+    const timeEt = this.dateToTimeString(this.vsForm.value.vsScheduleTime);
+    const enabled = this.vsForm.value.vsScheduleEnabled ?? true;
+    this.savingVsSchedule.set(true);
+    this.api.updateValueScreenerSchedule(timeEt, enabled).subscribe({
+      next: () => {
+        this.savingVsSchedule.set(false);
+        this.vsForm.markAsPristine();
+        this.snackBar.open(
+          `Value Screener schedule saved: ${timeEt} ET, ${enabled ? 'Enabled' : 'Disabled'}.`,
+          'OK',
+          { duration: 4000 },
+        );
+      },
+      error: () => {
+        this.savingVsSchedule.set(false);
+        this.snackBar.open('Failed to save Value Screener schedule.', 'Dismiss', {
+          duration: 4000,
+        });
+      },
+    });
   }
 
   // ── Interval / RSI settings ──────────────────────────────────────────────

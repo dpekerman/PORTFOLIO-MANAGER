@@ -734,7 +734,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
-                      matTooltip="Reason this position was entered or changed"
+                      matTooltip="Reason this position was entered or changed (edit via position dialog)"
                     >
                       DECISION SOURCE
                     </th>
@@ -742,17 +742,7 @@
                       @if (isAggRow(0, row)) {
                         <span class="pg-dim">—</span>
                       } @else {
-                        <mat-select
-                          [value]="asItem(row).item.decisionSource || null"
-                          (selectionChange)="updateDecisionSource(asItem(row), $event.value)"
-                          class="role-select pg-dim"
-                          placeholder="—"
-                        >
-                          <mat-option [value]="null">— None —</mat-option>
-                          @for (ds of decisionSources; track ds) {
-                            <mat-option [value]="ds">{{ ds }}</mat-option>
-                          }
-                        </mat-select>
+                        <span class="pg-dim">{{ asItem(row).item.decisionSource || '—' }}</span>
                       }
                     </td>
                   </ng-container>
@@ -1437,22 +1427,12 @@
                   <th
                     mat-header-cell
                     *matHeaderCellDef
-                    matTooltip="Decision source for this option position"
+                    matTooltip="Decision source for this option position (edit via option dialog)"
                   >
                     DECISION SOURCE
                   </th>
                   <td mat-cell *matCellDef="let a">
-                    <mat-select
-                      [value]="a.item.decisionSource || null"
-                      (selectionChange)="updateOptionDecisionSource(a, $event.value)"
-                      class="role-select pg-dim"
-                      placeholder="—"
-                    >
-                      <mat-option [value]="null">— None —</mat-option>
-                      @for (ds of decisionSources; track ds) {
-                        <mat-option [value]="ds">{{ ds }}</mat-option>
-                      }
-                    </mat-select>
+                    <span class="pg-dim">{{ a.item.decisionSource || '—' }}</span>
                   </td>
                 </ng-container>
                 <ng-container matColumnDef="opt_actions">
