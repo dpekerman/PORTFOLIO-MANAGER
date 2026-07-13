@@ -248,6 +248,45 @@
             }
           </span>
         </div>
+
+        <!-- EOD RSI Thresholds -->
+        <div class="eod-time-row">
+          <mat-form-field appearance="outline">
+            <mat-label>EOD Oversold RSI threshold (&lt;)</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="eodOversoldRsiThreshold"
+              min="1"
+              max="49"
+            />
+            <mat-hint>RSI below this triggers EOD CONFIRM (oversold). Default: 25</mat-hint>
+            @if (eodForm.controls.eodOversoldRsiThreshold?.errors?.['min']) {
+              <mat-error>Minimum 1</mat-error>
+            }
+            @if (eodForm.controls.eodOversoldRsiThreshold?.errors?.['max']) {
+              <mat-error>Must be below 50</mat-error>
+            }
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>EOD Overbought RSI threshold (&gt;)</mat-label>
+            <input
+              matInput
+              type="number"
+              formControlName="eodOverboughtRsiThreshold"
+              min="51"
+              max="99"
+            />
+            <mat-hint>RSI above this triggers EOD CONFIRM (overbought). Default: 75</mat-hint>
+            @if (eodForm.controls.eodOverboughtRsiThreshold?.errors?.['min']) {
+              <mat-error>Must be above 50</mat-error>
+            }
+            @if (eodForm.controls.eodOverboughtRsiThreshold?.errors?.['max']) {
+              <mat-error>Maximum 99</mat-error>
+            }
+          </mat-form-field>
+        </div>
       </div>
 
       <div class="section-footer">

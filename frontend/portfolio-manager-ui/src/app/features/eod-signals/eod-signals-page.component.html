@@ -186,7 +186,6 @@
         Clear
       </button>
     }
-    <app-grid-column-btn gridId="eod-signals" />
   </div>
 
   <!-- ── Progress bar ─────────────────────────────────────────────────── -->
@@ -366,6 +365,14 @@
               <mat-icon>delete_outline</mat-icon>
             </button>
           </td>
+        </ng-container>
+
+        <!-- Column Config — embedded in sticky header -->
+        <ng-container matColumnDef="colConfig" stickyEnd>
+          <th mat-header-cell *matHeaderCellDef class="col-config-th">
+            <app-grid-column-btn gridId="eod-signals" />
+          </th>
+          <td mat-cell *matCellDef="let row"></td>
         </ng-container>
 
         <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>

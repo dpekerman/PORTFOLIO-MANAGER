@@ -100,6 +100,8 @@ export class ConfigPageComponent implements OnInit {
       [Validators.required],
     ],
     eodWindowEnabled: [this.configService.config().eodWindowEnabled],
+    eodOversoldRsiThreshold: [25, [Validators.required, Validators.min(1), Validators.max(49)]],
+    eodOverboughtRsiThreshold: [75, [Validators.required, Validators.min(51), Validators.max(99)]],
   });
 
   protected readonly savingEodSettings = signal(false);
@@ -389,6 +391,8 @@ export class ConfigPageComponent implements OnInit {
           eodWindowStart: ConfigPageComponent.timeStrToDate(s.eodWindowStart),
           eodWindowEnd: ConfigPageComponent.timeStrToDate(s.eodWindowEnd),
           eodWindowEnabled: s.eodWindowEnabled,
+          eodOversoldRsiThreshold: s.eodOversoldRsiThreshold ?? 25,
+          eodOverboughtRsiThreshold: s.eodOverboughtRsiThreshold ?? 75,
         });
         this.configService.update({
           eodWindowStart: s.eodWindowStart,
@@ -458,10 +462,18 @@ export class ConfigPageComponent implements OnInit {
     const start = this.dateToTimeString(this.eodForm.value.eodWindowStart);
     const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
     const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+    const oversoldRsi = this.eodForm.value.eodOversoldRsiThreshold ?? 25;
+    const overboughtRsi = this.eodForm.value.eodOverboughtRsiThreshold ?? 75;
 
     this.savingEodSettings.set(true);
     this.api
-      .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+      .updateEodSettings({
+        eodWindowStart: start,
+        eodWindowEnd: end,
+        eodWindowEnabled: enabled,
+        eodOversoldRsiThreshold: oversoldRsi,
+        eodOverboughtRsiThreshold: overboughtRsi,
+      })
       .subscribe({
         next: () => {
           this.configService.update({
@@ -472,7 +484,8 @@ export class ConfigPageComponent implements OnInit {
           this.savingEodSettings.set(false);
           this.eodForm.markAsPristine();
           this.snackBar.open(
-            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}).`,
+            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}). RSI <${oversoldRsi}/>
+${overboughtRsi}.`,
             'OK',
             { duration: 4000 },
           );
@@ -545,6 +558,8 @@ export class ConfigPageComponent implements OnInit {
       eodWindowStart: ConfigPageComponent.timeStrToDate(cfg.eodWindowStart),
       eodWindowEnd: ConfigPageComponent.timeStrToDate(cfg.eodWindowEnd),
       eodWindowEnabled: cfg.eodWindowEnabled,
+      eodOversoldRsiThreshold: 25,
+      eodOverboughtRsiThreshold: 75,
     });
     this.snackBar.open('Settings reset to defaults.', 'OK', { duration: 3000 });
   }
@@ -725,7 +740,13 @@ export class ConfigPageComponent implements OnInit {
       const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
       const enabled = this.eodForm.value.eodWindowEnabled ?? true;
       this.api
-        .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+        .updateEodSettings({
+          eodWindowStart: start,
+          eodWindowEnd: end,
+          eodWindowEnabled: enabled,
+          eodOversoldRsiThreshold: this.eodForm.value.eodOversoldRsiThreshold ?? 25,
+          eodOverboughtRsiThreshold: this.eodForm.value.eodOverboughtRsiThreshold ?? 75,
+        })
         .subscribe({
           next: () => {
             this.configService.update({

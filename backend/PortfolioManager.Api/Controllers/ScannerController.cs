@@ -223,15 +223,18 @@ public class ScannerController(
     {
         return Ok(new EodWindowSettingsDto
         {
-            EodWindowStart   = runtimeConfig.EodWindowStart,
-            EodWindowEnd     = runtimeConfig.EodWindowEnd,
-            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+            EodWindowStart            = runtimeConfig.EodWindowStart,
+            EodWindowEnd              = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled          = runtimeConfig.EodWindowEnabled,
+            EodOversoldRsiThreshold   = runtimeConfig.EodOversoldRsiThreshold,
+            EodOverboughtRsiThreshold = runtimeConfig.EodOverboughtRsiThreshold,
         });
     }
 
     /// <summary>
     /// Updates the EOD confirmation window at runtime.
     /// Changes take effect immediately for the background service (no restart required).
+    /// Settings are persisted to disk so they survive server restarts.
     /// </summary>
     [HttpPut("eod-settings")]
     public IActionResult UpdateEodSettings([FromBody] EodWindowSettingsDto dto)
@@ -240,21 +243,34 @@ public class ScannerController(
             return BadRequest("EodWindowStart and EodWindowEnd are required (format: HH:mm).");
 
         if (!TimeSpan.TryParse(dto.EodWindowStart, out _) || !TimeSpan.TryParse(dto.EodWindowEnd, out _))
-            return BadRequest("Invalid time format. Use HH:mm (e.g. '15:30', '16:00').");
+            return BadRequest("Invalid time format. Use HH:mm (e.g. '15:30', '16:30').");
 
-        runtimeConfig.EodWindowStart   = dto.EodWindowStart;
-        runtimeConfig.EodWindowEnd     = dto.EodWindowEnd;
-        runtimeConfig.EodWindowEnabled = dto.EodWindowEnabled;
+        if (dto.EodOversoldRsiThreshold is <= 0 or > 49)
+            return BadRequest("EodOversoldRsiThreshold must be between 1 and 49.");
+        if (dto.EodOverboughtRsiThreshold is < 51 or > 99)
+            return BadRequest("EodOverboughtRsiThreshold must be between 51 and 99.");
+
+        runtimeConfig.EodWindowStart            = dto.EodWindowStart;
+        runtimeConfig.EodWindowEnd              = dto.EodWindowEnd;
+        runtimeConfig.EodWindowEnabled          = dto.EodWindowEnabled;
+        runtimeConfig.EodOversoldRsiThreshold   = dto.EodOversoldRsiThreshold;
+        runtimeConfig.EodOverboughtRsiThreshold = dto.EodOverboughtRsiThreshold;
+
+        // Persist to disk so settings survive a server restart
+        runtimeConfig.SaveToFile();
 
         logger.LogInformation(
-            "EOD window updated: {Start}–{End} ET, Enabled={Enabled}",
-            dto.EodWindowStart, dto.EodWindowEnd, dto.EodWindowEnabled);
+            "EOD window updated: {Start}\u2013{End} ET, Enabled={Enabled}, OS<{OS} OB>{OB}",
+            dto.EodWindowStart, dto.EodWindowEnd, dto.EodWindowEnabled,
+            dto.EodOversoldRsiThreshold, dto.EodOverboughtRsiThreshold);
 
         return Ok(new EodWindowSettingsDto
         {
-            EodWindowStart   = runtimeConfig.EodWindowStart,
-            EodWindowEnd     = runtimeConfig.EodWindowEnd,
-            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+            EodWindowStart            = runtimeConfig.EodWindowStart,
+            EodWindowEnd              = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled          = runtimeConfig.EodWindowEnabled,
+            EodOversoldRsiThreshold   = runtimeConfig.EodOversoldRsiThreshold,
+            EodOverboughtRsiThreshold = runtimeConfig.EodOverboughtRsiThreshold,
         });
     }
 

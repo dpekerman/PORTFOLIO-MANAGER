@@ -66,12 +66,15 @@ public sealed class RsiScannerService : IRsiScannerService
         ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
     };
 
-    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData)
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig)
     {
         _http = http;
         _logger = logger;
         _marketData = marketData;
+        _runtimeConfig = runtimeConfig;
     }
+
+    private readonly ScannerRuntimeConfig _runtimeConfig;
 
     public async Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
     {
@@ -371,10 +374,10 @@ public sealed class RsiScannerService : IRsiScannerService
                 // intraday volume (e.g. at 3:45 PM ET = 93.6% through the session) is not
                 // unfairly penalised vs. the 20-day average which represents full-session volume.
                 decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
-                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr))
+                if (CheckOversoldEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr, _runtimeConfig.EodOversoldRsiThreshold))
                 {
                     status  = SignalStatus.EodConfirm;
-                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr);
+                    trigger = BuildOversoldEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayHigh, dailyAtr, _runtimeConfig.EodOversoldRsiThreshold);
                 }
             }
             else if (rsi >= overboughtThreshold)
@@ -389,10 +392,10 @@ public sealed class RsiScannerService : IRsiScannerService
 
                 // ── EOD Confirm override: volume projected to full-session equivalent ──
                 decimal eodVolRatio = avgVol > 0 ? ProjectIntradayVolume(todayVol) / avgVol : volRatio;
-                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr))
+                if (CheckOverboughtEodConfirm(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr, _runtimeConfig.EodOverboughtRsiThreshold))
                 {
                     status  = SignalStatus.EodConfirm;
-                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr);
+                    trigger = BuildOverboughtEodTrigger(rsi, todayClose, ema9Price, eodVolRatio, todayOpen, todayLow, dailyAtr, _runtimeConfig.EodOverboughtRsiThreshold);
                 }
             }
             else
@@ -913,23 +916,25 @@ public sealed class RsiScannerService : IRsiScannerService
     /// </summary>
     private static bool CheckOversoldEodConfirm(
         decimal rsi, decimal close, decimal ema9,
-        decimal volRatio, decimal open, decimal high, decimal atr)
+        decimal volRatio, decimal open, decimal high, decimal atr,
+        decimal oversoldThreshold = 25m)
     {
-        if (rsi >= 25m) return false;                                      // Rule 1
-        if (close <= ema9) return false;                                   // Rule 2
-        if (volRatio < 1.5m) return false;                                 // Rule 3
-        if (atr <= 0m) return false;                                       // ATR must be computed
-        decimal priceThreshold = high - (0.25m * atr);                    // Rule 4 threshold
-        return close > open && close >= priceThreshold;                    // Rule 4
+        if (rsi >= oversoldThreshold) return false;                            // Rule 1
+        if (close <= ema9) return false;                                       // Rule 2
+        if (volRatio < 1.5m) return false;                                     // Rule 3
+        if (atr <= 0m) return false;                                           // ATR must be computed
+        decimal priceThreshold = high - (0.25m * atr);                        // Rule 4 threshold
+        return close > open && close >= priceThreshold;                        // Rule 4
     }
 
     private static string BuildOversoldEodTrigger(
         decimal rsi, decimal close, decimal ema9,
-        decimal volRatio, decimal open, decimal high, decimal atr)
+        decimal volRatio, decimal open, decimal high, decimal atr,
+        decimal oversoldThreshold = 25m)
     {
         decimal priceThreshold = high - (0.25m * atr);
         return $"EOD CONFIRM — All 4 rules met: " +
-               $"RSI {rsi:0.0} < 25 ✓ | " +
+               $"RSI {rsi:0.0} < {oversoldThreshold} ✓ | " +
                $"Price ${close:0.00} > 9-EMA ${ema9:0.00} ✓ | " +
                $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
                $"Price > Open ${open:0.00} and Price ${close:0.00} ≥ threshold ${priceThreshold:0.00} (High ${high:0.00} − 0.25×ATR ${atr:0.0000}) ✓";
@@ -944,23 +949,25 @@ public sealed class RsiScannerService : IRsiScannerService
     /// </summary>
     private static bool CheckOverboughtEodConfirm(
         decimal rsi, decimal close, decimal ema9,
-        decimal volRatio, decimal open, decimal low, decimal atr)
+        decimal volRatio, decimal open, decimal low, decimal atr,
+        decimal overboughtThreshold = 75m)
     {
-        if (rsi <= 75m) return false;                                      // Rule 1
-        if (close >= ema9) return false;                                   // Rule 2
-        if (volRatio < 1.5m) return false;                                 // Rule 3
-        if (atr <= 0m) return false;                                       // ATR must be computed
-        decimal priceThreshold = low + (0.25m * atr);                     // Rule 4 threshold
-        return close < open && close <= priceThreshold;                    // Rule 4
+        if (rsi <= overboughtThreshold) return false;                          // Rule 1
+        if (close >= ema9) return false;                                       // Rule 2
+        if (volRatio < 1.5m) return false;                                     // Rule 3
+        if (atr <= 0m) return false;                                           // ATR must be computed
+        decimal priceThreshold = low + (0.25m * atr);                         // Rule 4 threshold
+        return close < open && close <= priceThreshold;                        // Rule 4
     }
 
     private static string BuildOverboughtEodTrigger(
         decimal rsi, decimal close, decimal ema9,
-        decimal volRatio, decimal open, decimal low, decimal atr)
+        decimal volRatio, decimal open, decimal low, decimal atr,
+        decimal overboughtThreshold = 75m)
     {
         decimal priceThreshold = low + (0.25m * atr);
         return $"EOD CONFIRM — All 4 rules met: " +
-               $"RSI {rsi:0.0} > 75 ✓ | " +
+               $"RSI {rsi:0.0} > {overboughtThreshold} ✓ | " +
                $"Price ${close:0.00} < 9-EMA ${ema9:0.00} ✓ | " +
                $"Volume {volRatio:0.0}x avg (>1.5x) ✓ | " +
                $"Price < Open ${open:0.00} and Price ${close:0.00} ≤ threshold ${priceThreshold:0.00} (Low ${low:0.00} + 0.25×ATR ${atr:0.0000}) ✓";

@@ -287,7 +287,6 @@
                     {{ filteredTotalMktValue()! | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                   </span>
                 }
-                <app-grid-column-btn gridId="portfolio-stocks" />
               </div>
               <div class="portfolio-table-wrapper">
                 <table
@@ -865,6 +864,13 @@
                       }
                     </td>
                   </ng-container>
+                  <!-- Column Config — embedded in sticky header -->
+                  <ng-container matColumnDef="colConfig" stickyEnd>
+                    <th mat-header-cell *matHeaderCellDef class="col-config-th">
+                      <app-grid-column-btn gridId="portfolio-stocks" />
+                    </th>
+                    <td mat-cell *matCellDef="let row"></td>
+                  </ng-container>
                   <tr mat-header-row *matHeaderRowDef="gridDisplayedColumns(); sticky: true"></tr>
                   <tr
                     mat-row
@@ -1048,9 +1054,6 @@
           } @else {
             @if (viewMode() === 'grid') {
               <!-- CASH: TABLE VIEW -->
-              <div class="pg-table-action-bar">
-                <app-grid-column-btn gridId="portfolio-cash" />
-              </div>
               <div class="portfolio-table-wrapper">
                 <table
                   class="portfolio-grid-table mat-elevation-z0"
@@ -1107,6 +1110,13 @@
                         <mat-icon>delete_outline</mat-icon>
                       </button>
                     </td>
+                  </ng-container>
+                  <!-- Column Config — embedded in sticky header -->
+                  <ng-container matColumnDef="colConfig" stickyEnd>
+                    <th mat-header-cell *matHeaderCellDef class="col-config-th">
+                      <app-grid-column-btn gridId="portfolio-cash" />
+                    </th>
+                    <td mat-cell *matCellDef="let c"></td>
                   </ng-container>
                   <tr mat-header-row *matHeaderRowDef="cashDisplayedColumns()"></tr>
                   <tr
@@ -1198,9 +1208,6 @@
               <span>No option positions. Click "+ Add Option" to track an options contract.</span>
             </div>
           } @else {
-            <div class="pg-table-action-bar">
-              <app-grid-column-btn gridId="portfolio-options" />
-            </div>
             <div class="portfolio-table-wrapper options-table-wrapper">
               <table
                 class="portfolio-grid-table options-grid-table mat-elevation-z0"
@@ -1455,6 +1462,13 @@
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </td>
+                </ng-container>
+                <!-- Column Config — embedded in sticky header -->
+                <ng-container matColumnDef="colConfig" stickyEnd>
+                  <th mat-header-cell *matHeaderCellDef class="col-config-th">
+                    <app-grid-column-btn gridId="portfolio-options" />
+                  </th>
+                  <td mat-cell *matCellDef="let a"></td>
                 </ng-container>
                 <tr mat-header-row *matHeaderRowDef="optionDisplayedColumns(); sticky: true"></tr>
                 <tr

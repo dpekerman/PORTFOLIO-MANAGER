@@ -53,6 +53,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'momentumShift', label: 'Momentum Shift' },
       { key: 'finalAction', label: 'Final Action' },
       { key: 'actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -79,6 +80,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'opt_account', label: 'Account Type' },
       { key: 'opt_decision_source', label: 'Decision Source' },
       { key: 'opt_actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -92,6 +94,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'addedAt', label: 'Added' },
       { key: 'cashAccountType', label: 'Account Type' },
       { key: 'cashActions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -113,6 +116,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'tx_gain_pct', label: 'Gain %' },
       { key: 'tx_last_price', label: 'Last Price' },
       { key: 'tx_actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -136,6 +140,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'otx_gain_pct', label: 'Gain %' },
       { key: 'otx_mkt_value', label: 'Current Mkt Value' },
       { key: 'otx_actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -158,6 +163,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'status', label: 'Signal' },
       { key: 'trigger', label: 'Trigger / Analysis' },
       { key: 'signalHistory', label: 'History' },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -177,6 +183,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'ruleVersion', label: 'Mode' },
       { key: 'signalState', label: 'State' },
       { key: 'actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
   {
@@ -216,6 +223,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'valueScore', label: 'Value Score' },
       { key: 'valueStatus', label: 'Value Status' },
       { key: 'actions', label: 'Actions', pinned: true },
+      { key: 'colConfig', label: '', pinned: true },
     ],
   },
 ];

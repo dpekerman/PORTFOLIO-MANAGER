@@ -84,6 +84,8 @@ builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
         cfg.EodWindowEnd = section["EodWindowEnd"]!;
     if (bool.TryParse(section["EodWindowEnabled"], out var enabled))
         cfg.EodWindowEnabled = enabled;
+    // Load persisted overrides (saved via PUT /api/scanner/eod-settings), takes priority over appsettings
+    cfg.LoadFromFile();
     return cfg;
 });
 

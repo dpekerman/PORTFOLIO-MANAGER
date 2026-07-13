@@ -165,11 +165,15 @@ export class PortfolioApiService {
     eodWindowStart: string;
     eodWindowEnd: string;
     eodWindowEnabled: boolean;
+    eodOversoldRsiThreshold: number;
+    eodOverboughtRsiThreshold: number;
   }> {
     return this.http.get<{
       eodWindowStart: string;
       eodWindowEnd: string;
       eodWindowEnabled: boolean;
+      eodOversoldRsiThreshold: number;
+      eodOverboughtRsiThreshold: number;
     }>(`${this.base}/scanner/eod-settings`);
   }
 
@@ -178,6 +182,8 @@ export class PortfolioApiService {
     eodWindowStart: string;
     eodWindowEnd: string;
     eodWindowEnabled: boolean;
+    eodOversoldRsiThreshold: number;
+    eodOverboughtRsiThreshold: number;
   }): Observable<void> {
     return this.http.put<void>(`${this.base}/scanner/eod-settings`, settings);
   }

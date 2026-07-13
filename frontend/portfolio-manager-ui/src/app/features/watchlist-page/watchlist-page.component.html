@@ -162,7 +162,6 @@
         <span class="grid-count-label"
           >{{ filteredSorted().length }} of {{ watchlist.count() }}</span
         >
-        <app-grid-column-btn gridId="watchlist" />
         @if (colWidths().size > 0) {
           <button
             mat-icon-button
@@ -714,6 +713,14 @@
                   <mat-icon>delete_outline</mat-icon>
                 </button>
               </td>
+            </ng-container>
+
+            <!-- Column Config — embedded in sticky header -->
+            <ng-container matColumnDef="colConfig" stickyEnd>
+              <th mat-header-cell *matHeaderCellDef class="col-config-th">
+                <app-grid-column-btn gridId="watchlist" />
+              </th>
+              <td mat-cell *matCellDef="let w"></td>
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>

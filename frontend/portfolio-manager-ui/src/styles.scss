@@ -166,3 +166,13 @@ a.mat-mdc-button-base mat-icon {
   vertical-align: middle;
   flex-shrink: 0;
 }
+
+// -- Column Config button — embedded in sticky grid header (all grids) ----------
+.col-config-th {
+  width: 44px;
+  min-width: 44px;
+  padding: 4px 6px !important;
+  text-align: right !important;
+  vertical-align: middle !important;
+}
+

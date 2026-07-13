@@ -141,10 +141,14 @@ public class EodWindowSettingsDto
 {
     /// <summary>Start time in "HH:mm" format (Eastern Time). Default: "15:30"</summary>
     public string EodWindowStart { get; set; } = "15:30";
-    /// <summary>End time in "HH:mm" format (Eastern Time). Default: "16:00"</summary>
-    public string EodWindowEnd { get; set; } = "16:00";
+    /// <summary>End time in "HH:mm" format (Eastern Time). Default: "16:30"</summary>
+    public string EodWindowEnd { get; set; } = "16:30";
     /// <summary>Whether the EOD window is enabled.</summary>
     public bool EodWindowEnabled { get; set; } = true;
+    /// <summary>RSI threshold below which a stock qualifies for EOD CONFIRM (oversold). Default: 25.</summary>
+    public decimal EodOversoldRsiThreshold { get; set; } = 25m;
+    /// <summary>RSI threshold above which a stock qualifies for EOD CONFIRM (overbought). Default: 75.</summary>
+    public decimal EodOverboughtRsiThreshold { get; set; } = 75m;
 }
 
 /// <summary>A single persisted EOD CONFIRM signal, written to disk at end of day.</summary>
