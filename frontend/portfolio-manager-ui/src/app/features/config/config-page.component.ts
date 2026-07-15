@@ -141,6 +141,22 @@ export class ConfigPageComponent implements OnInit {
     return f ? this.industries().filter((i) => i.toLowerCase().includes(f)) : this.industries();
   });
 
+  // ── Decision Source Picklist ─────────────────────────────────────────────
+  protected readonly decisionSources = signal<string[]>([]);
+  protected readonly editingDecisionSource = signal<{ index: number | null; value: string } | null>(
+    null,
+  );
+  protected readonly savingDecisionSources = signal(false);
+  protected readonly decisionSourceDirty = signal(false);
+  private readonly DS_DEFAULTS = [
+    'App Signal',
+    'Manual',
+    'Catalyst',
+    'Rebalance',
+    'Risk Control',
+    'Loss Harvest',
+  ];
+
   // ── Allocation & Risk Management ─────────────────────────────────────────
   protected readonly riskTargets = signal<AllocationRiskTarget[]>([]);
   protected readonly sectorTargets = signal<AllocationSectorTarget[]>([]);
@@ -425,6 +441,16 @@ export class ConfigPageComponent implements OnInit {
       },
     });
 
+    // Load decision sources via dedicated endpoint (independent of sectors/industries)
+    this.api.getDecisionSources().subscribe({
+      next: (data) => {
+        const ds = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+        this.decisionSources.set(ds);
+        this.configService.update({ decisionSources: ds });
+      },
+      error: () => {}, // Non-critical — keep defaults already set from configService
+    });
+
     // Load allocation & risk config
     this.loadAllocationRisk();
 
@@ -689,10 +715,82 @@ ${overboughtRsi}.`,
     this.industries.update((list) => list.filter((x) => x !== i));
   }
 
+  // ── Decision Source inline-edit methods (mirrors Allocation & Risk pattern) ──
+  protected startAddDecisionSource(): void {
+    this.editingDecisionSource.set({ index: null, value: '' });
+  }
+
+  protected startEditDecisionSource(index: number, value: string): void {
+    this.editingDecisionSource.set({ index, value });
+  }
+
+  protected cancelEditDecisionSource(): void {
+    this.editingDecisionSource.set(null);
+  }
+
+  protected saveDecisionSourceRow(): void {
+    const e = this.editingDecisionSource();
+    if (!e || !e.value.trim()) return;
+    const v = e.value.trim();
+    if (e.index === null) {
+      if (!this.decisionSources().includes(v)) {
+        this.decisionSources.update((list) => [...list, v]);
+      }
+    } else {
+      this.decisionSources.update((list) => list.map((item, i) => (i === e.index ? v : item)));
+    }
+    this.editingDecisionSource.set(null);
+    this.decisionSourceDirty.set(true);
+  }
+
+  protected deleteDecisionSource(index: number): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        this.decisionSources.update((list) => list.filter((_, i) => i !== index));
+        this.decisionSourceDirty.set(true);
+      });
+  }
+
+  protected resetDecisionSourcesToDefaults(): void {
+    this.decisionSources.set([...this.DS_DEFAULTS]);
+    this.decisionSourceDirty.set(true);
+  }
+
+  saveDecisionSources(): void {
+    this.savingDecisionSources.set(true);
+    this.api.saveDecisionSourcesList(this.decisionSources()).subscribe({
+      next: (data) => {
+        const saved = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+        this.decisionSources.set(saved);
+        this.configService.update({ decisionSources: saved });
+        this.decisionSourceDirty.set(false);
+        this.savingDecisionSources.set(false);
+        this.snackBar.open('Decision Source list saved.', 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.savingDecisionSources.set(false);
+        this.snackBar.open('Failed to save Decision Sources.', 'Dismiss', { duration: 4000 });
+      },
+    });
+  }
+
   saveSectorIndustryLists(): void {
     this.savingLists.set(true);
     this.api
-      .saveSectorIndustryLists({ sectors: this.sectors(), industries: this.industries() })
+      .saveSectorIndustryLists({
+        sectors: this.sectors(),
+        industries: this.industries(),
+        decisionSources: this.decisionSources(),
+      })
       .subscribe({
         next: (lists) => {
           this.sectors.set(lists.sectors);
@@ -765,7 +863,10 @@ ${overboughtRsi}.`,
 
     // 4. Sector & industry lists (async backend)
     this.api
-      .saveSectorIndustryLists({ sectors: this.sectors(), industries: this.industries() })
+      .saveSectorIndustryLists({
+        sectors: this.sectors(),
+        industries: this.industries(),
+      })
       .subscribe({
         next: (lists) => {
           this.sectors.set(lists.sectors);
@@ -773,6 +874,19 @@ ${overboughtRsi}.`,
         },
         error: () => {},
       });
+
+    // 5. Decision Sources via dedicated endpoint
+    if (this.decisionSourceDirty()) {
+      this.api.saveDecisionSourcesList(this.decisionSources()).subscribe({
+        next: (data) => {
+          const saved = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+          this.decisionSources.set(saved);
+          this.configService.update({ decisionSources: saved });
+          this.decisionSourceDirty.set(false);
+        },
+        error: () => {},
+      });
+    }
 
     // Brief visual feedback, then clear the saving state
     setTimeout(() => {

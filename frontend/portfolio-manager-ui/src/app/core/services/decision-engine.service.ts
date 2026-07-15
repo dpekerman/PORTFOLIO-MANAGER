@@ -129,6 +129,12 @@ export interface PortfolioItemContext {
    * e.g. 3.5 means the position represents 3.5% of the portfolio.
    */
   positionSizePct?: number | null;
+  /**
+   * Percentage of this ticker's total original shares that were closed via
+   * Risk Control decisions. e.g. 25 = 25% was Risk-Control-closed.
+   * When > 0, profit-taking trim actions are replaced with acknowledgment actions.
+   */
+  riskControlClosePct?: number | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -215,6 +221,11 @@ export class DecisionEngineService {
       dec.momentumShift,
       r.changePercent ?? 0,
     );
+
+    // Rule: 'Accumulate Starter' requires BuyScore >= 4 (strong confirmation)
+    if (finalAction === 'Accumulate Starter' && buyScore !== null && buyScore < 4) {
+      finalAction = 'Watch / Starter OK';
+    }
 
     // ── New FINAL ACTION overrides ────────────────────────────────────────────
 
@@ -320,6 +331,13 @@ export class DecisionEngineService {
     const profitAction = this.profitTakingAction(dec, context);
     if (profitAction) {
       rawAction = profitAction;
+    }
+
+    // ── Risk Control Close Acknowledgment ────────────────────────────────────
+    // If Risk Control closes were already executed for this ticker, replace any
+    // trim/sell profit-taking action with an acknowledgment of what was done.
+    if (profitAction && context?.riskControlClosePct != null && context.riskControlClosePct > 0) {
+      rawAction = this.riskControlAdjustedAction(profitAction, context.riskControlClosePct);
     }
 
     const finalAction = this.accumulateStarterGuard(
@@ -434,6 +452,19 @@ export class DecisionEngineService {
     }
 
     return null;
+  }
+
+  /**
+   * Replaces a profit-taking trim/sell action when Risk Control closes were already executed.
+   * Returns a descriptive string reflecting the actual executed action percentage.
+   */
+  private riskControlAdjustedAction(originalAction: string, closePct: number): string {
+    const isTrimOrSell = ['Trim', 'Sell', 'Take Partial'].some((t) => originalAction.includes(t));
+    if (!isTrimOrSell) return originalAction;
+    const pct = Math.round(closePct);
+    if (closePct >= 50) return `Risk Control: ${pct}% Closed — Hold or Exit Remaining`;
+    if (closePct >= 25) return `Risk Control: ${pct}% Closed — Hold Runner`;
+    return `Risk Control Started: ${pct}% Closed — Monitor Position`;
   }
 
   private buildContext(r: RsiScanResult) {

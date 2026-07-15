@@ -279,6 +279,17 @@ export class PortfolioApiService {
     return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
   }
 
+  // ── Decision Sources (dedicated endpoint, independent of sectors/industries) ──
+  getDecisionSources(): Observable<{ items: string[] }> {
+    return this.http.get<{ items: string[] }>(`${this.base}/sector-industry/decision-sources`);
+  }
+
+  saveDecisionSourcesList(items: string[]): Observable<{ items: string[] }> {
+    return this.http.put<{ items: string[] }>(`${this.base}/sector-industry/decision-sources`, {
+      items,
+    });
+  }
+
   // ── Cash CRUD ───────────────────────────────────────────────────────────────
   getCashItems(): Observable<CashItem[]> {
     return this.http.get<CashItem[]>(`${this.base}/cash`);

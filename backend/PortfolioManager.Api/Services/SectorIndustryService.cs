@@ -86,14 +86,47 @@ public class SectorIndustryService
 
     public SectorIndustryListsDto GetLists()
     {
-        lock (_lock) return new(_lists.Sectors.OrderBy(s => s).ToList(), _lists.Industries.OrderBy(i => i).ToList());
+        lock (_lock) return new(
+            _lists.Sectors.OrderBy(s => s).ToList(),
+            _lists.Industries.OrderBy(i => i).ToList(),
+            _lists.DecisionSources ?? DefaultDecisionSources());
+    }
+
+    private static List<string> DefaultDecisionSources() =>
+        ["App Signal", "Catalyst", "Loss Harvest", "Manual", "Rebalance", "Risk Control"];
+
+    /// <summary>Returns the current Decision Source list, falling back to defaults.</summary>
+    public DecisionSourcesDto GetDecisionSources()
+    {
+        lock (_lock)
+            return new(_lists.DecisionSources ?? DefaultDecisionSources());
+    }
+
+    /// <summary>Replaces the Decision Source list and persists to disk.</summary>
+    public DecisionSourcesDto SaveDecisionSources(UpdateDecisionSourcesRequest request)
+    {
+        var items = request.Items
+            .Select(d => d.Trim()).Where(d => d.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        lock (_lock)
+        {
+            _lists = _lists with { DecisionSources = items };
+            Persist();
+            return new(items);
+        }
     }
 
     public void SaveLists(UpdateSectorIndustryListsRequest request)
     {
         var updated = new SectorIndustryListsDto(
             Sectors: request.Sectors.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList(),
-            Industries: request.Industries.Select(i => i.Trim()).Where(i => i.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(i => i).ToList()
+            Industries: request.Industries.Select(i => i.Trim()).Where(i => i.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(i => i).ToList(),
+            DecisionSources: request.DecisionSources?
+                .Select(d => d.Trim()).Where(d => d.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                ?? _lists.DecisionSources
         );
 
         lock (_lock)

@@ -52,6 +52,8 @@ type StockTxCol =
   | 'tx_gain_loss'
   | 'tx_gain_pct'
   | 'tx_last_price'
+  | 'tx_price_diff'
+  | 'tx_decision_source'
   | 'tx_actions';
 
 type OptionTxCol =
@@ -188,6 +190,21 @@ export class TransactionsPageComponent {
     return s.quote?.currentPrice ?? null;
   }
 
+  /**
+   * Price Diff for a stock row:
+   *   CLOSE: closingPrice - lastPrice
+   *   OPEN:  lastPrice - avgCost
+   */
+  protected stockPriceDiff(s: { item: any; quote: any }): number | null {
+    const lastPrice = s.quote?.currentPrice ?? null;
+    if (lastPrice === null) return null;
+    if (s.item.transactionType === 'CLOSE') {
+      return s.item.closingPrice != null ? s.item.closingPrice - lastPrice : null;
+    }
+    // OPEN: last price vs average cost
+    return lastPrice - s.item.averageCostBasis;
+  }
+
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
   protected optionGainLoss(a: any): number | null {
     const cp = a.item.closingPrice;
@@ -262,6 +279,10 @@ export class TransactionsPageComponent {
         return this.stockGainPct(s) ?? 0;
       case 'tx_last_price':
         return s.quote?.currentPrice ?? 0;
+      case 'tx_price_diff':
+        return this.stockPriceDiff(s) ?? 0;
+      case 'tx_decision_source':
+        return s.item.decisionSource ?? '';
       default:
         return 0;
     }
@@ -326,6 +347,7 @@ export class TransactionsPageComponent {
           openDate: result.openDate,
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
+          decisionSource: result.decisionSource,
         });
       });
   }

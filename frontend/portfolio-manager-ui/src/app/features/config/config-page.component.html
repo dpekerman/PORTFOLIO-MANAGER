@@ -1045,4 +1045,166 @@
       </button>
     </div>
   </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 6 — DECISION SOURCE PICKLIST
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="config-section">
+    <div class="section-header">
+      <mat-icon>label</mat-icon>
+      <div class="section-header-text">
+        <h2 class="section-title">Decision Source Picklist</h2>
+        <p class="section-subtitle">
+          Values shown in the Decision Source dropdown on Add / Edit transaction forms and Portfolio
+          &amp; Transactions grids · Saved to browser storage
+        </p>
+      </div>
+    </div>
+
+    <div class="section-body">
+      <div class="alloc-grid" style="grid-template-columns: 1fr">
+        <div class="alloc-panel">
+          <div class="alloc-header">
+            <span class="alloc-title">Decision Sources</span>
+            <span class="alloc-badge">{{ decisionSources().length }}</span>
+            <button
+              mat-icon-button
+              matTooltip="Add new decision source"
+              (click)="startAddDecisionSource()"
+              class="alloc-add-btn"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+
+          @if (editingDecisionSource()?.index === null) {
+            <div class="alloc-edit-row">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                <mat-label>New decision source</mat-label>
+                <input
+                  matInput
+                  [ngModel]="editingDecisionSource()!.value"
+                  (ngModelChange)="
+                    editingDecisionSource.update((e) => (e ? { ...e, value: $event } : e))
+                  "
+                  (keydown.enter)="saveDecisionSourceRow()"
+                  placeholder="e.g. Earnings Play"
+                  autocomplete="off"
+                />
+              </mat-form-field>
+              <button mat-icon-button (click)="saveDecisionSourceRow()" matTooltip="Save">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button mat-icon-button (click)="cancelEditDecisionSource()" matTooltip="Cancel">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+
+          <div class="alloc-col-headers">
+            <span class="alloc-col-header-name">Source Label</span>
+          </div>
+
+          <div class="alloc-list">
+            @for (source of decisionSources(); track source; let i = $index) {
+              @if (editingDecisionSource()?.index === i) {
+                <div class="alloc-edit-row">
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="alloc-field"
+                  >
+                    <input
+                      matInput
+                      [ngModel]="editingDecisionSource()!.value"
+                      (ngModelChange)="
+                        editingDecisionSource.update((e) => (e ? { ...e, value: $event } : e))
+                      "
+                      (keydown.enter)="saveDecisionSourceRow()"
+                    />
+                  </mat-form-field>
+                  <button mat-icon-button (click)="saveDecisionSourceRow()">
+                    <mat-icon>check</mat-icon>
+                  </button>
+                  <button mat-icon-button (click)="cancelEditDecisionSource()">
+                    <mat-icon>close</mat-icon>
+                  </button>
+                </div>
+              } @else {
+                <div class="alloc-row">
+                  <span class="alloc-name">{{ source }}</span>
+                  <button
+                    mat-icon-button
+                    (click)="startEditDecisionSource(i, source)"
+                    matTooltip="Edit"
+                    class="alloc-act"
+                  >
+                    <mat-icon>edit</mat-icon>
+                  </button>
+                  <button
+                    mat-icon-button
+                    (click)="deleteDecisionSource(i)"
+                    matTooltip="Delete"
+                    class="alloc-act alloc-del"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-footer">
+      <span class="section-footer-hint">
+        @if (decisionSourceDirty()) {
+          <mat-icon
+            style="
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+              vertical-align: middle;
+              margin-right: 4px;
+              color: var(--mat-sys-primary);
+            "
+            >edit</mat-icon
+          >
+          Unsaved changes
+        } @else {
+          <mat-icon
+            style="
+              font-size: 14px;
+              width: 14px;
+              height: 14px;
+              vertical-align: middle;
+              margin-right: 4px;
+            "
+            >check_circle</mat-icon
+          >
+          All changes saved to backend
+        }
+      </span>
+      <button
+        mat-stroked-button
+        (click)="resetDecisionSourcesToDefaults()"
+        matTooltip="Restore the default 6 decision source values"
+      >
+        <mat-icon>restore</mat-icon> Reset to Defaults
+      </button>
+      <button
+        mat-flat-button
+        (click)="saveDecisionSources()"
+        [disabled]="savingDecisionSources() || !decisionSourceDirty()"
+        matTooltip="Persist decision source list to backend"
+      >
+        @if (savingDecisionSources()) {
+          <ng-container><mat-icon class="spinning">sync</mat-icon> Saving…</ng-container>
+        } @else {
+          <ng-container><mat-icon>save</mat-icon> Save Decision Sources</ng-container>
+        }
+      </button>
+    </div>
+  </div>
 </div>

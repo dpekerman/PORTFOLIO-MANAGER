@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { PortfolioItem } from '../../../core/models/portfolio.models';
+import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
@@ -54,19 +55,13 @@ export class EditPositionDialogComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dialogRef = inject(MatDialogRef<EditPositionDialogComponent>);
   private readonly api = inject(PortfolioApiService);
+  private readonly configService = inject(ConfigService);
   protected readonly data: EditPositionDialogData = inject(MAT_DIALOG_DATA);
 
   protected readonly sectors = signal<string[]>([]);
   protected readonly industries = signal<string[]>([]);
   protected readonly accountTypes = ACCOUNT_TYPES;
-  protected readonly decisionSources = [
-    'App Signal',
-    'Manual',
-    'Catalyst',
-    'Rebalance',
-    'Risk Control',
-    'Loss Harvest',
-  ] as const;
+  protected readonly decisionSources = this.configService.config().decisionSources;
 
   private toDate(val: string | null | undefined): Date | null {
     if (!val) return null;

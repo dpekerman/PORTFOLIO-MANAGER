@@ -26,6 +26,7 @@ import {
   StockQuote,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
+import { ConfigService } from '../../core/services/config.service';
 import {
   DecisionEngineService,
   PortfolioItemContext,
@@ -164,6 +165,7 @@ export class PortfolioPageComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
+  private readonly configService = inject(ConfigService);
 
   /** Ghost cards displayed while portfolio loads for the first time */
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
@@ -385,14 +387,7 @@ export class PortfolioPageComponent {
     'Options',
   ] as const;
 
-  protected readonly decisionSources = [
-    'App Signal',
-    'Manual',
-    'Catalyst',
-    'Rebalance',
-    'Risk Control',
-    'Loss Harvest',
-  ] as const;
+  protected readonly decisionSources = this.configService.config().decisionSources;
 
   protected roleClass(role: string | null | undefined): string {
     switch (role) {
@@ -434,6 +429,28 @@ export class PortfolioPageComponent {
     for (const item of items) {
       this.portfolio.updateHoldingRole(item.item.id, role);
     }
+  }
+
+  /**
+   * Returns the percentage of a ticker's total shares that were closed via Risk Control decisions.
+   * e.g. if 25 shares were closed (Risk Control) and 75 remain open → returns 25.
+   * Returns null when there are no Risk Control close records for the symbol.
+   */
+  private calcRiskControlClosePct(symbol: string): number | null {
+    const all = this.portfolio.summaries();
+    const rcCloses = all.filter(
+      (s) =>
+        s.item.symbol === symbol &&
+        s.item.transactionType === 'CLOSE' &&
+        s.item.decisionSource === 'Risk Control',
+    );
+    if (rcCloses.length === 0) return null;
+    const rcClosedShares = rcCloses.reduce((sum, s) => sum + s.item.shares, 0);
+    const openShares = all
+      .filter((s) => s.item.symbol === symbol && s.item.transactionType !== 'CLOSE')
+      .reduce((sum, s) => sum + s.item.shares, 0);
+    const total = openShares + rcClosedShares;
+    return total > 0 ? (rcClosedShares / total) * 100 : null;
   }
 
   protected analystForSymbol(symbol: string): { price: number; upside: number } | null {
@@ -479,6 +496,7 @@ export class PortfolioPageComponent {
         holdingDays,
         distanceFrom52WeekHighPct,
         positionSizePct,
+        riskControlClosePct: this.calcRiskControlClosePct(item.symbol),
       };
     }
 

@@ -58,5 +58,13 @@
     "Uranium",
     "Utilities \u2013 Regulated Electric",
     "Utilities \u2013 Regulated Gas"
+  ],
+  "DecisionSources": [
+    "App Signal",
+    "Manual",
+    "Catalyst",
+    "Rebalance",
+    "Risk Control",
+    "Loss Harvest"
   ]
 }

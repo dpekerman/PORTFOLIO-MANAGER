@@ -115,6 +115,8 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'tx_gain_loss', label: 'Gain/Loss' },
       { key: 'tx_gain_pct', label: 'Gain %' },
       { key: 'tx_last_price', label: 'Last Price' },
+      { key: 'tx_price_diff', label: 'Price Diff' },
+      { key: 'tx_decision_source', label: 'Decision Source' },
       { key: 'tx_actions', label: 'Actions', pinned: true },
       { key: 'colConfig', label: '', pinned: true },
     ],

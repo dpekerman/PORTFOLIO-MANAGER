@@ -79,8 +79,12 @@ public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);
 
 // ── Sector / Industry Lists ─────────────────────────────────────────────────────
-public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries);
-public record UpdateSectorIndustryListsRequest(List<string> Sectors, List<string> Industries);
+public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries, List<string>? DecisionSources = null);
+public record UpdateSectorIndustryListsRequest(List<string> Sectors, List<string> Industries, List<string>? DecisionSources = null);
+
+/// <summary>Dedicated payload for the Decision Source picklist endpoint.</summary>
+public record DecisionSourcesDto(List<string> Items);
+public record UpdateDecisionSourcesRequest(List<string> Items);
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
 public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null);

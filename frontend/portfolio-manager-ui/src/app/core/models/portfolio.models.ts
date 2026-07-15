@@ -103,6 +103,7 @@ export interface UpdatePortfolioItemRequest {
 export interface SectorIndustryLists {
   sectors: string[];
   industries: string[];
+  decisionSources?: string[];
 }
 
 export interface AddManualPositionRequest {
