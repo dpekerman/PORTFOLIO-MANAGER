@@ -60,11 +60,15 @@
     "Utilities \u2013 Regulated Gas"
   ],
   "DecisionSources": [
-    "App Signal",
+    "App Signal - Trim",
     "Manual",
     "Catalyst",
     "Rebalance",
-    "Risk Control",
-    "Loss Harvest"
+    "Risk Control - Trim",
+    "Loss Harvest",
+    "Legacy",
+    "App Signal - Add",
+    "Risk Control - all out",
+    "Bought Deal"
   ]
 }
