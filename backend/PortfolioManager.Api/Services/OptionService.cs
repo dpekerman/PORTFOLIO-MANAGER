@@ -77,7 +77,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         item.OpenDate          = request.OpenDate;
         item.CloseDate         = request.CloseDate;
         item.ClosingPrice      = request.ClosingPrice;
-        if (request.DecisionSource is not null) item.DecisionSource = request.DecisionSource;
+        item.DecisionSource    = request.DecisionSource;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }

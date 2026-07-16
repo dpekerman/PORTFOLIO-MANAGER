@@ -4,7 +4,100 @@
   padding-top: 16px; // sticky bar handles top spacing
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 0;
+}
+
+// ── Tab Navigation ───────────────────────────────────────────────────────────
+.cfg-tab-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 14px 0 0;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 20px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar {
+    height: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+  }
+}
+
+.cfg-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    color 150ms ease,
+    border-color 150ms ease;
+  margin-bottom: -2px; // sit on top of the border-bottom
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-radius: 6px 6px 0 0;
+  }
+
+  &--active {
+    color: var(--mat-sys-primary, #64b5f6);
+    border-bottom-color: var(--mat-sys-primary, #64b5f6);
+
+    mat-icon {
+      color: var(--mat-sys-primary, #64b5f6);
+    }
+  }
+
+  @media (max-width: 640px) {
+    padding: 7px 10px 9px;
+    font-size: 0.72rem;
+    gap: 4px;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .cfg-tab-label {
+      display: none;
+    }
+    padding: 8px 12px 10px;
+  }
+}
+
+// ── Tab content panels ────────────────────────────────────────────────────────
+.cfg-panel {
+  display: none;
+
+  &--active {
+    display: block;
+  }
 }
 
 // ── Sticky global save/reset bar ──────────────────────────────────────────────

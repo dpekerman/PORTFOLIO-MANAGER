@@ -129,6 +129,18 @@
       <input matInput type="number" formControlName="closingPrice" step="0.01" min="0" />
       <mat-hint>Price at which the option position was closed</mat-hint>
     </mat-form-field>
+
+    <!-- Decision Source -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Decision Source</mat-label>
+      <mat-select formControlName="decisionSource">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (ds of decisionSources; track ds) {
+          <mat-option [value]="ds">{{ ds }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Signal or strategy that triggered this position</mat-hint>
+    </mat-form-field>
   </form>
 </mat-dialog-content>
 

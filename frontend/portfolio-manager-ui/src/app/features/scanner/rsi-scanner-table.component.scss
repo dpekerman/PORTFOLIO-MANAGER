@@ -3,9 +3,9 @@
   background: transparent;
 
   th.mat-mdc-header-cell {
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
     text-transform: uppercase;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-subtle);
@@ -566,62 +566,64 @@
 }
 
 // ── Mobile responsive ─────────────────────────────────────────────────────────
-// On small screens, convert to a card-based scrollable layout
+// On small screens, keep horizontal scroll (cleaner than card view for data tables)
 @media (max-width: 768px) {
   .scanner-table {
-    display: block;
-
-    // Hide all header cells (labels are inline in card)
-    thead {
-      display: none;
-    }
-
-    tbody {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      padding: 8px;
-    }
-
-    // Each row becomes a card
-    tr.mat-mdc-row {
-      display: block;
-      border-radius: 10px;
-      border: 1px solid #1e1e1e;
-      padding: 12px;
-      background: #161616 !important;
-      border-left-width: 4px;
+    // Keep table layout but allow compact display
+    th.mat-mdc-header-cell {
+      font-size: 0.65rem;
+      padding: 8px 8px;
+      letter-spacing: 0.5px;
     }
 
     td.mat-mdc-cell {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      padding: 4px 0;
-      border-bottom: none;
-
-      &::before {
-        content: attr(data-label);
-        font-size: 0.62rem;
-        font-weight: 700;
-        color: #424242;
-        letter-spacing: 0.8px;
-        text-transform: uppercase;
-        min-width: 80px;
-        flex-shrink: 0;
-      }
+      padding: 8px;
     }
   }
 
-  // Indicators wrap normally on card
+  .symbol-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 0.55rem;
+  }
+
+  .symbol-info .symbol-name {
+    font-size: 0.78rem;
+  }
+
+  .symbol-info .company-name {
+    max-width: 90px;
+  }
+
+  .rsi-cell {
+    min-width: 70px;
+
+    .rsi-value {
+      font-size: 0.9rem;
+    }
+  }
+
+  // Indicators wrap normally on smaller screens
   .indicators-grid {
     max-width: 100%;
+    flex-wrap: wrap;
   }
   .indicators-header {
     min-width: unset;
   }
   .trigger-text {
     max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .scanner-table {
+    th.mat-mdc-header-cell {
+      padding: 6px 6px;
+    }
+    td.mat-mdc-cell {
+      padding: 6px;
+    }
   }
 }
 

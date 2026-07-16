@@ -108,6 +108,9 @@ export class ConfigPageComponent implements OnInit {
   protected readonly eodWindowActive = this.scannerState.eodWindowActive;
   protected readonly isSavingAll = signal(false);
 
+  // ── Tab navigation ───────────────────────────────────────────────────────
+  protected readonly activeSection = signal<string>('scanner');
+
   // ── Value Screener Schedule form ─────────────────────────────────────────
   // Mirrors EOD form approach: Date | null for timepicker, convert to/from HH:mm string.
   protected readonly vsForm = this.fb.group({

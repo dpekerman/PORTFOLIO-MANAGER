@@ -1,5 +1,7 @@
 .scanner-page {
   padding: 0 0 48px;
+  overflow-x: hidden;
+  min-width: 0;
 }
 
 // ── Logic Mode Banner ───────────────────────────────────────────────────────
@@ -63,9 +65,14 @@
 
 .scanner-section {
   padding: 20px 24px;
+  min-width: 0;
 
-  @media (max-width: 600px) {
-    padding: 16px;
+  @media (max-width: 768px) {
+    padding: 14px 16px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 10px 12px;
   }
 }
 
@@ -88,6 +95,11 @@
   margin-bottom: 14px;
   flex-wrap: wrap;
   gap: 8px;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .section-title-group {
@@ -298,6 +310,13 @@
   &:hover {
     background: color-mix(in srgb, #ffc107 12%, var(--bg-elevated));
     box-shadow: -4px 0 20px rgba(0, 0, 0, 0.35);
+  }
+
+  @media (max-width: 768px) {
+    top: auto;
+    bottom: 80px;
+    transform: none;
+    padding: 10px 6px;
   }
 }
 
@@ -579,8 +598,15 @@
 
 .table-wrapper {
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   border: 1px solid var(--border-color);
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+
+  @media (max-width: 768px) {
+    border-radius: 6px;
+  }
 }
 
 .spinning {

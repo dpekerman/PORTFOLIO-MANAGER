@@ -118,7 +118,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         item.CloseDate       = request.CloseDate;
         item.ClosingPrice    = request.ClosingPrice;
         if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
-        if (request.DecisionSource is not null) item.DecisionSource = request.DecisionSource;
+        item.DecisionSource  = request.DecisionSource;
 
         await db.SaveChangesAsync(ct);
         return ToDto(item);
