@@ -6,30 +6,21 @@
     }}</span>
   </div>
   <div class="summary-tile">
-    <span class="label">Total Cost</span>
-    <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
-      totalCost() | currency
-    }}</span>
-  </div>
-  <div class="summary-tile">
-    <span class="label">Total Gain / Loss</span>
+    <span class="label">1 Day Change</span>
+    @let dayChange = oneDayChange();
     <span
       class="value"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+      [class.positive]="dayChange !== null && dayChange > 0"
+      [class.negative]="dayChange !== null && dayChange < 0"
       [class.demo-redact]="demoMode.isDemoMode()"
     >
-      <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
-      {{ totalGainLoss() | currency }}
-    </span>
-  </div>
-  <div class="summary-tile">
-    <span class="label">Return</span>
-    <span
-      class="value"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
-      [class.demo-redact]="demoMode.isDemoMode()"
-    >
-      {{ totalGainLossPct() | number: '1.2-2' }}%
+      @if (oneDayChangeLoading()) {
+        <span class="dim">—</span>
+      } @else if (dayChange !== null) {
+        {{ dayChange >= 0 ? '+' : '' }}{{ dayChange | currency }}
+      } @else {
+        <span class="dim">—</span>
+      }
     </span>
   </div>
   <div

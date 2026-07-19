@@ -511,6 +511,42 @@
               </td>
             </ng-container>
 
+            <!-- Reversal Probability -->
+            <ng-container matColumnDef="reversalP">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Aggregate probability of imminent trend reversal based on 5 indicators"
+                class="resizable-th"
+              >
+                REVERSAL P.
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'reversalP')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @let rp = rsiMap().get(w.item.symbol.toUpperCase())?.reversalProbability;
+                @if (rp) {
+                  <div
+                    class="prob-badge"
+                    [ngClass]="probClass(rp)"
+                    [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
+                  >
+                    <mat-icon>{{
+                      rp === 'High' ? 'warning' : rp === 'Medium' ? 'info' : 'check_circle'
+                    }}</mat-icon>
+                    {{ rp }}
+                  </div>
+                } @else if (rsiLoading()) {
+                  <span class="wl-cell-shimmer"></span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- BUY Score -->
             <ng-container matColumnDef="buyScore">
               <th
@@ -600,7 +636,7 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
-                  <span class="wl-vs-badge state-badge" [matTooltip]="vd.technical">{{
+                  <span class="wl-vs-badge state-badge" [matTooltip]="vd.tooltip">{{
                     vd.technical
                   }}</span>
                 } @else {

@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
     public DbSet<ValueScreenerSnapshot> ValueScreenerSnapshots => Set<ValueScreenerSnapshot>();
     public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
+    public DbSet<PortfolioValueHistory> PortfolioValueHistories => Set<PortfolioValueHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -144,6 +145,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ScheduledTimeEt).IsRequired().HasMaxLength(10).HasDefaultValue("17:00");
             entity.Property(e => e.Enabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PortfolioValueHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RecordedDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TotalValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StocksValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CashValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.OptionsValue).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => e.RecordedDate);
         });
     }
 }

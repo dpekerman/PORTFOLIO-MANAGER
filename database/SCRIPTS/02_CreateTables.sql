@@ -483,3 +483,28 @@ BEGIN
     PRINT 'Table SinglePositionLimits created.';
 END
 GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: PortfolioValueHistories  (2026-07-19)
+-- Stores end-of-day portfolio value snapshots persisted at 4:30 PM ET.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioValueHistories]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[PortfolioValueHistories]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [RecordedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [RecordedDate] NVARCHAR(10) NOT NULL DEFAULT '',
+        [TotalValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [StocksValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [CashValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [OptionsValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_PortfolioValueHistories] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_PortfolioValueHistories_RecordedDate]
+        ON [dbo].[PortfolioValueHistories] ([RecordedDate] ASC);
+    PRINT 'Table PortfolioValueHistories created.';
+END
+GO

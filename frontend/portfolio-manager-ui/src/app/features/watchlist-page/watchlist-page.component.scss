@@ -1029,3 +1029,14 @@ button[mat-icon-button] {
     color: var(--text-primary);
   }
 }
+
+// -- Reversal Probability badge
+.prob-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 12px;
+  font-size: 0.72rem; font-weight: 700;
+  mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  &.prob-high { background: rgba(229,57,53,.15); color: #ef5350; }
+  &.prob-medium { background: rgba(245,124,0,.15); color: #fb8c00; }
+  &.prob-low { background: rgba(0,200,83,.12); color: #00c853; }
+}

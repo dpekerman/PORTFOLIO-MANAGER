@@ -103,6 +103,13 @@ builder.Services.AddSingleton<EodSignalPersistenceService>();
 // regardless of which page is open in the frontend
 builder.Services.AddHostedService<RsiAlertBackgroundService>();
 
+// Portfolio value history: persists EOD portfolio value daily at 4:30 PM ET
+builder.Services.AddScoped<IPortfolioValueHistoryService, PortfolioValueHistoryService>();
+builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
+
+// Portfolio beta calculation
+builder.Services.AddScoped<IPortfolioBetaService, PortfolioBetaService>();
+
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────

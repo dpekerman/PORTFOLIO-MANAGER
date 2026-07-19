@@ -17,8 +17,10 @@ import {
   EodSignalsMeta,
   OptionItem,
   OptionTechnicalData,
+  PortfolioBetaResult,
   PortfolioItem,
   PortfolioSummary,
+  PortfolioValueHistoryDto,
   RsiScanResult,
   ScannerResponse,
   SectorIndustryLists,
@@ -409,6 +411,18 @@ export class PortfolioApiService {
 
   restoreOptions(request: { items: unknown[] }): Observable<{ restored: number }> {
     return this.http.post<{ restored: number }>(`${this.base}/options/restore`, request);
+  }
+
+  // ── Portfolio Value History ─────────────────────────────────────────────────
+  getPortfolioValueHistory(count = 30): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.get<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/latest?count=${count}`,
+    );
+  }
+
+  // ── Portfolio Beta ──────────────────────────────────────────────────────────
+  getPortfolioBeta(): Observable<PortfolioBetaResult> {
+    return this.http.get<PortfolioBetaResult>(`${this.base}/portfoliobeta`);
   }
 
   backupPortfolio(): Observable<unknown[]> {

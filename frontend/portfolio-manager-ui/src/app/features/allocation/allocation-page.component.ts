@@ -11,6 +11,7 @@ import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { PortfolioBetaStateService } from '../../core/services/portfolio-beta-state.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
@@ -47,6 +48,18 @@ export class AllocationPageComponent {
   protected readonly optionState = inject(OptionStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  protected readonly betaState = inject(PortfolioBetaStateService);
+
+  protected readonly showBetaDetail = signal(false);
+
+  constructor() {
+    // Load portfolio beta on page init (non-blocking)
+    this.betaState.load();
+  }
+
+  toggleBetaDetail(): void {
+    this.showBetaDetail.update((v) => !v);
+  }
 
   protected readonly isPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
   protected readonly returnPct = computed(() => this.portfolio.displayTotalGainLossPct() / 100);

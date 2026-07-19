@@ -240,7 +240,7 @@ export class WatchlistPageComponent {
 
   protected valueDataForSymbol(
     symbol: string,
-  ): { technical: string; score: number; status: string } | null {
+  ): { technical: string; score: number; status: string; tooltip: string } | null {
     const vs = this.vsMap().get(symbol.toUpperCase());
     if (!vs) return null;
     const techLabels: Record<string, string> = {
@@ -250,6 +250,20 @@ export class WatchlistPageComponent {
       SidewaysConsolidation: 'Sideways Consolidation',
       MeanReversion: 'Mean Reversion',
       HighVolumeExhaustion: 'High-Volume Exhaustion',
+    };
+    const techTooltips: Record<string, string> = {
+      DeepValueReversal:
+        'Deep Value Reversal: The stock has been beaten down and ignored for a long time (making it fundamentally cheap), but it is finally printing its very first technical signs of bottoming out. Buyers are stepping back in, and the long-term price chart is starting to curve upward.',
+      OverboughtMomentum:
+        'Overbought Momentum: The stock is rocketing upward rapidly. It is technically "stretched" too high too fast, but the buying pressure is so intense that the trend is overriding standard exhaustion limits and continuing to climb.',
+      OverboughtPullback:
+        'Overbought Pullback: The stock recently experienced a massive, vertical spike. Over the last day or two, the price started dropping slightly as traders locked in profits, which is actively cooling down your short-term indicators.',
+      SidewaysConsolidation:
+        'Sideways Consolidation: The stock price is bouncing around inside a tight, predictable flat box, moving left-to-right. It is essentially resting and gathering energy before its next major directional move.',
+      MeanReversion:
+        'Mean Reversion: The stock stretched way too far away from its mathematical average price (like its 20-day or 50-day moving average). It is now snapping back like a rubber band toward its normal baseline.',
+      HighVolumeExhaustion:
+        'High-Volume Exhaustion: The stock had a chaotic, massive surge on extreme trading volume (like a retail-driven short squeeze), but it completely ran out of new buyers at the peak. The price is now sliding backward because the buying power is totally spent.',
     };
     const actionLabels: Record<string, string> = {
       AccumulateYield: 'Accumulate Yield',
@@ -261,6 +275,7 @@ export class WatchlistPageComponent {
     };
     return {
       technical: techLabels[vs.technicalState] ?? vs.technicalState,
+      tooltip: techTooltips[vs.technicalState] ?? vs.technicalState,
       score: vs.score,
       status: actionLabels[vs.actionTrigger] ?? vs.actionTrigger,
     };
@@ -278,6 +293,12 @@ export class WatchlistPageComponent {
     if (status.includes('Hold')) return 'action-hold';
     if (status.includes('Buy Limit')) return 'action-limit';
     return 'action-observe';
+  }
+
+  protected probClass(prob: string): string {
+    if (prob === 'High') return 'prob-high';
+    if (prob === 'Medium') return 'prob-medium';
+    return 'prob-low';
   }
 
   protected analystForSymbol(
@@ -591,6 +612,9 @@ export class WatchlistPageComponent {
           : '',
         MACDHistogram: r?.macdHistogram ?? '',
         PrevMACDHistogram: prevMacdHist,
+        Technical: this.valueDataForSymbol(w.item.symbol)?.technical ?? '',
+        'Buy Score': this.buyScoreForSymbol(w.item.symbol)?.score ?? '',
+        'Value Score': this.valueDataForSymbol(w.item.symbol)?.score ?? '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);

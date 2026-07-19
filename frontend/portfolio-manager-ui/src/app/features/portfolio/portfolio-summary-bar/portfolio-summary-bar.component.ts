@@ -1,11 +1,12 @@
 import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CashStateService } from '../../../core/services/cash-state.service';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
+import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
 @Component({
@@ -20,6 +21,7 @@ export class PortfolioSummaryBarComponent {
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeService);
+  private readonly api = inject(PortfolioApiService);
 
   /** Total portfolio value: stocks + cash + option market value */
   protected readonly totalValue = computed(
@@ -29,33 +31,34 @@ export class PortfolioSummaryBarComponent {
       this.optionState.totalMarketValue(),
   );
 
-  /** Total cost: stocks cost + cash (cost = amount) + options cost */
-  protected readonly totalCost = computed(
-    () => this.stockState.totalCost() + this.cashState.totalCash() + this.optionState.totalCost(),
-  );
-
-  protected readonly totalGainLoss = computed(() => this.totalValue() - this.totalCost());
-
-  protected readonly totalGainLossPct = computed(() => {
-    const cost = this.totalCost();
-    return cost === 0 ? 0 : (this.totalGainLoss() / cost) * 100;
-  });
-
-  protected readonly isPositive = computed(() => this.totalGainLoss() >= 0);
-
-  protected readonly totalDayGain = computed<number>(() =>
-    this.stockState.summaries().reduce((sum, s) => {
-      if (s.item.isManual) return sum;
-      return sum + s.item.shares * (s.quote?.change ?? 0);
-    }, 0),
-  );
-
-  protected readonly dayGainIsPositive = computed(() => this.totalDayGain() >= 0);
-
   protected readonly totalPositions = computed(
     () =>
       this.stockState.summaries().length +
       this.cashState.items().length +
       this.optionState.items().length,
   );
+
+  /** Previous day stored portfolio value (from DB). Loaded once on init. */
+  protected readonly previousDayValue = signal<number | null>(null);
+  protected readonly oneDayChangeLoading = signal(true);
+
+  /** 1 Day Change = current value − previous day stored value */
+  protected readonly oneDayChange = computed<number | null>(() => {
+    const prev = this.previousDayValue();
+    if (prev === null) return null;
+    return this.totalValue() - prev;
+  });
+
+  constructor() {
+    this.api.getPortfolioValueHistory(2).subscribe({
+      next: (history) => {
+        if (history.length >= 2) {
+          // history is ordered by RecordedAt desc: [0] = today or latest, [1] = day before
+          this.previousDayValue.set(history[1].totalValue);
+        }
+        this.oneDayChangeLoading.set(false);
+      },
+      error: () => this.oneDayChangeLoading.set(false),
+    });
+  }
 }

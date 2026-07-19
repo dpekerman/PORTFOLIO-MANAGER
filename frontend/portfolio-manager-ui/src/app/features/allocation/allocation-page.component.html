@@ -73,47 +73,6 @@
       <mat-card class="kpi-card">
         <mat-card-content class="kpi-content">
           <div class="kpi-label">
-            <mat-icon>payments</mat-icon>
-            Total Cost Basis
-          </div>
-          <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
-            {{ grandTotalCost() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
-          </div>
-          <div class="kpi-sub">Stocks · Cash · Options</div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="kpi-card">
-        <mat-card-content class="kpi-content">
-          <div class="kpi-label">
-            <mat-icon>{{
-              grandTotalGainLossIsPositive() ? 'trending_up' : 'trending_down'
-            }}</mat-icon>
-            Total Gain / Loss
-          </div>
-          <div
-            class="kpi-value"
-            [class.kpi-positive]="grandTotalGainLossIsPositive()"
-            [class.kpi-negative]="!grandTotalGainLossIsPositive()"
-            [class.demo-redact]="demoMode.isDemoMode()"
-          >
-            {{ grandTotalGainLoss() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
-          </div>
-          <div
-            class="kpi-sub"
-            [class.kpi-positive]="grandTotalGainLossIsPositive()"
-            [class.kpi-negative]="!grandTotalGainLossIsPositive()"
-            [class.demo-redact]="demoMode.isDemoMode()"
-          >
-            {{ grandTotalGainLossIsPositive() ? '+' : ''
-            }}{{ grandTotalGainLossPct() | number: '1.2-2' }}% total return
-          </div>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card class="kpi-card">
-        <mat-card-content class="kpi-content">
-          <div class="kpi-label">
             <mat-icon>layers</mat-icon>
             Positions
           </div>
@@ -123,6 +82,93 @@
           <div class="kpi-sub">Active holdings</div>
         </mat-card-content>
       </mat-card>
+
+      <!-- Portfolio Beta Card -->
+      <mat-card
+        class="kpi-card kpi-card--beta"
+        [class.beta-good]="betaState.result()?.status === 'Good'"
+        [class.beta-warn]="betaState.result()?.status === 'Warning'"
+        [class.beta-risk]="betaState.result()?.status === 'TooMuchRisk'"
+        (click)="toggleBetaDetail()"
+        style="cursor: pointer"
+        matTooltip="Click to see top 5 beta contributors"
+      >
+        <mat-card-content class="kpi-content">
+          <div class="kpi-label">
+            <mat-icon>show_chart</mat-icon>
+            Portfolio Beta
+            @if (betaState.loading()) {
+              <mat-icon class="spinning" style="font-size: 14px; width: 14px; height: 14px"
+                >refresh</mat-icon
+              >
+            }
+          </div>
+          @if (betaState.result(); as beta) {
+            <div
+              class="kpi-value"
+              [class.kpi-positive]="beta.status === 'Good'"
+              [class.kpi-neutral]="beta.status === 'Warning'"
+              [class.kpi-negative]="beta.status === 'TooMuchRisk'"
+            >
+              {{ beta.portfolioBeta | number: '1.2-2' }}
+            </div>
+            <div
+              class="kpi-sub beta-status-sub"
+              [class.kpi-positive]="beta.status === 'Good'"
+              [class.kpi-neutral-text]="beta.status === 'Warning'"
+              [class.kpi-negative]="beta.status === 'TooMuchRisk'"
+            >
+              {{
+                beta.status === 'Good'
+                  ? 'Good'
+                  : beta.status === 'Warning'
+                    ? 'Warning'
+                    : 'Too Much Risk'
+              }}
+            </div>
+            <div class="beta-detail-line">Ex-cash: {{ beta.exCashBeta | number: '1.2-2' }}</div>
+            <div class="beta-detail-line">Cash: {{ beta.cashPct | number: '1.1-1' }}%</div>
+            @if (beta.proxyPct > 0) {
+              <div class="beta-detail-line beta-proxy">
+                Proxy: {{ beta.proxyPct | number: '1.1-1' }}%
+              </div>
+            }
+          } @else if (!betaState.loading()) {
+            <div class="kpi-value kpi-neutral">—</div>
+            <div class="kpi-sub">Click Refresh to load</div>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Beta Contributors Panel -->
+      @if (showBetaDetail() && betaState.result()?.topContributors?.length) {
+        <div class="beta-contributors-panel">
+          <div class="beta-contrib-header">Top 5 Beta Contributors</div>
+          <table class="beta-contrib-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Weight %</th>
+                <th>Beta</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of betaState.result()!.topContributors; track c.symbol) {
+                <tr>
+                  <td>
+                    {{ c.symbol }}
+                    @if (c.isProxy) {
+                      <span class="proxy-tag">proxy</span>
+                    }
+                  </td>
+                  <td>{{ c.weightPct | number: '1.1-1' }}%</td>
+                  <td>{{ c.beta | number: '1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
     </div>
 
     <!-- ── Sector Breakdown ─────────────────────────────────────────────────── -->

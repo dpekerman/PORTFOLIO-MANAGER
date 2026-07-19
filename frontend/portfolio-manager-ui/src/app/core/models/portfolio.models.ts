@@ -464,6 +464,35 @@ export interface EodSignalsMeta {
   totalCount: number;
 }
 
+// ── Portfolio Value History ────────────────────────────────────────────────────
+export interface PortfolioValueHistoryDto {
+  id: number;
+  recordedAt: string;
+  recordedDate: string;
+  totalValue: number;
+  stocksValue: number;
+  cashValue: number;
+  optionsValue: number;
+}
+
+// ── Portfolio Beta ─────────────────────────────────────────────────────────────
+export interface BetaContributor {
+  symbol: string;
+  weightPct: number;
+  beta: number;
+  isProxy: boolean;
+}
+
+export interface PortfolioBetaResult {
+  portfolioBeta: number;
+  exCashBeta: number;
+  cashPct: number;
+  proxyPct: number;
+  /** "Good" | "Warning" | "TooMuchRisk" */
+  status: string;
+  topContributors: BetaContributor[];
+}
+
 export interface EodSignalFilters {
   ticker?: string;
   scanType?: string;

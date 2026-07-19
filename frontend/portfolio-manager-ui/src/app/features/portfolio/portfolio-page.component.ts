@@ -24,6 +24,8 @@ import {
   PortfolioSummary,
   RsiScanResult,
   StockQuote,
+  TechnicalState,
+  ValueScreenerResult,
 } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
@@ -304,11 +306,13 @@ export class PortfolioPageComponent {
     this.optionSortDir.set(sort.direction as SortDir);
   }
 
-  /**
-   * Full RsiScanResult map for all portfolio symbols (keyed by UPPER symbol).
+  /** Full RsiScanResult map for all portfolio symbols (keyed by UPPER symbol).
    * Covers ALL symbols, not just oversold/overbought extremes.
    */
   protected readonly portfolioRsiResultMap = signal<Map<string, RsiScanResult>>(new Map());
+
+  /** Value Screener results keyed by symbol (upper case). Loaded on init. */
+  protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
     // Whenever portfolio summaries change, load RSI for ALL non-manual symbols.
@@ -363,6 +367,18 @@ export class PortfolioPageComponent {
         }
       }
     });
+
+    // Load Value Screener data for Technical column
+    this.api.getLatestValueScreener().subscribe({
+      next: (dto) => {
+        const map = new Map<string, ValueScreenerResult>();
+        for (const r of [...(dto.portfolio ?? []), ...(dto.watchlist ?? [])]) {
+          map.set(r.symbol.toUpperCase(), r);
+        }
+        this.vsMap.set(map);
+      },
+      error: () => {}, // non-critical
+    });
   }
 
   /** Full result map: symbol (upper) → RsiScanResult */
@@ -376,6 +392,59 @@ export class PortfolioPageComponent {
 
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected probClass(prob: string): string {
+    if (prob === 'High') return 'prob-high';
+    if (prob === 'Medium') return 'prob-medium';
+    return 'prob-low';
+  }
+
+  protected reversalForSymbol(symbol: string): string | null {
+    return this.rsiMap().get(symbol.toUpperCase())?.reversalProbability ?? null;
+  }
+
+  protected technicalForPortfolio(
+    symbol: string,
+  ): { label: string; cssClass: string; tooltip: string } | null {
+    const vs = this.vsMap().get(symbol.toUpperCase());
+    if (!vs) return null;
+    const labels: Record<string, string> = {
+      DeepValueReversal: 'Deep Value Reversal',
+      OverboughtMomentum: 'Overbought Momentum',
+      OverboughtPullback: 'Overbought Pullback',
+      SidewaysConsolidation: 'Sideways Consolidation',
+      MeanReversion: 'Mean Reversion',
+      HighVolumeExhaustion: 'High-Volume Exhaustion',
+    };
+    const classes: Record<string, string> = {
+      DeepValueReversal: 'state-reversal',
+      OverboughtMomentum: 'state-overbought',
+      OverboughtPullback: 'state-pullback',
+      SidewaysConsolidation: 'state-sideways',
+      MeanReversion: 'state-mean',
+      HighVolumeExhaustion: 'state-exhaustion',
+    };
+    const tooltips: Record<string, string> = {
+      DeepValueReversal:
+        'Deep Value Reversal: The stock has been beaten down and ignored for a long time, but is finally printing its first technical signs of bottoming out.',
+      OverboughtMomentum:
+        'Overbought Momentum: The stock is rocketing upward rapidly — technically stretched but buying pressure is overriding standard exhaustion limits.',
+      OverboughtPullback:
+        'Overbought Pullback: Recently experienced a massive spike. Price started dropping slightly as traders locked in profits, cooling down short-term indicators.',
+      SidewaysConsolidation:
+        'Sideways Consolidation: Price bouncing inside a tight flat box, resting and gathering energy before the next major directional move.',
+      MeanReversion:
+        'Mean Reversion: Stretched too far from its mathematical average price and is now snapping back like a rubber band toward its normal baseline.',
+      HighVolumeExhaustion:
+        'High-Volume Exhaustion: Massive surge on extreme volume but ran out of new buyers at the peak. Price is sliding backward as buying power is spent.',
+    };
+    const state = vs.technicalState as TechnicalState;
+    return {
+      label: labels[state] ?? state,
+      cssClass: classes[state] ?? 'state-neutral',
+      tooltip: tooltips[state] ?? state,
+    };
   }
 
   protected readonly roles = [
@@ -497,6 +566,7 @@ export class PortfolioPageComponent {
         distanceFrom52WeekHighPct,
         positionSizePct,
         riskControlClosePct: this.calcRiskControlClosePct(item.symbol),
+        decisionSource: item.decisionSource ?? null,
       };
     }
 

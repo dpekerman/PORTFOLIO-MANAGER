@@ -381,6 +381,9 @@ public sealed class FundamentalsSnapshot
     public decimal TargetMeanPrice   { get; set; }
     public int     AnalystCount      { get; set; }
 
+    // Risk metrics
+    public decimal Beta              { get; set; }  // 5-year monthly beta vs S&P500
+
     // Flags
     public bool DataAvailable        { get; set; }  // false if quoteSummary returned nothing
 }

@@ -132,8 +132,10 @@
       <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
     }
 
-    <!-- Executive market header -->
-    <app-market-header />
+    <!-- Executive market header (RSI Scanner page only) -->
+    @if (showMarketHeader()) {
+      <app-market-header />
+    }
 
     <!-- Page content -->
     <main class="page-content" id="main-content" role="main">

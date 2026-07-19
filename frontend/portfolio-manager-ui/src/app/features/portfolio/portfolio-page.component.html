@@ -128,24 +128,6 @@
                   }}</span>
                 </div>
                 <div class="subsection-stat">
-                  <span class="stat-label">Total Cost</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
-                    portfolio.totalCost() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
-                  }}</span>
-                </div>
-                <div class="subsection-stat">
-                  <span class="stat-label">Gain / Loss</span>
-                  <span
-                    class="stat-value"
-                    [class.pg-pos]="portfolio.totalGainLoss() >= 0"
-                    [class.pg-neg]="portfolio.totalGainLoss() < 0"
-                    [class.demo-redact]="demoMode.isDemoMode()"
-                  >
-                    {{ portfolio.totalGainLoss() >= 0 ? '+' : ''
-                    }}{{ portfolio.totalGainLoss() | currency: 'USD' : 'symbol-narrow' : '1.0-0' }}
-                  </span>
-                </div>
-                <div class="subsection-stat">
                   <span class="stat-label">Day $</span>
                   <span
                     class="stat-value"
@@ -296,9 +278,11 @@
                   (matSortChange)="onGridSortChange($event)"
                   class="portfolio-grid-table"
                 >
-                  <ng-container matColumnDef="symbol">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
-                    <td mat-cell *matCellDef="let row">
+                  <ng-container matColumnDef="symbol" sticky>
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-sticky-col">
+                      TICKER
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-sticky-col">
                       @if (isAggRow(0, row)) {
                         <div
                           class="pg-symbol-cell"
@@ -354,9 +338,11 @@
                       }
                     </td>
                   </ng-container>
-                  <ng-container matColumnDef="company">
-                    <th mat-header-cell *matHeaderCellDef mat-sort-header>COMPANY</th>
-                    <td mat-cell *matCellDef="let row">
+                  <ng-container matColumnDef="company" sticky>
+                    <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-sticky-col">
+                      COMPANY
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-sticky-col">
                       @if (isAggRow(0, row)) {
                         <span class="pg-company pg-agg-company">{{ asAgg(row).company }}</span>
                       } @else {
@@ -638,6 +624,31 @@
                       }
                     </td>
                   </ng-container>
+                  <!-- Technical State (from Value Screener) -->
+                  <ng-container matColumnDef="technical">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      matTooltip="Technical State from latest Value Screener run"
+                    >
+                      TECHNICAL
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let techSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let tech = technicalForPortfolio(techSym);
+                      @if (tech) {
+                        <span
+                          class="pg-tech-badge state-badge"
+                          [ngClass]="tech.cssClass"
+                          [matTooltip]="tech.tooltip"
+                        >
+                          {{ tech.label }}
+                        </span>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
                   <ng-container matColumnDef="changePct">
                     <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
                       DAY %
@@ -771,6 +782,36 @@
                           [matTooltip]="dec.trendSetupReason"
                         >
                           {{ dec.trendSetup }}
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <!-- Reversal Probability -->
+                  <ng-container matColumnDef="reversalP">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      matTooltip="Aggregate probability of imminent trend reversal based on 5 indicators"
+                    >
+                      REVERSAL P.
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let rpSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let rp = reversalForSymbol(rpSym);
+                      @if (
+                        rp && !isAggRow(0, row) && !groupedSymbols().has(asItem(row).item.symbol)
+                      ) {
+                        <div
+                          class="prob-badge"
+                          [ngClass]="probClass(rp)"
+                          [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
+                        >
+                          <mat-icon>{{
+                            rp === 'High' ? 'warning' : rp === 'Medium' ? 'info' : 'check_circle'
+                          }}</mat-icon>
+                          {{ rp }}
                         </div>
                       } @else {
                         <span class="pg-dim">—</span>

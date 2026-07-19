@@ -135,6 +135,11 @@ export interface PortfolioItemContext {
    * When > 0, profit-taking trim actions are replaced with acknowledgment actions.
    */
   riskControlClosePct?: number | null;
+  /**
+   * The stored decision source for the current position row.
+   * e.g. "Risk Control - Trim" indicates the trim was already executed.
+   */
+  decisionSource?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -331,6 +336,13 @@ export class DecisionEngineService {
     const profitAction = this.profitTakingAction(dec, context);
     if (profitAction) {
       rawAction = profitAction;
+    }
+
+    // ── Risk Control Trim Acknowledgment ─────────────────────────────────────
+    // If the decision source is "Risk Control - Trim", the trim was already executed.
+    // Show "Trim 20–33% / Hold Runner" to reflect the completed action.
+    if (context?.decisionSource === 'Risk Control - Trim') {
+      rawAction = 'Trim 20–33% / Hold Runner';
     }
 
     // ── Risk Control Close Acknowledgment ────────────────────────────────────

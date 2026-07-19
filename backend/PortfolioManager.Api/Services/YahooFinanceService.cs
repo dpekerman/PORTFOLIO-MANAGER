@@ -547,6 +547,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
             TotalCurrentLiabilities = RawL(bs?.TotalCurrentLiabilities),
             Cash               = RawL(bs?.Cash),
             NetReceivables     = RawL(bs?.NetReceivables),
+            Beta               = Raw(sd?.Beta),
             DataAvailable      = true
         };
     }

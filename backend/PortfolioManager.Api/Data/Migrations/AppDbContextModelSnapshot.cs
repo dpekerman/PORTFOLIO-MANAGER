@@ -396,6 +396,46 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.ToTable("WatchlistItems");
                 });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.PortfolioValueHistory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("CashValue")
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("OptionsValue")
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecordedDate")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasDefaultValue("");
+
+                    b.Property<decimal>("StocksValue")
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("TotalValue")
+                        .HasColumnType("decimal(18,4)")
+                        .HasDefaultValue(0m);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedDate");
+
+                    b.ToTable("PortfolioValueHistories");
+                });
 #pragma warning restore 612, 618
         }
     }
