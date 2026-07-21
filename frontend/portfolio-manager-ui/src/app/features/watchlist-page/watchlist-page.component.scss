@@ -770,6 +770,26 @@ button[mat-icon-button] {
   color: #000;
   border-color: rgba(158, 158, 158, 0.7);
 }
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.25);
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border-color: rgba(255, 167, 38, 0.2);
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.85);
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.45);
+  color: #555;
+  border-color: rgba(158, 158, 158, 0.55);
+}
 
 // ── Role select inline ────────────────────────────────────────────────────
 .role-select {
@@ -1032,11 +1052,40 @@ button[mat-icon-button] {
 
 // -- Reversal Probability badge
 .prob-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 12px;
-  font-size: 0.72rem; font-weight: 700;
-  mat-icon { font-size: 14px; width: 14px; height: 14px; }
-  &.prob-high { background: rgba(229,57,53,.15); color: #ef5350; }
-  &.prob-medium { background: rgba(245,124,0,.15); color: #fb8c00; }
-  &.prob-low { background: rgba(0,200,83,.12); color: #00c853; }
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+  &.prob-high {
+    background: rgba(229, 57, 53, 0.15);
+    color: #ef5350;
+  }
+  &.prob-medium {
+    background: rgba(245, 124, 0, 0.15);
+    color: #fb8c00;
+  }
+  &.prob-low {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+  }
+}
+
+// -- Sticky columns (Ticker + Description)
+.wl-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-surface);
+  &.mat-mdc-header-cell {
+    z-index: 3;
+    background: var(--bg-surface);
+  }
 }

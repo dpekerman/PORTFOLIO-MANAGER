@@ -22,7 +22,10 @@ export type TrendSetup =
   | 'Early Reversal'
   | 'Cooling'
   | 'Technical Caution'
-  | 'Neutral / No Setup';
+  | 'Neutral / No Setup'
+  | 'Overbought-Weak'
+  | 'Overbought-Resetting'
+  | 'Reclaim';
 
 export type MomentumShift =
   | 'Active Buy Trigger'
@@ -34,6 +37,7 @@ export type MomentumShift =
   | 'Breakdown'
   | 'Consolidation / Dip-Buy'
   | 'Uptrend'
+  | 'Neutral / Weakening'
   | 'Neutral';
 
 export type BaseAction =
@@ -304,7 +308,7 @@ export class DecisionEngineService {
     const vol = r.volumeRatio ?? 0;
 
     const c1 = ema9 > 0 && close > ema9;
-    const c2 = r.rsiSignalAvailable ? rsi > rsiSig : false;
+    const c2 = rsi > rsiSig; // always compare RSI14 vs RSI9EMA
     const c3 = macdImproving;
     const c4 = closeLocation >= 0.5;
     const c5 = vol >= 1.0;
@@ -339,10 +343,9 @@ export class DecisionEngineService {
     }
 
     // ── Risk Control Trim Acknowledgment ─────────────────────────────────────
-    // If the decision source is "Risk Control - Trim", the trim was already executed.
-    // Show "Trim 20–33% / Hold Runner" to reflect the completed action.
+    // User already trimmed — show "Hold Runner" (not the trim action).
     if (context?.decisionSource === 'Risk Control - Trim') {
-      rawAction = 'Trim 20–33% / Hold Runner';
+      rawAction = 'Hold Runner';
     }
 
     // ── Risk Control Close Acknowledgment ────────────────────────────────────
@@ -546,9 +549,27 @@ export class DecisionEngineService {
       sig = ctx.sig,
       close = r.currentPrice;
     const sma50 = r.sma50Price ?? 0,
+      ema9 = r.ema9Price ?? 0,
       ema10 = r.ema10Price ?? 0,
       ema20 = r.ema20Price ?? 0;
     const rsiAvail = r.rsiSignalAvailable;
+
+    // ─ Overbought-Pullback 3-state: fires when RSI cooling from extended territory (55–70)
+    // and the stock shows signs of a pullback from overbought conditions.
+    if (rsi > 55 && rsi <= 70 && ema10 > 0 && ema20 > 0) {
+      const pullbackIndicators =
+        ctx.macdWeakening || (ema9 > 0 && close < ema9) || ema10 < ema20 * 1.005;
+      if (pullbackIndicators) {
+        const bs = this.calcBuyScore(r);
+        const cl = ctx.normalizedClose;
+        const priceBelowEma9 = ema9 > 0 && close < ema9;
+        if (bs !== null) {
+          if (bs <= 2 || priceBelowEma9 || cl < 0.5) return 'Overbought-Weak';
+          if (bs === 3) return 'Overbought-Resetting';
+          if (bs >= 4) return 'Reclaim';
+        }
+      }
+    }
 
     if (rsi < 35 && rsiAvail && rsi < sig && sma50 > 0 && close < sma50)
       return 'Waterfall / Falling Knife';
@@ -604,6 +625,12 @@ export class DecisionEngineService {
         return `Short-term momentum fading (EMA10<EMA20), price still above SMA50. Pause on new buying.`;
       case 'Technical Caution':
         return `EMA10<EMA20 and price<SMA50. RSI above 35 — no panic, but technically weak.`;
+      case 'Overbought-Weak':
+        return `Overbought Pullback – Weak: BuyScore low, price below EMA9 or weak close. Stand by — no new buying.`;
+      case 'Overbought-Resetting':
+        return `Overbought Resetting: BuyScore moderate, price near EMA9. Watch for confirmation before entering.`;
+      case 'Reclaim':
+        return `Reclaim: BuyScore strong, price above EMA9, RSI constructive, MACD improving. Accumulate starter position.`;
       default:
         return 'Insufficient indicator data for setup classification.';
     }
@@ -678,9 +705,20 @@ export class DecisionEngineService {
     )
       return 'Consolidation / Dip-Buy';
 
-    // 8. Uptrend
-    if ((ema9 > 0 && close > ema9 && rsi >= 50 && rsi <= 65) || (rsi >= 55 && rsi <= 65))
+    // 8. Uptrend – requires short-term confirmation, not just price > SMA50 + RSI > 50
+    if (
+      ema9 > 0 &&
+      close > ema9 &&
+      rsi >= 50 &&
+      rsi <= 65 &&
+      rsiAvail &&
+      rsi > sig &&
+      macdImproving
+    )
       return 'Uptrend';
+
+    // 9. Neutral / Weakening – price above SMA50 but short-term confirmation fails
+    if (sma50 > 0 && close > sma50 && rsi >= 50 && rsi <= 65) return 'Neutral / Weakening';
 
     return 'Neutral';
   }
@@ -704,7 +742,9 @@ export class DecisionEngineService {
       case 'Consolidation / Dip-Buy':
         return 'Price near 20-day SMA, RSI 40-50, volume elevated. Institutional dip-buy zone confirmed.';
       case 'Uptrend':
-        return 'Short-term trend healthy — price above EMA9, RSI constructive. Hold existing. No new chase.';
+        return 'Short-term trend healthy — price above EMA9, RSI constructive, MACD improving. Hold existing. No new chase.';
+      case 'Neutral / Weakening':
+        return 'Price above SMA50 but short-term confirmation signals missing (EMA9, RSI9EMA or MACD). Stand by.';
       default:
         return 'RSI neutral zone. No directional confirmation. Stand by.';
     }
@@ -730,6 +770,8 @@ export class DecisionEngineService {
         return 'Buy / Accumulate';
       case 'Uptrend':
         return 'Hold Longs';
+      case 'Neutral / Weakening':
+        return 'Stand By';
       default:
         return 'Stand By';
     }
@@ -743,7 +785,11 @@ export class DecisionEngineService {
   ): string {
     if (action !== 'Accumulate Starter') return action;
     const overbought =
-      ts === 'Constructive Extended' || ms === 'Warning \u2014 Overbought Run' || changePercent > 5;
+      ts === 'Constructive Extended' ||
+      ts === 'Overbought-Weak' ||
+      ts === 'Overbought-Resetting' ||
+      ms === 'Warning \u2014 Overbought Run' ||
+      changePercent > 5;
     return overbought ? 'Watch / No Chase' : action;
   }
 
@@ -762,6 +808,11 @@ export class DecisionEngineService {
       return role === 'Swing' || role === 'Options' || role === 'Speculative'
         ? 'Avoid / Short Watch'
         : 'Avoid New Buy / Review';
+
+    // ── Overbought Pullback 3-state ──────────────────────────────────────────
+    if (ts === 'Overbought-Weak') return 'Stand By / No Add';
+    if (ts === 'Overbought-Resetting') return 'Watch / Starter Only';
+    if (ts === 'Reclaim') return 'Accumulate Starter / Small Starter Only';
 
     // ── Priority 2: Extension / no-chase rules ───────────────────────────────
     if (ms === 'Warning — Overbought Run') return this.translateWatchDoNotChase(role, ms);
@@ -1119,6 +1170,12 @@ export class DecisionEngineService {
         return 'ts-cooling';
       case 'Technical Caution':
         return 'ts-caution';
+      case 'Overbought-Weak':
+        return 'ts-ob-weak';
+      case 'Overbought-Resetting':
+        return 'ts-ob-resetting';
+      case 'Reclaim':
+        return 'ts-reclaim';
       default:
         return 'ts-neutral';
     }
@@ -1144,6 +1201,8 @@ export class DecisionEngineService {
         return 'ms-consolidation';
       case 'Uptrend':
         return 'ms-uptrend';
+      case 'Neutral / Weakening':
+        return 'ms-neutral-weak';
       default:
         return 'ms-neutral';
     }

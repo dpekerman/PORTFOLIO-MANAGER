@@ -1,4 +1,4 @@
-import { NgClass } from '@angular/common';
+import { DecimalPipe, NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -10,7 +10,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
   templateUrl: './market-header.component.html',
   styleUrl: './market-header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIconModule, MatTooltipModule, NgClass],
+  imports: [MatIconModule, MatTooltipModule, NgClass, DecimalPipe],
 })
 export class MarketHeaderComponent {
   protected readonly scanner = inject(ScannerStateService);

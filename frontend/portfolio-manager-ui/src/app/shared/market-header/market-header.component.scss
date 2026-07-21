@@ -283,3 +283,87 @@
     display: none;
   }
 }
+
+// -- Market Indices -----------------------------------------------------------
+.market-indices {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.index-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 90px;
+}
+
+.index-name {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.index-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text-primary);
+}
+
+.index-change {
+  font-size: 0.7rem;
+  font-weight: 600;
+  &.up { color: #00c853; }
+  &.down { color: #ff5252; }
+}
+
+@media (max-width: 900px) {
+  .market-indices { display: none; }
+}
+
+// -- Market Indices -----------------------------------------------------------
+.market-indices {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.index-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 90px;
+}
+
+.index-name {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.index-price {
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text-primary);
+}
+
+.index-change {
+  font-size: 0.7rem;
+  font-weight: 600;
+  &.up { color: #00c853; }
+  &.down { color: #ff5252; }
+}
+
+@media (max-width: 900px) {
+  .market-indices { display: none; }
+}

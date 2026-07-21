@@ -15,6 +15,7 @@ import {
   DailySignalPagedResponse,
   EodSignalFilters,
   EodSignalsMeta,
+  MarketIndicesResponse,
   OptionItem,
   OptionTechnicalData,
   PortfolioBetaResult,
@@ -423,6 +424,12 @@ export class PortfolioApiService {
   // ── Portfolio Beta ──────────────────────────────────────────────────────────
   getPortfolioBeta(): Observable<PortfolioBetaResult> {
     return this.http.get<PortfolioBetaResult>(`${this.base}/portfoliobeta`);
+  }
+
+  getMarketIndices(force = false): Observable<MarketIndicesResponse> {
+    return this.http.get<MarketIndicesResponse>(
+      `${this.base}/scanner/market-indices${force ? '?force=true' : ''}`,
+    );
   }
 
   backupPortfolio(): Observable<unknown[]> {

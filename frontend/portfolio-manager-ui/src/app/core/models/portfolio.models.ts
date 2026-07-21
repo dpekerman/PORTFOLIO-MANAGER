@@ -493,6 +493,20 @@ export interface PortfolioBetaResult {
   topContributors: BetaContributor[];
 }
 
+// ── Market Indices ─────────────────────────────────────────────────────────────
+export interface MarketIndexDto {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+export interface MarketIndicesResponse {
+  indices: MarketIndexDto[];
+  fetchedAt: string;
+}
+
 export interface EodSignalFilters {
   ticker?: string;
   scanType?: string;

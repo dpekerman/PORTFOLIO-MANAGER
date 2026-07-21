@@ -65,10 +65,6 @@ public class ScannerController(
     [HttpDelete("rsi/cache")]
     public IActionResult ClearCache()
     {
-        // IMemoryCache does not expose enumerate; use a compact token pattern instead.
-        // We store a "version" key that is appended to the cache key so all old keys become stale.
-        // For simplicity, force=true on the next request is the primary mechanism.
-        // Here we also remove the most common key patterns used by the UI.
         foreach (var mode in new[] { "Legacy", "Enhanced" })
         foreach (var os in new[] { 25m, 30m, 35m })
         foreach (var ob in new[] { 70m, 75m, 80m })
@@ -76,6 +72,47 @@ public class ScannerController(
 
         logger.LogInformation("RSI scan cache cleared (all common key patterns).");
         return NoContent();
+    }
+
+    private const string IndicesCacheKey = "market_indices";
+    private static readonly TimeSpan IndicesCacheTtl = TimeSpan.FromMinutes(5);
+
+    private static readonly (string symbol, string name)[] IndexSymbols =
+    [
+        ("^DJI",  "Dow Jones"),
+        ("^NDX",  "Nasdaq 100"),
+        ("^GSPC", "S&P 500"),
+    ];
+
+    /// <summary>Returns real-time prices for Dow Jones, Nasdaq 100 and S&amp;P 500.</summary>
+    [HttpGet("market-indices")]
+    public async Task<ActionResult<MarketIndicesResponse>> GetMarketIndices(
+        [FromQuery] bool force = false,
+        CancellationToken ct = default)
+    {
+        if (!force && cache.TryGetValue(IndicesCacheKey, out MarketIndicesResponse? cached) && cached is not null)
+            return Ok(cached);
+
+        var marketData = HttpContext.RequestServices.GetRequiredService<IMarketDataProvider>();
+        var symbols = IndexSymbols.Select(x => x.symbol).ToList();
+        var quotes = await marketData.GetBatchQuotesAsync(symbols, ct);
+
+        var indices = IndexSymbols
+            .Select(idx =>
+            {
+                quotes.TryGetValue(idx.symbol, out var q);
+                return new MarketIndexDto(
+                    idx.symbol,
+                    idx.name,
+                    q?.CurrentPrice ?? 0,
+                    q?.Change ?? 0,
+                    q?.ChangePercent ?? 0);
+            })
+            .ToList();
+
+        var response = new MarketIndicesResponse(indices, DateTime.UtcNow);
+        cache.Set(IndicesCacheKey, response, IndicesCacheTtl);
+        return Ok(response);
     }
 
     /// <summary>

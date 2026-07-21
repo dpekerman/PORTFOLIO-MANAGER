@@ -23,6 +23,27 @@
       }
     </span>
   </div>
+  <!-- Portfolio Beta mini-tile -->
+  @if (betaState.result(); as beta) {
+    <div
+      class="summary-tile summary-tile--beta"
+      [class.beta-good]="beta.status === 'Good'"
+      [class.beta-warn]="beta.status === 'Warning'"
+      [class.beta-risk]="beta.status === 'TooMuchRisk'"
+    >
+      <span class="label">Portfolio Beta</span>
+      <span
+        class="value"
+        [class.positive]="beta.status === 'Good'"
+        [class.negative]="beta.status === 'TooMuchRisk'"
+      >
+        {{ beta.portfolioBeta | number: '1.2-2' }}
+      </span>
+      <span class="beta-status">{{
+        beta.status === 'Good' ? 'Good' : beta.status === 'Warning' ? 'Warning' : 'High Risk'
+      }}</span>
+    </div>
+  }
   <div
     class="summary-tile"
     matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{

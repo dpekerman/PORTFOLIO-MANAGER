@@ -37,6 +37,7 @@ import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { PortfolioBetaStateService } from '../../core/services/portfolio-beta-state.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
@@ -164,6 +165,7 @@ export class PortfolioPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly betaState = inject(PortfolioBetaStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
@@ -379,6 +381,9 @@ export class PortfolioPageComponent {
       },
       error: () => {}, // non-critical
     });
+
+    // Load portfolio beta (for Beta column in grid)
+    this.betaState.load();
   }
 
   /** Full result map: symbol (upper) → RsiScanResult */
@@ -520,6 +525,23 @@ export class PortfolioPageComponent {
       .reduce((sum, s) => sum + s.item.shares, 0);
     const total = openShares + rcClosedShares;
     return total > 0 ? (rcClosedShares / total) * 100 : null;
+  }
+
+  protected betaForSymbol(symbol: string): number | null {
+    return this.betaState.betaForSymbol(symbol);
+  }
+
+  protected isBetaOverridden(symbol: string): boolean {
+    return this.betaState.betaOverrides()[symbol.toUpperCase()] !== undefined;
+  }
+
+  protected updateBeta(symbol: string, value: string): void {
+    const num = parseFloat(value);
+    this.betaState.setOverride(symbol, isNaN(num) ? null : num);
+  }
+
+  protected clearBetaOverride(symbol: string): void {
+    this.betaState.setOverride(symbol, null);
   }
 
   protected analystForSymbol(symbol: string): { price: number; upside: number } | null {

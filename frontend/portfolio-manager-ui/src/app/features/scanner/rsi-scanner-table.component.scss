@@ -766,3 +766,33 @@
     }
   }
 }
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall  { background: rgba(244,67,54,.12);  color: #ef5350; border: 1px solid rgba(244,67,54,.28); }
+.ts-reversal   { background: rgba(0,200,83,.75);   color: #000;    border: 1px solid rgba(0,200,83,.85); }
+.ts-extended   { background: rgba(255,160,0,.78);  color: #000;    border: 1px solid rgba(255,160,0,.88); }
+.ts-quality    { background: rgba(0,188,212,.75);  color: #000;    border: 1px solid rgba(0,188,212,.85); }
+.ts-constructive { background: rgba(33,150,243,.68); color: #000;  border: 1px solid rgba(33,150,243,.78); }
+.ts-early-reversal { background: rgba(255,193,7,.78); color: #000; border: 1px solid rgba(255,193,7,.88); }
+.ts-cooling    { background: rgba(158,158,158,.62); color: #000;   border: 1px solid rgba(158,158,158,.72); }
+.ts-caution    { background: rgba(255,87,34,.78);  color: #000;    border: 1px solid rgba(255,87,34,.88); }
+.ts-neutral    { background: rgba(158,158,158,.55); color: #000;   border: 1px solid rgba(158,158,158,.65); }
+.ts-ob-weak    { background: rgba(244,67,54,.10);  color: #ef5350; border: 1px solid rgba(244,67,54,.22); }
+.ts-ob-resetting { background: rgba(255,167,38,.10); color: #ffa726; border: 1px solid rgba(255,167,38,.22); }
+.ts-reclaim    { background: rgba(0,200,83,.72);   color: #000;    border: 1px solid rgba(0,200,83,.82); }
+.ms-neutral-weak { background: rgba(158,158,158,.40); color: #555; border: 1px solid rgba(158,158,158,.50); }
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall  { background: rgba(244,67,54,.12);  color: #ef5350; border: 1px solid rgba(244,67,54,.28); }
+.ts-reversal   { background: rgba(0,200,83,.75);   color: #000;    border: 1px solid rgba(0,200,83,.85); }
+.ts-extended   { background: rgba(255,160,0,.78);  color: #000;    border: 1px solid rgba(255,160,0,.88); }
+.ts-quality    { background: rgba(0,188,212,.75);  color: #000;    border: 1px solid rgba(0,188,212,.85); }
+.ts-constructive { background: rgba(33,150,243,.68); color: #000;  border: 1px solid rgba(33,150,243,.78); }
+.ts-early-reversal { background: rgba(255,193,7,.78); color: #000; border: 1px solid rgba(255,193,7,.88); }
+.ts-cooling    { background: rgba(158,158,158,.62); color: #000;   border: 1px solid rgba(158,158,158,.72); }
+.ts-caution    { background: rgba(255,87,34,.78);  color: #000;    border: 1px solid rgba(255,87,34,.88); }
+.ts-neutral    { background: rgba(158,158,158,.55); color: #000;   border: 1px solid rgba(158,158,158,.65); }
+.ts-ob-weak    { background: rgba(244,67,54,.10);  color: #ef5350; border: 1px solid rgba(244,67,54,.22); }
+.ts-ob-resetting { background: rgba(255,167,38,.10); color: #ffa726; border: 1px solid rgba(255,167,38,.22); }
+.ts-reclaim    { background: rgba(0,200,83,.72);   color: #000;    border: 1px solid rgba(0,200,83,.82); }
+.ms-neutral-weak { background: rgba(158,158,158,.40); color: #555; border: 1px solid rgba(158,158,158,.50); }

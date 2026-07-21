@@ -281,3 +281,14 @@ public class LoadAdhocSessionResponse
     public string LogicMode { get; set; } = "Legacy";
     public DateTime? UpdatedAt { get; set; }
 }
+
+public record MarketIndexDto(
+    string Symbol,
+    string Name,
+    decimal Price,
+    decimal Change,
+    decimal ChangePercent);
+
+public record MarketIndicesResponse(
+    List<MarketIndexDto> Indices,
+    DateTime FetchedAt);

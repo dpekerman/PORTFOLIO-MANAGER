@@ -197,8 +197,13 @@
             </colgroup>
 
             <!-- Symbol -->
-            <ng-container matColumnDef="symbol">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="resizable-th">
+            <ng-container matColumnDef="symbol" sticky>
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                class="resizable-th wl-sticky-col"
+              >
                 TICKER
                 <div
                   class="col-resize-handle"
@@ -206,7 +211,7 @@
                   (click)="$event.stopPropagation()"
                 ></div>
               </th>
-              <td mat-cell *matCellDef="let w">
+              <td mat-cell *matCellDef="let w" class="wl-sticky-col">
                 <div class="grid-symbol-cell">
                   <div
                     class="grid-badge"
@@ -221,8 +226,13 @@
             </ng-container>
 
             <!-- Company / Description -->
-            <ng-container matColumnDef="company">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="resizable-th">
+            <ng-container matColumnDef="company" sticky>
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                class="resizable-th wl-sticky-col"
+              >
                 DESCRIPTION
                 <div
                   class="col-resize-handle"
@@ -230,7 +240,7 @@
                   (click)="$event.stopPropagation()"
                 ></div>
               </th>
-              <td mat-cell *matCellDef="let w">
+              <td mat-cell *matCellDef="let w" class="wl-sticky-col">
                 <div class="grid-company-cell">
                   <span class="grid-company-name">{{ w.quote?.companyName ?? w.item.symbol }}</span>
                   @if (w.quote?.sector) {
@@ -516,6 +526,7 @@
               <th
                 mat-header-cell
                 *matHeaderCellDef
+                mat-sort-header="reversalP"
                 matTooltip="Aggregate probability of imminent trend reversal based on 5 indicators"
                 class="resizable-th"
               >
@@ -624,6 +635,7 @@
               <th
                 mat-header-cell
                 *matHeaderCellDef
+                mat-sort-header="technical"
                 matTooltip="Technical State from Value Screener (latest saved run)"
                 class="resizable-th"
               >
@@ -636,9 +648,12 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
-                  <span class="wl-vs-badge state-badge" [matTooltip]="vd.tooltip">{{
-                    vd.technical
-                  }}</span>
+                  <span
+                    class="wl-vs-badge state-badge"
+                    [ngClass]="techStateClass(vd.technicalState)"
+                    [matTooltip]="vd.tooltip"
+                    >{{ vd.technical }}</span
+                  >
                 } @else {
                   <span class="grid-no-data">—</span>
                 }
@@ -650,7 +665,8 @@
               <th
                 mat-header-cell
                 *matHeaderCellDef
-                matTooltip="Value Score (0-10) from Value Screener (latest saved run)"
+                mat-sort-header="valueScore"
+                matTooltip="Value Score (0-10) from Value Screener: HighConviction>=8, FairValue>=5, ValueTrap<5"
                 class="resizable-th"
               >
                 VALUE SCORE
@@ -665,7 +681,7 @@
                   <span
                     class="wl-vs-score"
                     [ngClass]="valueScoreClass(vd.score)"
-                    [matTooltip]="'Value Score: ' + vd.score + '/10'"
+                    [matTooltip]="valueScoreTooltip(vd.score)"
                   >
                     {{ vd.score | number: '1.1-1' }}/10
                   </span>
@@ -680,6 +696,7 @@
               <th
                 mat-header-cell
                 *matHeaderCellDef
+                mat-sort-header="valueStatus"
                 matTooltip="Value Status (Action Trigger) from Value Screener (latest saved run)"
                 class="resizable-th"
               >
@@ -695,7 +712,7 @@
                   <span
                     class="action-badge"
                     [ngClass]="valueStatusClass(vd.status)"
-                    [matTooltip]="vd.status"
+                    [matTooltip]="valueStatusTooltip(vd.status)"
                   >
                     {{ vd.status }}
                   </span>

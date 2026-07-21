@@ -73,7 +73,11 @@ type SortColumn =
   | 'buyScore'
   | 'trendSetup'
   | 'momentumShift'
-  | 'finalAction';
+  | 'finalAction'
+  | 'technical'
+  | 'valueScore'
+  | 'valueStatus'
+  | 'reversalP';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -240,7 +244,13 @@ export class WatchlistPageComponent {
 
   protected valueDataForSymbol(
     symbol: string,
-  ): { technical: string; score: number; status: string; tooltip: string } | null {
+  ): {
+    technical: string;
+    score: number;
+    status: string;
+    tooltip: string;
+    technicalState: string;
+  } | null {
     const vs = this.vsMap().get(symbol.toUpperCase());
     if (!vs) return null;
     const techLabels: Record<string, string> = {
@@ -278,7 +288,44 @@ export class WatchlistPageComponent {
       tooltip: techTooltips[vs.technicalState] ?? vs.technicalState,
       score: vs.score,
       status: actionLabels[vs.actionTrigger] ?? vs.actionTrigger,
+      technicalState: vs.technicalState,
     };
+  }
+
+  protected techStateClass(technicalState: string): string {
+    const m: Record<string, string> = {
+      DeepValueReversal: 'state-reversal',
+      OverboughtMomentum: 'state-overbought',
+      OverboughtPullback: 'state-pullback',
+      SidewaysConsolidation: 'state-sideways',
+      MeanReversion: 'state-mean',
+      HighVolumeExhaustion: 'state-exhaustion',
+    };
+    return m[technicalState] ?? 'state-neutral';
+  }
+
+  protected valueScoreTooltip(score: number): string {
+    if (score >= 8)
+      return `High Conviction (${score.toFixed(1)}/10): Strong fundamental value signals.`;
+    if (score >= 5)
+      return `Fair Value (${score.toFixed(1)}/10): Moderate value signals — not yet high conviction.`;
+    return `Value Trap Warning (${score.toFixed(1)}/10): Weak value signals. May look cheap for a reason.`;
+  }
+
+  protected valueStatusTooltip(status: string): string {
+    const t: Record<string, string> = {
+      'Accumulate Yield':
+        'Strong dividend yield + value signals. Consider adding to income position.',
+      'Accumulate Value':
+        'Value signals confirmed with constructive technicals. Good entry opportunity.',
+      'Buy Limit Alert': 'Near value threshold. Set a limit order — do not chase price higher.',
+      'Hold / Ride Trend':
+        'Position performing well. Continue holding with trailing stop discipline.',
+      'Value Trap Warning':
+        'Looks cheap but may be a value trap. Fundamentals deteriorating — avoid.',
+      Observe: 'No actionable signal yet. Monitor for improving signals before entering.',
+    };
+    return t[status] ?? status;
   }
 
   protected valueScoreClass(score: number): string {
@@ -462,6 +509,26 @@ export class WatchlistPageComponent {
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.finalAction ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.finalAction ?? '';
           break;
+        case 'technical':
+          av = this.valueDataForSymbol(a.item.symbol)?.technical ?? '';
+          bv = this.valueDataForSymbol(b.item.symbol)?.technical ?? '';
+          break;
+        case 'valueScore':
+          av = this.valueDataForSymbol(a.item.symbol)?.score ?? -1;
+          bv = this.valueDataForSymbol(b.item.symbol)?.score ?? -1;
+          break;
+        case 'valueStatus':
+          av = this.valueDataForSymbol(a.item.symbol)?.status ?? '';
+          bv = this.valueDataForSymbol(b.item.symbol)?.status ?? '';
+          break;
+        case 'reversalP': {
+          const order: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+          av =
+            order[this.rsiMap().get(a.item.symbol.toUpperCase())?.reversalProbability ?? ''] ?? 0;
+          bv =
+            order[this.rsiMap().get(b.item.symbol.toUpperCase())?.reversalProbability ?? ''] ?? 0;
+          break;
+        }
         default:
           av = a.item.symbol;
           bv = b.item.symbol;
