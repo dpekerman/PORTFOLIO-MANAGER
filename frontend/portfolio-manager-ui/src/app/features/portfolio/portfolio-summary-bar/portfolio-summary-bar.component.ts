@@ -1,4 +1,4 @@
-import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
@@ -15,7 +15,7 @@ import { PortfolioStateService } from '../../../core/services/portfolio-state.se
   templateUrl: './portfolio-summary-bar.component.html',
   styleUrl: './portfolio-summary-bar.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatCardModule, MatIconModule, CurrencyPipe, DecimalPipe, NgClass, MatTooltipModule],
+  imports: [MatCardModule, MatIconModule, CurrencyPipe, DecimalPipe, MatTooltipModule],
 })
 export class PortfolioSummaryBarComponent {
   protected readonly stockState = inject(PortfolioStateService);

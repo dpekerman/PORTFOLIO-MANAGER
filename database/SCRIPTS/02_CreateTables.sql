@@ -508,3 +508,89 @@ BEGIN
     PRINT 'Table PortfolioValueHistories created.';
 END
 GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: ValueScreenerSnapshots  (2026-07-12)
+-- Persists the latest Value Screener run results per origin (portfolio/watchlist).
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerSnapshots]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerSnapshots]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Origin] NVARCHAR(20) NOT NULL,
+        [RunAt] DATETIME2 NOT NULL,
+        [ResultsJson] NVARCHAR(MAX) NOT NULL DEFAULT '[]',
+        CONSTRAINT [PK_ValueScreenerSnapshots] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_ValueScreenerSnapshots_Origin_RunAt]
+        ON [dbo].[ValueScreenerSnapshots] ([Origin] ASC, [RunAt] ASC);
+    PRINT 'Table ValueScreenerSnapshots created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: ValueScreenerScheduleConfigs  (2026-07-12)
+-- Stores the single schedule configuration row for the Value Screener.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerScheduleConfigs]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerScheduleConfigs]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [ScheduledTimeEt] NVARCHAR(10) NOT NULL DEFAULT '17:00',
+        [Enabled] BIT NOT NULL DEFAULT 1,
+        [LastPortfolioRunAt] DATETIME2 NULL,
+        [LastWatchlistRunAt] DATETIME2 NULL,
+        CONSTRAINT [PK_ValueScreenerScheduleConfigs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table ValueScreenerScheduleConfigs created.';
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- TABLE: ValueScreenerSnapshots  (2026-07-12)
+-- Persists the latest Value Screener run results per origin (portfolio/watchlist).
+-- ----------------------------------------------------------------------------
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerSnapshots]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerSnapshots]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Origin] NVARCHAR(20) NOT NULL,
+        [RunAt] DATETIME2 NOT NULL,
+        [ResultsJson] NVARCHAR(MAX) NOT NULL DEFAULT '[]',
+        CONSTRAINT [PK_ValueScreenerSnapshots] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_ValueScreenerSnapshots_Origin_RunAt]
+        ON [dbo].[ValueScreenerSnapshots] ([Origin] ASC, [RunAt] ASC);
+    PRINT 'Table ValueScreenerSnapshots created.';
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- TABLE: ValueScreenerScheduleConfigs  (2026-07-12)
+-- Stores the single schedule configuration row for the Value Screener.
+-- ----------------------------------------------------------------------------
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerScheduleConfigs]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerScheduleConfigs]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [ScheduledTimeEt] NVARCHAR(10) NOT NULL DEFAULT '17:00',
+        [Enabled] BIT NOT NULL DEFAULT 1,
+        [LastPortfolioRunAt] DATETIME2 NULL,
+        [LastWatchlistRunAt] DATETIME2 NULL,
+        CONSTRAINT [PK_ValueScreenerScheduleConfigs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table ValueScreenerScheduleConfigs created.';
+END
+GO

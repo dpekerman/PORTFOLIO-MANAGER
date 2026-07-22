@@ -631,20 +631,39 @@
 }
 
 // -- Portfolio Beta card
-.kpi-card--beta { cursor: pointer; transition: box-shadow 0.2s; }
-.kpi-card--beta:hover { box-shadow: 0 4px 24px rgba(126,87,194,.25) !important; }
-.beta-good  { border-color: rgba(0,200,83,.35) !important; }
-.beta-warn  { border-color: rgba(251,140,0,.35) !important; }
-.beta-risk  { border-color: rgba(229,57,53,.35) !important; }
+.kpi-card--beta {
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+.kpi-card--beta:hover {
+  box-shadow: 0 4px 24px rgba(126, 87, 194, 0.25) !important;
+}
+.beta-good {
+  border-color: rgba(0, 200, 83, 0.35) !important;
+}
+.beta-warn {
+  border-color: rgba(251, 140, 0, 0.35) !important;
+}
+.beta-risk {
+  border-color: rgba(229, 57, 53, 0.35) !important;
+}
 
-.beta-status-sub { font-size: 0.72rem; font-weight: 700; margin-top: 2px; }
-.kpi-neutral-text { color: #fb8c00; }
+.beta-status-sub {
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.kpi-neutral-text {
+  color: #fb8c00;
+}
 
 .beta-detail-line {
   font-size: 0.68rem;
   color: var(--text-muted);
   margin-top: 2px;
-  &.beta-proxy { color: #ffa726; }
+  &.beta-proxy {
+    color: #ffa726;
+  }
 }
 
 .beta-contributors-panel {
@@ -667,65 +686,61 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.78rem;
-  th { font-weight: 700; color: var(--text-muted); padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
-  td { padding: 4px 8px; color: var(--text-primary); }
-  tr:hover td { background: var(--bg-hover); }
+  th {
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+  td {
+    padding: 4px 8px;
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+  tr:hover td {
+    background: var(--bg-hover);
+  }
 }
 .proxy-tag {
   font-size: 0.6rem;
-  background: rgba(255,167,38,.2);
+  background: rgba(255, 167, 38, 0.2);
   color: #ffa726;
   border-radius: 4px;
   padding: 1px 4px;
   margin-left: 4px;
 }
-
-// -- Portfolio Beta card
-.kpi-card--beta { cursor: pointer; transition: box-shadow 0.2s; }
-.kpi-card--beta:hover { box-shadow: 0 4px 24px rgba(126,87,194,.25) !important; }
-.beta-good  { border-color: rgba(0,200,83,.35) !important; }
-.beta-warn  { border-color: rgba(251,140,0,.35) !important; }
-.beta-risk  { border-color: rgba(229,57,53,.35) !important; }
-
-.beta-status-sub { font-size: 0.72rem; font-weight: 700; margin-top: 2px; }
-.kpi-neutral-text { color: #fb8c00; }
-
-.beta-detail-line {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-  &.beta-proxy { color: #ffa726; }
+.beta-edit-cell {
+  display: flex;
+  align-items: center;
 }
-
-.beta-contributors-panel {
-  grid-column: 1 / -1;
-  background: var(--bg-surface);
+.beta-input {
+  width: 66px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.06));
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  padding: 14px 18px;
-  margin-top: -8px;
-}
-.beta-contrib-header {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  text-transform: uppercase;
-}
-.beta-contrib-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
-  th { font-weight: 700; color: var(--text-muted); padding: 4px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
-  td { padding: 4px 8px; color: var(--text-primary); }
-  tr:hover td { background: var(--bg-hover); }
-}
-.proxy-tag {
-  font-size: 0.6rem;
-  background: rgba(255,167,38,.2);
-  color: #ffa726;
   border-radius: 4px;
-  padding: 1px 4px;
-  margin-left: 4px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  padding: 2px 5px;
+  text-align: right;
+  &:focus {
+    outline: none;
+    border-color: var(--accent-color, #7e57c2);
+  }
+  &.beta-overridden {
+    border-color: #ffa726;
+    color: #ffa726;
+  }
+}
+.beta-clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 4px;
+  &:hover {
+    color: #ef5350;
+  }
 }

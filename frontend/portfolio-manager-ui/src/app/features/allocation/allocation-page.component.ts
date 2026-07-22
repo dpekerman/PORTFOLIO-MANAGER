@@ -61,6 +61,23 @@ export class AllocationPageComponent {
     this.showBetaDetail.update((v) => !v);
   }
 
+  protected betaForSymbol(symbol: string): number | null {
+    return this.betaState.betaForSymbol(symbol);
+  }
+
+  protected isBetaOverridden(symbol: string): boolean {
+    return this.betaState.betaOverrides()[symbol.toUpperCase()] !== undefined;
+  }
+
+  protected updateBeta(symbol: string, value: string): void {
+    const num = parseFloat(value);
+    this.betaState.setOverride(symbol, isNaN(num) ? null : num);
+  }
+
+  protected clearBetaOverride(symbol: string): void {
+    this.betaState.setOverride(symbol, null);
+  }
+
   protected readonly isPositive = computed(() => this.portfolio.totalGainLoss() >= 0);
   protected readonly returnPct = computed(() => this.portfolio.displayTotalGainLossPct() / 100);
 

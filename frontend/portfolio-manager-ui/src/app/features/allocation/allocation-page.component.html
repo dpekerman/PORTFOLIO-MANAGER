@@ -150,6 +150,7 @@
                 <th>Symbol</th>
                 <th>Weight %</th>
                 <th>Beta</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -162,7 +163,42 @@
                     }
                   </td>
                   <td>{{ c.weightPct | number: '1.1-1' }}%</td>
-                  <td>{{ c.beta | number: '1.2-2' }}</td>
+                  <td>
+                    <div class="beta-edit-cell">
+                      <input
+                        class="beta-input"
+                        type="number"
+                        step="0.01"
+                        min="-5"
+                        max="5"
+                        [value]="
+                          betaForSymbol(c.symbol) !== null
+                            ? (betaForSymbol(c.symbol)! | number: '1.2-2')
+                            : ''
+                        "
+                        [placeholder]="betaForSymbol(c.symbol) !== null ? '' : '—'"
+                        [class.beta-overridden]="isBetaOverridden(c.symbol)"
+                        (change)="updateBeta(c.symbol, $any($event.target).value)"
+                        (blur)="updateBeta(c.symbol, $any($event.target).value)"
+                        [matTooltip]="
+                          isBetaOverridden(c.symbol)
+                            ? 'Override active — click × to reset'
+                            : 'Click to override beta'
+                        "
+                      />
+                    </div>
+                  </td>
+                  <td>
+                    @if (isBetaOverridden(c.symbol)) {
+                      <button
+                        class="beta-clear-btn"
+                        (click)="clearBetaOverride(c.symbol)"
+                        matTooltip="Reset to Yahoo Finance beta"
+                      >
+                        ×
+                      </button>
+                    }
+                  </td>
                 </tr>
               }
             </tbody>

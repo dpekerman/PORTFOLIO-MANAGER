@@ -25,11 +25,10 @@
           [disabled]="isSavingAll()"
           matTooltip="Save all sections: scanner settings, EOD window, email recipients and sector/industry lists"
         >
-          @if (isSavingAll()) {
-            <mat-icon class="spinning">sync</mat-icon> Saving All…
-          } @else {
-            <mat-icon>save</mat-icon> Save All Settings
-          }
+          <mat-icon [class.spinning]="isSavingAll()">{{
+            isSavingAll() ? 'sync' : 'save'
+          }}</mat-icon>
+          {{ isSavingAll() ? 'Saving All…' : 'Save All Settings' }}
         </button>
       </div>
     </div>
@@ -372,11 +371,10 @@
             [disabled]="eodForm.invalid || eodForm.pristine || savingEodSettings()"
             matTooltip="Save EOD window settings to backend immediately"
           >
-            @if (savingEodSettings()) {
-              <mat-icon class="spinning">sync</mat-icon> Saving…
-            } @else {
-              <mat-icon>schedule_send</mat-icon> Save EOD Window
-            }
+            <mat-icon [class.spinning]="savingEodSettings()">{{
+              savingEodSettings() ? 'sync' : 'schedule_send'
+            }}</mat-icon>
+            {{ savingEodSettings() ? 'Saving…' : 'Save EOD Window' }}
           </button>
         </div>
       </form>
@@ -448,11 +446,10 @@
             [disabled]="vsForm.invalid || vsForm.pristine || savingVsSchedule()"
             matTooltip="Save Value Screener schedule to the database"
           >
-            @if (savingVsSchedule()) {
-              <mat-icon class="spinning">sync</mat-icon> Saving…
-            } @else {
-              <mat-icon>save</mat-icon> Save VS Schedule
-            }
+            <mat-icon [class.spinning]="savingVsSchedule()">{{
+              savingVsSchedule() ? 'sync' : 'save'
+            }}</mat-icon>
+            {{ savingVsSchedule() ? 'Saving…' : 'Save VS Schedule' }}
           </button>
         </div>
       </form>

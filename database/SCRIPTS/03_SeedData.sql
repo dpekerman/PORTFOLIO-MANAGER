@@ -61,13 +61,20 @@ USING (
     ('20260618010551_AddCashOptionAndAdhocTables', '8.0.0'),
     ('20260619000000_AddTransactionFields', '8.0.0'),
     ('20260619000002_RemovePortfolioSymbolUniqueConstraint', '8.0.0'),
-    ('20260622183326_AddRoleAndHoldingRole', '8.0.0')
+    ('20260622183326_AddRoleAndHoldingRole', '8.0.0'),
+    ('20260623153856_AddNotesFields', '8.0.0'),
+    ('20260624000000_AddDailySignals', '8.0.0'),
+    ('20260707000001_AddWatchlistFavorite', '8.0.0'),
+    ('20260708000002_AddDecisionSourceAndCashAccount', '8.0.0'),
+    ('20260708000003_AddAllocationRiskTables', '8.0.0'),
+    ('20260712000001_AddValueScreenerPersistence', '8.0.0'),
+    ('20260719000001_AddPortfolioValueHistory', '8.0.0')
 ) AS source ([MigrationId], [ProductVersion])
 ON target.[MigrationId] = source.[MigrationId]
 WHEN NOT MATCHED THEN
     INSERT ([MigrationId], [ProductVersion])
     VALUES (source.[MigrationId], source.[ProductVersion]);
-PRINT 'EF Migrations history stamped (8 entries).';
+PRINT 'EF Migrations history stamped (15 entries).';
 GO
 
 PRINT '';
@@ -128,5 +135,20 @@ BEGIN
         ('Speculative', 2, 5),
         ('Options', 1, 6);
     PRINT 'SinglePositionLimits seeded with defaults.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- Seed: ValueScreenerScheduleConfigs default row (2026-07-12)
+-- Inserts the default schedule config if the table is empty.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM [dbo].[ValueScreenerScheduleConfigs])
+BEGIN
+    INSERT INTO [dbo].[ValueScreenerScheduleConfigs]
+        ([ScheduledTimeEt], [Enabled])
+    VALUES
+        ('17:00', 1);
+    PRINT 'ValueScreenerScheduleConfigs seeded with default (17:00, enabled).';
 END
 GO

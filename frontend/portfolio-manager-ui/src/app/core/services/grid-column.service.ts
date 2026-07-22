@@ -47,7 +47,6 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'gainLoss', label: 'Gain/Loss' },
       { key: 'gainLossPct', label: 'Gain %' },
       { key: 'rsi', label: 'RSI (14)' },
-      { key: 'beta', label: 'Beta' },
       { key: 'technical', label: 'Technical' },
       { key: 'holdingRole', label: 'Role' },
       { key: 'decisionSource', label: 'Decision Source' },
