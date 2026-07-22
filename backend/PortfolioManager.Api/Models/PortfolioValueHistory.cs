@@ -37,3 +37,10 @@ public record BetaContributor(
     decimal WeightPct,
     decimal Beta,
     bool IsProxy);
+
+/// <summary>Request body for POST /api/portfoliobeta/calculate (with optional user-defined beta overrides).</summary>
+public class PortfolioBetaRequest
+{
+    /// <summary>Optional symbol → beta overrides supplied by the user. Keys are case-insensitive symbols (e.g. "PYPL").</summary>
+    public Dictionary<string, decimal>? BetaOverrides { get; set; }
+}

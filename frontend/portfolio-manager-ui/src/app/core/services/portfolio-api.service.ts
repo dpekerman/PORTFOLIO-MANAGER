@@ -421,9 +421,24 @@ export class PortfolioApiService {
     );
   }
 
+  /** Immediately records the current portfolio value (seeds DB when background service hasn't fired). */
+  recordPortfolioValueNow(): Observable<PortfolioValueHistoryDto> {
+    return this.http.post<PortfolioValueHistoryDto>(
+      `${this.base}/portfoliovaluehistory/record-now`,
+      {},
+    );
+  }
+
   // ── Portfolio Beta ──────────────────────────────────────────────────────────
   getPortfolioBeta(): Observable<PortfolioBetaResult> {
     return this.http.get<PortfolioBetaResult>(`${this.base}/portfoliobeta`);
+  }
+
+  /** Calculate portfolio beta applying user-supplied overrides (symbol → beta). */
+  calculatePortfolioBeta(betaOverrides: Record<string, number>): Observable<PortfolioBetaResult> {
+    return this.http.post<PortfolioBetaResult>(`${this.base}/portfoliobeta/calculate`, {
+      betaOverrides,
+    });
   }
 
   getMarketIndices(force = false): Observable<MarketIndicesResponse> {

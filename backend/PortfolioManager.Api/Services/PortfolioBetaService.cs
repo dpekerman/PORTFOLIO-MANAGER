@@ -6,7 +6,7 @@ namespace PortfolioManager.Api.Services;
 
 public interface IPortfolioBetaService
 {
-    Task<PortfolioBetaResult> CalculateAsync(CancellationToken ct);
+    Task<PortfolioBetaResult> CalculateAsync(CancellationToken ct, Dictionary<string, decimal>? betaOverrides = null);
 }
 
 /// <summary>
@@ -35,7 +35,7 @@ public sealed class PortfolioBetaService(
         ["Communication Services"] = 1.10m,
     };
 
-    public async Task<PortfolioBetaResult> CalculateAsync(CancellationToken ct)
+    public async Task<PortfolioBetaResult> CalculateAsync(CancellationToken ct, Dictionary<string, decimal>? betaOverrides = null)
     {
         // Load all open positions
         var stocks = await db.PortfolioItems
@@ -83,6 +83,12 @@ public sealed class PortfolioBetaService(
         var betaMap = new Dictionary<string, (decimal Beta, bool IsProxy)>(StringComparer.OrdinalIgnoreCase);
         foreach (var sym in betaSymbols)
         {
+            // User override wins over Yahoo Finance fetched beta
+            if (betaOverrides != null && betaOverrides.TryGetValue(sym, out var overrideBeta))
+            {
+                betaMap[sym] = (overrideBeta, false);
+                continue;
+            }
             var beta = await FetchBetaAsync(sym, ct);
             betaMap[sym] = beta;
             await Task.Delay(300, ct); // throttle per Yahoo Finance conventions
@@ -123,10 +129,9 @@ public sealed class PortfolioBetaService(
             : portfolioBeta <= 1.05m ? "Warning"
             : "TooMuchRisk";
 
-        // Top 5 contributors (highest weighted beta impact)
-        var top5 = grouped
+        // All contributors ordered by weighted beta impact (descending)
+        var allContributors = grouped
             .OrderByDescending(g => Math.Abs((g.MarketValue / totalValue) * g.Beta))
-            .Take(5)
             .Select(g => new BetaContributor(
                 g.Symbol,
                 Math.Round(g.MarketValue / totalValue * 100, 2),
@@ -140,7 +145,7 @@ public sealed class PortfolioBetaService(
             Math.Round(cashPct, 1),
             Math.Round(proxyPct, 1),
             status,
-            top5);
+            allContributors);
     }
 
     private async Task<(decimal Beta, bool IsProxy)> FetchBetaAsync(string symbol, CancellationToken ct)

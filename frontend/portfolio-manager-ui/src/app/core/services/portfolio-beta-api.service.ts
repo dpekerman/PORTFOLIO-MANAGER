@@ -7,7 +7,10 @@ import { PortfolioApiService } from './portfolio-api.service';
 export class PortfolioBetaApiService {
   private readonly api = inject(PortfolioApiService);
 
-  getBeta(): Observable<PortfolioBetaResult> {
+  getBeta(betaOverrides?: Record<string, number>): Observable<PortfolioBetaResult> {
+    if (betaOverrides && Object.keys(betaOverrides).length > 0) {
+      return this.api.calculatePortfolioBeta(betaOverrides);
+    }
     return this.api.getPortfolioBeta();
   }
 }

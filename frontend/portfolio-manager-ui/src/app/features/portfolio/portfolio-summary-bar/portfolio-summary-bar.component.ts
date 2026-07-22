@@ -54,9 +54,19 @@ export class PortfolioSummaryBarComponent {
   constructor() {
     this.api.getPortfolioValueHistory(2).subscribe({
       next: (history) => {
-        if (history.length >= 2) {
-          // history is ordered by RecordedAt desc: [0] = today or latest, [1] = day before
-          this.previousDayValue.set(history[1].totalValue);
+        if (history.length > 0) {
+          // Determine today's date in ET (use UTC as a close approximation)
+          const todayDate = new Date().toISOString().split('T')[0];
+          const isFirstRecordToday = history[0].recordedDate === todayDate;
+
+          if (isFirstRecordToday && history.length >= 2) {
+            // Today's EOD snapshot is in history[0]; use history[1] as the previous-day value
+            this.previousDayValue.set(history[1].totalValue);
+          } else if (!isFirstRecordToday) {
+            // Today's snapshot hasn't been saved yet; history[0] IS yesterday's value
+            this.previousDayValue.set(history[0].totalValue);
+          }
+          // If only 1 record and it is today: cannot compute change — card stays null
         }
         this.oneDayChangeLoading.set(false);
       },

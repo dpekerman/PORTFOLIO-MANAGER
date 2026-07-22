@@ -49,10 +49,11 @@ export class PortfolioBetaStateService {
     if (this._loading() && !force) return;
     this._loading.set(true);
     this._error.set(null);
-    this.api.getBeta().subscribe({
+    const overrides = this._betaOverrides();
+    this.api.getBeta(Object.keys(overrides).length > 0 ? overrides : undefined).subscribe({
       next: (r) => {
         this._result.set(r);
-        // Extract per-symbol betas from top contributors
+        // Populate fetched betas from ALL contributors (not just top 5)
         const fetched: Record<string, number> = {};
         for (const c of r.topContributors) fetched[c.symbol.toUpperCase()] = c.beta;
         this._fetchedBetas.update((prev) => ({ ...prev, ...fetched }));

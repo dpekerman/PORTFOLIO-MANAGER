@@ -15,4 +15,16 @@ public class PortfolioValueHistoryController(IPortfolioValueHistoryService histo
         var items = await historyService.GetLatestAsync(Math.Clamp(count, 1, 365), ct);
         return Ok(items);
     }
+
+    /// <summary>
+    /// Immediately records the current portfolio value for today's date.
+    /// If a record already exists for today it is replaced.
+    /// Use this to seed historical data when the background service has not yet fired.
+    /// </summary>
+    [HttpPost("record-now")]
+    public async Task<ActionResult<PortfolioValueHistoryDto>> RecordNow(CancellationToken ct)
+    {
+        var dto = await historyService.RecordCurrentValueAsync(ct);
+        return Ok(dto);
+    }
 }

@@ -39,8 +39,9 @@ public class ScannerController(
         }
 
         // Pull all user-defined symbols so the scan covers the full portfolio + watchlist.
+        // Exclude closed positions so the Tracking badge shows only active holdings.
         var portfolioSymbols = await db.PortfolioItems
-            .Where(p => !p.IsManual)
+            .Where(p => !p.IsManual && p.TransactionType != "CLOSE")
             .Select(p => p.Symbol)
             .ToListAsync(ct);
         var watchlistSymbols = await db.WatchlistItems

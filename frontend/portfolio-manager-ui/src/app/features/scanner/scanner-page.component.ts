@@ -43,9 +43,17 @@ export class ScannerPageComponent implements OnInit {
   private readonly portfolio = inject(PortfolioStateService);
   private readonly watchlist = inject(WatchlistStateService);
 
-  /** Lowercase symbol set for O(1) lookup in the table. */
+  /** Lowercase symbol set for O(1) lookup in the table.
+   * Only includes OPEN positions — closed (transactionType === 'CLOSE') are excluded
+   * so the Tracking badge is not shown for sold-off tickers. */
   protected readonly portfolioSymbols = computed<ReadonlySet<string>>(
-    () => new Set(this.portfolio.summaries().map((s) => s.item.symbol.toLowerCase())),
+    () =>
+      new Set(
+        this.portfolio
+          .summaries()
+          .filter((s) => s.item.transactionType !== 'CLOSE')
+          .map((s) => s.item.symbol.toLowerCase()),
+      ),
   );
 
   protected readonly watchlistSymbols = computed<ReadonlySet<string>>(
