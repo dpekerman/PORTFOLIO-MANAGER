@@ -41,31 +41,22 @@
     </div>
   </div>
 
-  <!-- Right: Portfolio KPIs -->
-  <div class="portfolio-kpis">
-    <div class="kpi">
-      <span class="kpi-label">Portfolio Value</span>
-      <span class="kpi-value" [class.demo-redact]="demoMode.isDemoMode()">{{
-        portfolio.totalValue() | currency: 'USD' : 'symbol' : '1.0-0'
-      }}</span>
+  <!-- Right: Market Indices -->
+  @if (scanner.marketIndices().length > 0) {
+    <div class="market-indices">
+      @for (idx of scanner.marketIndices(); track idx.symbol) {
+        <div class="index-tile" [matTooltip]="idx.symbol">
+          <span class="index-name">{{ idx.name }}</span>
+          <span class="index-price">{{ idx.price | number: '1.2-2' }}</span>
+          <span
+            class="index-change"
+            [class.up]="idx.changePercent >= 0"
+            [class.down]="idx.changePercent < 0"
+          >
+            {{ idx.changePercent >= 0 ? '+' : '' }}{{ idx.changePercent | number: '1.2-2' }}%
+          </span>
+        </div>
+      }
     </div>
-    <div class="kpi-divider"></div>
-    <div class="kpi">
-      <span class="kpi-label">Total Return</span>
-      <span
-        class="kpi-value"
-        [ngClass]="{ positive: isPortfolioPositive(), negative: !isPortfolioPositive() }"
-      >
-        <mat-icon>{{ isPortfolioPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
-        <span [class.demo-redact]="demoMode.isDemoMode()"
-          >{{ portfolio.totalGainLossPct() | number: '1.2-2' }}%</span
-        >
-      </span>
-    </div>
-    <div class="kpi-divider"></div>
-    <div class="kpi">
-      <span class="kpi-label">Positions</span>
-      <span class="kpi-value">{{ portfolio.summaries().length }}</span>
-    </div>
-  </div>
+  }
 </div>

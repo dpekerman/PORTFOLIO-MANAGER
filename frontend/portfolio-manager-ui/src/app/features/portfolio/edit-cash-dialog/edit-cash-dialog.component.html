@@ -24,6 +24,16 @@
         <mat-error>Amount must be greater than 0</mat-error>
       }
     </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Account Type</mat-label>
+      <mat-select formControlName="accountType">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (acct of accountTypes; track acct) {
+          <mat-option [value]="acct">{{ acct }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
   </form>
 </mat-dialog-content>
 

@@ -141,10 +141,14 @@ public class EodWindowSettingsDto
 {
     /// <summary>Start time in "HH:mm" format (Eastern Time). Default: "15:30"</summary>
     public string EodWindowStart { get; set; } = "15:30";
-    /// <summary>End time in "HH:mm" format (Eastern Time). Default: "16:00"</summary>
-    public string EodWindowEnd { get; set; } = "16:00";
+    /// <summary>End time in "HH:mm" format (Eastern Time). Default: "16:30"</summary>
+    public string EodWindowEnd { get; set; } = "16:30";
     /// <summary>Whether the EOD window is enabled.</summary>
     public bool EodWindowEnabled { get; set; } = true;
+    /// <summary>RSI threshold below which a stock qualifies for EOD CONFIRM (oversold). Default: 25.</summary>
+    public decimal EodOversoldRsiThreshold { get; set; } = 25m;
+    /// <summary>RSI threshold above which a stock qualifies for EOD CONFIRM (overbought). Default: 75.</summary>
+    public decimal EodOverboughtRsiThreshold { get; set; } = 75m;
 }
 
 /// <summary>A single persisted EOD CONFIRM signal, written to disk at end of day.</summary>
@@ -194,6 +198,71 @@ public class YesterdayEodResponse
     public List<EodSignalRecord> Signals { get; set; } = [];
 }
 
+/// <summary>
+/// A persisted daily EOD signal record stored in the database.
+/// Enables querying full signal history across multiple days with lifecycle tracking.
+/// </summary>
+public class DailySignal
+{
+    public int Id { get; set; }
+    public string Symbol { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    /// <summary>Oversold | Overbought</summary>
+    public string ScanType { get; set; } = string.Empty;
+    /// <summary>EodConfirm | Confirmed | EarlyWarning</summary>
+    public string SignalType { get; set; } = string.Empty;
+    public decimal Rsi { get; set; }
+    public decimal Price { get; set; }
+    public string TriggerDetails { get; set; } = string.Empty;
+    /// <summary>Date string "yyyy-MM-dd" (ET) when this signal was recorded.</summary>
+    public string SignalDate { get; set; } = string.Empty;
+    public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+    /// <summary>Logic mode: Legacy | Enhanced</summary>
+    public string RuleVersion { get; set; } = string.Empty;
+    /// <summary>Signal lifecycle state: Active | FollowThrough | Invalidated | Expired | Reversed</summary>
+    public string SignalState { get; set; } = "Active";
+    public string Sector { get; set; } = string.Empty;
+    public string ReversalProbability { get; set; } = string.Empty;
+    public string VolumeSignal { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+}
+
+/// <summary>Request DTO for updating a DailySignal's lifecycle state.</summary>
+public class UpdateSignalStateRequest
+{
+    public string SignalState { get; set; } = string.Empty;
+}
+
+/// <summary>Request DTO for updating a DailySignal's notes.</summary>
+public class UpdateSignalNotesRequest
+{
+    public string? Notes { get; set; }
+}
+
+/// <summary>Query parameters for the EOD Signals Dashboard endpoint.</summary>
+public class EodSignalQueryParams
+{
+    public string? Ticker { get; set; }
+    public string? ScanType { get; set; }
+    public string? SignalType { get; set; }
+    public string? SignalState { get; set; }
+    public string? RuleVersion { get; set; }
+    public string? DateFrom { get; set; }
+    public string? DateTo { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+/// <summary>Paginated response wrapper for DailySignal queries.</summary>
+public class DailySignalPagedResponse
+{
+    public List<DailySignal> Items { get; set; } = [];
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+}
+
 public class SaveAdhocSessionRequest
 {
     public List<string> Symbols { get; set; } = [];
@@ -212,3 +281,14 @@ public class LoadAdhocSessionResponse
     public string LogicMode { get; set; } = "Legacy";
     public DateTime? UpdatedAt { get; set; }
 }
+
+public record MarketIndexDto(
+    string Symbol,
+    string Name,
+    decimal Price,
+    decimal Change,
+    decimal ChangePercent);
+
+public record MarketIndicesResponse(
+    List<MarketIndexDto> Indices,
+    DateTime FetchedAt);

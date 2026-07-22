@@ -3,6 +3,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { interval, switchMap } from 'rxjs';
 import {
   LogicMode,
+  MarketIndexDto,
   RsiScanResult,
   ScannerResponse,
   YesterdayEodResponse,
@@ -26,6 +27,8 @@ export class ScannerStateService {
   readonly lastEodRunSummary = signal<string | null>(null);
   /** Yesterday's EOD CONFIRM signals (fetched on init and refreshed periodically). */
   readonly yesterdayEod = signal<YesterdayEodResponse | null>(null);
+  /** Live market index prices (Dow, Nasdaq 100, S&P 500). Refreshed with each scan. */
+  readonly marketIndices = signal<MarketIndexDto[]>([]);
 
   readonly response = this._response.asReadonly();
   readonly loading = this._loading.asReadonly();
@@ -111,6 +114,12 @@ export class ScannerStateService {
     interval(5 * 60_000)
       .pipe(takeUntilDestroyed())
       .subscribe(() => this.loadYesterdayEod());
+
+    // Load market indices on init; refresh every 5 minutes
+    this.loadMarketIndices();
+    interval(5 * 60_000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.loadMarketIndices());
   }
 
   private checkEodWindowStatus(): void {
@@ -131,6 +140,13 @@ export class ScannerStateService {
     this.api.getYesterdayEod().subscribe({
       next: (data) => this.yesterdayEod.set(data),
       error: () => {}, // Non-critical — silently ignore
+    });
+  }
+
+  private loadMarketIndices(): void {
+    this.api.getMarketIndices().subscribe({
+      next: (data) => this.marketIndices.set(data.indices),
+      error: () => {}, // Non-critical
     });
   }
 
@@ -163,6 +179,7 @@ export class ScannerStateService {
           this._response.set(r);
           this._loading.set(false);
           this.updateEodSummary();
+          this.loadMarketIndices(); // refresh indices on every scan
         },
         error: () => {
           this._error.set('Scanner unavailable');

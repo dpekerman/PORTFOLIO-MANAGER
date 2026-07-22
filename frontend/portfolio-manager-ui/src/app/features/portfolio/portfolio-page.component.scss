@@ -2,6 +2,42 @@
   padding: 0 0 48px;
 }
 
+// ── Inline editable price input for options grid ──────────────────────────────
+.inline-price-input {
+  width: 72px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: 'Roboto Mono', monospace;
+  padding: 3px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--border-subtle);
+  }
+
+  &:focus {
+    border-color: #1565c0;
+    background: rgba(21, 101, 192, 0.06);
+  }
+
+  /* Hide spinners in Chrome/Edge */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide spinners in Firefox */
+  &[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
 .portfolio-section {
   padding: 20px 24px;
 
@@ -252,6 +288,11 @@
   flex-wrap: wrap;
   gap: 10px;
   margin: 14px 0 10px;
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg-page);
+  padding: 6px 0;
 
   .gf-field {
     min-width: 160px;
@@ -269,6 +310,10 @@
     min-width: 100px;
     max-width: 120px;
   }
+  .gf-age {
+    min-width: 130px;
+    max-width: 160px;
+  }
 }
 
 .gf-clear-btn {
@@ -282,6 +327,33 @@
   color: var(--text-faint);
   white-space: nowrap;
   margin-left: auto;
+}
+
+.gf-filtered-total {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(21, 101, 192, 0.1);
+  border: 1px solid rgba(21, 101, 192, 0.25);
+  border-radius: 8px;
+  padding: 3px 10px;
+  color: #64b5f6;
+
+  .gf-ft-label {
+    font-weight: 500;
+    opacity: 0.8;
+  }
+}
+
+// ── Column config button action bar (cash / options) ─────────────────────────
+.pg-table-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
 }
 
 // ── Portfolio grid table ──────────────────────────────────────────────────────
@@ -342,6 +414,24 @@
 }
 .pg-dim {
   color: var(--text-faint);
+}
+
+// % Total column
+.pg-pct-total {
+  white-space: nowrap;
+}
+
+.pg-pct-pill {
+  display: inline-block;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pg-pct-large {
+  color: #ffa726;
+  font-weight: 700;
 }
 
 .pg-symbol-cell {
@@ -468,14 +558,14 @@
 }
 
 .ms-confirmed-buy {
-  background: rgba(0, 200, 83, 0.14);
-  color: #00e676;
-  border-color: rgba(0, 200, 83, 0.3);
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
 }
 .ms-bullish {
-  background: rgba(0, 200, 83, 0.08);
-  color: #4caf50;
-  border-color: rgba(0, 200, 83, 0.18);
+  background: rgba(76, 175, 80, 0.72);
+  color: #000;
+  border-color: rgba(76, 175, 80, 0.82);
 }
 .ms-confirmed-sell {
   background: rgba(255, 23, 68, 0.14);
@@ -488,30 +578,30 @@
   border-color: rgba(255, 23, 68, 0.18);
 }
 .ms-warning {
-  background: rgba(255, 167, 38, 0.1);
-  color: #ffa726;
-  border-color: rgba(255, 167, 38, 0.22);
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
 }
 .ms-uptrend {
-  background: rgba(33, 150, 243, 0.08);
-  color: #42a5f5;
-  border-color: rgba(33, 150, 243, 0.18);
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
 }
 .ms-downtrend {
-  background: rgba(158, 158, 158, 0.07);
-  color: #9e9e9e;
-  border-color: rgba(158, 158, 158, 0.15);
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
 }
 .ms-neutral {
-  background: rgba(255, 255, 255, 0.03);
-  color: #757575;
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
 }
 
 .ma-confirmed-buy {
-  background: rgba(0, 200, 83, 0.14);
-  color: #00e676;
-  border-color: rgba(0, 200, 83, 0.3);
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
 }
 .ma-confirmed-sell {
   background: rgba(255, 23, 68, 0.14);
@@ -519,24 +609,32 @@
   border-color: rgba(255, 23, 68, 0.3);
 }
 .ma-early-warning {
-  background: rgba(255, 167, 38, 0.1);
-  color: #ffa726;
-  border-color: rgba(255, 167, 38, 0.22);
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
 }
 .ma-avoid {
-  background: rgba(158, 158, 158, 0.07);
-  color: #757575;
-  border-color: rgba(158, 158, 158, 0.13);
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
 }
 .ma-hold {
-  background: rgba(33, 150, 243, 0.08);
-  color: #42a5f5;
-  border-color: rgba(33, 150, 243, 0.18);
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
 }
 .ma-standby {
-  background: rgba(255, 255, 255, 0.03);
-  color: #616161;
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
+}
+
+// TFSA profit-taking rule – amber/gold badge
+.ma-tfsa-profit {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.9);
+  font-weight: 600;
 }
 
 // ============================================================
@@ -867,6 +965,38 @@
 }
 
 // ── Multi-account group header row ────────────────────────────────────────────
+
+// ── Role select inline ─────────────────────────────────────────────────────────
+.role-select {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  min-width: 130px;
+
+  .mat-mdc-select-value-text {
+    font-size: 0.6rem;
+    font-weight: 800;
+  }
+}
+.role-core {
+  color: #00bcd4;
+}
+.role-strategic {
+  color: #42a5f5;
+}
+.role-strategic-income {
+  color: #26a69a;
+}
+.role-swing {
+  color: #ffa726;
+}
+.role-speculative {
+  color: #ef5350;
+}
+.role-options {
+  color: #ab47bc;
+}
+
 tr.pg-agg-row {
   cursor: pointer;
 
@@ -931,4 +1061,393 @@ tr.pg-child-row:hover td {
   padding: 2px 6px;
   white-space: nowrap;
   display: inline-block;
+}
+
+// -- Analyst Target cell ------------------------------------------------------
+.analyst-target-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.analyst-price {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.analyst-upside {
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &.at-positive {
+    color: #43a047;
+  }
+
+  &.at-negative {
+    color: #e53935;
+  }
+}
+
+// ── Sticky columns (Ticker + Company) ─────────────────────────────────────────
+.portfolio-table-wrapper {
+  overflow-x: auto;
+}
+
+.pg-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-surface);
+
+  &.mat-mdc-header-cell {
+    z-index: 3;
+    background: var(--bg-surface);
+  }
+}
+
+// Second sticky column offset
+.portfolio-grid-table th.mat-mdc-header-cell[aria-colindex='2'].pg-sticky-col,
+.portfolio-grid-table td.mat-mdc-cell[aria-colindex='2'].pg-sticky-col {
+  left: 130px; // approximate width of Ticker column
+}
+
+// ── Reversal Probability badge (mirrors scanner) ──────────────────────────────
+.prob-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.prob-high {
+    background: rgba(229, 57, 53, 0.15);
+    color: #ef5350;
+  }
+  &.prob-medium {
+    background: rgba(245, 124, 0, 0.15);
+    color: #fb8c00;
+  }
+  &.prob-low {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+  }
+}
+
+// ── Technical State badge ─────────────────────────────────────────────────────
+.pg-tech-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.state-badge {
+  &.state-reversal {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+  }
+  &.state-overbought {
+    background: rgba(239, 83, 80, 0.12);
+    color: #ef5350;
+  }
+  &.state-pullback {
+    background: rgba(255, 167, 38, 0.12);
+    color: #ffa726;
+  }
+  &.state-sideways {
+    background: rgba(66, 165, 245, 0.12);
+    color: #42a5f5;
+  }
+  &.state-mean {
+    background: rgba(171, 71, 188, 0.12);
+    color: #ab47bc;
+  }
+  &.state-exhaustion {
+    background: rgba(239, 83, 80, 0.12);
+    color: #e53935;
+  }
+  &.state-neutral {
+    background: rgba(120, 120, 120, 0.1);
+    color: #9e9e9e;
+  }
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Beta editable cell
+.beta-edit-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.beta-input {
+  width: 60px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: 'Roboto Mono', monospace;
+  padding: 2px 4px;
+  text-align: right;
+  &:focus {
+    outline: none;
+    border-color: #7e57c2;
+  }
+  &.beta-overridden {
+    border-color: #ffa726;
+    color: #ffa726;
+  }
+}
+.beta-clear-btn {
+  background: none;
+  border: none;
+  color: #ffa726;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 2px;
+  &:hover {
+    color: #ef5350;
+  }
 }

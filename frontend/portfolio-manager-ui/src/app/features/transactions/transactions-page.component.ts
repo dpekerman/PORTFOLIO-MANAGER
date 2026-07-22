@@ -1,15 +1,23 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { OptionAnalysis, PortfolioSummary } from '../../core/models/portfolio.models';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
+import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -23,8 +31,17 @@ import {
   EditPositionDialogData,
   EditPositionDialogResult,
 } from '../portfolio/edit-position-dialog/edit-position-dialog.component';
+import {
+  TransactionNotesDialogComponent,
+  TransactionNotesDialogData,
+  TransactionNotesDialogResult,
+} from './transaction-notes-dialog/transaction-notes-dialog.component';
 
 type SortDir = 'asc' | 'desc';
+type TxTypeFilter = 'ALL' | 'OPEN' | 'CLOSE';
+
+/** Show OPEN records opened after this date (inclusive day after). */
+const OPEN_DATE_THRESHOLD = '2026-06-01';
 
 type StockTxCol =
   | 'tx_type'
@@ -38,7 +55,10 @@ type StockTxCol =
   | 'tx_closing_price'
   | 'tx_gain_loss'
   | 'tx_gain_pct'
-  | 'tx_mkt_value'
+  | 'tx_last_price'
+  | 'tx_price_diff'
+  | 'tx_decision_source'
+  | 'tx_age'
   | 'tx_actions';
 
 type OptionTxCol =
@@ -56,6 +76,8 @@ type OptionTxCol =
   | 'otx_gain_loss'
   | 'otx_gain_pct'
   | 'otx_mkt_value'
+  | 'otx_decision_source'
+  | 'otx_age'
   | 'otx_actions';
 
 @Component({
@@ -67,22 +89,36 @@ type OptionTxCol =
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
+    FormsModule,
     MatButtonModule,
+    MatButtonToggleModule,
+    MatFormFieldModule,
     MatIconModule,
+    MatInputModule,
+    MatSelectModule,
     MatSortModule,
     MatTableModule,
     MatTooltipModule,
+    GridColumnButtonComponent,
   ],
 })
 export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeService);
+  private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
 
   // ── Section collapse ────────────────────────────────────────────────────────
   protected readonly stocksExpanded = signal(true);
   protected readonly optionsExpanded = signal(true);
+
+  // ── Type filter (ALL | OPEN | CLOSE) ────────────────────────────────────────
+  protected readonly txTypeFilter = signal<TxTypeFilter>('ALL');
+
+  // ── Extra filters ───────────────────────────────────────────────────────────
+  protected readonly filterDecisionSource = signal('');
+  protected readonly filterMinAge = signal('');
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
   protected readonly stockSortCol = signal<StockTxCol>('tx_open_date');
@@ -92,45 +128,40 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns: string[] = [
-    'tx_type',
-    'tx_account',
-    'tx_symbol',
-    'tx_company',
-    'tx_shares',
-    'tx_avg_cost',
-    'tx_open_date',
-    'tx_close_date',
-    'tx_closing_price',
-    'tx_gain_loss',
-    'tx_gain_pct',
-    'tx_mkt_value',
-    'tx_actions',
-  ];
+  protected readonly stockColumns = inject(GridColumnService).getColumnKeys('transactions-stocks');
 
-  protected readonly optionColumns: string[] = [
-    'otx_type',
-    'otx_account',
-    'otx_ticker',
-    'otx_position',
-    'otx_expiry',
-    'otx_strike',
-    'otx_premium',
-    'otx_contracts',
-    'otx_open_date',
-    'otx_close_date',
-    'otx_closing_price',
-    'otx_gain_loss',
-    'otx_gain_pct',
-    'otx_mkt_value',
-    'otx_actions',
-  ];
+  protected readonly optionColumns =
+    inject(GridColumnService).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();
     const dir = this.stockSortDir() === 'asc' ? 1 : -1;
+    const filter = this.txTypeFilter();
+    const filterDs = this.filterDecisionSource().toLowerCase();
+    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
     return [...this.portfolio.summaries()]
-      .filter((s) => !s.item.isManual && s.item.transactionType === 'CLOSE')
+      .filter((s) => {
+        if (s.item.isManual) return false;
+        const type = s.item.transactionType;
+        if (filter === 'CLOSE') {
+          if (type !== 'CLOSE') return false;
+        } else if (filter === 'OPEN') {
+          if (!(type === 'OPEN' && (s.item.openDate ?? '') > OPEN_DATE_THRESHOLD)) return false;
+        } else {
+          if (type === 'CLOSE') {
+            /* ok */
+          } else if (type === 'OPEN') {
+            if ((s.item.openDate ?? '') <= OPEN_DATE_THRESHOLD) return false;
+          } else return false;
+        }
+        if (filterDs && !(s.item.decisionSource ?? '').toLowerCase().includes(filterDs))
+          return false;
+        if (minAge !== null && !isNaN(minAge)) {
+          const age = this.stockTransactionAge(s.item);
+          if (age === null || age < minAge) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         const av = this.stockSortValue(a, col);
         const bv = this.stockSortValue(b, col);
@@ -142,8 +173,31 @@ export class TransactionsPageComponent {
   protected readonly sortedOptionTransactions = computed(() => {
     const col = this.optionSortCol();
     const dir = this.optionSortDir() === 'asc' ? 1 : -1;
+    const filter = this.txTypeFilter();
+    const filterDs = this.filterDecisionSource().toLowerCase();
+    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
     return [...this.optionState.analyses()]
-      .filter((a) => a.item.transactionType === 'CLOSE')
+      .filter((a) => {
+        const type = a.item.transactionType;
+        if (filter === 'CLOSE') {
+          if (type !== 'CLOSE') return false;
+        } else if (filter === 'OPEN') {
+          if (!(type === 'OPEN' && (a.item.openDate ?? '') > OPEN_DATE_THRESHOLD)) return false;
+        } else {
+          if (type === 'CLOSE') {
+            /* ok */
+          } else if (type === 'OPEN') {
+            if ((a.item.openDate ?? '') <= OPEN_DATE_THRESHOLD) return false;
+          } else return false;
+        }
+        if (filterDs && !(a.item.decisionSource ?? '').toLowerCase().includes(filterDs))
+          return false;
+        if (minAge !== null && !isNaN(minAge)) {
+          const age = this.optionTransactionAge(a.item);
+          if (age === null || age < minAge) return false;
+        }
+        return true;
+      })
       .sort((a, b) => {
         const av = this.optionTxSortValue(a, col);
         const bv = this.optionTxSortValue(b, col);
@@ -159,6 +213,34 @@ export class TransactionsPageComponent {
     return (cp - s.item.averageCostBasis) * s.item.shares;
   }
 
+  /**
+   * Age in whole days for a stock transaction.
+   * OPEN: today − openDate. CLOSE: closeDate − openDate.
+   */
+  protected stockTransactionAge(item: any): number | null {
+    if (!item.openDate) return null;
+    const open = new Date(item.openDate).getTime();
+    const end =
+      item.transactionType === 'CLOSE' && item.closeDate
+        ? new Date(item.closeDate).getTime()
+        : Date.now();
+    return Math.floor((end - open) / (1000 * 60 * 60 * 24));
+  }
+
+  /**
+   * Age in whole days for an option transaction.
+   * OPEN: today − openDate. CLOSE: closeDate − openDate.
+   */
+  protected optionTransactionAge(item: any): number | null {
+    if (!item.openDate) return null;
+    const open = new Date(item.openDate).getTime();
+    const end =
+      item.transactionType === 'CLOSE' && item.closeDate
+        ? new Date(item.closeDate).getTime()
+        : Date.now();
+    return Math.floor((end - open) / (1000 * 60 * 60 * 24));
+  }
+
   /** Gain% for a stock row: gainLoss / (avgCost * shares) */
   protected stockGainPct(s: { item: any; quote: any }): number | null {
     const gl = this.stockGainLoss(s);
@@ -171,6 +253,26 @@ export class TransactionsPageComponent {
   protected stockMktValue(s: { item: any; quote: any }): number {
     const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
     return s.item.shares * price;
+  }
+
+  /** Last price (current market price) */
+  protected stockLastPrice(s: { item: any; quote: any }): number | null {
+    return s.quote?.currentPrice ?? null;
+  }
+
+  /**
+   * Price Diff for a stock row:
+   *   CLOSE: closingPrice - lastPrice
+   *   OPEN:  lastPrice - avgCost
+   */
+  protected stockPriceDiff(s: { item: any; quote: any }): number | null {
+    const lastPrice = s.quote?.currentPrice ?? null;
+    if (lastPrice === null) return null;
+    if (s.item.transactionType === 'CLOSE') {
+      return s.item.closingPrice != null ? s.item.closingPrice - lastPrice : null;
+    }
+    // OPEN: last price vs average cost
+    return lastPrice - s.item.averageCostBasis;
   }
 
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
@@ -192,6 +294,22 @@ export class TransactionsPageComponent {
   protected optionMktValue(a: any): number {
     return a.item.numberOfContracts * 100 * a.item.marketPrice;
   }
+
+  // ── Totals row computed signals (always based on CLOSE records only) ────────
+  protected readonly stockTotalGainLoss = computed(() =>
+    this.sortedStockTransactions()
+      .filter((s) => s.item.transactionType === 'CLOSE')
+      .reduce((sum, s) => sum + (this.stockGainLoss(s) ?? 0), 0),
+  );
+
+  protected readonly optionTotalGainLoss = computed(() =>
+    this.sortedOptionTransactions()
+      .filter((a) => a.item.transactionType === 'CLOSE')
+      .reduce((sum, a) => sum + (this.optionGainLoss(a) ?? 0), 0),
+  );
+
+  /** Whether the current filter includes CLOSE records (show totals row). */
+  protected readonly showTotalsRow = computed(() => this.txTypeFilter() !== 'OPEN');
 
   onStockSortChange(sort: Sort): void {
     if (!sort.active || sort.direction === '') return;
@@ -229,8 +347,14 @@ export class TransactionsPageComponent {
         return this.stockGainLoss(s) ?? 0;
       case 'tx_gain_pct':
         return this.stockGainPct(s) ?? 0;
-      case 'tx_mkt_value':
-        return this.stockMktValue(s);
+      case 'tx_last_price':
+        return s.quote?.currentPrice ?? 0;
+      case 'tx_price_diff':
+        return this.stockPriceDiff(s) ?? 0;
+      case 'tx_decision_source':
+        return s.item.decisionSource ?? '';
+      case 'tx_age':
+        return this.stockTransactionAge(s.item) ?? 0;
       default:
         return 0;
     }
@@ -266,6 +390,10 @@ export class TransactionsPageComponent {
         return this.optionGainPct(a) ?? 0;
       case 'otx_mkt_value':
         return this.optionMktValue(a);
+      case 'otx_decision_source':
+        return a.item.decisionSource ?? '';
+      case 'otx_age':
+        return this.optionTransactionAge(a.item) ?? 0;
       default:
         return 0;
     }
@@ -295,6 +423,7 @@ export class TransactionsPageComponent {
           openDate: result.openDate,
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
+          decisionSource: result.decisionSource,
         });
       });
   }
@@ -340,6 +469,37 @@ export class TransactionsPageComponent {
       .afterClosed()
       .subscribe((confirmed: boolean) => {
         if (confirmed) this.optionState.deleteItem(analysis.item.id);
+      });
+  }
+
+  openStockNotes(s: PortfolioSummary): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: { symbol: s.item.symbol, notes: s.item.notes } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.api.updatePortfolioNotes(s.item.id, result.notes).subscribe();
+        this.portfolio.patchItemNotes(s.item.id, result.notes);
+      });
+  }
+
+  openOptionNotes(analysis: OptionAnalysis): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: {
+          symbol: analysis.item.underlyingTicker,
+          notes: analysis.item.notes,
+        } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.api.updateOptionNotes(analysis.item.id, result.notes).subscribe();
+        this.optionState.patchItemNotes(analysis.item.id, result.notes);
       });
   }
 }

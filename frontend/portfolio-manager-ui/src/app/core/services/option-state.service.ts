@@ -27,10 +27,16 @@ export class OptionStateService {
   });
 
   readonly totalMarketValue = computed(() =>
-    this.analyses().reduce((acc, a) => acc + a.marketValue, 0),
+    this.analyses()
+      .filter((a) => a.item.transactionType !== 'CLOSE')
+      .reduce((acc, a) => acc + a.marketValue, 0),
   );
 
-  readonly totalCost = computed(() => this.analyses().reduce((acc, a) => acc + a.cost, 0));
+  readonly totalCost = computed(() =>
+    this.analyses()
+      .filter((a) => a.item.transactionType !== 'CLOSE')
+      .reduce((acc, a) => acc + a.cost, 0),
+  );
 
   constructor() {
     this.refresh();
@@ -114,6 +120,10 @@ export class OptionStateService {
         this.snackBar.open('Failed to remove option position', 'Dismiss', { duration: 4000 });
       },
     });
+  }
+
+  patchItemNotes(id: number, notes: string | null): void {
+    this._items.update((list) => list.map((x) => (x.id === id ? { ...x, notes } : x)));
   }
 
   private buildAnalysis(item: OptionItem): OptionAnalysis {

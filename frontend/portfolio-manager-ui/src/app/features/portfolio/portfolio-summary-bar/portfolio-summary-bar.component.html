@@ -6,44 +6,44 @@
     }}</span>
   </div>
   <div class="summary-tile">
-    <span class="label">Total Cost</span>
-    <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
-      totalCost() | currency
-    }}</span>
-  </div>
-  <div class="summary-tile">
-    <span class="label">Total Gain / Loss</span>
+    <span class="label">1 Day Change</span>
+    @let dayChange = oneDayChange();
     <span
       class="value"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+      [class.positive]="dayChange !== null && dayChange > 0"
+      [class.negative]="dayChange !== null && dayChange < 0"
       [class.demo-redact]="demoMode.isDemoMode()"
     >
-      <mat-icon>{{ isPositive() ? 'trending_up' : 'trending_down' }}</mat-icon>
-      {{ totalGainLoss() | currency }}
+      @if (oneDayChangeLoading()) {
+        <span class="dim">—</span>
+      } @else if (dayChange !== null) {
+        {{ dayChange >= 0 ? '+' : '' }}{{ dayChange | currency }}
+      } @else {
+        <span class="dim">—</span>
+      }
     </span>
   </div>
-  <div class="summary-tile">
-    <span class="label">Return</span>
-    <span
-      class="value"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
-      [class.demo-redact]="demoMode.isDemoMode()"
+  <!-- Portfolio Beta mini-tile -->
+  @if (betaState.result(); as beta) {
+    <div
+      class="summary-tile summary-tile--beta"
+      [class.beta-good]="beta.status === 'Good'"
+      [class.beta-warn]="beta.status === 'Warning'"
+      [class.beta-risk]="beta.status === 'TooMuchRisk'"
     >
-      {{ totalGainLossPct() | number: '1.2-2' }}%
-    </span>
-  </div>
-  <div class="summary-tile">
-    <span class="label">Day Gain / Loss</span>
-    <span
-      class="value"
-      [ngClass]="{ positive: dayGainIsPositive(), negative: !dayGainIsPositive() }"
-      [class.demo-redact]="demoMode.isDemoMode()"
-    >
-      <mat-icon>{{ dayGainIsPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-      {{ totalDayGain() >= 0 ? '+' : ''
-      }}{{ totalDayGain() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
-    </span>
-  </div>
+      <span class="label">Portfolio Beta</span>
+      <span
+        class="value"
+        [class.positive]="beta.status === 'Good'"
+        [class.negative]="beta.status === 'TooMuchRisk'"
+      >
+        {{ beta.portfolioBeta | number: '1.2-2' }}
+      </span>
+      <span class="beta-status">{{
+        beta.status === 'Good' ? 'Good' : beta.status === 'Warning' ? 'Warning' : 'High Risk'
+      }}</span>
+    </div>
+  }
   <div
     class="summary-tile"
     matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{

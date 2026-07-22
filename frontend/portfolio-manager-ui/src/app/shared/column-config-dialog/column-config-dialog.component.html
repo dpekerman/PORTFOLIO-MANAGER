@@ -1,0 +1,98 @@
+<h2 mat-dialog-title class="ccd-title">
+  <mat-icon class="ccd-title-icon">view_column</mat-icon>
+  <div class="ccd-title-text">
+    <span class="ccd-title-label">{{ grid?.label ?? 'Configure Columns' }}</span>
+    @if (grid) {
+      <span class="ccd-page-badge">{{ grid.page }}</span>
+    }
+  </div>
+  <span class="ccd-visible-count" [class.ccd-count-custom]="hasCustomisation()">
+    {{ visibleCount() }}&thinsp;/&thinsp;{{ workingPrefs().length }} visible
+  </span>
+  <button
+    mat-icon-button
+    mat-dialog-close
+    class="ccd-close-btn"
+    matTooltip="Close"
+    aria-label="Close"
+  >
+    <mat-icon>close</mat-icon>
+  </button>
+</h2>
+
+<mat-dialog-content class="ccd-content">
+  <p class="ccd-hint">
+    Drag rows to reorder columns. Use the toggles to show or hide. Changes are saved automatically.
+  </p>
+
+  <div class="ccd-col-list" role="list" cdkDropList (cdkDropListDropped)="onDrop($event)">
+    @for (pref of workingPrefs(); track pref.key; let i = $index; let last = $last) {
+      <div
+        class="ccd-col-row"
+        [class.ccd-col-hidden]="!pref.visible"
+        role="listitem"
+        cdkDrag
+        cdkDragBoundary=".ccd-col-list"
+      >
+        <!-- Drag handle -->
+        <button
+          mat-icon-button
+          class="ccd-drag-handle"
+          cdkDragHandle
+          matTooltip="Drag to reorder"
+          aria-label="Drag to reorder"
+        >
+          <mat-icon>drag_indicator</mat-icon>
+        </button>
+
+        <!-- Position number -->
+        <span class="ccd-col-index">{{ i + 1 }}</span>
+
+        <!-- Column label -->
+        <span class="ccd-col-label">{{ getLabel(pref.key) }}</span>
+
+        <!-- Visibility toggle -->
+        <mat-slide-toggle
+          class="ccd-toggle"
+          [checked]="pref.visible"
+          (change)="setVisible(i, $event.checked)"
+          [attr.aria-label]="'Show ' + getLabel(pref.key) + ' column'"
+        />
+      </div>
+    }
+
+    <!-- Pinned columns — informational -->
+    @if (grid) {
+      @for (col of grid.columns; track col.key) {
+        @if (col.pinned) {
+          <div class="ccd-col-row ccd-col-pinned" role="listitem">
+            <button mat-icon-button class="ccd-drag-handle" disabled aria-label="Pinned">
+              <mat-icon>lock</mat-icon>
+            </button>
+            <span class="ccd-col-index">—</span>
+            <span class="ccd-col-label">{{ col.label }}</span>
+            <span class="ccd-pinned-badge">Pinned</span>
+          </div>
+        }
+      }
+    }
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions class="ccd-actions" align="end">
+  <button
+    mat-stroked-button
+    color="warn"
+    (click)="resetToDefaults()"
+    [disabled]="!hasCustomisation()"
+    matTooltip="Restore default column order and visibility"
+  >
+    <mat-icon>restart_alt</mat-icon>
+    Reset to defaults
+  </button>
+  <span class="ccd-actions-spacer"></span>
+  <button mat-flat-button mat-dialog-close>
+    <mat-icon>check</mat-icon>
+    Done
+  </button>
+</mat-dialog-actions>

@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { PortfolioItem } from '../../../core/models/portfolio.models';
+import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
@@ -29,6 +30,7 @@ export interface EditPositionDialogResult {
   openDate: string | null;
   closeDate: string | null;
   closingPrice: number | null;
+  decisionSource: string | null;
 }
 
 @Component({
@@ -53,11 +55,13 @@ export class EditPositionDialogComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dialogRef = inject(MatDialogRef<EditPositionDialogComponent>);
   private readonly api = inject(PortfolioApiService);
+  private readonly configService = inject(ConfigService);
   protected readonly data: EditPositionDialogData = inject(MAT_DIALOG_DATA);
 
   protected readonly sectors = signal<string[]>([]);
   protected readonly industries = signal<string[]>([]);
   protected readonly accountTypes = ACCOUNT_TYPES;
+  protected readonly decisionSources = this.configService.config().decisionSources;
 
   private toDate(val: string | null | undefined): Date | null {
     if (!val) return null;
@@ -86,6 +90,7 @@ export class EditPositionDialogComponent implements OnInit {
     openDate: [this.toDate(this.data.item.openDate) as Date | null],
     closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
     closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
+    decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
   });
 
   ngOnInit(): void {
@@ -116,6 +121,7 @@ export class EditPositionDialogComponent implements OnInit {
       openDate: this.formatDate(this.form.value.openDate),
       closeDate: this.formatDate(this.form.value.closeDate),
       closingPrice: this.form.value.closingPrice ?? null,
+      decisionSource: this.form.value.decisionSource ?? null,
     };
     this.dialogRef.close(result);
   }

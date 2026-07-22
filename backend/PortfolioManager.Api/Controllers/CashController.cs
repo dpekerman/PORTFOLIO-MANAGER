@@ -42,4 +42,20 @@ public class CashController(ICashService cashService) : ControllerBase
         var deleted = await cashService.DeleteAsync(id, ct);
         return deleted ? NoContent() : NotFound();
     }
+
+    /// <summary>Exports all cash items as a JSON backup payload.</summary>
+    [HttpGet("backup")]
+    public async Task<ActionResult<IReadOnlyList<CashBackupItem>>> Backup(CancellationToken ct)
+    {
+        var items = await cashService.BackupAsync(ct);
+        return Ok(items);
+    }
+
+    /// <summary>Clears all cash items and restores from the provided backup payload.</summary>
+    [HttpPost("restore")]
+    public async Task<IActionResult> Restore([FromBody] RestoreCashRequest request, CancellationToken ct)
+    {
+        var count = await cashService.RestoreAsync(request.Items, ct);
+        return Ok(new { restored = count });
+    }
 }

@@ -61,15 +61,94 @@ USING (
     ('20260618010551_AddCashOptionAndAdhocTables', '8.0.0'),
     ('20260619000000_AddTransactionFields', '8.0.0'),
     ('20260619000002_RemovePortfolioSymbolUniqueConstraint', '8.0.0'),
-    ('20260622183326_AddRoleAndHoldingRole', '8.0.0')
+    ('20260622183326_AddRoleAndHoldingRole', '8.0.0'),
+    ('20260623153856_AddNotesFields', '8.0.0'),
+    ('20260624000000_AddDailySignals', '8.0.0'),
+    ('20260707000001_AddWatchlistFavorite', '8.0.0'),
+    ('20260708000002_AddDecisionSourceAndCashAccount', '8.0.0'),
+    ('20260708000003_AddAllocationRiskTables', '8.0.0'),
+    ('20260712000001_AddValueScreenerPersistence', '8.0.0'),
+    ('20260719000001_AddPortfolioValueHistory', '8.0.0')
 ) AS source ([MigrationId], [ProductVersion])
 ON target.[MigrationId] = source.[MigrationId]
 WHEN NOT MATCHED THEN
     INSERT ([MigrationId], [ProductVersion])
     VALUES (source.[MigrationId], source.[ProductVersion]);
-PRINT 'EF Migrations history stamped (8 entries).';
+PRINT 'EF Migrations history stamped (15 entries).';
 GO
 
 PRINT '';
 PRINT '=== Seed data applied successfully ===';
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- Seed: Allocation & Risk default data (2026-07-08)
+-- Only inserts if the tables are empty to avoid duplicating on re-runs.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM [dbo].[AllocationRiskTargets])
+BEGIN
+    INSERT INTO [dbo].[AllocationRiskTargets]
+        ([Role],[TargetPct],[DisplayOrder])
+    VALUES
+        ('Core', 40, 1),
+        ('Strategic', 15, 2),
+        ('Strategic-Income', 5, 3),
+        ('Swing', 20, 4),
+        ('Speculative', 10, 5),
+        ('Options', 5, 6),
+        ('Cash', 5, 7);
+    PRINT 'AllocationRiskTargets seeded with defaults.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1
+FROM [dbo].[AllocationSectorTargets])
+BEGIN
+    INSERT INTO [dbo].[AllocationSectorTargets]
+        ([Sector],[TargetPct],[DisplayOrder])
+    VALUES
+        ('Energy', 20, 1),
+        ('Industrials', 20, 2),
+        ('Financial Services', 15, 3),
+        ('Communication Services', 5, 4),
+        ('Utilities', 10, 5),
+        ('Technology', 10, 6),
+        ('Healthcare', 5, 7),
+        ('Consumer Defensive', 10, 8),
+        ('Materials', 3, 9),
+        ('Cash', 2, 10);
+    PRINT 'AllocationSectorTargets seeded with defaults.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1
+FROM [dbo].[SinglePositionLimits])
+BEGIN
+    INSERT INTO [dbo].[SinglePositionLimits]
+        ([Role],[TargetPct],[DisplayOrder])
+    VALUES
+        ('Core', 5, 1),
+        ('Strategic', 5, 2),
+        ('Strategic-Income', 5, 3),
+        ('Swing', 2, 4),
+        ('Speculative', 2, 5),
+        ('Options', 1, 6);
+    PRINT 'SinglePositionLimits seeded with defaults.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- Seed: ValueScreenerScheduleConfigs default row (2026-07-12)
+-- Inserts the default schedule config if the table is empty.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM [dbo].[ValueScreenerScheduleConfigs])
+BEGIN
+    INSERT INTO [dbo].[ValueScreenerScheduleConfigs]
+        ([ScheduledTimeEt], [Enabled])
+    VALUES
+        ('17:00', 1);
+    PRINT 'ValueScreenerScheduleConfigs seeded with default (17:00, enabled).';
+END
 GO

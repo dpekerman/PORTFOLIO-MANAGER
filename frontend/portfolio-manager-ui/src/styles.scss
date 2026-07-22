@@ -39,12 +39,12 @@ body.light-theme {
   --bg-elevated: #1e1e1e;
   --bg-hover: #222222;
   --bg-border: #2a2a2a;
-  --text-primary: #e0e0e0;
-  --text-secondary: #9e9e9e;
-  --text-muted: #616161;
-  --text-faint: #424242;
-  --border-color: #1e1e1e;
-  --border-subtle: #2a2a2a;
+  --text-primary: #ececec;
+  --text-secondary: #c0c0c0;
+  --text-muted: #8c8c8c;
+  --text-faint: #6b6b6b;
+  --border-color: #2a2a2a;
+  --border-subtle: #333333;
   --shadow-card: rgba(0, 0, 0, 0.4);
 }
 
@@ -56,12 +56,12 @@ body.light-theme {
   --bg-elevated: #f0f0f0;
   --bg-hover: #e8e8e8;
   --bg-border: #bdbdbd;
-  --text-primary: #212121;
-  --text-secondary: #424242;
-  --text-muted: #757575;
-  --text-faint: #9e9e9e;
-  --border-color: #e0e0e0;
-  --border-subtle: #bdbdbd;
+  --text-primary: #1a1a1a;
+  --text-secondary: #333333;
+  --text-muted: #595959;
+  --text-faint: #858585;
+  --border-color: #d4d4d4;
+  --border-subtle: #c4c4c4;
   --shadow-card: rgba(0, 0, 0, 0.08);
 }
 
@@ -165,4 +165,20 @@ button.mat-mdc-button-base mat-icon,
 a.mat-mdc-button-base mat-icon {
   vertical-align: middle;
   flex-shrink: 0;
+}
+
+// ── Global grid header contrast improvements ─────────────────────────────────
+.mat-mdc-header-cell {
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em;
+}
+
+// -- Column Config button — embedded in sticky grid header (all grids) ----------
+.col-config-th {
+  width: 44px;
+  min-width: 44px;
+  padding: 4px 6px !important;
+  text-align: right !important;
+  vertical-align: middle !important;
 }

@@ -136,16 +136,35 @@ BEGIN
         ALTER TABLE [dbo].[PortfolioItems] ADD [HoldingRole] NVARCHAR(20) NULL;
         PRINT '  + Column HoldingRole added.';
     END
+
+    -- AddNotesFields column
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'Notes')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [Notes] NVARCHAR(MAX) NULL;
+        PRINT '  + Column Notes added.';
+    END
+
+    -- AddDecisionSource column (2026-07-08)
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioItems]') AND name = N'DecisionSource')
+    BEGIN
+        ALTER TABLE [dbo].[PortfolioItems] ADD [DecisionSource] NVARCHAR(50) NULL;
+        PRINT '  + Column DecisionSource added.';
+    END
 END
 GO
 
 -- Non-unique index on Symbol (allows multiple positions in same symbol across accounts)
 -- Note: was unique in early migrations; constraint removed by RemovePortfolioSymbolUniqueConstraint
 IF EXISTS (
-    SELECT 1 FROM sys.indexes
-    WHERE name = N'IX_PortfolioItems_Symbol'
-      AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
-      AND is_unique = 1
+    SELECT 1
+FROM sys.indexes
+WHERE name = N'IX_PortfolioItems_Symbol'
+    AND object_id = OBJECT_ID(N'[dbo].[PortfolioItems]')
+    AND is_unique = 1
 )
 BEGIN
     -- Drop the old unique index and recreate as non-unique
@@ -193,8 +212,9 @@ ELSE
 BEGIN
     PRINT 'Table WatchlistItems already exists – checking for missing columns...';
 
-    IF NOT EXISTS (SELECT 1 FROM sys.columns
-        WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND name = N'Role')
+    IF NOT EXISTS (SELECT 1
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND name = N'Role')
     BEGIN
         ALTER TABLE [dbo].[WatchlistItems] ADD [Role] NVARCHAR(20) NOT NULL DEFAULT 'Strategic';
         PRINT '  + Column Role added.';
@@ -371,4 +391,206 @@ GO
 
 PRINT '';
 PRINT '=== All tables verified / created successfully ===';
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- Additional columns added 2026-07-08
+-- ────────────────────────────────────────────────────────────────────────────
+
+-- CashItems: AccountType (AddCashAccountType migration)
+IF NOT EXISTS (SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[CashItems]') AND name = N'AccountType')
+BEGIN
+    ALTER TABLE [dbo].[CashItems] ADD [AccountType] NVARCHAR(30) NULL;
+    PRINT '+ CashItems.AccountType added.';
+END
+GO
+
+-- OptionItems: DecisionSource
+IF NOT EXISTS (SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[OptionItems]') AND name = N'DecisionSource')
+BEGIN
+    ALTER TABLE [dbo].[OptionItems] ADD [DecisionSource] NVARCHAR(50) NULL;
+    PRINT '+ OptionItems.DecisionSource added.';
+END
+GO
+
+-- WatchlistItems: IsFavorite (AddWatchlistFavorite migration)
+IF NOT EXISTS (SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[WatchlistItems]') AND name = N'IsFavorite')
+BEGIN
+    ALTER TABLE [dbo].[WatchlistItems] ADD [IsFavorite] BIT NOT NULL DEFAULT 0;
+    PRINT '+ WatchlistItems.IsFavorite added.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: AllocationRiskTargets  (2026-07-08)
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[AllocationRiskTargets]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[AllocationRiskTargets]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Role] NVARCHAR(30) NOT NULL,
+        [TargetPct] DECIMAL(5,2) NOT NULL,
+        [DisplayOrder] INT NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_AllocationRiskTargets] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table AllocationRiskTargets created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: AllocationSectorTargets  (2026-07-08)
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[AllocationSectorTargets]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[AllocationSectorTargets]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Sector] NVARCHAR(100) NOT NULL,
+        [TargetPct] DECIMAL(5,2) NOT NULL,
+        [DisplayOrder] INT NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_AllocationSectorTargets] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table AllocationSectorTargets created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: SinglePositionLimits  (2026-07-08)
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[SinglePositionLimits]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[SinglePositionLimits]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Role] NVARCHAR(30) NOT NULL,
+        [TargetPct] DECIMAL(5,2) NOT NULL,
+        [DisplayOrder] INT NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_SinglePositionLimits] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table SinglePositionLimits created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: PortfolioValueHistories  (2026-07-19)
+-- Stores end-of-day portfolio value snapshots persisted at 4:30 PM ET.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[PortfolioValueHistories]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[PortfolioValueHistories]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [RecordedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [RecordedDate] NVARCHAR(10) NOT NULL DEFAULT '',
+        [TotalValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [StocksValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [CashValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        [OptionsValue] DECIMAL(18,4) NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_PortfolioValueHistories] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_PortfolioValueHistories_RecordedDate]
+        ON [dbo].[PortfolioValueHistories] ([RecordedDate] ASC);
+    PRINT 'Table PortfolioValueHistories created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: ValueScreenerSnapshots  (2026-07-12)
+-- Persists the latest Value Screener run results per origin (portfolio/watchlist).
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerSnapshots]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerSnapshots]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Origin] NVARCHAR(20) NOT NULL,
+        [RunAt] DATETIME2 NOT NULL,
+        [ResultsJson] NVARCHAR(MAX) NOT NULL DEFAULT '[]',
+        CONSTRAINT [PK_ValueScreenerSnapshots] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_ValueScreenerSnapshots_Origin_RunAt]
+        ON [dbo].[ValueScreenerSnapshots] ([Origin] ASC, [RunAt] ASC);
+    PRINT 'Table ValueScreenerSnapshots created.';
+END
+GO
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- TABLE: ValueScreenerScheduleConfigs  (2026-07-12)
+-- Stores the single schedule configuration row for the Value Screener.
+-- ────────────────────────────────────────────────────────────────────────────
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerScheduleConfigs]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerScheduleConfigs]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [ScheduledTimeEt] NVARCHAR(10) NOT NULL DEFAULT '17:00',
+        [Enabled] BIT NOT NULL DEFAULT 1,
+        [LastPortfolioRunAt] DATETIME2 NULL,
+        [LastWatchlistRunAt] DATETIME2 NULL,
+        CONSTRAINT [PK_ValueScreenerScheduleConfigs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table ValueScreenerScheduleConfigs created.';
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- TABLE: ValueScreenerSnapshots  (2026-07-12)
+-- Persists the latest Value Screener run results per origin (portfolio/watchlist).
+-- ----------------------------------------------------------------------------
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerSnapshots]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerSnapshots]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [Origin] NVARCHAR(20) NOT NULL,
+        [RunAt] DATETIME2 NOT NULL,
+        [ResultsJson] NVARCHAR(MAX) NOT NULL DEFAULT '[]',
+        CONSTRAINT [PK_ValueScreenerSnapshots] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    CREATE NONCLUSTERED INDEX [IX_ValueScreenerSnapshots_Origin_RunAt]
+        ON [dbo].[ValueScreenerSnapshots] ([Origin] ASC, [RunAt] ASC);
+    PRINT 'Table ValueScreenerSnapshots created.';
+END
+GO
+
+-- ----------------------------------------------------------------------------
+-- TABLE: ValueScreenerScheduleConfigs  (2026-07-12)
+-- Stores the single schedule configuration row for the Value Screener.
+-- ----------------------------------------------------------------------------
+IF NOT EXISTS (SELECT 1
+FROM sys.objects
+WHERE object_id = OBJECT_ID(N'[dbo].[ValueScreenerScheduleConfigs]') AND type = N'U')
+BEGIN
+    CREATE TABLE [dbo].[ValueScreenerScheduleConfigs]
+    (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [ScheduledTimeEt] NVARCHAR(10) NOT NULL DEFAULT '17:00',
+        [Enabled] BIT NOT NULL DEFAULT 1,
+        [LastPortfolioRunAt] DATETIME2 NULL,
+        [LastWatchlistRunAt] DATETIME2 NULL,
+        CONSTRAINT [PK_ValueScreenerScheduleConfigs] PRIMARY KEY CLUSTERED ([Id] ASC)
+    );
+    PRINT 'Table ValueScreenerScheduleConfigs created.';
+END
 GO

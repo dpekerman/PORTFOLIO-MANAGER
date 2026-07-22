@@ -11,6 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { OptionItem } from '../../../core/models/portfolio.models';
+import { ConfigService } from '../../../core/services/config.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
@@ -41,10 +42,12 @@ export class EditOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly optionState = inject(OptionStateService);
   private readonly dialogRef = inject(MatDialogRef<EditOptionDialogComponent>);
+  private readonly configService = inject(ConfigService);
   protected readonly data = inject<EditOptionDialogData>(MAT_DIALOG_DATA);
 
   protected readonly saving = signal(false);
   protected readonly accountTypes = ACCOUNT_TYPES;
+  protected readonly decisionSources = this.configService.config().decisionSources;
 
   /** Parse date string to Date object for the datepicker */
   private toDate(dateStr: string | null | undefined): Date | null {
@@ -87,6 +90,7 @@ export class EditOptionDialogComponent {
     openDate: [this.toDate(this.data.item.openDate) as Date | null],
     closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
     closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
+    decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
   });
 
   async submit(): Promise<void> {
@@ -107,6 +111,7 @@ export class EditOptionDialogComponent {
         openDate: this.formatDate(this.form.value.openDate),
         closeDate: this.formatDate(this.form.value.closeDate),
         closingPrice: this.form.value.closingPrice ?? null,
+        decisionSource: this.form.value.decisionSource ?? null,
       });
       this.dialogRef.close(true);
     } finally {

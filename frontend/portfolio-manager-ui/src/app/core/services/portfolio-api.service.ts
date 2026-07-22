@@ -8,14 +8,24 @@ import {
   AddPortfolioItemRequest,
   AdhocSessionPayload,
   AdhocSessionResponse,
+  AllocationRiskConfig,
+  AllocationRiskTarget,
+  AllocationSectorTarget,
   CashItem,
+  DailySignalPagedResponse,
+  EodSignalFilters,
+  EodSignalsMeta,
+  MarketIndicesResponse,
   OptionItem,
   OptionTechnicalData,
+  PortfolioBetaResult,
   PortfolioItem,
   PortfolioSummary,
+  PortfolioValueHistoryDto,
   RsiScanResult,
   ScannerResponse,
   SectorIndustryLists,
+  SinglePositionLimit,
   StockQuote,
   SymbolSearchResult,
   UpdateCashItemRequest,
@@ -99,8 +109,20 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/role`, { role });
   }
 
+  updateWatchlistFavorite(id: number, isFavorite: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/favorite`, { isFavorite });
+  }
+
+  updateWatchlistNotes(id: number, notes: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/notes`, { notes });
+  }
+
   updatePortfolioHoldingRole(id: number, holdingRole: string): Observable<void> {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/holding-role`, { holdingRole });
+  }
+
+  updatePortfolioNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/portfolio/${id}/notes`, { notes });
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
@@ -146,11 +168,15 @@ export class PortfolioApiService {
     eodWindowStart: string;
     eodWindowEnd: string;
     eodWindowEnabled: boolean;
+    eodOversoldRsiThreshold: number;
+    eodOverboughtRsiThreshold: number;
   }> {
     return this.http.get<{
       eodWindowStart: string;
       eodWindowEnd: string;
       eodWindowEnabled: boolean;
+      eodOversoldRsiThreshold: number;
+      eodOverboughtRsiThreshold: number;
     }>(`${this.base}/scanner/eod-settings`);
   }
 
@@ -159,6 +185,8 @@ export class PortfolioApiService {
     eodWindowStart: string;
     eodWindowEnd: string;
     eodWindowEnabled: boolean;
+    eodOversoldRsiThreshold: number;
+    eodOverboughtRsiThreshold: number;
   }): Observable<void> {
     return this.http.put<void>(`${this.base}/scanner/eod-settings`, settings);
   }
@@ -202,6 +230,49 @@ export class PortfolioApiService {
     return this.http.post<ValueScreenerResult[]>(`${this.base}/valuescreener/analyze`, request);
   }
 
+  getLatestValueScreener(): Observable<{
+    portfolio: ValueScreenerResult[];
+    portfolioRunAt: string | null;
+    watchlist: ValueScreenerResult[];
+    watchlistRunAt: string | null;
+  }> {
+    return this.http.get<{
+      portfolio: ValueScreenerResult[];
+      portfolioRunAt: string | null;
+      watchlist: ValueScreenerResult[];
+      watchlistRunAt: string | null;
+    }>(`${this.base}/valuescreener/latest`);
+  }
+
+  refreshValueScreener(): Observable<{
+    portfolio: ValueScreenerResult[];
+    portfolioRunAt: string | null;
+    watchlist: ValueScreenerResult[];
+    watchlistRunAt: string | null;
+  }> {
+    return this.http.post<{
+      portfolio: ValueScreenerResult[];
+      portfolioRunAt: string | null;
+      watchlist: ValueScreenerResult[];
+      watchlistRunAt: string | null;
+    }>(`${this.base}/valuescreener/refresh`, {});
+  }
+
+  getValueScreenerSchedule(): Observable<{ scheduledTimeEt: string; enabled: boolean }> {
+    return this.http.get<{ scheduledTimeEt: string; enabled: boolean }>(
+      `${this.base}/valuescreener/schedule`,
+    );
+  }
+
+  updateValueScreenerSchedule(scheduledTimeEt: string, enabled: boolean): Observable<void> {
+    return this.http.put<void>(`${this.base}/valuescreener/schedule`, { scheduledTimeEt, enabled });
+  }
+
+  clearValueScreenerData(origin?: string): Observable<void> {
+    const params = origin ? `?origin=${origin}` : '';
+    return this.http.delete<void>(`${this.base}/valuescreener/data${params}`);
+  }
+
   // ── Sector / Industry Lists ─────────────────────────────────────────────────
   getSectorIndustryLists(): Observable<SectorIndustryLists> {
     return this.http.get<SectorIndustryLists>(`${this.base}/sector-industry`);
@@ -209,6 +280,17 @@ export class PortfolioApiService {
 
   saveSectorIndustryLists(lists: SectorIndustryLists): Observable<SectorIndustryLists> {
     return this.http.put<SectorIndustryLists>(`${this.base}/sector-industry`, lists);
+  }
+
+  // ── Decision Sources (dedicated endpoint, independent of sectors/industries) ──
+  getDecisionSources(): Observable<{ items: string[] }> {
+    return this.http.get<{ items: string[] }>(`${this.base}/sector-industry/decision-sources`);
+  }
+
+  saveDecisionSourcesList(items: string[]): Observable<{ items: string[] }> {
+    return this.http.put<{ items: string[] }>(`${this.base}/sector-industry/decision-sources`, {
+      items,
+    });
   }
 
   // ── Cash CRUD ───────────────────────────────────────────────────────────────
@@ -245,7 +327,196 @@ export class PortfolioApiService {
     return this.http.delete<void>(`${this.base}/options/${id}`);
   }
 
+  updateOptionNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/options/${id}/notes`, { notes });
+  }
+
   getOptionTechnicalData(symbol: string): Observable<OptionTechnicalData> {
     return this.http.get<OptionTechnicalData>(`${this.base}/options/technical/${symbol}`);
+  }
+
+  // ── EOD Signals Dashboard ───────────────────────────────────────────────────
+
+  getEodSignals(filters: EodSignalFilters): Observable<DailySignalPagedResponse> {
+    let params = new HttpParams().set('page', filters.page).set('pageSize', filters.pageSize);
+    if (filters.ticker) params = params.set('ticker', filters.ticker);
+    if (filters.scanType) params = params.set('scanType', filters.scanType);
+    if (filters.signalType) params = params.set('signalType', filters.signalType);
+    if (filters.signalState) params = params.set('signalState', filters.signalState);
+    if (filters.ruleVersion) params = params.set('ruleVersion', filters.ruleVersion);
+    if (filters.dateFrom) params = params.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) params = params.set('dateTo', filters.dateTo);
+    return this.http.get<DailySignalPagedResponse>(`${this.base}/eod-signals`, { params });
+  }
+
+  getEodSignalsMeta(): Observable<EodSignalsMeta> {
+    return this.http.get<EodSignalsMeta>(`${this.base}/eod-signals/meta`);
+  }
+
+  updateEodSignalState(id: number, signalState: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/eod-signals/${id}/state`, { signalState });
+  }
+
+  updateEodSignalNotes(id: number, notes: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/eod-signals/${id}/notes`, { notes });
+  }
+
+  deleteEodSignal(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/eod-signals/${id}`);
+  }
+
+  deleteAllEodSignals(
+    ticker?: string,
+    dateFrom?: string,
+    dateTo?: string,
+  ): Observable<{ deleted: number }> {
+    let params = new HttpParams().set('confirm', 'true');
+    if (ticker) params = params.set('ticker', ticker);
+    if (dateFrom) params = params.set('dateFrom', dateFrom);
+    if (dateTo) params = params.set('dateTo', dateTo);
+    return this.http.delete<{ deleted: number }>(`${this.base}/eod-signals`, { params });
+  }
+
+  seedEodSignals(): Observable<{ seeded: number; skipped: number }> {
+    return this.http.post<{ seeded: number; skipped: number }>(`${this.base}/eod-signals/seed`, {});
+  }
+
+  persistEodSignalsNow(): Observable<{ persisted: number; eodConfirm: number; confirmed: number }> {
+    return this.http.post<{ persisted: number; eodConfirm: number; confirmed: number }>(
+      `${this.base}/eod-signals/persist-now`,
+      {},
+    );
+  }
+
+  // ── Backup / Restore ────────────────────────────────────────────────────────
+
+  backupWatchlist(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/watchlist/backup`);
+  }
+
+  restoreWatchlist(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/watchlist/restore`, request);
+  }
+
+  backupCash(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/cash/backup`);
+  }
+
+  restoreCash(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/cash/restore`, request);
+  }
+
+  backupOptions(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/options/backup`);
+  }
+
+  restoreOptions(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/options/restore`, request);
+  }
+
+  // ── Portfolio Value History ─────────────────────────────────────────────────
+  getPortfolioValueHistory(count = 30): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.get<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/latest?count=${count}`,
+    );
+  }
+
+  /** Immediately records the current portfolio value (seeds DB when background service hasn't fired). */
+  recordPortfolioValueNow(): Observable<PortfolioValueHistoryDto> {
+    return this.http.post<PortfolioValueHistoryDto>(
+      `${this.base}/portfoliovaluehistory/record-now`,
+      {},
+    );
+  }
+
+  // ── Portfolio Beta ──────────────────────────────────────────────────────────
+  getPortfolioBeta(): Observable<PortfolioBetaResult> {
+    return this.http.get<PortfolioBetaResult>(`${this.base}/portfoliobeta`);
+  }
+
+  /** Calculate portfolio beta applying user-supplied overrides (symbol → beta). */
+  calculatePortfolioBeta(betaOverrides: Record<string, number>): Observable<PortfolioBetaResult> {
+    return this.http.post<PortfolioBetaResult>(`${this.base}/portfoliobeta/calculate`, {
+      betaOverrides,
+    });
+  }
+
+  getMarketIndices(force = false): Observable<MarketIndicesResponse> {
+    return this.http.get<MarketIndicesResponse>(
+      `${this.base}/scanner/market-indices${force ? '?force=true' : ''}`,
+    );
+  }
+
+  backupPortfolio(): Observable<unknown[]> {
+    return this.http.get<unknown[]>(`${this.base}/portfolio/backup`);
+  }
+
+  restorePortfolio(request: { items: unknown[] }): Observable<{ restored: number }> {
+    return this.http.post<{ restored: number }>(`${this.base}/portfolio/restore`, request);
+  }
+
+  // ── Allocation & Risk Management ────────────────────────────────────────────
+  getAllocationRiskConfig(): Observable<AllocationRiskConfig> {
+    return this.http.get<AllocationRiskConfig>(`${this.base}/allocation-risk`);
+  }
+
+  upsertRiskTarget(
+    id: number | null,
+    role: string,
+    targetPct: number,
+  ): Observable<AllocationRiskTarget> {
+    if (id)
+      return this.http.put<AllocationRiskTarget>(
+        `${this.base}/allocation-risk/risk-targets/${id}`,
+        { role, targetPct },
+      );
+    return this.http.post<AllocationRiskTarget>(`${this.base}/allocation-risk/risk-targets`, {
+      role,
+      targetPct,
+    });
+  }
+
+  deleteRiskTarget(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/risk-targets/${id}`);
+  }
+
+  upsertSectorTarget(
+    id: number | null,
+    sector: string,
+    targetPct: number,
+  ): Observable<AllocationSectorTarget> {
+    if (id)
+      return this.http.put<AllocationSectorTarget>(
+        `${this.base}/allocation-risk/sector-targets/${id}`,
+        { sector, targetPct },
+      );
+    return this.http.post<AllocationSectorTarget>(`${this.base}/allocation-risk/sector-targets`, {
+      sector,
+      targetPct,
+    });
+  }
+
+  deleteSectorTarget(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/sector-targets/${id}`);
+  }
+
+  upsertPositionLimit(
+    id: number | null,
+    role: string,
+    targetPct: number,
+  ): Observable<SinglePositionLimit> {
+    if (id)
+      return this.http.put<SinglePositionLimit>(
+        `${this.base}/allocation-risk/position-limits/${id}`,
+        { role, targetPct },
+      );
+    return this.http.post<SinglePositionLimit>(`${this.base}/allocation-risk/position-limits`, {
+      role,
+      targetPct,
+    });
+  }
+
+  deletePositionLimit(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/allocation-risk/position-limits/${id}`);
   }
 }

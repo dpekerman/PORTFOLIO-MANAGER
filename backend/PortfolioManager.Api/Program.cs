@@ -43,6 +43,7 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddScoped<IAllocationRiskService, AllocationRiskService>();
 builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
 {
     client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
@@ -58,6 +59,10 @@ builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 builder.Services.AddScoped<ValueScreenerService>();
+// Singleton: persists/reads Value Screener results from DB
+builder.Services.AddSingleton<ValueScreenerPersistenceService>();
+// Background service: runs Value Screener at configured time (default 5 PM ET weekdays)
+builder.Services.AddHostedService<ValueScreenerSchedulerService>();
 
 // ── CORS (allow Angular dev server) ──────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -79,6 +84,8 @@ builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
         cfg.EodWindowEnd = section["EodWindowEnd"]!;
     if (bool.TryParse(section["EodWindowEnabled"], out var enabled))
         cfg.EodWindowEnabled = enabled;
+    // Load persisted overrides (saved via PUT /api/scanner/eod-settings), takes priority over appsettings
+    cfg.LoadFromFile();
     return cfg;
 });
 
@@ -96,18 +103,33 @@ builder.Services.AddSingleton<EodSignalPersistenceService>();
 // regardless of which page is open in the frontend
 builder.Services.AddHostedService<RsiAlertBackgroundService>();
 
+// Portfolio value history: persists EOD portfolio value daily at 4:30 PM ET
+builder.Services.AddScoped<IPortfolioValueHistoryService, PortfolioValueHistoryService>();
+builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
+
+// Portfolio beta calculation
+builder.Services.AddScoped<IPortfolioBetaService, PortfolioBetaService>();
+
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
+// Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+}
+catch (Exception ex)
+{
+    var startupLog = app.Services.GetRequiredService<ILogger<Program>>();
+    startupLog.LogError(ex, "EF migration failed on startup — some tables may be missing.");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
-
-    // Auto-apply EF migrations on startup in development
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.MigrateAsync();
 }
 
 app.UseCors("AngularDevPolicy");

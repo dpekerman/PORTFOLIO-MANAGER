@@ -10,14 +10,23 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
+import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Observable, forkJoin, of } from 'rxjs';
+import {
+  AllocationRiskConfig,
+  AllocationRiskTarget,
+  AllocationSectorTarget,
+  SinglePositionLimit,
+} from '../../core/models/portfolio.models';
 import { ConfigService } from '../../core/services/config.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -38,8 +47,10 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
     MatIconModule,
     MatInputModule,
     MatListModule,
+    MatSelectModule,
     MatSlideToggleModule,
     MatTimepickerModule,
+    MatDialogModule,
     MatTooltipModule,
   ],
 })
@@ -50,6 +61,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly scannerState = inject(ScannerStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly dialog = inject(MatDialog);
 
   // ── Refresh interval + RSI form ──────────────────────────────────────────
   protected readonly form = this.fb.group({
@@ -88,10 +100,24 @@ export class ConfigPageComponent implements OnInit {
       [Validators.required],
     ],
     eodWindowEnabled: [this.configService.config().eodWindowEnabled],
+    eodOversoldRsiThreshold: [25, [Validators.required, Validators.min(1), Validators.max(49)]],
+    eodOverboughtRsiThreshold: [75, [Validators.required, Validators.min(51), Validators.max(99)]],
   });
 
   protected readonly savingEodSettings = signal(false);
   protected readonly eodWindowActive = this.scannerState.eodWindowActive;
+  protected readonly isSavingAll = signal(false);
+
+  // ── Tab navigation ───────────────────────────────────────────────────────
+  protected readonly activeSection = signal<string>('scanner');
+
+  // ── Value Screener Schedule form ─────────────────────────────────────────
+  // Mirrors EOD form approach: Date | null for timepicker, convert to/from HH:mm string.
+  protected readonly vsForm = this.fb.group({
+    vsScheduleTime: [ConfigPageComponent.timeStrToDate('17:00'), [Validators.required]],
+    vsScheduleEnabled: [true],
+  });
+  protected readonly savingVsSchedule = signal(false);
 
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
@@ -118,6 +144,255 @@ export class ConfigPageComponent implements OnInit {
     return f ? this.industries().filter((i) => i.toLowerCase().includes(f)) : this.industries();
   });
 
+  // ── Decision Source Picklist ─────────────────────────────────────────────
+  protected readonly decisionSources = signal<string[]>([]);
+  protected readonly editingDecisionSource = signal<{ index: number | null; value: string } | null>(
+    null,
+  );
+  protected readonly savingDecisionSources = signal(false);
+  protected readonly decisionSourceDirty = signal(false);
+  private readonly DS_DEFAULTS = [
+    'App Signal',
+    'Manual',
+    'Catalyst',
+    'Rebalance',
+    'Risk Control',
+    'Loss Harvest',
+  ];
+
+  // ── Allocation & Risk Management ─────────────────────────────────────────
+  protected readonly riskTargets = signal<AllocationRiskTarget[]>([]);
+  protected readonly sectorTargets = signal<AllocationSectorTarget[]>([]);
+  protected readonly positionLimits = signal<SinglePositionLimit[]>([]);
+  protected readonly savingAllocation = signal(false);
+  protected readonly allocationDirty = signal(false);
+
+  // Pending server-side deletes (IDs removed locally but not yet deleted on server)
+  private pendingRiskDeletes: number[] = [];
+  private pendingSectorDeletes: number[] = [];
+  private pendingLimitDeletes: number[] = [];
+  private _tempIdCounter = -1;
+
+  // Edit state for inline editing
+  protected readonly editingRisk = signal<{
+    id: number | null;
+    role: string;
+    targetPct: number | null;
+  } | null>(null);
+  protected readonly editingSector = signal<{
+    id: number | null;
+    sector: string;
+    targetPct: number | null;
+  } | null>(null);
+  protected readonly editingLimit = signal<{
+    id: number | null;
+    role: string;
+    targetPct: number | null;
+  } | null>(null);
+
+  protected readonly riskTotal = computed(() =>
+    this.riskTargets().reduce((s, r) => s + r.targetPct, 0),
+  );
+  protected readonly sectorTotal = computed(() =>
+    this.sectorTargets().reduce((s, r) => s + r.targetPct, 0),
+  );
+
+  private loadAllocationRisk(): void {
+    this.api.getAllocationRiskConfig().subscribe({
+      next: (cfg: AllocationRiskConfig) => {
+        this.riskTargets.set(cfg.riskTargets);
+        this.sectorTargets.set(cfg.sectorTargets);
+        this.positionLimits.set(cfg.positionLimits);
+      },
+    });
+  }
+
+  // ── Risk Targets ──────────────────────────────────────────────────────────
+  protected startAddRisk(): void {
+    this.editingRisk.set({ id: null, role: '', targetPct: null });
+  }
+  protected startEditRisk(item: AllocationRiskTarget): void {
+    this.editingRisk.set({ id: item.id, role: item.role, targetPct: item.targetPct });
+  }
+  protected cancelEditRisk(): void {
+    this.editingRisk.set(null);
+  }
+  protected saveRisk(): void {
+    const e = this.editingRisk();
+    if (!e || !e.role.trim() || !e.targetPct) return;
+    if (e.id === null) {
+      this.riskTargets.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          role: e.role.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.riskTargets.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, role: e.role.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingRisk.set(null);
+    this.allocationDirty.set(true);
+  }
+  protected deleteRisk(id: number): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingRiskDeletes.push(id);
+        this.riskTargets.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
+  }
+
+  // ── Sector Targets ────────────────────────────────────────────────────────
+  protected startAddSector(): void {
+    this.editingSector.set({ id: null, sector: '', targetPct: null });
+  }
+  protected startEditSector(item: AllocationSectorTarget): void {
+    this.editingSector.set({ id: item.id, sector: item.sector, targetPct: item.targetPct });
+  }
+  protected cancelEditSector(): void {
+    this.editingSector.set(null);
+  }
+  protected saveSector(): void {
+    const e = this.editingSector();
+    if (!e || !e.sector.trim() || !e.targetPct) return;
+    if (e.id === null) {
+      this.sectorTargets.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          sector: e.sector.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.sectorTargets.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, sector: e.sector.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingSector.set(null);
+    this.allocationDirty.set(true);
+  }
+  protected deleteSector(id: number): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingSectorDeletes.push(id);
+        this.sectorTargets.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
+  }
+
+  // ── Position Limits ───────────────────────────────────────────────────────
+  protected startAddLimit(): void {
+    this.editingLimit.set({ id: null, role: '', targetPct: null });
+  }
+  protected startEditLimit(item: SinglePositionLimit): void {
+    this.editingLimit.set({ id: item.id, role: item.role, targetPct: item.targetPct });
+  }
+  protected cancelEditLimit(): void {
+    this.editingLimit.set(null);
+  }
+  protected saveLimit(): void {
+    const e = this.editingLimit();
+    if (!e || !e.role.trim() || !e.targetPct) return;
+    if (e.id === null) {
+      this.positionLimits.update((items) => [
+        ...items,
+        {
+          id: this._tempIdCounter--,
+          role: e.role.trim(),
+          targetPct: e.targetPct!,
+          displayOrder: items.length,
+        },
+      ]);
+    } else {
+      this.positionLimits.update((items) =>
+        items.map((i) =>
+          i.id === e.id ? { ...i, role: e.role.trim(), targetPct: e.targetPct! } : i,
+        ),
+      );
+    }
+    this.editingLimit.set(null);
+    this.allocationDirty.set(true);
+  }
+  protected deleteLimit(id: number): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        if (id > 0) this.pendingLimitDeletes.push(id);
+        this.positionLimits.update((items) => items.filter((i) => i.id !== id));
+        this.allocationDirty.set(true);
+      });
+  }
+
+  protected saveAllocationRisk(): void {
+    this.savingAllocation.set(true);
+    const calls: Observable<unknown>[] = [
+      ...this.pendingRiskDeletes.map((id) => this.api.deleteRiskTarget(id)),
+      ...this.pendingSectorDeletes.map((id) => this.api.deleteSectorTarget(id)),
+      ...this.pendingLimitDeletes.map((id) => this.api.deletePositionLimit(id)),
+      ...this.riskTargets().map((r) =>
+        this.api.upsertRiskTarget(r.id > 0 ? r.id : null, r.role, r.targetPct),
+      ),
+      ...this.sectorTargets().map((s) =>
+        this.api.upsertSectorTarget(s.id > 0 ? s.id : null, s.sector, s.targetPct),
+      ),
+      ...this.positionLimits().map((l) =>
+        this.api.upsertPositionLimit(l.id > 0 ? l.id : null, l.role, l.targetPct),
+      ),
+    ];
+    (calls.length ? forkJoin(calls) : of([])).subscribe({
+      next: () => {
+        this.pendingRiskDeletes = [];
+        this.pendingSectorDeletes = [];
+        this.pendingLimitDeletes = [];
+        this.allocationDirty.set(false);
+        this.savingAllocation.set(false);
+        this.loadAllocationRisk();
+        this.snackBar.open('Allocation & Risk settings saved.', 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.savingAllocation.set(false);
+        this.snackBar.open('Failed to save allocation settings.', 'Dismiss', { duration: 4000 });
+      },
+    });
+  }
+
   ngOnInit(): void {
     const cfg = this.configService.config();
     this.form.setValue({
@@ -135,6 +410,8 @@ export class ConfigPageComponent implements OnInit {
           eodWindowStart: ConfigPageComponent.timeStrToDate(s.eodWindowStart),
           eodWindowEnd: ConfigPageComponent.timeStrToDate(s.eodWindowEnd),
           eodWindowEnabled: s.eodWindowEnabled,
+          eodOversoldRsiThreshold: s.eodOversoldRsiThreshold ?? 25,
+          eodOverboughtRsiThreshold: s.eodOverboughtRsiThreshold ?? 75,
         });
         this.configService.update({
           eodWindowStart: s.eodWindowStart,
@@ -166,6 +443,31 @@ export class ConfigPageComponent implements OnInit {
         });
       },
     });
+
+    // Load decision sources via dedicated endpoint (independent of sectors/industries)
+    this.api.getDecisionSources().subscribe({
+      next: (data) => {
+        const ds = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+        this.decisionSources.set(ds);
+        this.configService.update({ decisionSources: ds });
+      },
+      error: () => {}, // Non-critical — keep defaults already set from configService
+    });
+
+    // Load allocation & risk config
+    this.loadAllocationRisk();
+
+    // Load Value Screener schedule
+    this.api.getValueScreenerSchedule().subscribe({
+      next: (s) => {
+        this.vsForm.setValue({
+          vsScheduleTime: ConfigPageComponent.timeStrToDate(s.scheduledTimeEt ?? '17:00'),
+          vsScheduleEnabled: s.enabled ?? true,
+        });
+        this.vsForm.markAsPristine();
+      },
+      error: () => {},
+    });
   }
 
   // ── EOD Window settings ──────────────────────────────────────────────────
@@ -189,10 +491,18 @@ export class ConfigPageComponent implements OnInit {
     const start = this.dateToTimeString(this.eodForm.value.eodWindowStart);
     const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
     const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+    const oversoldRsi = this.eodForm.value.eodOversoldRsiThreshold ?? 25;
+    const overboughtRsi = this.eodForm.value.eodOverboughtRsiThreshold ?? 75;
 
     this.savingEodSettings.set(true);
     this.api
-      .updateEodSettings({ eodWindowStart: start, eodWindowEnd: end, eodWindowEnabled: enabled })
+      .updateEodSettings({
+        eodWindowStart: start,
+        eodWindowEnd: end,
+        eodWindowEnabled: enabled,
+        eodOversoldRsiThreshold: oversoldRsi,
+        eodOverboughtRsiThreshold: overboughtRsi,
+      })
       .subscribe({
         next: () => {
           this.configService.update({
@@ -203,7 +513,8 @@ export class ConfigPageComponent implements OnInit {
           this.savingEodSettings.set(false);
           this.eodForm.markAsPristine();
           this.snackBar.open(
-            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}).`,
+            `EOD window saved: ${start}–${end} ET (${enabled ? 'Enabled' : 'Disabled'}). RSI <${oversoldRsi}/>
+${overboughtRsi}.`,
             'OK',
             { duration: 4000 },
           );
@@ -215,6 +526,31 @@ export class ConfigPageComponent implements OnInit {
           });
         },
       });
+  }
+
+  // ── Value Screener Schedule ───────────────────────────────────────────────
+  saveVsSchedule(): void {
+    if (this.vsForm.invalid) return;
+    const timeEt = this.dateToTimeString(this.vsForm.value.vsScheduleTime);
+    const enabled = this.vsForm.value.vsScheduleEnabled ?? true;
+    this.savingVsSchedule.set(true);
+    this.api.updateValueScreenerSchedule(timeEt, enabled).subscribe({
+      next: () => {
+        this.savingVsSchedule.set(false);
+        this.vsForm.markAsPristine();
+        this.snackBar.open(
+          `Value Screener schedule saved: ${timeEt} ET, ${enabled ? 'Enabled' : 'Disabled'}.`,
+          'OK',
+          { duration: 4000 },
+        );
+      },
+      error: () => {
+        this.savingVsSchedule.set(false);
+        this.snackBar.open('Failed to save Value Screener schedule.', 'Dismiss', {
+          duration: 4000,
+        });
+      },
+    });
   }
 
   // ── Interval / RSI settings ──────────────────────────────────────────────
@@ -251,6 +587,8 @@ export class ConfigPageComponent implements OnInit {
       eodWindowStart: ConfigPageComponent.timeStrToDate(cfg.eodWindowStart),
       eodWindowEnd: ConfigPageComponent.timeStrToDate(cfg.eodWindowEnd),
       eodWindowEnabled: cfg.eodWindowEnabled,
+      eodOversoldRsiThreshold: 25,
+      eodOverboughtRsiThreshold: 75,
     });
     this.snackBar.open('Settings reset to defaults.', 'OK', { duration: 3000 });
   }
@@ -380,10 +718,82 @@ export class ConfigPageComponent implements OnInit {
     this.industries.update((list) => list.filter((x) => x !== i));
   }
 
+  // ── Decision Source inline-edit methods (mirrors Allocation & Risk pattern) ──
+  protected startAddDecisionSource(): void {
+    this.editingDecisionSource.set({ index: null, value: '' });
+  }
+
+  protected startEditDecisionSource(index: number, value: string): void {
+    this.editingDecisionSource.set({ index, value });
+  }
+
+  protected cancelEditDecisionSource(): void {
+    this.editingDecisionSource.set(null);
+  }
+
+  protected saveDecisionSourceRow(): void {
+    const e = this.editingDecisionSource();
+    if (!e || !e.value.trim()) return;
+    const v = e.value.trim();
+    if (e.index === null) {
+      if (!this.decisionSources().includes(v)) {
+        this.decisionSources.update((list) => [...list, v]);
+      }
+    } else {
+      this.decisionSources.update((list) => list.map((item, i) => (i === e.index ? v : item)));
+    }
+    this.editingDecisionSource.set(null);
+    this.decisionSourceDirty.set(true);
+  }
+
+  protected deleteDecisionSource(index: number): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Delete entry?',
+          message: 'This entry will be removed when you save changes.',
+        },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        this.decisionSources.update((list) => list.filter((_, i) => i !== index));
+        this.decisionSourceDirty.set(true);
+      });
+  }
+
+  protected resetDecisionSourcesToDefaults(): void {
+    this.decisionSources.set([...this.DS_DEFAULTS]);
+    this.decisionSourceDirty.set(true);
+  }
+
+  saveDecisionSources(): void {
+    this.savingDecisionSources.set(true);
+    this.api.saveDecisionSourcesList(this.decisionSources()).subscribe({
+      next: (data) => {
+        const saved = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+        this.decisionSources.set(saved);
+        this.configService.update({ decisionSources: saved });
+        this.decisionSourceDirty.set(false);
+        this.savingDecisionSources.set(false);
+        this.snackBar.open('Decision Source list saved.', 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.savingDecisionSources.set(false);
+        this.snackBar.open('Failed to save Decision Sources.', 'Dismiss', { duration: 4000 });
+      },
+    });
+  }
+
   saveSectorIndustryLists(): void {
     this.savingLists.set(true);
     this.api
-      .saveSectorIndustryLists({ sectors: this.sectors(), industries: this.industries() })
+      .saveSectorIndustryLists({
+        sectors: this.sectors(),
+        industries: this.industries(),
+        decisionSources: this.decisionSources(),
+      })
       .subscribe({
         next: (lists) => {
           this.sectors.set(lists.sectors);
@@ -397,4 +807,116 @@ export class ConfigPageComponent implements OnInit {
         },
       });
   }
+
+  /**
+   * Saves ALL configuration sections in one action:
+   * 1. Scanner intervals + RSI thresholds (browser storage)
+   * 2. EOD window settings (backend)
+   * 3. Email recipients (backend)
+   * 4. Sector & industry lists (backend)
+   * Allocation & Risk changes are staged in memory — use the dedicated Save button in that section.
+   */
+  saveAll(): void {
+    if (this.isSavingAll()) return;
+    this.isSavingAll.set(true);
+
+    // 1. Scanner settings (synchronous config service)
+    if (this.form.valid) {
+      this.configService.update({
+        scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
+        portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
+        watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+        rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
+        rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
+      });
+      this.form.markAsPristine();
+      this.api
+        .clearRsiCache()
+        .subscribe({ complete: () => this.scannerState.refresh(true), error: () => {} });
+    }
+
+    // 2. EOD window (async backend)
+    if (this.eodForm.valid && !this.eodForm.pristine) {
+      const start = this.dateToTimeString(this.eodForm.value.eodWindowStart);
+      const end = this.dateToTimeString(this.eodForm.value.eodWindowEnd);
+      const enabled = this.eodForm.value.eodWindowEnabled ?? true;
+      this.api
+        .updateEodSettings({
+          eodWindowStart: start,
+          eodWindowEnd: end,
+          eodWindowEnabled: enabled,
+          eodOversoldRsiThreshold: this.eodForm.value.eodOversoldRsiThreshold ?? 25,
+          eodOverboughtRsiThreshold: this.eodForm.value.eodOverboughtRsiThreshold ?? 75,
+        })
+        .subscribe({
+          next: () => {
+            this.configService.update({
+              eodWindowStart: start,
+              eodWindowEnd: end,
+              eodWindowEnabled: enabled,
+            });
+            this.eodForm.markAsPristine();
+          },
+          error: () => {},
+        });
+    }
+
+    // 3. Email recipients (async backend)
+    this.notificationApi.updateRecipients(this.recipientEmails()).subscribe({ error: () => {} });
+
+    // 4. Sector & industry lists (async backend)
+    this.api
+      .saveSectorIndustryLists({
+        sectors: this.sectors(),
+        industries: this.industries(),
+      })
+      .subscribe({
+        next: (lists) => {
+          this.sectors.set(lists.sectors);
+          this.industries.set(lists.industries);
+        },
+        error: () => {},
+      });
+
+    // 5. Decision Sources via dedicated endpoint
+    if (this.decisionSourceDirty()) {
+      this.api.saveDecisionSourcesList(this.decisionSources()).subscribe({
+        next: (data) => {
+          const saved = data.items && data.items.length > 0 ? data.items : this.DS_DEFAULTS;
+          this.decisionSources.set(saved);
+          this.configService.update({ decisionSources: saved });
+          this.decisionSourceDirty.set(false);
+        },
+        error: () => {},
+      });
+    }
+
+    // Brief visual feedback, then clear the saving state
+    setTimeout(() => {
+      this.isSavingAll.set(false);
+      this.snackBar.open('All configuration settings saved.', 'OK', { duration: 4000 });
+    }, 800);
+  }
+
+  resetAll(): void {
+    this.reset(); // resets scanner form + EOD form to defaults
+  }
+}
+
+@Component({
+  selector: 'app-alloc-confirm-dialog',
+  template: `
+    <h2 mat-dialog-title>{{ data.title }}</h2>
+    <mat-dialog-content>{{ data.message }}</mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button [mat-dialog-close]="false">Cancel</button>
+      <button mat-flat-button color="warn" [mat-dialog-close]="true">
+        <mat-icon>delete</mat-icon> Delete
+      </button>
+    </mat-dialog-actions>
+  `,
+  imports: [MatButtonModule, MatDialogModule, MatIconModule],
+})
+export class AllocConfirmDialogComponent {
+  readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
 }

@@ -14,21 +14,25 @@ h2[mat-dialog-title] {
 }
 
 .edit-form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
-  padding: 4px 0 8px;
-  min-width: 520px;
+  padding: 4px 0 6px;
+  min-width: 560px;
   width: 100%;
 }
 
+// Fields that span both columns
 .full-width {
+  grid-column: 1 / -1;
   width: 100%;
 }
 
+// Fields that are half-width (already in a 2-col grid)
 .field-row {
+  grid-column: 1 / -1;
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 .half-width {
   flex: 1;

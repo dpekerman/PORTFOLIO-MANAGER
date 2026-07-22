@@ -10,6 +10,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
+    public DbSet<DailySignal> DailySignals => Set<DailySignal>();
+    public DbSet<AllocationRiskTarget> AllocationRiskTargets => Set<AllocationRiskTarget>();
+    public DbSet<AllocationSectorTarget> AllocationSectorTargets => Set<AllocationSectorTarget>();
+    public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
+    public DbSet<ValueScreenerSnapshot> ValueScreenerSnapshots => Set<ValueScreenerSnapshot>();
+    public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
+    public DbSet<PortfolioValueHistory> PortfolioValueHistories => Set<PortfolioValueHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,7 +36,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.HoldingRole).HasMaxLength(20);
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
             entity.HasIndex(e => e.Symbol); // non-unique: same ticker can exist across multiple accounts
+        });
+
+        modelBuilder.Entity<CashItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.AccountType).HasMaxLength(30);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
@@ -38,6 +54,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
             entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
+            entity.Property(e => e.IsFavorite).HasDefaultValue(false);
             entity.HasIndex(e => e.Symbol).IsUnique();
         });
 
@@ -70,6 +87,75 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.TransactionType).HasMaxLength(10);
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<DailySignal>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CompanyName).HasMaxLength(200).HasDefaultValue("");
+            entity.Property(e => e.ScanType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SignalType).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Rsi).HasColumnType("decimal(7,4)");
+            entity.Property(e => e.Price).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TriggerDetails).HasMaxLength(1000).HasDefaultValue("");
+            entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
+            entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
+            entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.ReversalProbability).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.VolumeSignal).HasMaxLength(30).HasDefaultValue("");
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.SignalDate);
+            entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+        });
+
+        modelBuilder.Entity<AllocationRiskTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<AllocationSectorTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sector).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<SinglePositionLimit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<ValueScreenerSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Origin).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ResultsJson).IsRequired().HasDefaultValue("[]");
+            entity.HasIndex(e => new { e.Origin, e.RunAt });
+        });
+
+        modelBuilder.Entity<ValueScreenerScheduleConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ScheduledTimeEt).IsRequired().HasMaxLength(10).HasDefaultValue("17:00");
+            entity.Property(e => e.Enabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PortfolioValueHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RecordedDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TotalValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StocksValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CashValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.OptionsValue).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => e.RecordedDate);
         });
     }
 }

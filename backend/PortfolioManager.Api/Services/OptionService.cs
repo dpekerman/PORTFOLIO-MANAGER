@@ -12,7 +12,10 @@ public interface IOptionService
     Task<OptionItemDto> AddAsync(AddOptionItemRequest request, CancellationToken ct = default);
     Task<OptionItemDto?> UpdateAsync(int id, UpdateOptionItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
     Task<OptionTechnicalDataDto?> GetTechnicalDataAsync(string symbol, CancellationToken ct = default);
+    Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<OptionBackupItem> items, CancellationToken ct = default);
 }
 
 public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<OptionService> logger) : IOptionService
@@ -50,7 +53,8 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
             AccountType       = request.AccountType,
             OpenDate          = request.OpenDate,
             CloseDate         = request.CloseDate,
-            ClosingPrice      = request.ClosingPrice
+            ClosingPrice      = request.ClosingPrice,
+            DecisionSource    = request.DecisionSource
         };
         db.OptionItems.Add(item);
         await db.SaveChangesAsync(ct);
@@ -73,6 +77,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         item.OpenDate          = request.OpenDate;
         item.CloseDate         = request.CloseDate;
         item.ClosingPrice      = request.ClosingPrice;
+        item.DecisionSource    = request.DecisionSource;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -82,6 +87,15 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
         var item = await db.OptionItems.FindAsync([id], ct);
         if (item is null) return false;
         db.OptionItems.Remove(item);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
+    {
+        var item = await db.OptionItems.FindAsync([id], ct);
+        if (item is null) return false;
+        item.Notes = notes;
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -255,5 +269,44 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
     private static OptionItemDto ToDto(OptionItem item) =>
         new(item.Id, item.UnderlyingTicker, item.PositionType, item.ExpirationDate,
             item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
-            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice);
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice,
+            item.Notes, item.DecisionSource);
+
+    public async Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.OptionItems.AsNoTracking().OrderBy(x => x.AddedAt).ToListAsync(ct);
+        return items.Select(x => new OptionBackupItem(
+            x.UnderlyingTicker, x.PositionType, x.ExpirationDate,
+            x.Strike, x.Premium, x.NumberOfContracts, x.MarketPrice,
+            x.TransactionType, x.AccountType, x.OpenDate, x.CloseDate, x.ClosingPrice,
+            x.Notes, x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<OptionBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.OptionItems.ToListAsync(ct);
+        db.OptionItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new OptionItem
+        {
+            UnderlyingTicker  = i.UnderlyingTicker.ToUpperInvariant(),
+            PositionType      = i.PositionType.ToUpperInvariant(),
+            ExpirationDate    = i.ExpirationDate,
+            Strike            = i.Strike,
+            Premium           = i.Premium,
+            NumberOfContracts = i.NumberOfContracts,
+            MarketPrice       = i.MarketPrice,
+            TransactionType   = i.TransactionType,
+            AccountType       = i.AccountType,
+            OpenDate          = i.OpenDate,
+            CloseDate         = i.CloseDate,
+            ClosingPrice      = i.ClosingPrice,
+            Notes             = i.Notes,
+            AddedAt           = i.AddedAt
+        }).ToList();
+
+        db.OptionItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
 }

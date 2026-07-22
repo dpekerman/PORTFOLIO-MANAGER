@@ -20,4 +20,8 @@ public class OptionItem
     public DateTime? OpenDate { get; set; }
     public DateTime? CloseDate { get; set; }
     public decimal? ClosingPrice { get; set; }
+    /// <summary>Free-text notes stored per transaction record. Not shown in main grid.</summary>
+    public string? Notes { get; set; }
+    /// <summary>Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest.</summary>
+    public string? DecisionSource { get; set; }
 }

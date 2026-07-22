@@ -5,17 +5,23 @@ h2[mat-dialog-title] {
 }
 
 .option-form {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
   padding-top: 8px;
-  min-width: 520px;
+  min-width: 480px;
+  width: 100%;
+}
+
+.full-width {
+  grid-column: 1 / -1;
   width: 100%;
 }
 
 .form-row {
+  grid-column: 1 / -1;
   display: flex;
-  gap: 12px;
+  gap: 10px;
 
   .field-half {
     flex: 1;
@@ -28,19 +34,12 @@ h2[mat-dialog-title] {
   }
 }
 
-.full-width {
-  width: 100%;
-}
-
-.full-width {
-  width: 100%;
-}
-
 .cost-preview {
+  grid-column: 1 / -1;
   background: var(--mat-app-surface-variant, rgba(0, 0, 0, 0.04));
   border-radius: 6px;
-  padding: 10px 14px;
-  margin-top: 4px;
+  padding: 8px 12px;
+  margin-top: 2px;
 
   .cost-line {
     display: flex;
@@ -51,6 +50,6 @@ h2[mat-dialog-title] {
 }
 
 mat-dialog-actions {
-  padding: 16px 0 0;
+  padding: 12px 0 0;
   gap: 8px;
 }

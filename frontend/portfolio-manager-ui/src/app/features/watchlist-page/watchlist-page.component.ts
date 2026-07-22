@@ -32,13 +32,28 @@ import {
   tap,
 } from 'rxjs';
 import * as XLSX from 'xlsx';
-import { RsiScanResult, WatchlistSummary } from '../../core/models/portfolio.models';
-import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import {
+  RsiScanResult,
+  ValueScreenerResult,
+  WatchlistSummary,
+} from '../../core/models/portfolio.models';
+import {
+  DecisionEngineService,
+  PageDecision,
+  WatchlistValueContext,
+} from '../../core/services/decision-engine.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
+import {
+  TransactionNotesDialogComponent,
+  TransactionNotesDialogData,
+  TransactionNotesDialogResult,
+} from '../transactions/transaction-notes-dialog/transaction-notes-dialog.component';
 import {
   AddWatchlistDialogComponent,
   AddWatchlistDialogResult,
@@ -55,9 +70,14 @@ type SortColumn =
   | 'changePct'
   | 'sector'
   | 'rsi'
+  | 'buyScore'
   | 'trendSetup'
   | 'momentumShift'
-  | 'finalAction';
+  | 'finalAction'
+  | 'technical'
+  | 'valueScore'
+  | 'valueStatus'
+  | 'reversalP';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -82,6 +102,7 @@ type SortDir = 'asc' | 'desc';
     MatTooltipModule,
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
+    GridColumnButtonComponent,
   ],
 })
 export class WatchlistPageComponent {
@@ -89,14 +110,28 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+
+  // ── Value Screener data map (symbol → result) ─────────────────────────────
+  // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
+  protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
   private readonly destroyRef = inject(DestroyRef);
   private readonly engine = inject(DecisionEngineService);
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
+  protected readonly filterTrendSetup = signal('');
+  protected readonly filterFinalAction = signal('');
+  protected readonly filterFavorites = signal(false);
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
-  protected readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'];
+  protected readonly roles = [
+    'Core',
+    'Strategic',
+    'Strategic-Income',
+    'Swing',
+    'Speculative',
+    'Options',
+  ];
 
   // â”€â”€ RSI result map for watchlist symbols â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
@@ -169,6 +204,18 @@ export class WatchlistPageComponent {
         map((key) => key.split(',')),
       )
       .subscribe((symbols) => this.rsiTrigger$.next(symbols));
+
+    // Load latest Value Screener results for watchlist context
+    this.api.getLatestValueScreener().subscribe({
+      next: (dto) => {
+        const map = new Map<string, ValueScreenerResult>();
+        for (const r of [...(dto.watchlist ?? []), ...(dto.portfolio ?? [])]) {
+          map.set(r.symbol.toUpperCase(), r);
+        }
+        this.vsMap.set(map);
+      },
+      error: () => {}, // Non-critical
+    });
   }
 
   protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
@@ -185,26 +232,202 @@ export class WatchlistPageComponent {
   protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r) return null;
-    return this.engine.translateForWatchlist(r, role);
+    const vs = this.vsMap().get(symbol.toUpperCase());
+    const bs = this.buyScoreForSymbol(symbol);
+    const ctx: WatchlistValueContext = {
+      buyScore: bs?.score ?? null,
+      valueTrapWarning: vs?.actionTrigger === 'ValueTrapWarning',
+      valueScore: vs?.score ?? null,
+    };
+    return this.engine.translateForWatchlist(r, role, ctx);
   }
 
-  protected readonly displayedColumns: string[] = [
-    'symbol',
-    'company',
-    'role',
-    'price',
-    'changePct',
-    'sector',
-    'rsi',
-    'trendSetup',
-    'momentumShift',
-    'finalAction',
-    'actions',
-  ];
+  protected valueDataForSymbol(
+    symbol: string,
+  ): {
+    technical: string;
+    score: number;
+    status: string;
+    tooltip: string;
+    technicalState: string;
+  } | null {
+    const vs = this.vsMap().get(symbol.toUpperCase());
+    if (!vs) return null;
+    const techLabels: Record<string, string> = {
+      DeepValueReversal: 'Deep Value Reversal',
+      OverboughtMomentum: 'Overbought Momentum',
+      OverboughtPullback: 'Overbought Pullback',
+      SidewaysConsolidation: 'Sideways Consolidation',
+      MeanReversion: 'Mean Reversion',
+      HighVolumeExhaustion: 'High-Volume Exhaustion',
+    };
+    const techTooltips: Record<string, string> = {
+      DeepValueReversal:
+        'Deep Value Reversal: The stock has been beaten down and ignored for a long time (making it fundamentally cheap), but it is finally printing its very first technical signs of bottoming out. Buyers are stepping back in, and the long-term price chart is starting to curve upward.',
+      OverboughtMomentum:
+        'Overbought Momentum: The stock is rocketing upward rapidly. It is technically "stretched" too high too fast, but the buying pressure is so intense that the trend is overriding standard exhaustion limits and continuing to climb.',
+      OverboughtPullback:
+        'Overbought Pullback: The stock recently experienced a massive, vertical spike. Over the last day or two, the price started dropping slightly as traders locked in profits, which is actively cooling down your short-term indicators.',
+      SidewaysConsolidation:
+        'Sideways Consolidation: The stock price is bouncing around inside a tight, predictable flat box, moving left-to-right. It is essentially resting and gathering energy before its next major directional move.',
+      MeanReversion:
+        'Mean Reversion: The stock stretched way too far away from its mathematical average price (like its 20-day or 50-day moving average). It is now snapping back like a rubber band toward its normal baseline.',
+      HighVolumeExhaustion:
+        'High-Volume Exhaustion: The stock had a chaotic, massive surge on extreme trading volume (like a retail-driven short squeeze), but it completely ran out of new buyers at the peak. The price is now sliding backward because the buying power is totally spent.',
+    };
+    const actionLabels: Record<string, string> = {
+      AccumulateYield: 'Accumulate Yield',
+      AccumulateValue: 'Accumulate Value',
+      BuyLimitAlert: 'Buy Limit Alert',
+      HoldRideTrend: 'Hold / Ride Trend',
+      ValueTrapWarning: 'Value Trap Warning',
+      Observe: 'Observe',
+    };
+    return {
+      technical: techLabels[vs.technicalState] ?? vs.technicalState,
+      tooltip: techTooltips[vs.technicalState] ?? vs.technicalState,
+      score: vs.score,
+      status: actionLabels[vs.actionTrigger] ?? vs.actionTrigger,
+      technicalState: vs.technicalState,
+    };
+  }
+
+  protected techStateClass(technicalState: string): string {
+    const m: Record<string, string> = {
+      DeepValueReversal: 'state-reversal',
+      OverboughtMomentum: 'state-overbought',
+      OverboughtPullback: 'state-pullback',
+      SidewaysConsolidation: 'state-sideways',
+      MeanReversion: 'state-mean',
+      HighVolumeExhaustion: 'state-exhaustion',
+    };
+    return m[technicalState] ?? 'state-neutral';
+  }
+
+  protected valueScoreTooltip(score: number): string {
+    if (score >= 8)
+      return `High Conviction (${score.toFixed(1)}/10): Strong fundamental value signals.`;
+    if (score >= 5)
+      return `Fair Value (${score.toFixed(1)}/10): Moderate value signals — not yet high conviction.`;
+    return `Value Trap Warning (${score.toFixed(1)}/10): Weak value signals. May look cheap for a reason.`;
+  }
+
+  protected valueStatusTooltip(status: string): string {
+    const t: Record<string, string> = {
+      'Accumulate Yield':
+        'Strong dividend yield + value signals. Consider adding to income position.',
+      'Accumulate Value':
+        'Value signals confirmed with constructive technicals. Good entry opportunity.',
+      'Buy Limit Alert': 'Near value threshold. Set a limit order — do not chase price higher.',
+      'Hold / Ride Trend':
+        'Position performing well. Continue holding with trailing stop discipline.',
+      'Value Trap Warning':
+        'Looks cheap but may be a value trap. Fundamentals deteriorating — avoid.',
+      Observe: 'No actionable signal yet. Monitor for improving signals before entering.',
+    };
+    return t[status] ?? status;
+  }
+
+  protected valueScoreClass(score: number): string {
+    if (score >= 8) return 'vs-high';
+    if (score >= 5) return 'vs-fair';
+    return 'vs-trap';
+  }
+
+  protected valueStatusClass(status: string): string {
+    if (status.includes('Trap')) return 'action-trap';
+    if (status.includes('Accumulate')) return 'action-buy';
+    if (status.includes('Hold')) return 'action-hold';
+    if (status.includes('Buy Limit')) return 'action-limit';
+    return 'action-observe';
+  }
+
+  protected probClass(prob: string): string {
+    if (prob === 'High') return 'prob-high';
+    if (prob === 'Medium') return 'prob-medium';
+    return 'prob-low';
+  }
+
+  protected analystForSymbol(
+    symbol: string,
+  ): { price: number | null; upside: number | null } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    return { price: r.analystTargetPrice ?? null, upside: r.analystTargetUpside ?? null };
+  }
+
+  protected changeForSymbol(
+    symbol: string,
+  ): { change: number | null; changePct: number | null } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    return { change: r.change ?? null, changePct: r.changePercent ?? null };
+  }
+
+  /**
+   * Computes BUY Score (0–5) for a symbol from the RSI scan result.
+   * Each of 5 checks contributes 1 point:
+   *  1. Close > EMA9
+   *  2. RSI14 > RSI9EMA (only when signal available)
+   *  3. MACD Histogram Improving (macdHistDelta > 0)
+   *  4. CloseLocation >= 0.50
+   *  5. VolumeRatio20 >= 1.0
+   */
+  protected buyScoreForSymbol(symbol: string): {
+    score: number;
+    tooltip: string;
+    available: boolean;
+  } | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+
+    const close = r.currentPrice;
+    const ema9 = r.ema9Price ?? 0;
+    const rsi = r.rsi;
+    const rsiSig = r.rsiSignal ?? rsi;
+    const rsiSigAvail = r.rsiSignalAvailable;
+    const macdImproving = r.macdHistDelta > 0;
+
+    // CloseLocation: where close sits in today's high-low range
+    const dayH = r.dayHigh > 0 ? r.dayHigh : close;
+    const dayL = r.dayLow > 0 ? r.dayLow : close;
+    const range = dayH - dayL;
+    const closeLocation = range > 0 ? (close - dayL) / range : 0.5;
+
+    const vol = r.volumeRatio ?? 0;
+
+    const c1 = ema9 > 0 && close > ema9;
+    const c2 = rsiSigAvail ? rsi > rsiSig : false;
+    const c3 = macdImproving;
+    const c4 = closeLocation >= 0.5;
+    const c5 = vol >= 1.0;
+
+    const score = [c1, c2, c3, c4, c5].filter(Boolean).length;
+
+    const ck = (v: boolean) => (v ? '✅' : '❌');
+    const tooltip = [
+      `${ck(c1)} Close > EMA9`,
+      `${ck(c2)} RSI14 > RSI9EMA${rsiSigAvail ? '' : ' (unavailable)'}`,
+      `${ck(c3)} MACD Histogram Improving`,
+      `${ck(c4)} CloseLocation >= 0.50`,
+      `${ck(c5)} VolumeRatio20 >= 1.0`,
+    ].join('\n');
+
+    return { score, tooltip, available: true };
+  }
+
+  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();
+    const filterTrendSetup = this.filterTrendSetup();
+    const filterFinalAction = this.filterFinalAction();
+    const filterFavorites = this.filterFavorites();
     let items = this.watchlist.items();
+
+    if (filterFavorites) {
+      items = items.filter((w) => w.item.isFavorite);
+    }
 
     if (filter) {
       items = items.filter(
@@ -212,6 +435,22 @@ export class WatchlistPageComponent {
           w.item.symbol.toLowerCase().includes(filter) ||
           (w.quote?.companyName ?? '').toLowerCase().includes(filter) ||
           (w.quote?.sector ?? '').toLowerCase().includes(filter),
+      );
+    }
+
+    if (filterTrendSetup) {
+      items = items.filter(
+        (w) =>
+          (this.decisionForSymbol(w.item.symbol, w.item.role)?.trendSetup ?? '') ===
+          filterTrendSetup,
+      );
+    }
+
+    if (filterFinalAction) {
+      items = items.filter(
+        (w) =>
+          (this.decisionForSymbol(w.item.symbol, w.item.role)?.finalAction ?? '') ===
+          filterFinalAction,
       );
     }
 
@@ -254,6 +493,10 @@ export class WatchlistPageComponent {
           av = this.rsiForSymbol(a.item.symbol) ?? -1;
           bv = this.rsiForSymbol(b.item.symbol) ?? -1;
           break;
+        case 'buyScore':
+          av = this.buyScoreForSymbol(a.item.symbol)?.score ?? -1;
+          bv = this.buyScoreForSymbol(b.item.symbol)?.score ?? -1;
+          break;
         case 'trendSetup':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.trendSetup ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.trendSetup ?? '';
@@ -266,6 +509,26 @@ export class WatchlistPageComponent {
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.finalAction ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.finalAction ?? '';
           break;
+        case 'technical':
+          av = this.valueDataForSymbol(a.item.symbol)?.technical ?? '';
+          bv = this.valueDataForSymbol(b.item.symbol)?.technical ?? '';
+          break;
+        case 'valueScore':
+          av = this.valueDataForSymbol(a.item.symbol)?.score ?? -1;
+          bv = this.valueDataForSymbol(b.item.symbol)?.score ?? -1;
+          break;
+        case 'valueStatus':
+          av = this.valueDataForSymbol(a.item.symbol)?.status ?? '';
+          bv = this.valueDataForSymbol(b.item.symbol)?.status ?? '';
+          break;
+        case 'reversalP': {
+          const order: Record<string, number> = { High: 3, Medium: 2, Low: 1 };
+          av =
+            order[this.rsiMap().get(a.item.symbol.toUpperCase())?.reversalProbability ?? ''] ?? 0;
+          bv =
+            order[this.rsiMap().get(b.item.symbol.toUpperCase())?.reversalProbability ?? ''] ?? 0;
+          break;
+        }
         default:
           av = a.item.symbol;
           bv = b.item.symbol;
@@ -281,6 +544,8 @@ export class WatchlistPageComponent {
         return 'role-core';
       case 'Strategic':
         return 'role-strategic';
+      case 'Strategic-Income':
+        return 'role-strategic-income';
       case 'Swing':
         return 'role-swing';
       case 'Speculative':
@@ -291,6 +556,27 @@ export class WatchlistPageComponent {
         return 'role-strategic';
     }
   }
+
+  protected readonly trendSetupOptions = [
+    'Waterfall / Falling Knife',
+    'Oversold Reversal Watch',
+    'Constructive Extended',
+    'Quality Trend Entry',
+    'Confirmed Constructive',
+    'Early Reversal',
+    'Cooling',
+    'Technical Caution',
+    'Neutral / No Setup',
+  ] as const;
+
+  protected readonly finalActionOptions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const w of this.watchlist.items()) {
+      const fa = this.decisionForSymbol(w.item.symbol, w.item.role)?.finalAction;
+      if (fa) set.add(fa);
+    }
+    return [...set].sort();
+  });
 
   setSort(col: SortColumn): void {
     if (this.sortCol() === col) {
@@ -347,6 +633,17 @@ export class WatchlistPageComponent {
     const today = new Date().toISOString().slice(0, 10);
     const data = this.filteredSorted().map((w) => {
       const dec = this.decisionForSymbol(w.item.symbol, w.item.role);
+      const r = this.rsiMap().get(w.item.symbol.toUpperCase());
+
+      // CloseLocation: where the close sits within the daily range (0–1)
+      let closeLocation: number | string = '';
+      if (r && r.dayHigh > 0 && r.dayLow >= 0) {
+        const range = r.dayHigh - r.dayLow;
+        closeLocation = range > 0 ? +((r.currentPrice - r.dayLow) / range).toFixed(4) : 0.5;
+      }
+
+      const prevMacdHist = r ? +(r.macdHistogram - r.macdHistDelta).toFixed(4) : '';
+
       return {
         Symbol: w.item.symbol,
         Company: w.quote?.companyName ?? '',
@@ -362,11 +659,170 @@ export class WatchlistPageComponent {
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
         'Hover Note': dec?.hoverDescription ?? '',
+        EMA9: r?.ema9Price ?? '',
+        EMA10: r?.ema10Price ?? '',
+        EMA20: r?.ema20Price ?? '',
+        SMA20: r?.sma20Price ?? '',
+        SMA50: r?.sma50Price ?? '',
+        RSI9EMA: r?.rsiSignal ?? '',
+        VolumeRatio20: r?.volumeRatio ?? '',
+        CloseLocation: closeLocation,
+        TopHalfClose: r
+          ? r.dayHigh > 0 && r.dayLow >= 0 && r.dayHigh - r.dayLow > 0
+            ? (r.currentPrice - r.dayLow) / (r.dayHigh - r.dayLow) >= 0.5
+            : false
+          : '',
+        BottomHalfClose: r
+          ? r.dayHigh > 0 && r.dayLow >= 0 && r.dayHigh - r.dayLow > 0
+            ? (r.currentPrice - r.dayLow) / (r.dayHigh - r.dayLow) < 0.5
+            : false
+          : '',
+        MACDHistogram: r?.macdHistogram ?? '',
+        PrevMACDHistogram: prevMacdHist,
+        Technical: this.valueDataForSymbol(w.item.symbol)?.technical ?? '',
+        'Buy Score': this.buyScoreForSymbol(w.item.symbol)?.score ?? '',
+        'Value Score': this.valueDataForSymbol(w.item.symbol)?.score ?? '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Watchlist');
     XLSX.writeFile(wb, `watchlist-${today}.xlsx`);
+  }
+
+  backupWatchlist(): void {
+    this.api.backupWatchlist().subscribe({
+      next: (items) => {
+        const backup = {
+          exportedAt: new Date().toISOString(),
+          type: 'watchlist',
+          items,
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], {
+          type: 'application/json;charset=utf-8;',
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `watchlist-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => console.error('[Watchlist] Backup failed'),
+    });
+  }
+
+  onRestoreFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    input.value = '';
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const backup = JSON.parse(e.target?.result as string);
+        if (backup.type !== 'watchlist') {
+          console.error('[Watchlist] Invalid backup type:', backup.type);
+          return;
+        }
+        const confirmed = window.confirm(
+          `This will REPLACE all ${this.watchlist.count()} watchlist items with the backup from ${backup.exportedAt?.slice(0, 10) ?? 'unknown date'} (${backup.items?.length ?? 0} items). Continue?`,
+        );
+        if (!confirmed) return;
+
+        this.api.restoreWatchlist({ items: backup.items ?? [] }).subscribe({
+          next: () => {
+            this.watchlist.refresh();
+          },
+          error: () => console.error('[Watchlist] Restore failed'),
+        });
+      } catch {
+        console.error('[Watchlist] Invalid backup file');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  toggleFavorite(w: WatchlistSummary): void {
+    this.watchlist.updateFavorite(w.item.id, !w.item.isFavorite);
+  }
+
+  openNotes(w: WatchlistSummary): void {
+    this.dialog
+      .open(TransactionNotesDialogComponent, {
+        data: { symbol: w.item.symbol, notes: w.item.notes } satisfies TransactionNotesDialogData,
+        width: '480px',
+      })
+      .afterClosed()
+      .subscribe((result: TransactionNotesDialogResult | undefined) => {
+        if (result === undefined) return;
+        this.watchlist.updateNotes(w.item.id, result.notes ?? '');
+      });
+  }
+
+  // ── Column resize ───────────────────────────────────────────────────────────
+  private static readonly COL_WIDTHS_KEY = 'wl_col_widths_v1';
+
+  protected readonly colWidths = signal<Map<string, number>>(
+    WatchlistPageComponent.loadColWidths(),
+  );
+
+  private static loadColWidths(): Map<string, number> {
+    try {
+      const raw = localStorage.getItem(WatchlistPageComponent.COL_WIDTHS_KEY);
+      if (raw) return new Map<string, number>(JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
+    return new Map();
+  }
+
+  /** Returns width as CSS string for use in colgroup <col> elements */
+  protected colWidthStyle(col: string): string {
+    const w = this.colWidths().get(col);
+    return w ? `${w}px` : '';
+  }
+
+  protected startResize(event: MouseEvent, col: string): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const th = (event.target as HTMLElement).closest('th') as HTMLElement;
+    const startX = event.clientX;
+    const startWidth = th.offsetWidth;
+
+    const onMove = (e: MouseEvent) => {
+      const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+      this.colWidths.update((m) => {
+        const copy = new Map(m);
+        copy.set(col, newWidth);
+        return copy;
+      });
+    };
+
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      try {
+        localStorage.setItem(
+          WatchlistPageComponent.COL_WIDTHS_KEY,
+          JSON.stringify([...this.colWidths()]),
+        );
+      } catch {
+        /* ignore */
+      }
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  resetColWidths(): void {
+    this.colWidths.set(new Map());
+    try {
+      localStorage.removeItem(WatchlistPageComponent.COL_WIDTHS_KEY);
+    } catch {
+      /* ignore */
+    }
   }
 }

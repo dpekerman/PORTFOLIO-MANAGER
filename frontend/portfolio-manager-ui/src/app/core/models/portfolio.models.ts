@@ -18,6 +18,10 @@ export interface PortfolioItem {
   closingPrice?: number | null;
   /** @optional Holding role for portfolio items: Core | Strategic | Swing | Speculative | Options */
   holdingRole?: string | null;
+  /** @optional Free-text notes stored per transaction record */
+  notes?: string | null;
+  /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
+  decisionSource?: string | null;
 }
 
 export interface StockQuote {
@@ -58,6 +62,8 @@ export interface WatchlistItem {
   addedAt: string;
   /** Investment role: Core | Strategic | Swing | Speculative. Default: Strategic. */
   role: string;
+  /** Whether this symbol is marked as a favourite. */
+  isFavorite: boolean;
 }
 
 export interface WatchlistSummary {
@@ -75,6 +81,7 @@ export interface AddPortfolioItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -90,11 +97,13 @@ export interface UpdatePortfolioItemRequest {
   closeDate?: string | null;
   closingPrice?: number | null;
   holdingRole?: string | null;
+  decisionSource?: string | null;
 }
 
 export interface SectorIndustryLists {
   sectors: string[];
   industries: string[];
+  decisionSources?: string[];
 }
 
 export interface AddManualPositionRequest {
@@ -293,16 +302,19 @@ export interface CashItem {
   description: string;
   amount: number;
   addedAt: string;
+  accountType?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
+  accountType?: string | null;
 }
 
 export interface UpdateCashItemRequest {
   description: string;
   amount: number;
+  accountType?: string | null;
 }
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -322,6 +334,10 @@ export interface OptionItem {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  /** @optional Free-text notes stored per transaction record */
+  notes?: string | null;
+  /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
+  decisionSource?: string | null;
 }
 
 export interface AddOptionItemRequest {
@@ -337,6 +353,7 @@ export interface AddOptionItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface UpdateOptionItemRequest {
@@ -352,6 +369,7 @@ export interface UpdateOptionItemRequest {
   openDate?: string | null;
   closeDate?: string | null;
   closingPrice?: number | null;
+  decisionSource?: string | null;
 }
 
 export interface OptionTechnicalData {
@@ -398,4 +416,133 @@ export interface OptionAnalysis {
   marketValue: number;
   gainLoss: number;
   gainLossPct: number;
+}
+
+// ── EOD Signals Dashboard ─────────────────────────────────────────────────────
+
+export type SignalState = 'Active' | 'FollowThrough' | 'Invalidated' | 'Expired' | 'Reversed';
+
+export interface DailySignal {
+  id: number;
+  symbol: string;
+  companyName: string;
+  /** Oversold | Overbought */
+  scanType: string;
+  /** EodConfirm | Confirmed | EarlyWarning */
+  signalType: string;
+  rsi: number;
+  price: number;
+  triggerDetails: string;
+  /** yyyy-MM-dd (ET) */
+  signalDate: string;
+  recordedAt: string;
+  /** Legacy | Enhanced */
+  ruleVersion: string;
+  signalState: SignalState;
+  sector: string;
+  reversalProbability: string;
+  volumeSignal: string;
+  notes: string | null;
+  updatedAt: string | null;
+}
+
+export interface DailySignalPagedResponse {
+  items: DailySignal[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface EodSignalsMeta {
+  tickers: string[];
+  scanTypes: string[];
+  signalTypes: string[];
+  signalStates: string[];
+  ruleVersions: string[];
+  minDate: string | null;
+  maxDate: string | null;
+  totalCount: number;
+}
+
+// ── Portfolio Value History ────────────────────────────────────────────────────
+export interface PortfolioValueHistoryDto {
+  id: number;
+  recordedAt: string;
+  recordedDate: string;
+  totalValue: number;
+  stocksValue: number;
+  cashValue: number;
+  optionsValue: number;
+}
+
+// ── Portfolio Beta ─────────────────────────────────────────────────────────────
+export interface BetaContributor {
+  symbol: string;
+  weightPct: number;
+  beta: number;
+  isProxy: boolean;
+}
+
+export interface PortfolioBetaResult {
+  portfolioBeta: number;
+  exCashBeta: number;
+  cashPct: number;
+  proxyPct: number;
+  /** "Good" | "Warning" | "TooMuchRisk" */
+  status: string;
+  topContributors: BetaContributor[];
+}
+
+// ── Market Indices ─────────────────────────────────────────────────────────────
+export interface MarketIndexDto {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+export interface MarketIndicesResponse {
+  indices: MarketIndexDto[];
+  fetchedAt: string;
+}
+
+export interface EodSignalFilters {
+  ticker?: string;
+  scanType?: string;
+  signalType?: string;
+  signalState?: string;
+  ruleVersion?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
+}
+
+// ── Allocation & Risk Management ────────────────────────────────────────────────
+export interface AllocationRiskTarget {
+  id: number;
+  role: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface AllocationSectorTarget {
+  id: number;
+  sector: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface SinglePositionLimit {
+  id: number;
+  role: string;
+  targetPct: number;
+  displayOrder: number;
+}
+
+export interface AllocationRiskConfig {
+  riskTargets: AllocationRiskTarget[];
+  sectorTargets: AllocationSectorTarget[];
+  positionLimits: SinglePositionLimit[];
 }

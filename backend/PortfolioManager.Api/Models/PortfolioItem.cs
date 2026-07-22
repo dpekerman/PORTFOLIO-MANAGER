@@ -24,4 +24,8 @@ public class PortfolioItem
     public decimal? ClosingPrice { get; set; }
     /// <summary>Holding role: Core | Strategic | Swing | Speculative | Options. Default: Strategic.</summary>
     public string? HoldingRole { get; set; }
+    /// <summary>Free-text notes stored per transaction record. Not shown in main grid.</summary>
+    public string? Notes { get; set; }
+    /// <summary>Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest.</summary>
+    public string? DecisionSource { get; set; }
 }

@@ -15,6 +15,9 @@ public interface IPortfolioService
     /// <summary>Fetches sector/industry from Yahoo Finance for every non-manual portfolio item that lacks one and persists the data.</summary>
     Task<int> RefreshSectorsAsync(CancellationToken ct = default);
     Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
+    Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default);
 }
 
 public sealed class PortfolioService(AppDbContext db, IMarketDataProvider marketData) : IPortfolioService
@@ -53,7 +56,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             AccountType      = request.AccountType,
             OpenDate         = request.OpenDate,
             CloseDate        = request.CloseDate,
-            ClosingPrice     = request.ClosingPrice
+            ClosingPrice     = request.ClosingPrice,
+            DecisionSource   = request.DecisionSource
         };
 
         db.PortfolioItems.Add(item);
@@ -114,6 +118,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         item.CloseDate       = request.CloseDate;
         item.ClosingPrice    = request.ClosingPrice;
         if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
+        item.DecisionSource  = request.DecisionSource;
 
         await db.SaveChangesAsync(ct);
         return ToDto(item);
@@ -124,6 +129,15 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
         var item = await db.PortfolioItems.FindAsync([id], ct);
         if (item is null) return false;
         item.HoldingRole = holdingRole;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
+    {
+        var item = await db.PortfolioItems.FindAsync([id], ct);
+        if (item is null) return false;
+        item.Notes = notes;
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -141,7 +155,49 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
     private static PortfolioItemDto ToDto(PortfolioItem item) =>
         new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
             item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
-            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole);
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole,
+            item.Notes, item.DecisionSource);
+
+    public async Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.PortfolioItems.AsNoTracking().OrderBy(x => x.Symbol).ToListAsync(ct);
+        return items.Select(x => new PortfolioBackupItem(
+            x.Symbol, x.CompanyName, x.Shares, x.AverageCostBasis,
+            x.Sector, x.Industry, x.SectorIsOverridden, x.IsManual, x.ManualMarketValue,
+            x.TransactionType, x.AccountType, x.OpenDate, x.CloseDate, x.ClosingPrice,
+            x.HoldingRole, x.Notes, x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.PortfolioItems.ToListAsync(ct);
+        db.PortfolioItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new PortfolioItem
+        {
+            Symbol            = i.Symbol,
+            CompanyName       = i.CompanyName,
+            Shares            = i.Shares,
+            AverageCostBasis  = i.AverageCostBasis,
+            Sector            = i.Sector,
+            Industry          = i.Industry,
+            SectorIsOverridden = i.SectorIsOverridden,
+            IsManual          = i.IsManual,
+            ManualMarketValue = i.ManualMarketValue,
+            TransactionType   = i.TransactionType,
+            AccountType       = i.AccountType,
+            OpenDate          = i.OpenDate,
+            CloseDate         = i.CloseDate,
+            ClosingPrice      = i.ClosingPrice,
+            HoldingRole       = i.HoldingRole,
+            Notes             = i.Notes,
+            AddedAt           = i.AddedAt
+        }).ToList();
+
+        db.PortfolioItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

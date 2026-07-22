@@ -12,6 +12,8 @@ export interface AppConfig {
   eodWindowEnd: string;
   /** Whether the EOD window is enabled. */
   eodWindowEnabled: boolean;
+  /** User-manageable picklist for the Decision Source field. */
+  decisionSources: string[];
 }
 
 const STORAGE_KEY = 'pm_app_config';
@@ -25,6 +27,14 @@ const DEFAULTS: AppConfig = {
   eodWindowStart: '15:30',
   eodWindowEnd: '16:00',
   eodWindowEnabled: true,
+  decisionSources: [
+    'App Signal',
+    'Manual',
+    'Catalyst',
+    'Rebalance',
+    'Risk Control',
+    'Loss Harvest',
+  ],
 };
 
 @Injectable({ providedIn: 'root' })

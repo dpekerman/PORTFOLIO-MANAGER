@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { ConfigService } from '../../../core/services/config.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
@@ -36,9 +37,12 @@ export class AddOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly optionState = inject(OptionStateService);
   private readonly dialogRef = inject(MatDialogRef<AddOptionDialogComponent>);
+  private readonly configService = inject(ConfigService);
 
   protected readonly saving = signal(false);
   protected readonly accountTypes = ACCOUNT_TYPES;
+
+  protected readonly decisionSources = this.configService.config().decisionSources;
 
   readonly form = this.fb.group({
     transactionType: ['OPEN', [Validators.required]],
@@ -53,6 +57,7 @@ export class AddOptionDialogComponent {
     openDate: [new Date() as Date | null],
     closeDate: [new Date() as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
+    decisionSource: [null as string | null],
   });
 
   private formatDate(d: Date | null | undefined): string | null {
@@ -61,6 +66,7 @@ export class AddOptionDialogComponent {
   }
 
   async submit(): Promise<void> {
+    this.form.markAllAsTouched();
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
@@ -82,6 +88,7 @@ export class AddOptionDialogComponent {
         openDate: this.formatDate(this.form.value.openDate),
         closeDate: this.formatDate(this.form.value.closeDate),
         closingPrice: this.form.value.closingPrice,
+        decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
     } finally {

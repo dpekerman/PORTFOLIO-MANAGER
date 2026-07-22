@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
@@ -7,7 +8,8 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter, map, startWith } from 'rxjs';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -41,6 +43,7 @@ export class LayoutComponent {
   protected readonly theme = inject(ThemeService);
   protected readonly watchlist = inject(WatchlistStateService);
   protected readonly demoMode = inject(DemoModeService);
+  private readonly router = inject(Router);
 
   protected readonly sidenav = viewChild.required<MatSidenav>('sidenav');
 
@@ -48,8 +51,20 @@ export class LayoutComponent {
     () => this.portfolio.loading() || this.scanner.loading() || this.watchlist.loading(),
   );
 
+  /** Show RSI market header only on the RSI Scanner page. */
+  private readonly currentUrl = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map((e) => e.urlAfterRedirects),
+      startWith(this.router.url),
+    ),
+    { initialValue: this.router.url },
+  );
+  protected readonly showMarketHeader = computed(() => this.currentUrl().startsWith('/scanner'));
+
   protected readonly navLinks = [
     { path: '/scanner', label: 'RSI Scanner', icon: 'radar' },
+    { path: '/eod-signals', label: 'EOD Signals', icon: 'timeline' },
     { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },

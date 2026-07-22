@@ -46,6 +46,30 @@
         <div class="stat sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
       }
     </div>
+    @if (quote()!.week52High > 0) {
+      <div class="week52-strip">
+        <div class="week52-item">
+          <span class="week52-tag">52W H</span>
+          <span class="week52-val">{{ quote()!.week52High | currency }}</span>
+          <span class="week52-delta down">
+            {{
+              ((quote()!.currentPrice - quote()!.week52High) / quote()!.week52High) * 100
+                | number: '1.1-1'
+            }}%
+          </span>
+        </div>
+        <div class="week52-item">
+          <span class="week52-tag">52W L</span>
+          <span class="week52-val">{{ quote()!.week52Low | currency }}</span>
+          <span class="week52-delta up">
+            +{{
+              ((quote()!.currentPrice - quote()!.week52Low) / quote()!.week52Low) * 100
+                | number: '1.1-1'
+            }}%
+          </span>
+        </div>
+      </div>
+    }
   } @else {
     <mat-chip class="no-data-chip">No live data</mat-chip>
   }

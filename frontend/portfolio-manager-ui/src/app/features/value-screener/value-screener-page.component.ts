@@ -1,4 +1,4 @@
-import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,6 +15,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
@@ -24,7 +25,9 @@ import {
   ValueScreenerResult,
   ValueTier,
 } from '../../core/models/portfolio.models';
+import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
 
@@ -37,6 +40,7 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
     NgClass,
     DecimalPipe,
     CurrencyPipe,
+    DatePipe,
     FormsModule,
     MatButtonModule,
     MatChipsModule,
@@ -44,8 +48,10 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatSortModule,
     MatTableModule,
     MatTooltipModule,
+    GridColumnButtonComponent,
   ],
 })
 export class ValueScreenerPageComponent implements OnInit {
@@ -54,99 +60,296 @@ export class ValueScreenerPageComponent implements OnInit {
 
   // -- Data state -----------------------------------------------------------
   protected readonly loading = signal(false);
-  protected readonly results = signal<ValueScreenerResult[]>([]);
-  protected readonly lastAnalyzedAt = signal<string | null>(null);
+  protected readonly refreshing = signal(false);
+  protected readonly clearing = signal(false);
+
+  // Persisted results loaded from DB
+  protected readonly portfolioResults = signal<ValueScreenerResult[]>([]);
+  protected readonly watchlistResults = signal<ValueScreenerResult[]>([]);
+  protected readonly portfolioRunAt = signal<string | null>(null);
+  protected readonly watchlistRunAt = signal<string | null>(null);
+
+  // Ad-hoc live results
+  protected readonly adHocResults = signal<ValueScreenerResult[]>([]);
 
   // -- Source selection (mutually exclusive) --------------------------------
   protected readonly sourceMode = signal<SourceMode>('portfolio');
   protected readonly adHocInput = signal('');
 
-  protected readonly includePortfolio = computed(() => this.sourceMode() === 'portfolio');
-  protected readonly includeWatchlist = computed(() => this.sourceMode() === 'watchlist');
+  // -- Tier card filter (null = show all) -----------------------------------
+  protected readonly activeTierFilter = signal<ValueTier | null>(null);
 
-  protected readonly displayedColumns = [
-    'ticker',
-    'description',
-    'technicalState',
-    'score',
-    'actionTrigger',
-  ];
+  // -- Sort state -----------------------------------------------------------
+  protected readonly sortCol = signal<string>('score');
+  protected readonly sortDir = signal<'asc' | 'desc'>('desc');
 
-  protected readonly filteredSortedResults = computed<ValueScreenerResult[]>(() => {
-    const list = [...this.results()];
-    // Default: tier priority (HighConviction first) then score descending
+  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('value-screener');
+
+  /** Results currently shown in the grid (filtered by tier, then sorted) */
+  protected readonly activeResults = computed<ValueScreenerResult[]>(() => {
+    const mode = this.sourceMode();
+    let list: ValueScreenerResult[];
+    if (mode === 'portfolio') list = [...this.portfolioResults()];
+    else if (mode === 'watchlist') list = [...this.watchlistResults()];
+    else list = [...this.adHocResults()];
+
+    const tierFilter = this.activeTierFilter();
+    if (tierFilter) list = list.filter((r) => r.tier === tierFilter);
+
+    const col = this.sortCol();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
     const tierOrder: Record<string, number> = { HighConviction: 0, FairValue: 1, ValueTrap: 2 };
+
     list.sort((a, b) => {
-      const td = (tierOrder[a.tier] ?? 3) - (tierOrder[b.tier] ?? 3);
-      return td !== 0 ? td : b.score - a.score;
+      switch (col) {
+        case 'ticker':
+          return a.symbol.localeCompare(b.symbol) * dir;
+        case 'score': {
+          const td = (tierOrder[a.tier] ?? 3) - (tierOrder[b.tier] ?? 3);
+          return td !== 0 ? td * dir : (b.score - a.score) * dir;
+        }
+        case 'technicalState':
+          return a.technicalState.localeCompare(b.technicalState) * dir;
+        case 'actionTrigger':
+          return a.actionTrigger.localeCompare(b.actionTrigger) * dir;
+        default: {
+          const td = (tierOrder[a.tier] ?? 3) - (tierOrder[b.tier] ?? 3);
+          return td !== 0 ? td : b.score - a.score;
+        }
+      }
     });
     return list;
   });
 
+  protected readonly allActiveResults = computed<ValueScreenerResult[]>(() => {
+    const mode = this.sourceMode();
+    if (mode === 'portfolio') return this.portfolioResults();
+    if (mode === 'watchlist') return this.watchlistResults();
+    return this.adHocResults();
+  });
+
   protected readonly highConviction = computed(() =>
-    this.results().filter((r) => r.tier === 'HighConviction'),
+    this.allActiveResults().filter((r) => r.tier === 'HighConviction'),
   );
   protected readonly fairValue = computed(() =>
-    this.results().filter((r) => r.tier === 'FairValue'),
+    this.allActiveResults().filter((r) => r.tier === 'FairValue'),
   );
   protected readonly valueTrap = computed(() =>
-    this.results().filter((r) => r.tier === 'ValueTrap'),
+    this.allActiveResults().filter((r) => r.tier === 'ValueTrap'),
   );
 
+  protected readonly lastRunAt = computed<string | null>(() => {
+    const mode = this.sourceMode();
+    if (mode === 'portfolio') return this.portfolioRunAt();
+    if (mode === 'watchlist') return this.watchlistRunAt();
+    return null;
+  });
+
   ngOnInit(): void {
-    // Auto-run analysis on page load with Portfolio selected (mirrors RSI Scanner UX)
-    this.analyze();
+    // Load latest persisted data from DB without hitting Yahoo Finance
+    this.loadLatest();
   }
 
-  // -- Source selection: Portfolio & Watchlist auto-execute; Ad-Hoc needs manual trigger ----------
+  // -- Source selection --------------------------------------------------------
   selectPortfolio(): void {
     this.sourceMode.set('portfolio');
-    this.analyze();
+    this.activeTierFilter.set(null);
   }
   selectWatchlist(): void {
     this.sourceMode.set('watchlist');
-    this.analyze();
+    this.activeTierFilter.set(null);
   }
   selectAdhoc(): void {
     this.sourceMode.set('adhoc');
+    this.activeTierFilter.set(null);
   }
 
-  // -- Analysis trigger ----------------------------------------------------
+  // -- Tier card click -------------------------------------------------------
+  filterByTier(tier: ValueTier): void {
+    this.activeTierFilter.update((current) => (current === tier ? null : tier));
+  }
+
+  // -- Sort change ----------------------------------------------------------
+  onSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.sortCol.set(sort.active);
+    this.sortDir.set(sort.direction as 'asc' | 'desc');
+  }
+
+  // -- Load latest persisted data from DB ------------------------------------
+  loadLatest(): void {
+    this.loading.set(true);
+    this.api.getLatestValueScreener().subscribe({
+      next: (dto) => {
+        this.portfolioResults.set(dto.portfolio ?? []);
+        this.watchlistResults.set(dto.watchlist ?? []);
+        this.portfolioRunAt.set(dto.portfolioRunAt);
+        this.watchlistRunAt.set(dto.watchlistRunAt);
+        this.loading.set(false);
+      },
+      error: (err) => {
+        console.error('Value screener: failed to load latest', err);
+        this.snackBar.open('Could not load saved data. Try refreshing.', 'OK', { duration: 4000 });
+        this.loading.set(false);
+      },
+    });
+  }
+
+  // -- Refresh: re-run entire module and persist ----------------------------
+  refresh(): void {
+    this.refreshing.set(true);
+    this.api.refreshValueScreener().subscribe({
+      next: (dto) => {
+        this.portfolioResults.set(dto.portfolio ?? []);
+        this.watchlistResults.set(dto.watchlist ?? []);
+        this.portfolioRunAt.set(dto.portfolioRunAt);
+        this.watchlistRunAt.set(dto.watchlistRunAt);
+        this.activeTierFilter.set(null);
+        this.refreshing.set(false);
+        this.snackBar.open('Value Screener refreshed and saved.', 'OK', { duration: 3000 });
+      },
+      error: (err) => {
+        console.error('Value screener refresh error', err);
+        this.snackBar.open('Refresh failed. Check backend logs.', 'OK', { duration: 4000 });
+        this.refreshing.set(false);
+      },
+    });
+  }
+
+  // -- Ad-hoc live analysis trigger ----------------------------------------
   analyze(): void {
     const mode = this.sourceMode();
-    if (mode === 'adhoc' && !this.adHocInput().trim()) {
+    if (mode !== 'adhoc') return;
+    if (!this.adHocInput().trim()) {
       this.snackBar.open('Enter at least one ticker symbol in the Ad-Hoc field.', 'OK', {
         duration: 3000,
       });
       return;
     }
-    const adHocSymbols =
-      mode === 'adhoc'
-        ? this.adHocInput()
-            .split(/[\s,;]+/)
-            .map((s) => s.trim().toUpperCase())
-            .filter((s) => s.length > 0)
-        : [];
+    const adHocSymbols = this.adHocInput()
+      .split(/[\s,;]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => s.length > 0);
 
     const request: ValueScreenerRequest = {
-      includePortfolio: mode === 'portfolio',
-      includeWatchlist: mode === 'watchlist',
+      includePortfolio: false,
+      includeWatchlist: false,
       adHocSymbols,
     };
 
-    // Clear previous results before starting fresh analysis
-    this.results.set([]);
+    this.adHocResults.set([]);
     this.loading.set(true);
     this.api.runValueScreener(request).subscribe({
       next: (data) => {
-        this.results.set(data);
-        this.lastAnalyzedAt.set(new Date().toLocaleTimeString());
+        this.adHocResults.set(data);
+        this.activeTierFilter.set(null);
         this.loading.set(false);
       },
       error: (err) => {
-        console.error('Value screener error', err);
+        console.error('Value screener ad-hoc error', err);
         this.snackBar.open('Analysis failed. Check backend logs.', 'OK', { duration: 4000 });
         this.loading.set(false);
+      },
+    });
+  }
+
+  // -- Export CSV -----------------------------------------------------------
+  exportCsv(): void {
+    const rows = this.activeResults();
+    if (rows.length === 0) return;
+
+    const headers = [
+      'Symbol',
+      'Description',
+      'Origin',
+      'Tier',
+      'Score',
+      'Technical State',
+      'Action Trigger',
+      'Earnings Yield %',
+      'FCF Yield %',
+      'P/B',
+      'Piotroski',
+      'ROIC %',
+      'Div Yield %',
+      'Price',
+      'RSI',
+      '52W High',
+      '52W Low',
+      'Sector',
+      'Analyzed At',
+    ];
+
+    const escape = (v: string | number) => {
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n')
+        ? `"${s.replace(/"/g, '""')}"`
+        : s;
+    };
+
+    const csvRows = [
+      headers.map(escape).join(','),
+      ...rows.map((r) =>
+        [
+          r.symbol,
+          r.description,
+          r.origin,
+          r.tier,
+          r.score,
+          this.techStateLabel(r.technicalState),
+          this.actionLabel(r.actionTrigger),
+          r.earningsYield.toFixed(2),
+          r.fcfYieldProxy.toFixed(2),
+          r.priceToBook.toFixed(2),
+          r.piotroskiScore,
+          r.roicProxy.toFixed(2),
+          r.dividendYield.toFixed(2),
+          r.currentPrice.toFixed(2),
+          r.currentRsi.toFixed(1),
+          r.week52High,
+          r.week52Low,
+          r.sector,
+          r.analyzedAt,
+        ]
+          .map(escape)
+          .join(','),
+      ),
+    ];
+
+    const csv = csvRows.join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `value-screener-${this.sourceMode()}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // -- Clear persisted data ------------------------------------------------
+  clearData(): void {
+    if (
+      !confirm(
+        'Clear all saved Value Screener data for Portfolio and Watchlist? This cannot be undone.',
+      )
+    )
+      return;
+    this.clearing.set(true);
+    this.api.clearValueScreenerData().subscribe({
+      next: () => {
+        this.portfolioResults.set([]);
+        this.watchlistResults.set([]);
+        this.portfolioRunAt.set(null);
+        this.watchlistRunAt.set(null);
+        this.activeTierFilter.set(null);
+        this.clearing.set(false);
+        this.snackBar.open('Saved data cleared. Use Refresh to run a new analysis.', 'OK', {
+          duration: 4000,
+        });
+      },
+      error: () => {
+        this.clearing.set(false);
+        this.snackBar.open('Failed to clear data.', 'Dismiss', { duration: 4000 });
       },
     });
   }

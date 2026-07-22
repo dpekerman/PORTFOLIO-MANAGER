@@ -61,4 +61,39 @@ namespace PortfolioManager.Api.Models
         public bool IncludePortfolio { get; set; } = true;
         public bool IncludeWatchlist { get; set; } = true;
     }
+
+    /// <summary>
+    /// Persisted snapshot of a Value Screener run for either Portfolio or Watchlist.
+    /// Stored in the database so the UI can show the latest results without hitting
+    /// Yahoo Finance on every page visit.
+    /// </summary>
+    public class ValueScreenerSnapshot
+    {
+        public int Id { get; set; }
+        /// <summary>"Portfolio" or "Watchlist"</summary>
+        public string Origin { get; set; } = "Portfolio";
+        public DateTime RunAt { get; set; } = DateTime.UtcNow;
+        /// <summary>JSON-serialized List&lt;ValueScreenerResult&gt;</summary>
+        public string ResultsJson { get; set; } = "[]";
+    }
+
+    /// <summary>DTO returned by GET /api/valuescreener/latest</summary>
+    public class ValueScreenerLatestDto
+    {
+        public List<ValueScreenerResult> Portfolio { get; set; } = [];
+        public DateTime? PortfolioRunAt { get; set; }
+        public List<ValueScreenerResult> Watchlist { get; set; } = [];
+        public DateTime? WatchlistRunAt { get; set; }
+    }
+
+    /// <summary>Configuration for the scheduled Value Screener runs (persisted in DB).</summary>
+    public class ValueScreenerScheduleConfig
+    {
+        public int Id { get; set; }
+        /// <summary>HH:mm in Eastern Time (default "17:00").</summary>
+        public string ScheduledTimeEt { get; set; } = "17:00";
+        public bool Enabled { get; set; } = true;
+        public DateTime? LastPortfolioRunAt { get; set; }
+        public DateTime? LastWatchlistRunAt { get; set; }
+    }
 }

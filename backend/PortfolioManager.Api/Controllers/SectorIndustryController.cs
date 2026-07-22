@@ -17,4 +17,15 @@ public class SectorIndustryController(SectorIndustryService service) : Controlle
         service.SaveLists(request);
         return Ok(service.GetLists());
     }
+
+    // ── Dedicated Decision Sources endpoints ──────────────────────────────────
+
+    [HttpGet("decision-sources")]
+    public ActionResult<DecisionSourcesDto> GetDecisionSources()
+        => Ok(service.GetDecisionSources());
+
+    [HttpPut("decision-sources")]
+    public ActionResult<DecisionSourcesDto> SaveDecisionSources(
+        [FromBody] UpdateDecisionSourcesRequest request)
+        => Ok(service.SaveDecisionSources(request));
 }

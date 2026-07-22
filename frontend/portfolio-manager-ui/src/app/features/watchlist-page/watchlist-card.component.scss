@@ -171,3 +171,45 @@
   background: var(--bg-elevated);
   color: var(--text-muted);
 }
+
+.week52-strip {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.week52-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+
+  .week52-tag {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    min-width: 28px;
+  }
+
+  .week52-val {
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-secondary);
+  }
+
+  .week52-delta {
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+
+    &.up {
+      color: #00c853;
+    }
+    &.down {
+      color: #ff5252;
+    }
+  }
+}

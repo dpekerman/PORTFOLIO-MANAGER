@@ -55,6 +55,13 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return updated ? NoContent() : NotFound();
     }
 
+    [HttpPatch("{id:int}/notes")]
+    public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdatePortfolioNotesRequest request, CancellationToken ct)
+    {
+        var updated = await portfolioService.UpdateNotesAsync(id, request.Notes, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -71,5 +78,21 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     {
         var updated = await portfolioService.RefreshSectorsAsync(ct);
         return Ok(new { updated });
+    }
+
+    /// <summary>Exports all portfolio items as a JSON backup payload.</summary>
+    [HttpGet("backup")]
+    public async Task<ActionResult<IReadOnlyList<PortfolioBackupItem>>> Backup(CancellationToken ct)
+    {
+        var items = await portfolioService.BackupAsync(ct);
+        return Ok(items);
+    }
+
+    /// <summary>Clears all portfolio items and restores from the provided backup payload.</summary>
+    [HttpPost("restore")]
+    public async Task<IActionResult> Restore([FromBody] RestorePortfolioRequest request, CancellationToken ct)
+    {
+        var count = await portfolioService.RestoreAsync(request.Items, ct);
+        return Ok(new { restored = count });
     }
 }

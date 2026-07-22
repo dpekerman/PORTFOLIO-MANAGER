@@ -39,8 +39,9 @@ public class ScannerController(
         }
 
         // Pull all user-defined symbols so the scan covers the full portfolio + watchlist.
+        // Exclude closed positions so the Tracking badge shows only active holdings.
         var portfolioSymbols = await db.PortfolioItems
-            .Where(p => !p.IsManual)
+            .Where(p => !p.IsManual && p.TransactionType != "CLOSE")
             .Select(p => p.Symbol)
             .ToListAsync(ct);
         var watchlistSymbols = await db.WatchlistItems
@@ -65,10 +66,6 @@ public class ScannerController(
     [HttpDelete("rsi/cache")]
     public IActionResult ClearCache()
     {
-        // IMemoryCache does not expose enumerate; use a compact token pattern instead.
-        // We store a "version" key that is appended to the cache key so all old keys become stale.
-        // For simplicity, force=true on the next request is the primary mechanism.
-        // Here we also remove the most common key patterns used by the UI.
         foreach (var mode in new[] { "Legacy", "Enhanced" })
         foreach (var os in new[] { 25m, 30m, 35m })
         foreach (var ob in new[] { 70m, 75m, 80m })
@@ -76,6 +73,47 @@ public class ScannerController(
 
         logger.LogInformation("RSI scan cache cleared (all common key patterns).");
         return NoContent();
+    }
+
+    private const string IndicesCacheKey = "market_indices";
+    private static readonly TimeSpan IndicesCacheTtl = TimeSpan.FromMinutes(5);
+
+    private static readonly (string symbol, string name)[] IndexSymbols =
+    [
+        ("^DJI",  "Dow Jones"),
+        ("^NDX",  "Nasdaq 100"),
+        ("^GSPC", "S&P 500"),
+    ];
+
+    /// <summary>Returns real-time prices for Dow Jones, Nasdaq 100 and S&amp;P 500.</summary>
+    [HttpGet("market-indices")]
+    public async Task<ActionResult<MarketIndicesResponse>> GetMarketIndices(
+        [FromQuery] bool force = false,
+        CancellationToken ct = default)
+    {
+        if (!force && cache.TryGetValue(IndicesCacheKey, out MarketIndicesResponse? cached) && cached is not null)
+            return Ok(cached);
+
+        var marketData = HttpContext.RequestServices.GetRequiredService<IMarketDataProvider>();
+        var symbols = IndexSymbols.Select(x => x.symbol).ToList();
+        var quotes = await marketData.GetBatchQuotesAsync(symbols, ct);
+
+        var indices = IndexSymbols
+            .Select(idx =>
+            {
+                quotes.TryGetValue(idx.symbol, out var q);
+                return new MarketIndexDto(
+                    idx.symbol,
+                    idx.name,
+                    q?.CurrentPrice ?? 0,
+                    q?.Change ?? 0,
+                    q?.ChangePercent ?? 0);
+            })
+            .ToList();
+
+        var response = new MarketIndicesResponse(indices, DateTime.UtcNow);
+        cache.Set(IndicesCacheKey, response, IndicesCacheTtl);
+        return Ok(response);
     }
 
     /// <summary>
@@ -223,15 +261,18 @@ public class ScannerController(
     {
         return Ok(new EodWindowSettingsDto
         {
-            EodWindowStart   = runtimeConfig.EodWindowStart,
-            EodWindowEnd     = runtimeConfig.EodWindowEnd,
-            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+            EodWindowStart            = runtimeConfig.EodWindowStart,
+            EodWindowEnd              = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled          = runtimeConfig.EodWindowEnabled,
+            EodOversoldRsiThreshold   = runtimeConfig.EodOversoldRsiThreshold,
+            EodOverboughtRsiThreshold = runtimeConfig.EodOverboughtRsiThreshold,
         });
     }
 
     /// <summary>
     /// Updates the EOD confirmation window at runtime.
     /// Changes take effect immediately for the background service (no restart required).
+    /// Settings are persisted to disk so they survive server restarts.
     /// </summary>
     [HttpPut("eod-settings")]
     public IActionResult UpdateEodSettings([FromBody] EodWindowSettingsDto dto)
@@ -240,21 +281,34 @@ public class ScannerController(
             return BadRequest("EodWindowStart and EodWindowEnd are required (format: HH:mm).");
 
         if (!TimeSpan.TryParse(dto.EodWindowStart, out _) || !TimeSpan.TryParse(dto.EodWindowEnd, out _))
-            return BadRequest("Invalid time format. Use HH:mm (e.g. '15:30', '16:00').");
+            return BadRequest("Invalid time format. Use HH:mm (e.g. '15:30', '16:30').");
 
-        runtimeConfig.EodWindowStart   = dto.EodWindowStart;
-        runtimeConfig.EodWindowEnd     = dto.EodWindowEnd;
-        runtimeConfig.EodWindowEnabled = dto.EodWindowEnabled;
+        if (dto.EodOversoldRsiThreshold is <= 0 or > 49)
+            return BadRequest("EodOversoldRsiThreshold must be between 1 and 49.");
+        if (dto.EodOverboughtRsiThreshold is < 51 or > 99)
+            return BadRequest("EodOverboughtRsiThreshold must be between 51 and 99.");
+
+        runtimeConfig.EodWindowStart            = dto.EodWindowStart;
+        runtimeConfig.EodWindowEnd              = dto.EodWindowEnd;
+        runtimeConfig.EodWindowEnabled          = dto.EodWindowEnabled;
+        runtimeConfig.EodOversoldRsiThreshold   = dto.EodOversoldRsiThreshold;
+        runtimeConfig.EodOverboughtRsiThreshold = dto.EodOverboughtRsiThreshold;
+
+        // Persist to disk so settings survive a server restart
+        runtimeConfig.SaveToFile();
 
         logger.LogInformation(
-            "EOD window updated: {Start}–{End} ET, Enabled={Enabled}",
-            dto.EodWindowStart, dto.EodWindowEnd, dto.EodWindowEnabled);
+            "EOD window updated: {Start}\u2013{End} ET, Enabled={Enabled}, OS<{OS} OB>{OB}",
+            dto.EodWindowStart, dto.EodWindowEnd, dto.EodWindowEnabled,
+            dto.EodOversoldRsiThreshold, dto.EodOverboughtRsiThreshold);
 
         return Ok(new EodWindowSettingsDto
         {
-            EodWindowStart   = runtimeConfig.EodWindowStart,
-            EodWindowEnd     = runtimeConfig.EodWindowEnd,
-            EodWindowEnabled = runtimeConfig.EodWindowEnabled,
+            EodWindowStart            = runtimeConfig.EodWindowStart,
+            EodWindowEnd              = runtimeConfig.EodWindowEnd,
+            EodWindowEnabled          = runtimeConfig.EodWindowEnabled,
+            EodOversoldRsiThreshold   = runtimeConfig.EodOversoldRsiThreshold,
+            EodOverboughtRsiThreshold = runtimeConfig.EodOverboughtRsiThreshold,
         });
     }
 

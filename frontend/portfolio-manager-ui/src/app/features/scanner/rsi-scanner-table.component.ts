@@ -6,9 +6,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
 import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
 import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 @Component({
   selector: 'app-rsi-scanner-table',
@@ -22,9 +25,11 @@ import { DecisionEngineService, PageDecision } from '../../core/services/decisio
     MatTooltipModule,
     MatChipsModule,
     MatProgressBarModule,
+    RouterLink,
     DecimalPipe,
     CurrencyPipe,
     NgClass,
+    GridColumnButtonComponent,
   ],
 })
 export class RsiScannerTableComponent {
@@ -34,24 +39,19 @@ export class RsiScannerTableComponent {
   readonly loading = input(false);
   readonly portfolioSymbols = input<ReadonlySet<string>>(new Set());
   readonly watchlistSymbols = input<ReadonlySet<string>>(new Set());
+  readonly showHistory = input(true);
 
   private readonly engine = inject(DecisionEngineService);
+  private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');
 
-  protected readonly displayedColumns = [
-    'tracking',
-    'symbol',
-    'rsi',
-    'rsiSignal',
-    'price',
-    'change',
-    'analystUpside',
-    'indicators',
-    'trendSetup',
-    'momentumShift',
-    'baseAction',
-    'status',
-    'trigger',
-  ];
+  /** Effective displayed columns: service order/visibility, minus signalHistory when showHistory=false. */
+  protected readonly displayedColumns = computed(() => {
+    const cols = this._serviceColumns();
+    if (!this.showHistory()) {
+      return cols.filter((c) => c !== 'signalHistory');
+    }
+    return cols;
+  });
 
   protected readonly isOversold = computed(() => this.scanType() === 'Oversold');
   protected readonly isNeutral = computed(() => this.scanType() === 'Neutral');
