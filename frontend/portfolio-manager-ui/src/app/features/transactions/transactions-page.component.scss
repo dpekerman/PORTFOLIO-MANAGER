@@ -22,12 +22,36 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 20px;
 
   mat-button-toggle-group {
     border-radius: 8px;
     overflow: hidden;
   }
+}
+
+.tx-filter-field {
+  min-width: 170px;
+  max-width: 220px;
+  font-size: 0.82rem;
+}
+
+.tx-filter-age {
+  max-width: 160px;
+}
+
+// Sticky left columns in transactions tables
+.mat-mdc-table .mat-mdc-cell.mat-column-tx_symbol,
+.mat-mdc-table .mat-mdc-header-cell.mat-column-tx_symbol,
+.mat-mdc-table .mat-mdc-footer-cell.mat-column-tx_symbol,
+.mat-mdc-table .mat-mdc-cell.mat-column-tx_company,
+.mat-mdc-table .mat-mdc-header-cell.mat-column-tx_company,
+.mat-mdc-table .mat-mdc-footer-cell.mat-column-tx_company,
+.mat-mdc-table .mat-mdc-cell.mat-column-otx_ticker,
+.mat-mdc-table .mat-mdc-header-cell.mat-column-otx_ticker,
+.mat-mdc-table .mat-mdc-footer-cell.mat-column-otx_ticker {
+  background: var(--mat-sys-surface);
 }
 
 .tx-page-icon {

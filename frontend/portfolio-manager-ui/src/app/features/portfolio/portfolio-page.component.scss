@@ -310,6 +310,10 @@
     min-width: 100px;
     max-width: 120px;
   }
+  .gf-age {
+    min-width: 130px;
+    max-width: 160px;
+  }
 }
 
 .gf-clear-btn {
@@ -1181,34 +1185,234 @@ tr.pg-child-row:hover td {
 }
 
 // -- Trend Setup Classes (ts-*) ------------------------------------------------
-.ts-waterfall  { background: rgba(244,67,54,.12);  color: #ef5350; border: 1px solid rgba(244,67,54,.28); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-reversal   { background: rgba(0,200,83,.75);   color: #000;    border: 1px solid rgba(0,200,83,.85);  border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-extended   { background: rgba(255,160,0,.78);  color: #000;    border: 1px solid rgba(255,160,0,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-quality    { background: rgba(0,188,212,.75);  color: #000;    border: 1px solid rgba(0,188,212,.85); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-constructive { background: rgba(33,150,243,.68); color: #000;  border: 1px solid rgba(33,150,243,.78); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-early-reversal { background: rgba(255,193,7,.78); color: #000; border: 1px solid rgba(255,193,7,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-cooling    { background: rgba(158,158,158,.62); color: #000;   border: 1px solid rgba(158,158,158,.72); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-caution    { background: rgba(255,87,34,.78);  color: #000;    border: 1px solid rgba(255,87,34,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-neutral    { background: rgba(158,158,158,.55); color: #000;   border: 1px solid rgba(158,158,158,.65); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-ob-weak    { background: rgba(244,67,54,.10);  color: #ef5350; border: 1px solid rgba(244,67,54,.22); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-ob-resetting { background: rgba(255,167,38,.10); color: #ffa726; border: 1px solid rgba(255,167,38,.22); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-reclaim    { background: rgba(0,200,83,.72);   color: #000;    border: 1px solid rgba(0,200,83,.82); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ms-neutral-weak { background: rgba(158,158,158,.40); color: #555; border: 1px solid rgba(158,158,158,.50); }
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
 
 // -- Trend Setup Classes (ts-*) ------------------------------------------------
-.ts-waterfall  { background: rgba(244,67,54,.12);  color: #ef5350; border: 1px solid rgba(244,67,54,.28); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-reversal   { background: rgba(0,200,83,.75);   color: #000;    border: 1px solid rgba(0,200,83,.85);  border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-extended   { background: rgba(255,160,0,.78);  color: #000;    border: 1px solid rgba(255,160,0,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-quality    { background: rgba(0,188,212,.75);  color: #000;    border: 1px solid rgba(0,188,212,.85); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-constructive { background: rgba(33,150,243,.68); color: #000;  border: 1px solid rgba(33,150,243,.78); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-early-reversal { background: rgba(255,193,7,.78); color: #000; border: 1px solid rgba(255,193,7,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-cooling    { background: rgba(158,158,158,.62); color: #000;   border: 1px solid rgba(158,158,158,.72); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-caution    { background: rgba(255,87,34,.78);  color: #000;    border: 1px solid rgba(255,87,34,.88); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-neutral    { background: rgba(158,158,158,.55); color: #000;   border: 1px solid rgba(158,158,158,.65); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-ob-weak    { background: rgba(244,67,54,.10);  color: #ef5350; border: 1px solid rgba(244,67,54,.22); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-ob-resetting { background: rgba(255,167,38,.10); color: #ffa726; border: 1px solid rgba(255,167,38,.22); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ts-reclaim    { background: rgba(0,200,83,.72);   color: #000;    border: 1px solid rgba(0,200,83,.82); border-radius: 12px; padding: 2px 7px; font-size: 0.6rem; font-weight: 800; }
-.ms-neutral-weak { background: rgba(158,158,158,.40); color: #555; border: 1px solid rgba(158,158,158,.50); }
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
 
 // -- Beta editable cell
 .beta-edit-cell {
@@ -1226,8 +1430,14 @@ tr.pg-child-row:hover td {
   font-family: 'Roboto Mono', monospace;
   padding: 2px 4px;
   text-align: right;
-  &:focus { outline: none; border-color: #7e57c2; }
-  &.beta-overridden { border-color: #ffa726; color: #ffa726; }
+  &:focus {
+    outline: none;
+    border-color: #7e57c2;
+  }
+  &.beta-overridden {
+    border-color: #ffa726;
+    color: #ffa726;
+  }
 }
 .beta-clear-btn {
   background: none;
@@ -1237,5 +1447,7 @@ tr.pg-child-row:hover td {
   font-size: 0.9rem;
   line-height: 1;
   padding: 0 2px;
-  &:hover { color: #ef5350; }
+  &:hover {
+    color: #ef5350;
+  }
 }

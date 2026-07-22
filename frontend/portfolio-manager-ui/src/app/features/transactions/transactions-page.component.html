@@ -20,6 +20,52 @@
         <mat-button-toggle value="OPEN">Open</mat-button-toggle>
         <mat-button-toggle value="CLOSE">Closed</mat-button-toggle>
       </mat-button-toggle-group>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">
+        <mat-icon matPrefix>person</mat-icon>
+        <input
+          matInput
+          placeholder="Decision Source"
+          [ngModel]="filterDecisionSource()"
+          (ngModelChange)="filterDecisionSource.set($event)"
+          autocomplete="off"
+        />
+        @if (filterDecisionSource()) {
+          <button matSuffix mat-icon-button (click)="filterDecisionSource.set('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+
+      <mat-form-field
+        appearance="outline"
+        subscriptSizing="dynamic"
+        class="tx-filter-field tx-filter-age"
+      >
+        <mat-icon matPrefix>schedule</mat-icon>
+        <input
+          matInput
+          type="number"
+          min="0"
+          placeholder="Min Age (days)"
+          [ngModel]="filterMinAge()"
+          (ngModelChange)="filterMinAge.set($event)"
+        />
+        @if (filterMinAge()) {
+          <button matSuffix mat-icon-button (click)="filterMinAge.set('')">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+
+      @if (filterDecisionSource() || filterMinAge()) {
+        <button
+          mat-stroked-button
+          (click)="filterDecisionSource.set(''); filterMinAge.set('')"
+          matTooltip="Clear filters"
+        >
+          <mat-icon>filter_list_off</mat-icon>
+        </button>
+      }
     </div>
 
     <!-- ================================================================ -->
@@ -83,7 +129,7 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
-              <ng-container matColumnDef="tx_symbol">
+              <ng-container matColumnDef="tx_symbol" sticky>
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
                 <td mat-cell *matCellDef="let s">
                   <span class="pg-symbol">{{ s.item.symbol }}</span>
@@ -91,7 +137,7 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
-              <ng-container matColumnDef="tx_company">
+              <ng-container matColumnDef="tx_company" sticky>
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>COMPANY</th>
                 <td mat-cell *matCellDef="let s">
                   <span class="pg-company">{{ s.item.companyName }}</span>
@@ -267,6 +313,27 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
+              <ng-container matColumnDef="tx_age">
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  mat-sort-header
+                  class="pg-num-header"
+                  matTooltip="OPEN: today−open date; CLOSE: close date−open date"
+                >
+                  AGE
+                </th>
+                <td mat-cell *matCellDef="let s" class="pg-num">
+                  @let txAge = stockTransactionAge(s.item);
+                  @if (txAge !== null) {
+                    <span class="pg-dim">{{ txAge }}d</span>
+                  } @else {
+                    <span class="pg-dim">—</span>
+                  }
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
               <ng-container matColumnDef="tx_actions">
                 <th mat-header-cell *matHeaderCellDef class="actions-header">ACTIONS</th>
                 <td mat-cell *matCellDef="let s" class="actions-cell">
@@ -377,7 +444,7 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
-              <ng-container matColumnDef="otx_ticker">
+              <ng-container matColumnDef="otx_ticker" sticky>
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>UNDERLYING</th>
                 <td mat-cell *matCellDef="let a">
                   <div class="pg-symbol-cell">
@@ -552,6 +619,35 @@
                   [class.demo-redact]="demoMode.isDemoMode()"
                 >
                   {{ optionMktValue(a) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
+              <ng-container matColumnDef="otx_decision_source">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>DECISION SOURCE</th>
+                <td mat-cell *matCellDef="let a">
+                  <span class="pg-dim">{{ a.item.decisionSource || '—' }}</span>
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
+              <ng-container matColumnDef="otx_age">
+                <th
+                  mat-header-cell
+                  *matHeaderCellDef
+                  mat-sort-header
+                  class="pg-num-header"
+                  matTooltip="OPEN: today−open date; CLOSE: close date−open date"
+                >
+                  AGE
+                </th>
+                <td mat-cell *matCellDef="let a" class="pg-num">
+                  @let otxAge = optionTransactionAge(a.item);
+                  @if (otxAge !== null) {
+                    <span class="pg-dim">{{ otxAge }}d</span>
+                  } @else {
+                    <span class="pg-dim">—</span>
+                  }
                 </td>
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>

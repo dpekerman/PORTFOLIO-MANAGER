@@ -20,6 +20,7 @@ import { RsiScannerTableComponent } from './rsi-scanner-table.component';
 
 const MORNING_DISMISSED_KEY = 'morning-check-dismissed';
 const MORNING_FORCE_KEY = 'morning-check-force-show';
+const MORNING_AUTO_OPENED_KEY = 'morning-check-auto-opened';
 
 @Component({
   selector: 'app-scanner-page',
@@ -76,10 +77,10 @@ export class ScannerPageComponent implements OnInit {
   protected readonly yesterdayEod = this.scanner.yesterdayEod;
 
   /**
-   * Whether the morning window is force-enabled via localStorage override.
-   * When true, the morning check sidebar is shown regardless of server time.
+   * Whether the morning window is force-enabled via the in-session toggle.
+   * Defaults to false on every page load — user must explicitly enable each session.
    */
-  protected readonly morningForced = signal(localStorage.getItem(MORNING_FORCE_KEY) === 'true');
+  protected readonly morningForced = signal(false);
 
   /**
    * True when there are yesterday EOD signals AND either:
@@ -96,12 +97,25 @@ export class ScannerPageComponent implements OnInit {
   protected readonly morningPanelOpen = signal(false);
 
   constructor() {
-    // Auto-open the sidebar when morning signals arrive, unless dismissed today
+    // Auto-open the sidebar when morning signals arrive, but only ONCE per day
+    // (not on every navigation / component re-mount).
     effect(() => {
-      if (this.hasMorningSignals() && !this.wasDismissedToday()) {
+      if (this.hasMorningSignals() && !this.wasDismissedToday() && !this.wasAutoOpenedToday()) {
         this.morningPanelOpen.set(true);
+        this.markAutoOpenedToday();
       }
     });
+  }
+
+  private wasAutoOpenedToday(): boolean {
+    const stored = localStorage.getItem(MORNING_AUTO_OPENED_KEY);
+    const today = new Date().toISOString().split('T')[0];
+    return stored === today;
+  }
+
+  private markAutoOpenedToday(): void {
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem(MORNING_AUTO_OPENED_KEY, today);
   }
 
   private wasDismissedToday(): boolean {
@@ -128,10 +142,10 @@ export class ScannerPageComponent implements OnInit {
   protected toggleMorningForce(): void {
     const next = !this.morningForced();
     this.morningForced.set(next);
-    localStorage.setItem(MORNING_FORCE_KEY, String(next));
     if (next && this.yesterdayEod()?.hasData) {
-      // Clear dismissed flag so the panel opens
+      // Clear dismissed and auto-opened flags so the panel opens now
       localStorage.removeItem(MORNING_DISMISSED_KEY);
+      localStorage.removeItem(MORNING_AUTO_OPENED_KEY);
       this.morningPanelOpen.set(true);
     } else if (!next) {
       this.morningPanelOpen.set(false);

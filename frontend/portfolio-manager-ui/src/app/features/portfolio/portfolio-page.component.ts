@@ -110,6 +110,7 @@ type GridSortCol =
   | 'rsi'
   | 'changePct'
   | 'dayGain'
+  | 'age'
   | 'holdingRole'
   | 'trendSetup'
   | 'momentumShift'
@@ -130,7 +131,8 @@ type OptionSortCol =
   | 'opt_gl'
   | 'opt_glp'
   | 'opt_state'
-  | 'opt_action';
+  | 'opt_action'
+  | 'opt_age';
 
 @Component({
   selector: 'app-portfolio-page',
@@ -188,6 +190,7 @@ export class PortfolioPageComponent {
   protected readonly filterRole = signal('');
   protected readonly filterMomentumShift = signal('');
   protected readonly filterAccount = signal('');
+  protected readonly filterMinAge = signal('');
 
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
@@ -213,7 +216,7 @@ export class PortfolioPageComponent {
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {
-      if (s.item.isManual) return sum;
+      if (s.item.isManual || s.item.transactionType === 'CLOSE') return sum;
       return sum + s.item.shares * (s.quote?.change ?? 0);
     }, 0),
   );
@@ -295,6 +298,8 @@ export class PortfolioPageComponent {
         return a.optionState;
       case 'opt_action':
         return a.action;
+      case 'opt_age':
+        return this.stockAge(a.item.openDate) ?? 0;
       default:
         return 0;
     }
@@ -629,6 +634,7 @@ export class PortfolioPageComponent {
     const filterRole = this.filterRole();
     const filterMomentum = this.filterMomentumShift();
     const filterAccount = this.filterAccount();
+    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
 
     const rows = this.portfolio.summaries().filter((s) => {
       if (s.item.transactionType === 'CLOSE') return false;
@@ -642,6 +648,10 @@ export class PortfolioPageComponent {
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
       if (filterRole && (s.item.holdingRole ?? 'Strategic') !== filterRole) return false;
       if (filterAccount && (s.item.accountType ?? '') !== filterAccount) return false;
+      if (minAge !== null && !isNaN(minAge)) {
+        const age = this.stockAge(s.item.openDate);
+        if (age === null || age < minAge) return false;
+      }
       if (filterMomentum) {
         const ms =
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '';
@@ -811,6 +821,8 @@ export class PortfolioPageComponent {
         return s.quote?.changePercent ?? 0;
       case 'dayGain':
         return s.item.isManual ? 0 : s.item.shares * (s.quote?.change ?? 0);
+      case 'age':
+        return this.stockAge(s.item.openDate) ?? 0;
       case 'holdingRole':
         return s.item.holdingRole ?? 'Strategic';
       case 'trendSetup':
@@ -891,6 +903,7 @@ export class PortfolioPageComponent {
     this.filterRole.set('');
     this.filterMomentumShift.set('');
     this.filterAccount.set('');
+    this.filterMinAge.set('');
   }
 
   get hasActiveFilters(): boolean {
@@ -900,8 +913,16 @@ export class PortfolioPageComponent {
       this.filterIndustry() ||
       this.filterRole() ||
       this.filterMomentumShift() ||
-      this.filterAccount()
+      this.filterAccount() ||
+      this.filterMinAge()
     );
+  }
+
+  /** Returns how many whole days a position has been held (today − open date). */
+  protected stockAge(openDate: string | null | undefined): number | null {
+    if (!openDate) return null;
+    const ms = Date.now() - new Date(openDate).getTime();
+    return Math.floor(ms / (1000 * 60 * 60 * 24));
   }
 
   private sortValue(s: PortfolioSummary, field: SortField): number | string {
@@ -956,6 +977,7 @@ export class PortfolioPageComponent {
         'Market Value',
         'Gain/Loss',
         'Gain/Loss %',
+        'Day $',
         'Daily Change',
         'Daily Change %',
         'RSI (14)',
@@ -992,6 +1014,7 @@ export class PortfolioPageComponent {
         marketValue.toFixed(2),
         gainLoss.toFixed(2),
         gainLossPct,
+        (s.item.shares * (s.quote?.change ?? 0)).toFixed(2),
         (s.quote?.change ?? 0).toFixed(2),
         (s.quote?.changePercent ?? 0).toFixed(2),
         rsiVal !== null ? rsiVal.toFixed(1) : '',
