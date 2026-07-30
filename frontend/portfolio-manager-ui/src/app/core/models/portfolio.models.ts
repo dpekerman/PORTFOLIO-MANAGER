@@ -82,6 +82,7 @@ export interface AddPortfolioItemRequest {
   closeDate?: string | null;
   closingPrice?: number | null;
   decisionSource?: string | null;
+  holdingRole?: string | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -303,12 +304,14 @@ export interface CashItem {
   amount: number;
   addedAt: string;
   accountType?: string | null;
+  transactionDate?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
   accountType?: string | null;
+  transactionDate?: string | null;
 }
 
 export interface UpdateCashItemRequest {

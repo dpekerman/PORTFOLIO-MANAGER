@@ -242,9 +242,7 @@ export class WatchlistPageComponent {
     return this.engine.translateForWatchlist(r, role, ctx);
   }
 
-  protected valueDataForSymbol(
-    symbol: string,
-  ): {
+  protected valueDataForSymbol(symbol: string): {
     technical: string;
     score: number;
     status: string;
@@ -557,17 +555,14 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly trendSetupOptions = [
-    'Waterfall / Falling Knife',
-    'Oversold Reversal Watch',
-    'Constructive Extended',
-    'Quality Trend Entry',
-    'Confirmed Constructive',
-    'Early Reversal',
-    'Cooling',
-    'Technical Caution',
-    'Neutral / No Setup',
-  ] as const;
+  protected readonly trendSetupOptions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const w of this.watchlist.items()) {
+      const ts = this.decisionForSymbol(w.item.symbol, w.item.role)?.trendSetup;
+      if (ts) set.add(ts);
+    }
+    return [...set].sort();
+  });
 
   protected readonly finalActionOptions = computed<string[]>(() => {
     const set = new Set<string>();

@@ -187,10 +187,8 @@ export class PortfolioPageComponent {
   protected readonly filterTicker = signal('');
   protected readonly filterSector = signal('');
   protected readonly filterIndustry = signal('');
-  protected readonly filterRole = signal('');
   protected readonly filterMomentumShift = signal('');
   protected readonly filterAccount = signal('');
-  protected readonly filterMinAge = signal('');
 
   protected readonly gridSortCol = signal<GridSortCol>('marketValue');
   protected readonly gridSortDir = signal<SortDir>('desc');
@@ -241,10 +239,11 @@ export class PortfolioPageComponent {
   /** When account filter is active, show the total market value for filtered positions. */
   protected readonly filteredTotalMktValue = computed<number | null>(() => {
     if (!this.filterAccount()) return null;
-    return this.gridRows()
-      .filter((r) => !('kind' in r))
-      .reduce((sum, r) => {
-        const s = r as import('../../core/models/portfolio.models').PortfolioSummary;
+    const acct = this.filterAccount();
+    return this.portfolio
+      .summaries()
+      .filter((s) => s.item.transactionType !== 'CLOSE' && (s.item.accountType ?? '') === acct)
+      .reduce((sum, s) => {
         const p = s.quote?.currentPrice ?? s.item.averageCostBasis;
         const mv = s.item.isManual
           ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
@@ -631,10 +630,8 @@ export class PortfolioPageComponent {
     const ticker = this.filterTicker().trim().toLowerCase();
     const sector = this.filterSector();
     const industry = this.filterIndustry();
-    const filterRole = this.filterRole();
     const filterMomentum = this.filterMomentumShift();
     const filterAccount = this.filterAccount();
-    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
 
     const rows = this.portfolio.summaries().filter((s) => {
       if (s.item.transactionType === 'CLOSE') return false;
@@ -646,12 +643,7 @@ export class PortfolioPageComponent {
         return false;
       if (sector && (s.item.sector || s.quote?.sector || '') !== sector) return false;
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
-      if (filterRole && (s.item.holdingRole ?? 'Strategic') !== filterRole) return false;
       if (filterAccount && (s.item.accountType ?? '') !== filterAccount) return false;
-      if (minAge !== null && !isNaN(minAge)) {
-        const age = this.stockAge(s.item.openDate);
-        if (age === null || age < minAge) return false;
-      }
       if (filterMomentum) {
         const ms =
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '';
@@ -900,10 +892,8 @@ export class PortfolioPageComponent {
     this.filterTicker.set('');
     this.filterSector.set('');
     this.filterIndustry.set('');
-    this.filterRole.set('');
     this.filterMomentumShift.set('');
     this.filterAccount.set('');
-    this.filterMinAge.set('');
   }
 
   get hasActiveFilters(): boolean {
@@ -911,10 +901,8 @@ export class PortfolioPageComponent {
       this.filterTicker() ||
       this.filterSector() ||
       this.filterIndustry() ||
-      this.filterRole() ||
       this.filterMomentumShift() ||
-      this.filterAccount() ||
-      this.filterMinAge()
+      this.filterAccount()
     );
   }
 

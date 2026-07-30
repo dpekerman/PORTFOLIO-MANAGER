@@ -4,6 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
@@ -36,6 +38,8 @@ interface OptionTickerGroup {
     MatButtonModule,
     MatCardModule,
     MatIconModule,
+    MatSortModule,
+    MatTableModule,
     MatTooltipModule,
     RouterLink,
     SectorExpositionComponent,
@@ -51,6 +55,37 @@ export class AllocationPageComponent {
   protected readonly betaState = inject(PortfolioBetaStateService);
 
   protected readonly showBetaDetail = signal(false);
+  protected readonly betaSortCol = signal<'symbol' | 'weightPct' | 'beta'>('symbol');
+  protected readonly betaSortDir = signal<'asc' | 'desc'>('asc');
+  protected readonly betaColumns = ['symbol', 'weightPct', 'beta', 'actions'] as const;
+
+  protected readonly sortedBetaContributors = computed(() => {
+    const contributors = this.betaState.result()?.topContributors ?? [];
+    const col = this.betaSortCol();
+    const dir = this.betaSortDir() === 'asc' ? 1 : -1;
+    return [...contributors].sort((a, b) => {
+      let av: string | number;
+      let bv: string | number;
+      if (col === 'symbol') {
+        av = a.symbol;
+        bv = b.symbol;
+      } else if (col === 'weightPct') {
+        av = a.weightPct;
+        bv = b.weightPct;
+      } else {
+        av = this.betaForSymbol(a.symbol) ?? 0;
+        bv = this.betaForSymbol(b.symbol) ?? 0;
+      }
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  onBetaSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.betaSortCol.set(sort.active as 'symbol' | 'weightPct' | 'beta');
+    this.betaSortDir.set(sort.direction as 'asc' | 'desc');
+  }
 
   constructor() {
     // Load portfolio beta on page init (non-blocking)

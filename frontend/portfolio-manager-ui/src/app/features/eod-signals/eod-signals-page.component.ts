@@ -43,11 +43,15 @@ import {
 
 type SortCol =
   | 'signalDate'
+  | 'daysPassed'
   | 'symbol'
   | 'scanType'
   | 'signalType'
   | 'rsi'
   | 'price'
+  | 'lastPrice'
+  | 'priceDiff'
+  | 'diffPct'
   | 'reversalProbability'
   | 'volumeSignal'
   | 'ruleVersion'
@@ -95,6 +99,8 @@ export class EodSignalsPageComponent implements OnInit {
   protected readonly persistingNow = signal(false);
   protected readonly lastCheckedAt = signal<Date | null>(null);
   protected readonly autoRefreshing = signal(false);
+  /** Current price map: symbol (upper) → current price fetched after signals load */
+  protected readonly currentPriceMap = signal<Map<string, number>>(new Map());
   /** Tracks the last unfiltered total count seen during background polling. Used to detect genuine new signals
    *  without being affected by active filter state (which changes the filtered totalCount). */
   private readonly lastKnownMetaCount = signal<number | null>(null);
@@ -132,6 +138,10 @@ export class EodSignalsPageComponent implements OnInit {
           av = a.signalDate;
           bv = b.signalDate;
           break;
+        case 'daysPassed':
+          av = this.daysPassed(a);
+          bv = this.daysPassed(b);
+          break;
         case 'symbol':
           av = a.symbol;
           bv = b.symbol;
@@ -151,6 +161,18 @@ export class EodSignalsPageComponent implements OnInit {
         case 'price':
           av = a.price;
           bv = b.price;
+          break;
+        case 'lastPrice':
+          av = this.lastPrice(a) ?? 0;
+          bv = this.lastPrice(b) ?? 0;
+          break;
+        case 'priceDiff':
+          av = this.priceDiff(a) ?? 0;
+          bv = this.priceDiff(b) ?? 0;
+          break;
+        case 'diffPct':
+          av = this.diffPct(a) ?? 0;
+          bv = this.diffPct(b) ?? 0;
           break;
         case 'reversalProbability':
           av = a.reversalProbability;
@@ -176,6 +198,31 @@ export class EodSignalsPageComponent implements OnInit {
       return String(av).localeCompare(String(bv)) * dir;
     });
   });
+
+  /** Days from signal date to today */
+  protected daysPassed(row: DailySignal): number {
+    const signalMs = new Date(row.signalDate).getTime();
+    return Math.floor((Date.now() - signalMs) / (1000 * 60 * 60 * 24));
+  }
+
+  /** Current price from the fetched price map */
+  protected lastPrice(row: DailySignal): number | null {
+    return this.currentPriceMap().get(row.symbol.toUpperCase()) ?? null;
+  }
+
+  /** Price Diff = Last Price - Signal Price */
+  protected priceDiff(row: DailySignal): number | null {
+    const lp = this.lastPrice(row);
+    if (lp === null) return null;
+    return lp - row.price;
+  }
+
+  /** Diff % = Price Diff / Signal Price */
+  protected diffPct(row: DailySignal): number | null {
+    const pd = this.priceDiff(row);
+    if (pd === null || row.price === 0) return null;
+    return (pd / row.price) * 100;
+  }
 
   protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('eod-signals');
 
@@ -272,12 +319,41 @@ export class EodSignalsPageComponent implements OnInit {
           this.response.set(r);
           this.loading.set(false);
           this.lastCheckedAt.set(new Date());
+          this.fetchCurrentPrices(r.items);
         },
         error: () => {
           this.error.set('Failed to load EOD signals.');
           this.loading.set(false);
         },
       });
+  }
+
+  /** Fetches current prices for the given signals and stores in currentPriceMap. */
+  private fetchCurrentPrices(signals: DailySignal[]): void {
+    const symbols = [...new Set(signals.map((s) => s.symbol.toUpperCase()))];
+    if (symbols.length === 0) return;
+    const batchSize = 50;
+    const batches: string[][] = [];
+    for (let i = 0; i < symbols.length; i += batchSize)
+      batches.push(symbols.slice(i, i + batchSize));
+    const merged = new Map<string, number>(this.currentPriceMap());
+    let completed = 0;
+    for (const batch of batches) {
+      this.api
+        .analyzeSymbols(batch, 30, 75, 'Enhanced')
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (results) => {
+            for (const r of results) merged.set(r.symbol.toUpperCase(), r.currentPrice);
+            completed++;
+            if (completed === batches.length) this.currentPriceMap.set(new Map(merged));
+          },
+          error: () => {
+            completed++;
+            if (completed === batches.length) this.currentPriceMap.set(new Map(merged));
+          },
+        });
+    }
   }
 
   /** Silent background poll: fetches only meta (totalCount).

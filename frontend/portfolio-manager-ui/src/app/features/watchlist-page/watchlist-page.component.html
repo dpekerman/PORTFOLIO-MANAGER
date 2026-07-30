@@ -115,7 +115,7 @@
           <mat-label>Trend Setup</mat-label>
           <mat-select [ngModel]="filterTrendSetup()" (ngModelChange)="filterTrendSetup.set($event)">
             <mat-option value="">All setups</mat-option>
-            @for (ts of trendSetupOptions; track ts) {
+            @for (ts of trendSetupOptions(); track ts) {
               <mat-option [value]="ts">{{ ts }}</mat-option>
             }
           </mat-select>
@@ -293,10 +293,10 @@
               </td>
             </ng-container>
 
-            <!-- Change $ / % -->
+            <!-- Change $ -->
             <ng-container matColumnDef="change">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="resizable-th">
-                CHANGE
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="change" class="resizable-th">
+                CHANGE $
                 <div
                   class="col-resize-handle"
                   (mousedown)="startResize($event, 'change')"
@@ -305,24 +305,46 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (changeForSymbol(w.item.symbol); as ch) {
-                  <div
-                    class="grid-change-cell"
-                    [class.up]="(ch.changePct ?? 0) >= 0"
-                    [class.down]="(ch.changePct ?? 0) < 0"
-                  >
-                    <span class="change-dollar">{{
+                  <span [class.up]="(ch.change ?? 0) >= 0" [class.down]="(ch.change ?? 0) < 0">
+                    {{
                       ch.change !== null
                         ? (ch.change >= 0 ? '+' : '') + (ch.change | number: '1.2-2')
                         : '—'
-                    }}</span>
-                    <span class="change-pct"
-                      >({{
-                        ch.changePct !== null
-                          ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
-                          : '—'
-                      }})</span
-                    >
-                  </div>
+                    }}
+                  </span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Change % -->
+            <ng-container matColumnDef="changePct">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header="changePct"
+                class="resizable-th"
+              >
+                CHANGE %
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'changePct')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (changeForSymbol(w.item.symbol); as ch) {
+                  <span
+                    [class.up]="(ch.changePct ?? 0) >= 0"
+                    [class.down]="(ch.changePct ?? 0) < 0"
+                  >
+                    {{
+                      ch.changePct !== null
+                        ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
+                        : '—'
+                    }}
+                  </span>
                 } @else {
                   <span class="grid-no-data">—</span>
                 }

@@ -136,6 +136,27 @@
         step="0.01"
       />
     </mat-form-field>
+
+    <!-- Row 7: Role | Decision Source -->
+    <mat-form-field appearance="outline">
+      <mat-label>Role</mat-label>
+      <mat-select formControlName="holdingRole">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (r of roles; track r) {
+          <mat-option [value]="r">{{ r }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Decision Source</mat-label>
+      <mat-select formControlName="decisionSource">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (ds of decisionSources; track ds) {
+          <mat-option [value]="ds">{{ ds }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
   </form>
 </mat-dialog-content>
 

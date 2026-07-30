@@ -239,6 +239,16 @@
           </td>
         </ng-container>
 
+        <!-- Days Passed -->
+        <ng-container matColumnDef="daysPassed">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="daysPassed" class="num-col">
+            DAYS PASSED
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            <span class="mono">{{ daysPassed(row) }}</span>
+          </td>
+        </ng-container>
+
         <!-- Symbol -->
         <ng-container matColumnDef="symbol">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="symbol">TICKER</th>
@@ -283,6 +293,54 @@
           <th mat-header-cell *matHeaderCellDef mat-sort-header="price" class="num-col">PRICE</th>
           <td mat-cell *matCellDef="let row" class="num-col">
             <span class="mono">${{ row.price | number: '1.2-2' }}</span>
+          </td>
+        </ng-container>
+
+        <!-- Last Price -->
+        <ng-container matColumnDef="lastPrice">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="lastPrice" class="num-col">
+            LAST PRICE
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (lastPrice(row); as lp) {
+              <span class="mono">${{ lp | number: '1.2-2' }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Price Diff -->
+        <ng-container matColumnDef="priceDiff">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="priceDiff" class="num-col">
+            PRICE DIFF
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @let pd = priceDiff(row);
+            @if (pd !== null) {
+              <span class="mono" [class.eod-pos]="pd >= 0" [class.eod-neg]="pd < 0"
+                >{{ pd >= 0 ? '+' : '' }}{{ pd | number: '1.2-2' }}</span
+              >
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Diff % -->
+        <ng-container matColumnDef="diffPct">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="diffPct" class="num-col">
+            DIFF %
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @let dp = diffPct(row);
+            @if (dp !== null) {
+              <span class="mono" [class.eod-pos]="dp >= 0" [class.eod-neg]="dp < 0"
+                >{{ dp >= 0 ? '+' : '' }}{{ dp | number: '1.1-1' }}%</span
+              >
+            } @else {
+              <span class="muted">—</span>
+            }
           </td>
         </ng-container>
 

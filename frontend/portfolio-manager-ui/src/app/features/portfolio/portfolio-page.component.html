@@ -210,19 +210,6 @@
                   subscriptSizing="dynamic"
                   class="gf-field gf-select"
                 >
-                  <mat-label>Role</mat-label>
-                  <mat-select [ngModel]="filterRole()" (ngModelChange)="filterRole.set($event)">
-                    <mat-option value="">All roles</mat-option>
-                    @for (r of roles; track r) {
-                      <mat-option [value]="r">{{ r }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field
-                  appearance="outline"
-                  subscriptSizing="dynamic"
-                  class="gf-field gf-select"
-                >
                   <mat-label>Momentum Shift</mat-label>
                   <mat-select
                     [ngModel]="filterMomentumShift()"
@@ -249,26 +236,6 @@
                       <mat-option [value]="a">{{ a }}</mat-option>
                     }
                   </mat-select>
-                </mat-form-field>
-                <mat-form-field
-                  appearance="outline"
-                  subscriptSizing="dynamic"
-                  class="gf-field gf-age"
-                >
-                  <mat-icon matPrefix>schedule</mat-icon>
-                  <input
-                    matInput
-                    type="number"
-                    min="0"
-                    placeholder="Min Age (days)"
-                    [ngModel]="filterMinAge()"
-                    (ngModelChange)="filterMinAge.set($event)"
-                  />
-                  @if (filterMinAge()) {
-                    <button matSuffix mat-icon-button (click)="filterMinAge.set('')">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  }
                 </mat-form-field>
                 @if (hasActiveFilters) {
                   <button

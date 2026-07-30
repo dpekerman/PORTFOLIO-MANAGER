@@ -13,6 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../../core/models/portfolio.models';
+import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
@@ -50,6 +51,7 @@ export class AddStockDialogComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly state = inject(PortfolioStateService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
+  private readonly configService = inject(ConfigService);
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
@@ -57,6 +59,19 @@ export class AddStockDialogComponent {
 
   protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly today = new Date();
+
+  protected readonly roles = [
+    'Core',
+    'Strategic',
+    'Strategic-Income',
+    'Swing',
+    'Speculative',
+    'Options',
+  ] as const;
+
+  protected get decisionSources(): string[] {
+    return this.configService.config().decisionSources ?? [];
+  }
 
   private readonly searchSubject = new Subject<string>();
 
@@ -70,6 +85,8 @@ export class AddStockDialogComponent {
     closeDate: [new Date() as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
     accountType: [null as string | null],
+    holdingRole: [null as string | null],
+    decisionSource: [null as string | null],
   });
 
   constructor() {
@@ -129,6 +146,8 @@ export class AddStockDialogComponent {
         openDate: this.formatDate(this.form.value.openDate),
         closeDate: this.formatDate(this.form.value.closeDate),
         closingPrice: this.form.value.closingPrice,
+        holdingRole: this.form.value.holdingRole,
+        decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
     } finally {

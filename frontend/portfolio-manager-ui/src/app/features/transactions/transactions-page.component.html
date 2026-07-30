@@ -36,34 +36,25 @@
         }
       </mat-form-field>
 
-      <mat-form-field
-        appearance="outline"
-        subscriptSizing="dynamic"
-        class="tx-filter-field tx-filter-age"
-      >
-        <mat-icon matPrefix>schedule</mat-icon>
-        <input
-          matInput
-          type="number"
-          min="0"
-          placeholder="Min Age (days)"
-          [ngModel]="filterMinAge()"
-          (ngModelChange)="filterMinAge.set($event)"
-        />
-        @if (filterMinAge()) {
-          <button matSuffix mat-icon-button (click)="filterMinAge.set('')">
-            <mat-icon>close</mat-icon>
-          </button>
-        }
-      </mat-form-field>
-
-      @if (filterDecisionSource() || filterMinAge()) {
+      @if (filterDecisionSource()) {
         <button
           mat-stroked-button
-          (click)="filterDecisionSource.set(''); filterMinAge.set('')"
+          (click)="filterDecisionSource.set('')"
           matTooltip="Clear filters"
         >
           <mat-icon>filter_list_off</mat-icon>
+        </button>
+      }
+
+      @if (txTypeFilter() === 'ALL') {
+        <button
+          mat-stroked-button
+          matTooltip="Export to CSV"
+          (click)="exportStocksCsv()"
+          [disabled]="sortedStockTransactions().length === 0"
+        >
+          <mat-icon>download</mat-icon>
+          Export CSV
         </button>
       }
     </div>
@@ -297,6 +288,35 @@
                   } @else {
                     <span class="pg-dim">—</span>
                   }
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
+              <ng-container matColumnDef="tx_diff_dollar">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="pg-num-header">
+                  DIFF $
+                </th>
+                <td mat-cell *matCellDef="let s" class="pg-num">
+                  @let dd = stockDiffDollar(s);
+                  @if (dd != null) {
+                    <span
+                      [class.pg-pos]="dd > 0"
+                      [class.pg-neg]="dd < 0"
+                      [class.demo-redact]="demoMode.isDemoMode()"
+                    >
+                      {{ dd >= 0 ? '+' : '' }}{{ dd | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                    </span>
+                  } @else {
+                    <span class="pg-dim">—</span>
+                  }
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
+              <ng-container matColumnDef="tx_trans_date">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>TRANS DATE</th>
+                <td mat-cell *matCellDef="let s" class="pg-dim">
+                  {{ stockTransDate(s.item) ? (stockTransDate(s.item) | date: 'yyyy-MM-dd') : '—' }}
                 </td>
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
