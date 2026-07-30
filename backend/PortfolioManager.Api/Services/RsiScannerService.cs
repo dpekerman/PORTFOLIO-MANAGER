@@ -445,6 +445,8 @@ public sealed class RsiScannerService : IRsiScannerService
                 Ema20Price = Math.Round(ema20Price, 4),
                 DayHigh = Math.Round(todayHigh, 4),
                 DayLow = Math.Round(todayLow, 4),
+                OpenPrice = Math.Round(todayOpen, 4),
+                PreviousClose = Math.Round(prevClose, 4),
                 IsDemo = false
             };
         }

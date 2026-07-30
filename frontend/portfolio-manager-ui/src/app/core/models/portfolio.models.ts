@@ -190,6 +190,10 @@ export interface RsiScanResult {
   dayHigh: number;
   /** Today's session low price. Used for BottomHalfClose / TopHalfClose calculation. */
   dayLow: number;
+  /** Today's opening price. Used for gap detection. */
+  openPrice: number;
+  /** Yesterday's closing price. GapPct = (openPrice - previousClose) / previousClose * 100. */
+  previousClose: number;
 }
 
 export interface ScannerResponse {

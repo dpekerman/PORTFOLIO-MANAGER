@@ -39,6 +39,7 @@ import {
 } from '../../core/models/portfolio.models';
 import {
   DecisionEngineService,
+  GapStatus,
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
@@ -344,6 +345,20 @@ export class WatchlistPageComponent {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
     return 'prob-low';
+  }
+
+  protected gapStatusClass(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'gap-strong';
+    if (status === 'Gap Up - Weak') return 'gap-weak';
+    if (status === 'Gap Up - Failed') return 'gap-failed';
+    return '';
+  }
+
+  protected gapStatusIcon(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'trending_up';
+    if (status === 'Gap Up - Weak') return 'trending_flat';
+    if (status === 'Gap Up - Failed') return 'trending_down';
+    return 'remove';
   }
 
   protected analystForSymbol(

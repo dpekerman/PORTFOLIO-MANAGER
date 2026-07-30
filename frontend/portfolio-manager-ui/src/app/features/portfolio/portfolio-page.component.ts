@@ -31,6 +31,7 @@ import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import {
   DecisionEngineService,
+  GapStatus,
   PortfolioItemContext,
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
@@ -402,6 +403,20 @@ export class PortfolioPageComponent {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
     return 'prob-low';
+  }
+
+  protected gapStatusClass(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'gap-strong';
+    if (status === 'Gap Up - Weak') return 'gap-weak';
+    if (status === 'Gap Up - Failed') return 'gap-failed';
+    return '';
+  }
+
+  protected gapStatusIcon(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'trending_up';
+    if (status === 'Gap Up - Weak') return 'trending_flat';
+    if (status === 'Gap Up - Failed') return 'trending_down';
+    return 'remove';
   }
 
   protected reversalForSymbol(symbol: string): string | null {

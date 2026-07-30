@@ -28,6 +28,7 @@ import {
   SinglePositionLimit,
 } from '../../core/models/portfolio.models';
 import { ConfigService } from '../../core/services/config.service';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -62,6 +63,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
+  protected readonly demoMode = inject(DemoModeService);
 
   // ── Refresh interval + RSI form ──────────────────────────────────────────
   protected readonly form = this.fb.group({

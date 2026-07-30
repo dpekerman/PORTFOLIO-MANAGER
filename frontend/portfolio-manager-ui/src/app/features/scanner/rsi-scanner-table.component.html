@@ -360,6 +360,38 @@
       </td>
     </ng-container>
 
+    <!-- Gap Status Column -->
+    <ng-container matColumnDef="gapStatus">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        matTooltip="Gap analysis: GapPct = (Open - PrevClose) / PrevClose × 100; scored -2 (Failed) to +2 (Strong)"
+      >
+        Gap Status
+      </th>
+      <td mat-cell *matCellDef="let row">
+        @let dec = decision(row);
+        @if (dec.gapStatus !== 'No Gap') {
+          <div
+            class="gap-status-badge"
+            [ngClass]="gapStatusClass(dec.gapStatus)"
+            [matTooltip]="
+              'Gap: ' +
+              (dec.gapPct | number: '1.1-1') +
+              '% · Score: ' +
+              (dec.gapScore >= 0 ? '+' : '') +
+              dec.gapScore
+            "
+          >
+            <mat-icon class="gap-icon">{{ gapStatusIcon(dec.gapStatus) }}</mat-icon>
+            <span>{{ dec.gapStatus }}</span>
+          </div>
+        } @else {
+          <span class="no-gap-text">—</span>
+        }
+      </td>
+    </ng-container>
+
     <!-- Trend Setup Column -->
     <ng-container matColumnDef="trendSetup">
       <th mat-header-cell *matHeaderCellDef matTooltip="Market structure and trend classification">

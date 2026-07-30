@@ -9,7 +9,11 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
 import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
-import { DecisionEngineService, PageDecision } from '../../core/services/decision-engine.service';
+import {
+  DecisionEngineService,
+  GapStatus,
+  PageDecision,
+} from '../../core/services/decision-engine.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
@@ -159,6 +163,20 @@ export class RsiScannerTableComponent {
 
   protected decision(row: RsiScanResult): PageDecision {
     return this.engine.translateForRsiScanner(row);
+  }
+
+  protected gapStatusClass(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'gap-strong';
+    if (status === 'Gap Up - Weak') return 'gap-weak';
+    if (status === 'Gap Up - Failed') return 'gap-failed';
+    return '';
+  }
+
+  protected gapStatusIcon(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'trending_up';
+    if (status === 'Gap Up - Weak') return 'trending_flat';
+    if (status === 'Gap Up - Failed') return 'trending_down';
+    return 'remove';
   }
 
   exportToExcel(): void {

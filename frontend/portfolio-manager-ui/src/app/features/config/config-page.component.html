@@ -39,6 +39,17 @@
     <button
       class="cfg-tab-btn"
       role="tab"
+      [attr.aria-selected]="activeSection() === 'demo'"
+      [class.cfg-tab-btn--active]="activeSection() === 'demo'"
+      [class.cfg-tab-btn--demo]="demoMode.isDemoMode()"
+      (click)="activeSection.set('demo')"
+    >
+      <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+      <span class="cfg-tab-label">Demo Mode</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
       [attr.aria-selected]="activeSection() === 'scanner'"
       [class.cfg-tab-btn--active]="activeSection() === 'scanner'"
       (click)="activeSection.set('scanner')"
@@ -100,6 +111,72 @@
       <mat-icon>label</mat-icon><span class="cfg-tab-label">Decision Sources</span>
     </button>
   </nav>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 0 — DEMO MODE
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'demo'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Demo Mode</h2>
+          <p class="section-subtitle">
+            Mask sensitive portfolio values for screen sharing or presentations
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        @if (demoMode.isDemoMode()) {
+          <div class="demo-active-banner" role="status">
+            <mat-icon>visibility_off</mat-icon>
+            <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
+          </div>
+        }
+
+        <div class="demo-toggle-row">
+          <mat-slide-toggle
+            [checked]="demoMode.isDemoMode()"
+            (change)="demoMode.isDemoMode() ? demoMode.disable() : demoMode.enable()"
+            color="warn"
+          >
+            {{
+              demoMode.isDemoMode()
+                ? 'Demo mode is ON — values are masked'
+                : 'Demo mode is OFF — real values shown'
+            }}
+          </mat-slide-toggle>
+        </div>
+
+        <div class="demo-info-card">
+          <mat-icon>info</mat-icon>
+          <div>
+            <p><strong>What gets masked:</strong></p>
+            <ul>
+              <li>All dollar amounts (portfolio value, cost, gain/loss, cash)</li>
+              <li>A consistent random factor (0.3–0.7) is applied per session</li>
+              <li>Percentages are varied within ±30%</li>
+            </ul>
+            <p><strong>What stays visible:</strong></p>
+            <ul>
+              <li>Ticker symbols and company names</li>
+              <li>RSI values, signals, and technical indicators</li>
+            </ul>
+          </div>
+        </div>
+
+        @if (demoMode.isDemoMode()) {
+          <div class="demo-exit-row">
+            <button mat-flat-button color="primary" (click)="demoMode.disable()">
+              <mat-icon>visibility</mat-icon>
+              Exit Demo Mode
+            </button>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
 
   <!-- ════════════════════════════════════════════════════════════════════
        SECTION 1 — SCANNER SETTINGS

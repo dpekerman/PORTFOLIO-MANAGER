@@ -1050,6 +1050,42 @@ button[mat-icon-button] {
   }
 }
 
+// -- Gap Status badge
+.gap-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  .gap-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+
+  &.gap-strong {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border-color: rgba(0, 200, 83, 0.25);
+  }
+  &.gap-weak {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border-color: rgba(255, 167, 38, 0.2);
+  }
+  &.gap-failed {
+    background: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.25);
+  }
+}
+
 // -- Reversal Probability badge
 .prob-badge {
   display: inline-flex;

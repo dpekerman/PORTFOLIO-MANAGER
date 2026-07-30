@@ -619,6 +619,38 @@
               </td>
             </ng-container>
 
+            <!-- Gap Status -->
+            <ng-container matColumnDef="gapStatus">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Gap analysis: (Open - PrevClose) / PrevClose × 100"
+              >
+                Gap Status
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @let dec = decisionForSymbol(w.item.symbol, w.item.role);
+                @if (dec && dec.gapStatus !== 'No Gap') {
+                  <div
+                    class="gap-status-badge"
+                    [ngClass]="gapStatusClass(dec.gapStatus)"
+                    [matTooltip]="
+                      'Gap: ' +
+                      (dec.gapPct | number: '1.1-1') +
+                      '% · Score: ' +
+                      (dec.gapScore >= 0 ? '+' : '') +
+                      dec.gapScore
+                    "
+                  >
+                    <mat-icon class="gap-icon">{{ gapStatusIcon(dec.gapStatus) }}</mat-icon>
+                    <span>{{ dec.gapStatus }}</span>
+                  </div>
+                } @else {
+                  <span class="pg-dim">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- Final Action -->
             <ng-container matColumnDef="finalAction">
               <th

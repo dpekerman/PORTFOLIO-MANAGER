@@ -91,21 +91,6 @@
         <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
 
-      <!-- Demo mode toggle -->
-      <button
-        mat-icon-button
-        [matTooltip]="
-          demoMode.isDemoMode()
-            ? 'Disable demo mode (show real data)'
-            : 'Enable demo mode (mask real values for presentations)'
-        "
-        (click)="demoMode.toggle()"
-        [class.demo-active]="demoMode.isDemoMode()"
-        aria-label="Toggle demo mode"
-      >
-        <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
-      </button>
-
       <!-- Global refresh -->
       <button
         mat-icon-button
@@ -119,6 +104,7 @@
     </mat-toolbar>
 
     <!-- Demo mode banner -->
+    <!--
     @if (demoMode.isDemoMode()) {
       <div class="demo-banner" role="status" aria-live="polite">
         <mat-icon>visibility_off</mat-icon>
@@ -126,7 +112,7 @@
         <button mat-button (click)="demoMode.disable()" class="demo-banner-btn">Exit Demo</button>
       </div>
     }
-
+    -->
     <!-- Global progress bar -->
     @if (isLoading()) {
       <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
