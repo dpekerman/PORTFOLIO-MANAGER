@@ -84,6 +84,10 @@ builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
         cfg.EodWindowEnd = section["EodWindowEnd"]!;
     if (bool.TryParse(section["EodWindowEnabled"], out var enabled))
         cfg.EodWindowEnabled = enabled;
+    if (decimal.TryParse(section["EodOversoldRsiThreshold"], out var oversold) && oversold > 0)
+        cfg.EodOversoldRsiThreshold = oversold;
+    if (decimal.TryParse(section["EodOverboughtRsiThreshold"], out var overbought) && overbought > 0)
+        cfg.EodOverboughtRsiThreshold = overbought;
     // Load persisted overrides (saved via PUT /api/scanner/eod-settings), takes priority over appsettings
     cfg.LoadFromFile();
     return cfg;
