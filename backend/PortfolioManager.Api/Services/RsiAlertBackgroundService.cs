@@ -134,9 +134,8 @@ public sealed class RsiAlertBackgroundService(
 
             if (allQualified.Count > 0)
             {
-                // Email notifications only for EodConfirm signals (high-priority alert)
-                if (eodConfirmCount > 0)
-                    await notifier.NotifyNewEodConfirmedSignalsAsync(result);
+                // Email for every signal that gets persisted to the EOD Signals page
+                await notifier.NotifyNewEodConfirmedSignalsAsync(result);
 
                 // Persist all qualified signals (EodConfirm + Confirmed) to the DailySignals DB
                 // table and to the JSON file for the morning panel.
