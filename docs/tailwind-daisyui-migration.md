@@ -8,14 +8,17 @@ This document describes the setup, rationale, and implementation of the Tailwind
 
 ## Packages Added
 
-| Package | Version | Role |
-|---|---|---|
-| `tailwindcss` | v4.x | CSS framework — utility classes |
-| `@tailwindcss/postcss` | v4.x | PostCSS plugin that drives Tailwind v4 |
-| `postcss` | latest | CSS post-processing pipeline |
-| `daisyui` | v5.x | Component library on top of Tailwind |
+| Package                | Version | Role                                   |
+| ---------------------- | ------- | -------------------------------------- |
+| `tailwindcss`          | v4.x    | CSS framework — utility classes        |
+| `@tailwindcss/postcss` | v4.x    | PostCSS plugin that drives Tailwind v4 |
+| `postcss`              | latest  | CSS post-processing pipeline           |
+| `daisyui`              | v5.x    | Component library on top of Tailwind   |
+
+`src/styles/pm-ui.css` — new shared component layer (no extra package, see below).
 
 Install command used:
+
 ```bash
 npm install tailwindcss @tailwindcss/postcss postcss --force
 npm i -D daisyui@latest
@@ -26,6 +29,7 @@ npm i -D daisyui@latest
 ## Configuration Files
 
 ### 1. `.postcssrc.json` (new)
+
 Located at `frontend/portfolio-manager-ui/.postcssrc.json`.
 
 ```json
@@ -38,19 +42,38 @@ Located at `frontend/portfolio-manager-ui/.postcssrc.json`.
 
 Tells the Angular build pipeline (Vite/esbuild) to run the Tailwind PostCSS plugin over all compiled CSS.
 
-### 2. `src/tailwind.css` (new)
+### 2. `src/styles/pm-ui.css` (new — shared UI component layer)
+
+Defines `@layer components` classes that match the existing Angular Material v3 button aesthetic using the **same `--mat-sys-*` CSS variables** Angular Material already sets. These classes are the forward-compatible replacement for `mat-flat-button` / `mat-stroked-button` and should be used on every page as it is migrated.
+
+```css
+.pm-btn          /* base: geometry, font, transition */
+.pm-btn-primary  /* filled — matches mat-flat-button */
+.pm-btn-outline  /* stroked — matches mat-stroked-button */
+.pm-btn-accent   /* accent/secondary fill */
+.pm-btn-info     /* info outlined (Send Test Email) */
+.pm-btn-success  /* success outlined (Scan & Notify) */
+```
+
+All migrated pages import this automatically via `tailwind.css`.
+
+### 3. `src/tailwind.css` (new)
+
 Located at `frontend/portfolio-manager-ui/src/tailwind.css`.
 
 ```css
 @import "tailwindcss";
 @plugin "daisyui";
+@import "./styles/pm-ui.css";
 ```
 
 A plain CSS file is required because SCSS will attempt to resolve `@import "tailwindcss"` as a Sass file and fail. This file is the PostCSS entry point that:
+
 - Imports Tailwind's preflight (base reset), theme tokens, and utility engine
 - Loads DaisyUI as a Tailwind plugin (adds component classes + CSS variables for themes)
 
 ### 3. `angular.json` — styles array updated
+
 ```json
 "styles": ["src/tailwind.css", "src/styles.scss"]
 ```
@@ -72,7 +95,7 @@ Tailwind v4 uses a CSS `@import "tailwindcss"` directive processed at the PostCS
 DaisyUI v5 uses `data-theme` attributes on any ancestor element to scope its CSS variables. The config page wrapper sets:
 
 ```html
-<div class="p-6 pt-4 flex flex-col" data-theme="night">
+<div class="p-6 pt-4 flex flex-col" data-theme="night"></div>
 ```
 
 - `data-theme="night"` activates DaisyUI's dark theme on the config page only
@@ -87,34 +110,34 @@ DaisyUI v5 uses `data-theme` attributes on any ancestor element to scope its CSS
 
 All custom CSS class names were replaced with **Tailwind utilities** and **DaisyUI component classes**. The Angular template logic (signals, event bindings, `@if`/`@for` blocks, form bindings) is unchanged.
 
-| Old custom class | New Tailwind / DaisyUI equivalent |
-|---|---|
-| `.config-page` | `p-6 pt-4 flex flex-col` + `data-theme="night"` |
-| `.sticky-save-bar` | `sticky top-14 z-50 -mx-6 px-6 bg-base-200 border-b border-base-300 shadow-md` |
-| `.sticky-save-bar-inner` | `flex items-center justify-between py-2.5 gap-4` |
-| `.cfg-tab-nav` | DaisyUI `tabs tabs-border flex-wrap` |
-| `.cfg-tab-btn` | DaisyUI `tab gap-1.5 text-[11px] font-semibold` |
-| `.cfg-tab-btn--active` | DaisyUI `tab-active` |
-| `.cfg-panel` + `.cfg-panel--active` | `[class.hidden]="activeSection() !== 'x'"` |
-| `.config-section` | DaisyUI `card bg-base-100 border border-base-300 shadow-sm` |
-| `.section-header` | `flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300` |
-| `.section-title` | `text-sm font-bold text-base-content m-0 mb-0.5` |
-| `.section-subtitle` | `text-[11px] text-base-content/50 m-0 leading-relaxed` |
-| `.section-header-badge` | DaisyUI `badge badge-warning badge-sm` |
-| `.section-body` | `p-5 flex flex-col gap-4` |
-| `.section-footer` | `flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap` |
-| `.section-footer-hint` | `flex-1 text-[11px] text-base-content/50 italic` |
-| `.sub-card` | `rounded-lg border border-base-300 bg-base-200 overflow-hidden` |
-| `.eod-info-banner` | DaisyUI `alert alert-warning text-sm gap-2.5` |
-| `.eod-inline-badge` | DaisyUI `badge badge-warning badge-sm` |
-| `.demo-active-banner` | DaisyUI `alert alert-warning gap-2.5 font-bold text-sm` |
-| `.demo-info-card` | DaisyUI `alert text-sm gap-3` |
-| `.email-info` | DaisyUI `alert text-xs gap-2` |
-| `.list-badge` / `.alloc-badge` | DaisyUI `badge badge-primary badge-sm/xs` |
-| `mat-flat-button` directive | DaisyUI `btn btn-primary btn-sm gap-1` |
-| `mat-stroked-button` directive | DaisyUI `btn btn-outline btn-sm gap-1` |
-| `.spinning` CSS animation | Tailwind `animate-spin` |
-| `.eod-active-icon` CSS animation | `[class.animate-pulse]` + `[class.!text-warning]` bindings |
+| Old custom class                    | New Tailwind / DaisyUI equivalent                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `.config-page`                      | `p-6 pt-4 flex flex-col` + `data-theme="night"`                                                  |
+| `.sticky-save-bar`                  | `sticky top-14 z-50 -mx-6 px-6 bg-base-200 border-b border-base-300 shadow-md`                   |
+| `.sticky-save-bar-inner`            | `flex items-center justify-between py-2.5 gap-4`                                                 |
+| `.cfg-tab-nav`                      | DaisyUI `tabs tabs-border flex-wrap`                                                             |
+| `.cfg-tab-btn`                      | DaisyUI `tab gap-1.5 text-[11px] font-semibold`                                                  |
+| `.cfg-tab-btn--active`              | DaisyUI `tab-active`                                                                             |
+| `.cfg-panel` + `.cfg-panel--active` | `[class.hidden]="activeSection() !== 'x'"`                                                       |
+| `.config-section`                   | DaisyUI `card bg-base-100 border border-base-300 shadow-sm`                                      |
+| `.section-header`                   | `flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300`                               |
+| `.section-title`                    | `text-sm font-bold text-base-content m-0 mb-0.5`                                                 |
+| `.section-subtitle`                 | `text-[11px] text-base-content/50 m-0 leading-relaxed`                                           |
+| `.section-header-badge`             | DaisyUI `badge badge-warning badge-sm`                                                           |
+| `.section-body`                     | `p-5 flex flex-col gap-4`                                                                        |
+| `.section-footer`                   | `flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap` |
+| `.section-footer-hint`              | `flex-1 text-[11px] text-base-content/50 italic`                                                 |
+| `.sub-card`                         | `rounded-lg border border-base-300 bg-base-200 overflow-hidden`                                  |
+| `.eod-info-banner`                  | DaisyUI `alert alert-warning text-sm gap-2.5`                                                    |
+| `.eod-inline-badge`                 | DaisyUI `badge badge-warning badge-sm`                                                           |
+| `.demo-active-banner`               | DaisyUI `alert alert-warning gap-2.5 font-bold text-sm`                                          |
+| `.demo-info-card`                   | DaisyUI `alert text-sm gap-3`                                                                    |
+| `.email-info`                       | DaisyUI `alert text-xs gap-2`                                                                    |
+| `.list-badge` / `.alloc-badge`      | DaisyUI `badge badge-primary badge-sm/xs`                                                        |
+| `mat-flat-button` directive         | `pm-btn pm-btn-primary` (shared layer in `src/styles/pm-ui.css`)                                 |
+| `mat-stroked-button` directive      | `pm-btn pm-btn-outline` (shared layer in `src/styles/pm-ui.css`)                                 |
+| `.spinning` CSS animation           | Tailwind `animate-spin`                                                                          |
+| `.eod-active-icon` CSS animation    | `[class.animate-pulse]` + `[class.!text-warning]` bindings                                       |
 
 ### SCSS — `config-page.component.scss`
 
@@ -142,10 +165,26 @@ These would be the next candidates for DaisyUI equivalents (`input`, `toggle`, `
 ## Coexistence Strategy
 
 Tailwind and Angular Material coexist with no conflicts because:
+
 1. **Tailwind's preflight** loads first (element selectors only) — Angular Material's more specific component styles override it
 2. **DaisyUI component classes** are applied to structural wrapper elements (`card`, `alert`, `badge`, `btn`, `tabs`) which do not overlap with Angular Material's internal DOM
 3. **Tailwind utilities** on wrapper `div`s do not conflict with Material's internal component styles
 4. **`data-theme="night"`** scopes DaisyUI's CSS variables to the config page only — no effect on other pages
+
+---
+
+## Shared UI Component Layer — `src/styles/pm-ui.css`
+
+This file answers the question: _"how do we keep a consistent UI across all pages as they migrate?"_
+
+Tailwind's `@layer components` is the idiomatic answer. It lets you define reusable CSS classes (like a mini design-system) that:
+
+- Are built on Angular Material's existing `--mat-sys-*` CSS variables, so colours stay in sync with the Material theme
+- Can be overridden per-element with Tailwind utility classes (standard Tailwind cascade rules apply)
+- Live in one file, imported once via `tailwind.css`
+- Require zero extra packages
+
+As more pages are migrated, add any new shared patterns here (e.g. `.pm-card`, `.pm-section-header`, `.pm-badge`).
 
 ---
 
@@ -155,7 +194,7 @@ To migrate additional pages:
 
 1. Add `data-theme="night"` (or any DaisyUI theme) to the component's root element
 2. Replace custom SCSS layout classes with Tailwind utilities in the HTML
-3. Replace static buttons with DaisyUI `btn` variants (remove `mat-flat-button` / `mat-stroked-button` directives)
+3. Replace static buttons with `pm-btn pm-btn-primary` / `pm-btn pm-btn-outline` from `pm-ui.css` — these match the existing Material button appearance (remove `mat-flat-button` / `mat-stroked-button` directives)
 4. Replace info banners/callouts with DaisyUI `alert`
 5. Replace count pills with DaisyUI `badge`
 6. Replace cards/panels with DaisyUI `card`

@@ -1,0 +1,614 @@
+﻿/*
+ * pm-ui.css — Portfolio Manager shared Tailwind component layer
+ *
+ * Single source of truth for reusable UI components across all pages.
+ * Uses the app's existing --bg-*, --text-*, --border-*, --mat-sys-* CSS variables
+ * so dark/light mode switching works automatically.
+ *
+ * Usage:
+ *   Buttons:        <button class="pm-btn pm-btn-primary">Save</button>
+ *   Tab nav:        <nav class="pm-tab-nav"><button class="pm-tab-btn pm-tab-btn-active">...</button></nav>
+ *   Section card:   <div class="pm-section"><div class="pm-section-header">...</div></div>
+ *   Sub-card:       <div class="pm-sub-card"><div class="pm-sub-card-header">...</div></div>
+ *   Badges:         <span class="pm-badge pm-badge-primary">42</span>
+ */
+
+@layer components {
+
+  /* ════════════════════════════════════════════
+     BUTTONS  — mirror Angular Material v3
+     ════════════════════════════════════════════ */
+
+  .pm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 16px;
+    border-radius: var(--mat-sys-corner-small, 4px);
+    font-family: var(--mat-sys-label-large-font, Roboto, sans-serif);
+    font-size: 0.875rem;
+    font-weight: 500;
+    letter-spacing: 0.006em;
+    line-height: 1.25rem;
+    white-space: nowrap;
+    user-select: none;
+    cursor: pointer;
+    border: none;
+    outline: none;
+    text-decoration: none;
+    vertical-align: middle;
+    transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1),
+                background 280ms cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 150ms ease;
+  }
+
+  .pm-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .pm-btn .mat-icon,
+  .pm-btn mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* Filled — matches mat-flat-button */
+  .pm-btn-primary {
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+  .pm-btn-primary:hover:not(:disabled) {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
+  }
+  .pm-btn-primary:active:not(:disabled) {
+    box-shadow: none;
+  }
+
+  /* Outlined — matches mat-stroked-button */
+  .pm-btn-outline {
+    background: transparent;
+    color: var(--mat-sys-primary);
+    border: 1px solid var(--mat-sys-outline, rgba(255,255,255,0.38));
+  }
+  .pm-btn-outline:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  }
+
+  /* Accent — matches mat-flat-button color="accent" */
+  .pm-btn-accent {
+    background: var(--mat-sys-secondary, var(--mat-sys-primary));
+    color: var(--mat-sys-on-secondary, var(--mat-sys-on-primary));
+  }
+  .pm-btn-accent:hover:not(:disabled) {
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15);
+  }
+
+  /* Info outlined — e.g. Send Test Email */
+  .pm-btn-info {
+    background: transparent;
+    color: #64b5f6;
+    border: 1px solid rgba(100,181,246,0.4);
+  }
+  .pm-btn-info:hover:not(:disabled) {
+    background: rgba(100,181,246,0.08);
+  }
+
+  /* Success outlined — e.g. Scan & Notify */
+  .pm-btn-success {
+    background: transparent;
+    color: #a5d6a7;
+    border: 1px solid rgba(165,214,167,0.4);
+  }
+  .pm-btn-success:hover:not(:disabled) {
+    background: rgba(165,214,167,0.08);
+  }
+
+
+  /* ════════════════════════════════════════════
+     TAB NAVIGATION
+     ════════════════════════════════════════════ */
+
+  .pm-tab-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 14px 0 0;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 20px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .pm-tab-nav::-webkit-scrollbar { height: 3px; }
+  .pm-tab-nav::-webkit-scrollbar-track { background: transparent; }
+  .pm-tab-nav::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+  }
+
+  .pm-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px 10px;
+    border: none;
+    border-bottom: 3px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 150ms ease, border-color 150ms ease;
+    margin-bottom: -2px;
+  }
+
+  .pm-tab-btn mat-icon,
+  .pm-tab-btn .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .pm-tab-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-radius: 6px 6px 0 0;
+  }
+
+  .pm-tab-btn-active {
+    color: var(--mat-sys-primary, #64b5f6);
+    border-bottom-color: var(--mat-sys-primary, #64b5f6);
+  }
+
+  .pm-tab-btn-active mat-icon,
+  .pm-tab-btn-active .mat-icon {
+    color: var(--mat-sys-primary, #64b5f6);
+  }
+
+  /* Demo-mode tab gets an orange tint */
+  .pm-tab-btn-demo {
+    color: #ffa726;
+  }
+  .pm-tab-btn-demo mat-icon,
+  .pm-tab-btn-demo .mat-icon {
+    color: #ffa726;
+  }
+  .pm-tab-btn-demo.pm-tab-btn-active {
+    border-bottom-color: #ffa726;
+  }
+
+  @media (max-width: 480px) {
+    .pm-tab-btn-label { display: none; }
+    .pm-tab-btn { padding: 8px 12px 10px; }
+  }
+
+  @media (max-width: 640px) {
+    .pm-tab-btn {
+      padding: 7px 10px 9px;
+      font-size: 0.72rem;
+      gap: 4px;
+    }
+    .pm-tab-btn mat-icon,
+    .pm-tab-btn .mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+
+  /* ════════════════════════════════════════════
+     SECTION CARD  (config/page sections)
+     ════════════════════════════════════════════ */
+
+  .pm-section {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--bg-surface);
+    overflow: hidden;
+  }
+
+  .pm-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px 12px;
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  .pm-section-header mat-icon,
+  .pm-section-header .mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--mat-sys-primary, #64b5f6);
+    flex-shrink: 0;
+  }
+
+  .pm-section-header-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pm-section-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 2px;
+    letter-spacing: 0.02em;
+  }
+
+  .pm-section-subtitle {
+    font-size: 0.71rem;
+    color: var(--text-faint);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .pm-section-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 10px;
+    border-radius: 12px;
+    background: rgba(255,152,0,0.15);
+    color: #ff9800;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+
+  .pm-section-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pm-section-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-elevated);
+    flex-wrap: wrap;
+  }
+
+  .pm-section-footer-hint {
+    flex: 1;
+    font-size: 0.71rem;
+    color: var(--text-faint);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .pm-section-footer-hint mat-icon,
+  .pm-section-footer-hint .mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  /* EOD-active state: orange border on the section card */
+  .pm-section-eod-active {
+    border-color: rgba(255,152,0,0.35) !important;
+  }
+
+
+  /* ════════════════════════════════════════════
+     SUB-CARDS  (inside section body)
+     ════════════════════════════════════════════ */
+
+  .pm-sub-card {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .pm-sub-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  }
+
+  .pm-sub-card-header mat-icon,
+  .pm-sub-card-header .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+  }
+
+  .pm-sub-card-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  .pm-sub-card-body {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+
+  /* ════════════════════════════════════════════
+     BADGES
+     ════════════════════════════════════════════ */
+
+  .pm-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    white-space: nowrap;
+  }
+
+  .pm-badge-primary {
+    background: rgba(100,181,246,0.15);
+    color: #64b5f6;
+  }
+
+  .pm-badge-warning {
+    background: rgba(255,152,0,0.18);
+    color: #ff9800;
+  }
+
+
+  /* ════════════════════════════════════════════
+     INFO BANNERS  (eod-info, email-info, etc.)
+     ════════════════════════════════════════════ */
+
+  .pm-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    padding: 12px 16px;
+    line-height: 1.5;
+  }
+
+  .pm-banner mat-icon,
+  .pm-banner .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Orange — warnings / EOD info */
+  .pm-banner-warning {
+    color: var(--text-secondary);
+    background: rgba(255,152,0,0.06);
+    border: 1px solid rgba(255,152,0,0.2);
+  }
+  .pm-banner-warning mat-icon,
+  .pm-banner-warning .mat-icon { color: #ff9800; }
+
+  /* Blue — general info */
+  .pm-banner-info {
+    color: var(--text-muted);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+  }
+  .pm-banner-info mat-icon,
+  .pm-banner-info .mat-icon { color: #64b5f6; }
+
+  /* Orange alert — demo mode active */
+  .pm-banner-demo-active {
+    align-items: center;
+    background: rgba(255,167,38,0.1);
+    border: 1px solid rgba(255,167,38,0.3);
+    color: #ffa726;
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  /* Neutral — demo info card */
+  .pm-banner-neutral {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-secondary);
+  }
+
+
+  /* ════════════════════════════════════════════
+     ALLOCATION PANELS (config allocation section)
+     ════════════════════════════════════════════ */
+
+  .pm-alloc-panel {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .pm-alloc-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .pm-alloc-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex: 1;
+    color: var(--text-primary);
+  }
+
+  .pm-alloc-col-headers {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 6px 4px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+    margin-bottom: 2px;
+  }
+
+  .pm-alloc-col-name {
+    flex: 1;
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+  }
+
+  .pm-alloc-col-pct {
+    font-size: 0.67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    min-width: 38px;
+    text-align: right;
+    padding-right: 58px;
+  }
+
+  .pm-alloc-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 6px;
+  }
+
+  .pm-alloc-row:hover {
+    background: var(--bg-hover);
+  }
+
+  .pm-alloc-name {
+    flex: 1;
+    font-size: 0.82rem;
+  }
+
+  .pm-alloc-pct {
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--mat-sys-primary, #64b5f6);
+    min-width: 38px;
+    text-align: right;
+  }
+
+  .pm-alloc-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  .pm-alloc-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 6px 2px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-top: 1px solid var(--border-color);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+
+  .pm-alloc-total-ok  { color: #43a047; }
+  .pm-alloc-total-warn { color: #e53935; }
+
+  .pm-alloc-hint {
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    margin: 6px 0 0;
+    font-style: italic;
+  }
+
+
+  /* ════════════════════════════════════════════
+     LIST PANELS  (sectors / industries)
+     ════════════════════════════════════════════ */
+
+  .pm-list-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .pm-list-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .pm-list-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .pm-list-scroll {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-elevated, var(--bg-surface));
+    scrollbar-width: thin;
+  }
+
+  .pm-list-empty {
+    padding: 16px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    font-style: italic;
+    margin: 0;
+  }
+
+  .pm-list-item-btn {
+    width: 28px !important;
+    height: 28px !important;
+    line-height: 28px !important;
+    opacity: 0.4;
+    transition: opacity 0.15s, color 0.15s;
+  }
+
+  .pm-list-item-btn mat-icon,
+  .pm-list-item-btn .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  .pm-list-item-btn:hover {
+    opacity: 1;
+    color: #ef5350;
+  }
+}

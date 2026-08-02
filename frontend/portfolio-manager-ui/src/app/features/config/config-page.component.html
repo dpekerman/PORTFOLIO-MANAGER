@@ -1,34 +1,23 @@
-﻿<div class="p-6 pt-4 flex flex-col" data-theme="night">
+﻿<div class="p-6 pt-4 flex flex-col gap-0">
 
   <!-- ── Sticky Save-All bar ── -->
-  <div class="sticky top-14 z-50 -mx-6 px-6 bg-base-200 border-b border-base-300 shadow-md">
+  <div class="sticky top-14 z-50 -mx-6 px-6 bg-[var(--bg-surface)] border-b border-[var(--border-color)] shadow-[0_2px_12px_rgba(0,0,0,0.18)]">
     <div class="flex items-center justify-between py-2.5 gap-4">
       <div class="flex items-center gap-2.5">
-        <mat-icon class="!text-xl text-base-content/60 shrink-0">settings</mat-icon>
+        <mat-icon class="!text-[20px] !w-5 !h-5 text-[var(--text-secondary)] shrink-0">settings</mat-icon>
         <div>
-          <span class="block text-[11px] font-black tracking-widest text-base-content uppercase">CONFIGURATION</span>
-          <span class="block text-[10px] text-base-content/50">All settings saved or reset in one action</span>
+          <span class="block text-[0.78rem] font-extrabold tracking-[0.12em] text-[var(--text-primary)] uppercase leading-tight">CONFIGURATION</span>
+          <span class="block text-[0.66rem] text-[var(--text-faint)] leading-tight">All settings saved or reset in one action</span>
         </div>
       </div>
-      <div class="flex items-center gap-2 shrink-0 flex-wrap">
-        <button
-          class="btn btn-outline btn-sm gap-1"
-          (click)="resetAll()"
-          [disabled]="isSavingAll()"
-          matTooltip="Reset scanner intervals, RSI thresholds and EOD window to factory defaults"
-        >
-          <mat-icon class="!text-[18px]">restore</mat-icon>
-          Reset All to Defaults
+      <div class="flex items-center gap-2.5 shrink-0 flex-wrap">
+        <button class="pm-btn pm-btn-outline gap-1.5" (click)="resetAll()" [disabled]="isSavingAll()"
+          matTooltip="Reset scanner intervals, RSI thresholds and EOD window to factory defaults">
+          <mat-icon>restore</mat-icon> Reset All to Defaults
         </button>
-        <button
-          class="btn btn-primary btn-sm gap-1"
-          (click)="saveAll()"
-          [disabled]="isSavingAll()"
-          matTooltip="Save all sections: scanner settings, EOD window, email recipients and sector/industry lists"
-        >
-          <mat-icon class="!text-[18px]" [class.animate-spin]="isSavingAll()">{{
-            isSavingAll() ? 'sync' : 'save'
-          }}</mat-icon>
+        <button class="pm-btn pm-btn-primary gap-1.5" (click)="saveAll()" [disabled]="isSavingAll()"
+          matTooltip="Save all sections: scanner settings, EOD window, email recipients and sector/industry lists">
+          <mat-icon [class.animate-spin]="isSavingAll()">{{ isSavingAll() ? 'sync' : 'save' }}</mat-icon>
           {{ isSavingAll() ? 'Saving All...' : 'Save All Settings' }}
         </button>
       </div>
@@ -36,83 +25,85 @@
   </div>
 
   <!-- ── Tab Navigation ── -->
-  <div role="tablist" class="tabs tabs-border flex-wrap pt-3 overflow-x-auto border-b border-base-300 mb-5" aria-label="Configuration sections">
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'demo'"
-      [class.text-warning]="demoMode.isDemoMode()"
+  <nav class="pm-tab-nav" role="tablist" aria-label="Configuration sections">
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'demo'"
+      [class.pm-tab-btn-active]="activeSection() === 'demo'"
+      [class.pm-tab-btn-demo]="demoMode.isDemoMode()"
       (click)="activeSection.set('demo')">
-      <mat-icon class="!text-[18px]">{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
-      <span class="max-[480px]:hidden">Demo Mode</span>
+      <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+      <span class="pm-tab-btn-label">Demo Mode</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'scanner'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'scanner'"
+      [class.pm-tab-btn-active]="activeSection() === 'scanner'"
       (click)="activeSection.set('scanner')">
-      <mat-icon class="!text-[18px]">tune</mat-icon>
-      <span class="max-[480px]:hidden">Scanner</span>
+      <mat-icon>tune</mat-icon><span class="pm-tab-btn-label">Scanner</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'eod'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'eod'"
+      [class.pm-tab-btn-active]="activeSection() === 'eod'"
       (click)="activeSection.set('eod')">
-      <mat-icon class="!text-[18px]">schedule</mat-icon>
-      <span class="max-[480px]:hidden">EOD Window</span>
+      <mat-icon>schedule</mat-icon><span class="pm-tab-btn-label">EOD Window</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'screener'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'screener'"
+      [class.pm-tab-btn-active]="activeSection() === 'screener'"
       (click)="activeSection.set('screener')">
-      <mat-icon class="!text-[18px]">query_stats</mat-icon>
-      <span class="max-[480px]:hidden">Value Screener</span>
+      <mat-icon>query_stats</mat-icon><span class="pm-tab-btn-label">Value Screener</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'alerts'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'alerts'"
+      [class.pm-tab-btn-active]="activeSection() === 'alerts'"
       (click)="activeSection.set('alerts')">
-      <mat-icon class="!text-[18px]">notifications_active</mat-icon>
-      <span class="max-[480px]:hidden">Alerts</span>
+      <mat-icon>notifications_active</mat-icon><span class="pm-tab-btn-label">Alerts</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'sectors'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'sectors'"
+      [class.pm-tab-btn-active]="activeSection() === 'sectors'"
       (click)="activeSection.set('sectors')">
-      <mat-icon class="!text-[18px]">category</mat-icon>
-      <span class="max-[480px]:hidden">Sectors</span>
+      <mat-icon>category</mat-icon><span class="pm-tab-btn-label">Sectors</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'allocation'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'allocation'"
+      [class.pm-tab-btn-active]="activeSection() === 'allocation'"
       (click)="activeSection.set('allocation')">
-      <mat-icon class="!text-[18px]">pie_chart</mat-icon>
-      <span class="max-[480px]:hidden">Allocation</span>
+      <mat-icon>pie_chart</mat-icon><span class="pm-tab-btn-label">Allocation</span>
     </button>
-    <button role="tab" class="tab gap-1.5 text-[11px] font-semibold tracking-wide"
-      [class.tab-active]="activeSection() === 'decisions'"
+    <button class="pm-tab-btn" role="tab"
+      [attr.aria-selected]="activeSection() === 'decisions'"
+      [class.pm-tab-btn-active]="activeSection() === 'decisions'"
       (click)="activeSection.set('decisions')">
-      <mat-icon class="!text-[18px]">label</mat-icon>
-      <span class="max-[480px]:hidden">Decision Sources</span>
+      <mat-icon>label</mat-icon><span class="pm-tab-btn-label">Decision Sources</span>
     </button>
-  </div>
+  </nav>
 
   <!-- SECTION 0 — DEMO MODE -->
   <div [class.hidden]="activeSection() !== 'demo'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Demo Mode</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Mask sensitive portfolio values for screen sharing or presentations</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Demo Mode</h2>
+          <p class="pm-section-subtitle">Mask sensitive portfolio values for screen sharing or presentations</p>
         </div>
       </div>
-      <div class="p-5 flex flex-col gap-4">
+      <div class="pm-section-body">
         @if (demoMode.isDemoMode()) {
-          <div role="alert" class="alert alert-warning gap-2.5 font-bold text-sm">
-            <mat-icon class="!text-[20px]">visibility_off</mat-icon>
+          <div class="pm-banner pm-banner-demo-active">
+            <mat-icon class="!text-[20px] !w-5 !h-5">visibility_off</mat-icon>
             <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
           </div>
         }
         <div class="mb-6">
-          <mat-slide-toggle [checked]="demoMode.isDemoMode()" (change)="demoMode.isDemoMode() ? demoMode.disable() : demoMode.enable()">
+          <mat-slide-toggle [checked]="demoMode.isDemoMode()"
+            (change)="demoMode.isDemoMode() ? demoMode.disable() : demoMode.enable()" color="warn">
             {{ demoMode.isDemoMode() ? 'Demo mode is ON — values are masked' : 'Demo mode is OFF — real values shown' }}
           </mat-slide-toggle>
         </div>
-        <div role="alert" class="alert text-sm gap-3">
-          <mat-icon class="!text-[20px] shrink-0 mt-0.5 opacity-60">info</mat-icon>
-          <div>
+        <div class="pm-banner pm-banner-neutral">
+          <mat-icon class="!text-[20px] !w-5 !h-5 opacity-60">info</mat-icon>
+          <div class="text-[0.8rem]">
             <p class="m-0 mb-2"><strong>What gets masked:</strong></p>
             <ul class="m-0 mb-3 pl-4">
               <li class="mb-1">All dollar amounts (portfolio value, cost, gain/loss, cash)</li>
@@ -127,10 +118,9 @@
           </div>
         </div>
         @if (demoMode.isDemoMode()) {
-          <div class="mt-2">
-            <button class="btn btn-primary btn-sm gap-1" (click)="demoMode.disable()">
-              <mat-icon class="!text-[18px]">visibility</mat-icon>
-              Exit Demo Mode
+          <div>
+            <button class="pm-btn pm-btn-primary gap-1.5" (click)="demoMode.disable()">
+              <mat-icon>visibility</mat-icon> Exit Demo Mode
             </button>
           </div>
         }
@@ -140,23 +130,23 @@
 
   <!-- SECTION 1 — SCANNER SETTINGS -->
   <div [class.hidden]="activeSection() !== 'scanner'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">tune</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Scanner Settings</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Refresh intervals and RSI thresholds · Stored in browser · Reset restores factory defaults</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>tune</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Scanner Settings</h2>
+          <p class="pm-section-subtitle">Refresh intervals and RSI thresholds · Stored in browser · Reset restores factory defaults</p>
         </div>
       </div>
       <form [formGroup]="form" (ngSubmit)="save()" id="scanner-form">
-        <div class="p-5 flex flex-col gap-4">
+        <div class="pm-section-body">
           <div class="grid grid-cols-2 gap-3.5 max-[800px]:grid-cols-1">
-            <div class="rounded-lg border border-base-300 bg-base-200 overflow-hidden">
-              <div class="flex items-center gap-2 px-3.5 py-2.5 border-b border-base-300">
-                <mat-icon class="!text-[16px] text-base-content/60 shrink-0">timer</mat-icon>
-                <span class="text-xs font-bold text-base-content/70">Auto-Refresh Intervals</span>
+            <div class="pm-sub-card">
+              <div class="pm-sub-card-header">
+                <mat-icon>timer</mat-icon>
+                <span class="pm-sub-card-title">Auto-Refresh Intervals</span>
               </div>
-              <div class="p-3.5 flex flex-col gap-2.5">
+              <div class="pm-sub-card-body">
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5">
                   <mat-form-field appearance="outline">
                     <mat-label>RSI Scanner (seconds)</mat-label>
@@ -179,24 +169,24 @@
                 </div>
               </div>
             </div>
-            <div class="rounded-lg border border-base-300 bg-base-200 overflow-hidden">
-              <div class="flex items-center gap-2 px-3.5 py-2.5 border-b border-base-300">
-                <mat-icon class="!text-[16px] text-base-content/60 shrink-0">show_chart</mat-icon>
-                <span class="text-xs font-bold text-base-content/70">RSI Signal Thresholds</span>
+            <div class="pm-sub-card">
+              <div class="pm-sub-card-header">
+                <mat-icon>show_chart</mat-icon>
+                <span class="pm-sub-card-title">RSI Signal Thresholds</span>
               </div>
-              <div class="p-3.5 flex flex-col gap-2.5">
+              <div class="pm-sub-card-body">
                 <div class="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5">
                   <mat-form-field appearance="outline">
-                    <mat-label>Oversold threshold (<=)</mat-label>
+                    <mat-label>Oversold threshold (≤)</mat-label>
                     <input matInput type="number" formControlName="rsiOversoldThreshold" min="1" max="49" />
-                    <mat-hint>RSI at or below -> Oversold. Default: 30</mat-hint>
+                    <mat-hint>RSI at or below → Oversold. Default: 30</mat-hint>
                     @if (form.controls.rsiOversoldThreshold.errors?.['min']) { <mat-error>Minimum 1</mat-error> }
                     @if (form.controls.rsiOversoldThreshold.errors?.['max']) { <mat-error>Must be below 50</mat-error> }
                   </mat-form-field>
                   <mat-form-field appearance="outline">
-                    <mat-label>Overbought threshold (>=)</mat-label>
+                    <mat-label>Overbought threshold (≥)</mat-label>
                     <input matInput type="number" formControlName="rsiOverboughtThreshold" min="51" max="99" />
-                    <mat-hint>RSI at or above -> Overbought. Default: 75</mat-hint>
+                    <mat-hint>RSI at or above → Overbought. Default: 75</mat-hint>
                     @if (form.controls.rsiOverboughtThreshold.errors?.['min']) { <mat-error>Must be above 50</mat-error> }
                     @if (form.controls.rsiOverboughtThreshold.errors?.['max']) { <mat-error>Maximum 99</mat-error> }
                   </mat-form-field>
@@ -205,13 +195,13 @@
             </div>
           </div>
         </div>
-        <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-          <span class="flex-1 text-[11px] text-base-content/50 italic">Changes apply immediately to both Auto-Refresh Intervals and RSI Thresholds</span>
-          <button class="btn btn-outline btn-sm gap-1" type="button" (click)="reset()" matTooltip="Restore all scanner settings to factory defaults">
-            <mat-icon class="!text-[18px]">restore</mat-icon> Reset to Defaults
+        <div class="pm-section-footer">
+          <span class="pm-section-footer-hint">Changes apply immediately to both Auto-Refresh Intervals and RSI Thresholds</span>
+          <button class="pm-btn pm-btn-outline gap-1.5" type="button" (click)="reset()" matTooltip="Restore all scanner settings to factory defaults">
+            <mat-icon>restore</mat-icon> Reset to Defaults
           </button>
-          <button class="btn btn-primary btn-sm gap-1" type="submit" form="scanner-form" [disabled]="form.invalid || form.pristine" matTooltip="Save and apply scanner settings">
-            <mat-icon class="!text-[18px]">save</mat-icon> Save Scanner Settings
+          <button class="pm-btn pm-btn-primary gap-1.5" type="submit" form="scanner-form" [disabled]="form.invalid || form.pristine" matTooltip="Save and apply scanner settings">
+            <mat-icon>save</mat-icon> Save Scanner Settings
           </button>
         </div>
       </form>
@@ -220,29 +210,30 @@
 
   <!-- SECTION 2 — EOD CONFIRMATION WINDOW -->
   <div [class.hidden]="activeSection() !== 'eod'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm" [style.border-color]="eodWindowActive() ? 'rgba(255,152,0,0.4)' : null">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0" [class.!text-warning]="eodWindowActive()" [class.animate-pulse]="eodWindowActive()">schedule</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">EOD Confirmation Window</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Time window (Eastern Time) when EOD CONFIRM signals are evaluated and emailed · Default: 3:30 PM – 4:00 PM ET</p>
+    <div class="pm-section" [class.pm-section-eod-active]="eodWindowActive()">
+      <div class="pm-section-header">
+        <mat-icon [class.text-[#ff9800]]="eodWindowActive()" [class.animate-pulse]="eodWindowActive()">schedule</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">EOD Confirmation Window</h2>
+          <p class="pm-section-subtitle">Time window (Eastern Time) when EOD CONFIRM signals are evaluated and emailed · Default: 3:30 PM – 4:00 PM ET</p>
         </div>
         @if (eodWindowActive()) {
-          <span class="badge badge-warning badge-sm gap-1">
+          <span class="pm-section-badge">
             <mat-icon class="!text-[10px] !w-[10px] !h-[10px]">fiber_manual_record</mat-icon>
             ACTIVE NOW
           </span>
         }
       </div>
       <form [formGroup]="eodForm" (ngSubmit)="saveEodSettings()" id="eod-form">
-        <div class="p-5 flex flex-col gap-4">
-          <div role="alert" class="alert alert-warning text-sm gap-2.5">
-            <mat-icon class="!text-[18px] shrink-0 mt-0.5">info_outline</mat-icon>
+        <div class="pm-section-body">
+          <div class="pm-banner pm-banner-warning">
+            <mat-icon>info_outline</mat-icon>
             <span>
               During this window the scanner evaluates 4 EOD rules:
               <strong>RSI &lt; 25 / &gt; 75</strong> · <strong>Price vs 9-EMA</strong> ·
-              <strong>Volume &gt; 1.5x avg</strong> · <strong>Price position vs ATR</strong>.
-              Matching stocks are flagged as <span class="badge badge-warning badge-sm">EOD CONFIRM</span>
+              <strong>Volume &gt; 1.5× avg</strong> · <strong>Price position vs ATR</strong>.
+              Matching stocks are flagged as
+              <span class="inline-block px-1.5 py-px rounded-lg bg-[rgba(255,152,0,0.18)] text-[#ff9800] font-bold text-[0.74rem]">EOD CONFIRM</span>
               and a dedicated high-priority email is sent.
             </span>
           </div>
@@ -263,8 +254,8 @@
             </mat-form-field>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
-            <mat-slide-toggle formControlName="eodWindowEnabled">EOD window enabled</mat-slide-toggle>
-            <span class="text-xs text-base-content/60">
+            <mat-slide-toggle formControlName="eodWindowEnabled" color="accent">EOD window enabled</mat-slide-toggle>
+            <span class="text-[0.78rem] text-[var(--text-muted)]">
               @if (eodForm.value.eodWindowEnabled) { EOD CONFIRM signals will be evaluated and emailed during the configured window. }
               @else { EOD CONFIRM rules are disabled — only standard Confirmed / Early Warning signals apply. }
             </span>
@@ -286,12 +277,12 @@
             </mat-form-field>
           </div>
         </div>
-        <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-          <span class="flex-1 text-[11px] text-base-content/50 italic">Saved to backend and applied immediately — no server restart needed</span>
-          <button class="btn btn-secondary btn-sm gap-1" type="submit" form="eod-form"
+        <div class="pm-section-footer">
+          <span class="pm-section-footer-hint">Saved to backend and applied immediately — no server restart needed</span>
+          <button class="pm-btn pm-btn-accent gap-1.5" type="submit" form="eod-form"
             [disabled]="eodForm.invalid || eodForm.pristine || savingEodSettings()"
             matTooltip="Save EOD window settings to backend immediately">
-            <mat-icon class="!text-[18px]" [class.animate-spin]="savingEodSettings()">{{ savingEodSettings() ? 'sync' : 'schedule_send' }}</mat-icon>
+            <mat-icon [class.animate-spin]="savingEodSettings()">{{ savingEodSettings() ? 'sync' : 'schedule_send' }}</mat-icon>
             {{ savingEodSettings() ? 'Saving...' : 'Save EOD Window' }}
           </button>
         </div>
@@ -301,18 +292,18 @@
 
   <!-- SECTION 3 — VALUE SCREENER SCHEDULE -->
   <div [class.hidden]="activeSection() !== 'screener'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">query_stats</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Value Screener Schedule</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Automatic run time for Portfolio and Watchlist · Results saved to database · Default: 5:00 PM ET on weekdays</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>query_stats</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Value Screener Schedule</h2>
+          <p class="pm-section-subtitle">Automatic run time for Portfolio and Watchlist · Results saved to database · Default: 5:00 PM ET on weekdays</p>
         </div>
       </div>
       <form [formGroup]="vsForm" (ngSubmit)="saveVsSchedule()" id="vs-form">
-        <div class="p-5 flex flex-col gap-4">
-          <div role="alert" class="alert alert-info text-sm gap-2.5">
-            <mat-icon class="!text-[18px] shrink-0 mt-0.5">info_outline</mat-icon>
+        <div class="pm-section-body">
+          <div class="pm-banner pm-banner-info">
+            <mat-icon>info_outline</mat-icon>
             <span>The Value Screener runs automatically at the configured time on weekdays. Results are saved to the database so the Value Screener page loads instantly. Use the <strong>Refresh</strong> button on the Value Screener page to run it on demand.</span>
           </div>
           <div class="grid grid-cols-2 gap-3.5 max-[600px]:grid-cols-1">
@@ -325,19 +316,19 @@
             </mat-form-field>
           </div>
           <div class="flex items-center gap-3 flex-wrap">
-            <mat-slide-toggle formControlName="vsScheduleEnabled">Scheduled run enabled</mat-slide-toggle>
-            <span class="text-xs text-base-content/60">
+            <mat-slide-toggle formControlName="vsScheduleEnabled" color="accent">Scheduled run enabled</mat-slide-toggle>
+            <span class="text-[0.78rem] text-[var(--text-muted)]">
               @if (vsForm.value.vsScheduleEnabled) { Value Screener will run automatically at the configured time on weekdays. }
               @else { Scheduled runs are disabled. Use the Refresh button on the Value Screener page to run manually. }
             </span>
           </div>
         </div>
-        <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-          <span class="flex-1 text-[11px] text-base-content/50 italic">Saved to database — persists across server restarts</span>
-          <button class="btn btn-secondary btn-sm gap-1" type="submit" form="vs-form"
+        <div class="pm-section-footer">
+          <span class="pm-section-footer-hint">Saved to database — persists across server restarts</span>
+          <button class="pm-btn pm-btn-accent gap-1.5" type="submit" form="vs-form"
             [disabled]="vsForm.invalid || vsForm.pristine || savingVsSchedule()"
             matTooltip="Save Value Screener schedule to the database">
-            <mat-icon class="!text-[18px]" [class.animate-spin]="savingVsSchedule()">{{ savingVsSchedule() ? 'sync' : 'save' }}</mat-icon>
+            <mat-icon [class.animate-spin]="savingVsSchedule()">{{ savingVsSchedule() ? 'sync' : 'save' }}</mat-icon>
             {{ savingVsSchedule() ? 'Saving...' : 'Save VS Schedule' }}
           </button>
         </div>
@@ -347,18 +338,21 @@
 
   <!-- SECTION 4 — RSI SIGNAL ALERT RECIPIENTS -->
   <div [class.hidden]="activeSection() !== 'alerts'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">notifications_active</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">RSI Confirmed Signal Alerts</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Email recipients for high-priority RSI CONFIRMED signal alerts · Each signal fires <strong>once</strong> — no spam</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>notifications_active</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">RSI Confirmed Signal Alerts</h2>
+          <p class="pm-section-subtitle">Email recipients for high-priority RSI CONFIRMED signal alerts · Each signal fires <strong>once</strong> — no spam</p>
         </div>
       </div>
-      <div class="p-5 flex flex-col gap-4">
-        <div role="alert" class="alert text-xs gap-2">
-          <mat-icon class="!text-[18px] !text-info shrink-0 mt-0.5">info_outline</mat-icon>
-          <span>To enable sending, set <code class="bg-info/20 text-info rounded px-1 text-xs">EmailNotification.Enabled = true</code> and fill in SMTP credentials in <code class="bg-info/20 text-info rounded px-1 text-xs">appsettings.json</code> on the backend.</span>
+      <div class="pm-section-body">
+        <div class="pm-banner pm-banner-info">
+          <mat-icon>info_outline</mat-icon>
+          <span>
+            To enable sending, set <code class="bg-[rgba(100,181,246,0.12)] text-[#64b5f6] rounded px-1 text-[0.78rem]">EmailNotification.Enabled = true</code>
+            and fill in SMTP credentials in <code class="bg-[rgba(100,181,246,0.12)] text-[#64b5f6] rounded px-1 text-[0.78rem]">appsettings.json</code> on the backend.
+          </span>
         </div>
         <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
           <mat-label>Add recipient email</mat-label>
@@ -381,25 +375,25 @@
           <mat-hint>Press Enter to add · Max 50 recipients</mat-hint>
         </mat-form-field>
         @if (recipientEmails().length === 0 && !loadingEmails()) {
-          <p class="text-xs text-base-content/50 mt-2 italic">No recipients configured — alerts will not be sent.</p>
+          <p class="text-[0.78rem] text-[var(--text-faint)] mt-2 italic">No recipients configured — alerts will not be sent.</p>
         }
       </div>
-      <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-        <button class="btn btn-outline btn-info btn-sm gap-1" (click)="sendTestEmail()"
+      <div class="pm-section-footer">
+        <button class="pm-btn pm-btn-info gap-1.5" (click)="sendTestEmail()"
           [disabled]="sendingTestEmail() || savingEmails() || scanningNow()"
           matTooltip="Send a test email to verify SMTP is working">
-          <mat-icon class="!text-[18px]">{{ sendingTestEmail() ? 'hourglass_empty' : 'send' }}</mat-icon>
+          <mat-icon>{{ sendingTestEmail() ? 'hourglass_empty' : 'send' }}</mat-icon>
           {{ sendingTestEmail() ? 'Sending...' : 'Send Test Email' }}
         </button>
-        <button class="btn btn-outline btn-success btn-sm gap-1" (click)="scanAndNotifyNow()"
+        <button class="pm-btn pm-btn-success gap-1.5" (click)="scanAndNotifyNow()"
           [disabled]="scanningNow() || savingEmails() || sendingTestEmail()"
           matTooltip="Run a live RSI scan now and email all confirmed signals">
-          <mat-icon class="!text-[18px]">{{ scanningNow() ? 'hourglass_empty' : 'radar' }}</mat-icon>
+          <mat-icon>{{ scanningNow() ? 'hourglass_empty' : 'radar' }}</mat-icon>
           {{ scanningNow() ? 'Scanning...' : 'Scan & Notify Now' }}
         </button>
-        <button class="btn btn-primary btn-sm gap-1" (click)="saveEmailRecipients()"
+        <button class="pm-btn pm-btn-primary gap-1.5" (click)="saveEmailRecipients()"
           [disabled]="savingEmails()" matTooltip="Save recipient list to backend">
-          <mat-icon class="!text-[18px]">{{ savingEmails() ? 'hourglass_empty' : 'save' }}</mat-icon>
+          <mat-icon>{{ savingEmails() ? 'hourglass_empty' : 'save' }}</mat-icon>
           {{ savingEmails() ? 'Saving...' : 'Save Recipients' }}
         </button>
       </div>
@@ -408,35 +402,35 @@
 
   <!-- SECTION 5 — SECTORS & INDUSTRIES -->
   <div [class.hidden]="activeSection() !== 'sectors'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">category</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Sectors &amp; Industries</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Dropdown values shown when editing a portfolio position's sector and industry</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>category</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Sectors &amp; Industries</h2>
+          <p class="pm-section-subtitle">Dropdown values shown when editing a portfolio position's sector and industry</p>
         </div>
       </div>
-      <div class="p-5 flex flex-col gap-4">
+      <div class="pm-section-body">
         <div class="grid grid-cols-2 gap-5 max-[640px]:grid-cols-1">
-          <div class="flex flex-col gap-2.5 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold tracking-widest uppercase text-base-content/70 flex-1">Sectors</span>
-              <span class="badge badge-primary badge-sm">{{ sectors().length }}</span>
+          <div class="pm-list-panel">
+            <div class="pm-list-header">
+              <span class="pm-list-title">Sectors</span>
+              <span class="pm-badge pm-badge-primary">{{ sectors().length }}</span>
             </div>
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
               <mat-icon matPrefix>search</mat-icon>
               <input matInput placeholder="Filter sectors..." [ngModel]="sectorFilter()" (ngModelChange)="sectorFilter.set($event)" autocomplete="off" />
               @if (sectorFilter()) { <button matSuffix mat-icon-button (click)="sectorFilter.set('')" matTooltip="Clear"><mat-icon>close</mat-icon></button> }
             </mat-form-field>
-            <div class="max-h-[260px] overflow-y-auto border border-base-300 rounded-lg bg-base-200">
+            <div class="pm-list-scroll">
               @if (filteredSectors().length === 0) {
-                <p class="p-4 text-center text-xs text-base-content/50 italic m-0">{{ sectorFilter() ? 'No matches found' : 'No sectors yet' }}</p>
+                <p class="pm-list-empty">{{ sectorFilter() ? 'No matches found' : 'No sectors yet' }}</p>
               }
               <mat-list>
                 @for (s of filteredSectors(); track s) {
-                  <mat-list-item class="!border-b !border-base-300 last:!border-b-0 !h-10">
+                  <mat-list-item class="!border-b !border-[var(--border-subtle,rgba(255,255,255,0.05))] last:!border-b-0 !h-10">
                     <span matListItemTitle>{{ s }}</span>
-                    <button matListItemMeta mat-icon-button (click)="removeSector(s)" matTooltip="Remove" class="opacity-40 hover:opacity-100">
+                    <button matListItemMeta mat-icon-button (click)="removeSector(s)" matTooltip="Remove" class="pm-list-item-btn">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </mat-list-item>
@@ -450,25 +444,25 @@
               <button matSuffix mat-icon-button (click)="addSector(newSectorInput())" matTooltip="Add sector"><mat-icon>add_circle</mat-icon></button>
             </mat-form-field>
           </div>
-          <div class="flex flex-col gap-2.5 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold tracking-widest uppercase text-base-content/70 flex-1">Industries</span>
-              <span class="badge badge-primary badge-sm">{{ industries().length }}</span>
+          <div class="pm-list-panel">
+            <div class="pm-list-header">
+              <span class="pm-list-title">Industries</span>
+              <span class="pm-badge pm-badge-primary">{{ industries().length }}</span>
             </div>
             <mat-form-field appearance="outline" subscriptSizing="dynamic" class="w-full">
               <mat-icon matPrefix>search</mat-icon>
               <input matInput placeholder="Filter industries..." [ngModel]="industryFilter()" (ngModelChange)="industryFilter.set($event)" autocomplete="off" />
               @if (industryFilter()) { <button matSuffix mat-icon-button (click)="industryFilter.set('')" matTooltip="Clear"><mat-icon>close</mat-icon></button> }
             </mat-form-field>
-            <div class="max-h-[260px] overflow-y-auto border border-base-300 rounded-lg bg-base-200">
+            <div class="pm-list-scroll">
               @if (filteredIndustries().length === 0) {
-                <p class="p-4 text-center text-xs text-base-content/50 italic m-0">{{ industryFilter() ? 'No matches found' : 'No industries yet' }}</p>
+                <p class="pm-list-empty">{{ industryFilter() ? 'No matches found' : 'No industries yet' }}</p>
               }
               <mat-list>
                 @for (i of filteredIndustries(); track i) {
-                  <mat-list-item class="!border-b !border-base-300 last:!border-b-0 !h-10">
+                  <mat-list-item class="!border-b !border-[var(--border-subtle,rgba(255,255,255,0.05))] last:!border-b-0 !h-10">
                     <span matListItemTitle>{{ i }}</span>
-                    <button matListItemMeta mat-icon-button (click)="removeIndustry(i)" matTooltip="Remove" class="opacity-40 hover:opacity-100">
+                    <button matListItemMeta mat-icon-button (click)="removeIndustry(i)" matTooltip="Remove" class="pm-list-item-btn">
                       <mat-icon>delete_outline</mat-icon>
                     </button>
                   </mat-list-item>
@@ -478,16 +472,16 @@
             <mat-form-field appearance="outline" class="w-full" subscriptSizing="dynamic">
               <mat-label>Add industry</mat-label>
               <input matInput [ngModel]="newIndustryInput()" (ngModelChange)="newIndustryInput.set($event)"
-                (keydown.enter)="$event.preventDefault(); addIndustry(newIndustryInput())" placeholder="e.g. Banks - Diversified" autocomplete="off" />
+                (keydown.enter)="$event.preventDefault(); addIndustry(newIndustryInput())" placeholder="e.g. Banks – Diversified" autocomplete="off" />
               <button matSuffix mat-icon-button (click)="addIndustry(newIndustryInput())" matTooltip="Add industry"><mat-icon>add_circle</mat-icon></button>
             </mat-form-field>
           </div>
         </div>
       </div>
-      <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-        <span class="flex-1 text-[11px] text-base-content/50 italic">Unsaved changes will be lost if you leave the page</span>
-        <button class="btn btn-primary btn-sm gap-1" (click)="saveSectorIndustryLists()" [disabled]="savingLists()" matTooltip="Persist sector & industry lists to backend">
-          <mat-icon class="!text-[18px]">{{ savingLists() ? 'hourglass_empty' : 'save' }}</mat-icon>
+      <div class="pm-section-footer">
+        <span class="pm-section-footer-hint">Unsaved changes will be lost if you leave the page</span>
+        <button class="pm-btn pm-btn-primary gap-1.5" (click)="saveSectorIndustryLists()" [disabled]="savingLists()" matTooltip="Persist sector & industry lists to backend">
+          <mat-icon>{{ savingLists() ? 'hourglass_empty' : 'save' }}</mat-icon>
           {{ savingLists() ? 'Saving...' : 'Save Sector &amp; Industry Lists' }}
         </button>
       </div>
@@ -496,26 +490,26 @@
 
   <!-- SECTION 6 — ALLOCATION & RISK MANAGEMENT -->
   <div [class.hidden]="activeSection() !== 'allocation'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">pie_chart</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Allocation &amp; Risk Management</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Target allocations by role and sector · Single-position size limits</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>pie_chart</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Allocation &amp; Risk Management</h2>
+          <p class="pm-section-subtitle">Target allocations by role and sector · Single-position size limits</p>
         </div>
       </div>
-      <div class="p-5 flex flex-col gap-4">
+      <div class="pm-section-body">
         <div class="grid grid-cols-3 gap-4 max-[1000px]:grid-cols-2 max-[640px]:grid-cols-1">
 
           <!-- Allocation by Role -->
-          <div class="bg-base-200 border border-base-300 rounded-xl p-3 flex flex-col gap-1">
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="text-xs font-bold flex-1">Allocation by Role</span>
-              <span class="badge badge-primary badge-xs">{{ riskTargets().length }}</span>
+          <div class="pm-alloc-panel">
+            <div class="pm-alloc-header">
+              <span class="pm-alloc-title">Allocation by Role</span>
+              <span class="pm-badge pm-badge-primary">{{ riskTargets().length }}</span>
               <button mat-icon-button matTooltip="Add row" (click)="startAddRisk()" class="!w-7 !h-7"><mat-icon>add</mat-icon></button>
             </div>
             @if (editingRisk()?.id === null) {
-              <div class="flex items-center gap-1.5 py-1">
+              <div class="pm-alloc-edit-row">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                   <mat-label>Role</mat-label>
                   <input matInput [ngModel]="editingRisk()!.role" (ngModelChange)="editingRisk.update((e) => (e ? { ...e, role: $event } : e))" />
@@ -528,14 +522,14 @@
                 <button mat-icon-button (click)="cancelEditRisk()" matTooltip="Cancel"><mat-icon>close</mat-icon></button>
               </div>
             }
-            <div class="flex items-center gap-1.5 px-1.5 pb-1 border-b border-base-300 mb-0.5">
-              <span class="flex-1 text-[11px] font-bold uppercase tracking-widest text-base-content/50">Role</span>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-base-content/50 min-w-[38px] text-right pr-14">Target</span>
+            <div class="pm-alloc-col-headers">
+              <span class="pm-alloc-col-name">Role</span>
+              <span class="pm-alloc-col-pct">Target</span>
             </div>
             <div class="flex flex-col gap-0.5">
               @for (item of riskTargets(); track item.id) {
                 @if (editingRisk()?.id === item.id) {
-                  <div class="flex items-center gap-1.5 py-1">
+                  <div class="pm-alloc-edit-row">
                     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                       <input matInput [ngModel]="editingRisk()!.role" (ngModelChange)="editingRisk.update((e) => (e ? { ...e, role: $event } : e))" />
                     </mat-form-field>
@@ -546,30 +540,30 @@
                     <button mat-icon-button (click)="cancelEditRisk()"><mat-icon>close</mat-icon></button>
                   </div>
                 } @else {
-                  <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md hover:bg-base-300">
-                    <span class="flex-1 text-[13px]">{{ item.role }}</span>
-                    <span class="text-sm font-bold font-mono text-primary min-w-[38px] text-right">{{ item.targetPct }}%</span>
-                    <button mat-icon-button (click)="startEditRisk(item)" matTooltip="Edit" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
-                    <button mat-icon-button (click)="deleteRisk(item.id)" matTooltip="Delete" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
+                  <div class="pm-alloc-row">
+                    <span class="pm-alloc-name">{{ item.role }}</span>
+                    <span class="pm-alloc-pct">{{ item.targetPct }}%</span>
+                    <button mat-icon-button (click)="startEditRisk(item)" matTooltip="Edit" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
+                    <button mat-icon-button (click)="deleteRisk(item.id)" matTooltip="Delete" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100 hover:text-[#e53935]"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
                   </div>
                 }
               }
             </div>
-            <div class="flex justify-between pt-1.5 mt-1 border-t border-base-300 text-xs font-bold uppercase tracking-wide">
+            <div class="pm-alloc-total">
               <span>TOTAL</span>
-              <span [class.text-success]="riskTotal() === 100" [class.text-error]="riskTotal() !== 100">{{ riskTotal() }}%</span>
+              <span [class.pm-alloc-total-ok]="riskTotal() === 100" [class.pm-alloc-total-warn]="riskTotal() !== 100">{{ riskTotal() }}%</span>
             </div>
           </div>
 
           <!-- Allocation by Sector -->
-          <div class="bg-base-200 border border-base-300 rounded-xl p-3 flex flex-col gap-1">
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="text-xs font-bold flex-1">Allocation by Sector</span>
-              <span class="badge badge-primary badge-xs">{{ sectorTargets().length }}</span>
+          <div class="pm-alloc-panel">
+            <div class="pm-alloc-header">
+              <span class="pm-alloc-title">Allocation by Sector</span>
+              <span class="pm-badge pm-badge-primary">{{ sectorTargets().length }}</span>
               <button mat-icon-button matTooltip="Add row" (click)="startAddSector()" class="!w-7 !h-7"><mat-icon>add</mat-icon></button>
             </div>
             @if (editingSector()?.id === null) {
-              <div class="flex items-center gap-1.5 py-1">
+              <div class="pm-alloc-edit-row">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                   <mat-label>Sector</mat-label>
                   <input matInput [ngModel]="editingSector()!.sector" (ngModelChange)="editingSector.update((e) => (e ? { ...e, sector: $event } : e))" />
@@ -582,14 +576,14 @@
                 <button mat-icon-button (click)="cancelEditSector()"><mat-icon>close</mat-icon></button>
               </div>
             }
-            <div class="flex items-center gap-1.5 px-1.5 pb-1 border-b border-base-300 mb-0.5">
-              <span class="flex-1 text-[11px] font-bold uppercase tracking-widest text-base-content/50">Sector</span>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-base-content/50 min-w-[38px] text-right pr-14">Target</span>
+            <div class="pm-alloc-col-headers">
+              <span class="pm-alloc-col-name">Sector</span>
+              <span class="pm-alloc-col-pct">Target</span>
             </div>
             <div class="flex flex-col gap-0.5">
               @for (item of sectorTargets(); track item.id) {
                 @if (editingSector()?.id === item.id) {
-                  <div class="flex items-center gap-1.5 py-1">
+                  <div class="pm-alloc-edit-row">
                     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                       <input matInput [ngModel]="editingSector()!.sector" (ngModelChange)="editingSector.update((e) => (e ? { ...e, sector: $event } : e))" />
                     </mat-form-field>
@@ -600,30 +594,30 @@
                     <button mat-icon-button (click)="cancelEditSector()"><mat-icon>close</mat-icon></button>
                   </div>
                 } @else {
-                  <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md hover:bg-base-300">
-                    <span class="flex-1 text-[13px]">{{ item.sector }}</span>
-                    <span class="text-sm font-bold font-mono text-primary min-w-[38px] text-right">{{ item.targetPct }}%</span>
-                    <button mat-icon-button (click)="startEditSector(item)" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
-                    <button mat-icon-button (click)="deleteSector(item.id)" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
+                  <div class="pm-alloc-row">
+                    <span class="pm-alloc-name">{{ item.sector }}</span>
+                    <span class="pm-alloc-pct">{{ item.targetPct }}%</span>
+                    <button mat-icon-button (click)="startEditSector(item)" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
+                    <button mat-icon-button (click)="deleteSector(item.id)" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100 hover:text-[#e53935]"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
                   </div>
                 }
               }
             </div>
-            <div class="flex justify-between pt-1.5 mt-1 border-t border-base-300 text-xs font-bold uppercase tracking-wide">
+            <div class="pm-alloc-total">
               <span>TOTAL</span>
-              <span [class.text-success]="sectorTotal() === 100" [class.text-error]="sectorTotal() !== 100">{{ sectorTotal() }}%</span>
+              <span [class.pm-alloc-total-ok]="sectorTotal() === 100" [class.pm-alloc-total-warn]="sectorTotal() !== 100">{{ sectorTotal() }}%</span>
             </div>
           </div>
 
           <!-- Single Position Limits -->
-          <div class="bg-base-200 border border-base-300 rounded-xl p-3 flex flex-col gap-1">
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="text-xs font-bold flex-1">Single Position Limits</span>
-              <span class="badge badge-primary badge-xs">{{ positionLimits().length }}</span>
+          <div class="pm-alloc-panel">
+            <div class="pm-alloc-header">
+              <span class="pm-alloc-title">Single Position Limits</span>
+              <span class="pm-badge pm-badge-primary">{{ positionLimits().length }}</span>
               <button mat-icon-button matTooltip="Add row" (click)="startAddLimit()" class="!w-7 !h-7"><mat-icon>add</mat-icon></button>
             </div>
             @if (editingLimit()?.id === null) {
-              <div class="flex items-center gap-1.5 py-1">
+              <div class="pm-alloc-edit-row">
                 <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                   <mat-label>Role</mat-label>
                   <input matInput [ngModel]="editingLimit()!.role" (ngModelChange)="editingLimit.update((e) => (e ? { ...e, role: $event } : e))" />
@@ -636,14 +630,14 @@
                 <button mat-icon-button (click)="cancelEditLimit()"><mat-icon>close</mat-icon></button>
               </div>
             }
-            <div class="flex items-center gap-1.5 px-1.5 pb-1 border-b border-base-300 mb-0.5">
-              <span class="flex-1 text-[11px] font-bold uppercase tracking-widest text-base-content/50">Role</span>
-              <span class="text-[11px] font-bold uppercase tracking-widest text-base-content/50 min-w-[38px] text-right pr-14">Max</span>
+            <div class="pm-alloc-col-headers">
+              <span class="pm-alloc-col-name">Role</span>
+              <span class="pm-alloc-col-pct">Max</span>
             </div>
             <div class="flex flex-col gap-0.5">
               @for (item of positionLimits(); track item.id) {
                 @if (editingLimit()?.id === item.id) {
-                  <div class="flex items-center gap-1.5 py-1">
+                  <div class="pm-alloc-edit-row">
                     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                       <input matInput [ngModel]="editingLimit()!.role" (ngModelChange)="editingLimit.update((e) => (e ? { ...e, role: $event } : e))" />
                     </mat-form-field>
@@ -654,37 +648,37 @@
                     <button mat-icon-button (click)="cancelEditLimit()"><mat-icon>close</mat-icon></button>
                   </div>
                 } @else {
-                  <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md hover:bg-base-300">
-                    <span class="flex-1 text-[13px]">{{ item.role }}</span>
-                    <span class="text-sm font-bold font-mono text-primary min-w-[38px] text-right">{{ item.targetPct }}%</span>
-                    <button mat-icon-button (click)="startEditLimit(item)" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
-                    <button mat-icon-button (click)="deleteLimit(item.id)" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
+                  <div class="pm-alloc-row">
+                    <span class="pm-alloc-name">{{ item.role }}</span>
+                    <span class="pm-alloc-pct">{{ item.targetPct }}%</span>
+                    <button mat-icon-button (click)="startEditLimit(item)" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
+                    <button mat-icon-button (click)="deleteLimit(item.id)" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100 hover:text-[#e53935]"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
                   </div>
                 }
               }
             </div>
-            <p class="text-[11px] text-base-content/50 italic mt-1.5">No total — these are per-position maximums.</p>
+            <p class="pm-alloc-hint">No total — these are per-position maximums.</p>
           </div>
 
         </div>
       </div>
-      <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-        <span class="flex items-center gap-1.5 flex-1 text-[11px] text-base-content/50 italic">
+      <div class="pm-section-footer">
+        <span class="pm-section-footer-hint">
           @if (allocationDirty()) {
-            <mat-icon class="!text-[14px] !text-warning">warning_amber</mat-icon>
+            <mat-icon class="!text-[14px] !text-[#ff9800]">warning_amber</mat-icon>
             Unsaved changes — click Save to persist to backend
           } @else {
             <mat-icon class="!text-[14px]">check_circle</mat-icon>
             All changes saved to backend
           }
         </span>
-        <button class="btn btn-primary btn-sm gap-1" (click)="saveAllocationRisk()"
+        <button class="pm-btn pm-btn-primary gap-1.5" (click)="saveAllocationRisk()"
           [disabled]="savingAllocation() || !allocationDirty()"
           matTooltip="Persist all allocation & risk changes to backend">
           @if (savingAllocation()) {
-            <mat-icon class="!text-[18px] animate-spin">sync</mat-icon> Saving...
+            <mat-icon class="animate-spin">sync</mat-icon> Saving...
           } @else {
-            <mat-icon class="!text-[18px]">save</mat-icon> Save Allocation Settings
+            <mat-icon>save</mat-icon> Save Allocation Settings
           }
         </button>
       </div>
@@ -693,23 +687,23 @@
 
   <!-- SECTION 7 — DECISION SOURCE PICKLIST -->
   <div [class.hidden]="activeSection() !== 'decisions'">
-    <div class="card bg-base-100 border border-base-300 shadow-sm">
-      <div class="flex items-center gap-2.5 px-5 py-3.5 border-b-2 border-base-300">
-        <mat-icon class="!text-[20px] !text-primary shrink-0">label</mat-icon>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-sm font-bold text-base-content m-0 mb-0.5">Decision Source Picklist</h2>
-          <p class="text-[11px] text-base-content/50 m-0 leading-relaxed">Values shown in the Decision Source dropdown on Add / Edit transaction forms and Portfolio &amp; Transactions grids · Saved to browser storage</p>
+    <div class="pm-section">
+      <div class="pm-section-header">
+        <mat-icon>label</mat-icon>
+        <div class="pm-section-header-text">
+          <h2 class="pm-section-title">Decision Source Picklist</h2>
+          <p class="pm-section-subtitle">Values shown in the Decision Source dropdown on Add / Edit transaction forms and Portfolio &amp; Transactions grids · Saved to browser storage</p>
         </div>
       </div>
-      <div class="p-5 flex flex-col gap-4">
-        <div class="bg-base-200 border border-base-300 rounded-xl p-3 flex flex-col gap-1">
-          <div class="flex items-center gap-2 mb-1.5">
-            <span class="text-xs font-bold flex-1">Decision Sources</span>
-            <span class="badge badge-primary badge-xs">{{ decisionSources().length }}</span>
+      <div class="pm-section-body">
+        <div class="pm-alloc-panel">
+          <div class="pm-alloc-header">
+            <span class="pm-alloc-title">Decision Sources</span>
+            <span class="pm-badge pm-badge-primary">{{ decisionSources().length }}</span>
             <button mat-icon-button matTooltip="Add new decision source" (click)="startAddDecisionSource()" class="!w-7 !h-7"><mat-icon>add</mat-icon></button>
           </div>
           @if (editingDecisionSource()?.index === null) {
-            <div class="flex items-center gap-1.5 py-1">
+            <div class="pm-alloc-edit-row">
               <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                 <mat-label>New decision source</mat-label>
                 <input matInput [ngModel]="editingDecisionSource()!.value"
@@ -720,13 +714,13 @@
               <button mat-icon-button (click)="cancelEditDecisionSource()" matTooltip="Cancel"><mat-icon>close</mat-icon></button>
             </div>
           }
-          <div class="flex items-center gap-1.5 px-1.5 pb-1 border-b border-base-300 mb-0.5">
-            <span class="flex-1 text-[11px] font-bold uppercase tracking-widest text-base-content/50">Source Label</span>
+          <div class="pm-alloc-col-headers">
+            <span class="pm-alloc-col-name">Source Label</span>
           </div>
           <div class="flex flex-col gap-0.5">
             @for (source of decisionSources(); track source; let i = $index) {
               @if (editingDecisionSource()?.index === i) {
-                <div class="flex items-center gap-1.5 py-1">
+                <div class="pm-alloc-edit-row">
                   <mat-form-field appearance="outline" subscriptSizing="dynamic" class="flex-1">
                     <input matInput [ngModel]="editingDecisionSource()!.value"
                       (ngModelChange)="editingDecisionSource.update((e) => (e ? { ...e, value: $event } : e))"
@@ -736,33 +730,33 @@
                   <button mat-icon-button (click)="cancelEditDecisionSource()"><mat-icon>close</mat-icon></button>
                 </div>
               } @else {
-                <div class="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md hover:bg-base-300">
-                  <span class="flex-1 text-[13px]">{{ source }}</span>
-                  <button mat-icon-button (click)="startEditDecisionSource(i, source)" matTooltip="Edit" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
-                  <button mat-icon-button (click)="deleteDecisionSource(i)" matTooltip="Delete" class="!w-[26px] !h-[26px] opacity-45 hover:opacity-100"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
+                <div class="pm-alloc-row">
+                  <span class="pm-alloc-name">{{ source }}</span>
+                  <button mat-icon-button (click)="startEditDecisionSource(i, source)" matTooltip="Edit" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100"><mat-icon class="!text-[15px]">edit</mat-icon></button>
+                  <button mat-icon-button (click)="deleteDecisionSource(i)" matTooltip="Delete" class="!w-[26px] !h-[26px] opacity-45 hover:!opacity-100 hover:text-[#e53935]"><mat-icon class="!text-[15px]">delete_outline</mat-icon></button>
                 </div>
               }
             }
           </div>
         </div>
       </div>
-      <div class="flex items-center justify-end gap-2.5 px-5 py-3 border-t border-base-300 bg-base-200 flex-wrap">
-        <span class="flex items-center gap-1.5 flex-1 text-[11px] text-base-content/50 italic">
+      <div class="pm-section-footer">
+        <span class="pm-section-footer-hint">
           @if (decisionSourceDirty()) {
-            <mat-icon class="!text-[14px] !text-primary">edit</mat-icon>
+            <mat-icon class="!text-[14px] text-[var(--mat-sys-primary,#64b5f6)]">edit</mat-icon>
             Unsaved changes
           } @else {
             <mat-icon class="!text-[14px]">check_circle</mat-icon>
             All changes saved to backend
           }
         </span>
-        <button class="btn btn-primary btn-sm gap-1" (click)="saveDecisionSources()"
+        <button class="pm-btn pm-btn-primary gap-1.5" (click)="saveDecisionSources()"
           [disabled]="savingDecisionSources() || !decisionSourceDirty()"
           matTooltip="Persist decision source list to backend">
           @if (savingDecisionSources()) {
-            <mat-icon class="!text-[18px] animate-spin">sync</mat-icon> Saving...
+            <mat-icon class="animate-spin">sync</mat-icon> Saving...
           } @else {
-            <mat-icon class="!text-[18px]">save</mat-icon> Save Decision Sources
+            <mat-icon>save</mat-icon> Save Decision Sources
           }
         </button>
       </div>

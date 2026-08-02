@@ -1,2 +1,4 @@
-@import "tailwindcss";
-@plugin "daisyui";
+/* Skip preflight — Angular Material owns the base/reset layer */
+@import 'tailwindcss/theme';
+@import 'tailwindcss/utilities';
+@import './styles/pm-ui.css';
