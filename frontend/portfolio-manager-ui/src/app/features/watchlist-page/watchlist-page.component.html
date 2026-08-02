@@ -265,7 +265,7 @@
                   [value]="w.item.role || 'Strategic'"
                   (selectionChange)="updateRole(w, $event.value)"
                   class="role-select"
-                  [ngClass]="roleClass(w.item.role || 'Strategic')"
+                  [class]="roleClass(w.item.role || 'Strategic')"
                 >
                   @for (r of roles; track r) {
                     <mat-option [value]="r">{{ r }}</mat-option>
@@ -497,7 +497,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ts-badge"
-                    [ngClass]="dec.trendSetupClass"
+                    [class]="dec.trendSetupClass"
                     [matTooltip]="dec.trendSetupReason"
                   >
                     {{ dec.trendSetup }}
@@ -530,7 +530,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ms-badge"
-                    [ngClass]="dec.momentumShiftClass"
+                    [class]="dec.momentumShiftClass"
                     [matTooltip]="dec.momentumShiftReason"
                   >
                     {{ dec.momentumShift }}
@@ -564,7 +564,7 @@
                 @if (rp) {
                   <div
                     class="prob-badge"
-                    [ngClass]="probClass(rp)"
+                    [class]="probClass(rp)"
                     [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
                   >
                     <mat-icon>{{
@@ -633,7 +633,7 @@
                 @if (dec && dec.gapStatus !== 'No Gap') {
                   <div
                     class="gap-status-badge"
-                    [ngClass]="gapStatusClass(dec.gapStatus)"
+                    [class]="gapStatusClass(dec.gapStatus)"
                     [matTooltip]="
                       'Gap: ' +
                       (dec.gapPct | number: '1.1-1') +
@@ -671,7 +671,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ma-badge"
-                    [ngClass]="dec.finalActionClass"
+                    [class]="dec.finalActionClass"
                     [matTooltip]="dec.hoverDescription"
                   >
                     {{ dec.finalAction }}
@@ -704,7 +704,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="wl-vs-badge state-badge"
-                    [ngClass]="techStateClass(vd.technicalState)"
+                    [class]="techStateClass(vd.technicalState)"
                     [matTooltip]="vd.tooltip"
                     >{{ vd.technical }}</span
                   >
@@ -734,7 +734,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="wl-vs-score"
-                    [ngClass]="valueScoreClass(vd.score)"
+                    [class]="valueScoreClass(vd.score)"
                     [matTooltip]="valueScoreTooltip(vd.score)"
                   >
                     {{ vd.score | number: '1.1-1' }}/10
@@ -765,7 +765,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="action-badge"
-                    [ngClass]="valueStatusClass(vd.status)"
+                    [class]="valueStatusClass(vd.status)"
                     [matTooltip]="valueStatusTooltip(vd.status)"
                   >
                     {{ vd.status }}

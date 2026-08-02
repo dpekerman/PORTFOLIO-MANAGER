@@ -1,7 +1,7 @@
-<div class="watchlist-card" [ngClass]="{ up: isUp(), down: !isUp(), nodata: !hasData() }">
+<div class="watchlist-card" [class.up]="isUp()" [class.down]="!isUp()" [class.nodata]="!hasData()">
   <div class="card-header">
     <div class="symbol-row">
-      <div class="symbol-badge" [ngClass]="{ up: isUp(), down: !isUp() }">
+      <div class="symbol-badge" [class.up]="isUp()" [class.down]="!isUp()">
         {{ summary().item.symbol.substring(0, 2) }}
       </div>
       <div class="symbol-info">
@@ -24,7 +24,7 @@
   @if (quote()) {
     <div class="price-row">
       <span class="price">{{ quote()!.currentPrice | currency }}</span>
-      <span class="change" [ngClass]="{ up: isUp(), down: !isUp() }">
+      <span class="change" [class.up]="isUp()" [class.down]="!isUp()">
         <mat-icon>{{ isUp() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
         {{ quote()!.change | number: '1.2-2' }} ({{ quote()!.changePercent | number: '1.2-2' }}%)
       </span>

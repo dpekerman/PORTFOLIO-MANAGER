@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -33,7 +32,6 @@ interface ImportRow {
     MatTableModule,
     MatTooltipModule,
     MatChipsModule,
-    NgClass,
   ],
 })
 export class ImportStocksDialogComponent {

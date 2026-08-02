@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -88,7 +88,6 @@ type SortDir = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    NgClass,
     CurrencyPipe,
     DecimalPipe,
     MatButtonModule,

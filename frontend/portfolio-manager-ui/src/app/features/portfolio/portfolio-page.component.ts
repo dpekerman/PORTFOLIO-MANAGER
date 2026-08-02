@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DatePipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -141,7 +141,6 @@ type OptionSortCol =
   styleUrl: './portfolio-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgClass,
     FormsModule,
     CurrencyPipe,
     DatePipe,

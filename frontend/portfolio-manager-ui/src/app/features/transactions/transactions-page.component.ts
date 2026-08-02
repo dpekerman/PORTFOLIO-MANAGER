@@ -11,7 +11,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { OptionAnalysis, PortfolioSummary } from '../../core/models/portfolio.models';
+import {
+  OptionAnalysis,
+  OptionItem,
+  PortfolioItem,
+  PortfolioSummary,
+} from '../../core/models/portfolio.models';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -198,7 +203,7 @@ export class TransactionsPageComponent {
   });
 
   /** Gain/Loss for a stock row: (closingPrice - avgCost) * shares */
-  protected stockGainLoss(s: { item: any; quote: any }): number | null {
+  protected stockGainLoss(s: PortfolioSummary): number | null {
     const cp = s.item.closingPrice;
     if (cp == null) return null;
     return (cp - s.item.averageCostBasis) * s.item.shares;
@@ -208,7 +213,7 @@ export class TransactionsPageComponent {
    * Age in whole days for a stock transaction.
    * OPEN: today − openDate. CLOSE: closeDate − openDate.
    */
-  protected stockTransactionAge(item: any): number | null {
+  protected stockTransactionAge(item: PortfolioItem): number | null {
     if (!item.openDate) return null;
     const open = new Date(item.openDate).getTime();
     const end =
@@ -222,7 +227,7 @@ export class TransactionsPageComponent {
    * Age in whole days for an option transaction.
    * OPEN: today − openDate. CLOSE: closeDate − openDate.
    */
-  protected optionTransactionAge(item: any): number | null {
+  protected optionTransactionAge(item: OptionItem): number | null {
     if (!item.openDate) return null;
     const open = new Date(item.openDate).getTime();
     const end =
@@ -233,7 +238,7 @@ export class TransactionsPageComponent {
   }
 
   /** Gain% for a stock row: gainLoss / (avgCost * shares) */
-  protected stockGainPct(s: { item: any; quote: any }): number | null {
+  protected stockGainPct(s: PortfolioSummary): number | null {
     const gl = this.stockGainLoss(s);
     if (gl == null) return null;
     const cost = s.item.averageCostBasis * s.item.shares;
@@ -241,13 +246,13 @@ export class TransactionsPageComponent {
   }
 
   /** Current MKT Value: shares * last price */
-  protected stockMktValue(s: { item: any; quote: any }): number {
+  protected stockMktValue(s: PortfolioSummary): number {
     const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
     return s.item.shares * price;
   }
 
   /** Last price (current market price) */
-  protected stockLastPrice(s: { item: any; quote: any }): number | null {
+  protected stockLastPrice(s: PortfolioSummary): number | null {
     return s.quote?.currentPrice ?? null;
   }
 
@@ -256,7 +261,7 @@ export class TransactionsPageComponent {
    *   CLOSE: closingPrice - lastPrice
    *   OPEN:  lastPrice - avgCost
    */
-  protected stockPriceDiff(s: { item: any; quote: any }): number | null {
+  protected stockPriceDiff(s: PortfolioSummary): number | null {
     const lastPrice = s.quote?.currentPrice ?? null;
     if (lastPrice === null) return null;
     if (s.item.transactionType === 'CLOSE') {
@@ -267,14 +272,14 @@ export class TransactionsPageComponent {
   }
 
   /** Diff $ = Price Diff * Shares */
-  protected stockDiffDollar(s: { item: any; quote: any }): number | null {
+  protected stockDiffDollar(s: PortfolioSummary): number | null {
     const pd = this.stockPriceDiff(s);
     if (pd === null) return null;
     return pd * s.item.shares;
   }
 
   /** Trans Date: CLOSE → closeDate, OPEN → openDate */
-  protected stockTransDate(item: any): string | null {
+  protected stockTransDate(item: PortfolioItem): string | null {
     if (item.transactionType === 'CLOSE') return item.closeDate ?? null;
     if (item.transactionType === 'OPEN') return item.openDate ?? null;
     return item.openDate ?? null;
@@ -348,14 +353,14 @@ export class TransactionsPageComponent {
   }
 
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
-  protected optionGainLoss(a: any): number | null {
+  protected optionGainLoss(a: OptionAnalysis): number | null {
     const cp = a.item.closingPrice;
     if (cp == null) return null;
     return (cp - a.item.premium) * a.item.numberOfContracts * 100;
   }
 
   /** Gain% for an option row */
-  protected optionGainPct(a: any): number | null {
+  protected optionGainPct(a: OptionAnalysis): number | null {
     const gl = this.optionGainLoss(a);
     if (gl == null) return null;
     const cost = a.item.premium * a.item.numberOfContracts * 100;
@@ -363,7 +368,7 @@ export class TransactionsPageComponent {
   }
 
   /** Current MKT Value for option: contracts * 100 * marketPrice */
-  protected optionMktValue(a: any): number {
+  protected optionMktValue(a: OptionAnalysis): number {
     return a.item.numberOfContracts * 100 * a.item.marketPrice;
   }
 
@@ -395,7 +400,7 @@ export class TransactionsPageComponent {
     this.optionSortDir.set(sort.direction as SortDir);
   }
 
-  private stockSortValue(s: { item: any; quote: any }, col: StockTxCol): number | string | null {
+  private stockSortValue(s: PortfolioSummary, col: StockTxCol): number | string | null {
     switch (col) {
       case 'tx_type':
         return s.item.transactionType ?? '';
@@ -436,7 +441,7 @@ export class TransactionsPageComponent {
     }
   }
 
-  private optionTxSortValue(a: any, col: OptionTxCol): number | string | null {
+  private optionTxSortValue(a: OptionAnalysis, col: OptionTxCol): number | string | null {
     switch (col) {
       case 'otx_type':
         return a.item.transactionType ?? '';

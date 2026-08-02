@@ -1,4 +1,4 @@
-import { DecimalPipe, NgClass } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -56,7 +56,6 @@ interface SectorRow {
     MatTooltipModule,
     MatProgressSpinnerModule,
     DecimalPipe,
-    NgClass,
   ],
 })
 export class SectorExpositionComponent {

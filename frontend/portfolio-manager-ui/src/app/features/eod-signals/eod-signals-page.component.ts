@@ -1,4 +1,4 @@
-﻿import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -64,7 +64,6 @@ type SortDir = 'asc' | 'desc';
   styleUrl: './eod-signals-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgClass,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,

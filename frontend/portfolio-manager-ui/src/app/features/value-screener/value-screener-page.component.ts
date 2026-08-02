@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe, NgClass } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -37,7 +37,6 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
   styleUrl: './value-screener-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    NgClass,
     DecimalPipe,
     CurrencyPipe,
     DatePipe,

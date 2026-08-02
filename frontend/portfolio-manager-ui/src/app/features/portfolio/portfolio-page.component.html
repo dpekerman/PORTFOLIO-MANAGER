@@ -38,7 +38,7 @@
           [disabled]="portfolio.loading()"
           aria-label="Refresh portfolio prices"
         >
-          <mat-icon [ngClass]="{ spinning: portfolio.loading() }">refresh</mat-icon>
+          <mat-icon [class.spinning]="portfolio.loading()">refresh</mat-icon>
         </button>
         <button
           mat-icon-button
@@ -626,7 +626,7 @@
                       @if (tech) {
                         <span
                           class="pg-tech-badge state-badge"
-                          [ngClass]="tech.cssClass"
+                          [class]="tech.cssClass"
                           [matTooltip]="tech.tooltip"
                         >
                           {{ tech.label }}
@@ -730,7 +730,7 @@
                           [value]="asAgg(row).holdingRole || 'Strategic'"
                           (selectionChange)="updateAggHoldingRole(asAgg(row), $event.value)"
                           class="role-select"
-                          [ngClass]="roleClass(asAgg(row).holdingRole)"
+                          [class]="roleClass(asAgg(row).holdingRole)"
                         >
                           @for (r of roles; track r) {
                             <mat-option [value]="r">{{ r }}</mat-option>
@@ -742,7 +742,7 @@
                           [value]="asItem(row).item.holdingRole || 'Strategic'"
                           (selectionChange)="updateHoldingRole(asItem(row), $event.value)"
                           class="role-select"
-                          [ngClass]="roleClass(asItem(row).item.holdingRole)"
+                          [class]="roleClass(asItem(row).item.holdingRole)"
                         >
                           @for (r of roles; track r) {
                             <mat-option [value]="r">{{ r }}</mat-option>
@@ -790,7 +790,7 @@
                       ) {
                         <div
                           class="pg-ms-badge"
-                          [ngClass]="dec.trendSetupClass"
+                          [class]="dec.trendSetupClass"
                           [matTooltip]="dec.trendSetupReason"
                         >
                           {{ dec.trendSetup }}
@@ -817,7 +817,7 @@
                       ) {
                         <div
                           class="prob-badge"
-                          [ngClass]="probClass(rp)"
+                          [class]="probClass(rp)"
                           [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
                         >
                           <mat-icon>{{
@@ -852,7 +852,7 @@
                       ) {
                         <div
                           class="pg-ms-badge"
-                          [ngClass]="dec.momentumShiftClass"
+                          [class]="dec.momentumShiftClass"
                           [matTooltip]="dec.momentumShiftReason"
                         >
                           {{ dec.momentumShift }}
@@ -885,7 +885,7 @@
                         @if (dec.gapStatus !== 'No Gap') {
                           <div
                             class="gap-status-badge"
-                            [ngClass]="gapStatusClass(dec.gapStatus)"
+                            [class]="gapStatusClass(dec.gapStatus)"
                             [matTooltip]="
                               'Gap: ' +
                               (dec.gapPct | number: '1.1-1') +
@@ -927,7 +927,7 @@
                       ) {
                         <div
                           class="pg-ma-badge"
-                          [ngClass]="dec.finalActionClass"
+                          [class]="dec.finalActionClass"
                           [matTooltip]="dec.hoverDescription"
                         >
                           {{ dec.finalAction }}
@@ -1501,7 +1501,7 @@
                   <td mat-cell *matCellDef="let a">
                     <div
                       class="opt-state-badge"
-                      [ngClass]="optionStateClass(a.optionState)"
+                      [class]="optionStateClass(a.optionState)"
                       [matTooltip]="a.stateDescription"
                     >
                       {{ a.optionState.replaceAll('_', ' ') }}
@@ -1513,7 +1513,7 @@
                   <td mat-cell *matCellDef="let a">
                     <div
                       class="opt-action-badge"
-                      [ngClass]="actionClass(a.action)"
+                      [class]="actionClass(a.action)"
                       [matTooltip]="a.actionDescription"
                     >
                       {{ a.action }}

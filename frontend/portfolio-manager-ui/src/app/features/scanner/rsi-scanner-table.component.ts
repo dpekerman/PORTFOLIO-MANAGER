@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -32,7 +32,6 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
     RouterLink,
     DecimalPipe,
     CurrencyPipe,
-    NgClass,
     GridColumnButtonComponent,
   ],
 })
