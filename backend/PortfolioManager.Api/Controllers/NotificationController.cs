@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
@@ -12,6 +14,7 @@ public class NotificationController(
     SignalNotificationTracker tracker,
     EmailNotificationService emailNotifier,
     IRsiScannerService scanner,
+    AppDbContext db,
     ILogger<NotificationController> logger) : ControllerBase
 {
     /// <summary>Returns the current list of notification email recipients.</summary>
@@ -77,23 +80,28 @@ public class NotificationController(
         if (result.IsDemo)
             return Ok(new { triggered = false, reason = "Demo data — no emails sent." });
 
-        // Reset the tracker so all current CONFIRMED signals will fire again
-        tracker.ResetAll();
+        // Query today's saved EOD signals (SignalDate is stored as ET date)
+        var etTz = TimeZoneInfo.GetSystemTimeZones()
+            .FirstOrDefault(z => z.Id is "Eastern Standard Time" or "America/New_York");
+        var etNow = etTz is not null
+            ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, etTz)
+            : DateTime.UtcNow;
+        var today = etNow.ToString("yyyy-MM-dd");
+        var todaySignals = await db.DailySignals
+            .Where(s => s.SignalDate == today)
+            .OrderBy(s => s.Symbol)
+            .ToListAsync(ct);
 
-        await emailNotifier.NotifyNewConfirmedSignalsAsync(result);
-
-        var confirmedCount =
-            (result.OversoldChain?.Count(r => r.Status == SignalStatus.Confirmed) ?? 0) +
-            (result.OverboughtChain?.Count(r => r.Status == SignalStatus.Confirmed) ?? 0);
+        await emailNotifier.NotifySavedEodSignalsAsync(todaySignals, DateTime.UtcNow);
 
         return Ok(new
         {
             triggered = true,
-            confirmedSignals = confirmedCount,
+            confirmedSignals = todaySignals.Count,
             recipientCount = recipients.GetAll().Count,
-            message = confirmedCount > 0
-                ? $"Email sent for {confirmedCount} CONFIRMED signal(s) to {recipients.GetAll().Count} recipient(s)."
-                : "No CONFIRMED signals found — no email sent.",
+            message = todaySignals.Count > 0
+                ? $"Email sent for {todaySignals.Count} EOD signal(s) to {recipients.GetAll().Count} recipient(s)."
+                : "No EOD signals saved for today — no email sent.",
         });
     }
 }

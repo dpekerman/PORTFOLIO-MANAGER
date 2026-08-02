@@ -57,7 +57,8 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
             OpenDate         = request.OpenDate,
             CloseDate        = request.CloseDate,
             ClosingPrice     = request.ClosingPrice,
-            DecisionSource   = request.DecisionSource
+            DecisionSource   = request.DecisionSource,
+            HoldingRole      = request.HoldingRole
         };
 
         db.PortfolioItems.Add(item);

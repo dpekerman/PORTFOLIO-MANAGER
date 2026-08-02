@@ -469,6 +469,10 @@
   font-size: 0.78rem;
 }
 
+// ── Price diff colors ──────────────────────────────────────────────────────────
+.eod-pos { color: #2e7d32; }
+.eod-neg { color: #c62828; }
+
 // ── Spinner ───────────────────────────────────────────────────────────────────
 .spinning {
   animation: spin 1s linear infinite;

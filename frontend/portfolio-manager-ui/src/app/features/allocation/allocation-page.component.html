@@ -143,66 +143,87 @@
       <!-- Beta Contributors Panel -->
       @if (showBetaDetail() && betaState.result()?.topContributors?.length) {
         <div class="beta-contributors-panel">
-          <div class="beta-contrib-header">Beta by Position</div>
-          <table class="beta-contrib-table">
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Weight %</th>
-                <th>Beta</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (c of betaState.result()!.topContributors; track c.symbol) {
-                <tr>
-                  <td>
-                    {{ c.symbol }}
-                    @if (c.isProxy) {
-                      <span class="proxy-tag">proxy</span>
-                    }
-                  </td>
-                  <td>{{ c.weightPct | number: '1.1-1' }}%</td>
-                  <td>
-                    <div class="beta-edit-cell">
-                      <input
-                        class="beta-input"
-                        type="number"
-                        step="0.01"
-                        min="-5"
-                        max="5"
-                        [value]="
-                          betaForSymbol(c.symbol) !== null
-                            ? (betaForSymbol(c.symbol)! | number: '1.2-2')
-                            : ''
-                        "
-                        [placeholder]="betaForSymbol(c.symbol) !== null ? '' : '—'"
-                        [class.beta-overridden]="isBetaOverridden(c.symbol)"
-                        (change)="updateBeta(c.symbol, $any($event.target).value)"
-                        (blur)="updateBeta(c.symbol, $any($event.target).value)"
-                        [matTooltip]="
-                          isBetaOverridden(c.symbol)
-                            ? 'Override active — click × to reset'
-                            : 'Click to override beta'
-                        "
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    @if (isBetaOverridden(c.symbol)) {
-                      <button
-                        class="beta-clear-btn"
-                        (click)="clearBetaOverride(c.symbol)"
-                        matTooltip="Reset to Yahoo Finance beta"
-                      >
-                        ×
-                      </button>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
+          <div class="beta-contrib-header">
+            Beta by Position
+            <span class="beta-contrib-count">{{ sortedBetaContributors().length }} positions</span>
+          </div>
+          <div class="beta-contrib-table-wrapper">
+            <table
+              mat-table
+              [dataSource]="sortedBetaContributors()"
+              matSort
+              matSortActive="symbol"
+              matSortDirection="asc"
+              (matSortChange)="onBetaSortChange($event)"
+              class="beta-mat-table"
+            >
+              <ng-container matColumnDef="symbol">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>SYMBOL</th>
+                <td mat-cell *matCellDef="let c">
+                  <span class="beta-symbol">{{ c.symbol }}</span>
+                  @if (c.isProxy) {
+                    <span class="proxy-tag">proxy</span>
+                  }
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="weightPct">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="num-right">
+                  WEIGHT %
+                </th>
+                <td mat-cell *matCellDef="let c" class="num-right">
+                  {{ c.weightPct | number: '1.1-1' }}%
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="beta">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header class="num-right">BETA</th>
+                <td mat-cell *matCellDef="let c" class="num-right">
+                  <div class="beta-edit-cell">
+                    <input
+                      class="beta-input"
+                      type="number"
+                      step="0.01"
+                      min="-5"
+                      max="5"
+                      [value]="
+                        betaForSymbol(c.symbol) !== null
+                          ? (betaForSymbol(c.symbol)! | number: '1.2-2')
+                          : ''
+                      "
+                      [placeholder]="betaForSymbol(c.symbol) !== null ? '' : '—'"
+                      [class.beta-overridden]="isBetaOverridden(c.symbol)"
+                      (change)="updateBeta(c.symbol, $any($event.target).value)"
+                      (blur)="updateBeta(c.symbol, $any($event.target).value)"
+                      [matTooltip]="
+                        isBetaOverridden(c.symbol)
+                          ? 'Override active — click × to reset'
+                          : 'Click to override beta'
+                      "
+                    />
+                  </div>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef></th>
+                <td mat-cell *matCellDef="let c">
+                  @if (isBetaOverridden(c.symbol)) {
+                    <button
+                      class="beta-clear-btn"
+                      (click)="clearBetaOverride(c.symbol)"
+                      matTooltip="Reset to Yahoo Finance beta"
+                    >
+                      ×
+                    </button>
+                  }
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="betaColumns; sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: betaColumns"></tr>
+            </table>
+          </div>
         </div>
       }
     </div>

@@ -115,7 +115,7 @@
           <mat-label>Trend Setup</mat-label>
           <mat-select [ngModel]="filterTrendSetup()" (ngModelChange)="filterTrendSetup.set($event)">
             <mat-option value="">All setups</mat-option>
-            @for (ts of trendSetupOptions; track ts) {
+            @for (ts of trendSetupOptions(); track ts) {
               <mat-option [value]="ts">{{ ts }}</mat-option>
             }
           </mat-select>
@@ -265,7 +265,7 @@
                   [value]="w.item.role || 'Strategic'"
                   (selectionChange)="updateRole(w, $event.value)"
                   class="role-select"
-                  [ngClass]="roleClass(w.item.role || 'Strategic')"
+                  [class]="roleClass(w.item.role || 'Strategic')"
                 >
                   @for (r of roles; track r) {
                     <mat-option [value]="r">{{ r }}</mat-option>
@@ -293,10 +293,10 @@
               </td>
             </ng-container>
 
-            <!-- Change $ / % -->
+            <!-- Change $ -->
             <ng-container matColumnDef="change">
-              <th mat-header-cell *matHeaderCellDef mat-sort-header class="resizable-th">
-                CHANGE
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="change" class="resizable-th">
+                CHANGE $
                 <div
                   class="col-resize-handle"
                   (mousedown)="startResize($event, 'change')"
@@ -305,24 +305,46 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (changeForSymbol(w.item.symbol); as ch) {
-                  <div
-                    class="grid-change-cell"
-                    [class.up]="(ch.changePct ?? 0) >= 0"
-                    [class.down]="(ch.changePct ?? 0) < 0"
-                  >
-                    <span class="change-dollar">{{
+                  <span [class.up]="(ch.change ?? 0) >= 0" [class.down]="(ch.change ?? 0) < 0">
+                    {{
                       ch.change !== null
                         ? (ch.change >= 0 ? '+' : '') + (ch.change | number: '1.2-2')
                         : '—'
-                    }}</span>
-                    <span class="change-pct"
-                      >({{
-                        ch.changePct !== null
-                          ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
-                          : '—'
-                      }})</span
-                    >
-                  </div>
+                    }}
+                  </span>
+                } @else {
+                  <span class="grid-no-data">—</span>
+                }
+              </td>
+            </ng-container>
+
+            <!-- Change % -->
+            <ng-container matColumnDef="changePct">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header="changePct"
+                class="resizable-th"
+              >
+                CHANGE %
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'changePct')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @if (changeForSymbol(w.item.symbol); as ch) {
+                  <span
+                    [class.up]="(ch.changePct ?? 0) >= 0"
+                    [class.down]="(ch.changePct ?? 0) < 0"
+                  >
+                    {{
+                      ch.changePct !== null
+                        ? (ch.changePct >= 0 ? '+' : '') + (ch.changePct | number: '1.2-2') + '%'
+                        : '—'
+                    }}
+                  </span>
                 } @else {
                   <span class="grid-no-data">—</span>
                 }
@@ -475,7 +497,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ts-badge"
-                    [ngClass]="dec.trendSetupClass"
+                    [class]="dec.trendSetupClass"
                     [matTooltip]="dec.trendSetupReason"
                   >
                     {{ dec.trendSetup }}
@@ -508,7 +530,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ms-badge"
-                    [ngClass]="dec.momentumShiftClass"
+                    [class]="dec.momentumShiftClass"
                     [matTooltip]="dec.momentumShiftReason"
                   >
                     {{ dec.momentumShift }}
@@ -542,7 +564,7 @@
                 @if (rp) {
                   <div
                     class="prob-badge"
-                    [ngClass]="probClass(rp)"
+                    [class]="probClass(rp)"
                     [matTooltip]="'Aggregate probability of imminent trend reversal based on 5 indicators'"
                   >
                     <mat-icon>{{
@@ -597,6 +619,38 @@
               </td>
             </ng-container>
 
+            <!-- Gap Status -->
+            <ng-container matColumnDef="gapStatus">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                matTooltip="Gap analysis: (Open - PrevClose) / PrevClose × 100"
+              >
+                Gap Status
+              </th>
+              <td mat-cell *matCellDef="let w">
+                @let dec = decisionForSymbol(w.item.symbol, w.item.role);
+                @if (dec && dec.gapStatus !== 'No Gap') {
+                  <div
+                    class="gap-status-badge"
+                    [class]="gapStatusClass(dec.gapStatus)"
+                    [matTooltip]="
+                      'Gap: ' +
+                      (dec.gapPct | number: '1.1-1') +
+                      '% · Score: ' +
+                      (dec.gapScore >= 0 ? '+' : '') +
+                      dec.gapScore
+                    "
+                  >
+                    <mat-icon class="gap-icon">{{ gapStatusIcon(dec.gapStatus) }}</mat-icon>
+                    <span>{{ dec.gapStatus }}</span>
+                  </div>
+                } @else {
+                  <span class="pg-dim">—</span>
+                }
+              </td>
+            </ng-container>
+
             <!-- Final Action -->
             <ng-container matColumnDef="finalAction">
               <th
@@ -617,7 +671,7 @@
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
                   <div
                     class="wl-ma-badge"
-                    [ngClass]="dec.finalActionClass"
+                    [class]="dec.finalActionClass"
                     [matTooltip]="dec.hoverDescription"
                   >
                     {{ dec.finalAction }}
@@ -650,7 +704,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="wl-vs-badge state-badge"
-                    [ngClass]="techStateClass(vd.technicalState)"
+                    [class]="techStateClass(vd.technicalState)"
                     [matTooltip]="vd.tooltip"
                     >{{ vd.technical }}</span
                   >
@@ -680,7 +734,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="wl-vs-score"
-                    [ngClass]="valueScoreClass(vd.score)"
+                    [class]="valueScoreClass(vd.score)"
                     [matTooltip]="valueScoreTooltip(vd.score)"
                   >
                     {{ vd.score | number: '1.1-1' }}/10
@@ -711,7 +765,7 @@
                 @if (valueDataForSymbol(w.item.symbol); as vd) {
                   <span
                     class="action-badge"
-                    [ngClass]="valueStatusClass(vd.status)"
+                    [class]="valueStatusClass(vd.status)"
                     [matTooltip]="valueStatusTooltip(vd.status)"
                   >
                     {{ vd.status }}

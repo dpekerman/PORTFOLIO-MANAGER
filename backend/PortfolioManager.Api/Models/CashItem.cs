@@ -8,4 +8,6 @@ public class CashItem
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     /// <summary>Account type e.g. TFSA_L_RBC, Corp_TD</summary>
     public string? AccountType { get; set; }
+    /// <summary>Optional user-entered transaction date (separate from system AddedAt).</summary>
+    public DateTime? TransactionDate { get; set; }
 }

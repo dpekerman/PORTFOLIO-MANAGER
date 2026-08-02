@@ -196,12 +196,19 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("AccountType")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
                         .HasDefaultValue("CASH");
+
+                    b.Property<DateTime?>("TransactionDate")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 

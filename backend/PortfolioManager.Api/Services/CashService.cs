@@ -36,10 +36,11 @@ public sealed class CashService(AppDbContext db) : ICashService
     {
         var item = new CashItem
         {
-            Description = string.IsNullOrWhiteSpace(request.Description) ? "CASH" : request.Description,
-            Amount      = request.Amount,
-            AccountType = request.AccountType,
-            AddedAt     = DateTime.UtcNow
+            Description     = string.IsNullOrWhiteSpace(request.Description) ? "CASH" : request.Description,
+            Amount          = request.Amount,
+            AccountType     = request.AccountType,
+            TransactionDate = request.TransactionDate,
+            AddedAt         = DateTime.UtcNow
         };
         db.CashItems.Add(item);
         await db.SaveChangesAsync(ct);
@@ -50,9 +51,10 @@ public sealed class CashService(AppDbContext db) : ICashService
     {
         var item = await db.CashItems.FindAsync([id], ct);
         if (item is null) return null;
-        item.Description = string.IsNullOrWhiteSpace(request.Description) ? "CASH" : request.Description;
-        item.Amount      = request.Amount;
-        item.AccountType = request.AccountType;
+        item.Description     = string.IsNullOrWhiteSpace(request.Description) ? "CASH" : request.Description;
+        item.Amount          = request.Amount;
+        item.AccountType     = request.AccountType;
+        item.TransactionDate = request.TransactionDate;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -67,7 +69,7 @@ public sealed class CashService(AppDbContext db) : ICashService
     }
 
     private static CashItemDto ToDto(CashItem item) =>
-        new(item.Id, item.Description, item.Amount, item.AddedAt, item.AccountType);
+        new(item.Id, item.Description, item.Amount, item.AddedAt, item.AccountType, item.TransactionDate);
 
     public async Task<IReadOnlyList<CashBackupItem>> BackupAsync(CancellationToken ct = default)
     {

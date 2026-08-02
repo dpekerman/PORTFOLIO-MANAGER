@@ -12,7 +12,8 @@ public record AddPortfolioItemRequest(
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
-    string? DecisionSource = null);
+    string? DecisionSource = null,
+    string? HoldingRole = null);
 
 /// <summary>
 /// Request to add a manual (non-ticker) position such as Cash, Options, Bonds, etc.
@@ -87,9 +88,9 @@ public record DecisionSourcesDto(List<string> Items);
 public record UpdateDecisionSourcesRequest(List<string> Items);
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
-public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null);
-public record UpdateCashItemRequest(string Description, decimal Amount, string? AccountType = null);
-public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null);
+public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
+public record UpdateCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null);
 
 // ── Options ───────────────────────────────────────────────────────────────────
 public record AddOptionItemRequest(

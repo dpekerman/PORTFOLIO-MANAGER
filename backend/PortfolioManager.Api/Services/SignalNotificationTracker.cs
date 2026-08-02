@@ -62,7 +62,7 @@ public class SignalNotificationTracker
     public List<RsiScanResult> GetNewlyEodConfirmedAndSync(IEnumerable<RsiScanResult> allResults)
     {
         var eodNow = allResults
-            .Where(r => r.Status == SignalStatus.EodConfirm)
+            .Where(r => r.Status == SignalStatus.EodConfirm || r.Status == SignalStatus.Confirmed)
             .ToList();
 
         var eodKeys = eodNow

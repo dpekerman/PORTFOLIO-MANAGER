@@ -98,6 +98,12 @@ public class RsiScanResult
     public decimal AnalystTargetPrice { get; set; }
     /// <summary>(TargetPrice − CurrentPrice) / CurrentPrice × 100. 0 when target not available.</summary>
     public decimal AnalystTargetUpside { get; set; }
+
+    // ── Gap Data ─────────────────────────────────────────────────────────────
+    /// <summary>Today's opening price. Used for gap detection.</summary>
+    public decimal OpenPrice { get; set; }
+    /// <summary>Yesterday's closing price. Used for gap detection: GapPct = (Open - PrevClose) / PrevClose × 100.</summary>
+    public decimal PreviousClose { get; set; }
     /// <summary>52-week high price.</summary>
     public decimal Week52High { get; set; }
     /// <summary>52-week low price.</summary>

@@ -52,6 +52,40 @@ export type BaseAction =
   | 'Hold Longs'
   | 'Stand By';
 
+// ── Gap Status ────────────────────────────────────────────────────────────────
+export type GapStatus = 'No Gap' | 'Gap Up - Strong' | 'Gap Up - Weak' | 'Gap Up - Failed';
+
+export interface GapResult {
+  status: GapStatus;
+  /** -2 = Failed, 0 = No Gap, +1 = Weak, +2 = Strong */
+  score: number;
+  gapPct: number;
+}
+
+export function calcGapStatus(
+  openPrice: number,
+  previousClose: number,
+  close: number,
+  high: number,
+  low: number,
+): GapResult {
+  if (!previousClose || previousClose <= 0) return { status: 'No Gap', score: 0, gapPct: 0 };
+  const gapPct = ((openPrice - previousClose) / previousClose) * 100;
+  const range = high - low;
+  const closeLocation = range > 0 ? (close - low) / range : 0.5;
+
+  if (gapPct < 1.5) return { status: 'No Gap', score: 0, gapPct };
+  if (close > openPrice && closeLocation >= 0.7)
+    return { status: 'Gap Up - Strong', score: 2, gapPct };
+  if (close >= openPrice && closeLocation >= 0.5 && closeLocation < 0.7)
+    return { status: 'Gap Up - Weak', score: 1, gapPct };
+  if (close < openPrice && closeLocation <= 0.4)
+    return { status: 'Gap Up - Failed', score: -2, gapPct };
+  // Default for gaps that don't neatly match above (e.g. gap with mixed close)
+  if (gapPct >= 1.5) return { status: 'Gap Up - Weak', score: 1, gapPct };
+  return { status: 'No Gap', score: 0, gapPct };
+}
+
 export interface DecisionDebug {
   page: string;
   role: string | null;
@@ -97,6 +131,9 @@ export interface PageDecision extends DecisionResult {
   finalActionClass: string;
   trendSetupClass: string;
   momentumShiftClass: string;
+  gapStatus: GapStatus;
+  gapScore: number;
+  gapPct: number;
 }
 
 const ROLE_VALUES = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
@@ -200,13 +237,25 @@ export class DecisionEngineService {
 
   translateForRsiScanner(r: RsiScanResult): PageDecision {
     const dec = this.calculateDecision(r, null, 'RSI Scanner');
+    const gap = calcGapStatus(
+      r.openPrice ?? 0,
+      r.previousClose ?? 0,
+      r.currentPrice,
+      r.dayHigh ?? 0,
+      r.dayLow ?? 0,
+    );
+    let finalAction: string = dec.baseAction;
+    finalAction = this.applyGapRules(finalAction, gap, null, null);
     return {
       ...dec,
-      finalAction: dec.baseAction,
+      finalAction,
       hoverDescription: dec.momentumShiftReason,
       finalActionClass: this.baseActionClass(dec.baseAction),
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
+      gapStatus: gap.status,
+      gapScore: gap.score,
+      gapPct: gap.gapPct,
     };
   }
 
@@ -283,6 +332,16 @@ export class DecisionEngineService {
       finalAction = 'Review Fundamentals';
     }
 
+    // ── Gap Rules ─────────────────────────────────────────────────────────────
+    const gap = calcGapStatus(
+      r.openPrice ?? 0,
+      r.previousClose ?? 0,
+      r.currentPrice,
+      r.dayHigh ?? 0,
+      r.dayLow ?? 0,
+    );
+    finalAction = this.applyGapRules(finalAction, gap, buyScore, valueScore);
+
     return {
       ...dec,
       finalAction,
@@ -290,6 +349,9 @@ export class DecisionEngineService {
       finalActionClass: this.finalActionClass(finalAction),
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
+      gapStatus: gap.status,
+      gapScore: gap.score,
+      gapPct: gap.gapPct,
     };
   }
 
@@ -355,12 +417,20 @@ export class DecisionEngineService {
       rawAction = this.riskControlAdjustedAction(profitAction, context.riskControlClosePct);
     }
 
-    const finalAction = this.accumulateStarterGuard(
+    const gap = calcGapStatus(
+      r.openPrice ?? 0,
+      r.previousClose ?? 0,
+      r.currentPrice,
+      r.dayHigh ?? 0,
+      r.dayLow ?? 0,
+    );
+    let finalAction = this.accumulateStarterGuard(
       rawAction,
       dec.trendSetup,
       dec.momentumShift,
       r.changePercent ?? 0,
     );
+    finalAction = this.applyGapRules(finalAction, gap, null, null);
     return {
       ...dec,
       finalAction,
@@ -368,6 +438,9 @@ export class DecisionEngineService {
       finalActionClass: this.finalActionClass(finalAction),
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
+      gapStatus: gap.status,
+      gapScore: gap.score,
+      gapPct: gap.gapPct,
     };
   }
 
@@ -791,6 +864,55 @@ export class DecisionEngineService {
       ms === 'Warning \u2014 Overbought Run' ||
       changePercent > 5;
     return overbought ? 'Watch / No Chase' : action;
+  }
+
+  /**
+   * Apply Gap Status rules to the final action.
+   * - Gap Up - Failed: blocks Buy/Add/Accumulate Starter → 'Watch / Gap Risk'
+   * - Gap Up - Weak: caps at Watch / Starter Only
+   * - Gap Up - Strong: confirms but does not create a buy by itself
+   * - Gap Up - Follow-Through (Strong + BuyScore >= 4 + ValueScore >= 5): allowed to proceed
+   */
+  private applyGapRules(
+    action: string,
+    gap: GapResult,
+    buyScore: number | null,
+    valueScore: number | null,
+  ): string {
+    if (gap.status === 'No Gap') return action;
+
+    const isBuyAction = [
+      'Confirmed Buy Signal',
+      'Buy / Accumulate',
+      'Accumulate Starter',
+      'Early Buy Watch',
+      'Watch / Starter OK',
+    ].includes(action);
+
+    if (gap.status === 'Gap Up - Failed') {
+      // Blocks all buy/add/accumulate starter actions
+      if (isBuyAction) return 'Watch / Gap Failed — No Buy';
+      return action;
+    }
+
+    if (gap.status === 'Gap Up - Weak') {
+      // Caps aggressive buy actions; Watch/Starter only
+      if (['Confirmed Buy Signal', 'Buy / Accumulate'].includes(action)) {
+        return 'Watch / Starter Only (Gap Weak)';
+      }
+      return action;
+    }
+
+    if (gap.status === 'Gap Up - Strong') {
+      // Follow-Through: requires BuyScore >= 4 AND ValueScore >= 5 for full buy
+      const hasFollowThrough = (buyScore ?? 0) >= 4 && (valueScore === null || valueScore >= 5);
+      if (!hasFollowThrough && ['Confirmed Buy Signal', 'Buy / Accumulate'].includes(action)) {
+        return 'Watch / Gap Strong (Confirm Setup)';
+      }
+      return action;
+    }
+
+    return action;
   }
 
   private watchlistFinalAction(

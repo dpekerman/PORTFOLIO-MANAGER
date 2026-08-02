@@ -71,6 +71,16 @@
     }
   }
 
+  &--demo {
+    color: #ffa726;
+    mat-icon {
+      color: #ffa726;
+    }
+    &.cfg-tab-btn--active {
+      border-bottom-color: #ffa726;
+    }
+  }
+
   @media (max-width: 640px) {
     padding: 7px 10px 9px;
     font-size: 0.72rem;
@@ -764,4 +774,62 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+// ── Demo Mode Section ─────────────────────────────────────────────────────────
+.demo-active-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(255, 167, 38, 0.1);
+  border: 1px solid rgba(255, 167, 38, 0.3);
+  color: #ffa726;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  margin-bottom: 20px;
+
+  mat-icon {
+    font-size: 20px;
+  }
+}
+
+.demo-toggle-row {
+  margin-bottom: 24px;
+}
+
+.demo-info-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+
+  mat-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    opacity: 0.6;
+  }
+
+  p {
+    margin: 0 0 8px;
+  }
+  ul {
+    margin: 0 0 12px;
+    padding-left: 18px;
+  }
+  li {
+    margin-bottom: 4px;
+  }
+}
+
+.demo-exit-row {
+  margin-top: 8px;
 }

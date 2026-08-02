@@ -1,6 +1,8 @@
 <mat-card
   class="stock-card"
-  [ngClass]="{ positive: isPositive(), negative: !isPositive(), selected: isSelected() }"
+  [class.positive]="isPositive()"
+  [class.negative]="!isPositive()"
+  [class.selected]="isSelected()"
 >
   <mat-card-header>
     <!--
@@ -10,7 +12,9 @@
     <div
       mat-card-avatar
       class="symbol-avatar"
-      [ngClass]="{ positive: isPositive(), negative: !isPositive(), 'is-selected': isSelected() }"
+      [class.positive]="isPositive()"
+      [class.negative]="!isPositive()"
+      [class.is-selected]="isSelected()"
       (click)="toggleSelect()"
       matTooltip="Click to select"
     >
@@ -53,7 +57,8 @@
       @if (summary().quote) {
         <span
           class="change"
-          [ngClass]="{ positive: isDailyPositive(), negative: !isDailyPositive() }"
+          [class.positive]="isDailyPositive()"
+          [class.negative]="!isDailyPositive()"
         >
           <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
           <span [class.demo-redact]="demoMode.isDemoMode()">
@@ -111,7 +116,8 @@
         <span class="label">{{ summary().item.isManual ? 'P&amp;L' : 'Gain / Loss' }}</span>
         <span
           class="value"
-          [ngClass]="{ positive: isPositive(), negative: !isPositive() }"
+          [class.positive]="isPositive()"
+          [class.negative]="!isPositive()"
           [class.demo-redact]="demoMode.isDemoMode()"
         >
           {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
@@ -139,11 +145,9 @@
           <span class="range-label">RSI (14):</span>
           <span
             class="rsi-badge"
-            [ngClass]="{
-              'rsi-oversold': rsi()! < 30,
-              'rsi-overbought': rsi()! > 75,
-              'rsi-neutral': rsi()! >= 30 && rsi()! <= 75,
-            }"
+            [class.rsi-oversold]="rsi()! < 30"
+            [class.rsi-overbought]="rsi()! > 75"
+            [class.rsi-neutral]="rsi()! >= 30 && rsi()! <= 75"
             >{{ rsi()! | number: '1.1-1' }}</span
           >
         </div>

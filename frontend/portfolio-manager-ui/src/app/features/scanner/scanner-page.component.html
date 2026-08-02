@@ -170,7 +170,7 @@
           [disabled]="scanner.loading()"
           aria-label="Refresh scanner"
         >
-          <mat-icon [ngClass]="{ spinning: scanner.loading() }">refresh</mat-icon>
+          <mat-icon [class.spinning]="scanner.loading()">refresh</mat-icon>
         </button>
       </div>
     </div>

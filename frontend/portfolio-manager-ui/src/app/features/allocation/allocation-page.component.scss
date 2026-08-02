@@ -681,26 +681,40 @@
   color: var(--text-secondary);
   margin-bottom: 10px;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.beta-contrib-table {
+.beta-contrib-count {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.beta-contrib-table-wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+}
+.beta-mat-table {
   width: 100%;
-  border-collapse: collapse;
   font-size: 0.78rem;
-  th {
+  .mat-mdc-header-cell {
+    font-size: 0.7rem;
     font-weight: 700;
     color: var(--text-muted);
-    padding: 4px 8px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-  td {
-    padding: 4px 8px;
+  .mat-mdc-cell {
+    font-size: 0.78rem;
     color: var(--text-primary);
-    vertical-align: middle;
+    padding: 4px 8px;
   }
-  tr:hover td {
-    background: var(--bg-hover);
-  }
+}
+.num-right {
+  text-align: right !important;
+}
+.beta-symbol {
+  font-weight: 600;
+  font-family: monospace;
 }
 .proxy-tag {
   font-size: 0.6rem;

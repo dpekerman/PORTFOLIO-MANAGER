@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -39,6 +39,7 @@ import {
 } from '../../core/models/portfolio.models';
 import {
   DecisionEngineService,
+  GapStatus,
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
@@ -87,7 +88,6 @@ type SortDir = 'asc' | 'desc';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
-    NgClass,
     CurrencyPipe,
     DecimalPipe,
     MatButtonModule,
@@ -242,9 +242,7 @@ export class WatchlistPageComponent {
     return this.engine.translateForWatchlist(r, role, ctx);
   }
 
-  protected valueDataForSymbol(
-    symbol: string,
-  ): {
+  protected valueDataForSymbol(symbol: string): {
     technical: string;
     score: number;
     status: string;
@@ -346,6 +344,20 @@ export class WatchlistPageComponent {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
     return 'prob-low';
+  }
+
+  protected gapStatusClass(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'gap-strong';
+    if (status === 'Gap Up - Weak') return 'gap-weak';
+    if (status === 'Gap Up - Failed') return 'gap-failed';
+    return '';
+  }
+
+  protected gapStatusIcon(status: GapStatus): string {
+    if (status === 'Gap Up - Strong') return 'trending_up';
+    if (status === 'Gap Up - Weak') return 'trending_flat';
+    if (status === 'Gap Up - Failed') return 'trending_down';
+    return 'remove';
   }
 
   protected analystForSymbol(
@@ -557,17 +569,14 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly trendSetupOptions = [
-    'Waterfall / Falling Knife',
-    'Oversold Reversal Watch',
-    'Constructive Extended',
-    'Quality Trend Entry',
-    'Confirmed Constructive',
-    'Early Reversal',
-    'Cooling',
-    'Technical Caution',
-    'Neutral / No Setup',
-  ] as const;
+  protected readonly trendSetupOptions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const w of this.watchlist.items()) {
+      const ts = this.decisionForSymbol(w.item.symbol, w.item.role)?.trendSetup;
+      if (ts) set.add(ts);
+    }
+    return [...set].sort();
+  });
 
   protected readonly finalActionOptions = computed<string[]>(() => {
     const set = new Set<string>();

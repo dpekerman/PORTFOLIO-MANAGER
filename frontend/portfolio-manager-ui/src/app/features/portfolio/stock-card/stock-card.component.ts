@@ -1,4 +1,4 @@
-import { CurrencyPipe, DecimalPipe, NgClass } from '@angular/common';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -28,7 +28,6 @@ import {
     MatTooltipModule,
     CurrencyPipe,
     DecimalPipe,
-    NgClass,
   ],
 })
 export class StockCardComponent {

@@ -11,7 +11,12 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { OptionAnalysis, PortfolioSummary } from '../../core/models/portfolio.models';
+import {
+  OptionAnalysis,
+  OptionItem,
+  PortfolioItem,
+  PortfolioSummary,
+} from '../../core/models/portfolio.models';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -57,6 +62,8 @@ type StockTxCol =
   | 'tx_gain_pct'
   | 'tx_last_price'
   | 'tx_price_diff'
+  | 'tx_diff_dollar'
+  | 'tx_trans_date'
   | 'tx_decision_source'
   | 'tx_age'
   | 'tx_actions';
@@ -118,7 +125,6 @@ export class TransactionsPageComponent {
 
   // ── Extra filters ───────────────────────────────────────────────────────────
   protected readonly filterDecisionSource = signal('');
-  protected readonly filterMinAge = signal('');
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
   protected readonly stockSortCol = signal<StockTxCol>('tx_open_date');
@@ -138,7 +144,6 @@ export class TransactionsPageComponent {
     const dir = this.stockSortDir() === 'asc' ? 1 : -1;
     const filter = this.txTypeFilter();
     const filterDs = this.filterDecisionSource().toLowerCase();
-    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
     return [...this.portfolio.summaries()]
       .filter((s) => {
         if (s.item.isManual) return false;
@@ -156,10 +161,6 @@ export class TransactionsPageComponent {
         }
         if (filterDs && !(s.item.decisionSource ?? '').toLowerCase().includes(filterDs))
           return false;
-        if (minAge !== null && !isNaN(minAge)) {
-          const age = this.stockTransactionAge(s.item);
-          if (age === null || age < minAge) return false;
-        }
         return true;
       })
       .sort((a, b) => {
@@ -175,7 +176,6 @@ export class TransactionsPageComponent {
     const dir = this.optionSortDir() === 'asc' ? 1 : -1;
     const filter = this.txTypeFilter();
     const filterDs = this.filterDecisionSource().toLowerCase();
-    const minAge = this.filterMinAge().trim() !== '' ? parseInt(this.filterMinAge(), 10) : null;
     return [...this.optionState.analyses()]
       .filter((a) => {
         const type = a.item.transactionType;
@@ -192,10 +192,6 @@ export class TransactionsPageComponent {
         }
         if (filterDs && !(a.item.decisionSource ?? '').toLowerCase().includes(filterDs))
           return false;
-        if (minAge !== null && !isNaN(minAge)) {
-          const age = this.optionTransactionAge(a.item);
-          if (age === null || age < minAge) return false;
-        }
         return true;
       })
       .sort((a, b) => {
@@ -207,7 +203,7 @@ export class TransactionsPageComponent {
   });
 
   /** Gain/Loss for a stock row: (closingPrice - avgCost) * shares */
-  protected stockGainLoss(s: { item: any; quote: any }): number | null {
+  protected stockGainLoss(s: PortfolioSummary): number | null {
     const cp = s.item.closingPrice;
     if (cp == null) return null;
     return (cp - s.item.averageCostBasis) * s.item.shares;
@@ -217,7 +213,7 @@ export class TransactionsPageComponent {
    * Age in whole days for a stock transaction.
    * OPEN: today − openDate. CLOSE: closeDate − openDate.
    */
-  protected stockTransactionAge(item: any): number | null {
+  protected stockTransactionAge(item: PortfolioItem): number | null {
     if (!item.openDate) return null;
     const open = new Date(item.openDate).getTime();
     const end =
@@ -231,7 +227,7 @@ export class TransactionsPageComponent {
    * Age in whole days for an option transaction.
    * OPEN: today − openDate. CLOSE: closeDate − openDate.
    */
-  protected optionTransactionAge(item: any): number | null {
+  protected optionTransactionAge(item: OptionItem): number | null {
     if (!item.openDate) return null;
     const open = new Date(item.openDate).getTime();
     const end =
@@ -242,7 +238,7 @@ export class TransactionsPageComponent {
   }
 
   /** Gain% for a stock row: gainLoss / (avgCost * shares) */
-  protected stockGainPct(s: { item: any; quote: any }): number | null {
+  protected stockGainPct(s: PortfolioSummary): number | null {
     const gl = this.stockGainLoss(s);
     if (gl == null) return null;
     const cost = s.item.averageCostBasis * s.item.shares;
@@ -250,13 +246,13 @@ export class TransactionsPageComponent {
   }
 
   /** Current MKT Value: shares * last price */
-  protected stockMktValue(s: { item: any; quote: any }): number {
+  protected stockMktValue(s: PortfolioSummary): number {
     const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
     return s.item.shares * price;
   }
 
   /** Last price (current market price) */
-  protected stockLastPrice(s: { item: any; quote: any }): number | null {
+  protected stockLastPrice(s: PortfolioSummary): number | null {
     return s.quote?.currentPrice ?? null;
   }
 
@@ -265,7 +261,7 @@ export class TransactionsPageComponent {
    *   CLOSE: closingPrice - lastPrice
    *   OPEN:  lastPrice - avgCost
    */
-  protected stockPriceDiff(s: { item: any; quote: any }): number | null {
+  protected stockPriceDiff(s: PortfolioSummary): number | null {
     const lastPrice = s.quote?.currentPrice ?? null;
     if (lastPrice === null) return null;
     if (s.item.transactionType === 'CLOSE') {
@@ -275,15 +271,96 @@ export class TransactionsPageComponent {
     return lastPrice - s.item.averageCostBasis;
   }
 
+  /** Diff $ = Price Diff * Shares */
+  protected stockDiffDollar(s: PortfolioSummary): number | null {
+    const pd = this.stockPriceDiff(s);
+    if (pd === null) return null;
+    return pd * s.item.shares;
+  }
+
+  /** Trans Date: CLOSE → closeDate, OPEN → openDate */
+  protected stockTransDate(item: PortfolioItem): string | null {
+    if (item.transactionType === 'CLOSE') return item.closeDate ?? null;
+    if (item.transactionType === 'OPEN') return item.openDate ?? null;
+    return item.openDate ?? null;
+  }
+
+  /** Export the current ALL-view stock transactions to CSV. */
+  exportStocksCsv(): void {
+    const rows = this.sortedStockTransactions();
+    const headers = [
+      'Type',
+      'Account',
+      'Ticker',
+      'Company',
+      'Shares',
+      'Avg Cost',
+      'Open Date',
+      'Close Date',
+      'Closing Price',
+      'Gain/Loss',
+      'Gain %',
+      'Last Price',
+      'Price Diff',
+      'Diff $',
+      'Trans Date',
+      'Decision Source',
+      'Age (days)',
+    ];
+    const fmtDate = (d: string | null | undefined) => (d ? d.substring(0, 10) : '');
+    const csvLines = [headers.join(',')];
+    for (const s of rows) {
+      const gl = this.stockGainLoss(s);
+      const gp = this.stockGainPct(s);
+      const pd = this.stockPriceDiff(s);
+      const dd = this.stockDiffDollar(s);
+      const lp = this.stockLastPrice(s);
+      const age = this.stockTransactionAge(s.item);
+      const td = this.stockTransDate(s.item);
+      const escape = (v: unknown) => {
+        const str = v == null ? '' : String(v);
+        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
+      };
+      csvLines.push(
+        [
+          escape(s.item.transactionType ?? ''),
+          escape(s.item.accountType ?? ''),
+          escape(s.item.symbol),
+          escape(s.item.companyName),
+          escape(s.item.shares),
+          escape(s.item.averageCostBasis),
+          escape(fmtDate(s.item.openDate)),
+          escape(fmtDate(s.item.closeDate)),
+          escape(s.item.closingPrice ?? ''),
+          escape(gl != null ? gl.toFixed(2) : ''),
+          escape(gp != null ? gp.toFixed(2) : ''),
+          escape(lp != null ? lp.toFixed(2) : ''),
+          escape(pd != null ? pd.toFixed(2) : ''),
+          escape(dd != null ? dd.toFixed(2) : ''),
+          escape(fmtDate(td)),
+          escape(s.item.decisionSource ?? ''),
+          escape(age ?? ''),
+        ].join(','),
+      );
+    }
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
-  protected optionGainLoss(a: any): number | null {
+  protected optionGainLoss(a: OptionAnalysis): number | null {
     const cp = a.item.closingPrice;
     if (cp == null) return null;
     return (cp - a.item.premium) * a.item.numberOfContracts * 100;
   }
 
   /** Gain% for an option row */
-  protected optionGainPct(a: any): number | null {
+  protected optionGainPct(a: OptionAnalysis): number | null {
     const gl = this.optionGainLoss(a);
     if (gl == null) return null;
     const cost = a.item.premium * a.item.numberOfContracts * 100;
@@ -291,7 +368,7 @@ export class TransactionsPageComponent {
   }
 
   /** Current MKT Value for option: contracts * 100 * marketPrice */
-  protected optionMktValue(a: any): number {
+  protected optionMktValue(a: OptionAnalysis): number {
     return a.item.numberOfContracts * 100 * a.item.marketPrice;
   }
 
@@ -323,7 +400,7 @@ export class TransactionsPageComponent {
     this.optionSortDir.set(sort.direction as SortDir);
   }
 
-  private stockSortValue(s: { item: any; quote: any }, col: StockTxCol): number | string | null {
+  private stockSortValue(s: PortfolioSummary, col: StockTxCol): number | string | null {
     switch (col) {
       case 'tx_type':
         return s.item.transactionType ?? '';
@@ -351,6 +428,10 @@ export class TransactionsPageComponent {
         return s.quote?.currentPrice ?? 0;
       case 'tx_price_diff':
         return this.stockPriceDiff(s) ?? 0;
+      case 'tx_diff_dollar':
+        return this.stockDiffDollar(s) ?? 0;
+      case 'tx_trans_date':
+        return this.stockTransDate(s.item) ?? '';
       case 'tx_decision_source':
         return s.item.decisionSource ?? '';
       case 'tx_age':
@@ -360,7 +441,7 @@ export class TransactionsPageComponent {
     }
   }
 
-  private optionTxSortValue(a: any, col: OptionTxCol): number | string | null {
+  private optionTxSortValue(a: OptionAnalysis, col: OptionTxCol): number | string | null {
     switch (col) {
       case 'otx_type':
         return a.item.transactionType ?? '';

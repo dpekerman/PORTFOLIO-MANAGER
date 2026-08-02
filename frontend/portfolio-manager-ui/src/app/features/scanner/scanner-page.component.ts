@@ -1,4 +1,4 @@
-import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -30,7 +30,6 @@ const MORNING_AUTO_OPENED_KEY = 'morning-check-auto-opened';
   imports: [
     DatePipe,
     DecimalPipe,
-    NgClass,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,

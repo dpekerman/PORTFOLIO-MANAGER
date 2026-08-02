@@ -46,6 +46,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
             entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
             entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.TransactionDate).IsRequired(false);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
@@ -67,13 +68,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.OverboughtThreshold).HasColumnType("decimal(5,2)").HasDefaultValue(75m);
             entity.Property(e => e.LogicMode).HasMaxLength(20).HasDefaultValue("Legacy");
             entity.HasIndex(e => new { e.SessionKey, e.UpdatedAt });
-        });
-
-        modelBuilder.Entity<CashItem>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
-            entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
         });
 
         modelBuilder.Entity<OptionItem>(entity =>

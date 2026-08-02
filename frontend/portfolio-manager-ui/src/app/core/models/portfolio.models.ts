@@ -82,6 +82,7 @@ export interface AddPortfolioItemRequest {
   closeDate?: string | null;
   closingPrice?: number | null;
   decisionSource?: string | null;
+  holdingRole?: string | null;
 }
 
 export interface UpdatePortfolioItemRequest {
@@ -189,6 +190,10 @@ export interface RsiScanResult {
   dayHigh: number;
   /** Today's session low price. Used for BottomHalfClose / TopHalfClose calculation. */
   dayLow: number;
+  /** Today's opening price. Used for gap detection. */
+  openPrice: number;
+  /** Yesterday's closing price. GapPct = (openPrice - previousClose) / previousClose * 100. */
+  previousClose: number;
 }
 
 export interface ScannerResponse {
@@ -303,12 +308,14 @@ export interface CashItem {
   amount: number;
   addedAt: string;
   accountType?: string | null;
+  transactionDate?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
   accountType?: string | null;
+  transactionDate?: string | null;
 }
 
 export interface UpdateCashItemRequest {

@@ -6,6 +6,7 @@ using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
+
 /// <summary>
 /// Sends HTML RSI signal alert emails via SMTP whenever new CONFIRMED signals are detected.
 /// Email is marked as high priority and contains a full technical details table.
@@ -244,6 +245,162 @@ public class EmailNotificationService(
         return sb.ToString();
     }
 
+    private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
+
+    /// <summary>
+    /// Sends an EOD email for signals already saved in the DailySignals table (manual trigger).
+    /// Always fires — no deduplication — since this is an explicit user action.
+    /// </summary>
+    public async Task NotifySavedEodSignalsAsync(List<DailySignal> signals, DateTime triggeredAt)
+    {
+        if (signals.Count == 0) return;
+
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0) return;
+
+        if (!_settings.Enabled) return;
+
+        if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password))
+            return;
+
+        try
+        {
+            await SendSavedSignalsEmailAsync(signals, recipientList, triggeredAt);
+            logger.LogInformation("Manual EOD email sent for {Count} saved signal(s) to {Recipients} recipient(s).",
+                signals.Count, recipientList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send manual EOD signal email.");
+        }
+    }
+
+    private async Task SendSavedSignalsEmailAsync(List<DailySignal> signals, List<string> recipientEmails, DateTime triggeredAt)
+    {
+        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+        {
+            EnableSsl = _settings.UseStartTls,
+            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            Timeout = 15_000,
+        };
+
+        var tickerSummary = string.Join(", ", signals.Select(s => $"{s.Symbol} RSI:{s.Rsi:F1}"));
+        var subject = signals.Count == 1
+            ? $"📊 EOD Signals — {signals[0].Symbol} (RSI {signals[0].Rsi:F1}) End-of-Day Record"
+            : $"📊 EOD Signals — {signals.Count} Records: {tickerSummary}";
+
+        var body = BuildSavedSignalsHtmlBody(signals, triggeredAt);
+
+        using var message = new MailMessage
+        {
+            From = new MailAddress(
+                !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username,
+                _settings.FromName),
+            Subject = subject,
+            Body = body,
+            IsBodyHtml = true,
+            Priority = MailPriority.High,
+        };
+        message.Headers.Add("X-Priority", "1");
+        message.Headers.Add("X-MSMail-Priority", "High");
+        message.Headers.Add("Importance", "High");
+
+        foreach (var email in recipientEmails)
+            message.To.Add(email);
+
+        await client.SendMailAsync(message);
+    }
+
+    private static string BuildSavedSignalsHtmlBody(List<DailySignal> signals, DateTime triggeredAt)
+    {
+        var oversold   = signals.Where(s => s.ScanType == "Oversold").ToList();
+        var overbought = signals.Where(s => s.ScanType == "Overbought").ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine($@"<!DOCTYPE html>
+<html lang=""en"">
+<head><meta charset=""UTF-8""><meta name=""viewport"" content=""width=device-width,initial-scale=1"">
+<style>
+  body{{margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;color:#333}}
+  .wrapper{{max-width:820px;margin:0 auto;padding:24px 16px}}
+  .header{{background:linear-gradient(135deg,#1a237e,#283593);border-radius:12px;padding:24px 28px;margin-bottom:24px}}
+  .header h1{{margin:0 0 6px;font-size:1.4rem;color:#fff;letter-spacing:0.05em}}
+  .header p{{margin:0;font-size:0.85rem;color:rgba(255,255,255,0.85)}}
+  .banner{{background:linear-gradient(135deg,#1565c0,#1976d2);border-radius:8px;padding:12px 20px;margin-bottom:20px;color:#fff;font-weight:600;font-size:0.9rem}}
+  h2{{font-size:1rem;color:#333;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #e0e0e0}}
+  table{{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-bottom:20px}}
+  th{{background:#1a237e;color:#fff;padding:10px 12px;text-align:left;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em}}
+  td{{padding:10px 12px;border-bottom:1px solid #f0f0f0;font-size:0.88rem;vertical-align:top}}
+  .sym{{font-weight:700;font-size:0.95rem}}
+  .co{{color:#888;font-size:0.78rem}}
+  .rsi-os{{background:#fff3e0;color:#e65100;border-radius:4px;padding:2px 6px;font-weight:700}}
+  .rsi-ob{{background:#fce4ec;color:#c62828;border-radius:4px;padding:2px 6px;font-weight:700}}
+  .pill{{border-radius:4px;padding:2px 7px;font-size:0.75rem;font-weight:600;display:inline-block}}
+  .pill-eod{{background:#fff3e0;color:#e65100;border:1px solid #ffcc02;font-weight:700}}
+  .pill-conf{{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:700}}
+  .pill-warn{{background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;font-weight:700}}
+  .trigger{{color:#555;font-size:0.82rem}}
+</style>
+</head>
+<body><div class=""wrapper"">
+  <div class=""header"">
+    <h1>📊 EOD Signals — Manual Notification</h1>
+    <p>Today's saved end-of-day signals as of {triggeredAt:HH:mm} UTC — manually triggered.</p>
+  </div>
+  <div class=""banner"">
+    📅 {signals.Count} signal(s) recorded for {triggeredAt:dddd, MMMM d yyyy}
+  </div>");
+
+        if (oversold.Count > 0)
+        {
+            sb.AppendLine("  <h2>🟢 Oversold Signals</h2>");
+            sb.AppendLine(BuildSavedSignalTable(oversold));
+        }
+
+        if (overbought.Count > 0)
+        {
+            sb.AppendLine("  <h2>🔴 Overbought Signals</h2>");
+            sb.AppendLine(BuildSavedSignalTable(overbought));
+        }
+
+        sb.AppendLine("</div></body></html>");
+        return sb.ToString();
+    }
+
+    private static string BuildSavedSignalTable(List<DailySignal> signals)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(@"  <table>
+    <thead>
+      <tr>
+        <th>Ticker</th><th>RSI</th><th>Price</th><th>Signal Type</th><th>Trigger Details</th>
+      </tr>
+    </thead>
+    <tbody>");
+
+        foreach (var s in signals)
+        {
+            var rsiClass  = s.ScanType == "Oversold" ? "rsi-os" : "rsi-ob";
+            var typePill  = s.SignalType switch
+            {
+                "EodConfirm"   => "<span class=\"pill pill-eod\">🎯 EOD CONFIRM</span>",
+                "Confirmed"    => "<span class=\"pill pill-conf\">✅ CONFIRMED</span>",
+                _              => "<span class=\"pill pill-warn\">⚠️ EARLY WARNING</span>",
+            };
+            sb.AppendLine($@"      <tr>
+        <td><div class=""sym"">{s.Symbol}</div><div class=""co"">{s.CompanyName}</div></td>
+        <td><span class=""{rsiClass}"">{s.Rsi:F1}</span></td>
+        <td>${s.Price:F2}</td>
+        <td>{typePill}</td>
+        <td class=""trigger"">{s.TriggerDetails}</td>
+      </tr>");
+        }
+
+        sb.AppendLine("    </tbody>\n  </table>");
+        return sb.ToString();
+    }
+
     /// <summary>
     /// Checks the scan result for new EOD CONFIRM signals.
     /// Only called by the background service during the configured EOD window.
@@ -295,9 +452,11 @@ public class EmailNotificationService(
         var oversold   = signals.Where(s => s.ScanType == ScanType.Oversold).ToList();
         var overbought = signals.Where(s => s.ScanType == ScanType.Overbought).ToList();
         var tickerSummary = string.Join(", ", signals.Select(s => $"{s.Symbol} RSI:{s.Rsi:F1}"));
+        var hasEodConfirm = signals.Any(s => s.Status == SignalStatus.EodConfirm);
+        var prefix = hasEodConfirm ? "🎯 EOD CONFIRM" : "✅ EOD Signal";
         var subject = signals.Count == 1
-            ? $"🎯 EOD CONFIRM — {signals[0].Symbol} (RSI {signals[0].Rsi:F1}) End-of-Day Signal"
-            : $"🎯 EOD CONFIRM — {signals.Count} Signals: {tickerSummary}";
+            ? $"{prefix} — {signals[0].Symbol} (RSI {signals[0].Rsi:F1}) End-of-Day Signal"
+            : $"{prefix} — {signals.Count} Signals: {tickerSummary}";
 
         var body = BuildEodHtmlBody(oversold, overbought, scannedAt);
 
@@ -355,6 +514,7 @@ public class EmailNotificationService(
   .pill-bear{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
   .pill-neu{background:#f5f5f5;color:#757575;border:1px solid #e0e0e0}
   .pill-eod{background:#fff3e0;color:#e65100;border:1px solid #ffcc02;font-weight:700}
+  .pill-conf{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;font-weight:700}
   .trigger{font-size:0.77rem;color:#555;max-width:240px}
   .footer{margin-top:28px;padding-top:16px;border-top:1px solid #e0e0e0;font-size:0.72rem;color:#999;text-align:center}
 </style>
@@ -422,7 +582,7 @@ public class EmailNotificationService(
         <td>${r.Ema9Price:F2} {pvsEma}</td>
         <td>${r.DailyAtr:F4}</td>
         <td><span class=""pill pill-bull"">Vol {r.VolumeRatio:F1}x</span></td>
-        <td class=""trigger""><span class=""pill pill-eod"">🎯 EOD CONFIRM</span><br>{r.TriggerDetails}</td>
+        <td class=""trigger"">{(r.Status == SignalStatus.EodConfirm ? "<span class=\"pill pill-eod\">🎯 EOD CONFIRM</span>" : "<span class=\"pill pill-conf\">✅ CONFIRMED</span>")}<br>{r.TriggerDetails}</td>
       </tr>");
         }
 
