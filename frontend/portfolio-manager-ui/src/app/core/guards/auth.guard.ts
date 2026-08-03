@@ -1,16 +1,18 @@
-import { CanActivateFn } from '@angular/router';
+import { inject } from '@angular/core';
+import { CanActivateFn, Router } from '@angular/router';
+import { AuthStateService } from '../services/auth-state.service';
 
-/**
- * Auth guard — placeholder for future authentication & authorization.
- * Once auth is implemented, inject AuthService here and check if the
- * user is authenticated / has the required role before granting access.
- */
 export const authGuard: CanActivateFn = () => {
-  // TODO: implement when authentication is added
-  // const authService = inject(AuthService);
-  // const router = inject(Router);
-  // if (!authService.isAuthenticated()) {
-  //   return router.createUrlTree(['/login']);
-  // }
+  const authState = inject(AuthStateService);
+  const router = inject(Router);
+
+  if (authState.setupRequired() === true) {
+    return router.createUrlTree(['/setup']);
+  }
+
+  if (!authState.isAuthenticated()) {
+    return router.createUrlTree(['/login']);
+  }
+
   return true;
 };

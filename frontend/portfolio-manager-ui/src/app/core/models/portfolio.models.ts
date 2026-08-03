@@ -509,6 +509,44 @@ export interface MarketIndexDto {
   changePercent: number;
 }
 
+// ── Authentication ─────────────────────────────────────────────────────────────
+export type AppRole = 'Admin' | 'Trader' | 'Viewer';
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface SetupRequest {
+  displayName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface CreateUserRequest {
+  displayName: string;
+  email: string;
+  password: string;
+  role: AppRole;
+}
+
+export interface UserInfo {
+  id: string;
+  displayName: string;
+  email: string;
+  roles: AppRole[];
+}
+
+export interface AuthResponse {
+  accessToken: string;
+  user: UserInfo;
+}
+
+export interface SetupRequiredResponse {
+  required: boolean;
+}
+
 export interface MarketIndicesResponse {
   indices: MarketIndexDto[];
   fetchedAt: string;

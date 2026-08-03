@@ -20,6 +20,16 @@ DELETE FROM [dbo].[CashItems];
 DELETE FROM [dbo].[OptionItems];
 -- Do NOT delete __EFMigrationsHistory – that would confuse EF Core.
 
+-- ── Auth tables (FK-safe order) ──────────────────────────────────────────────
+IF OBJECT_ID('dbo.RefreshTokens',    'U') IS NOT NULL DELETE FROM [dbo].[RefreshTokens];
+IF OBJECT_ID('dbo.AspNetUserRoles',  'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserRoles];
+IF OBJECT_ID('dbo.AspNetUserClaims', 'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserClaims];
+IF OBJECT_ID('dbo.AspNetUserLogins', 'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserLogins];
+IF OBJECT_ID('dbo.AspNetUserTokens', 'U') IS NOT NULL DELETE FROM [dbo].[AspNetUserTokens];
+IF OBJECT_ID('dbo.AspNetRoleClaims', 'U') IS NOT NULL DELETE FROM [dbo].[AspNetRoleClaims];
+IF OBJECT_ID('dbo.AspNetUsers',      'U') IS NOT NULL DELETE FROM [dbo].[AspNetUsers];
+IF OBJECT_ID('dbo.AspNetRoles',      'U') IS NOT NULL DELETE FROM [dbo].[AspNetRoles];
+
 -- Re-enable constraints
 EXEC sp_MSforeachtable 'ALTER TABLE ? CHECK CONSTRAINT ALL';
 GO

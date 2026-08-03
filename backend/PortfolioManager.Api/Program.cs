@@ -1,8 +1,13 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,11 +22,70 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Portfolio Manager API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Enter JWT token",
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        BearerFormat = "JWT",
+        Scheme = "bearer"
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
 // ── Database ─────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// ── ASP.NET Core Identity ─────────────────────────────────────────────────────
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 8;
+    options.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<AppDbContext>()
+.AddDefaultTokenProviders();
+
+// ── JWT Bearer Authentication ──────────────────────────────────────────────────
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException(
+        "Jwt:Secret is not configured. Run: dotnet user-secrets set \"Jwt:Secret\" \"<64-char-random>\"");
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidAudience = builder.Configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+        ClockSkew = TimeSpan.Zero
+    };
+});
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // ── Yahoo Finance HTTP Clients ───────────────────────────────────────────────
 // YahooFinanceService makes absolute URL calls to both query1 and query2, so NO BaseAddress.
@@ -64,13 +128,14 @@ builder.Services.AddSingleton<ValueScreenerPersistenceService>();
 // Background service: runs Value Screener at configured time (default 5 PM ET weekdays)
 builder.Services.AddHostedService<ValueScreenerSchedulerService>();
 
-// ── CORS (allow Angular dev server) ──────────────────────────────────────────
+// ── CORS (allow Angular dev server + credentials for httpOnly cookie) ────────
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularDevPolicy", policy =>
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyHeader()
-              .AllowAnyMethod());
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 // ── Scanner Runtime Config (singleton — EOD window overridable at runtime) ────
@@ -130,6 +195,23 @@ catch (Exception ex)
     startupLog.LogError(ex, "EF migration failed on startup — some tables may be missing.");
 }
 
+// ── Seed roles (Admin, Trader, Viewer) ────────────────────────────────────────
+try
+{
+    using var roleScope = app.Services.CreateScope();
+    var roleManager = roleScope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+    foreach (var role in new[] { "Admin", "Trader", "Viewer" })
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new IdentityRole(role));
+    }
+}
+catch (Exception ex)
+{
+    var startupLog = app.Services.GetRequiredService<ILogger<Program>>();
+    startupLog.LogError(ex, "Role seeding failed.");
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -137,6 +219,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AngularDevPolicy");
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 

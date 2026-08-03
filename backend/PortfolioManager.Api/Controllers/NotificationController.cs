@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
@@ -7,6 +8,7 @@ using PortfolioManager.Api.Services;
 namespace PortfolioManager.Api.Controllers;
 
 /// <summary>Manages email alert recipients and notification settings.</summary>
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class NotificationController(

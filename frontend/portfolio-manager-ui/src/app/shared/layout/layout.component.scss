@@ -261,3 +261,30 @@
     transform: rotate(360deg);
   }
 }
+
+// -- User chip (logged-in user display) ---------------------------------------
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-high);
+  cursor: default;
+  font-size: 0.875rem;
+  max-width: 160px;
+
+  .user-chip-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    color: var(--mat-sys-primary);
+    flex-shrink: 0;
+  }
+
+  .user-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

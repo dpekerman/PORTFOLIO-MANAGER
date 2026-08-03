@@ -91,6 +91,17 @@
         <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
 
+      <!-- Logged-in user + logout -->
+      @if (authState.currentUser(); as user) {
+        <div class="user-chip" [matTooltip]="user.email">
+          <mat-icon class="user-chip-icon">account_circle</mat-icon>
+          <span class="user-chip-name">{{ user.displayName }}</span>
+        </div>
+        <button mat-icon-button matTooltip="Sign out" (click)="logout()" aria-label="Sign out">
+          <mat-icon>logout</mat-icon>
+        </button>
+      }
+
       <!-- Global refresh -->
       <button
         mat-icon-button

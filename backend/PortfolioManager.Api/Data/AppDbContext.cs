@@ -1,9 +1,10 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Data;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
@@ -17,9 +18,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ValueScreenerSnapshot> ValueScreenerSnapshots => Set<ValueScreenerSnapshot>();
     public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
     public DbSet<PortfolioValueHistory> PortfolioValueHistories => Set<PortfolioValueHistory>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
         modelBuilder.Entity<PortfolioItem>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -150,6 +153,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(e => e.CashValue).HasColumnType("decimal(18,4)");
             entity.Property(e => e.OptionsValue).HasColumnType("decimal(18,4)");
             entity.HasIndex(e => e.RecordedDate);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(64); // hex-encoded SHA-256
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

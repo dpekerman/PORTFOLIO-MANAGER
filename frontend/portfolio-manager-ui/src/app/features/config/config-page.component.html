@@ -106,10 +106,21 @@
       role="tab"
       [attr.aria-selected]="activeSection() === 'decisions'"
       [class.cfg-tab-btn--active]="activeSection() === 'decisions'"
-      (click)="activeSection.set('decisions')"
+      (click)="setSection('decisions')"
     >
       <mat-icon>label</mat-icon><span class="cfg-tab-label">Decision Sources</span>
     </button>
+    @if (authState.isAdmin()) {
+      <button
+        class="cfg-tab-btn"
+        role="tab"
+        [attr.aria-selected]="activeSection() === 'users'"
+        [class.cfg-tab-btn--active]="activeSection() === 'users'"
+        (click)="setSection('users')"
+      >
+        <mat-icon>manage_accounts</mat-icon><span class="cfg-tab-label">Users</span>
+      </button>
+    }
   </nav>
 
   <!-- ════════════════════════════════════════════════════════════════════
@@ -1390,4 +1401,84 @@
     </div>
   </div>
   <!-- /cfg-panel decisions -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 9 — USER MANAGEMENT (Admin only)
+       ════════════════════════════════════════════════════════════════════ -->
+  @if (authState.isAdmin()) {
+    <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'users'">
+      <div class="config-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <mat-icon class="section-icon">manage_accounts</mat-icon>
+            User Management
+          </h2>
+          <p class="section-desc">
+            Create and manage application users. Only Admins can access this section.
+          </p>
+        </div>
+
+        <div class="section-body">
+          <div class="alloc-table-header">
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="openCreateUserDialog()"
+              [disabled]="savingUser()"
+            >
+              <mat-icon>person_add</mat-icon> Add User
+            </button>
+            <button
+              mat-icon-button
+              matTooltip="Refresh user list"
+              (click)="loadUsers()"
+              [disabled]="loadingUsers()"
+            >
+              <mat-icon [class.spinning]="loadingUsers()">refresh</mat-icon>
+            </button>
+          </div>
+
+          @if (loadingUsers()) {
+            <p class="hint-text">Loading users…</p>
+          } @else if (userList().length === 0) {
+            <p class="hint-text">No users found.</p>
+          } @else {
+            <div class="user-table">
+              <div class="user-table-header">
+                <span>Display Name</span>
+                <span>Email</span>
+                <span>Role</span>
+                <span></span>
+              </div>
+              @for (user of userList(); track user.id) {
+                <div class="user-table-row">
+                  <span class="user-name">{{ user.displayName }}</span>
+                  <span class="user-email">{{ user.email }}</span>
+                  <mat-form-field appearance="outline" class="role-select">
+                    <mat-select
+                      [value]="user.roles[0]"
+                      (selectionChange)="changeUserRole(user.id, $event.value)"
+                    >
+                      @for (role of availableRoles; track role) {
+                        <mat-option [value]="role">{{ role }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Delete user"
+                    (click)="confirmDeleteUser(user.id, user.displayName)"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <!-- /cfg-panel users -->
+  }
 </div>

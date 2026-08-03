@@ -10,7 +10,12 @@ import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angu
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import { MAT_DIALOG_DATA, MatDialog, MatDialogModule } from '@angular/material/dialog';
+import {
+  MAT_DIALOG_DATA,
+  MatDialog,
+  MatDialogModule,
+  MatDialogRef,
+} from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -25,13 +30,18 @@ import {
   AllocationRiskConfig,
   AllocationRiskTarget,
   AllocationSectorTarget,
+  AppRole,
+  CreateUserRequest,
   SinglePositionLimit,
+  UserInfo,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { UsersApiService } from '../../core/services/users-api.service';
 
 @Component({
   selector: 'app-config-page',
@@ -64,6 +74,14 @@ export class ConfigPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly authState = inject(AuthStateService);
+  private readonly usersApi = inject(UsersApiService);
+
+  // ── User Management (Admin only) ─────────────────────────────────────────
+  protected readonly userList = signal<UserInfo[]>([]);
+  protected readonly loadingUsers = signal(false);
+  protected readonly savingUser = signal(false);
+  readonly availableRoles: AppRole[] = ['Admin', 'Trader', 'Viewer'];
 
   // ── Refresh interval + RSI form ──────────────────────────────────────────
   protected readonly form = this.fb.group({
@@ -112,6 +130,13 @@ export class ConfigPageComponent implements OnInit {
 
   // ── Tab navigation ───────────────────────────────────────────────────────
   protected readonly activeSection = signal<string>('scanner');
+
+  setSection(section: string): void {
+    this.activeSection.set(section);
+    if (section === 'users' && this.userList().length === 0) {
+      this.loadUsers();
+    }
+  }
 
   // ── Value Screener Schedule form ─────────────────────────────────────────
   // Mirrors EOD form approach: Date | null for timepicker, convert to/from HH:mm string.
@@ -903,6 +928,78 @@ ${overboughtRsi}.`,
   resetAll(): void {
     this.reset(); // resets scanner form + EOD form to defaults
   }
+
+  // ── User Management (Admin only) ─────────────────────────────────────────
+  loadUsers(): void {
+    this.loadingUsers.set(true);
+    this.usersApi.getAll().subscribe({
+      next: (users) => {
+        this.userList.set(users);
+        this.loadingUsers.set(false);
+      },
+      error: () => this.loadingUsers.set(false),
+    });
+  }
+
+  openCreateUserDialog(): void {
+    this.dialog
+      .open(CreateUserDialogComponent, { width: '400px' })
+      .afterClosed()
+      .subscribe((req: CreateUserRequest | undefined) => {
+        if (!req) return;
+        this.savingUser.set(true);
+        this.usersApi.create(req).subscribe({
+          next: (newUser) => {
+            this.userList.update((list) => [...list, newUser]);
+            this.savingUser.set(false);
+            this.snackBar.open(`User ${newUser.displayName} created.`, 'OK', { duration: 3000 });
+          },
+          error: (err) => {
+            this.savingUser.set(false);
+            const msg = err?.error?.errors?.[0] ?? err?.error?.message ?? 'Failed to create user.';
+            this.snackBar.open(msg, 'Dismiss', { duration: 5000 });
+          },
+        });
+      });
+  }
+
+  changeUserRole(userId: string, role: string): void {
+    this.usersApi.assignRole(userId, role).subscribe({
+      next: () => {
+        this.userList.update((list) =>
+          list.map((u) => (u.id === userId ? { ...u, roles: [role as AppRole] } : u)),
+        );
+        this.snackBar.open('Role updated.', 'OK', { duration: 2000 });
+      },
+      error: (err) => {
+        const msg = err?.error?.message ?? 'Failed to change role.';
+        this.snackBar.open(msg, 'Dismiss', { duration: 4000 });
+        this.loadUsers(); // re-sync on error
+      },
+    });
+  }
+
+  confirmDeleteUser(userId: string, displayName: string): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: { title: `Delete ${displayName}?`, message: 'This action cannot be undone.' },
+        width: '340px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (!confirmed) return;
+        this.usersApi.delete(userId).subscribe({
+          next: () => {
+            this.userList.update((list) => list.filter((u) => u.id !== userId));
+            this.snackBar.open('User deleted.', 'OK', { duration: 3000 });
+          },
+          error: (err) => {
+            const msg = err?.error?.message ?? 'Failed to delete user.';
+            this.snackBar.open(msg, 'Dismiss', { duration: 4000 });
+          },
+        });
+      });
+  }
 }
 
 @Component({
@@ -921,4 +1018,73 @@ ${overboughtRsi}.`,
 })
 export class AllocConfirmDialogComponent {
   readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
+}
+
+@Component({
+  selector: 'app-create-user-dialog',
+  template: `
+    <h2 mat-dialog-title>Create User</h2>
+    <mat-dialog-content>
+      <form [formGroup]="form" class="create-user-form">
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Display Name</mat-label>
+          <input matInput formControlName="displayName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" />
+          @if (form.controls.password.hasError('minlength')) {
+            <mat-error>At least 8 characters required</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="full-w">
+          <mat-label>Role</mat-label>
+          <mat-select formControlName="role">
+            <mat-option value="Admin">Admin</mat-option>
+            <mat-option value="Trader">Trader</mat-option>
+            <mat-option value="Viewer">Viewer</mat-option>
+          </mat-select>
+        </mat-form-field>
+      </form>
+    </mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-stroked-button [mat-dialog-close]="undefined">Cancel</button>
+      <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="submit()">
+        Create
+      </button>
+    </mat-dialog-actions>
+  `,
+  styles: [
+    '.create-user-form { display:flex; flex-direction:column; gap:4px; padding-top:8px; } .full-w { width:100%; }',
+  ],
+  imports: [
+    ReactiveFormsModule,
+    MatButtonModule,
+    MatDialogModule,
+    MatFormFieldModule,
+    MatIconModule,
+    MatInputModule,
+    MatSelectModule,
+  ],
+})
+export class CreateUserDialogComponent {
+  private readonly dialogRef = inject(MatDialogRef<CreateUserDialogComponent>);
+  private readonly fb = inject(FormBuilder);
+
+  protected readonly form = this.fb.group({
+    displayName: ['', [Validators.required, Validators.minLength(2)]],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(8)]],
+    role: ['Viewer' as AppRole, [Validators.required]],
+  });
+
+  submit(): void {
+    if (this.form.invalid) return;
+    const { displayName, email, password, role } = this.form.value;
+    this.dialogRef.close({ displayName, email, password, role } as CreateUserRequest);
+  }
 }
