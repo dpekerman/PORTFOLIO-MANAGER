@@ -25,6 +25,7 @@ public class NotificationController(
         => Ok(new NotificationRecipientsDto { Emails = recipients.GetAll() });
 
     /// <summary>Replaces the full recipient list (duplicates and invalid addresses are removed).</summary>
+    [Authorize(Roles = "Admin")]
     [HttpPut("recipients")]
     public ActionResult<NotificationRecipientsDto> UpdateRecipients([FromBody] NotificationRecipientsDto dto)
     {
@@ -36,7 +37,7 @@ public class NotificationController(
 
         recipients.Save(dto.Emails);
         var saved = recipients.GetAll();
-        logger.LogInformation("Notification recipients updated — {Count} address(es).", saved.Count);
+        logger.LogInformation("Notification recipients updated Ã¢â‚¬â€ {Count} address(es).", saved.Count);
         return Ok(new NotificationRecipientsDto { Emails = saved });
     }
 
@@ -54,6 +55,7 @@ public class NotificationController(
     /// Sends a test email to verify SMTP configuration.
     /// POST /api/notification/send-test  { "toEmail": "user@example.com" }
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("send-test")]
     public async Task<ActionResult<object>> SendTestEmail([FromBody] SendTestEmailRequest request)
     {
@@ -72,6 +74,7 @@ public class NotificationController(
     /// Useful to manually trigger emails for currently CONFIRMED signals.
     /// POST /api/notification/scan-now
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("scan-now")]
     public async Task<ActionResult<object>> ScanAndNotifyNow(CancellationToken ct)
     {
@@ -80,7 +83,7 @@ public class NotificationController(
         var result = await scanner.ScanAsync(ct: ct);
 
         if (result.IsDemo)
-            return Ok(new { triggered = false, reason = "Demo data — no emails sent." });
+            return Ok(new { triggered = false, reason = "Demo data Ã¢â‚¬â€ no emails sent." });
 
         // Query today's saved EOD signals (SignalDate is stored as ET date)
         var etTz = TimeZoneInfo.GetSystemTimeZones()
@@ -103,7 +106,7 @@ public class NotificationController(
             recipientCount = recipients.GetAll().Count,
             message = todaySignals.Count > 0
                 ? $"Email sent for {todaySignals.Count} EOD signal(s) to {recipients.GetAll().Count} recipient(s)."
-                : "No EOD signals saved for today — no email sent.",
+                : "No EOD signals saved for today Ã¢â‚¬â€ no email sent.",
         });
     }
 }

@@ -1,4 +1,4 @@
-<div class="sector-exposition">
+﻿<div class="sector-exposition">
   <!-- ── Toolbar ── -->
   <div class="expo-toolbar">
     <span class="expo-hint">Click a sector to expand · Expand/collapse all at once</span>
@@ -80,14 +80,14 @@
                 <div class="bar-fill" [style.width.%]="row.pct"></div>
               </div>
               <span class="pct">{{ row.pct | number: '1.1-1' }}%</span>
-              <span class="mv" [class.demo-redact]="demoMode.isDemoMode()"
+              <span class="mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                 >${{ row.marketValue / 1000 | number: '1.0-0' }}k</span
               >
               <span
                 class="gl-val"
                 [class.gl-pos]="row.gainLoss >= 0"
                 [class.gl-neg]="row.gainLoss < 0"
-                [class.demo-redact]="demoMode.isDemoMode()"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
               >
                 {{ row.gainLoss >= 0 ? '+' : '' }}${{ row.gainLoss / 1000 | number: '1.1-1' }}k
               </span>
@@ -134,14 +134,14 @@
                         ></div>
                       </div>
                       <span class="pct pct-sm">{{ ind.pct | number: '1.1-1' }}%</span>
-                      <span class="mv" [class.demo-redact]="demoMode.isDemoMode()"
+                      <span class="mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                         >${{ ind.marketValue / 1000 | number: '1.1-1' }}k</span
                       >
                       <span
                         class="gl-val gl-sm"
                         [class.gl-pos]="ind.gainLoss >= 0"
                         [class.gl-neg]="ind.gainLoss < 0"
-                        [class.demo-redact]="demoMode.isDemoMode()"
+                        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                       >
                         {{ ind.gainLoss >= 0 ? '+' : '' }}${{
                           ind.gainLoss / 1000 | number: '1.1-1'
@@ -185,12 +185,12 @@
                             ></div>
                           </div>
                           <span class="ticker-pct">{{ pos.pct | number: '1.1-1' }}%</span>
-                          <span class="ticker-mv" [class.demo-redact]="demoMode.isDemoMode()"
+                          <span class="ticker-mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                             >${{ pos.marketValue / 1000 | number: '1.1-1' }}k</span
                           >
                           <span
                             class="ticker-price-col ticker-num"
-                            [class.demo-redact]="demoMode.isDemoMode()"
+                            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           >
                             {{
                               pos.lastPrice != null ? '$' + (pos.lastPrice | number: '1.2-2') : '—'
@@ -200,7 +200,7 @@
                             class="ticker-gl-col ticker-num"
                             [class.gl-pos]="(pos.gainLoss ?? 0) >= 0"
                             [class.gl-neg]="(pos.gainLoss ?? 0) < 0"
-                            [class.demo-redact]="demoMode.isDemoMode()"
+                            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           >
                             @if (pos.gainLoss != null) {
                               {{ pos.gainLoss >= 0 ? '+' : '' }}${{

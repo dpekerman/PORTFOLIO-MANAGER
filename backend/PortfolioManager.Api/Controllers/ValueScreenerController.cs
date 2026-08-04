@@ -18,6 +18,7 @@ public class ValueScreenerController(
     /// Runs a live analysis and persists the results to the database.
     /// Body: { "includePortfolio": true, "includeWatchlist": true, "adHocSymbols": ["AAPL"] }
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("analyze")]
     public async Task<ActionResult<List<ValueScreenerResult>>> Analyze(
         [FromBody] ValueScreenerRequest request,
@@ -65,6 +66,7 @@ public class ValueScreenerController(
     /// POST /api/valuescreener/refresh
     /// Re-runs the full screener for Portfolio and Watchlist and persists results.
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("refresh")]
     public async Task<ActionResult<ValueScreenerLatestDto>> Refresh(CancellationToken ct)
     {
@@ -102,6 +104,7 @@ public class ValueScreenerController(
     /// PUT /api/valuescreener/schedule
     /// Updates the scheduled run time and enabled flag.
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPut("schedule")]
     public async Task<IActionResult> UpdateSchedule(
         [FromBody] ValueScreenerScheduleConfigDto dto,
@@ -120,6 +123,7 @@ public class ValueScreenerController(
     /// DELETE /api/valuescreener/data?origin=Portfolio|Watchlist
     /// Clears all persisted snapshots (optionally filtered by origin).
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpDelete("data")]
     public async Task<IActionResult> ClearData([FromQuery] string? origin, CancellationToken ct)
     {

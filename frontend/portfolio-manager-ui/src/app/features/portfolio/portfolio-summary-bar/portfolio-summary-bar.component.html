@@ -1,9 +1,11 @@
 <div class="summary-bar">
   <div class="summary-tile">
     <span class="label">Portfolio Value</span>
-    <span class="value primary" [class.demo-redact]="demoMode.isDemoMode()">{{
-      totalValue() | currency
-    }}</span>
+    <span
+      class="value primary"
+      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+      >{{ totalValue() | currency }}</span
+    >
   </div>
   <div class="summary-tile">
     <span class="label">1 Day Change</span>
@@ -12,7 +14,7 @@
       class="value"
       [class.positive]="dayChange !== null && dayChange > 0"
       [class.negative]="dayChange !== null && dayChange < 0"
-      [class.demo-redact]="demoMode.isDemoMode()"
+      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
     >
       @if (oneDayChangeLoading()) {
         <span class="dim">—</span>

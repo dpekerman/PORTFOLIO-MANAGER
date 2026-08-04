@@ -37,6 +37,7 @@ import {
   ValueScreenerResult,
   WatchlistSummary,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import {
   DecisionEngineService,
   GapStatus,
@@ -110,6 +111,7 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+  protected readonly authState = inject(AuthStateService);
 
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns

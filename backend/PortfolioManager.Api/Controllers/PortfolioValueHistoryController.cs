@@ -23,6 +23,7 @@ public class PortfolioValueHistoryController(IPortfolioValueHistoryService histo
     /// If a record already exists for today it is replaced.
     /// Use this to seed historical data when the background service has not yet fired.
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("record-now")]
     public async Task<ActionResult<PortfolioValueHistoryDto>> RecordNow(CancellationToken ct)
     {

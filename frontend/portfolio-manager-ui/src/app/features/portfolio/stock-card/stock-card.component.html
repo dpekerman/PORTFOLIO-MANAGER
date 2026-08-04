@@ -51,9 +51,11 @@
 
   <mat-card-content>
     <div class="price-row">
-      <span class="current-price" [class.demo-redact]="demoMode.isDemoMode()">{{
-        currentPrice() | currency
-      }}</span>
+      <span
+        class="current-price"
+        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+        >{{ currentPrice() | currency }}</span
+      >
       @if (summary().quote) {
         <span
           class="change"
@@ -61,7 +63,7 @@
           [class.negative]="!isDailyPositive()"
         >
           <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-          <span [class.demo-redact]="demoMode.isDemoMode()">
+          <span [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
             {{ summary().quote!.change | number: '1.2-2' }}
             ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
           </span>
@@ -101,16 +103,20 @@
         </div>
         <div class="metric">
           <span class="label">Avg Cost</span>
-          <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
-            summary().item.averageCostBasis | currency
-          }}</span>
+          <span
+            class="value"
+            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+            >{{ summary().item.averageCostBasis | currency }}</span
+          >
         </div>
       }
       <div class="metric">
         <span class="label">Market Value</span>
-        <span class="value" [class.demo-redact]="demoMode.isDemoMode()">{{
-          marketValue() | currency
-        }}</span>
+        <span
+          class="value"
+          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          >{{ marketValue() | currency }}</span
+        >
       </div>
       <div class="metric">
         <span class="label">{{ summary().item.isManual ? 'P&amp;L' : 'Gain / Loss' }}</span>
@@ -118,7 +124,7 @@
           class="value"
           [class.positive]="isPositive()"
           [class.negative]="!isPositive()"
-          [class.demo-redact]="demoMode.isDemoMode()"
+          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
         >
           {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
         </span>

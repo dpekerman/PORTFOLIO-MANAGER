@@ -118,7 +118,8 @@
       letter-spacing: 0.3px;
       border-radius: 8px;
       height: 36px;
-      padding: 0 12px;
+      padding: 0 10px;
+      min-width: 36px;
       transition:
         color 0.15s,
         background 0.15s;
@@ -130,12 +131,25 @@
         margin-right: 4px;
       }
 
+      // Hide text labels below 1400px — icons remain with tooltip
+      .nav-link-text {
+        @media (max-width: 1400px) {
+          display: none;
+        }
+      }
+
+      @media (max-width: 1400px) {
+        padding: 0 8px;
+        mat-icon {
+          margin-right: 0;
+        }
+      }
+
       &:hover {
         color: var(--text-primary);
         background: var(--bg-hover);
       }
 
-      // Active state
       &.nav-link-active {
         color: #64b5f6;
         background: rgba(100, 181, 246, 0.1);
@@ -271,8 +285,8 @@
   border-radius: 16px;
   background: var(--mat-sys-surface-container-high);
   cursor: default;
-  font-size: 0.875rem;
-  max-width: 160px;
+  font-size: 0.8rem;
+  max-width: 140px;
 
   .user-chip-icon {
     font-size: 20px;
@@ -286,5 +300,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    // Hide name at narrow widths — just icon remains
+    @media (max-width: 1400px) {
+      display: none;
+    }
   }
 }

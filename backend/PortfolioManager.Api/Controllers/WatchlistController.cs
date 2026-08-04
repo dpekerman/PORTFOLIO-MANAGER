@@ -29,6 +29,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Adds a symbol to the watchlist.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost]
     public async Task<ActionResult<WatchlistItemDto>> Add([FromBody] AddWatchlistItemRequest request, CancellationToken ct)
     {
@@ -37,6 +38,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Removes a symbol from the watchlist.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -45,6 +47,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Updates the role for a watchlist item.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/role")]
     public async Task<IActionResult> UpdateRole(int id, [FromBody] UpdateWatchlistRoleRequest request, CancellationToken ct)
     {
@@ -53,6 +56,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Toggles the favourite flag for a watchlist item.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/favorite")]
     public async Task<IActionResult> UpdateFavorite(int id, [FromBody] UpdateWatchlistFavoriteRequest request, CancellationToken ct)
     {
@@ -61,6 +65,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Updates notes for a watchlist item.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/notes")]
     public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateWatchlistNotesRequest request, CancellationToken ct)
     {
@@ -77,6 +82,7 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
     }
 
     /// <summary>Clears the watchlist and restores from the provided backup payload.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("restore")]
     public async Task<IActionResult> Restore([FromBody] RestoreWatchlistRequest request, CancellationToken ct)
     {

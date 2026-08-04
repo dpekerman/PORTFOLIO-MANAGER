@@ -26,6 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<PortfolioItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.CompanyName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Shares).HasColumnType("decimal(18,6)");
@@ -46,6 +47,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<CashItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
             entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
             entity.Property(e => e.AccountType).HasMaxLength(30);
@@ -55,11 +57,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<WatchlistItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
             entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
             entity.Property(e => e.IsFavorite).HasDefaultValue(false);
-            entity.HasIndex(e => e.Symbol).IsUnique();
+            // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
+            entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
         });
 
         modelBuilder.Entity<AdhocAnalysisSession>(entity =>
@@ -76,6 +80,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<OptionItem>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.UnderlyingTicker).IsRequired().HasMaxLength(20);
             entity.Property(e => e.PositionType).IsRequired().HasMaxLength(10);
             entity.Property(e => e.Strike).HasColumnType("decimal(18,4)");

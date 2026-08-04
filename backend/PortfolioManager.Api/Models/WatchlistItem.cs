@@ -3,6 +3,8 @@ namespace PortfolioManager.Api.Models;
 public class WatchlistItem
 {
     public int Id { get; set; }
+    /// <summary>Owning user — null means legacy/unowned data visible only to Admins.</summary>
+    public string? UserId { get; set; }
     public string Symbol { get; set; } = string.Empty;
     public string Notes { get; set; } = string.Empty;
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;

@@ -24,6 +24,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return item is null ? NotFound() : Ok(item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost]
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
@@ -33,8 +34,9 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
 
     /// <summary>
     /// Adds a manual (non-ticker) position such as Cash, Options, Bonds, etc.
-    /// No Yahoo Finance call is made. Name → Sector, Description → Industry.
+    /// No Yahoo Finance call is made. Name Ã¢â€ â€™ Sector, Description Ã¢â€ â€™ Industry.
     /// </summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("manual")]
     public async Task<ActionResult<PortfolioItemDto>> AddManual([FromBody] AddManualPositionRequest request, CancellationToken ct)
     {
@@ -42,6 +44,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<PortfolioItemDto>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
     {
@@ -50,6 +53,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     }
 
     /// <summary>Updates the holding role for a portfolio item.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/holding-role")]
     public async Task<IActionResult> UpdateHoldingRole(int id, [FromBody] UpdatePortfolioHoldingRoleRequest request, CancellationToken ct)
     {
@@ -57,6 +61,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return updated ? NoContent() : NotFound();
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/notes")]
     public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdatePortfolioNotesRequest request, CancellationToken ct)
     {
@@ -64,6 +69,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
         return updated ? NoContent() : NotFound();
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -75,6 +81,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     /// Fetches sector/industry from Yahoo Finance quoteSummary for every portfolio item and
     /// persists the results. Returns the number of items that were successfully classified.
     /// </summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("refresh-sectors")]
     public async Task<ActionResult<object>> RefreshSectors(CancellationToken ct)
     {
@@ -91,6 +98,7 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     }
 
     /// <summary>Clears all portfolio items and restores from the provided backup payload.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("restore")]
     public async Task<IActionResult> Restore([FromBody] RestorePortfolioRequest request, CancellationToken ct)
     {

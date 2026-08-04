@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Services;
 
@@ -12,7 +14,6 @@ public interface IPortfolioService
     Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default);
     Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
-    /// <summary>Fetches sector/industry from Yahoo Finance for every non-manual portfolio item that lacks one and persists the data.</summary>
     Task<int> RefreshSectorsAsync(CancellationToken ct = default);
     Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
     Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
@@ -20,11 +21,25 @@ public interface IPortfolioService
     Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default);
 }
 
-public sealed class PortfolioService(AppDbContext db, IMarketDataProvider marketData) : IPortfolioService
+public sealed class PortfolioService(
+    AppDbContext db,
+    IMarketDataProvider marketData,
+    IHttpContextAccessor httpCtx) : IPortfolioService
 {
+    private string? CurrentUserId() => httpCtx.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsAdmin() => httpCtx.HttpContext?.User.IsInRole("Admin") ?? false;
+
+    private IQueryable<PortfolioItem> OwnedItems()
+    {
+        var q = db.PortfolioItems.AsQueryable();
+        if (IsAdmin()) return q; // Admins see everything
+        var uid = CurrentUserId();
+        return q.Where(x => x.UserId == uid || x.UserId == null);
+    }
+
     public async Task<IReadOnlyList<PortfolioItemDto>> GetAllAsync(CancellationToken ct = default)
     {
-        var items = await db.PortfolioItems
+        var items = await OwnedItems()
             .AsNoTracking()
             .OrderBy(x => x.Symbol)
             .ToListAsync(ct);
@@ -34,7 +49,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     public async Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var item = await db.PortfolioItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         return item is null ? null : ToDto(item);
     }
 
@@ -45,6 +60,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
         var item = new PortfolioItem
         {
+            UserId           = CurrentUserId(),
             Symbol           = request.Symbol.ToUpperInvariant(),
             CompanyName      = request.CompanyName,
             Shares           = request.Shares,
@@ -74,12 +90,13 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
         var item = new PortfolioItem
         {
+            UserId           = CurrentUserId(),
             Symbol           = sym,
             CompanyName      = request.Name,
             Shares           = 1,
             AverageCostBasis = request.AverageCost,
-            Sector           = request.Name,          // per product spec: Name → Sector
-            Industry         = request.Description,   // Description → Industry
+            Sector           = request.Name,
+            Industry         = request.Description,
             IsManual         = true,
             ManualMarketValue = request.MarketValue,
             AddedAt          = DateTime.UtcNow
@@ -92,7 +109,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     public async Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
     {
-        var item = await db.PortfolioItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
 
         item.CompanyName      = request.CompanyName;
@@ -127,7 +144,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
     {
-        var item = await db.PortfolioItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
         item.HoldingRole = holdingRole;
         await db.SaveChangesAsync(ct);
@@ -136,7 +153,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
     {
-        var item = await db.PortfolioItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
         item.Notes = notes;
         await db.SaveChangesAsync(ct);
@@ -145,7 +162,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var item = await db.PortfolioItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
 
         db.PortfolioItems.Remove(item);
@@ -176,6 +193,7 @@ public sealed class PortfolioService(AppDbContext db, IMarketDataProvider market
 
         var newItems = items.Select(i => new PortfolioItem
         {
+            UserId            = CurrentUserId(),
             Symbol            = i.Symbol,
             CompanyName       = i.CompanyName,
             Shares            = i.Shares,

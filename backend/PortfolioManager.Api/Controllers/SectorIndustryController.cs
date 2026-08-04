@@ -13,6 +13,7 @@ public class SectorIndustryController(SectorIndustryService service) : Controlle
     [HttpGet]
     public ActionResult<SectorIndustryListsDto> GetLists() => Ok(service.GetLists());
 
+    [Authorize(Roles = "Admin")]
     [HttpPut]
     public IActionResult SaveLists([FromBody] UpdateSectorIndustryListsRequest request)
     {
@@ -20,12 +21,13 @@ public class SectorIndustryController(SectorIndustryService service) : Controlle
         return Ok(service.GetLists());
     }
 
-    // ── Dedicated Decision Sources endpoints ──────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Dedicated Decision Sources endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     [HttpGet("decision-sources")]
     public ActionResult<DecisionSourcesDto> GetDecisionSources()
         => Ok(service.GetDecisionSources());
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("decision-sources")]
     public ActionResult<DecisionSourcesDto> SaveDecisionSources(
         [FromBody] UpdateDecisionSourcesRequest request)

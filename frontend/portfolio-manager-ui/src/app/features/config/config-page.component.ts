@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import {
@@ -37,7 +38,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { ConfigService } from '../../core/services/config.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeService, DemoStyle } from '../../core/services/demo-mode.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -52,6 +53,7 @@ import { UsersApiService } from '../../core/services/users-api.service';
     FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
+    MatButtonToggleModule,
     MatCardModule,
     MatChipsModule,
     MatFormFieldModule,
@@ -76,6 +78,28 @@ export class ConfigPageComponent implements OnInit {
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
   private readonly usersApi = inject(UsersApiService);
+
+  // ── Demo Mode pending state (applied only on Save) ───────────────────────
+  protected readonly pendingDemoEnabled = signal<boolean>(false);
+  protected readonly pendingDemoStyle = signal<DemoStyle>('blur');
+  protected readonly demoSettingsDirty = signal(false);
+
+  protected initPendingDemo(): void {
+    this.pendingDemoEnabled.set(this.demoMode.isDemoMode());
+    this.pendingDemoStyle.set(this.demoMode.demoStyle());
+    this.demoSettingsDirty.set(false);
+  }
+
+  protected saveDemoSettings(): void {
+    if (this.pendingDemoEnabled()) {
+      this.demoMode.enable();
+    } else {
+      this.demoMode.disable();
+    }
+    this.demoMode.setStyle(this.pendingDemoStyle());
+    this.demoSettingsDirty.set(false);
+    this.snackBar.open('Demo mode settings saved', 'OK', { duration: 2500 });
+  }
 
   // ── User Management (Admin only) ─────────────────────────────────────────
   protected readonly userList = signal<UserInfo[]>([]);
@@ -135,6 +159,9 @@ export class ConfigPageComponent implements OnInit {
     this.activeSection.set(section);
     if (section === 'users' && this.userList().length === 0) {
       this.loadUsers();
+    }
+    if (section === 'demo') {
+      this.initPendingDemo();
     }
   }
 
@@ -421,6 +448,7 @@ export class ConfigPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.initPendingDemo();
     const cfg = this.configService.config();
     this.form.setValue({
       scanIntervalSeconds: cfg.scanIntervalSeconds,

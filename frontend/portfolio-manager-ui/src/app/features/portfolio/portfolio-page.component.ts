@@ -1,11 +1,11 @@
 ﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
+    ChangeDetectionStrategy,
+    Component,
+    computed,
+    effect,
+    inject,
+    signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,20 +19,21 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
-  CashItem,
-  OptionAnalysis,
-  PortfolioSummary,
-  RsiScanResult,
-  StockQuote,
-  TechnicalState,
-  ValueScreenerResult,
+    CashItem,
+    OptionAnalysis,
+    PortfolioSummary,
+    RsiScanResult,
+    StockQuote,
+    TechnicalState,
+    ValueScreenerResult,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import {
-  DecisionEngineService,
-  GapStatus,
-  PortfolioItemContext,
+    DecisionEngineService,
+    GapStatus,
+    PortfolioItemContext,
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -48,16 +49,16 @@ import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.
 import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
 import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
 import {
-  EditCashDialogComponent,
-  EditCashDialogData,
+    EditCashDialogComponent,
+    EditCashDialogData,
 } from './edit-cash-dialog/edit-cash-dialog.component';
 import {
-  EditOptionDialogComponent,
-  EditOptionDialogData,
+    EditOptionDialogComponent,
+    EditOptionDialogData,
 } from './edit-option-dialog/edit-option-dialog.component';
 import {
-  EditPositionDialogComponent,
-  EditPositionDialogResult,
+    EditPositionDialogComponent,
+    EditPositionDialogResult,
 } from './edit-position-dialog/edit-position-dialog.component';
 import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
 import { PortfolioSummaryBarComponent } from './portfolio-summary-bar/portfolio-summary-bar.component';
@@ -166,12 +167,25 @@ export class PortfolioPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly authState = inject(AuthStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
   private readonly configService = inject(ConfigService);
 
-  /** Ghost cards displayed while portfolio loads for the first time */
+  /** Returns masked value when fake mode is on, original value otherwise. */
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
+
+  /** Returns masked percent when fake mode is on, original percent otherwise. */
+  protected dvp(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskPercent(v)
+      : v;
+  }
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
 
   // ── Section collapse state ──────────────────────────────────────────────────

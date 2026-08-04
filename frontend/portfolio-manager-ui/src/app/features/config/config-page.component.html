@@ -142,20 +142,20 @@
         @if (demoMode.isDemoMode()) {
           <div class="demo-active-banner" role="status">
             <mat-icon>visibility_off</mat-icon>
-            <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
+            <span>DEMO MODE is active — portfolio values are masked</span>
           </div>
         }
 
         <div class="demo-toggle-row">
           <mat-slide-toggle
-            [checked]="demoMode.isDemoMode()"
-            (change)="demoMode.isDemoMode() ? demoMode.disable() : demoMode.enable()"
+            [checked]="pendingDemoEnabled()"
+            (change)="pendingDemoEnabled.set($event.checked); demoSettingsDirty.set(true)"
             color="warn"
           >
             {{
-              demoMode.isDemoMode()
-                ? 'Demo mode is ON — values are masked'
-                : 'Demo mode is OFF — real values shown'
+              pendingDemoEnabled()
+                ? 'Demo mode ON — values will be masked'
+                : 'Demo mode OFF — real values shown'
             }}
           </mat-slide-toggle>
         </div>
@@ -166,8 +166,7 @@
             <p><strong>What gets masked:</strong></p>
             <ul>
               <li>All dollar amounts (portfolio value, cost, gain/loss, cash)</li>
-              <li>A consistent random factor (0.3–0.7) is applied per session</li>
-              <li>Percentages are varied within ±30%</li>
+              <li>Percentages are varied to look realistic</li>
             </ul>
             <p><strong>What stays visible:</strong></p>
             <ul>
@@ -177,14 +176,60 @@
           </div>
         </div>
 
-        @if (demoMode.isDemoMode()) {
-          <div class="demo-exit-row">
-            <button mat-flat-button color="primary" (click)="demoMode.disable()">
-              <mat-icon>visibility</mat-icon>
-              Exit Demo Mode
-            </button>
+        <!-- ── Masking style ────────────────────────────────────────────── -->
+        @if (pendingDemoEnabled()) {
+          <div class="demo-style-section">
+            <p class="demo-style-label"><strong>Masking style</strong></p>
+            <mat-button-toggle-group
+              [value]="pendingDemoStyle()"
+              (change)="pendingDemoStyle.set($event.value); demoSettingsDirty.set(true)"
+              class="demo-style-toggle"
+              aria-label="Demo masking style"
+            >
+              <mat-button-toggle
+                value="blur"
+                matTooltip="Scales real values by 0.3–0.7× per session"
+              >
+                <mat-icon>blur_on</mat-icon>
+                Blur &amp; Scale
+              </mat-button-toggle>
+              <mat-button-toggle
+                value="fake"
+                matTooltip="Replaces values with completely unrelated plausible amounts"
+              >
+                <mat-icon>shuffle</mat-icon>
+                Fake Numbers
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            <p class="demo-style-desc">
+              @if (pendingDemoStyle() === 'blur') {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Proportional factor applied — scale relationships still visible</span>
+              } @else {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Completely unrelated amounts shown — real scale is hidden</span>
+              }
+            </p>
           </div>
         }
+
+        <div class="demo-save-row">
+          <button
+            mat-flat-button
+            color="primary"
+            [disabled]="!demoSettingsDirty()"
+            (click)="saveDemoSettings()"
+          >
+            <mat-icon>save</mat-icon>
+            Save Settings
+          </button>
+          @if (demoSettingsDirty()) {
+            <button mat-stroked-button (click)="initPendingDemo()">
+              <mat-icon>undo</mat-icon>
+              Reset
+            </button>
+          }
+        </div>
       </div>
     </div>
   </div>

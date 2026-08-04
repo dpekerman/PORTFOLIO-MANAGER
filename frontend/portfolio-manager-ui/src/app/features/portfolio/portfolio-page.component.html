@@ -1,4 +1,4 @@
-﻿<div class="portfolio-page">
+<div class="portfolio-page">
   <!-- Section Header -->
   <section class="portfolio-section">
     <div class="section-header">
@@ -52,6 +52,7 @@
           mat-icon-button
           matTooltip="Restore portfolio data from JSON backup"
           (click)="portfolioRestoreInput.click()"
+          [style.display]="authState.canWrite() ? null : 'none'"
           aria-label="Restore portfolio"
         >
           <mat-icon>cloud_upload</mat-icon>
@@ -76,20 +77,36 @@
           mat-stroked-button
           class="action-btn"
           (click)="openImportDialog()"
+          [style.display]="authState.canWrite() ? null : 'none'"
           matTooltip="Import positions from Excel/CSV"
         >
           <mat-icon>upload_file</mat-icon>
           <span class="btn-text">Import</span>
         </button>
-        <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+        <button
+          mat-flat-button
+          class="action-btn-primary"
+          (click)="openAddStockDialog()"
+          [style.display]="authState.canWrite() ? null : 'none'"
+        >
           <mat-icon>add</mat-icon>
           <span class="btn-text">Add Stock</span>
         </button>
-        <button mat-flat-button class="action-btn-cash" (click)="openAddCashDialog()">
+        <button
+          mat-flat-button
+          class="action-btn-cash"
+          (click)="openAddCashDialog()"
+          [style.display]="authState.canWrite() ? null : 'none'"
+        >
           <mat-icon>payments</mat-icon>
           <span class="btn-text">Add Cash</span>
         </button>
-        <button mat-flat-button class="action-btn-option" (click)="openAddOptionDialog()">
+        <button
+          mat-flat-button
+          class="action-btn-option"
+          (click)="openAddOptionDialog()"
+          [style.display]="authState.canWrite() ? null : 'none'"
+        >
           <mat-icon>trending_up</mat-icon>
           <span class="btn-text">Add Option</span>
         </button>
@@ -110,7 +127,7 @@
       <app-portfolio-summary-bar />
 
       <!-- ============================================================ -->
-      <!-- SECTION 1 – STOCKS                                            -->
+      <!-- SECTION 1 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ STOCKS                                            -->
       <!-- ============================================================ -->
       <div class="subsection subsection--stocks" [class.collapsed]="!stocksExpanded()">
         <div class="subsection-header" (click)="stocksExpanded.set(!stocksExpanded())">
@@ -123,8 +140,8 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Market Value</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
-                    portfolio.totalValue() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
+                    dv(portfolio.totalValue()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
                 <div class="subsection-stat">
@@ -133,10 +150,10 @@
                     class="stat-value"
                     [class.pg-pos]="totalDayGain() >= 0"
                     [class.pg-neg]="totalDayGain() < 0"
-                    [class.demo-redact]="demoMode.isDemoMode()"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     {{ totalDayGain() >= 0 ? '+' : ''
-                    }}{{ totalDayGain() | currency: 'USD' : 'symbol-narrow' : '1.2-2' }}
+                    }}{{ dv(totalDayGain()) | currency: 'USD' : 'symbol-narrow' : '1.2-2' }}
                   </span>
                 </div>
               </div>
@@ -251,7 +268,7 @@
                   >{{ gridItemCount() }} / {{ portfolio.summaries().length }}</span
                 >
                 @if (filteredTotalMktValue() !== null) {
-                  <span class="gf-filtered-total" [class.demo-redact]="demoMode.isDemoMode()">
+                  <span class="gf-filtered-total" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
                     <span class="gf-ft-label">{{ filterAccount() }} total:</span>
                     {{ filteredTotalMktValue()! | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                   </span>
@@ -299,7 +316,7 @@
                         <!-- Child row under a group: show account as primary identifier -->
                         <!--
                          <div class="pg-child-id-cell">
-                          <span class="pg-child-connector">└</span>
+                          <span class="pg-child-connector">ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â</span>
                           <span class="pg-account-badge">{{
                             asItem(row).item.accountType || '—'
                           }}</span>
@@ -393,7 +410,7 @@
                       mat-cell
                       *matCellDef="let row"
                       class="pg-num"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
                       @if (isAggRow(0, row)) {
                         <strong>{{
@@ -446,7 +463,7 @@
                       mat-cell
                       *matCellDef="let row"
                       class="pg-num"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
                       @if (isAggRow(0, row)) {
                         @if (asAgg(row).quote) {
@@ -477,7 +494,7 @@
                       mat-cell
                       *matCellDef="let row"
                       class="pg-num pg-bold"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
                       @if (isAggRow(0, row)) {
                         <strong>{{
@@ -539,7 +556,7 @@
                         <span
                           [class.pg-pos]="asAgg(row).totalGainLoss >= 0"
                           [class.pg-neg]="asAgg(row).totalGainLoss < 0"
-                          [class.demo-redact]="demoMode.isDemoMode()"
+                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           ><strong>{{
                             asAgg(row).totalGainLoss | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
                           }}</strong></span
@@ -556,7 +573,7 @@
                         <span
                           [class.pg-pos]="gl >= 0"
                           [class.pg-neg]="gl < 0"
-                          [class.demo-redact]="demoMode.isDemoMode()"
+                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
                         >
                       }
@@ -694,7 +711,7 @@
                         <span
                           [class.pg-pos]="adg >= 0"
                           [class.pg-neg]="adg < 0"
-                          [class.demo-redact]="demoMode.isDemoMode()"
+                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           ><strong
                             >{{ adg >= 0 ? '+' : ''
                             }}{{ adg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</strong
@@ -705,7 +722,7 @@
                         <span
                           [class.pg-pos]="dg >= 0"
                           [class.pg-neg]="dg < 0"
-                          [class.demo-redact]="demoMode.isDemoMode()"
+                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                           >{{ dg >= 0 ? '+' : ''
                           }}{{ dg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</span
                         >
@@ -727,7 +744,7 @@
                     <td mat-cell *matCellDef="let row">
                       @if (isAggRow(0, row)) {
                         <mat-select
-                          [value]="asAgg(row).holdingRole || 'Strategic'"
+                          [value]="asAgg(row).holdingRole || '—'"
                           (selectionChange)="updateAggHoldingRole(asAgg(row), $event.value)"
                           class="role-select"
                           [class]="roleClass(asAgg(row).holdingRole)"
@@ -739,7 +756,7 @@
                       } @else {
                         <!-- Both standalone rows AND child rows inside a group get individual role selects -->
                         <mat-select
-                          [value]="asItem(row).item.holdingRole || 'Strategic'"
+                          [value]="asItem(row).item.holdingRole || '—'"
                           (selectionChange)="updateHoldingRole(asItem(row), $event.value)"
                           class="role-select"
                           [class]="roleClass(asItem(row).item.holdingRole)"
@@ -945,6 +962,7 @@
                           mat-icon-button
                           matTooltip="Edit position"
                           (click)="openEditGridRow(asItem(row)); $event.stopPropagation()"
+                          [style.display]="authState.canWrite() ? null : 'none'"
                           class="pg-action-btn"
                         >
                           <mat-icon>edit</mat-icon>
@@ -953,6 +971,7 @@
                           mat-icon-button
                           matTooltip="Remove position"
                           (click)="confirmDeleteGridRow(asItem(row)); $event.stopPropagation()"
+                          [style.display]="authState.canWrite() ? null : 'none'"
                           class="pg-action-btn pg-action-delete"
                         >
                           <mat-icon>delete_outline</mat-icon>
@@ -999,7 +1018,12 @@
                   <button mat-stroked-button (click)="portfolio.clearSelection()">
                     <mat-icon>deselect</mat-icon> Clear
                   </button>
-                  <button mat-flat-button color="warn" (click)="confirmBulkDelete()">
+                  <button
+                    mat-flat-button
+                    color="warn"
+                    (click)="confirmBulkDelete()"
+                    [style.display]="authState.canWrite() ? null : 'none'"
+                  >
                     <mat-icon>delete_sweep</mat-icon> Remove {{ portfolio.selectedCount() }}
                   </button>
                 </div>
@@ -1112,7 +1136,7 @@
       </div>
 
       <!-- ============================================================ -->
-      <!-- SECTION 2 – CASH                                              -->
+      <!-- SECTION 2 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ CASH                                              -->
       <!-- ============================================================ -->
       <div class="subsection subsection--cash" [class.collapsed]="!cashExpanded()">
         <div class="subsection-header" (click)="cashExpanded.set(!cashExpanded())">
@@ -1125,8 +1149,8 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Total Cash</span>
-                  <span class="stat-value pg-pos" [class.demo-redact]="demoMode.isDemoMode()">{{
-                    cashState.totalCash() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  <span class="stat-value pg-pos" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
+                    dv(cashState.totalCash()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
                 <div class="subsection-stat">
@@ -1168,9 +1192,9 @@
                       mat-cell
                       *matCellDef="let c"
                       class="pg-num pg-bold pg-pos"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
-                      {{ c.amount | currency }}
+                      {{ dv(c.amount) | currency }}
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="addedAt">
@@ -1193,6 +1217,7 @@
                         mat-icon-button
                         matTooltip="Edit"
                         (click)="openEditCashDialog(c); $event.stopPropagation()"
+                        [style.display]="authState.canWrite() ? null : 'none'"
                         class="pg-action-btn"
                       >
                         <mat-icon>edit</mat-icon>
@@ -1201,6 +1226,7 @@
                         mat-icon-button
                         matTooltip="Remove"
                         (click)="confirmDeleteCash(c); $event.stopPropagation()"
+                        [style.display]="authState.canWrite() ? null : 'none'"
                         class="pg-action-btn pg-action-delete"
                       >
                         <mat-icon>delete_outline</mat-icon>
@@ -1231,15 +1257,25 @@
                       <mat-icon>payments</mat-icon>
                       <span class="cash-card-label">{{ c.description }}</span>
                     </div>
-                    <div class="cash-card-amount" [class.demo-redact]="demoMode.isDemoMode()">
-                      {{ c.amount | currency }}
+                    <div class="cash-card-amount" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                      {{ dv(c.amount) | currency }}
                     </div>
                     <div class="cash-card-date">Added {{ c.addedAt | date: 'MMM d, yyyy' }}</div>
                     <div class="cash-card-actions">
-                      <button mat-icon-button matTooltip="Edit" (click)="openEditCashDialog(c)">
+                      <button
+                        mat-icon-button
+                        matTooltip="Edit"
+                        (click)="openEditCashDialog(c)"
+                        [style.display]="authState.canWrite() ? null : 'none'"
+                      >
                         <mat-icon>edit</mat-icon>
                       </button>
-                      <button mat-icon-button matTooltip="Remove" (click)="confirmDeleteCash(c)">
+                      <button
+                        mat-icon-button
+                        matTooltip="Remove"
+                        (click)="confirmDeleteCash(c)"
+                        [style.display]="authState.canWrite() ? null : 'none'"
+                      >
                         <mat-icon>delete_outline</mat-icon>
                       </button>
                     </div>
@@ -1252,7 +1288,7 @@
       </div>
 
       <!-- ============================================================ -->
-      <!-- SECTION 3 – OPTIONS                                           -->
+      <!-- SECTION 3 ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ OPTIONS                                           -->
       <!-- ============================================================ -->
       <div class="subsection subsection--options" [class.collapsed]="!optionsExpanded()">
         <div class="subsection-header" (click)="optionsExpanded.set(!optionsExpanded())">
@@ -1265,14 +1301,14 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Market Value</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
-                    optionState.totalMarketValue() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
+                    dv(optionState.totalMarketValue()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Cost</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode()">{{
-                    optionState.totalCost() | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
+                    dv(optionState.totalCost()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
                   }}</span>
                 </div>
                 <div class="subsection-stat">
@@ -1354,7 +1390,7 @@
                     mat-cell
                     *matCellDef="let a"
                     class="pg-num"
-                    [class.demo-redact]="demoMode.isDemoMode()"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     {{ a.item.strike | currency }}
                   </td>
@@ -1367,7 +1403,7 @@
                     mat-cell
                     *matCellDef="let a"
                     class="pg-num"
-                    [class.demo-redact]="demoMode.isDemoMode()"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     {{ a.item.premium | currency }}
                   </td>
@@ -1399,7 +1435,7 @@
                       [value]="a.item.marketPrice"
                       (change)="updateOptionMarketPrice(a, $any($event.target).value)"
                       (click)="$event.stopPropagation()"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                       matTooltip="Edit current market price"
                     />
                   </td>
@@ -1444,7 +1480,7 @@
                     mat-cell
                     *matCellDef="let a"
                     class="pg-num"
-                    [class.demo-redact]="demoMode.isDemoMode()"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     {{ a.cost | currency }}
                   </td>
@@ -1457,7 +1493,7 @@
                     mat-cell
                     *matCellDef="let a"
                     class="pg-num pg-bold"
-                    [class.demo-redact]="demoMode.isDemoMode()"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     {{ a.marketValue | currency }}
                   </td>
@@ -1470,7 +1506,7 @@
                     <span
                       [class.pg-pos]="a.gainLoss >= 0"
                       [class.pg-neg]="a.gainLoss < 0"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                       >{{ a.gainLoss | currency }}</span
                     >
                   </td>
@@ -1483,7 +1519,7 @@
                     <span
                       [class.pg-pos]="a.gainLossPct >= 0"
                       [class.pg-neg]="a.gainLossPct < 0"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                       >{{ a.gainLossPct >= 0 ? '+' : ''
                       }}{{ a.gainLossPct | number: '1.1-1' }}%</span
                     >
@@ -1567,6 +1603,7 @@
                       mat-icon-button
                       matTooltip="Edit"
                       (click)="openEditOptionDialog(a); $event.stopPropagation()"
+                      [style.display]="authState.canWrite() ? null : 'none'"
                       class="pg-action-btn"
                     >
                       <mat-icon>edit</mat-icon>
@@ -1575,6 +1612,7 @@
                       mat-icon-button
                       matTooltip="Remove"
                       (click)="confirmDeleteOption(a); $event.stopPropagation()"
+                      [style.display]="authState.canWrite() ? null : 'none'"
                       class="pg-action-btn pg-action-delete"
                     >
                       <mat-icon>delete_outline</mat-icon>
@@ -1606,13 +1644,28 @@
         <h3 class="empty-title">No positions yet</h3>
         <p class="empty-sub">Start tracking your investments by adding stocks, cash, or options.</p>
         <div class="empty-actions">
-          <button mat-flat-button class="action-btn-primary" (click)="openAddStockDialog()">
+          <button
+            mat-flat-button
+            class="action-btn-primary"
+            (click)="openAddStockDialog()"
+            [style.display]="authState.canWrite() ? null : 'none'"
+          >
             <mat-icon>add</mat-icon> Add Stock
           </button>
-          <button mat-flat-button class="action-btn-cash" (click)="openAddCashDialog()">
+          <button
+            mat-flat-button
+            class="action-btn-cash"
+            (click)="openAddCashDialog()"
+            [style.display]="authState.canWrite() ? null : 'none'"
+          >
             <mat-icon>payments</mat-icon> Add Cash
           </button>
-          <button mat-flat-button class="action-btn-option" (click)="openAddOptionDialog()">
+          <button
+            mat-flat-button
+            class="action-btn-option"
+            (click)="openAddOptionDialog()"
+            [style.display]="authState.canWrite() ? null : 'none'"
+          >
             <mat-icon>trending_up</mat-icon> Add Option
           </button>
         </div>
