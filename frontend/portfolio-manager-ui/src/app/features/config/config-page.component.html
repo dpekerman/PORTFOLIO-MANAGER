@@ -305,6 +305,24 @@
                       <mat-error>Minimum 30 seconds</mat-error>
                     }
                   </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Session timeout (minutes)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="sessionTimeoutMinutes"
+                      min="0"
+                      max="1440"
+                    />
+                    <mat-hint>0 = disabled · Default 480 min (8h)</mat-hint>
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['min']) {
+                      <mat-error>Minimum 0 (disabled)</mat-error>
+                    }
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['max']) {
+                      <mat-error>Maximum 1440 min (24h)</mat-error>
+                    }
+                  </mat-form-field>
                 </div>
               </div>
             </div>

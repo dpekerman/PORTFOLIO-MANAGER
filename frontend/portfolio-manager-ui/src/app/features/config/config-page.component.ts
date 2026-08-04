@@ -129,6 +129,10 @@ export class ConfigPageComponent implements OnInit {
       this.configService.config().rsiOverboughtThreshold,
       [Validators.required, Validators.min(51), Validators.max(99)],
     ],
+    sessionTimeoutMinutes: [
+      this.configService.config().sessionTimeoutMinutes,
+      [Validators.required, Validators.min(0), Validators.max(1440)],
+    ],
   });
 
   // ── EOD Window form ──────────────────────────────────────────────────────
@@ -456,6 +460,7 @@ export class ConfigPageComponent implements OnInit {
       watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
+      sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
     });
 
     // Load EOD window settings from backend (to show current server-side state)
@@ -617,6 +622,7 @@ ${overboughtRsi}.`,
       watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
+      sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
     });
     // Clear server RSI cache so next scan uses the new thresholds
     this.api.clearRsiCache().subscribe({
@@ -637,6 +643,7 @@ ${overboughtRsi}.`,
       watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
+      sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
     });
     this.eodForm.setValue({
       eodWindowStart: ConfigPageComponent.timeStrToDate(cfg.eodWindowStart),
@@ -883,6 +890,7 @@ ${overboughtRsi}.`,
         watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
         rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
         rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
+        sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
       });
       this.form.markAsPristine();
       this.api

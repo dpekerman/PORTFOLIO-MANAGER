@@ -6,6 +6,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { AuthStateService } from './core/services/auth-state.service';
+import { SessionTimeoutService } from './core/services/session-timeout.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -14,5 +15,6 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideNativeDateAdapter(),
     provideAppInitializer(() => inject(AuthStateService).initializeAuth()),
+    provideAppInitializer(() => void inject(SessionTimeoutService)),
   ],
 };
