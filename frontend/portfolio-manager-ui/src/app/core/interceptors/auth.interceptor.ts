@@ -1,7 +1,8 @@
 import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, Observable, shareReplay, switchMap, throwError } from 'rxjs';
+import { AuthResponse } from '../models/portfolio.models';
 import { AuthApiService } from '../services/auth-api.service';
 import { AuthStateService } from '../services/auth-state.service';
 
@@ -11,6 +12,9 @@ const SKIP_AUTH_URLS = [
   '/api/auth/refresh',
   '/api/auth/setup-required',
 ];
+
+// Shared so concurrent 401s don't each trigger a separate refresh (token rotation would revoke the others)
+let refreshInFlight: Observable<AuthResponse> | null = null;
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authState = inject(AuthStateService);
@@ -29,16 +33,21 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
         return throwError(() => error);
       }
 
-      // One silent-refresh attempt, then give up
-      return authApi.refreshToken().pipe(
+      if (!refreshInFlight) {
+        refreshInFlight = authApi.refreshToken().pipe(shareReplay(1));
+      }
+
+      return refreshInFlight.pipe(
         switchMap((response) => {
           authState.setAuth(response);
+          refreshInFlight = null;
           const retried = req.clone({
             setHeaders: { Authorization: `Bearer ${response.accessToken}` },
           });
           return next(retried);
         }),
         catchError(() => {
+          refreshInFlight = null;
           authState.clearAuth();
           router.navigate(['/login']);
           return throwError(() => error);
