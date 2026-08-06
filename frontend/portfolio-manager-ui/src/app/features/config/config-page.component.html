@@ -1,15 +1,20 @@
-﻿<div class="config-page">
+﻿<div class="flex flex-col gap-0 px-6 pt-4">
   <!-- ── Sticky save-all bar ── -->
   <div class="sticky-save-bar">
-    <div class="sticky-save-bar-inner">
-      <div class="sticky-save-bar-left">
-        <mat-icon class="sticky-icon">settings</mat-icon>
+    <div class="flex items-center justify-between py-2.5 gap-4">
+      <div class="flex items-center gap-2.5">
+        <mat-icon class="text-[20px]! w-5! h-5! text-dim shrink-0">settings</mat-icon>
         <div>
-          <span class="sticky-title">CONFIGURATION</span>
-          <span class="sticky-sub">All settings saved or reset in one action</span>
+          <span
+            class="block text-[0.78rem] font-extrabold tracking-[0.12em] uppercase leading-tight"
+            >CONFIGURATION</span
+          >
+          <span class="block text-[0.66rem] text-faint leading-tight"
+            >All settings saved or reset in one action</span
+          >
         </div>
       </div>
-      <div class="sticky-save-bar-actions">
+      <div class="flex items-center gap-2.5 shrink-0">
         <button
           mat-stroked-button
           (click)="resetAll()"

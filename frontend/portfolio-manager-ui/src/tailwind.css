@@ -1,0 +1,39 @@
+/* Tailwind CSS v4 — no preflight/base to avoid conflicts with Angular Material */
+@import 'tailwindcss/theme' layer(theme);
+@import 'tailwindcss/utilities' layer(utilities);
+
+/* Scan Angular templates and component files for utility classes */
+@source "./**/*.{html,ts}";
+
+/* ── Custom breakpoints ──────────────────────────────────────────────────── */
+@theme {
+  /* 1400px — used to collapse nav-link text labels and user chip name */
+  --breakpoint-wide: 1400px;
+}
+
+/* ── Status + surface color tokens (bridge CSS vars to Tailwind utilities) ── */
+/* @theme inline allows runtime dark/light switching via CSS custom properties */
+@theme inline {
+  /* Surfaces */
+  --color-app: var(--bg-app);
+  --color-page: var(--bg-page);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-hover: var(--bg-hover);
+
+  /* Text */
+  --color-dim: var(--text-secondary);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+
+  /* Borders */
+  --color-edge: var(--border-color);
+  --color-edge-soft: var(--border-subtle);
+
+  /* Status — hardcoded; not theme-switched */
+  --color-up: #00c853;
+  --color-down: #ff5252;
+  --color-accent: #64b5f6;
+  --color-badge: #1565c0;
+  --color-warn: #ffa726;
+}

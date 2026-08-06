@@ -1,215 +1,93 @@
+// ── Status border-top (dynamic — applied via [class.up/down] bindings) ────────
 .watchlist-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
   border-top: 3px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition:
-    box-shadow 0.2s,
-    transform 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--shadow-card);
-  }
-
   &.up {
     border-top-color: #00c853;
   }
   &.down {
     border-top-color: #ff5252;
   }
-  &.nodata {
-    border-top-color: var(--border-subtle);
+}
+
+// ── Symbol badge background — status variants (can't be static Tailwind tokens) ─
+.symbol-badge {
+  background: #1565c0;
+  color: #fff;
+  &.up {
+    background: #1b5e20;
+  }
+  &.down {
+    background: #b71c1c;
   }
 }
 
-.card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-
-  .symbol-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .symbol-badge {
-    width: 36px;
-    height: 36px;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    background: #1565c0;
-    color: #fff;
-
-    &.up {
-      background: #1b5e20;
-    }
-    &.down {
-      background: #b71c1c;
-    }
-  }
-
-  .symbol-info {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-
-    .symbol {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-    }
-
-    .name {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      max-width: 150px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .remove-btn {
-    opacity: 0.3;
-    transition:
-      opacity 0.15s,
-      color 0.15s;
-    &:hover {
-      opacity: 1;
-      color: #ff5252;
-    }
+// ── Remove button — opacity fade-in on hover with colour shift ────────────────
+.remove-btn {
+  opacity: 0.3;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+  &:hover {
+    opacity: 1;
+    color: #ff5252;
   }
 }
 
-.price-row {
+// ── Price change — status colour + monospace (status must be dynamic) ─────────
+.change {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
 
-  .price {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    font-family: 'Roboto Mono', monospace;
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
   }
 
-  .change {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    font-family: 'Roboto Mono', monospace;
-
-    mat-icon {
-      font-size: 14px;
-      width: 14px;
-      height: 14px;
-    }
-    &.up {
-      color: #00c853;
-    }
-    &.down {
-      color: #ff5252;
-    }
+  &.up {
+    color: #00c853;
+  }
+  &.down {
+    color: #ff5252;
   }
 }
 
-.stats-row {
+// ── Sector tag — inline flex (overrides Tailwind's parent flex-col context) ───
+.sector-tag {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  font-size: 0.72rem;
 
-  .stat {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-
-    .stat-label {
-      font-size: 0.62rem;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text-muted);
-    }
-
-    .stat-value {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      font-family: 'Roboto Mono', monospace;
-    }
-
-    &.sector-tag {
-      flex-direction: row;
-      align-items: center;
-      gap: 4px;
-      color: var(--text-faint);
-      font-size: 0.72rem;
-
-      mat-icon {
-        font-size: 13px;
-        width: 13px;
-        height: 13px;
-      }
-    }
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
   }
 }
 
+// ── 52-week delta — status colour ─────────────────────────────────────────────
+.week52-delta {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+  &.up {
+    color: #00c853;
+  }
+  &.down {
+    color: #ff5252;
+  }
+}
+
+// ── No-data chip ──────────────────────────────────────────────────────────────
 .no-data-chip {
   font-size: 0.72rem;
   background: var(--bg-elevated);
   color: var(--text-muted);
-}
-
-.week52-strip {
-  display: flex;
-  gap: 12px;
-  padding: 6px 0 0;
-  border-top: 1px solid var(--border-subtle);
-}
-
-.week52-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-
-  .week52-tag {
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-    min-width: 28px;
-  }
-
-  .week52-val {
-    font-size: 0.78rem;
-    font-weight: 600;
-    font-family: 'Roboto Mono', monospace;
-    color: var(--text-secondary);
-  }
-
-  .week52-delta {
-    font-size: 0.72rem;
-    font-weight: 600;
-    font-family: 'Roboto Mono', monospace;
-
-    &.up {
-      color: #00c853;
-    }
-    &.down {
-      color: #ff5252;
-    }
-  }
 }

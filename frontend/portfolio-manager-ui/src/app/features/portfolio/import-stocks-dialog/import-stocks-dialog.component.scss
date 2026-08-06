@@ -29,12 +29,7 @@
   display: none;
 }
 
-.upload-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
+// — upload-row migrated to Tailwind flex in HTML —
 
 .parse-error {
   display: flex;

@@ -4,8 +4,8 @@
 </h2>
 
 <mat-dialog-content>
-  <form [formGroup]="form" class="cash-form">
-    <mat-form-field appearance="outline" class="full-width">
+  <form [formGroup]="form" class="flex flex-col gap-2 pt-2 min-w-[360px]">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Description</mat-label>
       <input matInput formControlName="description" placeholder="CASH" autocomplete="off" />
       @if (form.controls.description.hasError('required')) {
@@ -13,7 +13,7 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Amount</mat-label>
       <span matTextPrefix>$&nbsp;</span>
       <input
@@ -32,7 +32,7 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Account Type</mat-label>
       <mat-select formControlName="accountType">
         <mat-option [value]="null">— None —</mat-option>
@@ -42,7 +42,7 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Transaction Date (optional)</mat-label>
       <input
         matInput

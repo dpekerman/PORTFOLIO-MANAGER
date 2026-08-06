@@ -1,75 +1,27 @@
-.market-header {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 14px 24px;
-  background: var(--bg-app);
-  border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap;
+// ── Brand icon accent ─────────────────────────────────────────────────────────
+.brand-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: #1565c0;
 }
 
-// Brand
-.brand-block {
+// ── Demo badge (rgba tint — can't be a static Tailwind token) ─────────────────
+.demo-badge {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 220px;
+  gap: 3px;
+  background: rgba(255, 167, 38, 0.12);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: help;
 
-  .brand-icon {
-    font-size: 28px;
-    width: 28px;
-    height: 28px;
-    color: #1565c0;
-  }
-
-  .brand-text {
-    display: flex;
-    flex-direction: column;
-
-    .brand-title {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.3px;
-    }
-
-    .brand-sub {
-      font-size: 0.65rem;
-      color: var(--text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-  }
-
-  .demo-badge {
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    background: rgba(255, 167, 38, 0.12);
-    color: #ffa726;
-    border: 1px solid rgba(255, 167, 38, 0.3);
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    cursor: help;
-
-    mat-icon {
-      font-size: 13px;
-      width: 13px;
-      height: 13px;
-    }
-  }
-}
-
-// Signal stats center block
-.signal-stats {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex: 1;
-  justify-content: center;
+  mat-icon { font-size: 13px; width: 13px; height: 13px; }
 }
 
 .stat-tile {
@@ -240,17 +192,6 @@
 
 // ── Mobile responsive ─────────────────────────────────────────────────────────
 @media (max-width: 900px) {
-  .market-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 12px 16px;
-  }
-
-  .brand-block {
-    min-width: unset;
-  }
-
   .signal-stats {
     justify-content: space-between;
     gap: 8px;
@@ -262,36 +203,14 @@
     flex: 1;
     min-width: 120px;
   }
-
-  .portfolio-kpis {
-    gap: 10px;
-    justify-content: space-around;
-  }
 }
 
 @media (max-width: 480px) {
-  .signal-stats {
-    flex-direction: column;
-  }
-  .stat-tile {
-    width: 100%;
-  }
-  .portfolio-kpis {
-    flex-wrap: wrap;
-  }
-  .kpi-divider {
-    display: none;
-  }
+  .signal-stats { flex-direction: column; }
+  .stat-tile { width: 100%; }
 }
 
-// -- Market Indices -----------------------------------------------------------
-.market-indices {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
+// ── Market index tile ─────────────────────────────────────────────────────────
 .index-tile {
   display: flex;
   flex-direction: column;

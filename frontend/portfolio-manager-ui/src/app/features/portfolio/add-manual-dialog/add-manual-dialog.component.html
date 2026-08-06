@@ -4,8 +4,8 @@
 </h2>
 
 <mat-dialog-content>
-  <form [formGroup]="form" class="dialog-form">
-    <mat-form-field appearance="outline" class="full-width">
+  <form [formGroup]="form" class="flex flex-col gap-1 pt-2 min-w-[400px]">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Name *</mat-label>
       <input
         matInput
@@ -19,7 +19,7 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="w-full">
       <mat-label>Description</mat-label>
       <input
         matInput
@@ -29,7 +29,7 @@
       <mat-hint>Used as the Industry sub-group</mat-hint>
     </mat-form-field>
 
-    <div class="two-col">
+    <div class="grid grid-cols-2 gap-3">
       <mat-form-field appearance="outline">
         <mat-label>Average Cost ($)</mat-label>
         <input

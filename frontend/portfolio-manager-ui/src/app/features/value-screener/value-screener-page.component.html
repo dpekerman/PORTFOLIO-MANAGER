@@ -1,11 +1,13 @@
-﻿<div class="value-screener-page">
+﻿<div class="pb-12">
   <!-- HEADER -->
-  <section class="screener-section">
-    <div class="section-header">
-      <div class="section-title-group">
+  <section class="px-6 pt-5 pb-4 max-[600px]:px-4">
+    <div class="flex items-start justify-between flex-wrap gap-3 mb-4">
+      <div class="flex items-center gap-3.5">
         <mat-icon class="section-icon">analytics</mat-icon>
         <div>
-          <h2 class="section-title">
+          <h2
+            class="m-0 mb-0.5 text-[1.1rem] font-extrabold tracking-[1.5px] uppercase flex items-center gap-2"
+          >
             VALUE SCREENER
             @if (allActiveResults().length > 0) {
               <span class="count-badge"
@@ -14,13 +16,13 @@
               >
             }
           </h2>
-          <p class="section-sub">
+          <p class="m-0 text-[0.75rem] text-dim">
             Capital Valuation Engine &bull; Earnings Yield &bull; FCF &bull; P/B &bull; Piotroski
             &bull; ROIC
           </p>
         </div>
       </div>
-      <div class="section-actions-right">
+      <div class="flex items-center gap-2 flex-wrap">
         @if (lastRunAt()) {
           <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
         }
@@ -69,10 +71,14 @@
     </div>
 
     <!-- SOURCE SELECTION -->
-    <div class="source-bar">
-      <span class="source-label">View:</span>
+    <div
+      class="flex items-center gap-3 flex-wrap mb-4 px-4 py-3 bg-elevated rounded-[10px] border border-edge-soft"
+    >
+      <span class="text-[0.72rem] font-bold tracking-[0.5px] uppercase text-dim whitespace-nowrap"
+        >View:</span
+      >
 
-      <div class="source-options">
+      <div class="flex gap-0 border-2 border-edge-soft rounded-lg overflow-hidden">
         <button
           class="source-chip"
           [class.source-active]="sourceMode() === 'portfolio'"
@@ -96,7 +102,7 @@
       </div>
 
       <!-- Ad-Hoc: live analysis -->
-      <div class="adhoc-trigger-group">
+      <div class="flex items-center gap-2.5 flex-wrap pl-3 border-l-2 border-edge-soft">
         <button
           class="source-chip"
           [class.source-active]="sourceMode() === 'adhoc'"
@@ -133,7 +139,7 @@
 
     <!-- TIER SUMMARY CARDS — clickable to filter -->
     @if (allActiveResults().length > 0) {
-      <div class="tier-summary">
+      <div class="flex gap-3 mb-0 flex-wrap">
         <div
           class="tier-card tier-card--high"
           [class.tier-card--active]="activeTierFilter() === 'HighConviction'"

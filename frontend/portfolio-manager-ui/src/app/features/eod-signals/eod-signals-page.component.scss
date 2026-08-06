@@ -1,42 +1,12 @@
-﻿// EOD Signals Page — follows scanner-page/watchlist-page patterns
-.eod-page {
-  padding: 0 0 48px;
-}
+﻿// EOD Signals Page
 
-// ── Page Header ─────────────────────────────────────────────────────────────
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 24px 0;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.page-title-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
+// ── Page icon accent colour ───────────────────────────────────────────────────
 .page-icon {
   font-size: 28px;
   width: 28px;
   height: 28px;
   margin-top: 4px;
   color: var(--mat-primary-color, #1976d2);
-}
-
-.page-title {
-  margin: 0 0 4px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
 }
 
 .count-badge {
@@ -53,12 +23,7 @@
   font-weight: 700;
 }
 
-.page-sub {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
-}
-
+// ── Last-checked timestamp with optional spinning sync icon ──────────────────
 .last-checked {
   margin: 4px 0 0;
   font-size: 0.7rem;
@@ -69,93 +34,12 @@
   gap: 4px;
 }
 
-// ── Persist Progress Banner ──────────────────────────────────────────────────
-.persist-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 24px;
-  background: rgba(33, 150, 243, 0.08);
-  border-left: 3px solid #2196f3;
-  animation: fadeIn 250ms ease;
-}
-
-.persist-banner-icon {
-  color: #2196f3;
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.persist-banner-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.persist-banner-title {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #1976d2;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.persist-banner-sub {
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
+// ── Progress bar height override on mat-progress-bar ─────────────────────────
 .persist-progress-bar {
   height: 3px;
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-// ── EOD Window Active Banner ─────────────────────────────────────────────────
-.eod-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 24px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  flex-wrap: wrap;
-
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
-  }
-}
-
-.eod-banner--active {
-  background: rgba(76, 175, 80, 0.12);
-  border-left: 3px solid #4caf50;
-  color: #2e7d32;
-
-  .eod-banner-hint {
-    font-size: 0.75rem;
-    font-weight: 400;
-    color: rgba(46, 125, 50, 0.75);
-    margin-left: auto;
-  }
-}
-
-// Tiny spinning sync icon used in last-checked timestamp
+// ── Tiny spinning sync icon (mat-icon size override) ─────────────────────────
 .spin-xs {
   font-size: 13px !important;
   width: 13px !important;
@@ -174,13 +58,6 @@
   font-size: 0.78rem;
 }
 
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .delete-all-btn {
   color: #d32f2f;
   border-color: rgba(211, 47, 47, 0.4);
@@ -188,44 +65,6 @@
 
 .persist-active {
   color: #2196f3 !important;
-}
-
-// ── Filter Bar ───────────────────────────────────────────────────────────────
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: flex-end;
-  padding: 16px 24px;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 56px;
-  z-index: 10;
-}
-
-.f-ticker {
-  min-width: 170px;
-  flex: 1 1 170px;
-  max-width: 220px;
-}
-
-.f-select {
-  min-width: 130px;
-  flex: 1 1 130px;
-  max-width: 170px;
-}
-
-.f-date {
-  min-width: 150px;
-  flex: 1 1 150px;
-  max-width: 185px;
-}
-
-.clear-btn {
-  align-self: center;
-  flex-shrink: 0;
-  margin-top: 2px;
 }
 
 // ── Progress bar ─────────────────────────────────────────────────────────────
@@ -470,8 +309,12 @@
 }
 
 // ── Price diff colors ──────────────────────────────────────────────────────────
-.eod-pos { color: #2e7d32; }
-.eod-neg { color: #c62828; }
+.eod-pos {
+  color: #2e7d32;
+}
+.eod-neg {
+  color: #c62828;
+}
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 .spinning {

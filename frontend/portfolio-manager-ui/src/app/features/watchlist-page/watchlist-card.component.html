@@ -1,13 +1,24 @@
-<div class="watchlist-card" [class.up]="isUp()" [class.down]="!isUp()" [class.nodata]="!hasData()">
-  <div class="card-header">
-    <div class="symbol-row">
-      <div class="symbol-badge" [class.up]="isUp()" [class.down]="!isUp()">
+<div
+  class="watchlist-card flex flex-col gap-2.5 bg-surface border border-edge rounded-[10px] p-[14px_16px] transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_var(--shadow-card)]"
+  [class.up]="isUp()"
+  [class.down]="!isUp()"
+  [class.nodata]="!hasData()"
+>
+  <div class="flex items-start justify-between">
+    <div class="flex items-center gap-2.5">
+      <div
+        class="symbol-badge w-9 h-9 rounded-lg flex items-center justify-center font-bold text-[0.85rem]"
+        [class.up]="isUp()"
+        [class.down]="!isUp()"
+      >
         {{ summary().item.symbol.substring(0, 2) }}
       </div>
-      <div class="symbol-info">
-        <span class="symbol">{{ summary().item.symbol }}</span>
+      <div class="flex flex-col gap-0.5">
+        <span class="text-base font-bold">{{ summary().item.symbol }}</span>
         @if (quote()) {
-          <span class="name">{{ quote()!.companyName }}</span>
+          <span class="text-[0.72rem] text-muted max-w-[150px] truncate">{{
+            quote()!.companyName
+          }}</span>
         }
       </div>
     </div>
@@ -22,35 +33,45 @@
   </div>
 
   @if (quote()) {
-    <div class="price-row">
-      <span class="price">{{ quote()!.currentPrice | currency }}</span>
+    <div class="flex items-center gap-2.5 flex-wrap">
+      <span class="font-bold font-mono text-[1.2rem]">{{ quote()!.currentPrice | currency }}</span>
       <span class="change" [class.up]="isUp()" [class.down]="!isUp()">
         <mat-icon>{{ isUp() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
         {{ quote()!.change | number: '1.2-2' }} ({{ quote()!.changePercent | number: '1.2-2' }}%)
       </span>
     </div>
-    <div class="stats-row">
-      <div class="stat">
-        <span class="stat-label">High</span>
-        <span class="stat-value">{{ quote()!.highPrice | currency }}</span>
+    <div class="flex flex-wrap gap-2.5">
+      <div class="flex flex-col gap-0">
+        <span class="text-[0.62rem] uppercase tracking-[0.6px] text-muted">High</span>
+        <span class="text-[0.8rem] font-semibold text-dim font-mono">{{
+          quote()!.highPrice | currency
+        }}</span>
       </div>
-      <div class="stat">
-        <span class="stat-label">Low</span>
-        <span class="stat-value">{{ quote()!.lowPrice | currency }}</span>
+      <div class="flex flex-col gap-0">
+        <span class="text-[0.62rem] uppercase tracking-[0.6px] text-muted">Low</span>
+        <span class="text-[0.8rem] font-semibold text-dim font-mono">{{
+          quote()!.lowPrice | currency
+        }}</span>
       </div>
-      <div class="stat">
-        <span class="stat-label">Prev Close</span>
-        <span class="stat-value">{{ quote()!.previousClose | currency }}</span>
+      <div class="flex flex-col gap-0">
+        <span class="text-[0.62rem] uppercase tracking-[0.6px] text-muted">Prev Close</span>
+        <span class="text-[0.8rem] font-semibold text-dim font-mono">{{
+          quote()!.previousClose | currency
+        }}</span>
       </div>
       @if (quote()!.sector) {
-        <div class="stat sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
+        <div class="sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
       }
     </div>
     @if (quote()!.week52High > 0) {
-      <div class="week52-strip">
-        <div class="week52-item">
-          <span class="week52-tag">52W H</span>
-          <span class="week52-val">{{ quote()!.week52High | currency }}</span>
+      <div class="flex gap-3 pt-1.5 border-t border-edge-soft">
+        <div class="flex items-center gap-1.5">
+          <span class="text-[0.6rem] font-bold uppercase tracking-[0.5px] text-muted min-w-[28px]"
+            >52W H</span
+          >
+          <span class="text-[0.78rem] font-semibold font-mono text-dim">{{
+            quote()!.week52High | currency
+          }}</span>
           <span class="week52-delta down">
             {{
               ((quote()!.currentPrice - quote()!.week52High) / quote()!.week52High) * 100
@@ -58,9 +79,13 @@
             }}%
           </span>
         </div>
-        <div class="week52-item">
-          <span class="week52-tag">52W L</span>
-          <span class="week52-val">{{ quote()!.week52Low | currency }}</span>
+        <div class="flex items-center gap-1.5">
+          <span class="text-[0.6rem] font-bold uppercase tracking-[0.5px] text-muted min-w-[28px]"
+            >52W L</span
+          >
+          <span class="text-[0.78rem] font-semibold font-mono text-dim">{{
+            quote()!.week52Low | currency
+          }}</span>
           <span class="week52-delta up">
             +{{
               ((quote()!.currentPrice - quote()!.week52Low) / quote()!.week52Low) * 100

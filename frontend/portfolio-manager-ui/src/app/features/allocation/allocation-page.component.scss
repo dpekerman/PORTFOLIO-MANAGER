@@ -1,27 +1,4 @@
-.allocation-page {
-  padding: 0 0 48px;
-}
-
-// ── Page header ───────────────────────────────────────────────────────────────
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  flex-wrap: wrap;
-  gap: 12px;
-
-  @media (max-width: 600px) {
-    padding: 16px;
-  }
-}
-
-.page-title-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+// ── Per-page accent colour ────────────────────────────────────────────────────
 .page-icon {
   font-size: 24px;
   width: 24px;
@@ -29,39 +6,7 @@
   color: #7e57c2;
 }
 
-.page-title {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--text-secondary);
-}
-
-.page-sub {
-  margin: 2px 0 0;
-  font-size: 0.7rem;
-  color: var(--text-faint);
-  letter-spacing: 0.3px;
-}
-
-// ── KPI grid ──────────────────────────────────────────────────────────────────
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-  padding: 0 24px 20px;
-
-  @media (max-width: 600px) {
-    padding: 0 16px 16px;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-
-  @media (max-width: 380px) {
-    grid-template-columns: 1fr;
-  }
-}
-
+// ── KPI card — Material !important overrides for surface + border ──────────────
 .kpi-card {
   background: var(--bg-surface) !important;
   border: 1px solid var(--border-color) !important;
@@ -80,6 +25,7 @@
   padding: 16px !important;
 }
 
+// ── KPI label — flex + icon sizing inside Material card ───────────────────────
 .kpi-label {
   display: flex;
   align-items: center;
@@ -98,6 +44,7 @@
   }
 }
 
+// ── KPI value — monospace large number ────────────────────────────────────────
 .kpi-value {
   font-size: 1.4rem;
   font-weight: 700;

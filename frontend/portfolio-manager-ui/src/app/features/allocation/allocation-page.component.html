@@ -1,14 +1,20 @@
-﻿<div class="allocation-page">
-  <!-- ── Page Header ───────────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
+﻿<div class="pb-12">
+  <!-- ── Page Header ──────────────────────────────────────────────────── -->
+  <div
+    class="flex items-center justify-between px-6 pt-5 pb-4 flex-wrap gap-3 max-[600px]:px-4 max-[600px]:pt-4"
+  >
+    <div class="flex items-center gap-3">
       <mat-icon class="page-icon">donut_large</mat-icon>
       <div>
-        <h1 class="page-title">PORTFOLIO ALLOCATION</h1>
-        <p class="page-sub">Breakdown by sector &amp; industry · Click sectors to drill down</p>
+        <h1 class="m-0 text-[0.8rem] font-extrabold tracking-[1.5px] text-dim">
+          PORTFOLIO ALLOCATION
+        </h1>
+        <p class="m-0 mt-0.5 text-[0.7rem] text-faint tracking-[0.3px]">
+          Breakdown by sector &amp; industry · Click sectors to drill down
+        </p>
       </div>
     </div>
-    <div class="page-actions">
+    <div class="flex items-center gap-1.5">
       <button
         mat-icon-button
         matTooltip="Backup allocation data (Cash + Options) to JSON"
@@ -56,14 +62,19 @@
     </div>
   } @else {
     <!-- ── KPI Cards ────────────────────────────────────────────────────────── -->
-    <div class="kpi-grid">
+    <div
+      class="[grid-template-columns:repeat(auto-fill,minmax(220px,1fr))] grid gap-4 px-6 pb-5 max-[600px]:px-4 max-[600px]:pb-4 max-[600px]:[grid-template-columns:repeat(2,1fr)] max-[600px]:gap-2.5 max-[380px]:[grid-template-columns:1fr]"
+    >
       <mat-card class="kpi-card">
         <mat-card-content class="kpi-content">
           <div class="kpi-label">
             <mat-icon>account_balance</mat-icon>
             Portfolio Value
           </div>
-          <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+          <div
+            class="kpi-value kpi-neutral"
+            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          >
             {{ grandTotal() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Stocks · Cash · Options</div>
@@ -263,7 +274,10 @@
                 <div class="alloc-bar-fill alloc-bar-cash" [style.width.%]="cashPct() * 100"></div>
               </div>
               <span class="alloc-col-pct-val">{{ cashPct() * 100 | number: '1.1-1' }}%</span>
-              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+              <span
+                class="alloc-col-mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
                 ${{ cashState.totalCash() / 1000 | number: '1.0-0' }}k
               </span>
               <span class="alloc-col-gl">—</span>
@@ -285,7 +299,10 @@
                 <span class="alloc-col alloc-col-date dim-text">{{
                   c.addedAt | slice: 0 : 10
                 }}</span>
-                <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                <span
+                  class="alloc-col alloc-col-val"
+                  [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                >
                   {{ c.amount | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                 </span>
                 <span class="alloc-col alloc-col-pct">{{ c.pct | percent: '1.2-2' }}</span>
@@ -294,7 +311,10 @@
             <div class="alloc-total-row">
               <span class="alloc-col alloc-col-desc">Total Cash</span>
               <span class="alloc-col alloc-col-date"></span>
-              <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+              <span
+                class="alloc-col alloc-col-val"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
                 {{ cashState.totalCash() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
               </span>
               <span class="alloc-col alloc-col-pct">{{ cashPct() | percent: '1.2-2' }}</span>
@@ -326,7 +346,10 @@
                 ></div>
               </div>
               <span class="alloc-col-pct-val">{{ optionsPct() * 100 | number: '1.1-1' }}%</span>
-              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+              <span
+                class="alloc-col-mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
                 ${{ optionsTotalValue() / 1000 | number: '1.0-0' }}k
               </span>
               <span
@@ -359,7 +382,10 @@
                   </div>
                   <span class="alloc-ticker-symbol">{{ g.ticker }}</span>
                   <span class="alloc-count-badge">{{ g.items.length }}</span>
-                  <span class="alloc-subsection-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                  <span
+                    class="alloc-subsection-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                  >
                     {{ g.totalValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                   </span>
                   <span class="alloc-subsection-pct">{{ g.pct | percent: '1.2-2' }} of Total</span>
@@ -396,7 +422,9 @@
                       <span class="alloc-col alloc-col-contracts">{{ opt.numberOfContracts }}</span>
                       <span
                         class="alloc-col alloc-col-val"
-                        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
                       >
                         {{ opt.marketValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                       </span>
@@ -449,7 +477,10 @@
               ></div>
             </div>
             <span class="alloc-col-pct-val alloc-net-pct">100.0%</span>
-            <span class="alloc-col-mv alloc-net-val" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+            <span
+              class="alloc-col-mv alloc-net-val"
+              [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+            >
               ${{ grandTotal() / 1000 | number: '1.0-0' }}k
             </span>
             <span

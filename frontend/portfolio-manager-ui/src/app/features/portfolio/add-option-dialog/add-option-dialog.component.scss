@@ -4,36 +4,7 @@ h2[mat-dialog-title] {
   gap: 8px;
 }
 
-.option-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
-  padding-top: 8px;
-  min-width: 480px;
-  width: 100%;
-}
-
-.full-width {
-  grid-column: 1 / -1;
-  width: 100%;
-}
-
-.form-row {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 10px;
-
-  .field-half {
-    flex: 1;
-  }
-  .field-ticker {
-    flex: 2;
-  }
-  .field-type {
-    flex: 1;
-  }
-}
-
+// cost-preview spans the full grid width and uses Material surface var
 .cost-preview {
   grid-column: 1 / -1;
   background: var(--mat-app-surface-variant, rgba(0, 0, 0, 0.04));

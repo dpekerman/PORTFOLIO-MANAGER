@@ -1,20 +1,9 @@
-.transactions-page {
-  padding: 0 0 48px;
-}
-
-.tx-section {
-  padding: 20px 24px 16px;
-
-  @media (max-width: 600px) {
-    padding: 16px;
-  }
-}
-
-.tx-page-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
+// ── Page icon (uses Material system primary colour) ──────────────────────────
+.tx-page-icon {
+  font-size: 32px;
+  width: 32px;
+  height: 32px;
+  color: var(--mat-sys-primary);
 }
 
 // ── Type filter toggle ────────────────────────────────────────────────────────
@@ -52,26 +41,6 @@
 .mat-mdc-table .mat-mdc-header-cell.mat-column-otx_ticker,
 .mat-mdc-table .mat-mdc-footer-cell.mat-column-otx_ticker {
   background: var(--mat-sys-surface);
-}
-
-.tx-page-icon {
-  font-size: 32px;
-  width: 32px;
-  height: 32px;
-  color: var(--mat-sys-primary);
-}
-
-.tx-page-title {
-  margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-.tx-page-sub {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-  color: var(--mat-sys-on-surface-variant);
 }
 
 .tx-subsection {

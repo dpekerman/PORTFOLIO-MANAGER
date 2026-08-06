@@ -1,4 +1,4 @@
-// ── App container (full viewport) ────────────────────────────────────────────
+// ── App container (Material sidenav host — full-height flex column) ───────────
 .app-container {
   height: 100dvh;
   display: flex;
@@ -11,26 +11,12 @@
   background: var(--bg-surface);
   border-right: 1px solid var(--border-color);
 
-  .sidenav-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 18px 20px 16px;
-
-    .sidenav-brand-icon {
-      color: #1565c0;
-      font-size: 24px;
-    }
-
-    .sidenav-brand-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.3px;
-    }
+  .sidenav-brand-icon {
+    color: #1565c0;
+    font-size: 24px;
   }
 
-  // Active nav item highlight
+  // Beats Material's mat-list-item default colour + background
   .sidenav-active {
     color: #64b5f6 !important;
     background: rgba(100, 181, 246, 0.08) !important;
@@ -42,7 +28,7 @@
   }
 }
 
-// ── Main area ─────────────────────────────────────────────────────────────────
+// ── Main content area (Material sidenav-content host) ────────────────────────
 .app-main {
   display: flex;
   flex-direction: column;
@@ -50,7 +36,7 @@
   background: var(--bg-page);
 }
 
-// ── Top Toolbar ───────────────────────────────────────────────────────────────
+// ── Sticky toolbar (Material component host — can't be replaced with Tailwind) ─
 .app-toolbar {
   position: sticky;
   top: 0;
@@ -63,107 +49,59 @@
   box-shadow: 0 2px 12px var(--shadow-card);
   gap: 4px;
 
-  // Hamburger — visible only on mobile
+  // Hamburger — hidden on desktop, visible on mobile only
   .hamburger-btn {
     display: none;
+    @media (max-width: 768px) { display: inline-flex; }
+  }
+
+  .brand-icon {
+    color: #1565c0;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+  }
+
+  // Material mat-button — needs explicit colour + size overrides
+  .nav-link {
     color: var(--text-secondary);
+    font-size: 0.82rem;
+    letter-spacing: 0.3px;
+    border-radius: 8px;
+    height: 36px;
+    padding: 0 10px;
+    min-width: 36px;
+    transition:
+      color 0.15s,
+      background 0.15s;
 
-    @media (max-width: 768px) {
-      display: inline-flex;
-    }
-  }
-
-  // Brand (plain text, no hover/click)
-  .toolbar-brand {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    padding: 4px 8px;
-
-    .brand-icon {
-      color: #1565c0;
-      font-size: 22px;
-      width: 22px;
-      height: 22px;
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      margin-right: 4px;
     }
 
-    .brand-title {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      letter-spacing: 0.3px;
-      white-space: nowrap;
-
-      @media (max-width: 480px) {
-        display: none;
-      }
-    }
-  }
-
-  // Desktop nav links (hide on mobile)
-  .desktop-nav {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    margin-left: 12px;
-
-    @media (max-width: 768px) {
-      display: none;
-    }
-
-    .nav-link {
-      color: var(--text-secondary);
-      font-size: 0.82rem;
-      letter-spacing: 0.3px;
-      border-radius: 8px;
-      height: 36px;
-      padding: 0 10px;
-      min-width: 36px;
-      transition:
-        color 0.15s,
-        background 0.15s;
-
+    @media (max-width: 1400px) {
+      padding: 0 8px;
       mat-icon {
-        font-size: 16px;
-        width: 16px;
-        height: 16px;
-        margin-right: 4px;
+        margin-right: 0;
       }
+    }
 
-      // Hide text labels below 1400px — icons remain with tooltip
-      .nav-link-text {
-        @media (max-width: 1400px) {
-          display: none;
-        }
-      }
+    &:hover {
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
 
-      @media (max-width: 1400px) {
-        padding: 0 8px;
-        mat-icon {
-          margin-right: 0;
-        }
-      }
-
-      &:hover {
-        color: var(--text-primary);
-        background: var(--bg-hover);
-      }
-
-      &.nav-link-active {
-        color: #64b5f6;
-        background: rgba(100, 181, 246, 0.1);
-        font-weight: 600;
-      }
+    &.nav-link-active {
+      color: #64b5f6;
+      background: rgba(100, 181, 246, 0.1);
+      font-weight: 600;
     }
   }
 
-  // Push actions to right
-  .toolbar-spacer {
-    flex: 1;
-  }
-
-  // Status notice badges
+  // Status badges use rgba() tints not expressible as static Tailwind tokens
   .status-badge {
     display: flex;
     align-items: center;
@@ -180,12 +118,6 @@
       height: 14px;
     }
 
-    .badge-text {
-      @media (max-width: 600px) {
-        display: none;
-      }
-    }
-
     &.status-warn {
       background: rgba(255, 167, 38, 0.08);
       border: 1px solid rgba(255, 167, 38, 0.2);
@@ -199,22 +131,34 @@
     }
   }
 
-  // Icon buttons
+  // Material icon-button colour override (attribute selector, not a class)
   button[mat-icon-button] {
     color: var(--text-secondary);
 
     &:hover:not([disabled]) {
       color: var(--text-primary);
     }
-
-    // Demo mode active state
     &.demo-active {
       color: #ffa726;
     }
   }
+
+  // User chip: only non-Tailwindable props (Material system var + max-width)
+  .user-chip {
+    background: var(--mat-sys-surface-container-high);
+    max-width: 140px;
+
+    .user-chip-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: var(--mat-sys-primary);
+      flex-shrink: 0;
+    }
+  }
 }
 
-// ── Demo mode banner ──────────────────────────────────────────────────────────
+// ── Demo mode banner (template comment-gated) ─────────────────────────────────
 .demo-banner {
   display: flex;
   align-items: center;
@@ -247,63 +191,10 @@
   }
 }
 
-// ── Global progress bar ───────────────────────────────────────────────────────
+// ── Sticky global progress bar ────────────────────────────────────────────────
 .global-loader {
   position: sticky;
   top: 56px;
   z-index: 99;
 }
 
-// ── Page content ──────────────────────────────────────────────────────────────
-.page-content {
-  flex: 1;
-  min-height: 0;
-  padding: 0 0 48px;
-  background: var(--bg-page);
-}
-
-// ── Spin animation (used by loading icons) ────────────────────────────────────
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-// -- User chip (logged-in user display) ---------------------------------------
-.user-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 16px;
-  background: var(--mat-sys-surface-container-high);
-  cursor: default;
-  font-size: 0.8rem;
-  max-width: 140px;
-
-  .user-chip-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    color: var(--mat-sys-primary);
-    flex-shrink: 0;
-  }
-
-  .user-chip-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-
-    // Hide name at narrow widths — just icon remains
-    @media (max-width: 1400px) {
-      display: none;
-    }
-  }
-}

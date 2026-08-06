@@ -1,26 +1,11 @@
-.auth-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100dvh;
-  padding: 1rem;
-  background: var(--mat-sys-surface-container);
-}
-
+// ── Auth card (Material host — width + padding) ───────────────────────────────
 .auth-card {
   width: 100%;
   max-width: 420px;
   padding: 0.5rem;
 }
 
-.auth-card-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-bottom: 0.5rem;
-  text-align: center;
-}
-
+// ── Auth logo (Material system primary colour) ────────────────────────────────
 .auth-logo {
   font-size: 3rem;
   width: 3rem;
@@ -36,9 +21,8 @@
   padding-top: 0.5rem;
 }
 
-.full-width {
-  width: 100%;
-}
+// ── Ensures mat-form-field fills dialog/card width ────────────────────────────
+.full-width { width: 100%; }
 
 .auth-error {
   display: flex;

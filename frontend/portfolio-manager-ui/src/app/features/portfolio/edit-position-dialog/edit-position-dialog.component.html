@@ -4,7 +4,7 @@
 </h2>
 
 <mat-dialog-content>
-  <form [formGroup]="form" (ngSubmit)="save()" id="edit-form" class="edit-form">
+  <form [formGroup]="form" (ngSubmit)="save()" id="edit-form" class="grid grid-cols-2 gap-2 py-1 min-w-[560px] w-full">
     <!-- Row 1: Transaction Type | Company Name -->
     <mat-form-field appearance="outline">
       <mat-label>Transaction Type</mat-label>
@@ -99,7 +99,7 @@
     </mat-form-field>
 
     <!-- Row 6: Decision Source (full width) -->
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Decision Source</mat-label>
       <mat-select formControlName="decisionSource">
         <mat-option [value]="null">— None —</mat-option>
@@ -124,3 +124,4 @@
     Save Changes
   </button>
 </mat-dialog-actions>
+

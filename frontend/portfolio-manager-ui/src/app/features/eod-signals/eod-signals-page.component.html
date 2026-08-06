@@ -1,16 +1,18 @@
-﻿<div class="eod-page">
-  <!-- ── Page Header ──────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
+﻿<div class="pb-12">
+  <!-- ── Page Header ────────────────────────────────────────── -->
+  <div class="flex items-start justify-between px-6 pt-5 pb-0 gap-3 flex-wrap max-[600px]:px-4">
+    <div class="flex items-start gap-3">
       <mat-icon class="page-icon">timeline</mat-icon>
       <div>
-        <h1 class="page-title">
+        <h1
+          class="m-0 mb-1 text-[1.2rem] font-bold tracking-[0.04em] uppercase flex items-center gap-2"
+        >
           EOD SIGNALS
           @if (totalCount() > 0) {
             <span class="count-badge">{{ totalCount() }}</span>
           }
         </h1>
-        <p class="page-sub">
+        <p class="m-0 text-[0.8rem] text-dim">
           Confirmed end-of-day signals · Lifecycle tracking · History
           @if (meta(); as m) {
             @if (m.minDate && m.maxDate) {
@@ -28,8 +30,7 @@
         }
       </div>
     </div>
-
-    <div class="page-actions">
+    <div class="flex items-center gap-1.5">
       <button mat-icon-button matTooltip="Refresh" (click)="loadSignals()" [disabled]="loading()">
         <mat-icon [class.spinning]="loading()">refresh</mat-icon>
       </button>
@@ -67,11 +68,19 @@
 
   <!-- ── Persist Progress Banner ──────────────────────────────────────── -->
   @if (persistingNow()) {
-    <div class="persist-banner" role="status" aria-live="polite">
-      <mat-icon class="persist-banner-icon spinning">save_alt</mat-icon>
-      <div class="persist-banner-text">
-        <span class="persist-banner-title">Persisting Scanner Results…</span>
-        <span class="persist-banner-sub">
+    <div
+      class="flex items-start gap-3 px-6 py-3 bg-[rgba(33,150,243,0.08)] border-l-[3px] border-l-[#2196f3]"
+      role="status"
+      aria-live="polite"
+    >
+      <mat-icon class="text-[#2196f3] text-[20px]! w-5! h-5! shrink-0 mt-0.5 spinning"
+        >save_alt</mat-icon
+      >
+      <div class="flex flex-col gap-0.5">
+        <span class="text-[0.82rem] font-bold text-[#1976d2] uppercase tracking-[0.05em]"
+          >Persisting Scanner Results…</span
+        >
+        <span class="text-[0.72rem] text-dim leading-snug">
           Evaluating EodConfirm + Confirmed signals from live scanner. This may take a few seconds.
         </span>
       </div>
@@ -81,10 +90,12 @@
 
   <!-- ── EOD Window Active Banner ─────────────────────────────────────── -->
   @if (eodWindowActive()) {
-    <div class="eod-banner eod-banner--active">
-      <mat-icon>access_time</mat-icon>
+    <div
+      class="flex items-center gap-2.5 px-6 py-2.5 text-[0.82rem] font-semibold flex-wrap border-l-[3px] border-l-[#4caf50] bg-[rgba(76,175,80,0.12)] text-[#2e7d32]"
+    >
+      <mat-icon class="text-[18px]! w-[18px]! h-[18px]! shrink-0">access_time</mat-icon>
       <span>EOD WINDOW ACTIVE — Background scanner is capturing signals</span>
-      <span class="eod-banner-hint"
+      <span class="text-[0.75rem] font-normal text-[rgba(46,125,50,0.75)] ml-auto"
         >Records will appear automatically · use <strong>Persist Now</strong> to capture
         immediately</span
       >
@@ -92,8 +103,14 @@
   }
 
   <!-- ── Filter Bar ────────────────────────────────────────────────────── -->
-  <div class="filter-bar">
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-ticker">
+  <div
+    class="flex flex-wrap gap-2.5 items-end px-6 py-4 bg-surface border-b border-edge sticky top-14 z-10"
+  >
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[170px] flex-[1_1_170px] max-w-[220px]"
+    >
       <mat-icon matPrefix>search</mat-icon>
       <mat-label>Ticker</mat-label>
       <input matInput [formControl]="tickerControl" placeholder="e.g. TD.TO" autocomplete="off" />
@@ -104,7 +121,11 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[130px] flex-[1_1_130px] max-w-[170px]"
+    >
       <mat-label>Scan Type</mat-label>
       <mat-select
         [value]="scanTypeFilter()"
@@ -117,7 +138,11 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[130px] flex-[1_1_130px] max-w-[170px]"
+    >
       <mat-label>Signal Type</mat-label>
       <mat-select
         [value]="signalTypeFilter()"
@@ -130,7 +155,11 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[130px] flex-[1_1_130px] max-w-[170px]"
+    >
       <mat-label>Signal State</mat-label>
       <mat-select
         [value]="signalStateFilter()"
@@ -143,7 +172,11 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[130px] flex-[1_1_130px] max-w-[170px]"
+    >
       <mat-label>Rule Version</mat-label>
       <mat-select
         [value]="ruleVersionFilter()"
@@ -156,7 +189,11 @@
       </mat-select>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[150px] flex-[1_1_150px] max-w-[185px]"
+    >
       <mat-label>Date From</mat-label>
       <input
         matInput
@@ -168,7 +205,11 @@
       <mat-datepicker #fromPicker></mat-datepicker>
     </mat-form-field>
 
-    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
+    <mat-form-field
+      appearance="outline"
+      subscriptSizing="dynamic"
+      class="min-w-[150px] flex-[1_1_150px] max-w-[185px]"
+    >
       <mat-label>Date To</mat-label>
       <input
         matInput
@@ -181,7 +222,7 @@
     </mat-form-field>
 
     @if (hasFilters()) {
-      <button mat-stroked-button class="clear-btn" (click)="clearFilters()">
+      <button mat-stroked-button class="self-center shrink-0 mt-0.5" (click)="clearFilters()">
         <mat-icon>filter_list_off</mat-icon>
         Clear
       </button>

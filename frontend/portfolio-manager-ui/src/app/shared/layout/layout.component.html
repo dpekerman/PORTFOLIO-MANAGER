@@ -8,9 +8,9 @@
     role="navigation"
     aria-label="App navigation"
   >
-    <div class="sidenav-brand">
+    <div class="flex items-center gap-2.5 px-5 pt-[18px] pb-4">
       <mat-icon class="sidenav-brand-icon">show_chart</mat-icon>
-      <span class="sidenav-brand-title">Portfolio Manager</span>
+      <span class="text-base font-bold tracking-[0.3px]">Portfolio Manager</span>
     </div>
 
     <mat-divider />
@@ -45,13 +45,15 @@
       </button>
 
       <!-- Brand (plain text – not a link) -->
-      <span class="toolbar-brand" aria-label="Portfolio Manager">
+      <span class="flex items-center gap-2 shrink-0 px-2 py-1" aria-label="Portfolio Manager">
         <mat-icon class="brand-icon">show_chart</mat-icon>
-        <span class="brand-title">Portfolio Manager</span>
+        <span class="text-base font-bold tracking-[0.3px] whitespace-nowrap max-[480px]:hidden"
+          >Portfolio Manager</span
+        >
       </span>
 
       <!-- Desktop nav links -->
-      <nav class="desktop-nav" aria-label="Main navigation">
+      <nav class="hidden md:flex items-center gap-0.5 ml-3" aria-label="Main navigation">
         @for (link of navLinks; track link.path) {
           <a
             mat-button
@@ -61,24 +63,24 @@
             [matTooltip]="link.label"
           >
             <mat-icon>{{ link.icon }}</mat-icon>
-            <span class="nav-link-text">{{ link.label }}</span>
+            <span class="hidden wide:inline">{{ link.label }}</span>
           </a>
         }
       </nav>
 
-      <span class="toolbar-spacer"></span>
+      <span class="flex-1"></span>
 
       <!-- Status notices -->
       @if (scanner.isDemo()) {
         <div class="status-badge status-warn" role="status" aria-live="polite">
           <mat-icon>vpn_key_off</mat-icon>
-          <span class="badge-text">Demo data</span>
+          <span class="max-[600px]:hidden">Demo data</span>
         </div>
       }
       @if (scanner.loading() && !scanner.isDemo()) {
         <div class="status-badge status-info" role="status" aria-live="polite">
           <mat-icon class="spinning">radar</mat-icon>
-          <span class="badge-text">Scanning…</span>
+          <span class="max-[600px]:hidden">Scanning…</span>
         </div>
       }
 
@@ -94,9 +96,12 @@
 
       <!-- Logged-in user + logout -->
       @if (authState.currentUser(); as user) {
-        <div class="user-chip" [matTooltip]="user.displayName + ' \u2022 ' + (user.roles[0] ?? '')">
+        <div
+          class="user-chip flex items-center gap-1.5 px-2 py-1 rounded-2xl cursor-default text-[0.8rem]"
+          [matTooltip]="user.displayName + ' \u2022 ' + (user.roles[0] ?? '')"
+        >
           <mat-icon class="user-chip-icon">account_circle</mat-icon>
-          <span class="user-chip-name">{{ user.displayName }}</span>
+          <span class="truncate hidden wide:block">{{ user.displayName }}</span>
         </div>
         <button mat-icon-button matTooltip="Sign out" (click)="logout()" aria-label="Sign out">
           <mat-icon>logout</mat-icon>
@@ -136,7 +141,7 @@
     }
 
     <!-- Page content -->
-    <main class="page-content" id="main-content" role="main">
+    <main class="flex-1 min-h-0 pb-12 bg-page" id="main-content" role="main">
       <router-outlet />
     </main>
   </mat-sidenav-content>

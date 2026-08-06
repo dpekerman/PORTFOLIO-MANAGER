@@ -1,10 +1,10 @@
-<div class="market-header">
+<div class="flex items-center gap-6 px-6 py-3.5 bg-app border-b border-edge flex-wrap">
   <!-- Left: Branding -->
-  <div class="brand-block">
+  <div class="flex items-center gap-2.5 min-w-[220px]">
     <mat-icon class="brand-icon">candlestick_chart</mat-icon>
-    <div class="brand-text">
-      <span class="brand-title">RSI Momentum Scanner</span>
-      <span class="brand-sub"
+    <div class="flex flex-col">
+      <span class="text-[0.95rem] font-bold tracking-[0.3px]">RSI Momentum Scanner</span>
+      <span class="text-[0.65rem] text-muted tracking-[1px] uppercase"
         >{{ scanner.market() || 'TSX' }} · {{ scanner.isDemo() ? 'DEMO MODE' : 'LIVE' }}</span
       >
     </div>
@@ -16,7 +16,7 @@
   </div>
 
   <!-- Center: Signal stats -->
-  <div class="signal-stats">
+  <div class="flex items-center gap-4 flex-1 justify-center">
     <div class="stat-tile oversold-tile">
       <span class="stat-number">{{ scanner.oversold().length }}</span>
       <div class="stat-detail">
@@ -43,7 +43,7 @@
 
   <!-- Right: Market Indices -->
   @if (scanner.marketIndices().length > 0) {
-    <div class="market-indices">
+    <div class="flex items-center gap-3 flex-wrap">
       @for (idx of scanner.marketIndices(); track idx.symbol) {
         <div class="index-tile" [matTooltip]="idx.symbol">
           <span class="index-name">{{ idx.name }}</span>

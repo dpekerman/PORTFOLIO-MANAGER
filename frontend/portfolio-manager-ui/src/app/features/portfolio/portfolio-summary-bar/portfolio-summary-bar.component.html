@@ -1,58 +1,74 @@
-<div class="summary-bar">
-  <div class="summary-tile">
-    <span class="label">Portfolio Value</span>
+<div
+  class="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3 px-6 py-3 bg-app border-b border-edge sticky top-0 z-[100] shadow-[0_2px_8px_rgba(0,0,0,0.3)]"
+>
+  <div
+    class="bg-surface border border-edge rounded-[10px] px-4 py-2.5 flex flex-col gap-1 transition-colors hover:border-edge-soft"
+  >
+    <span class="text-[0.68rem] text-muted uppercase tracking-[0.8px] font-semibold"
+      >Portfolio Value</span
+    >
     <span
-      class="value primary"
+      class="text-base font-bold font-mono flex items-center gap-1 text-accent"
       [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
       >{{ totalValue() | currency }}</span
     >
   </div>
-  <div class="summary-tile">
-    <span class="label">1 Day Change</span>
+  <div
+    class="bg-surface border border-edge rounded-[10px] px-4 py-2.5 flex flex-col gap-1 transition-colors hover:border-edge-soft"
+  >
+    <span class="text-[0.68rem] text-muted uppercase tracking-[0.8px] font-semibold"
+      >1 Day Change</span
+    >
     @let dayChange = oneDayChange();
     <span
-      class="value"
-      [class.positive]="dayChange !== null && dayChange > 0"
-      [class.negative]="dayChange !== null && dayChange < 0"
+      class="text-base font-bold font-mono flex items-center gap-1"
+      [class.text-up]="dayChange !== null && dayChange > 0"
+      [class.text-down]="dayChange !== null && dayChange < 0"
       [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
     >
       @if (oneDayChangeLoading()) {
-        <span class="dim">—</span>
+        <span class="text-faint">—</span>
       } @else if (dayChange !== null) {
         {{ dayChange >= 0 ? '+' : '' }}{{ dayChange | currency }}
       } @else {
-        <span class="dim">—</span>
+        <span class="text-faint">—</span>
       }
     </span>
   </div>
   <!-- Portfolio Beta mini-tile -->
   @if (betaState.result(); as beta) {
     <div
-      class="summary-tile summary-tile--beta"
+      class="summary-tile--beta bg-surface border border-edge flex flex-col gap-1 transition-colors hover:border-edge-soft"
       [class.beta-good]="beta.status === 'Good'"
       [class.beta-warn]="beta.status === 'Warning'"
       [class.beta-risk]="beta.status === 'TooMuchRisk'"
     >
-      <span class="label">Portfolio Beta</span>
+      <span class="text-[0.68rem] text-muted uppercase tracking-[0.8px] font-semibold"
+        >Portfolio Beta</span
+      >
       <span
-        class="value"
-        [class.positive]="beta.status === 'Good'"
-        [class.negative]="beta.status === 'TooMuchRisk'"
+        class="text-base font-bold font-mono flex items-center gap-1"
+        [class.text-up]="beta.status === 'Good'"
+        [class.text-down]="beta.status === 'TooMuchRisk'"
       >
         {{ beta.portfolioBeta | number: '1.2-2' }}
       </span>
-      <span class="beta-status">{{
+      <span class="text-[0.58rem] font-bold tracking-[0.5px] text-muted uppercase mt-px">{{
         beta.status === 'Good' ? 'Good' : beta.status === 'Warning' ? 'Warning' : 'High Risk'
       }}</span>
     </div>
   }
   <div
-    class="summary-tile"
+    class="bg-surface border border-edge rounded-[10px] px-4 py-2.5 flex flex-col gap-1 transition-colors hover:border-edge-soft"
     matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{
       cashState.items().length
     }} · Options: {{ optionState.items().length }}"
   >
-    <span class="label">Positions</span>
-    <span class="value">{{ totalPositions() }}</span>
+    <span class="text-[0.68rem] text-muted uppercase tracking-[0.8px] font-semibold"
+      >Positions</span
+    >
+    <span class="text-base font-bold font-mono flex items-center gap-1">{{
+      totalPositions()
+    }}</span>
   </div>
 </div>

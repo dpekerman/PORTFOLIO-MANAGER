@@ -14,7 +14,7 @@
   </div>
 
   <!-- Upload + template buttons -->
-  <div class="upload-row">
+  <div class="flex items-center gap-2.5 mb-4">
     <button mat-stroked-button (click)="fileInput.click()" [disabled]="importing()">
       <mat-icon>attach_file</mat-icon>
       {{ fileName() ?? 'Choose File' }}
@@ -23,7 +23,7 @@
       #fileInput
       type="file"
       accept=".xlsx,.xls,.csv"
-      class="hidden-input"
+      class="hidden"
       (change)="onFileSelected($event)"
     />
     <button mat-button (click)="downloadTemplate()" matTooltip="Download a sample .xlsx template">

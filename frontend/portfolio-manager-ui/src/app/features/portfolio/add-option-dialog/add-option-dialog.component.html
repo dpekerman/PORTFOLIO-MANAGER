@@ -4,9 +4,9 @@
 </h2>
 
 <mat-dialog-content>
-  <form [formGroup]="form" class="option-form">
+  <form [formGroup]="form" class="grid grid-cols-2 gap-[4px_10px] pt-2 min-w-[480px] w-full">
     <!-- Transaction Type (first field) -->
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Transaction Type</mat-label>
       <mat-select formControlName="transactionType">
         <mat-option value="OPEN">OPEN</mat-option>
@@ -17,8 +17,8 @@
       }
     </mat-form-field>
 
-    <div class="form-row">
-      <mat-form-field appearance="outline" class="field-ticker">
+    <div class="col-span-full flex gap-2.5">
+      <mat-form-field appearance="outline" class="flex-[2]">
         <mat-label>Underlying Ticker</mat-label>
         <input
           matInput
@@ -32,7 +32,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="field-type">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Position Type</mat-label>
         <mat-select formControlName="positionType">
           <mat-option value="PUT">PUT</mat-option>
@@ -41,7 +41,7 @@
       </mat-form-field>
     </div>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Expiration Date</mat-label>
       <input matInput [matDatepicker]="expiryPicker" formControlName="expirationDate" />
       <mat-datepicker-toggle matSuffix [for]="expiryPicker" />
@@ -51,8 +51,8 @@
       }
     </mat-form-field>
 
-    <div class="form-row">
-      <mat-form-field appearance="outline" class="field-half">
+    <div class="col-span-full flex gap-2.5">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Strike Price</mat-label>
         <span matTextPrefix>$&nbsp;</span>
         <input
@@ -68,7 +68,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="field-half">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Premium (per share)</mat-label>
         <span matTextPrefix>$&nbsp;</span>
         <input
@@ -85,8 +85,8 @@
       </mat-form-field>
     </div>
 
-    <div class="form-row">
-      <mat-form-field appearance="outline" class="field-half">
+    <div class="col-span-full flex gap-2.5">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Number of Contracts</mat-label>
         <input
           matInput
@@ -104,7 +104,7 @@
         }
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="field-half">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Current Market Price</mat-label>
         <span matTextPrefix>$&nbsp;</span>
         <input
@@ -121,7 +121,7 @@
       </mat-form-field>
     </div>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Account Type</mat-label>
       <mat-select formControlName="accountType">
         @for (acct of accountTypes; track acct) {
@@ -130,15 +130,15 @@
       </mat-select>
     </mat-form-field>
 
-    <div class="form-row">
-      <mat-form-field appearance="outline" class="field-half">
+    <div class="col-span-full flex gap-2.5">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Transaction Open Date</mat-label>
         <input matInput [matDatepicker]="openPicker" formControlName="openDate" />
         <mat-datepicker-toggle matSuffix [for]="openPicker" />
         <mat-datepicker #openPicker />
       </mat-form-field>
 
-      <mat-form-field appearance="outline" class="field-half">
+      <mat-form-field appearance="outline" class="flex-1">
         <mat-label>Transaction Close Date</mat-label>
         <input matInput [matDatepicker]="closePicker" formControlName="closeDate" />
         <mat-datepicker-toggle matSuffix [for]="closePicker" />
@@ -146,7 +146,7 @@
       </mat-form-field>
     </div>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Closing Price ($)</mat-label>
       <span matTextPrefix>$&nbsp;</span>
       <input
@@ -178,7 +178,7 @@
       }
     </div>
 
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Decision Source</mat-label>
       <mat-select formControlName="decisionSource">
         <mat-option [value]="null">— None —</mat-option>
@@ -201,3 +201,4 @@
     Add to Portfolio
   </button>
 </mat-dialog-actions>
+

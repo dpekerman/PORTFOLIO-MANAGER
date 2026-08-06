@@ -174,11 +174,21 @@ a.mat-mdc-button-base mat-icon {
   letter-spacing: 0.07em;
 }
 
-// -- Column Config button — embedded in sticky grid header (all grids) ----------
+// ── Column Config button — embedded in sticky grid header (all grids) ----------
 .col-config-th {
   width: 44px;
   min-width: 44px;
   padding: 4px 6px !important;
   text-align: right !important;
   vertical-align: middle !important;
+}
+
+// ── Loading spinner — used in toolbar, scanner, portfolio, watchlist ──────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }

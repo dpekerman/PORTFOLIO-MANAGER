@@ -1,16 +1,18 @@
-<div class="adhoc-analyzer">
+<div class="pb-8">
   <!-- ── Header ── -->
-  <div class="adhoc-header">
-    <div class="adhoc-title-group">
-      <mat-icon class="adhoc-icon">manage_search</mat-icon>
+  <div class="flex items-start px-6 pt-6 pb-3">
+    <div class="flex items-start gap-3">
+      <mat-icon class="text-[28px]! w-7! h-7! text-dim mt-0.5">manage_search</mat-icon>
       <div>
-        <h2 class="adhoc-title">
+        <h2
+          class="text-[0.875rem] font-bold tracking-[0.1em] text-dim uppercase m-0 mb-1 flex items-center gap-2"
+        >
           AD-HOC SYMBOL ANALYSIS
           @if (symbols().length > 0) {
             <span class="count-badge neutral-badge">{{ symbols().length }}</span>
           }
         </h2>
-        <p class="adhoc-sub">
+        <p class="text-[0.75rem] text-muted m-0">
           Enter any stock ticker to get full RSI + technical analysis · Max 20 symbols
         </p>
       </div>
@@ -18,7 +20,7 @@
   </div>
 
   <!-- ── Input Row ── -->
-  <div class="adhoc-input-row">
+  <div class="flex items-start gap-3 px-6 pb-4 flex-wrap">
     <!-- Chip list -->
     <mat-chip-set class="symbol-chips" aria-label="Symbols to analyze">
       @for (sym of symbols(); track sym) {
@@ -54,7 +56,7 @@
     </mat-form-field>
 
     <!-- Action buttons -->
-    <div class="adhoc-actions">
+    <div class="flex items-center gap-2 pt-1">
       <button
         mat-flat-button
         class="analyze-btn"
@@ -92,8 +94,8 @@
 
   <!-- ── Loading ── -->
   @if (loading()) {
-    <div class="adhoc-results">
-      <p class="loading-hint">
+    <div class="adhoc-results px-6">
+      <p class="flex items-center gap-2 text-[0.8rem] text-muted mb-4">
         <mat-icon class="spinning">radar</mat-icon>
         Fetching 2 years of price history per symbol from Yahoo Finance… This may take 5–30 seconds
         depending on the number of symbols.
@@ -112,7 +114,7 @@
         >
       </div>
     } @else {
-      <div class="adhoc-results">
+      <div class="px-6">
         @if (oversoldResults().length > 0) {
           <div class="adhoc-result-section">
             <div class="result-section-label oversold-label">

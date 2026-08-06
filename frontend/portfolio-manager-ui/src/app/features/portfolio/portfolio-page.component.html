@@ -1,21 +1,25 @@
-<div class="portfolio-page">
+<div class="pb-12">
   <!-- Section Header -->
-  <section class="portfolio-section">
-    <div class="section-header">
-      <div class="section-title-group">
+  <section class="px-6 pt-5 pb-4 max-[600px]:px-4">
+    <div class="flex items-center justify-between flex-wrap gap-3 mb-3.5">
+      <div class="flex items-center gap-3">
         <mat-icon class="section-icon">account_balance_wallet</mat-icon>
         <div>
-          <h2 class="section-title">
+          <h2
+            class="m-0 text-[0.8rem] font-extrabold tracking-[1.5px] text-dim uppercase flex items-center gap-2"
+          >
             MY PORTFOLIO
             <span class="count-badge">{{
               portfolio.summaries().length + cashState.items().length + optionState.items().length
             }}</span>
           </h2>
-          <p class="section-sub">Stocks · Cash · Options · Live prices active with API key</p>
+          <p class="m-0 mt-0.5 text-[0.7rem] text-faint tracking-[0.3px]">
+            Stocks · Cash · Options · Live prices active with API key
+          </p>
         </div>
       </div>
 
-      <div class="section-actions">
+      <div class="flex items-center gap-1.5 flex-wrap">
         <mat-button-toggle-group
           [value]="viewMode()"
           (change)="viewMode.set($event.value)"
@@ -81,7 +85,7 @@
           matTooltip="Import positions from Excel/CSV"
         >
           <mat-icon>upload_file</mat-icon>
-          <span class="btn-text">Import</span>
+          <span class="max-[480px]:hidden">Import</span>
         </button>
         <button
           mat-flat-button
@@ -90,7 +94,7 @@
           [style.display]="authState.canWrite() ? null : 'none'"
         >
           <mat-icon>add</mat-icon>
-          <span class="btn-text">Add Stock</span>
+          <span class="max-[480px]:hidden">Add Stock</span>
         </button>
         <button
           mat-flat-button
@@ -114,7 +118,11 @@
     </div>
 
     @if (portfolio.loading()) {
-      <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio...">
+      <div
+        class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 mt-4 max-[480px]:grid-cols-1 max-[480px]:gap-3 skeleton-grid"
+        aria-busy="true"
+        aria-label="Loading portfolio..."
+      >
         @for (i of skeletonItems; track i) {
           <app-stock-card-skeleton />
         }
@@ -140,9 +148,13 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Market Value</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
-                    dv(portfolio.totalValue()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
-                  }}</span>
+                  <span
+                    class="stat-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >{{
+                      dv(portfolio.totalValue()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                    }}</span
+                  >
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Day $</span>
@@ -268,7 +280,10 @@
                   >{{ gridItemCount() }} / {{ portfolio.summaries().length }}</span
                 >
                 @if (filteredTotalMktValue() !== null) {
-                  <span class="gf-filtered-total" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                  <span
+                    class="gf-filtered-total"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                  >
                     <span class="gf-ft-label">{{ filterAccount() }} total:</span>
                     {{ filteredTotalMktValue()! | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
                   </span>
@@ -556,7 +571,9 @@
                         <span
                           [class.pg-pos]="asAgg(row).totalGainLoss >= 0"
                           [class.pg-neg]="asAgg(row).totalGainLoss < 0"
-                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                          [class.demo-redact]="
+                            demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                          "
                           ><strong>{{
                             asAgg(row).totalGainLoss | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
                           }}</strong></span
@@ -573,7 +590,9 @@
                         <span
                           [class.pg-pos]="gl >= 0"
                           [class.pg-neg]="gl < 0"
-                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                          [class.demo-redact]="
+                            demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                          "
                           >{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</span
                         >
                       }
@@ -711,7 +730,9 @@
                         <span
                           [class.pg-pos]="adg >= 0"
                           [class.pg-neg]="adg < 0"
-                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                          [class.demo-redact]="
+                            demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                          "
                           ><strong
                             >{{ adg >= 0 ? '+' : ''
                             }}{{ adg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</strong
@@ -722,7 +743,9 @@
                         <span
                           [class.pg-pos]="dg >= 0"
                           [class.pg-neg]="dg < 0"
-                          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                          [class.demo-redact]="
+                            demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                          "
                           >{{ dg >= 0 ? '+' : ''
                           }}{{ dg | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}</span
                         >
@@ -1013,8 +1036,12 @@
             } @else {
               <!-- STOCKS: CARD VIEW -->
               @if (portfolio.hasSelection()) {
-                <div class="bulk-toolbar bulk-active">
-                  <span class="bulk-count">{{ portfolio.selectedCount() }} selected</span>
+                <div
+                  class="flex items-center gap-2.5 px-3.5 py-2.5 my-3 rounded-[10px] flex-wrap bg-elevated border border-edge-soft"
+                >
+                  <span class="text-[0.8rem] font-bold text-accent"
+                    >{{ portfolio.selectedCount() }} selected</span
+                  >
                   <button mat-stroked-button (click)="portfolio.clearSelection()">
                     <mat-icon>deselect</mat-icon> Clear
                   </button>
@@ -1028,15 +1055,22 @@
                   </button>
                 </div>
               } @else {
-                <div class="bulk-toolbar bulk-hint">
-                  <mat-icon>check_box_outline_blank</mat-icon>
+                <div
+                  class="flex items-center gap-2.5 px-3.5 py-2.5 my-3 rounded-[10px] flex-wrap border border-dashed border-edge-soft text-faint text-[0.75rem]"
+                >
+                  <mat-icon class="text-[16px]! w-4! h-4! opacity-50"
+                    >check_box_outline_blank</mat-icon
+                  >
                   <span>Check boxes on cards to select multiple positions for bulk removal</span>
                   <button mat-button (click)="portfolio.selectAll()">Select All</button>
                 </div>
               }
-              <div class="sort-bar">
-                <span class="sort-label">Sort by:</span>
-                <div class="sort-chips">
+              <div class="flex items-center gap-2 py-2 pb-1 flex-wrap">
+                <span
+                  class="text-[0.75rem] font-semibold tracking-[0.06em] text-dim uppercase whitespace-nowrap"
+                  >Sort by:</span
+                >
+                <div class="flex flex-wrap gap-1">
                   <button
                     mat-button
                     [class.sort-active]="sortField() === 'default'"
@@ -1125,7 +1159,11 @@
                   </button>
                 </div>
               </div>
-              <div class="stock-grid" role="list" aria-label="Portfolio positions">
+              <div
+                class="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4 mt-4 max-[480px]:grid-cols-1 max-[480px]:gap-3"
+                role="list"
+                aria-label="Portfolio positions"
+              >
                 @for (summary of sortedSummaries(); track summary.item.id) {
                   <app-stock-card [summary]="summary" [rsi]="rsiForSymbol(summary.item.symbol)" />
                 }
@@ -1149,9 +1187,13 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Total Cash</span>
-                  <span class="stat-value pg-pos" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
-                    dv(cashState.totalCash()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
-                  }}</span>
+                  <span
+                    class="stat-value pg-pos"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >{{
+                      dv(cashState.totalCash()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                    }}</span
+                  >
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Positions</span>
@@ -1257,7 +1299,10 @@
                       <mat-icon>payments</mat-icon>
                       <span class="cash-card-label">{{ c.description }}</span>
                     </div>
-                    <div class="cash-card-amount" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                    <div
+                      class="cash-card-amount"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >
                       {{ dv(c.amount) | currency }}
                     </div>
                     <div class="cash-card-date">Added {{ c.addedAt | date: 'MMM d, yyyy' }}</div>
@@ -1301,15 +1346,24 @@
               <div class="subsection-meta">
                 <div class="subsection-stat">
                   <span class="stat-label">Market Value</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
-                    dv(optionState.totalMarketValue()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
-                  }}</span>
+                  <span
+                    class="stat-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >{{
+                      dv(optionState.totalMarketValue())
+                        | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                    }}</span
+                  >
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Cost</span>
-                  <span class="stat-value" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
-                    dv(optionState.totalCost()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
-                  }}</span>
+                  <span
+                    class="stat-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >{{
+                      dv(optionState.totalCost()) | currency: 'USD' : 'symbol-narrow' : '1.0-0'
+                    }}</span
+                  >
                 </div>
                 <div class="subsection-stat">
                   <span class="stat-label">Gain / Loss</span>

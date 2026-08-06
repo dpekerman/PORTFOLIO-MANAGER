@@ -1,13 +1,4 @@
-﻿// ── Page layout ───────────────────────────────────────────────────────────────
-.config-page {
-  padding: 24px;
-  padding-top: 16px; // sticky bar handles top spacing
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-// ── Tab Navigation ───────────────────────────────────────────────────────────
+﻿// ── Tab Navigation ───────────────────────────────────────────────────────────
 .cfg-tab-nav {
   display: flex;
   flex-wrap: wrap;
@@ -113,59 +104,13 @@
 // ── Sticky global save/reset bar ──────────────────────────────────────────────
 .sticky-save-bar {
   position: sticky;
-  top: 56px; // below the app toolbar
+  top: 56px;
   z-index: 50;
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border-color);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
-  margin: 0 -24px; // bleed to full width
+  margin: 0 -24px;
   padding: 0 24px;
-}
-
-.sticky-save-bar-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 0;
-  gap: 16px;
-}
-
-.sticky-save-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sticky-icon {
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.sticky-title {
-  display: block;
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  line-height: 1.2;
-}
-
-.sticky-sub {
-  display: block;
-  font-size: 0.66rem;
-  color: var(--text-faint);
-  line-height: 1.2;
-}
-
-.sticky-save-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
 }
 
 .page-header {

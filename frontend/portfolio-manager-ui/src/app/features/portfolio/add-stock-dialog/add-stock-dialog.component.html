@@ -4,7 +4,7 @@
 </h2>
 
 <mat-dialog-content>
-  <form [formGroup]="form" class="dialog-form">
+  <form [formGroup]="form" class="grid grid-cols-2 gap-[4px_10px] pt-2 min-w-[480px] w-full">
     <!-- Row 1: Transaction Type | Account Type -->
     <mat-form-field appearance="outline">
       <mat-label>Transaction Type</mat-label>
@@ -24,7 +24,7 @@
     </mat-form-field>
 
     <!-- Row 2: Symbol (full width) -->
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Stock Symbol</mat-label>
       <input
         matInput
@@ -59,7 +59,7 @@
     </mat-form-field>
 
     <!-- Row 3: Company Name (full width) -->
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Company Name</mat-label>
       <input matInput formControlName="companyName" placeholder="e.g. Apple Inc." />
       @if (form.controls.companyName.hasError('required') && form.controls.companyName.touched) {
@@ -124,7 +124,7 @@
     </mat-form-field>
 
     <!-- Row 6: Closing Price (full width) -->
-    <mat-form-field appearance="outline" class="full-width">
+    <mat-form-field appearance="outline" class="col-span-full w-full">
       <mat-label>Closing Price ($)</mat-label>
       <span matTextPrefix>$&nbsp;</span>
       <input
