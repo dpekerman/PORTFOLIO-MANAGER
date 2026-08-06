@@ -1,0 +1,15 @@
+{
+  "todo-tree.filtering.excludeGlobs": [
+    "**/node_modules/**",
+    "**/bin/**",
+    "**/obj/**",
+    "**/dist/**"
+  ],
+  "todo-tree.general.rootFolder": "${workspaceFolder}",
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bin": true,
+    "**/obj": true,
+    "**/dist": true
+  }
+}

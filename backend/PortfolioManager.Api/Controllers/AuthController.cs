@@ -28,9 +28,9 @@ public class AuthController(
 
     [HttpPost("setup")]
     [AllowAnonymous]
-    public async Task<ActionResult<AuthResponse>> Setup([FromBody] SetupRequest request)
+    public async Task<ActionResult<AuthResponse>> Setup([FromBody] SetupRequest request, CancellationToken ct)
     {
-        if (await userManager.Users.AnyAsync())
+        if (await userManager.Users.AnyAsync(ct))
             return Conflict(new { message = "System already configured. Contact an administrator." });
 
         if (request.Password != request.ConfirmPassword)
@@ -49,18 +49,18 @@ public class AuthController(
             return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
 
         await userManager.AddToRoleAsync(user, "Admin");
-        return await IssueTokensAsync(user);
+        return await IssueTokensAsync(user, ct);
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
             return Unauthorized(new { message = "Invalid email or password." });
 
-        return await IssueTokensAsync(user);
+        return await IssueTokensAsync(user, ct);
     }
 
     [HttpPost("refresh")]
@@ -83,7 +83,7 @@ public class AuthController(
         stored.IsRevoked = true;
         await db.SaveChangesAsync(ct);
 
-        return await IssueTokensAsync(stored.User);
+        return await IssueTokensAsync(stored.User, ct);
     }
 
     [HttpPost("logout")]
@@ -117,7 +117,7 @@ public class AuthController(
         return Ok(new UserInfoDto(user.Id, user.DisplayName, user.Email!, roles));
     }
 
-    private async Task<ActionResult<AuthResponse>> IssueTokensAsync(ApplicationUser user)
+    private async Task<ActionResult<AuthResponse>> IssueTokensAsync(ApplicationUser user, CancellationToken ct = default)
     {
         var roles = await userManager.GetRolesAsync(user);
         var accessToken = tokenService.GenerateAccessToken(user, roles);
@@ -133,7 +133,7 @@ public class AuthController(
             IsRevoked = false,
             CreatedAt = DateTime.UtcNow
         });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(ct);
 
         Response.Cookies.Append("refreshToken", rawToken, new CookieOptions
         {

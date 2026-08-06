@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -29,10 +29,11 @@ import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
     ScannerRowSkeletonComponent,
   ],
 })
-export class AdhocAnalyzerComponent implements OnDestroy {
+export class AdhocAnalyzerComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly config = inject(ConfigService);
   private readonly scannerState = inject(ScannerStateService);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly logicMode = this.scannerState.logicMode;
 
@@ -52,8 +53,8 @@ export class AdhocAnalyzerComponent implements OnDestroy {
   protected readonly neutralResults = () =>
     this.results().filter((r) => r.scanType !== 'Oversold' && r.scanType !== 'Overbought');
 
-  ngOnDestroy(): void {
-    this.persistSession();
+  constructor() {
+    this.destroyRef.onDestroy(() => this.persistSession());
   }
 
   private persistSession(): void {
