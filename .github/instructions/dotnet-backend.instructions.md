@@ -5,6 +5,30 @@ description: "Portfolio Manager .NET 8 backend conventions. Use when adding cont
 
 # Backend Conventions
 
+## Authorization
+
+- **All controllers require `[Authorize]`** unless explicitly public.
+- Role-restricted actions use `[Authorize(Roles = "Admin")]` or `[Authorize(Roles = "Admin,Trader")]`.
+- Public auth endpoints (login, refresh, setup) use `[AllowAnonymous]`.
+
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]                          // ← required on every controller
+public class FooController(IFooService service) : ControllerBase { }
+```
+
+## Async Methods
+
+- Every `async` controller action and service method **must** accept `CancellationToken ct` and pass it to all async calls.
+- Do **not** use `Task.Run` inside services — use `async/await` throughout.
+
+```csharp
+[HttpGet]
+public async Task<IActionResult> GetAll(CancellationToken ct)
+    => Ok(await service.GetAllAsync(ct));
+```
+
 ## Service Pattern
 
 Always interface + implementation. Register in `Program.cs`:
@@ -34,9 +58,10 @@ New C# enum **must** have a matching TypeScript string union in `frontend/.../po
 
 ## Key Files
 
-| File                           | Purpose                                         |
-| ------------------------------ | ----------------------------------------------- |
-| `Program.cs`                   | Service registration, CORS, middleware pipeline |
-| `appsettings.json`             | Connection string, scanner EOD window config    |
-| `notification-recipients.json` | Email targets (not in DB)                       |
-| `ScannerRuntimeConfig.cs`      | Override EOD window for tests                   |
+| File                           | Purpose                                           |
+| ------------------------------ | ------------------------------------------------- |
+| `Program.cs`                   | Service registration, CORS, middleware pipeline   |
+| `appsettings.json`             | Connection string, scanner EOD window config      |
+| `notification-recipients.json` | Email targets (not in DB)                         |
+| `ScannerRuntimeConfig.cs`      | Override EOD window for tests                     |
+| `AuthController.cs`            | Login / refresh / logout / setup (AllowAnonymous) |

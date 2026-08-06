@@ -23,6 +23,7 @@ export class FooBarApiService {
 
 ```typescript
 import { Injectable, computed, inject, signal } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { FooBarItem } from "../models/portfolio.models";
 import { DemoModeService } from "./demo-mode.service";
@@ -45,16 +46,19 @@ export class FooBarStateService {
 
   load(): void {
     this._loading.set(true);
-    this.api.getAll().subscribe({
-      next: (data) => {
-        this._items.set(data);
-        this._loading.set(false);
-      },
-      error: (e) => {
-        this._error.set("Failed to load");
-        this._loading.set(false);
-      },
-    });
+    this.api
+      .getAll()
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (data) => {
+          this._items.set(data);
+          this._loading.set(false);
+        },
+        error: () => {
+          this._error.set("Failed to load");
+          this._loading.set(false);
+        },
+      });
   }
 }
 ```
@@ -94,7 +98,7 @@ export class FooBarPageComponent implements OnInit {
 <mat-spinner />
 } @else if (state.error()) {
 <p class="error">{{ state.error() }}</p>
-} @else { @for (item of state.items(); track item.id) {
+} @else { @let items = state.items(); @for (item of items; track item.id) {
 <div>{{ item.name }}</div>
 } }
 ```
