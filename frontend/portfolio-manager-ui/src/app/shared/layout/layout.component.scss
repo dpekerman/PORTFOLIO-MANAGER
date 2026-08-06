@@ -9,26 +9,42 @@
 .app-sidenav {
   width: 260px;
   background: var(--bg-surface);
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color) !important;
 
   .sidenav-brand-icon {
-    color: #1565c0;
-    font-size: 24px;
+    color: #1976d2;
+    font-size: 22px;
   }
 
-  // Beats Material's mat-list-item default colour + background
+  // Active nav item
   .sidenav-active {
     color: #64b5f6 !important;
-    background: rgba(100, 181, 246, 0.08) !important;
+    background: rgba(100, 181, 246, 0.1) !important;
     border-left: 3px solid #64b5f6;
 
     mat-icon {
       color: #64b5f6 !important;
     }
   }
+
+  // Default nav item
+  .mat-mdc-list-item {
+    border-left: 3px solid transparent;
+    transition: background 0.12s, color 0.12s;
+    color: var(--text-secondary) !important;
+
+    mat-icon {
+      color: var(--text-muted) !important;
+    }
+
+    &:hover:not(.sidenav-active) {
+      background: var(--bg-hover) !important;
+      color: var(--text-primary) !important;
+    }
+  }
 }
 
-// ── Main content area (Material sidenav-content host) ────────────────────────
+// ── Main content area ─────────────────────────────────────────────────────────
 .app-main {
   display: flex;
   flex-direction: column;
@@ -36,57 +52,56 @@
   background: var(--bg-page);
 }
 
-// ── Sticky toolbar (Material component host — can't be replaced with Tailwind) ─
+// ── Sticky top toolbar ────────────────────────────────────────────────────────
 .app-toolbar {
   position: sticky;
   top: 0;
   z-index: 100;
-  height: 56px;
-  min-height: 56px;
-  padding: 0 8px 0 4px;
-  background: var(--bg-app);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 12px var(--shadow-card);
-  gap: 4px;
+  height: 56px !important;
+  min-height: 56px !important;
+  padding: 0 8px 0 4px !important;
+  background: var(--bg-app) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  // Subtle bottom glow that gives the bar visual weight
+  box-shadow: 0 1px 0 var(--border-color), 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  gap: 2px;
 
-  // Hamburger — hidden on desktop, visible on mobile only
+  // Hamburger — hidden on desktop
   .hamburger-btn {
     display: none;
-    @media (max-width: 768px) { display: inline-flex; }
+    @media (max-width: 767px) { display: inline-flex; }
   }
 
   .brand-icon {
-    color: #1565c0;
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
+    color: #1976d2;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
   }
 
-  // Material mat-button — needs explicit colour + size overrides
+  // Desktop nav links
   .nav-link {
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    letter-spacing: 0.3px;
-    border-radius: 8px;
-    height: 36px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.2px;
+    border-radius: 6px;
+    height: 34px;
     padding: 0 10px;
     min-width: 36px;
-    transition:
-      color 0.15s,
-      background 0.15s;
+    transition: color 0.12s, background 0.12s;
+    position: relative;
 
     mat-icon {
-      font-size: 16px;
-      width: 16px;
-      height: 16px;
-      margin-right: 4px;
+      font-size: 17px;
+      width: 17px;
+      height: 17px;
+      margin-right: 5px;
     }
 
+    // Icon-only at narrow viewport
     @media (max-width: 1400px) {
       padding: 0 8px;
-      mat-icon {
-        margin-right: 0;
-      }
+      mat-icon { margin-right: 0; }
     }
 
     &:hover {
@@ -94,79 +109,99 @@
       background: var(--bg-hover);
     }
 
+    // Active indicator: underline + tint
     &.nav-link-active {
       color: #64b5f6;
       background: rgba(100, 181, 246, 0.1);
       font-weight: 600;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 8px;
+        right: 8px;
+        height: 2px;
+        background: #64b5f6;
+        border-radius: 2px 2px 0 0;
+      }
     }
   }
 
-  // Status badges use rgba() tints not expressible as static Tailwind tokens
+  // Status badges
   .status-badge {
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 0.72rem;
-    padding: 4px 10px;
-    border-radius: 16px;
-    margin-right: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 99px;
+    margin-right: 2px;
     flex-shrink: 0;
+    letter-spacing: 0.02em;
 
     mat-icon {
-      font-size: 14px;
-      width: 14px;
-      height: 14px;
+      font-size: 13px;
+      width: 13px;
+      height: 13px;
     }
 
     &.status-warn {
       background: rgba(255, 167, 38, 0.08);
-      border: 1px solid rgba(255, 167, 38, 0.2);
+      border: 1px solid rgba(255, 167, 38, 0.22);
       color: #ffa726;
     }
 
     &.status-info {
       background: rgba(100, 181, 246, 0.08);
-      border: 1px solid rgba(100, 181, 246, 0.2);
+      border: 1px solid rgba(100, 181, 246, 0.22);
       color: #64b5f6;
     }
   }
 
-  // Material icon-button colour override (attribute selector, not a class)
+  // Icon button colour
   button[mat-icon-button] {
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    border-radius: 6px;
+    transition: color 0.12s, background 0.12s;
 
     &:hover:not([disabled]) {
       color: var(--text-primary);
-    }
-    &.demo-active {
-      color: #ffa726;
+      background: var(--bg-hover);
     }
   }
 
-  // User chip: only non-Tailwindable props (Material system var + max-width)
+  // User chip
   .user-chip {
-    background: var(--mat-sys-surface-container-high);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
     max-width: 140px;
+    transition: border-color 0.12s;
+
+    &:hover {
+      border-color: var(--border-subtle);
+    }
 
     .user-chip-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
       color: var(--mat-sys-primary);
       flex-shrink: 0;
     }
   }
 }
 
-// ── Demo mode banner (template comment-gated) ─────────────────────────────────
+// ── Demo mode banner (template-gated) ────────────────────────────────────────
 .demo-banner {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 6px 20px;
-  background: rgba(255, 167, 38, 0.12);
-  border-bottom: 1px solid rgba(255, 167, 38, 0.3);
+  background: rgba(255, 167, 38, 0.1);
+  border-bottom: 1px solid rgba(255, 167, 38, 0.25);
   color: #ffa726;
   font-size: 0.78rem;
   font-weight: 600;
@@ -176,9 +211,9 @@
   z-index: 98;
 
   mat-icon {
-    font-size: 16px;
-    width: 16px;
-    height: 16px;
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
   }
 
   .demo-banner-btn {
@@ -191,7 +226,7 @@
   }
 }
 
-// ── Sticky global progress bar ────────────────────────────────────────────────
+// ── Global progress bar (sticky below toolbar) ────────────────────────────────
 .global-loader {
   position: sticky;
   top: 56px;

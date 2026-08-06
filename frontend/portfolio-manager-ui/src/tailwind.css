@@ -1,4 +1,7 @@
 /* Tailwind CSS v4 — no preflight/base to avoid conflicts with Angular Material */
+/* Explicit layer order: utilities win over components which win over base */
+@layer theme, base, components, utilities;
+
 @import 'tailwindcss/theme' layer(theme);
 @import 'tailwindcss/utilities' layer(utilities);
 
@@ -36,4 +39,394 @@
   --color-accent: #64b5f6;
   --color-badge: #1565c0;
   --color-warn: #ffa726;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE — global resets that don't conflict with Angular Material
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer base {
+  /* Thin, themed scrollbar across the app */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-subtle) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 99px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--text-faint);
+  }
+
+  /* Selection tint matching accent colour */
+  ::selection {
+    background: rgba(100, 181, 246, 0.22);
+    color: inherit;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPONENTS — reusable, app-wide UI patterns
+   Component-scoped SCSS rules win automatically due to Angular's
+   [_ngcontent] attribute selector specificity.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+  /* ── Page section wrapper ── */
+  .page-section {
+    padding: 20px 24px 16px;
+  }
+  @media (max-width: 600px) {
+    .page-section {
+      padding: 14px 16px 12px;
+    }
+  }
+
+  /* ── Page header row (title + actions) ── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  /* ── Icon + text title group ── */
+  .page-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* ── Page heading (ALL-CAPS label style) ── */
+  .page-heading {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Page sub-label ── */
+  .page-sub {
+    margin: 3px 0 0;
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Count badge — monospace pill ── */
+  .count-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 99px;
+    font-family: 'Roboto Mono', monospace;
+    letter-spacing: 0.02em;
+    line-height: 1.6;
+    background: rgba(100, 181, 246, 0.1);
+    color: #64b5f6;
+    border: 1px solid rgba(100, 181, 246, 0.2);
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  /* ── Stroked action button (accent border) ── */
+  .action-btn {
+    font-size: 0.8rem !important;
+    height: 34px !important;
+    border-color: rgba(100, 181, 246, 0.35) !important;
+    color: #64b5f6 !important;
+  }
+  .action-btn:hover:not([disabled]) {
+    background: rgba(100, 181, 246, 0.06) !important;
+  }
+
+  /* ── Primary filled action button ── */
+  .action-btn-primary {
+    background: #1565c0 !important;
+    color: #fff !important;
+    font-size: 0.82rem !important;
+    height: 34px !important;
+  }
+  .action-btn-primary:hover:not([disabled]) {
+    background: #1976d2 !important;
+  }
+
+  /* ── Danger action button ── */
+  .action-btn-danger {
+    font-size: 0.8rem !important;
+    height: 34px !important;
+    border-color: rgba(239, 83, 80, 0.35) !important;
+    color: #ef9a9a !important;
+  }
+  .action-btn-danger:hover:not([disabled]) {
+    background: rgba(239, 83, 80, 0.06) !important;
+  }
+
+  /* ── Surface card ── */
+  .card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+  }
+
+  .card-elevated {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px var(--shadow-card);
+  }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 24px 12px;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 600px) {
+    .filter-bar {
+      padding: 0 16px 10px;
+      gap: 8px;
+    }
+  }
+
+  /* ── Sticky filter bar (attaches below 56px toolbar) ── */
+  .filter-bar-sticky {
+    position: sticky;
+    top: 56px;
+    z-index: 10;
+    background: var(--bg-page);
+  }
+
+  /* ── Scrollable data-table wrapper ── */
+  .table-container {
+    padding: 0 24px 32px;
+    overflow-x: auto;
+  }
+  @media (max-width: 600px) {
+    .table-container {
+      padding: 0 0 24px;
+    }
+  }
+
+  /* ── Empty / zero-state block ── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 64px 24px;
+    text-align: center;
+  }
+
+  .empty-icon {
+    font-size: 52px;
+    width: 52px;
+    height: 52px;
+    color: var(--text-faint);
+    opacity: 0.45;
+  }
+
+  .empty-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .empty-sub {
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--text-faint);
+    max-width: 320px;
+    line-height: 1.55;
+  }
+
+  /* ── Section divider — fades to transparent at edges ── */
+  .section-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--border-color) 15%,
+      var(--border-color) 85%,
+      transparent
+    );
+    margin: 0 24px;
+  }
+
+  /* ── Info / warning / error banners ── */
+  .banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    font-size: 0.82rem;
+    flex-wrap: wrap;
+  }
+  @media (max-width: 600px) {
+    .banner {
+      padding: 8px 16px;
+    }
+  }
+
+  .banner-warn {
+    background: rgba(255, 152, 0, 0.07);
+    border-bottom: 1px solid rgba(255, 152, 0, 0.25);
+    color: #ffa726;
+  }
+
+  .banner-info {
+    background: rgba(100, 181, 246, 0.06);
+    border-bottom: 1px solid rgba(100, 181, 246, 0.2);
+    color: #64b5f6;
+  }
+
+  .banner-error {
+    background: rgba(211, 47, 47, 0.07);
+    border: 1px solid rgba(211, 47, 47, 0.25);
+    border-radius: 8px;
+    color: #ef9a9a;
+    margin: 16px 24px;
+    padding: 12px 16px;
+  }
+
+  .banner-success {
+    background: rgba(0, 200, 83, 0.06);
+    border: 1px solid rgba(0, 200, 83, 0.2);
+    border-radius: 8px;
+    color: #00c853;
+    margin: 16px 24px;
+    padding: 12px 16px;
+  }
+
+  /* ── Spinning icon ── */
+  .spinning {
+    animation: pm-spin 1s linear infinite;
+  }
+
+  /* ── Monospace timestamp ── */
+  .timestamp {
+    font-size: 0.7rem;
+    color: var(--text-faint);
+    font-family: 'Roboto Mono', monospace;
+    white-space: nowrap;
+  }
+
+  /* ── Status pill (coloured inline status indicator) ── */
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+
+  .status-pill-up {
+    background: rgba(0, 200, 83, 0.1);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.2);
+  }
+
+  .status-pill-down {
+    background: rgba(255, 82, 82, 0.1);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.2);
+  }
+
+  .status-pill-warn {
+    background: rgba(255, 152, 0, 0.1);
+    color: #ffa726;
+    border: 1px solid rgba(255, 152, 0, 0.2);
+  }
+
+  .status-pill-accent {
+    background: rgba(100, 181, 246, 0.1);
+    color: #64b5f6;
+    border: 1px solid rgba(100, 181, 246, 0.2);
+  }
+
+  /* ── KPI metric card ── */
+  .kpi-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 18px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    min-width: 140px;
+    transition:
+      box-shadow 0.15s,
+      border-color 0.15s;
+  }
+
+  .kpi-card:hover {
+    border-color: var(--border-subtle);
+    box-shadow: 0 4px 16px var(--shadow-card);
+  }
+
+  .kpi-label {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .kpi-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-primary);
+    line-height: 1.1;
+  }
+
+  .kpi-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+}
+
+/* ── Keyframe shared across the app ──────────────────────────────────────── */
+@keyframes pm-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Keep legacy .spinning compatible with @keyframes spin from component SCSS */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

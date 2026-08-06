@@ -37,32 +37,37 @@ body.light-theme {
   --bg-page: #0d0d0d;
   --bg-surface: #161616;
   --bg-elevated: #1e1e1e;
-  --bg-hover: #222222;
+  --bg-hover: #1c1c1c;
   --bg-border: #2a2a2a;
   --text-primary: #ececec;
   --text-secondary: #c0c0c0;
   --text-muted: #8c8c8c;
   --text-faint: #6b6b6b;
-  --border-color: #2a2a2a;
-  --border-subtle: #333333;
-  --shadow-card: rgba(0, 0, 0, 0.4);
+  --border-color: #252525;
+  --border-subtle: #303030;
+  --shadow-card: rgba(0, 0, 0, 0.45);
+  // Accent token (primary blue)
+  --accent: #1565c0;
+  --accent-light: #64b5f6;
 }
 
 // ── CSS Custom Properties — Light ─────────────────────────────────────────────
 body.light-theme {
-  --bg-app: #ffffff;
-  --bg-page: #f5f5f5;
+  --bg-app: #fafafa;
+  --bg-page: #f2f4f7;
   --bg-surface: #ffffff;
-  --bg-elevated: #f0f0f0;
-  --bg-hover: #e8e8e8;
+  --bg-elevated: #f0f2f5;
+  --bg-hover: #e8eaed;
   --bg-border: #bdbdbd;
   --text-primary: #1a1a1a;
   --text-secondary: #333333;
   --text-muted: #595959;
   --text-faint: #858585;
-  --border-color: #d4d4d4;
-  --border-subtle: #c4c4c4;
-  --shadow-card: rgba(0, 0, 0, 0.08);
+  --border-color: #e0e0e0;
+  --border-subtle: #d0d0d0;
+  --shadow-card: rgba(0, 0, 0, 0.07);
+  --accent: #1565c0;
+  --accent-light: #1976d2;
 }
 
 body {
@@ -80,12 +85,57 @@ html {
 
 // ── Skeleton shimmer CSS variables ────────────────────────────────────────────
 :root {
-  --skeleton-base: #1e1e1e;
-  --skeleton-shine: #2e2e2e;
+  --skeleton-base: #1c1c1c;
+  --skeleton-shine: #2a2a2a;
 }
 body.light-theme {
   --skeleton-base: #e8e8e8;
-  --skeleton-shine: #f0f0f0;
+  --skeleton-shine: #f2f2f2;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ANGULAR MATERIAL GLOBAL OVERRIDES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Material Table — consistent look across all grids ────────────────────────
+.mat-mdc-table {
+  background: var(--bg-surface) !important;
+
+  // Sticky header cells
+  .mat-mdc-header-row {
+    background: var(--bg-elevated) !important;
+  }
+
+  .mat-mdc-header-cell {
+    background: var(--bg-elevated) !important;
+    color: var(--text-faint) !important;
+    font-size: 0.63rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border-color) !important;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .mat-mdc-cell {
+    color: var(--text-primary) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    transition: background 0.1s ease;
+  }
+
+  .mat-mdc-row {
+    background: var(--bg-surface) !important;
+    transition: background 0.1s ease;
+
+    &:hover .mat-mdc-cell {
+      background: var(--bg-hover) !important;
+    }
+
+    &:last-child .mat-mdc-cell {
+      border-bottom: none !important;
+    }
+  }
 }
 
 // ── Material Dialog — fixed layout to prevent control overlap ─────────────────
@@ -94,36 +144,39 @@ body.light-theme {
 }
 
 .mat-mdc-dialog-surface {
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   display: flex !important;
   flex-direction: column !important;
-  // Allow overflow so floating labels are not clipped at the top
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6) !important;
   overflow: visible !important;
 }
 
-// Inner scrollable wrapper needs overflow-y
 .mat-mdc-dialog-inner-container {
   overflow-y: auto !important;
 }
 
 .mat-mdc-dialog-title {
-  padding: 20px 24px 8px !important;
+  padding: 20px 24px 10px !important;
   flex-shrink: 0;
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0 !important;
 }
 
 .mat-mdc-dialog-content {
   flex: 1 1 auto !important;
-  // Use overflow-x hidden so the surface clips horizontally but not vertically
   overflow-x: hidden !important;
   overflow-y: auto !important;
   scrollbar-width: thin;
   box-sizing: border-box !important;
-  // Extra top padding so outline form-field floating labels aren't clipped
-  padding: 16px 24px 16px !important;
+  padding: 16px 24px !important;
   max-height: 65vh !important;
   min-width: min(340px, 90vw);
 
-  // Ensure form fields inside dialogs fill width
   mat-form-field {
     display: block;
     width: 100%;
@@ -132,18 +185,105 @@ body.light-theme {
 
 .mat-mdc-dialog-actions {
   flex-shrink: 0 !important;
-  padding: 8px 16px 16px !important;
+  padding: 10px 24px 16px !important;
   justify-content: flex-end !important;
+  min-height: unset !important;
+  gap: 8px;
+  border-top: 1px solid var(--border-color);
 }
 
-.mat-mdc-dialog-actions {
-  padding: 8px 24px 16px !important;
-  min-height: unset !important;
+// Dialog overlay backdrop — slightly more opaque for depth
+.cdk-overlay-dark-backdrop {
+  background: rgba(0, 0, 0, 0.65) !important;
+}
+
+// ── Material Snackbar ─────────────────────────────────────────────────────────
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-color: var(--bg-elevated);
+  --mdc-snackbar-supporting-text-color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px !important;
+
+  .mat-mdc-button {
+    color: #64b5f6 !important;
+  }
+}
+
+// ── Material Tooltip ─────────────────────────────────────────────────────────
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  font-size: 0.72rem !important;
+  background: var(--bg-elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 6px !important;
+  max-width: 260px !important;
+}
+
+// ── Material Chip — compact style ─────────────────────────────────────────────
+.mat-mdc-chip.mat-mdc-standard-chip {
+  height: 28px !important;
+  font-size: 0.78rem !important;
+}
+
+// ── Material Button toggle group — consistent sizing ─────────────────────────
+.mat-button-toggle-group {
+  border-color: var(--border-color) !important;
+}
+.mat-button-toggle {
+  background: transparent !important;
+  color: var(--text-muted) !important;
+  font-size: 0.8rem !important;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.mat-button-toggle-checked {
+  background: rgba(100, 181, 246, 0.12) !important;
+  color: #64b5f6 !important;
+}
+
+// ── Material Paginator ─────────────────────────────────────────────────────────
+.mat-mdc-paginator {
+  background: var(--bg-elevated) !important;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.8rem !important;
+}
+
+// ── Material Progress Bar ─────────────────────────────────────────────────────
+.mat-mdc-progress-bar {
+  --mdc-linear-progress-active-indicator-color: #1565c0;
+  --mdc-linear-progress-track-color: rgba(21, 101, 192, 0.15);
+}
+
+// ── Material Tab group ────────────────────────────────────────────────────────
+.mat-mdc-tab-header {
+  border-bottom: 1px solid var(--border-color);
+}
+.mat-mdc-tab:not(.mdc-tab--active) .mdc-tab__text-label {
+  color: var(--text-muted) !important;
+}
+
+// ── Material Card ─────────────────────────────────────────────────────────────
+.mat-mdc-card {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+// ── Material List (nav list in sidenav) ────────────────────────────────────────
+.mat-mdc-list-item .mdc-list-item__primary-text {
+  font-size: 0.875rem !important;
+}
+
+// ── Column Config button — embedded in sticky grid header (all grids) ─────────
+.col-config-th {
+  width: 44px;
+  min-width: 44px;
+  padding: 4px 6px !important;
+  text-align: right !important;
+  vertical-align: middle !important;
 }
 
 // ── Demo mode value redaction ─────────────────────────────────────────────────
-// Applied to elements that contain sensitive financial values.
-// Values are blurred so the shape/layout is preserved but numbers are unreadable.
 .demo-redact {
   filter: blur(6px);
   user-select: none;
@@ -151,9 +291,7 @@ body.light-theme {
   pointer-events: none;
 }
 
-// ── Button icon + text alignment (global fix) ─────────────────────────────────
-// Ensures mat-icon inside any flat/raised/stroked button is vertically centred
-// with the label text across all screens.
+// ── Button icon + text alignment ──────────────────────────────────────────────
 .mdc-button__label {
   display: inline-flex;
   align-items: center;
@@ -167,28 +305,16 @@ a.mat-mdc-button-base mat-icon {
   flex-shrink: 0;
 }
 
-// ── Global grid header contrast improvements ─────────────────────────────────
-.mat-mdc-header-cell {
-  color: var(--text-secondary) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.07em;
-}
-
-// ── Column Config button — embedded in sticky grid header (all grids) ----------
-.col-config-th {
-  width: 44px;
-  min-width: 44px;
-  padding: 4px 6px !important;
-  text-align: right !important;
-  vertical-align: middle !important;
-}
-
-// ── Loading spinner — used in toolbar, scanner, portfolio, watchlist ──────────
+// ── Spinning animation (legacy class name — also aliased in tailwind.css) ─────
 .spinning {
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

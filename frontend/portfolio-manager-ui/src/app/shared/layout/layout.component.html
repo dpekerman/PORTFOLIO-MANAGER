@@ -8,14 +8,14 @@
     role="navigation"
     aria-label="App navigation"
   >
-    <div class="flex items-center gap-2.5 px-5 pt-[18px] pb-4">
+    <div class="flex items-center gap-2.5 px-5 pt-5 pb-4">
       <mat-icon class="sidenav-brand-icon">show_chart</mat-icon>
-      <span class="text-base font-bold tracking-[0.3px]">Portfolio Manager</span>
+      <span class="text-[0.9rem] font-bold tracking-[0.2px]">Portfolio Manager</span>
     </div>
 
     <mat-divider />
 
-    <mat-nav-list>
+    <mat-nav-list class="pt-1">
       @for (link of navLinks; track link.path) {
         <a
           mat-list-item
@@ -44,16 +44,16 @@
         <mat-icon>menu</mat-icon>
       </button>
 
-      <!-- Brand (plain text – not a link) -->
-      <span class="flex items-center gap-2 shrink-0 px-2 py-1" aria-label="Portfolio Manager">
+      <!-- Brand -->
+      <span class="flex items-center gap-2 shrink-0 px-1" aria-label="Portfolio Manager">
         <mat-icon class="brand-icon">show_chart</mat-icon>
-        <span class="text-base font-bold tracking-[0.3px] whitespace-nowrap max-[480px]:hidden"
+        <span class="text-[0.88rem] font-bold tracking-[0.2px] whitespace-nowrap max-[480px]:hidden text-dim"
           >Portfolio Manager</span
         >
       </span>
 
       <!-- Desktop nav links -->
-      <nav class="hidden md:flex items-center gap-0.5 ml-3" aria-label="Main navigation">
+      <nav class="hidden md:flex items-center gap-0.5 ml-2" aria-label="Main navigation">
         @for (link of navLinks; track link.path) {
           <a
             mat-button
@@ -97,11 +97,11 @@
       <!-- Logged-in user + logout -->
       @if (authState.currentUser(); as user) {
         <div
-          class="user-chip flex items-center gap-1.5 px-2 py-1 rounded-2xl cursor-default text-[0.8rem]"
+          class="user-chip flex items-center gap-1.5 px-2 py-1 rounded-2xl cursor-default text-[0.78rem]"
           [matTooltip]="user.displayName + ' \u2022 ' + (user.roles[0] ?? '')"
         >
           <mat-icon class="user-chip-icon">account_circle</mat-icon>
-          <span class="truncate hidden wide:block">{{ user.displayName }}</span>
+          <span class="truncate hidden wide:block max-w-[110px] text-dim">{{ user.displayName }}</span>
         </div>
         <button mat-icon-button matTooltip="Sign out" (click)="logout()" aria-label="Sign out">
           <mat-icon>logout</mat-icon>
@@ -120,16 +120,6 @@
       </button>
     </mat-toolbar>
 
-    <!-- Demo mode banner -->
-    <!--
-    @if (demoMode.isDemoMode()) {
-      <div class="demo-banner" role="status" aria-live="polite">
-        <mat-icon>visibility_off</mat-icon>
-        <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
-        <button mat-button (click)="demoMode.disable()" class="demo-banner-btn">Exit Demo</button>
-      </div>
-    }
-    -->
     <!-- Global progress bar -->
     @if (isLoading()) {
       <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
