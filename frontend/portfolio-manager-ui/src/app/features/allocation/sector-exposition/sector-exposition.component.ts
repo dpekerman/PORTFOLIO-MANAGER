@@ -65,6 +65,18 @@ export class SectorExpositionComponent {
   private readonly snackBar = inject(MatSnackBar);
   protected readonly demoMode = inject(DemoModeService);
 
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
+
+  protected dvp(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskPercent(v)
+      : v;
+  }
+
   protected readonly refreshing = signal(false);
   protected readonly expandedSectors = signal<Set<string>>(new Set());
   protected readonly expandedIndustries = signal<Set<string>>(new Set());

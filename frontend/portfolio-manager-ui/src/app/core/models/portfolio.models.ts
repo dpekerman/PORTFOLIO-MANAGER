@@ -22,6 +22,8 @@ export interface PortfolioItem {
   notes?: string | null;
   /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
   decisionSource?: string | null;
+  /** @optional Decision source recorded at close */
+  decisionSourceClosed?: string | null;
 }
 
 export interface StockQuote {
@@ -99,6 +101,7 @@ export interface UpdatePortfolioItemRequest {
   closingPrice?: number | null;
   holdingRole?: string | null;
   decisionSource?: string | null;
+  decisionSourceClosed?: string | null;
 }
 
 export interface SectorIndustryLists {

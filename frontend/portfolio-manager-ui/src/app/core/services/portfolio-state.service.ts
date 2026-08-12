@@ -193,6 +193,8 @@ export class PortfolioStateService {
                     openDate: updated.openDate ?? null,
                     closeDate: updated.closeDate ?? null,
                     closingPrice: updated.closingPrice ?? null,
+                    decisionSource: updated.decisionSource ?? null,
+                    decisionSourceClosed: updated.decisionSourceClosed ?? null,
                   },
                 }
               : s,

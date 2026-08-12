@@ -333,6 +333,18 @@
                 <td mat-footer-cell *matFooterCellDef></td>
               </ng-container>
 
+              <ng-container matColumnDef="tx_decision_source_closed">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>DECISION SOURCE - CLOSED</th>
+                <td mat-cell *matCellDef="let s">
+                  @if (s.item.decisionSourceClosed) {
+                    <span class="pg-dim">{{ s.item.decisionSourceClosed }}</span>
+                  } @else {
+                    <span class="pg-dim">—</span>
+                  }
+                </td>
+                <td mat-footer-cell *matFooterCellDef></td>
+              </ng-container>
+
               <ng-container matColumnDef="tx_age">
                 <th
                   mat-header-cell

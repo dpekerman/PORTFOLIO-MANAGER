@@ -281,6 +281,23 @@
   }
 }
 
+// ── Grid filters banner (collapsible toggle row) ──────────────────────────────
+.grid-filters-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  .gf-toggle-btn {
+    font-size: 0.8rem;
+    height: 32px;
+    mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+  }
+}
+
 // ── Grid filters bar ──────────────────────────────────────────────────────────
 .grid-filters-bar {
   display: flex;
@@ -414,6 +431,13 @@
 }
 .pg-dim {
   color: var(--text-faint);
+}
+
+.pg-ma-strong-buy {
+  color: #43a047;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
 }
 
 // % Total column

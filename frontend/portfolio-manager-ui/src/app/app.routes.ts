@@ -58,7 +58,7 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/eod-signals/eod-signals.routes').then((m) => m.EOD_SIGNALS_ROUTES),
       },
-      { path: '', redirectTo: 'scanner', pathMatch: 'full' },
+      { path: '', redirectTo: 'portfolio', pathMatch: 'full' },
     ],
   },
   { path: '**', redirectTo: 'login' },

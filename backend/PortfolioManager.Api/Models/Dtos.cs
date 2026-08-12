@@ -13,7 +13,8 @@ public record AddPortfolioItemRequest(
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
     string? DecisionSource = null,
-    string? HoldingRole = null);
+    string? HoldingRole = null,
+    string? DecisionSourceClosed = null);
 
 /// <summary>
 /// Request to add a manual (non-ticker) position such as Cash, Options, Bonds, etc.
@@ -38,7 +39,8 @@ public record UpdatePortfolioItemRequest(
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
     string? HoldingRole = null,
-    string? DecisionSource = null);
+    string? DecisionSource = null,
+    string? DecisionSourceClosed = null);
 
 public record PortfolioItemDto(
     int Id,
@@ -59,7 +61,8 @@ public record PortfolioItemDto(
     decimal? ClosingPrice = null,
     string? HoldingRole = null,
     string? Notes = null,
-    string? DecisionSource = null);
+    string? DecisionSource = null,
+    string? DecisionSourceClosed = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,

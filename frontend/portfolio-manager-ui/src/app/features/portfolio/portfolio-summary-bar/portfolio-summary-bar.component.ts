@@ -25,6 +25,12 @@ export class PortfolioSummaryBarComponent {
   private readonly api = inject(PortfolioApiService);
   protected readonly betaState = inject(PortfolioBetaStateService);
 
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
+
   /** Total portfolio value: stocks + cash + option market value */
   protected readonly totalValue = computed(
     () =>

@@ -66,6 +66,7 @@ type StockTxCol =
   | 'tx_diff_dollar'
   | 'tx_trans_date'
   | 'tx_decision_source'
+  | 'tx_decision_source_closed'
   | 'tx_age'
   | 'tx_actions';
 
@@ -443,6 +444,8 @@ export class TransactionsPageComponent {
         return this.stockTransDate(s.item) ?? '';
       case 'tx_decision_source':
         return s.item.decisionSource ?? '';
+      case 'tx_decision_source_closed':
+        return s.item.decisionSourceClosed ?? '';
       case 'tx_age':
         return this.stockTransactionAge(s.item) ?? 0;
       default:
@@ -514,6 +517,7 @@ export class TransactionsPageComponent {
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
           decisionSource: result.decisionSource,
+          decisionSourceClosed: result.decisionSourceClosed,
         });
       });
   }

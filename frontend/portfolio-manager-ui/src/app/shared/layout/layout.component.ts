@@ -67,12 +67,12 @@ export class LayoutComponent {
   protected readonly showMarketHeader = computed(() => this.currentUrl().startsWith('/scanner'));
 
   protected readonly navLinks = [
+    { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
+    { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/scanner', label: 'RSI Scanner', icon: 'radar' },
     { path: '/eod-signals', label: 'EOD Signals', icon: 'timeline' },
-    { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },
-    { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/value-screener', label: 'Value Screener', icon: 'analytics' },
     { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;

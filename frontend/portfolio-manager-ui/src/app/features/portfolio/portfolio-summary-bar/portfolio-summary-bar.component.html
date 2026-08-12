@@ -4,7 +4,7 @@
     <span
       class="value primary"
       [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-      >{{ totalValue() | currency }}</span
+      >{{ dv(totalValue()) | currency }}</span
     >
   </div>
   <div class="summary-tile">
@@ -19,7 +19,7 @@
       @if (oneDayChangeLoading()) {
         <span class="dim">—</span>
       } @else if (dayChange !== null) {
-        {{ dayChange >= 0 ? '+' : '' }}{{ dayChange | currency }}
+        {{ dayChange >= 0 ? '+' : '' }}{{ dv(dayChange) | currency }}
       } @else {
         <span class="dim">—</span>
       }

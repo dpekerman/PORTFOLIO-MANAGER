@@ -108,6 +108,20 @@
         }
       </mat-select>
     </mat-form-field>
+
+    <!-- Row 7: Decision Source - Closed (full width, only when CLOSE) -->
+    @if (form.controls.transactionType.value === 'CLOSE') {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Decision Source - Closed</mat-label>
+        <mat-select formControlName="decisionSourceClosed">
+          <mat-option [value]="null">— None —</mat-option>
+          @for (ds of decisionSources; track ds) {
+            <mat-option [value]="ds">{{ ds }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Why was this position closed?</mat-hint>
+      </mat-form-field>
+    }
   </form>
 </mat-dialog-content>
 

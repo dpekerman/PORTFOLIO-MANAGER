@@ -41,6 +41,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.HoldingRole).HasMaxLength(20);
             entity.Property(e => e.DecisionSource).HasMaxLength(50);
+            entity.Property(e => e.DecisionSourceClosed).HasMaxLength(50);
             entity.HasIndex(e => e.Symbol); // non-unique: same ticker can exist across multiple accounts
         });
 

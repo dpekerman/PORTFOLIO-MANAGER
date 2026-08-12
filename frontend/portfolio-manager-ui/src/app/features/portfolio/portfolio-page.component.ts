@@ -1,11 +1,11 @@
 ﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
-    ChangeDetectionStrategy,
-    Component,
-    computed,
-    effect,
-    inject,
-    signal,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,21 +19,21 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
-    CashItem,
-    OptionAnalysis,
-    PortfolioSummary,
-    RsiScanResult,
-    StockQuote,
-    TechnicalState,
-    ValueScreenerResult,
+  CashItem,
+  OptionAnalysis,
+  PortfolioSummary,
+  RsiScanResult,
+  StockQuote,
+  TechnicalState,
+  ValueScreenerResult,
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import {
-    DecisionEngineService,
-    GapStatus,
-    PortfolioItemContext,
+  DecisionEngineService,
+  GapStatus,
+  PortfolioItemContext,
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -49,16 +49,16 @@ import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.
 import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
 import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
 import {
-    EditCashDialogComponent,
-    EditCashDialogData,
+  EditCashDialogComponent,
+  EditCashDialogData,
 } from './edit-cash-dialog/edit-cash-dialog.component';
 import {
-    EditOptionDialogComponent,
-    EditOptionDialogData,
+  EditOptionDialogComponent,
+  EditOptionDialogData,
 } from './edit-option-dialog/edit-option-dialog.component';
 import {
-    EditPositionDialogComponent,
-    EditPositionDialogResult,
+  EditPositionDialogComponent,
+  EditPositionDialogResult,
 } from './edit-position-dialog/edit-position-dialog.component';
 import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
 import { PortfolioSummaryBarComponent } from './portfolio-summary-bar/portfolio-summary-bar.component';
@@ -116,7 +116,8 @@ type GridSortCol =
   | 'holdingRole'
   | 'trendSetup'
   | 'momentumShift'
-  | 'finalAction';
+  | 'finalAction'
+  | 'maStatus';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -192,6 +193,7 @@ export class PortfolioPageComponent {
   protected readonly stocksExpanded = signal(true);
   protected readonly cashExpanded = signal(true);
   protected readonly optionsExpanded = signal(true);
+  protected readonly filtersExpanded = signal(false);
 
   protected readonly sortField = signal<SortField>('marketValue');
   protected readonly sortDir = signal<SortDir>('desc');
@@ -410,6 +412,19 @@ export class PortfolioPageComponent {
 
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected maStatusForSymbol(symbol: string): 'STRONG BUY' | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    const price = r.currentPrice;
+    const ma10 = r.ema10Price;
+    const ma20 = r.ema20Price;
+    const ma50 = r.sma50Price;
+    if (!ma10 || !ma20 || !ma50 || !r.has200Dma || r.dma200Deviation === undefined) return null;
+    const ma200 = price / (1 + r.dma200Deviation / 100);
+    if (price > ma10 && ma10 > ma20 && ma20 > ma50 && ma50 > ma200) return 'STRONG BUY';
+    return null;
   }
 
   protected probClass(prob: string): string {
@@ -857,6 +872,8 @@ export class PortfolioPageComponent {
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? ''
         );
+      case 'maStatus':
+        return this.maStatusForSymbol(s.item.symbol) === 'STRONG BUY' ? 1 : 0;
       default:
         return 0;
     }
@@ -1140,6 +1157,7 @@ export class PortfolioPageComponent {
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
           decisionSource: result.decisionSource,
+          decisionSourceClosed: result.decisionSourceClosed,
         });
       });
   }

@@ -104,6 +104,18 @@ export class AllocationPageComponent {
     return this.betaState.betaOverrides()[symbol.toUpperCase()] !== undefined;
   }
 
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
+
+  protected dvp(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskPercent(v)
+      : v;
+  }
+
   protected updateBeta(symbol: string, value: string): void {
     const num = parseFloat(value);
     this.betaState.setOverride(symbol, isNaN(num) ? null : num);

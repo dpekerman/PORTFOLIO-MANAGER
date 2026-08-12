@@ -80,8 +80,10 @@
                 <div class="bar-fill" [style.width.%]="row.pct"></div>
               </div>
               <span class="pct">{{ row.pct | number: '1.1-1' }}%</span>
-              <span class="mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-                >${{ row.marketValue / 1000 | number: '1.0-0' }}k</span
+              <span
+                class="mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                >${{ dv(row.marketValue) / 1000 | number: '1.0-0' }}k</span
               >
               <span
                 class="gl-val"
@@ -89,14 +91,14 @@
                 [class.gl-neg]="row.gainLoss < 0"
                 [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
               >
-                {{ row.gainLoss >= 0 ? '+' : '' }}${{ row.gainLoss / 1000 | number: '1.1-1' }}k
+                {{ row.gainLoss >= 0 ? '+' : '' }}${{ dv(row.gainLoss) / 1000 | number: '1.1-1' }}k
               </span>
               <span
                 class="gl-pct"
                 [class.gl-pos]="row.gainLossPct >= 0"
                 [class.gl-neg]="row.gainLossPct < 0"
               >
-                {{ row.gainLossPct >= 0 ? '+' : '' }}{{ row.gainLossPct | number: '1.1-1' }}%
+                {{ row.gainLossPct >= 0 ? '+' : '' }}{{ dvp(row.gainLossPct) | number: '1.1-1' }}%
               </span>
             </div>
           </div>
@@ -134,17 +136,23 @@
                         ></div>
                       </div>
                       <span class="pct pct-sm">{{ ind.pct | number: '1.1-1' }}%</span>
-                      <span class="mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-                        >${{ ind.marketValue / 1000 | number: '1.1-1' }}k</span
+                      <span
+                        class="mv"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
+                        >${{ dv(ind.marketValue) / 1000 | number: '1.1-1' }}k</span
                       >
                       <span
                         class="gl-val gl-sm"
                         [class.gl-pos]="ind.gainLoss >= 0"
                         [class.gl-neg]="ind.gainLoss < 0"
-                        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
                       >
                         {{ ind.gainLoss >= 0 ? '+' : '' }}${{
-                          ind.gainLoss / 1000 | number: '1.1-1'
+                          dv(ind.gainLoss) / 1000 | number: '1.1-1'
                         }}k
                       </span>
                       <span
@@ -153,7 +161,7 @@
                         [class.gl-neg]="ind.gainLossPct < 0"
                       >
                         {{ ind.gainLossPct >= 0 ? '+' : ''
-                        }}{{ ind.gainLossPct | number: '1.1-1' }}%
+                        }}{{ dvp(ind.gainLossPct) | number: '1.1-1' }}%
                       </span>
                     </div>
                   </div>
@@ -170,9 +178,6 @@
                         <span class="ticker-price-col">Last Price</span>
                         <span class="ticker-gl-col">Gain/Loss</span>
                         <span class="ticker-glpct-col">G/L %</span>
-                        <span class="ticker-rsi-col">RSI</span>
-                        <span class="ticker-day-col">Day %</span>
-                        <span class="ticker-momentum-col">Momentum</span>
                       </div>
                       @for (pos of ind.positions; track pos.symbol) {
                         <div class="ticker-row">
@@ -185,12 +190,18 @@
                             ></div>
                           </div>
                           <span class="ticker-pct">{{ pos.pct | number: '1.1-1' }}%</span>
-                          <span class="ticker-mv" [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-                            >${{ pos.marketValue / 1000 | number: '1.1-1' }}k</span
+                          <span
+                            class="ticker-mv"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
+                            >${{ dv(pos.marketValue) / 1000 | number: '1.1-1' }}k</span
                           >
                           <span
                             class="ticker-price-col ticker-num"
-                            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
                           >
                             {{
                               pos.lastPrice != null ? '$' + (pos.lastPrice | number: '1.2-2') : '—'
@@ -200,11 +211,13 @@
                             class="ticker-gl-col ticker-num"
                             [class.gl-pos]="(pos.gainLoss ?? 0) >= 0"
                             [class.gl-neg]="(pos.gainLoss ?? 0) < 0"
-                            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
                           >
                             @if (pos.gainLoss != null) {
                               {{ pos.gainLoss >= 0 ? '+' : '' }}${{
-                                pos.gainLoss / 1000 | number: '1.1-1'
+                                dv(pos.gainLoss) / 1000 | number: '1.1-1'
                               }}k
                             } @else {
                               —
@@ -217,43 +230,9 @@
                           >
                             @if (pos.gainLossPct != null) {
                               {{ pos.gainLossPct >= 0 ? '+' : ''
-                              }}{{ pos.gainLossPct | number: '1.1-1' }}%
+                              }}{{ dvp(pos.gainLossPct) | number: '1.1-1' }}%
                             } @else {
                               —
-                            }
-                          </span>
-                          <span
-                            class="ticker-rsi-col ticker-num"
-                            [class.rsi-over]="(pos.rsi ?? 50) >= 70"
-                            [class.rsi-under]="(pos.rsi ?? 50) <= 30"
-                          >
-                            {{ pos.rsi != null ? (pos.rsi | number: '1.0-0') : '—' }}
-                          </span>
-                          <span
-                            class="ticker-day-col ticker-num"
-                            [class.gl-pos]="(pos.changePct ?? 0) >= 0"
-                            [class.gl-neg]="(pos.changePct ?? 0) < 0"
-                          >
-                            @if (pos.changePct != null) {
-                              {{ pos.changePct >= 0 ? '+' : ''
-                              }}{{ pos.changePct | number: '1.2-2' }}%
-                            } @else {
-                              —
-                            }
-                          </span>
-                          <span
-                            class="ticker-momentum-col"
-                            [matTooltip]="pos.momentumActionTooltip ?? ''"
-                            matTooltipShowDelay="400"
-                          >
-                            @if (pos.momentumShift) {
-                              <span
-                                class="momentum-mini-badge"
-                                [class]="momentumShiftClass(pos.momentumShift)"
-                                >{{ pos.momentumShift }}</span
-                              >
-                            } @else {
-                              <span class="ticker-num">—</span>
                             }
                           </span>
                         </div>
