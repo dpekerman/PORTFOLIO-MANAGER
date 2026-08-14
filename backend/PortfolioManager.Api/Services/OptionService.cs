@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Services;
 
@@ -18,13 +20,28 @@ public interface IOptionService
     Task<int> RestoreAsync(IReadOnlyList<OptionBackupItem> items, CancellationToken ct = default);
 }
 
-public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<OptionService> logger) : IOptionService
+public sealed class OptionService(
+    AppDbContext db,
+    HttpClient http,
+    ILogger<OptionService> logger,
+    IHttpContextAccessor httpCtx) : IOptionService
 {
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
+    private string? CurrentUserId() => httpCtx.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsAdmin() => httpCtx.HttpContext?.User.IsInRole("Admin") ?? false;
+
+    private IQueryable<OptionItem> OwnedItems()
+    {
+        var q = db.OptionItems.AsQueryable();
+        if (IsAdmin()) return q;
+        var uid = CurrentUserId();
+        return q.Where(x => x.UserId == uid || x.UserId == null);
+    }
+
     public async Task<IReadOnlyList<OptionItemDto>> GetAllAsync(CancellationToken ct = default)
     {
-        var items = await db.OptionItems
+        var items = await OwnedItems()
             .AsNoTracking()
             .OrderBy(x => x.AddedAt)
             .ToListAsync(ct);
@@ -33,7 +50,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
 
     public async Task<OptionItemDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
-        var item = await db.OptionItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         return item is null ? null : ToDto(item);
     }
 
@@ -41,6 +58,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
     {
         var item = new OptionItem
         {
+            UserId            = CurrentUserId(),
             UnderlyingTicker  = request.UnderlyingTicker.ToUpperInvariant(),
             PositionType      = request.PositionType.ToUpperInvariant(),
             ExpirationDate    = request.ExpirationDate,
@@ -63,7 +81,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
 
     public async Task<OptionItemDto?> UpdateAsync(int id, UpdateOptionItemRequest request, CancellationToken ct = default)
     {
-        var item = await db.OptionItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
         item.UnderlyingTicker  = request.UnderlyingTicker.ToUpperInvariant();
         item.PositionType      = request.PositionType.ToUpperInvariant();
@@ -84,7 +102,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
-        var item = await db.OptionItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
         db.OptionItems.Remove(item);
         await db.SaveChangesAsync(ct);
@@ -93,7 +111,7 @@ public sealed class OptionService(AppDbContext db, HttpClient http, ILogger<Opti
 
     public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
     {
-        var item = await db.OptionItems.FindAsync([id], ct);
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
         item.Notes = notes;
         await db.SaveChangesAsync(ct);

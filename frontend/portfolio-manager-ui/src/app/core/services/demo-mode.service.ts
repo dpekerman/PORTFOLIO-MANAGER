@@ -1,32 +1,31 @@
-import { Injectable, effect, signal } from '@angular/core';
+﻿import { Injectable, effect, signal } from '@angular/core';
 
 const STORAGE_KEY = 'pm_demo_mode';
+const STYLE_KEY = 'pm_demo_style';
+
+export type DemoStyle = 'blur' | 'fake';
 
 /**
- * Demo Mode — masks sensitive portfolio data so the app can be shown to others
- * without revealing real positions or dollar amounts.
- *
- * Strategy:
- *   - All dollar values are multiplied by a consistent random factor (0.3–0.7)
- *     stored in sessionStorage so it stays consistent within one session
- *     but changes on each new browser session.
- *   - Percentage values (returns, allocations) are randomized within ±30%.
- *   - Company names and symbols are kept (they're not sensitive).
- *   - A visible "DEMO MODE" banner is shown in the toolbar.
+ * Demo Mode â€” two masking strategies:
+ *  'blur'  â€” multiplies real values by a session factor (0.3â€“0.7); keeps scale visible
+ *  'fake'  â€” replaces values with completely unrelated plausible numbers; hides real scale
  */
 @Injectable({ providedIn: 'root' })
 export class DemoModeService {
   private readonly _isDemoMode = signal<boolean>(localStorage.getItem(STORAGE_KEY) === 'true');
+  private readonly _demoStyle = signal<DemoStyle>(
+    (localStorage.getItem(STYLE_KEY) as DemoStyle) ?? 'blur',
+  );
 
   readonly isDemoMode = this._isDemoMode.asReadonly();
+  readonly demoStyle = this._demoStyle.asReadonly();
 
-  /** Consistent multiplicative factor for the current browser session */
+  /** Consistent multiplicative factor for blur mode (stable within session) */
   private readonly _factor = this.getOrCreateFactor();
 
   constructor() {
-    effect(() => {
-      localStorage.setItem(STORAGE_KEY, String(this._isDemoMode()));
-    });
+    effect(() => localStorage.setItem(STORAGE_KEY, String(this._isDemoMode())));
+    effect(() => localStorage.setItem(STYLE_KEY, this._demoStyle()));
   }
 
   toggle(): void {
@@ -41,26 +40,24 @@ export class DemoModeService {
     this._isDemoMode.set(false);
   }
 
-  /**
-   * Masks a currency value when demo mode is active.
-   * Returns the masked number (caller formats it).
-   */
-  maskValue(value: number): number {
-    if (!this._isDemoMode()) return value;
-    return Math.round(value * this._factor);
+  setStyle(style: DemoStyle): void {
+    this._demoStyle.set(style);
   }
 
-  /**
-   * Masks a percentage value (keeps sign, varies magnitude).
-   */
+  maskValue(value: number): number {
+    if (!this._isDemoMode()) return value;
+    return this._demoStyle() === 'fake'
+      ? this.fakeMaskValue(value)
+      : Math.round(value * this._factor);
+  }
+
   maskPercent(value: number): number {
     if (!this._isDemoMode()) return value;
-    // Preserve sign, randomize magnitude in ±30% of the factor range
+    if (this._demoStyle() === 'fake') return this.fakeMaskPercent(value);
     const noise = 0.7 + (this._factor % 0.3);
     return Math.round(value * noise * 10) / 10;
   }
 
-  /** Returns a display-safe string for a dollar value in demo mode */
   displayValue(value: number, decimals = 0): string {
     if (!this._isDemoMode())
       return value.toLocaleString('en-US', {
@@ -73,6 +70,26 @@ export class DemoModeService {
     });
   }
 
+  // â”€â”€ Fake numbers â€” completely decoupled from real values â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  private fakeMaskValue(value: number): number {
+    // Use Knuth hash on the rounded value for stable, unrelated fake numbers
+    const seed = (Math.abs(Math.round(value)) * 2654435761) >>> 0;
+    const ranges = [2500, 4800, 7200, 9500, 12000, 15500, 19000, 24000, 31000, 42000, 55000, 78000];
+    const pick = ranges[seed % ranges.length];
+    // Add small deterministic jitter so nearby values differ
+    const jitter = (seed % 500) - 250;
+    return Math.round((pick + jitter) / 100) * 100;
+  }
+
+  private fakeMaskPercent(value: number): number {
+    const seed = (Math.abs(Math.round(value * 100)) * 2246822519) >>> 0;
+    const pool = [-12.4, -8.7, -5.2, -2.1, 0.3, 1.8, 3.4, 6.1, 9.2, 14.5, 18.3, 22.7];
+    const raw = pool[seed % pool.length];
+    // Preserve sign direction of the original value
+    return value >= 0 ? Math.abs(raw) : -Math.abs(raw);
+  }
+
   private getOrCreateFactor(): number {
     const key = 'pm_demo_factor';
     const stored = sessionStorage.getItem(key);
@@ -80,7 +97,6 @@ export class DemoModeService {
       const v = parseFloat(stored);
       if (v >= 0.3 && v <= 0.7) return v;
     }
-    // Generate a new factor for this session
     const factor = 0.3 + Math.random() * 0.4;
     sessionStorage.setItem(key, String(factor));
     return factor;

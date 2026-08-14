@@ -3,6 +3,8 @@ namespace PortfolioManager.Api.Models;
 public class PortfolioItem
 {
     public int Id { get; set; }
+    /// <summary>Owning user — null means legacy/unowned data visible only to Admins.</summary>
+    public string? UserId { get; set; }
     public string Symbol { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
     public decimal Shares { get; set; }
@@ -28,4 +30,6 @@ public class PortfolioItem
     public string? Notes { get; set; }
     /// <summary>Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest.</summary>
     public string? DecisionSource { get; set; }
+    /// <summary>Decision source recorded at the time of position close.</summary>
+    public string? DecisionSourceClosed { get; set; }
 }

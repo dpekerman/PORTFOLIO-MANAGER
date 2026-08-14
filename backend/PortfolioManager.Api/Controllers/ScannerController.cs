@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -8,6 +9,7 @@ using System.Text.Json;
 
 namespace PortfolioManager.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class ScannerController(
@@ -55,7 +57,7 @@ public class ScannerController(
 
         var result = await scanner.ScanAsync(extraSymbols, oversold, overbought, logicMode, ct);
 
-        // Only cache live results — demo data has no TTL value
+        // Only cache live results Ã¢â‚¬â€ demo data has no TTL value
         if (!result.IsDemo)
             cache.Set(cacheKey, result, CacheTtl);
 
@@ -63,6 +65,7 @@ public class ScannerController(
     }
 
     /// <summary>Force-invalidate all RSI scan cache entries (e.g. after config save).</summary>
+    [Authorize(Roles = "Admin")]
     [HttpDelete("rsi/cache")]
     public IActionResult ClearCache()
     {
@@ -118,8 +121,9 @@ public class ScannerController(
 
     /// <summary>
     /// Ad-hoc analysis: accepts up to 20 user-supplied symbols and returns RSI scan results for each.
-    /// Not cached — always fetches live data.
+    /// Not cached Ã¢â‚¬â€ always fetches live data.
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("analyze")]
     public async Task<ActionResult<List<RsiScanResult>>> AnalyzeSymbols(
         [FromBody] AnalyzeRequest request,
@@ -169,12 +173,13 @@ public class ScannerController(
         }
     }
 
-    // ── Ad-hoc Session Persistence ────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Ad-hoc Session Persistence Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     private static readonly JsonSerializerOptions JsonOpts =
         new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
     /// <summary>Save the current ad-hoc analysis session (symbols + results) to the database.</summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("adhoc-session")]
     public async Task<IActionResult> SaveAdhocSession(
         [FromBody] SaveAdhocSessionRequest request,
@@ -238,7 +243,7 @@ public class ScannerController(
             try { results = JsonSerializer.Deserialize<List<RsiScanResult>>(session.ResultsJson, JsonOpts); }
             catch (JsonException ex)
             {
-                logger.LogWarning(ex, "Failed to deserialise adhoc session results – returning symbols only.");
+                logger.LogWarning(ex, "Failed to deserialise adhoc session results Ã¢â‚¬â€œ returning symbols only.");
             }
         }
 
@@ -253,7 +258,7 @@ public class ScannerController(
         });
     }
 
-    // ── EOD Window Settings ───────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ EOD Window Settings Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 
     /// <summary>Returns the current EOD confirmation window settings.</summary>
     [HttpGet("eod-settings")]
@@ -274,6 +279,7 @@ public class ScannerController(
     /// Changes take effect immediately for the background service (no restart required).
     /// Settings are persisted to disk so they survive server restarts.
     /// </summary>
+    [Authorize(Roles = "Admin")]
     [HttpPut("eod-settings")]
     public IActionResult UpdateEodSettings([FromBody] EodWindowSettingsDto dto)
     {

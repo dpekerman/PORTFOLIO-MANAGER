@@ -3,6 +3,8 @@ namespace PortfolioManager.Api.Models;
 public class OptionItem
 {
     public int Id { get; set; }
+    /// <summary>Owning user — null means legacy/unowned data visible only to Admins.</summary>
+    public string? UserId { get; set; }
     public string UnderlyingTicker { get; set; } = string.Empty;
     /// <summary>CALL or PUT</summary>
     public string PositionType { get; set; } = string.Empty;

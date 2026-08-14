@@ -14,6 +14,8 @@ export interface AppConfig {
   eodWindowEnabled: boolean;
   /** User-manageable picklist for the Decision Source field. */
   decisionSources: string[];
+  /** Idle session timeout in minutes. 0 = disabled. */
+  sessionTimeoutMinutes: number;
 }
 
 const STORAGE_KEY = 'pm_app_config';
@@ -35,6 +37,7 @@ const DEFAULTS: AppConfig = {
     'Risk Control',
     'Loss Harvest',
   ],
+  sessionTimeoutMinutes: 480, // 8 hours
 };
 
 @Injectable({ providedIn: 'root' })

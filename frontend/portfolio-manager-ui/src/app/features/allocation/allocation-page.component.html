@@ -1,4 +1,4 @@
-<div class="allocation-page">
+﻿<div class="allocation-page">
   <!-- ── Page Header ───────────────────────────────────────────────────────── -->
   <div class="page-header">
     <div class="page-title-group">
@@ -63,8 +63,11 @@
             <mat-icon>account_balance</mat-icon>
             Portfolio Value
           </div>
-          <div class="kpi-value kpi-neutral" [class.demo-redact]="demoMode.isDemoMode()">
-            {{ grandTotal() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+          <div
+            class="kpi-value kpi-neutral"
+            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          >
+            {{ dv(grandTotal()) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
           </div>
           <div class="kpi-sub">Stocks · Cash · Options</div>
         </mat-card-content>
@@ -263,8 +266,11 @@
                 <div class="alloc-bar-fill alloc-bar-cash" [style.width.%]="cashPct() * 100"></div>
               </div>
               <span class="alloc-col-pct-val">{{ cashPct() * 100 | number: '1.1-1' }}%</span>
-              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
-                ${{ cashState.totalCash() / 1000 | number: '1.0-0' }}k
+              <span
+                class="alloc-col-mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
+                ${{ dv(cashState.totalCash()) / 1000 | number: '1.0-0' }}k
               </span>
               <span class="alloc-col-gl">—</span>
               <span class="alloc-col-glpct">—</span>
@@ -285,8 +291,11 @@
                 <span class="alloc-col alloc-col-date dim-text">{{
                   c.addedAt | slice: 0 : 10
                 }}</span>
-                <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode()">
-                  {{ c.amount | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                <span
+                  class="alloc-col alloc-col-val"
+                  [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                >
+                  {{ dv(c.amount) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                 </span>
                 <span class="alloc-col alloc-col-pct">{{ c.pct | percent: '1.2-2' }}</span>
               </div>
@@ -294,8 +303,11 @@
             <div class="alloc-total-row">
               <span class="alloc-col alloc-col-desc">Total Cash</span>
               <span class="alloc-col alloc-col-date"></span>
-              <span class="alloc-col alloc-col-val" [class.demo-redact]="demoMode.isDemoMode()">
-                {{ cashState.totalCash() | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+              <span
+                class="alloc-col alloc-col-val"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
+                {{ dv(cashState.totalCash()) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
               </span>
               <span class="alloc-col alloc-col-pct">{{ cashPct() | percent: '1.2-2' }}</span>
             </div>
@@ -326,17 +338,20 @@
                 ></div>
               </div>
               <span class="alloc-col-pct-val">{{ optionsPct() * 100 | number: '1.1-1' }}%</span>
-              <span class="alloc-col-mv" [class.demo-redact]="demoMode.isDemoMode()">
-                ${{ optionsTotalValue() / 1000 | number: '1.0-0' }}k
+              <span
+                class="alloc-col-mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
+                ${{ dv(optionsTotalValue()) / 1000 | number: '1.0-0' }}k
               </span>
               <span
                 class="alloc-col-gl"
                 [class.alloc-gl-pos]="optionsGainLossIsPositive()"
                 [class.alloc-gl-neg]="!optionsGainLossIsPositive()"
-                [class.demo-redact]="demoMode.isDemoMode()"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
               >
                 {{ optionsGainLoss() >= 0 ? '+' : '' }}${{
-                  optionsGainLoss() / 1000 | number: '1.1-1'
+                  dv(optionsGainLoss()) / 1000 | number: '1.1-1'
                 }}k
               </span>
               <span
@@ -344,7 +359,8 @@
                 [class.alloc-gl-pos]="optionsGainLossIsPositive()"
                 [class.alloc-gl-neg]="!optionsGainLossIsPositive()"
               >
-                {{ optionsGainLoss() >= 0 ? '+' : '' }}{{ optionsGainLossPct() | number: '1.1-1' }}%
+                {{ optionsGainLoss() >= 0 ? '+' : ''
+                }}{{ dvp(optionsGainLossPct()) | number: '1.1-1' }}%
               </span>
             </div>
           </div>
@@ -359,8 +375,11 @@
                   </div>
                   <span class="alloc-ticker-symbol">{{ g.ticker }}</span>
                   <span class="alloc-count-badge">{{ g.items.length }}</span>
-                  <span class="alloc-subsection-value" [class.demo-redact]="demoMode.isDemoMode()">
-                    {{ g.totalValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                  <span
+                    class="alloc-subsection-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                  >
+                    {{ dv(g.totalValue) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                   </span>
                   <span class="alloc-subsection-pct">{{ g.pct | percent: '1.2-2' }} of Total</span>
                 </div>
@@ -396,9 +415,11 @@
                       <span class="alloc-col alloc-col-contracts">{{ opt.numberOfContracts }}</span>
                       <span
                         class="alloc-col alloc-col-val"
-                        [class.demo-redact]="demoMode.isDemoMode()"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
                       >
-                        {{ opt.marketValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                        {{ dv(opt.marketValue) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                       </span>
                       <span class="alloc-col alloc-col-pct">{{ opt.pct | percent: '1.2-2' }}</span>
                     </div>
@@ -410,9 +431,9 @@
                     <span class="alloc-col alloc-col-contracts"></span>
                     <span
                       class="alloc-col alloc-col-val"
-                      [class.demo-redact]="demoMode.isDemoMode()"
+                      [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
-                      {{ g.totalValue | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      {{ dv(g.totalValue) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
                     </span>
                     <span class="alloc-col alloc-col-pct">{{ g.pct | percent: '1.2-2' }}</span>
                   </div>
@@ -422,8 +443,8 @@
           }
           <div class="alloc-grand-total-row">
             <span>Total Options</span>
-            <span [class.demo-redact]="demoMode.isDemoMode()">{{
-              optionsTotalValue() | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+            <span [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{
+              dv(optionsTotalValue()) | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
             }}</span>
             <span>{{ optionsPct() | percent: '1.2-2' }} of Total</span>
           </div>
@@ -449,17 +470,20 @@
               ></div>
             </div>
             <span class="alloc-col-pct-val alloc-net-pct">100.0%</span>
-            <span class="alloc-col-mv alloc-net-val" [class.demo-redact]="demoMode.isDemoMode()">
-              ${{ grandTotal() / 1000 | number: '1.0-0' }}k
+            <span
+              class="alloc-col-mv alloc-net-val"
+              [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+            >
+              ${{ dv(grandTotal()) / 1000 | number: '1.0-0' }}k
             </span>
             <span
               class="alloc-col-gl alloc-net-val"
               [class.alloc-gl-pos]="grandTotalGainLossIsPositive()"
               [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
-              [class.demo-redact]="demoMode.isDemoMode()"
+              [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
             >
               {{ grandTotalGainLoss() >= 0 ? '+' : '' }}${{
-                grandTotalGainLoss() / 1000 | number: '1.1-1'
+                dv(grandTotalGainLoss()) / 1000 | number: '1.1-1'
               }}k
             </span>
             <span
@@ -468,7 +492,7 @@
               [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
             >
               {{ grandTotalGainLoss() >= 0 ? '+' : ''
-              }}{{ grandTotalGainLossPct() | number: '1.1-1' }}%
+              }}{{ dvp(grandTotalGainLossPct()) | number: '1.1-1' }}%
             </span>
           </div>
         </div>

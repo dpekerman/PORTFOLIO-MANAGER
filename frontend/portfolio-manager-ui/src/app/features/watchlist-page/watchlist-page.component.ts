@@ -37,6 +37,7 @@ import {
   ValueScreenerResult,
   WatchlistSummary,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import {
   DecisionEngineService,
   GapStatus,
@@ -78,7 +79,8 @@ type SortColumn =
   | 'technical'
   | 'valueScore'
   | 'valueStatus'
-  | 'reversalP';
+  | 'reversalP'
+  | 'maStatus';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -110,6 +112,7 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+  protected readonly authState = inject(AuthStateService);
 
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
@@ -428,6 +431,19 @@ export class WatchlistPageComponent {
     return { score, tooltip, available: true };
   }
 
+  protected maStatusForSymbol(symbol: string): 'STRONG BUY' | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    const price = r.currentPrice;
+    const ma10 = r.ema10Price;
+    const ma20 = r.ema20Price;
+    const ma50 = r.sma50Price;
+    if (!ma10 || !ma20 || !ma50 || !r.has200Dma || r.dma200Deviation === undefined) return null;
+    const ma200 = price / (1 + r.dma200Deviation / 100);
+    if (price > ma10 && ma10 > ma20 && ma20 > ma50 && ma50 > ma200) return 'STRONG BUY';
+    return null;
+  }
+
   protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
@@ -541,6 +557,10 @@ export class WatchlistPageComponent {
             order[this.rsiMap().get(b.item.symbol.toUpperCase())?.reversalProbability ?? ''] ?? 0;
           break;
         }
+        case 'maStatus':
+          av = this.maStatusForSymbol(a.item.symbol) === 'STRONG BUY' ? 1 : 0;
+          bv = this.maStatusForSymbol(b.item.symbol) === 'STRONG BUY' ? 1 : 0;
+          break;
         default:
           av = a.item.symbol;
           bv = b.item.symbol;

@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class CashController(ICashService cashService) : ControllerBase
@@ -22,6 +24,7 @@ public class CashController(ICashService cashService) : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost]
     public async Task<ActionResult<CashItemDto>> Add([FromBody] AddCashItemRequest request, CancellationToken ct)
     {
@@ -29,6 +32,7 @@ public class CashController(ICashService cashService) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<CashItemDto>> Update(int id, [FromBody] UpdateCashItemRequest request, CancellationToken ct)
     {
@@ -36,6 +40,7 @@ public class CashController(ICashService cashService) : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -52,6 +57,7 @@ public class CashController(ICashService cashService) : ControllerBase
     }
 
     /// <summary>Clears all cash items and restores from the provided backup payload.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("restore")]
     public async Task<IActionResult> Restore([FromBody] RestoreCashRequest request, CancellationToken ct)
     {

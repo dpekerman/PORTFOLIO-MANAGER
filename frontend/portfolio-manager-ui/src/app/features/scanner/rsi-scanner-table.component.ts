@@ -154,6 +154,65 @@ export class RsiScannerTableComponent {
     return `50 DMA: ${sign}${d50}%  |  200 DMA: ${s200}${d200}%`;
   }
 
+  // ── Trend Shift (day-over-day RSI momentum) ────────────────────────────────
+  protected trendShiftClass(trendShift: string): string {
+    if (trendShift.includes('Bull Turn') || trendShift.includes('Bear Turn')) return 'trend-bull';
+    if (trendShift.includes('Still Falling') || trendShift.includes('Still Rising'))
+      return 'trend-bear';
+    if (trendShift.includes('Stabilizing')) return 'trend-neutral';
+    return 'trend-waiting';
+  }
+
+  /** Display label combining TrendShift with Turn Strength suffix. */
+  protected trendShiftDisplay(row: RsiScanResult): string {
+    const shift = row.trendShift;
+    const strength = row.turnStrength;
+    if (!shift || shift === 'Waiting') return shift || 'Waiting';
+    if (!strength || strength === 'Normal') return shift;
+    return `${shift} — ${strength}`;
+  }
+
+  protected stageStatusClass(status: string): string {
+    if (status === 'CONFIRMING') return 'stage-confirming';
+    if (status === 'TRACKING') return 'stage-tracking';
+    if (status === 'STAGED') return 'stage-staged';
+    return '';
+  }
+
+  protected rsiDeltaIcon(delta: number | null): string {
+    if (delta === null) return '→';
+    if (delta > 0.05) return '↑';
+    if (delta < -0.05) return '↓';
+    return '→';
+  }
+
+  protected rsiDeltaClass(delta: number | null, scanType: ScanType): string {
+    if (delta === null) return 'delta-neutral';
+    if (scanType === 'Oversold') {
+      return delta > 0.25 ? 'delta-positive' : delta < -0.25 ? 'delta-negative' : 'delta-neutral';
+    }
+    return delta < -0.25 ? 'delta-positive' : delta > 0.25 ? 'delta-negative' : 'delta-neutral';
+  }
+
+  protected sma200Label(row: RsiScanResult): string {
+    if (!row.sma200 || row.sma200 <= 0) return '—';
+    const diff = row.dma200Deviation;
+    const sign = diff >= 0 ? '+' : '';
+    const aboveBelow = diff >= 0 ? 'ABOVE' : 'BELOW';
+    return `$${row.sma200.toFixed(2)} · ${sign}${diff.toFixed(1)}% ${aboveBelow}`;
+  }
+
+  protected sma200Class(row: RsiScanResult): string {
+    if (!row.sma200 || row.sma200 <= 0) return '';
+    return row.dma200Deviation >= 0 ? 'sma200-above' : 'sma200-below';
+  }
+
+  protected trendSetup200Class(setup: string): string {
+    if (setup === 'Trend-Aligned') return 'setup-aligned';
+    if (setup === 'Counter-Trend') return 'setup-counter';
+    return '';
+  }
+
   protected probClass(prob: string): string {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';

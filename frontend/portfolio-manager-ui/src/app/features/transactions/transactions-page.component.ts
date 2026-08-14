@@ -17,6 +17,7 @@ import {
   PortfolioItem,
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -65,6 +66,7 @@ type StockTxCol =
   | 'tx_diff_dollar'
   | 'tx_trans_date'
   | 'tx_decision_source'
+  | 'tx_decision_source_closed'
   | 'tx_age'
   | 'tx_actions';
 
@@ -113,7 +115,15 @@ export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly authState = inject(AuthStateService);
   private readonly api = inject(PortfolioApiService);
+
+  /** Returns masked value when fake mode is on, original value otherwise. */
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
   private readonly dialog = inject(MatDialog);
 
   // ── Section collapse ────────────────────────────────────────────────────────
@@ -434,6 +444,8 @@ export class TransactionsPageComponent {
         return this.stockTransDate(s.item) ?? '';
       case 'tx_decision_source':
         return s.item.decisionSource ?? '';
+      case 'tx_decision_source_closed':
+        return s.item.decisionSourceClosed ?? '';
       case 'tx_age':
         return this.stockTransactionAge(s.item) ?? 0;
       default:
@@ -505,6 +517,7 @@ export class TransactionsPageComponent {
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
           decisionSource: result.decisionSource,
+          decisionSourceClosed: result.decisionSourceClosed,
         });
       });
   }

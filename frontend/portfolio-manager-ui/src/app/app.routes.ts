@@ -1,9 +1,21 @@
 import { Routes } from '@angular/router';
+import { authGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'login',
+    loadComponent: () =>
+      import('./features/auth/login/login.component').then((m) => m.LoginComponent),
+  },
+  {
+    path: 'setup',
+    loadComponent: () =>
+      import('./features/auth/setup/setup.component').then((m) => m.SetupComponent),
+  },
+  {
     path: '',
     loadComponent: () => import('./shared/layout/layout.component').then((m) => m.LayoutComponent),
+    canActivate: [authGuard],
     children: [
       {
         path: 'portfolio',
@@ -46,8 +58,8 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/eod-signals/eod-signals.routes').then((m) => m.EOD_SIGNALS_ROUTES),
       },
-      { path: '', redirectTo: 'scanner', pathMatch: 'full' },
+      { path: '', redirectTo: 'portfolio', pathMatch: 'full' },
     ],
   },
-  { path: '**', redirectTo: 'scanner' },
+  { path: '**', redirectTo: 'login' },
 ];

@@ -594,3 +594,93 @@ BEGIN
     PRINT 'Table ValueScreenerScheduleConfigs created.';
 END
 GO
+
+
+-- -- ASP.NET Core Identity + RefreshTokens ---------------------------------
+-- Added: 2026-08-02  (migration: AddIdentityAndRefreshTokens)
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetRoles')
+BEGIN
+    CREATE TABLE [dbo].[AspNetRoles] (
+        [Id] NVARCHAR(450) NOT NULL, [Name] NVARCHAR(256) NULL,
+        [NormalizedName] NVARCHAR(256) NULL, [ConcurrencyStamp] NVARCHAR(MAX) NULL,
+        CONSTRAINT [PK_AspNetRoles] PRIMARY KEY ([Id]));
+    CREATE UNIQUE INDEX [RoleNameIndex] ON [dbo].[AspNetRoles] ([NormalizedName]) WHERE [NormalizedName] IS NOT NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUsers')
+BEGIN
+    CREATE TABLE [dbo].[AspNetUsers] (
+        [Id] NVARCHAR(450) NOT NULL, [DisplayName] NVARCHAR(MAX) NOT NULL DEFAULT '',
+        [CreatedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        [UserName] NVARCHAR(256) NULL, [NormalizedUserName] NVARCHAR(256) NULL,
+        [Email] NVARCHAR(256) NULL, [NormalizedEmail] NVARCHAR(256) NULL,
+        [EmailConfirmed] BIT NOT NULL DEFAULT 0, [PasswordHash] NVARCHAR(MAX) NULL,
+        [SecurityStamp] NVARCHAR(MAX) NULL, [ConcurrencyStamp] NVARCHAR(MAX) NULL,
+        [PhoneNumber] NVARCHAR(MAX) NULL, [PhoneNumberConfirmed] BIT NOT NULL DEFAULT 0,
+        [TwoFactorEnabled] BIT NOT NULL DEFAULT 0, [LockoutEnd] DATETIMEOFFSET NULL,
+        [LockoutEnabled] BIT NOT NULL DEFAULT 1, [AccessFailedCount] INT NOT NULL DEFAULT 0,
+        CONSTRAINT [PK_AspNetUsers] PRIMARY KEY ([Id]));
+    CREATE INDEX [EmailIndex] ON [dbo].[AspNetUsers] ([NormalizedEmail]);
+    CREATE UNIQUE INDEX [UserNameIndex] ON [dbo].[AspNetUsers] ([NormalizedUserName]) WHERE [NormalizedUserName] IS NOT NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetRoleClaims')
+BEGIN
+    CREATE TABLE [dbo].[AspNetRoleClaims] ([Id] INT NOT NULL IDENTITY(1,1), [RoleId] NVARCHAR(450) NOT NULL, [ClaimType] NVARCHAR(MAX) NULL, [ClaimValue] NVARCHAR(MAX) NULL,
+        CONSTRAINT [PK_AspNetRoleClaims] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_AspNetRoleClaims_Roles] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]) ON DELETE CASCADE);
+    CREATE INDEX [IX_AspNetRoleClaims_RoleId] ON [dbo].[AspNetRoleClaims] ([RoleId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUserClaims')
+BEGIN
+    CREATE TABLE [dbo].[AspNetUserClaims] ([Id] INT NOT NULL IDENTITY(1,1), [UserId] NVARCHAR(450) NOT NULL, [ClaimType] NVARCHAR(MAX) NULL, [ClaimValue] NVARCHAR(MAX) NULL,
+        CONSTRAINT [PK_AspNetUserClaims] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_AspNetUserClaims_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE);
+    CREATE INDEX [IX_AspNetUserClaims_UserId] ON [dbo].[AspNetUserClaims] ([UserId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUserLogins')
+BEGIN
+    CREATE TABLE [dbo].[AspNetUserLogins] ([LoginProvider] NVARCHAR(450) NOT NULL, [ProviderKey] NVARCHAR(450) NOT NULL, [ProviderDisplayName] NVARCHAR(MAX) NULL, [UserId] NVARCHAR(450) NOT NULL,
+        CONSTRAINT [PK_AspNetUserLogins] PRIMARY KEY ([LoginProvider],[ProviderKey]),
+        CONSTRAINT [FK_AspNetUserLogins_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE);
+    CREATE INDEX [IX_AspNetUserLogins_UserId] ON [dbo].[AspNetUserLogins] ([UserId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUserRoles')
+BEGIN
+    CREATE TABLE [dbo].[AspNetUserRoles] ([UserId] NVARCHAR(450) NOT NULL, [RoleId] NVARCHAR(450) NOT NULL,
+        CONSTRAINT [PK_AspNetUserRoles] PRIMARY KEY ([UserId],[RoleId]),
+        CONSTRAINT [FK_AspNetUserRoles_Roles] FOREIGN KEY ([RoleId]) REFERENCES [dbo].[AspNetRoles] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_AspNetUserRoles_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE);
+    CREATE INDEX [IX_AspNetUserRoles_RoleId] ON [dbo].[AspNetUserRoles] ([RoleId]);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUserTokens')
+BEGIN
+    CREATE TABLE [dbo].[AspNetUserTokens] ([UserId] NVARCHAR(450) NOT NULL, [LoginProvider] NVARCHAR(450) NOT NULL, [Name] NVARCHAR(450) NOT NULL, [Value] NVARCHAR(MAX) NULL,
+        CONSTRAINT [PK_AspNetUserTokens] PRIMARY KEY ([UserId],[LoginProvider],[Name]),
+        CONSTRAINT [FK_AspNetUserTokens_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RefreshTokens')
+BEGIN
+    CREATE TABLE [dbo].[RefreshTokens] (
+        [Id] INT NOT NULL IDENTITY(1,1), [Token] NVARCHAR(64) NOT NULL,
+        [UserId] NVARCHAR(450) NOT NULL, [ExpiresAt] DATETIME2 NOT NULL,
+        [IsRevoked] BIT NOT NULL DEFAULT 0, [CreatedAt] DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_RefreshTokens] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_RefreshTokens_Users] FOREIGN KEY ([UserId]) REFERENCES [dbo].[AspNetUsers] ([Id]) ON DELETE CASCADE);
+    CREATE UNIQUE INDEX [IX_RefreshTokens_Token] ON [dbo].[RefreshTokens] ([Token]);
+    CREATE INDEX [IX_RefreshTokens_UserId] ON [dbo].[RefreshTokens] ([UserId]);
+END
+GO

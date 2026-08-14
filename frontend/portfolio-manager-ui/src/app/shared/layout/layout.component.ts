@@ -10,6 +10,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
+import { AuthApiService } from '../../core/services/auth-api.service';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -43,6 +45,8 @@ export class LayoutComponent {
   protected readonly theme = inject(ThemeService);
   protected readonly watchlist = inject(WatchlistStateService);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly authState = inject(AuthStateService);
+  private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
 
   protected readonly sidenav = viewChild.required<MatSidenav>('sidenav');
@@ -63,12 +67,12 @@ export class LayoutComponent {
   protected readonly showMarketHeader = computed(() => this.currentUrl().startsWith('/scanner'));
 
   protected readonly navLinks = [
+    { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
+    { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/scanner', label: 'RSI Scanner', icon: 'radar' },
     { path: '/eod-signals', label: 'EOD Signals', icon: 'timeline' },
-    { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },
-    { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/value-screener', label: 'Value Screener', icon: 'analytics' },
     { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;
@@ -77,6 +81,12 @@ export class LayoutComponent {
     this.portfolio.refresh();
     this.scanner.refresh(true);
     this.watchlist.refresh();
+  }
+
+  logout(): void {
+    this.authApi.logout().subscribe();
+    this.authState.clearAuth();
+    this.router.navigate(['/login']);
   }
 
   closeSidenav(): void {

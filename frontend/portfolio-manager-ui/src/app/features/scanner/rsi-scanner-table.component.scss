@@ -943,3 +943,135 @@
   color: #555;
   border: 1px solid rgba(158, 158, 158, 0.5);
 }
+
+// -- Day-over-Day RSI Tracking Styles -----------------------------------------
+.trend-shift-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.trend-shift-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.trend-bull {
+  background: rgba(0, 200, 83, 0.15);
+  color: #00c853;
+  border-color: rgba(0, 200, 83, 0.35);
+}
+.trend-bear {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+.trend-neutral {
+  background: rgba(255, 193, 7, 0.12);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.3);
+}
+.trend-waiting {
+  background: rgba(158, 158, 158, 0.1);
+  color: #757575;
+  border-color: rgba(158, 158, 158, 0.2);
+}
+.stage-status-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.stage-confirming {
+  background: rgba(0, 200, 83, 0.1);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.25);
+}
+.stage-tracking {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.25);
+}
+.stage-staged {
+  background: rgba(158, 158, 158, 0.1);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.2);
+}
+.chase-risk-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  cursor: default;
+}
+.rsi-delta {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.delta-positive {
+  color: #00c853;
+}
+.delta-negative {
+  color: #ef5350;
+}
+.delta-neutral {
+  color: #9e9e9e;
+}
+.sma200-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+.sma200-cell .sma200-price {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.sma200-cell .sma200-dev {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.sma200-above .sma200-dev {
+  color: #00c853;
+}
+.sma200-below .sma200-dev {
+  color: #ef5350;
+}
+.trend-setup-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.setup-aligned {
+  background: rgba(0, 200, 83, 0.12);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.25);
+}
+.setup-counter {
+  background: rgba(255, 152, 0, 0.12);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+}
+.stop-loss-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ef9a9a;
+}

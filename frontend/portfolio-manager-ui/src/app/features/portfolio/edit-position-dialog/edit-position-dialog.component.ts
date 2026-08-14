@@ -31,6 +31,7 @@ export interface EditPositionDialogResult {
   closeDate: string | null;
   closingPrice: number | null;
   decisionSource: string | null;
+  decisionSourceClosed: string | null;
 }
 
 @Component({
@@ -91,6 +92,7 @@ export class EditPositionDialogComponent implements OnInit {
     closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
     closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
     decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
+    decisionSourceClosed: [this.data.item.decisionSourceClosed ?? (null as string | null)],
   });
 
   ngOnInit(): void {
@@ -122,6 +124,7 @@ export class EditPositionDialogComponent implements OnInit {
       closeDate: this.formatDate(this.form.value.closeDate),
       closingPrice: this.form.value.closingPrice ?? null,
       decisionSource: this.form.value.decisionSource ?? null,
+      decisionSourceClosed: this.form.value.decisionSourceClosed ?? null,
     };
     this.dialogRef.close(result);
   }

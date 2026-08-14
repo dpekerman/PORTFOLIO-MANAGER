@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class OptionsController(IOptionService optionService) : ControllerBase
@@ -22,6 +24,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost]
     public async Task<ActionResult<OptionItemDto>> Add([FromBody] AddOptionItemRequest request, CancellationToken ct)
     {
@@ -29,6 +32,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPut("{id:int}")]
     public async Task<ActionResult<OptionItemDto>> Update(int id, [FromBody] UpdateOptionItemRequest request, CancellationToken ct)
     {
@@ -36,6 +40,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         return item is null ? NotFound() : Ok(item);
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/notes")]
     public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateOptionNotesRequest request, CancellationToken ct)
     {
@@ -43,6 +48,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
         return updated ? NoContent() : NotFound();
     }
 
+    [Authorize(Roles = "Admin,Trader")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
@@ -67,6 +73,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
     }
 
     /// <summary>Clears all option items and restores from the provided backup payload.</summary>
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("restore")]
     public async Task<IActionResult> Restore([FromBody] RestoreOptionsRequest request, CancellationToken ct)
     {

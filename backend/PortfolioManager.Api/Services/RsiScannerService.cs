@@ -19,6 +19,7 @@ public sealed class RsiScannerService : IRsiScannerService
     private readonly HttpClient _http;
     private readonly ILogger<RsiScannerService> _logger;
     private readonly IMarketDataProvider _marketData;
+    private readonly IStagedSignalService _stagedSignals;
 
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
@@ -66,12 +67,13 @@ public sealed class RsiScannerService : IRsiScannerService
         ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
     };
 
-    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig)
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig, IStagedSignalService stagedSignals)
     {
         _http = http;
         _logger = logger;
         _marketData = marketData;
         _runtimeConfig = runtimeConfig;
+        _stagedSignals = stagedSignals;
     }
 
     private readonly ScannerRuntimeConfig _runtimeConfig;
@@ -127,17 +129,40 @@ public sealed class RsiScannerService : IRsiScannerService
         }
 
         await EnrichWithQuoteDataAsync(results, ct);
+        // Enrich with staged signal data (for ad-hoc analysis)
+        var withSignal = results.Where(r => r.ScanType != ScanType.Neutral).ToList();
+        if (withSignal.Count > 0)
+        {
+            try { await _stagedSignals.UpsertAndEnrichAsync(withSignal,
+                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                ct: ct); }
+            catch { /* non-critical for ad-hoc */ }
+        }
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
     }
 
     private async Task<ScannerResponse> RunLiveScanAsync(string[] symbolsToScan, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
+        // Load active staged signals so we keep tracking them even if RSI has recovered
+        var activeStagedMap = await _stagedSignals.LoadActiveStagedSymbolsAsync(ct);
+
+        // Merge default universe + user symbols + active staged symbols
+        var allSymbols = symbolsToScan
+            .Concat(activeStagedMap.Keys)
+            .Select(s => s.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
 
         // Yahoo Finance has no hard rate limit; ~2 req/s is courteous.
         // 3 symbols/batch with 1.5s delay → 50 symbols in ~25s.
-        var batches = symbolsToScan
+        var batches = allSymbols
             .Select((sym, i) => new { sym, i })
             .GroupBy(x => x.i / 3)
             .Select(g => g.Select(x => x.sym).ToArray());
@@ -150,13 +175,37 @@ public sealed class RsiScannerService : IRsiScannerService
             {
                 if (r!.ScanType == ScanType.Oversold) oversold.Add(r);
                 else if (r.ScanType == ScanType.Overbought) overbought.Add(r);
-                // Neutral results are not shown in main TSX scan chains
+                else if (activeStagedMap.TryGetValue(r.Symbol, out var stagedType))
+                {
+                    // RSI recovered but setup is still active — keep in the appropriate chain
+                    r.ScanType = stagedType;
+                    r.IsTracked = true;
+                    if (stagedType == ScanType.Oversold) oversold.Add(r);
+                    else if (stagedType == ScanType.Overbought) overbought.Add(r);
+                }
+                // Neutral results with no staged signal are not shown
             }
             await Task.Delay(1500, ct);
         }
 
-        // Enrich with analyst targets and 52-week range in a single batch call
+        // Enrich with staged signal data (RsiDelta1D, TrendShift, StopLoss, SMA200)
         var allResults = oversold.Concat(overbought).ToList();
+        try
+        {
+            await _stagedSignals.UpsertAndEnrichAsync(allResults,
+                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                ct: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[StagedSignals] UpsertAndEnrichAsync failed — continuing without staged enrichment");
+        }
+
+        // Enrich with analyst targets and 52-week range in a single batch call
         await EnrichWithQuoteDataAsync(allResults, ct);
 
         return new ScannerResponse
@@ -346,11 +395,15 @@ public sealed class RsiScannerService : IRsiScannerService
             // ── Indicator 5: 50 / 200 DMA ───────────────────────────────────
             decimal dma50Dev  = 0m;
             decimal dma200Dev = 0m;
+            decimal sma200    = 0m;
             bool has200Dma    = closes.Count >= 200;
             if (closes.Count >= 50)
                 dma50Dev  = Math.Round(((todayClose - CalculateSma(closes, 50))  / CalculateSma(closes, 50))  * 100m, 2);
             if (has200Dma)
-                dma200Dev = Math.Round(((todayClose - CalculateSma(closes, 200)) / CalculateSma(closes, 200)) * 100m, 2);
+            {
+                sma200    = CalculateSma(closes, 200);
+                dma200Dev = Math.Round(((todayClose - sma200) / sma200) * 100m, 2);
+            }
 
             ScanType scanType;
             string probability;
@@ -447,6 +500,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 DayLow = Math.Round(todayLow, 4),
                 OpenPrice = Math.Round(todayOpen, 4),
                 PreviousClose = Math.Round(prevClose, 4),
+                Sma200 = has200Dma ? Math.Round(sma200, 4) : 0m,
                 IsDemo = false
             };
         }
@@ -657,7 +711,9 @@ public sealed class RsiScannerService : IRsiScannerService
             if (volumeSignal == "Validated") score++;
         }
 
-        return score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        var result = score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        // Low-Volume Trap signals cannot be High probability
+        return volumeSignal == "Low-Volume Trap" && result == "High" ? "Medium" : result;
     }
 
     // ── Enhanced Reversal Probability (uses histogram slope instead of crossover) ──
@@ -683,7 +739,9 @@ public sealed class RsiScannerService : IRsiScannerService
             if (volumeSignal == "Validated") score++;
         }
 
-        return score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        var result = score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        // Low-Volume Trap signals cannot be High probability
+        return volumeSignal == "Low-Volume Trap" && result == "High" ? "Medium" : result;
     }
 
     // ── Signal classification helpers ─────────────────────────────────────────

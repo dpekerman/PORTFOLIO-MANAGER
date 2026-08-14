@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
@@ -6,6 +7,7 @@ using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/eod-signals")]
 public class EodSignalsController(
@@ -72,6 +74,7 @@ public class EodSignalsController(
     private static readonly HashSet<string> ValidStates =
         new(["Active", "FollowThrough", "Invalidated", "Expired", "Reversed"], StringComparer.OrdinalIgnoreCase);
 
+    [Authorize(Roles = "Admin")]
     [HttpPatch("{id:int}/state")]
     public async Task<IActionResult> UpdateState(int id, [FromBody] UpdateSignalStateRequest request, CancellationToken ct)
     {
@@ -87,6 +90,7 @@ public class EodSignalsController(
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPatch("{id:int}/notes")]
     public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateSignalNotesRequest request, CancellationToken ct)
     {
@@ -116,6 +120,7 @@ public class EodSignalsController(
 
     // -- Delete --------------------------------------------------------------
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteSignal(int id, CancellationToken ct)
     {
@@ -127,6 +132,7 @@ public class EodSignalsController(
         return NoContent();
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete]
     public async Task<ActionResult<object>> DeleteAll(
         [FromQuery] bool confirm = false,
@@ -157,6 +163,7 @@ public class EodSignalsController(
     // regardless of whether the automatic EOD window is active.
     // Useful for verifying the persistence pipeline and inspecting real data.
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("persist-now")]
     public async Task<ActionResult<object>> PersistNow(CancellationToken ct)
     {
@@ -208,6 +215,7 @@ public class EodSignalsController(
     // all signal types (EodConfirm, Confirmed, EarlyWarning), and all lifecycle states.
     // No environment guard -- works in Development and can be removed for Production.
 
+    [Authorize(Roles = "Admin")]
     [HttpPost("seed")]
     public async Task<ActionResult<object>> SeedTestData(CancellationToken ct)
     {
@@ -215,22 +223,22 @@ public class EodSignalsController(
         var seed = new[]
         {
             // OVERSOLD CHAIN
-            new DailySignal { Symbol="TD.TO",  CompanyName="Toronto-Dominion Bank",        ScanType="Oversold",   SignalType="EodConfirm",   Rsi=22.4m,  Price=76.50m,  SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Financials",       ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<25 · Price below 9-EMA · Volume 2.1x avg · ATR lower quartile" },
-            new DailySignal { Symbol="RY.TO",  CompanyName="Royal Bank of Canada",         ScanType="Oversold",   SignalType="EodConfirm",   Rsi=27.1m,  Price=135.20m, SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="Active",       Sector="Financials",       ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<30 · Price vs 9-EMA · MACD histogram rising (+0.009)" },
-            new DailySignal { Symbol="ENB.TO", CompanyName="Enbridge Inc",                 ScanType="Oversold",   SignalType="EodConfirm",   Rsi=24.7m,  Price=58.40m,  SignalDate="2026-06-18", RecordedAt=now.AddDays(-6),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<25 · Price below 9-EMA · Volume 1.9x avg · ATR lower quartile" },
-            new DailySignal { Symbol="CM.TO",  CompanyName="CIBC",                         ScanType="Oversold",   SignalType="EodConfirm",   Rsi=21.9m,  Price=62.30m,  SignalDate="2026-06-17", RecordedAt=now.AddDays(-7),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Financials",       ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<22 · Price below 9-EMA · Volume 2.3x · Strong ATR signal" },
-            new DailySignal { Symbol="TRP.TO", CompanyName="TC Energy Corp",               ScanType="Oversold",   SignalType="EodConfirm",   Rsi=19.8m,  Price=51.30m,  SignalDate="2026-06-12", RecordedAt=now.AddDays(-12), RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<20 · Extreme oversold · Price vs 9-EMA confirmed · Volume surge" },
-            new DailySignal { Symbol="BNS.TO", CompanyName="Bank of Nova Scotia",          ScanType="Oversold",   SignalType="EodConfirm",   Rsi=25.6m,  Price=68.90m,  SignalDate="2026-06-11", RecordedAt=now.AddDays(-13), RuleVersion="Enhanced", SignalState="Expired",      Sector="Financials",       ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<26 · Price near 9-EMA · Volume 1.6x avg · ATR lower half" },
-            new DailySignal { Symbol="MFC.TO", CompanyName="Manulife Financial",           ScanType="Oversold",   SignalType="Confirmed",    Rsi=28.5m,  Price=27.60m,  SignalDate="2026-06-17", RecordedAt=now.AddDays(-7),  RuleVersion="Legacy",   SignalState="Active",       Sector="Insurance",        ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<30 · MACD bullish crossover · Candle closed above prior high" },
-            new DailySignal { Symbol="WN.TO",  CompanyName="George Weston Limited",        ScanType="Oversold",   SignalType="Confirmed",    Rsi=30.0m,  Price=195.80m, SignalDate="2026-06-13", RecordedAt=now.AddDays(-11), RuleVersion="Legacy",   SignalState="Active",       Sector="Consumer Staples", ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI boundary touch · MACD histogram positive · Volume neutral" },
-            new DailySignal { Symbol="ATD.TO", CompanyName="Alimentation Couche-Tard",     ScanType="Oversold",   SignalType="EodConfirm",   Rsi=23.2m,  Price=62.10m,  SignalDate="2026-06-13", RecordedAt=now.AddDays(-11), RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Consumer Staples", ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<24 · Price below 9-EMA · Volume 1.7x · ATR bottom half" },
-            new DailySignal { Symbol="BCE.TO", CompanyName="BCE Inc",                      ScanType="Oversold",   SignalType="EarlyWarning", Rsi=29.8m,  Price=32.20m,  SignalDate="2026-06-19", RecordedAt=now.AddDays(-5),  RuleVersion="Legacy",   SignalState="Active",       Sector="Communication",    ReversalProbability="Medium", VolumeSignal="Low-Volume Trap", TriggerDetails="RSI near oversold threshold · No EOD confirmation yet · Low volume" },
+            new DailySignal { Symbol="TD.TO",  CompanyName="Toronto-Dominion Bank",        ScanType="Oversold",   SignalType="EodConfirm",   Rsi=22.4m,  Price=76.50m,  SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Financials",       ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<25 Â· Price below 9-EMA Â· Volume 2.1x avg Â· ATR lower quartile" },
+            new DailySignal { Symbol="RY.TO",  CompanyName="Royal Bank of Canada",         ScanType="Oversold",   SignalType="EodConfirm",   Rsi=27.1m,  Price=135.20m, SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="Active",       Sector="Financials",       ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<30 Â· Price vs 9-EMA Â· MACD histogram rising (+0.009)" },
+            new DailySignal { Symbol="ENB.TO", CompanyName="Enbridge Inc",                 ScanType="Oversold",   SignalType="EodConfirm",   Rsi=24.7m,  Price=58.40m,  SignalDate="2026-06-18", RecordedAt=now.AddDays(-6),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<25 Â· Price below 9-EMA Â· Volume 1.9x avg Â· ATR lower quartile" },
+            new DailySignal { Symbol="CM.TO",  CompanyName="CIBC",                         ScanType="Oversold",   SignalType="EodConfirm",   Rsi=21.9m,  Price=62.30m,  SignalDate="2026-06-17", RecordedAt=now.AddDays(-7),  RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Financials",       ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<22 Â· Price below 9-EMA Â· Volume 2.3x Â· Strong ATR signal" },
+            new DailySignal { Symbol="TRP.TO", CompanyName="TC Energy Corp",               ScanType="Oversold",   SignalType="EodConfirm",   Rsi=19.8m,  Price=51.30m,  SignalDate="2026-06-12", RecordedAt=now.AddDays(-12), RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<20 Â· Extreme oversold Â· Price vs 9-EMA confirmed Â· Volume surge" },
+            new DailySignal { Symbol="BNS.TO", CompanyName="Bank of Nova Scotia",          ScanType="Oversold",   SignalType="EodConfirm",   Rsi=25.6m,  Price=68.90m,  SignalDate="2026-06-11", RecordedAt=now.AddDays(-13), RuleVersion="Enhanced", SignalState="Expired",      Sector="Financials",       ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<26 Â· Price near 9-EMA Â· Volume 1.6x avg Â· ATR lower half" },
+            new DailySignal { Symbol="MFC.TO", CompanyName="Manulife Financial",           ScanType="Oversold",   SignalType="Confirmed",    Rsi=28.5m,  Price=27.60m,  SignalDate="2026-06-17", RecordedAt=now.AddDays(-7),  RuleVersion="Legacy",   SignalState="Active",       Sector="Insurance",        ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI<30 Â· MACD bullish crossover Â· Candle closed above prior high" },
+            new DailySignal { Symbol="WN.TO",  CompanyName="George Weston Limited",        ScanType="Oversold",   SignalType="Confirmed",    Rsi=30.0m,  Price=195.80m, SignalDate="2026-06-13", RecordedAt=now.AddDays(-11), RuleVersion="Legacy",   SignalState="Active",       Sector="Consumer Staples", ReversalProbability="Medium", VolumeSignal="Neutral",         TriggerDetails="RSI boundary touch Â· MACD histogram positive Â· Volume neutral" },
+            new DailySignal { Symbol="ATD.TO", CompanyName="Alimentation Couche-Tard",     ScanType="Oversold",   SignalType="EodConfirm",   Rsi=23.2m,  Price=62.10m,  SignalDate="2026-06-13", RecordedAt=now.AddDays(-11), RuleVersion="Enhanced", SignalState="FollowThrough", Sector="Consumer Staples", ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI<24 Â· Price below 9-EMA Â· Volume 1.7x Â· ATR bottom half" },
+            new DailySignal { Symbol="BCE.TO", CompanyName="BCE Inc",                      ScanType="Oversold",   SignalType="EarlyWarning", Rsi=29.8m,  Price=32.20m,  SignalDate="2026-06-19", RecordedAt=now.AddDays(-5),  RuleVersion="Legacy",   SignalState="Active",       Sector="Communication",    ReversalProbability="Medium", VolumeSignal="Low-Volume Trap", TriggerDetails="RSI near oversold threshold Â· No EOD confirmation yet Â· Low volume" },
             // OVERBOUGHT CHAIN
-            new DailySignal { Symbol="CNQ.TO", CompanyName="Canadian Natural Resources",   ScanType="Overbought", SignalType="EodConfirm",   Rsi=78.3m,  Price=48.90m,  SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="Invalidated",  Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>75 · Price above 9-EMA · Volume 1.8x · ATR upper quartile" },
-            new DailySignal { Symbol="SU.TO",  CompanyName="Suncor Energy Inc",            ScanType="Overbought", SignalType="Confirmed",    Rsi=81.5m,  Price=55.10m,  SignalDate="2026-06-19", RecordedAt=now.AddDays(-5),  RuleVersion="Legacy",   SignalState="Reversed",     Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>80 · MACD bearish crossover · Candle closed in lower half of range" },
-            new DailySignal { Symbol="BAM.TO", CompanyName="Brookfield Asset Mgmt",        ScanType="Overbought", SignalType="Confirmed",    Rsi=76.2m,  Price=72.80m,  SignalDate="2026-06-18", RecordedAt=now.AddDays(-6),  RuleVersion="Enhanced", SignalState="Expired",      Sector="Financials",       ReversalProbability="Low",    VolumeSignal="Neutral",         TriggerDetails="RSI>75 · Stochastics overbought · Bollinger upper band · Low vol" },
-            new DailySignal { Symbol="CNR.TO", CompanyName="Canadian National Railway",    ScanType="Overbought", SignalType="EodConfirm",   Rsi=79.1m,  Price=158.40m, SignalDate="2026-06-16", RecordedAt=now.AddDays(-8),  RuleVersion="Enhanced", SignalState="Reversed",     Sector="Industrials",      ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>78 · Price above 9-EMA · Volume 2.0x avg · ATR upper quartile" },
-            new DailySignal { Symbol="CP.TO",  CompanyName="Canadian Pacific Kansas City", ScanType="Overbought", SignalType="EarlyWarning", Rsi=73.5m,  Price=98.20m,  SignalDate="2026-06-16", RecordedAt=now.AddDays(-8),  RuleVersion="Legacy",   SignalState="Invalidated",  Sector="Industrials",      ReversalProbability="Low",    VolumeSignal="Low-Volume Trap", TriggerDetails="RSI approaching overbought · No full EOD confirmation · Volume weak" },
+            new DailySignal { Symbol="CNQ.TO", CompanyName="Canadian Natural Resources",   ScanType="Overbought", SignalType="EodConfirm",   Rsi=78.3m,  Price=48.90m,  SignalDate="2026-06-20", RecordedAt=now.AddDays(-4),  RuleVersion="Enhanced", SignalState="Invalidated",  Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>75 Â· Price above 9-EMA Â· Volume 1.8x Â· ATR upper quartile" },
+            new DailySignal { Symbol="SU.TO",  CompanyName="Suncor Energy Inc",            ScanType="Overbought", SignalType="Confirmed",    Rsi=81.5m,  Price=55.10m,  SignalDate="2026-06-19", RecordedAt=now.AddDays(-5),  RuleVersion="Legacy",   SignalState="Reversed",     Sector="Energy",           ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>80 Â· MACD bearish crossover Â· Candle closed in lower half of range" },
+            new DailySignal { Symbol="BAM.TO", CompanyName="Brookfield Asset Mgmt",        ScanType="Overbought", SignalType="Confirmed",    Rsi=76.2m,  Price=72.80m,  SignalDate="2026-06-18", RecordedAt=now.AddDays(-6),  RuleVersion="Enhanced", SignalState="Expired",      Sector="Financials",       ReversalProbability="Low",    VolumeSignal="Neutral",         TriggerDetails="RSI>75 Â· Stochastics overbought Â· Bollinger upper band Â· Low vol" },
+            new DailySignal { Symbol="CNR.TO", CompanyName="Canadian National Railway",    ScanType="Overbought", SignalType="EodConfirm",   Rsi=79.1m,  Price=158.40m, SignalDate="2026-06-16", RecordedAt=now.AddDays(-8),  RuleVersion="Enhanced", SignalState="Reversed",     Sector="Industrials",      ReversalProbability="High",   VolumeSignal="Validated",       TriggerDetails="RSI>78 Â· Price above 9-EMA Â· Volume 2.0x avg Â· ATR upper quartile" },
+            new DailySignal { Symbol="CP.TO",  CompanyName="Canadian Pacific Kansas City", ScanType="Overbought", SignalType="EarlyWarning", Rsi=73.5m,  Price=98.20m,  SignalDate="2026-06-16", RecordedAt=now.AddDays(-8),  RuleVersion="Legacy",   SignalState="Invalidated",  Sector="Industrials",      ReversalProbability="Low",    VolumeSignal="Low-Volume Trap", TriggerDetails="RSI approaching overbought Â· No full EOD confirmation Â· Volume weak" },
         };
 
         var existingKeys = await db.DailySignals

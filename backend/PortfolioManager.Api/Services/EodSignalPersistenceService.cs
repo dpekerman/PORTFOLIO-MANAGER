@@ -60,6 +60,23 @@ public class EodSignalPersistenceService
 
         var resultList = eodResults.ToList();
 
+        // Promotion gate: require TrendShift momentum reversal AND volume confirmation.
+        // A Bull/Bear Turn with Low-Volume Trap must NOT be promoted (ATS.TO rule).
+        var confirmed = resultList
+            .Where(r => r.RsiDelta1D.HasValue
+                && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn")
+                && r.VolumeSignal == "Validated")
+            .ToList();
+
+        if (confirmed.Count < resultList.Count)
+        {
+            _logger.LogInformation(
+                "[EodPersistence] {Total} qualified signals: {Confirmed} with TrendShift confirmation, {Waiting} still waiting.",
+                resultList.Count, confirmed.Count, resultList.Count - confirmed.Count);
+        }
+
+        resultList = confirmed;
+
         var history = new EodSignalHistory
         {
             Date = etToday,
@@ -106,22 +123,36 @@ public class EodSignalPersistenceService
 
                 var newRecords = resultList
                     .Where(r => !existingSet.Contains(r.Symbol))
-                    .Select(r => new DailySignal
+                    .Select(r =>
                     {
-                        Symbol             = r.Symbol,
-                        CompanyName        = r.CompanyName ?? string.Empty,
-                        ScanType           = r.ScanType.ToString(),
-                        SignalType         = r.Status.ToString(),
-                        Rsi                = Math.Round(r.Rsi, 2),
-                        Price              = r.CurrentPrice,
-                        TriggerDetails     = r.TriggerDetails ?? string.Empty,
-                        SignalDate         = etToday,
-                        RecordedAt         = r.ScannedAt,
-                        RuleVersion        = r.LogicMode ?? "Legacy",
-                        SignalState        = "Active",
-                        Sector             = r.Sector ?? string.Empty,
-                        ReversalProbability = r.ReversalProbability ?? string.Empty,
-                        VolumeSignal       = r.VolumeSignal ?? string.Empty,
+                        decimal? stopLoss = r.DynamicStopLoss > 0 ? r.DynamicStopLoss : null;
+                        decimal? entryPrice = r.CurrentPrice > 0 ? r.CurrentPrice : null;
+                        decimal? riskPerShare = (entryPrice.HasValue && stopLoss.HasValue)
+                            ? Math.Abs(entryPrice.Value - stopLoss.Value)
+                            : null;
+                        return new DailySignal
+                        {
+                            Symbol             = r.Symbol,
+                            CompanyName        = r.CompanyName ?? string.Empty,
+                            ScanType           = r.ScanType.ToString(),
+                            SignalType         = r.Status.ToString(),
+                            Rsi                = Math.Round(r.Rsi, 2),
+                            Price              = r.CurrentPrice,
+                            TriggerDetails     = r.TriggerDetails ?? string.Empty,
+                            SignalDate         = etToday,
+                            RecordedAt         = r.ScannedAt,
+                            RuleVersion        = r.LogicMode ?? "Legacy",
+                            SignalState        = "Active",
+                            Sector             = r.Sector ?? string.Empty,
+                            ReversalProbability = r.ReversalProbability ?? string.Empty,
+                            VolumeSignal       = r.VolumeSignal ?? string.Empty,
+                            TrendShift         = r.TrendShift,
+                            RsiDelta1D         = r.RsiDelta1D,
+                            EntryPrice         = entryPrice,
+                            StopLossPrice      = stopLoss,
+                            RiskPerShare       = riskPerShare,
+                            Sma200             = r.Sma200 > 0 ? r.Sma200 : null,
+                        };
                     })
                     .ToList();
 
@@ -131,6 +162,17 @@ public class EodSignalPersistenceService
                     await db.SaveChangesAsync(ct);
                     _logger.LogInformation("Appended {Count} new EOD signal(s) to DailySignals table for {Date}",
                         newRecords.Count, etToday);
+
+                    // Deactivate staged signals for all confirmed records
+                    var stagedService = scope.ServiceProvider.GetRequiredService<IStagedSignalService>();
+                    foreach (var r in newRecords)
+                    {
+                        try { await stagedService.DeactivateAsync(r.Symbol, r.ScanType, ct); }
+                        catch (Exception deactivateEx)
+                        {
+                            _logger.LogWarning(deactivateEx, "Failed to deactivate staged signal for {Symbol}", r.Symbol);
+                        }
+                    }
                 }
             }
             catch (Exception ex)

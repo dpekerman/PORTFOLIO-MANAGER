@@ -47,7 +47,14 @@ type SortCol =
   | 'symbol'
   | 'scanType'
   | 'signalType'
+  | 'trendShift'
   | 'rsi'
+  | 'rsiDelta1D'
+  | 'entryPrice'
+  | 'stopLoss'
+  | 'riskPerShare'
+  | 'riskPercent'
+  | 'sma200'
   | 'price'
   | 'lastPrice'
   | 'priceDiff'
@@ -153,9 +160,37 @@ export class EodSignalsPageComponent implements OnInit {
           av = a.signalType;
           bv = b.signalType;
           break;
+        case 'trendShift':
+          av = a.trendShift ?? '';
+          bv = b.trendShift ?? '';
+          break;
         case 'rsi':
           av = a.rsi;
           bv = b.rsi;
+          break;
+        case 'rsiDelta1D':
+          av = a.rsiDelta1D ?? 0;
+          bv = b.rsiDelta1D ?? 0;
+          break;
+        case 'entryPrice':
+          av = a.entryPrice ?? 0;
+          bv = b.entryPrice ?? 0;
+          break;
+        case 'stopLoss':
+          av = a.stopLossPrice ?? 0;
+          bv = b.stopLossPrice ?? 0;
+          break;
+        case 'riskPerShare':
+          av = a.riskPerShare ?? 0;
+          bv = b.riskPerShare ?? 0;
+          break;
+        case 'riskPercent':
+          av = a.entryPrice && a.riskPerShare ? a.riskPerShare / a.entryPrice : 0;
+          bv = b.entryPrice && b.riskPerShare ? b.riskPerShare / b.entryPrice : 0;
+          break;
+        case 'sma200':
+          av = a.sma200 ?? 0;
+          bv = b.sma200 ?? 0;
           break;
         case 'price':
           av = a.price;
@@ -577,5 +612,41 @@ export class EodSignalsPageComponent implements OnInit {
     if (p === 'High') return 'tag-prob-high';
     if (p === 'Medium') return 'tag-prob-medium';
     return 'tag-prob-low';
+  }
+
+  protected trendShiftClass(trendShift: string): string {
+    if (trendShift.includes('Bull Turn') || trendShift.includes('Bear Turn'))
+      return 'tag-trend-bull';
+    if (trendShift.includes('Still Falling') || trendShift.includes('Still Rising'))
+      return 'tag-trend-bear';
+    if (trendShift.includes('Stabilizing')) return 'tag-trend-neutral';
+    return '';
+  }
+
+  /** Risk % = RiskPerShare / EntryPrice × 100. Null when either value is missing. */
+  protected riskPercent(row: DailySignal): number | null {
+    if (row.riskPerShare == null || row.entryPrice == null || row.entryPrice === 0) return null;
+    return (row.riskPerShare / row.entryPrice) * 100;
+  }
+
+  /**
+   * Turn velocity label derived from RsiDelta1D, matching backend StagedSignalService thresholds.
+   * Returns "" when not applicable.
+   */
+  protected turnStrength(row: DailySignal): string {
+    const delta = row.rsiDelta1D;
+    if (delta === null || delta === undefined) return '';
+    const isTurn = row.scanType === 'Oversold' ? delta > 0.25 : delta < -0.25;
+    if (!isTurn) return '';
+    const abs = Math.abs(delta);
+    if (abs >= 10) return 'Explosive';
+    if (abs >= 5) return 'Strong';
+    if (abs >= 1) return 'Normal';
+    return 'Early';
+  }
+
+  /** "Elevated" when TurnStrength is Explosive; "" otherwise. */
+  protected chaseRisk(row: DailySignal): string {
+    return this.turnStrength(row) === 'Explosive' ? 'Elevated' : '';
   }
 }

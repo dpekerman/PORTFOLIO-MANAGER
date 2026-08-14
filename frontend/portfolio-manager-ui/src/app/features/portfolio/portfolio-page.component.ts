@@ -27,6 +27,7 @@ import {
   TechnicalState,
   ValueScreenerResult,
 } from '../../core/models/portfolio.models';
+import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import {
@@ -115,7 +116,8 @@ type GridSortCol =
   | 'holdingRole'
   | 'trendSetup'
   | 'momentumShift'
-  | 'finalAction';
+  | 'finalAction'
+  | 'maStatus';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -166,18 +168,32 @@ export class PortfolioPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeService);
+  protected readonly authState = inject(AuthStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
   private readonly configService = inject(ConfigService);
 
-  /** Ghost cards displayed while portfolio loads for the first time */
+  /** Returns masked value when fake mode is on, original value otherwise. */
+  protected dv(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskValue(v)
+      : v;
+  }
+
+  /** Returns masked percent when fake mode is on, original percent otherwise. */
+  protected dvp(v: number): number {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
+      ? this.demoMode.maskPercent(v)
+      : v;
+  }
   protected readonly skeletonItems = Array.from({ length: 9 }, (_, i) => i);
 
   // ── Section collapse state ──────────────────────────────────────────────────
   protected readonly stocksExpanded = signal(true);
   protected readonly cashExpanded = signal(true);
   protected readonly optionsExpanded = signal(true);
+  protected readonly filtersExpanded = signal(false);
 
   protected readonly sortField = signal<SortField>('marketValue');
   protected readonly sortDir = signal<SortDir>('desc');
@@ -396,6 +412,19 @@ export class PortfolioPageComponent {
 
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected maStatusForSymbol(symbol: string): 'STRONG BUY' | null {
+    const r = this.rsiMap().get(symbol.toUpperCase());
+    if (!r) return null;
+    const price = r.currentPrice;
+    const ma10 = r.ema10Price;
+    const ma20 = r.ema20Price;
+    const ma50 = r.sma50Price;
+    if (!ma10 || !ma20 || !ma50 || !r.has200Dma || r.dma200Deviation === undefined) return null;
+    const ma200 = price / (1 + r.dma200Deviation / 100);
+    if (price > ma10 && ma10 > ma20 && ma20 > ma50 && ma50 > ma200) return 'STRONG BUY';
+    return null;
   }
 
   protected probClass(prob: string): string {
@@ -843,6 +872,8 @@ export class PortfolioPageComponent {
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? ''
         );
+      case 'maStatus':
+        return this.maStatusForSymbol(s.item.symbol) === 'STRONG BUY' ? 1 : 0;
       default:
         return 0;
     }
@@ -1126,6 +1157,7 @@ export class PortfolioPageComponent {
           closeDate: result.closeDate,
           closingPrice: result.closingPrice,
           decisionSource: result.decisionSource,
+          decisionSourceClosed: result.decisionSourceClosed,
         });
       });
   }

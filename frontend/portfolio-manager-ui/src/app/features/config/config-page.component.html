@@ -106,10 +106,21 @@
       role="tab"
       [attr.aria-selected]="activeSection() === 'decisions'"
       [class.cfg-tab-btn--active]="activeSection() === 'decisions'"
-      (click)="activeSection.set('decisions')"
+      (click)="setSection('decisions')"
     >
       <mat-icon>label</mat-icon><span class="cfg-tab-label">Decision Sources</span>
     </button>
+    @if (authState.isAdmin()) {
+      <button
+        class="cfg-tab-btn"
+        role="tab"
+        [attr.aria-selected]="activeSection() === 'users'"
+        [class.cfg-tab-btn--active]="activeSection() === 'users'"
+        (click)="setSection('users')"
+      >
+        <mat-icon>manage_accounts</mat-icon><span class="cfg-tab-label">Users</span>
+      </button>
+    }
   </nav>
 
   <!-- ════════════════════════════════════════════════════════════════════
@@ -131,20 +142,20 @@
         @if (demoMode.isDemoMode()) {
           <div class="demo-active-banner" role="status">
             <mat-icon>visibility_off</mat-icon>
-            <span>DEMO MODE — portfolio values are masked · Real data is not displayed</span>
+            <span>DEMO MODE is active — portfolio values are masked</span>
           </div>
         }
 
         <div class="demo-toggle-row">
           <mat-slide-toggle
-            [checked]="demoMode.isDemoMode()"
-            (change)="demoMode.isDemoMode() ? demoMode.disable() : demoMode.enable()"
+            [checked]="pendingDemoEnabled()"
+            (change)="pendingDemoEnabled.set($event.checked); demoSettingsDirty.set(true)"
             color="warn"
           >
             {{
-              demoMode.isDemoMode()
-                ? 'Demo mode is ON — values are masked'
-                : 'Demo mode is OFF — real values shown'
+              pendingDemoEnabled()
+                ? 'Demo mode ON — values will be masked'
+                : 'Demo mode OFF — real values shown'
             }}
           </mat-slide-toggle>
         </div>
@@ -155,8 +166,7 @@
             <p><strong>What gets masked:</strong></p>
             <ul>
               <li>All dollar amounts (portfolio value, cost, gain/loss, cash)</li>
-              <li>A consistent random factor (0.3–0.7) is applied per session</li>
-              <li>Percentages are varied within ±30%</li>
+              <li>Percentages are varied to look realistic</li>
             </ul>
             <p><strong>What stays visible:</strong></p>
             <ul>
@@ -166,14 +176,60 @@
           </div>
         </div>
 
-        @if (demoMode.isDemoMode()) {
-          <div class="demo-exit-row">
-            <button mat-flat-button color="primary" (click)="demoMode.disable()">
-              <mat-icon>visibility</mat-icon>
-              Exit Demo Mode
-            </button>
+        <!-- ── Masking style ────────────────────────────────────────────── -->
+        @if (pendingDemoEnabled()) {
+          <div class="demo-style-section">
+            <p class="demo-style-label"><strong>Masking style</strong></p>
+            <mat-button-toggle-group
+              [value]="pendingDemoStyle()"
+              (change)="pendingDemoStyle.set($event.value); demoSettingsDirty.set(true)"
+              class="demo-style-toggle"
+              aria-label="Demo masking style"
+            >
+              <mat-button-toggle
+                value="blur"
+                matTooltip="Scales real values by 0.3–0.7× per session"
+              >
+                <mat-icon>blur_on</mat-icon>
+                Blur &amp; Scale
+              </mat-button-toggle>
+              <mat-button-toggle
+                value="fake"
+                matTooltip="Replaces values with completely unrelated plausible amounts"
+              >
+                <mat-icon>shuffle</mat-icon>
+                Fake Numbers
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            <p class="demo-style-desc">
+              @if (pendingDemoStyle() === 'blur') {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Proportional factor applied — scale relationships still visible</span>
+              } @else {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Completely unrelated amounts shown — real scale is hidden</span>
+              }
+            </p>
           </div>
         }
+
+        <div class="demo-save-row">
+          <button
+            mat-flat-button
+            color="primary"
+            [disabled]="!demoSettingsDirty()"
+            (click)="saveDemoSettings()"
+          >
+            <mat-icon>save</mat-icon>
+            Save Settings
+          </button>
+          @if (demoSettingsDirty()) {
+            <button mat-stroked-button (click)="initPendingDemo()">
+              <mat-icon>undo</mat-icon>
+              Reset
+            </button>
+          }
+        </div>
       </div>
     </div>
   </div>
@@ -247,6 +303,24 @@
                     <mat-hint>Min 30s · Default 60s</mat-hint>
                     @if (form.controls.watchlistRefreshSeconds.errors?.['min']) {
                       <mat-error>Minimum 30 seconds</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Session timeout (minutes)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="sessionTimeoutMinutes"
+                      min="0"
+                      max="1440"
+                    />
+                    <mat-hint>0 = disabled · Default 480 min (8h)</mat-hint>
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['min']) {
+                      <mat-error>Minimum 0 (disabled)</mat-error>
+                    }
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['max']) {
+                      <mat-error>Maximum 1440 min (24h)</mat-error>
                     }
                   </mat-form-field>
                 </div>
@@ -1390,4 +1464,84 @@
     </div>
   </div>
   <!-- /cfg-panel decisions -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 9 — USER MANAGEMENT (Admin only)
+       ════════════════════════════════════════════════════════════════════ -->
+  @if (authState.isAdmin()) {
+    <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'users'">
+      <div class="config-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <mat-icon class="section-icon">manage_accounts</mat-icon>
+            User Management
+          </h2>
+          <p class="section-desc">
+            Create and manage application users. Only Admins can access this section.
+          </p>
+        </div>
+
+        <div class="section-body">
+          <div class="alloc-table-header">
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="openCreateUserDialog()"
+              [disabled]="savingUser()"
+            >
+              <mat-icon>person_add</mat-icon> Add User
+            </button>
+            <button
+              mat-icon-button
+              matTooltip="Refresh user list"
+              (click)="loadUsers()"
+              [disabled]="loadingUsers()"
+            >
+              <mat-icon [class.spinning]="loadingUsers()">refresh</mat-icon>
+            </button>
+          </div>
+
+          @if (loadingUsers()) {
+            <p class="hint-text">Loading users…</p>
+          } @else if (userList().length === 0) {
+            <p class="hint-text">No users found.</p>
+          } @else {
+            <div class="user-table">
+              <div class="user-table-header">
+                <span>Display Name</span>
+                <span>Email</span>
+                <span>Role</span>
+                <span></span>
+              </div>
+              @for (user of userList(); track user.id) {
+                <div class="user-table-row">
+                  <span class="user-name">{{ user.displayName }}</span>
+                  <span class="user-email">{{ user.email }}</span>
+                  <mat-form-field appearance="outline" class="role-select">
+                    <mat-select
+                      [value]="user.roles[0]"
+                      (selectionChange)="changeUserRole(user.id, $event.value)"
+                    >
+                      @for (role of availableRoles; track role) {
+                        <mat-option [value]="role">{{ role }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Delete user"
+                    (click)="confirmDeleteUser(user.id, user.displayName)"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <!-- /cfg-panel users -->
+  }
 </div>

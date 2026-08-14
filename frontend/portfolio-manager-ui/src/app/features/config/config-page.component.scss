@@ -833,3 +833,126 @@
 .demo-exit-row {
   margin-top: 8px;
 }
+
+.demo-save-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+// ── Demo Style Selector ───────────────────────────────────────────────────────
+.demo-style-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+}
+
+.demo-style-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
+.demo-style-toggle {
+  width: 100%;
+
+  .mat-button-toggle {
+    flex: 1;
+    height: 48px;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      margin-right: 6px;
+    }
+  }
+
+  .mat-button-toggle-checked {
+    background: rgba(100, 181, 246, 0.12);
+    color: var(--mat-sys-primary, #64b5f6);
+    font-weight: 600;
+  }
+}
+
+.demo-style-desc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+
+  .demo-style-desc-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+}
+
+// ── User Management table ─────────────────────────────────────────────────────
+.user-table {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.user-table-header,
+.user-table-row {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 120px 40px;
+  gap: 12px;
+  padding: 8px 14px;
+  align-items: center;
+}
+
+.user-table-header {
+  background: var(--bg-elevated);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.user-table-row {
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
+  font-size: 0.85rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.user-name {
+  font-weight: 600;
+}
+.user-email {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+.role-select {
+  margin: 0;
+}
+
+.alloc-table-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.hint-text {
+  font-size: 0.82rem;
+  color: var(--text-faint);
+  font-style: italic;
+}

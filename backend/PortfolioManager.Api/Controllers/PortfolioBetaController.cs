@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class PortfolioBetaController(IPortfolioBetaService betaService) : ControllerBase
@@ -17,6 +19,7 @@ public class PortfolioBetaController(IPortfolioBetaService betaService) : Contro
     }
 
     /// <summary>Calculates portfolio beta using user-supplied beta overrides (keyed by symbol).</summary>
+    [Authorize(Roles = "Admin")]
     [HttpPost("calculate")]
     public async Task<ActionResult<PortfolioBetaResult>> Calculate(
         [FromBody] PortfolioBetaRequest request, CancellationToken ct)
