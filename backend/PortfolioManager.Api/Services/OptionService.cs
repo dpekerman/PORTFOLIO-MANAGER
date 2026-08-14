@@ -96,6 +96,7 @@ public sealed class OptionService(
         item.CloseDate         = request.CloseDate;
         item.ClosingPrice      = request.ClosingPrice;
         item.DecisionSource    = request.DecisionSource;
+        item.DecisionSourceClosed = request.DecisionSourceClosed;
         await db.SaveChangesAsync(ct);
         return ToDto(item);
     }
@@ -288,7 +289,7 @@ public sealed class OptionService(
         new(item.Id, item.UnderlyingTicker, item.PositionType, item.ExpirationDate,
             item.Strike, item.Premium, item.NumberOfContracts, item.MarketPrice, item.AddedAt,
             item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice,
-            item.Notes, item.DecisionSource);
+            item.Notes, item.DecisionSource, item.DecisionSourceClosed);
 
     public async Task<IReadOnlyList<OptionBackupItem>> BackupAsync(CancellationToken ct = default)
     {

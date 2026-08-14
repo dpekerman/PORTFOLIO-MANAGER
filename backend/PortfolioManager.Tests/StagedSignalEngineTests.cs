@@ -124,11 +124,47 @@ public class StagedSignalEngineTests
         Assert.True(wouldPromote, "Signal with origin Oversold can promote even when current RSI > 30");
     }
 
-    // ── Helper: mirrors EodSignalPersistenceService promotion gate ────────────
-    private static bool WouldPromote(decimal? rsiDelta, string trendShift, string volumeSignal)
+    // ── Test 6 (Regression): DVA — Bull Turn but price and volume both fail ──
+    [Fact]
+    public void Test6_DVA_Regression_BullTurnWithPriceAndVolumeFailure_MustNotPromote()
+    {
+        // Input per requirement #20:
+        // Ticker=DVA, RSI=26.9, TrendShift=Bull Turn, Price=$180.82, EMA9=$190.24, VolumeRatio=0.3
+
+        decimal? delta = 1.0m; // positive delta → Bull Turn (exact value is illustrative)
+        string trendShift = ComputeShift(delta, ScanType.Oversold);
+
+        // Bull Turn must be detected
+        Assert.Contains("Bull Turn", trendShift);
+
+        // Stage status must be CONFIRMING, not STAGED or TRACKING
+        string stageStatus = StagedSignalService.ComputeStageStatus(delta, trendShift);
+        Assert.Equal("CONFIRMING", stageStatus);
+
+        // Price $180.82 is BELOW EMA9 $190.24 → PriceConfirmation = false
+        const decimal price = 180.82m;
+        const decimal ema9  = 190.24m;
+        bool priceConfirmed = price > ema9; // Oversold: price must be above EMA9
+        Assert.False(priceConfirmed, "DVA: price $180.82 is below EMA9 $190.24 — price confirmation must FAIL");
+
+        // VolumeRatio=0.3 → "Low-Volume Trap" → VolumeConfirmation = false
+        const string volumeSignal = "Low-Volume Trap";
+
+        // The Stage-2 promotion gate must BLOCK promotion (both price and volume failed)
+        bool wouldPromote = WouldPromote(delta, trendShift, volumeSignal, priceConfirmed);
+        Assert.False(wouldPromote, "DVA: both price and volume confirmation failed — must NOT be promoted to DailySignals");
+
+        // Signal remains CONFIRMING with IsActiveWatch=1 in StagedSignals
+        // It must appear in the Awaiting section, never in the Confirmed section
+        Assert.Equal("CONFIRMING", stageStatus);
+    }
+
+    // ── Helper: mirrors EodSignalPersistenceService Stage-2 promotion gate ────
+    private static bool WouldPromote(decimal? rsiDelta, string trendShift, string volumeSignal, bool priceConfirmed = true)
         => rsiDelta.HasValue
            && (trendShift.Contains("Bull Turn") || trendShift.Contains("Bear Turn"))
-           && volumeSignal == "Validated";
+           && volumeSignal == "Validated"
+           && priceConfirmed;
 
     private static string ComputeShift(decimal? delta, ScanType type)
     {

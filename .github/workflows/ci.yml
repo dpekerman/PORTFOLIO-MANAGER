@@ -32,7 +32,7 @@ jobs:
         working-directory: backend
         run: |
           if [ -d "PortfolioManager.Tests" ]; then
-            dotnet test --configuration Release --no-build --verbosity normal
+            dotnet test PortfolioManager.Tests/PortfolioManager.Tests.csproj --configuration Release --verbosity normal
           else
             echo "No test project found – skipping (create backend/PortfolioManager.Tests to add tests)"
           fi

@@ -51,7 +51,7 @@ public class EodSignalPersistenceService
     /// Overwrites any previously saved signals (only the latest EOD window is kept).
     /// Also appends to the DailySignals database table for full history tracking.
     /// </summary>
-    public async Task SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
+    public async Task<List<RsiScanResult>> SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
     {
         var tz = GetEasternTz();
         var etToday = tz is not null
@@ -60,12 +60,13 @@ public class EodSignalPersistenceService
 
         var resultList = eodResults.ToList();
 
-        // Promotion gate: require TrendShift momentum reversal AND volume confirmation.
-        // A Bull/Bear Turn with Low-Volume Trap must NOT be promoted (ATS.TO rule).
+        // Stage-2 promotion gate: require TrendShift reversal + price confirmation + volume.
+        // All three must pass — a Bull/Bear Turn alone does NOT confirm the signal.
         var confirmed = resultList
             .Where(r => r.RsiDelta1D.HasValue
                 && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn")
-                && r.VolumeSignal == "Validated")
+                && r.VolumeSignal == "Validated"
+                && IsPriceConfirmed(r))
             .ToList();
 
         if (confirmed.Count < resultList.Count)
@@ -180,7 +181,17 @@ public class EodSignalPersistenceService
                 _logger.LogError(ex, "Failed to persist EOD signals to DailySignals table");
             }
         }
+
+        return resultList;
     }
+
+    // ── Helpers ─ promotion gate ─────────────────────────────────────────────
+
+    /// <summary>Price must have crossed EMA9 in the direction of the reversal for Stage-2 confirmation.</summary>
+    private static bool IsPriceConfirmed(RsiScanResult r) =>
+        r.ScanType == ScanType.Oversold
+            ? r.CurrentPrice > r.Ema9Price
+            : r.CurrentPrice < r.Ema9Price;
 
     // ── Read ──────────────────────────────────────────────────────────────────
 

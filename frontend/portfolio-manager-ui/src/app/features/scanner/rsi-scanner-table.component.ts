@@ -1,9 +1,10 @@
 ﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
@@ -29,6 +30,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
     MatTooltipModule,
     MatChipsModule,
     MatProgressBarModule,
+    MatSortModule,
     RouterLink,
     DecimalPipe,
     CurrencyPipe,
@@ -43,6 +45,66 @@ export class RsiScannerTableComponent {
   readonly portfolioSymbols = input<ReadonlySet<string>>(new Set());
   readonly watchlistSymbols = input<ReadonlySet<string>>(new Set());
   readonly showHistory = input(true);
+
+  protected readonly sortCol = signal<string>('momentumShift');
+  protected readonly sortDir = signal<'asc' | 'desc'>('asc');
+
+  /** Sort priority for TrendShift: Bull/Bear Turns first, then Stabilizing, then Still Falling/Rising, then Waiting. */
+  private trendShiftPriority(shift: string): number {
+    if (shift.includes('Bull Turn') || shift.includes('Bear Turn')) return 0;
+    if (shift.includes('Stabilizing')) return 1;
+    if (shift.includes('Still')) return 2;
+    return 3; // Waiting / empty
+  }
+
+  protected readonly sortedResults = computed(() => {
+    const col = this.sortCol();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    return [...this.results()].sort((a, b) => {
+      let av: number | string;
+      let bv: number | string;
+      switch (col) {
+        case 'momentumShift':
+          av = this.trendShiftPriority(a.trendShift ?? '');
+          bv = this.trendShiftPriority(b.trendShift ?? '');
+          if (av !== bv) return (av - bv) * dir;
+          return a.symbol.localeCompare(b.symbol);
+        case 'symbol':
+          av = a.symbol;
+          bv = b.symbol;
+          break;
+        case 'rsi':
+          av = a.rsi;
+          bv = b.rsi;
+          break;
+        case 'rsiDelta1D':
+          av = a.rsiDelta1D ?? 0;
+          bv = b.rsiDelta1D ?? 0;
+          break;
+        case 'price':
+          av = a.currentPrice;
+          bv = b.currentPrice;
+          break;
+        case 'probability':
+          av = a.reversalProbability === 'High' ? 2 : a.reversalProbability === 'Medium' ? 1 : 0;
+          bv = b.reversalProbability === 'High' ? 2 : b.reversalProbability === 'Medium' ? 1 : 0;
+          break;
+        case 'analystUpside':
+          av = a.analystTargetUpside ?? 0;
+          bv = b.analystTargetUpside ?? 0;
+          break;
+        default:
+          return 0;
+      }
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  protected onSortChange(sort: Sort): void {
+    this.sortCol.set(sort.active || 'momentumShift');
+    this.sortDir.set((sort.direction as 'asc' | 'desc') || 'asc');
+  }
 
   private readonly engine = inject(DecisionEngineService);
   private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');

@@ -35,6 +35,15 @@
       </button>
       <button
         mat-icon-button
+        matTooltip="Export to Excel"
+        (click)="exportToExcel()"
+        [disabled]="sortedSignals().length === 0"
+        aria-label="Export EOD signals to Excel"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
+      <button
+        mat-icon-button
         matTooltip="Persist current scanner results to EOD Signals (EodConfirm + Confirmed)"
         (click)="persistNow()"
         [disabled]="persistingNow()"

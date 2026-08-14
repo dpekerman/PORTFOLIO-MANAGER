@@ -152,6 +152,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'otx_gain_pct', label: 'Gain %' },
       { key: 'otx_mkt_value', label: 'Current Mkt Value' },
       { key: 'otx_decision_source', label: 'Decision Source' },
+      { key: 'otx_decision_source_closed', label: 'Decision Source — Closed' },
       { key: 'otx_age', label: 'Age (days)' },
       { key: 'otx_actions', label: 'Actions', pinned: true },
       { key: 'colConfig', label: '', pinned: true },
