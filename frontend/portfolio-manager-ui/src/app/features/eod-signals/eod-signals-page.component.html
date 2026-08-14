@@ -283,10 +283,18 @@
             @if (row.trendShift) {
               <div class="eod-trend-shift-cell">
                 <span class="trend-shift-tag" [class]="trendShiftClass(row.trendShift)">
-                  {{ row.trendShift }}{{ turnStrength(row) && turnStrength(row) !== 'Normal' ? ' — ' + turnStrength(row) : '' }}
+                  {{ row.trendShift
+                  }}{{
+                    turnStrength(row) && turnStrength(row) !== 'Normal'
+                      ? ' — ' + turnStrength(row)
+                      : ''
+                  }}
                 </span>
                 @if (chaseRisk(row) === 'Elevated') {
-                  <span class="eod-chase-risk" matTooltip="Explosive reversal — large portion of the move may have occurred before confirmation">
+                  <span
+                    class="eod-chase-risk"
+                    matTooltip="Explosive reversal — large portion of the move may have occurred before confirmation"
+                  >
                     ⚡ Chase Risk
                   </span>
                 }
@@ -367,7 +375,11 @@
                 <span class="mono">${{ row.riskPerShare | number: '1.2-2' }}</span>
                 @let rp = riskPercent(row);
                 @if (rp !== null) {
-                  <span class="risk-pct" [class.risk-high]="rp > 12" [class.risk-med]="rp > 8 && rp <= 12">
+                  <span
+                    class="risk-pct"
+                    [class.risk-high]="rp > 12"
+                    [class.risk-med]="rp > 8 && rp <= 12"
+                  >
                     {{ rp | number: '1.1-1' }}%
                   </span>
                 }

@@ -640,8 +640,8 @@ export class EodSignalsPageComponent implements OnInit {
     if (!isTurn) return '';
     const abs = Math.abs(delta);
     if (abs >= 10) return 'Explosive';
-    if (abs >= 5)  return 'Strong';
-    if (abs >= 1)  return 'Normal';
+    if (abs >= 5) return 'Strong';
+    if (abs >= 1) return 'Normal';
     return 'Early';
   }
 
