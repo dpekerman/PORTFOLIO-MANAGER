@@ -18,6 +18,17 @@ public sealed class ScannerRuntimeConfig
     private decimal _eodOversoldRsiThreshold  = 25m;
     private decimal _eodOverboughtRsiThreshold = 75m;
 
+    // ── Turn Strength Thresholds ──────────────────────────────────────────────
+    // RSI Δ1D >= EarlyMin and < NormalMin → Early; >= NormalMin and < StrongMin → Normal;
+    // >= StrongMin and < ExplosiveMin → Strong; >= ExplosiveMin → Explosive.
+    private decimal _turnStrengthEarlyMin    = 0.25m;
+    private decimal _turnStrengthNormalMin   = 1.0m;
+    private decimal _turnStrengthStrongMin   = 5.0m;
+    private decimal _turnStrengthExplosiveMin = 10.0m;
+
+    // Max trading sessions a staged setup may remain active without confirmed promotion.
+    private int _maxActiveTradingDays = 7;
+
     // Windows timezone id — cross-platform fallback to IANA "America/New_York"
     private static readonly string[] EasternTzIds =
         ["Eastern Standard Time", "America/New_York"];
@@ -37,6 +48,11 @@ public sealed class ScannerRuntimeConfig
     public bool    EodWindowEnabled         { get => _eodWindowEnabled;         set => _eodWindowEnabled         = value; }
     public decimal EodOversoldRsiThreshold  { get => _eodOversoldRsiThreshold;  set => _eodOversoldRsiThreshold  = value; }
     public decimal EodOverboughtRsiThreshold{ get => _eodOverboughtRsiThreshold; set => _eodOverboughtRsiThreshold = value; }
+    public decimal TurnStrengthEarlyMin    { get => _turnStrengthEarlyMin;    set => _turnStrengthEarlyMin    = value; }
+    public decimal TurnStrengthNormalMin   { get => _turnStrengthNormalMin;   set => _turnStrengthNormalMin   = value; }
+    public decimal TurnStrengthStrongMin   { get => _turnStrengthStrongMin;   set => _turnStrengthStrongMin   = value; }
+    public decimal TurnStrengthExplosiveMin{ get => _turnStrengthExplosiveMin; set => _turnStrengthExplosiveMin = value; }
+    public int     MaxActiveTradingDays    { get => _maxActiveTradingDays;    set => _maxActiveTradingDays    = value; }
 
     // ── Persistence ───────────────────────────────────────────────────────────
 
@@ -54,6 +70,11 @@ public sealed class ScannerRuntimeConfig
             _eodWindowEnabled          = dto.EodWindowEnabled;
             if (dto.EodOversoldRsiThreshold  > 0) _eodOversoldRsiThreshold  = dto.EodOversoldRsiThreshold;
             if (dto.EodOverboughtRsiThreshold > 0) _eodOverboughtRsiThreshold = dto.EodOverboughtRsiThreshold;
+            if (dto.TurnStrengthEarlyMin    > 0) _turnStrengthEarlyMin    = dto.TurnStrengthEarlyMin;
+            if (dto.TurnStrengthNormalMin   > 0) _turnStrengthNormalMin   = dto.TurnStrengthNormalMin;
+            if (dto.TurnStrengthStrongMin   > 0) _turnStrengthStrongMin   = dto.TurnStrengthStrongMin;
+            if (dto.TurnStrengthExplosiveMin > 0) _turnStrengthExplosiveMin = dto.TurnStrengthExplosiveMin;
+            if (dto.MaxActiveTradingDays    > 0) _maxActiveTradingDays    = dto.MaxActiveTradingDays;
         }
         catch { /* ignore corrupt file */ }
     }
@@ -70,6 +91,11 @@ public sealed class ScannerRuntimeConfig
                 EodWindowEnabled         = _eodWindowEnabled,
                 EodOversoldRsiThreshold  = _eodOversoldRsiThreshold,
                 EodOverboughtRsiThreshold = _eodOverboughtRsiThreshold,
+                TurnStrengthEarlyMin     = _turnStrengthEarlyMin,
+                TurnStrengthNormalMin    = _turnStrengthNormalMin,
+                TurnStrengthStrongMin    = _turnStrengthStrongMin,
+                TurnStrengthExplosiveMin = _turnStrengthExplosiveMin,
+                MaxActiveTradingDays     = _maxActiveTradingDays,
             };
             File.WriteAllText(ConfigFilePath, JsonSerializer.Serialize(dto, JsonOpts));
         }
@@ -107,5 +133,10 @@ public sealed class ScannerRuntimeConfig
         public bool    EodWindowEnabled         { get; set; } = true;
         public decimal EodOversoldRsiThreshold  { get; set; } = 25m;
         public decimal EodOverboughtRsiThreshold{ get; set; } = 75m;
+        public decimal TurnStrengthEarlyMin    { get; set; } = 0.25m;
+        public decimal TurnStrengthNormalMin   { get; set; } = 1.0m;
+        public decimal TurnStrengthStrongMin   { get; set; } = 5.0m;
+        public decimal TurnStrengthExplosiveMin{ get; set; } = 10.0m;
+        public int     MaxActiveTradingDays    { get; set; } = 7;
     }
 }

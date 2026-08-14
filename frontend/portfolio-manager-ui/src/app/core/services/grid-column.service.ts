@@ -203,6 +203,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'entryPrice', label: 'Entry Price' },
       { key: 'stopLoss', label: 'Stop Loss' },
       { key: 'riskPerShare', label: 'Risk / Share' },
+      { key: 'riskPercent', label: 'Risk %' },
       { key: 'sma200', label: 'SMA 200' },
       { key: 'price', label: 'Price' },
       { key: 'lastPrice', label: 'Last Price' },

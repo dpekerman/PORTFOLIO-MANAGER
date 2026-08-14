@@ -210,6 +210,13 @@ export interface RsiScanResult {
   dynamicStopLoss: number;
   /** True when this result is kept from a prior staged signal (RSI may have recovered). */
   isTracked: boolean;
+  // -- 2-Stage Engine status --------------------------------------------------
+  /** Stage workflow: "STAGED" | "TRACKING" | "CONFIRMING" | "" */
+  stageStatus: string;
+  /** RSI velocity label: "" | "Early" | "Normal" | "Strong" | "Explosive" */
+  turnStrength: string;
+  /** "Elevated" when TurnStrength is Explosive; "" otherwise */
+  chaseRisk: string;
 }
 
 export interface ScannerResponse {

@@ -504,17 +504,32 @@
       </th>
       <td mat-cell *matCellDef="let row">
         @if (row.isTracked && row.trendShift) {
-          <div
-            class="trend-shift-badge"
-            [class]="trendShiftClass(row.trendShift)"
-            [matTooltip]="
-              'RSI Δ1D: ' +
-              (row.rsiDelta1D !== null
-                ? (row.rsiDelta1D >= 0 ? '+' : '') + row.rsiDelta1D?.toFixed(2)
-                : 'Waiting')
-            "
-          >
-            {{ row.trendShift }}
+          <div class="trend-shift-cell">
+            <div
+              class="trend-shift-badge"
+              [class]="trendShiftClass(row.trendShift)"
+              [matTooltip]="
+                'RSI Δ1D: ' +
+                (row.rsiDelta1D !== null
+                  ? (row.rsiDelta1D >= 0 ? '+' : '') + row.rsiDelta1D?.toFixed(2)
+                  : 'Waiting')
+              "
+            >
+              {{ trendShiftDisplay(row) }}
+            </div>
+            @if (row.stageStatus) {
+              <span class="stage-status-badge" [class]="stageStatusClass(row.stageStatus)">
+                {{ row.stageStatus }}
+              </span>
+            }
+            @if (row.chaseRisk === 'Elevated') {
+              <span
+                class="chase-risk-badge"
+                matTooltip="Explosive reversal — large portion of move may have occurred before confirmation"
+              >
+                ⚡ Chase Risk
+              </span>
+            }
           </div>
         } @else {
           @let dec = decision(row);

@@ -127,6 +127,29 @@ public class RsiScanResult
     public decimal DynamicStopLoss { get; set; }
     /// <summary>Whether this result comes from an active staged signal (RSI may have recovered from extreme).</summary>
     public bool IsTracked { get; set; }
+
+    // ── 2-Stage Engine — Status &amp; Velocity ──────────────────────────────────────
+    /// <summary>
+    /// Stage workflow status for this setup.
+    /// "STAGED"     — Day 1; no prior RSI to calculate delta.
+    /// "TRACKING"   — Delta exists but momentum has not meaningfully reversed yet.
+    /// "CONFIRMING" — TrendShift is Bull Turn or Bear Turn; engine evaluating price + volume.
+    /// Empty string when the result is not from an active staged signal.
+    /// </summary>
+    public string StageStatus { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Velocity of the RSI reversal, derived from |RsiDelta1D|.
+    /// "Early" | "Normal" | "Strong" | "Explosive" — empty when not applicable.
+    /// Normal is the baseline (no suffix shown in display).
+    /// </summary>
+    public string TurnStrength { get; set; } = string.Empty;
+
+    /// <summary>
+    /// "Elevated" when TurnStrength is Explosive, flagging that a large portion of the
+    /// rebound may have already occurred before confirmation.  Empty otherwise.
+    /// </summary>
+    public string ChaseRisk { get; set; } = string.Empty;
 }
 
 public class ScannerResponse

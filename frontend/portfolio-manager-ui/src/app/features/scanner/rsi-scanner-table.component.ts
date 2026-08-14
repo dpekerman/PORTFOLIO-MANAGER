@@ -163,6 +163,22 @@ export class RsiScannerTableComponent {
     return 'trend-waiting';
   }
 
+  /** Display label combining TrendShift with Turn Strength suffix. */
+  protected trendShiftDisplay(row: RsiScanResult): string {
+    const shift = row.trendShift;
+    const strength = row.turnStrength;
+    if (!shift || shift === 'Waiting') return shift || 'Waiting';
+    if (!strength || strength === 'Normal') return shift;
+    return `${shift} — ${strength}`;
+  }
+
+  protected stageStatusClass(status: string): string {
+    if (status === 'CONFIRMING') return 'stage-confirming';
+    if (status === 'TRACKING') return 'stage-tracking';
+    if (status === 'STAGED') return 'stage-staged';
+    return '';
+  }
+
   protected rsiDeltaIcon(delta: number | null): string {
     if (delta === null) return '→';
     if (delta > 0.05) return '↑';

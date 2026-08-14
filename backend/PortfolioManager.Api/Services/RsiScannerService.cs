@@ -133,7 +133,13 @@ public sealed class RsiScannerService : IRsiScannerService
         var withSignal = results.Where(r => r.ScanType != ScanType.Neutral).ToList();
         if (withSignal.Count > 0)
         {
-            try { await _stagedSignals.UpsertAndEnrichAsync(withSignal, ct: ct); }
+            try { await _stagedSignals.UpsertAndEnrichAsync(withSignal,
+                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                ct: ct); }
             catch { /* non-critical for ad-hoc */ }
         }
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
@@ -186,7 +192,13 @@ public sealed class RsiScannerService : IRsiScannerService
         var allResults = oversold.Concat(overbought).ToList();
         try
         {
-            await _stagedSignals.UpsertAndEnrichAsync(allResults, ct: ct);
+            await _stagedSignals.UpsertAndEnrichAsync(allResults,
+                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                ct: ct);
         }
         catch (Exception ex)
         {
@@ -699,7 +711,9 @@ public sealed class RsiScannerService : IRsiScannerService
             if (volumeSignal == "Validated") score++;
         }
 
-        return score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        var result = score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        // Low-Volume Trap signals cannot be High probability
+        return volumeSignal == "Low-Volume Trap" && result == "High" ? "Medium" : result;
     }
 
     // ── Enhanced Reversal Probability (uses histogram slope instead of crossover) ──
@@ -725,7 +739,9 @@ public sealed class RsiScannerService : IRsiScannerService
             if (volumeSignal == "Validated") score++;
         }
 
-        return score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        var result = score switch { >= 4 => "High", >= 2 => "Medium", _ => "Low" };
+        // Low-Volume Trap signals cannot be High probability
+        return volumeSignal == "Low-Volume Trap" && result == "High" ? "Medium" : result;
     }
 
     // ── Signal classification helpers ─────────────────────────────────────────

@@ -416,12 +416,55 @@
 }
 
 // Trend Shift in EOD signals table
+.eod-trend-shift-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-start;
+}
 .trend-shift-tag {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 0.72rem;
   font-weight: 700;
+}
+.eod-chase-risk {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  cursor: default;
+  white-space: nowrap;
+}
+
+// Risk % display in Risk/Share column
+.risk-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.risk-pct {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #9e9e9e;
+}
+.risk-pct.risk-high {
+  color: #ef5350;
+}
+.risk-pct.risk-med {
+  color: #ffa726;
+}
+.risk-high {
+  color: #ef5350;
+}
+.risk-med {
+  color: #ffa726;
 }
 
 // ── RSI Value ─────────────────────────────────────────────────────────────────

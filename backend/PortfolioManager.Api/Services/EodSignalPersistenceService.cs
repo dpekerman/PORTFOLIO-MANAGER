@@ -60,11 +60,12 @@ public class EodSignalPersistenceService
 
         var resultList = eodResults.ToList();
 
-        // Only confirm signals that have a TrendShift indicating a momentum reversal
-        // and have day-over-day RSI data (not Day 1 — per spec: no DailySignal on Day 1)
+        // Promotion gate: require TrendShift momentum reversal AND volume confirmation.
+        // A Bull/Bear Turn with Low-Volume Trap must NOT be promoted (ATS.TO rule).
         var confirmed = resultList
             .Where(r => r.RsiDelta1D.HasValue
-                && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn"))
+                && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn")
+                && r.VolumeSignal == "Validated")
             .ToList();
 
         if (confirmed.Count < resultList.Count)

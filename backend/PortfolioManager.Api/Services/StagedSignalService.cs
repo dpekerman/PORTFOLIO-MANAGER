@@ -11,11 +11,18 @@ public interface IStagedSignalService
 
     /// <summary>
     /// Upserts StagedSignal records and enriches each scan result with:
-    /// RsiDelta1D, TrendShift, DynamicStopLoss, Sma200, TrendSetup200, IsTracked.
+    /// RsiDelta1D, TrendShift, StageStatus, TurnStrength, ChaseRisk,
+    /// DynamicStopLoss, Sma200, TrendSetup200, IsTracked.
+    /// Expired setups (beyond MaxActiveTradingDays without promotion) are deactivated here.
     /// </summary>
     Task UpsertAndEnrichAsync(
         IEnumerable<RsiScanResult> results,
         decimal trendShiftThreshold = 0.25m,
+        decimal earlyMin    = 0.25m,
+        decimal normalMin   = 1.0m,
+        decimal strongMin   = 5.0m,
+        decimal explosiveMin = 10.0m,
+        int maxActiveTradingDays = 7,
         CancellationToken ct = default);
 
     /// <summary>Marks the staged signal inactive after a confirmed signal is written to DailySignals.</summary>
@@ -47,6 +54,11 @@ public sealed class StagedSignalService(
     public async Task UpsertAndEnrichAsync(
         IEnumerable<RsiScanResult> results,
         decimal trendShiftThreshold = 0.25m,
+        decimal earlyMin    = 0.25m,
+        decimal normalMin   = 1.0m,
+        decimal strongMin   = 5.0m,
+        decimal explosiveMin = 10.0m,
+        int maxActiveTradingDays = 7,
         CancellationToken ct = default)
     {
         var resultList = results.ToList();
@@ -92,6 +104,19 @@ public sealed class StagedSignalService(
             }
             else
             {
+                // Check expiration before updating
+                int daysSinceStaged = (today.DayNumber - staged.StagedDate.DayNumber);
+                if (daysSinceStaged > maxActiveTradingDays)
+                {
+                    staged.IsActiveWatch = false;
+                    staged.UpdatedAt = DateTime.UtcNow;
+                    logger.LogInformation(
+                        "[StagedSignal] Expired: {Symbol} {ScanType} — {Days} trading days without promotion (max={Max})",
+                        result.Symbol, scanTypeStr, daysSinceStaged, maxActiveTradingDays);
+                    // Result is still returned to the caller but IsTracked = false
+                    continue;
+                }
+
                 // Existing staged signal: roll forward on new trading day
                 if (staged.LastEvaluatedDate != today)
                 {
@@ -121,9 +146,12 @@ public sealed class StagedSignalService(
             }
 
             // Enrich the scan result
-            result.RsiDelta1D    = staged.RsiDelta1D;
-            result.TrendShift    = ComputeTrendShift(staged.RsiDelta1D, result.ScanType, trendShiftThreshold);
-            result.IsTracked     = true;
+            result.RsiDelta1D  = staged.RsiDelta1D;
+            result.TrendShift  = ComputeTrendShift(staged.RsiDelta1D, result.ScanType, trendShiftThreshold);
+            result.TurnStrength = ComputeTurnStrength(staged.RsiDelta1D, result.ScanType, earlyMin, normalMin, strongMin, explosiveMin);
+            result.ChaseRisk   = result.TurnStrength == "Explosive" ? "Elevated" : string.Empty;
+            result.StageStatus = ComputeStageStatus(staged.RsiDelta1D, result.TrendShift);
+            result.IsTracked   = true;
 
             // Dynamic stop loss
             if (result.DailyAtr > 0)
@@ -175,6 +203,43 @@ public sealed class StagedSignalService(
                  : rsiDelta.Value > threshold  ? "\ud83d\udd34 Still Rising"
                  :                               "\ud83d\udfe1 Stabilizing";
         }
+    }
+
+    /// <summary>
+    /// Stage status derived purely from RsiDelta1D and TrendShift.
+    /// STAGED     = no delta yet (Day 1).
+    /// CONFIRMING = momentum reversed (Bull Turn / Bear Turn).
+    /// TRACKING   = delta exists but not yet a meaningful reversal.
+    /// </summary>
+    internal static string ComputeStageStatus(decimal? rsiDelta, string trendShift)
+    {
+        if (!rsiDelta.HasValue) return "STAGED";
+        if (trendShift.Contains("Bull Turn") || trendShift.Contains("Bear Turn")) return "CONFIRMING";
+        return "TRACKING";
+    }
+
+    /// <summary>
+    /// Velocity label for a confirmed turn. Returns "" when not applicable.
+    /// Uses absolute RSI delta so the same thresholds apply to both Oversold and Overbought.
+    /// </summary>
+    internal static string ComputeTurnStrength(
+        decimal? rsiDelta, ScanType scanType,
+        decimal earlyMin, decimal normalMin, decimal strongMin, decimal explosiveMin)
+    {
+        if (!rsiDelta.HasValue) return string.Empty;
+
+        // Only label a turn when the delta direction matches the scan type
+        bool isTurn = scanType == ScanType.Oversold
+            ? rsiDelta.Value > earlyMin
+            : rsiDelta.Value < -earlyMin;
+
+        if (!isTurn) return string.Empty;
+
+        decimal abs = Math.Abs(rsiDelta.Value);
+        if (abs >= explosiveMin) return "Explosive";
+        if (abs >= strongMin)    return "Strong";
+        if (abs >= normalMin)    return "Normal";
+        return "Early";
     }
 
     private static string GetEtToday()
