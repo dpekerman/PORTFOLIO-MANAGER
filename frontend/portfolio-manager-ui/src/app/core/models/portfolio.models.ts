@@ -197,6 +197,19 @@ export interface RsiScanResult {
   openPrice: number;
   /** Yesterday's closing price. GapPct = (openPrice - previousClose) / previousClose * 100. */
   previousClose: number;
+  // -- Day-over-Day Momentum Tracking (StagedSignals) -------------------------
+  /** RSI change from previous trading session. Null on Day 1. */
+  rsiDelta1D: number | null;
+  /** Trend shift state: "Waiting" | "🟢 Bull Turn" | "🟡 Stabilizing" | "🔴 Still Falling" | "🟢 Bear Turn" | "🔴 Still Rising" */
+  trendShift: string;
+  /** 200-day SMA value. 0 when not enough data. */
+  sma200: number;
+  /** Price vs SMA200: "Trend-Aligned" | "Counter-Trend" | "" */
+  trendSetup200: string;
+  /** Dynamic stop loss calculated from ExtremeLow/High + 1.5×ATR. 0 when not yet computed. */
+  dynamicStopLoss: number;
+  /** True when this result is kept from a prior staged signal (RSI may have recovered). */
+  isTracked: boolean;
 }
 
 export interface ScannerResponse {
@@ -454,6 +467,13 @@ export interface DailySignal {
   volumeSignal: string;
   notes: string | null;
   updatedAt: string | null;
+  // -- Confirmation snapshot fields -----------------------------------------
+  trendShift: string | null;
+  rsiDelta1D: number | null;
+  entryPrice: number | null;
+  stopLossPrice: number | null;
+  riskPerShare: number | null;
+  sma200: number | null;
 }
 
 export interface DailySignalPagedResponse {

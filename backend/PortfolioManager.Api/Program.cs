@@ -124,6 +124,7 @@ builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 builder.Services.AddScoped<ValueScreenerService>();
+builder.Services.AddScoped<IStagedSignalService, StagedSignalService>();
 // Singleton: persists/reads Value Screener results from DB
 builder.Services.AddSingleton<ValueScreenerPersistenceService>();
 // Background service: runs Value Screener at configured time (default 5 PM ET weekdays)

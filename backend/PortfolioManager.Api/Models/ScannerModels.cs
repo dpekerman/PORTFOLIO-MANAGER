@@ -113,6 +113,20 @@ public class RsiScanResult
     public decimal DayHigh { get; set; }
     /// <summary>Today's intraday low price (from last completed candle).</summary>
     public decimal DayLow { get; set; }
+
+    // ── Day-over-Day Momentum Tracking (StagedSignals) ───────────────────────
+    /// <summary>RSI change from previous trading session (CurrentRsi - PreviousRsi). Null on Day 1.</summary>
+    public decimal? RsiDelta1D { get; set; }
+    /// <summary>Trend shift state derived from RsiDelta1D. "Waiting" | "🟢 Bull Turn" | "🟡 Stabilizing" | "🔴 Still Falling" | "🟢 Bear Turn" | "🔴 Still Rising"</summary>
+    public string TrendShift { get; set; } = "Waiting";
+    /// <summary>200-day Simple Moving Average of closing price. 0 when fewer than 200 trading days available.</summary>
+    public decimal Sma200 { get; set; }
+    /// <summary>Price position relative to SMA200: "Trend-Aligned" | "Counter-Trend" | "" when no SMA200.</summary>
+    public string TrendSetup200 { get; set; } = string.Empty;
+    /// <summary>Dynamic stop-loss: ExtremeLow - 1.5×ATR (oversold) or ExtremeHigh + 1.5×ATR (overbought). 0 when not yet computed.</summary>
+    public decimal DynamicStopLoss { get; set; }
+    /// <summary>Whether this result comes from an active staged signal (RSI may have recovered from extreme).</summary>
+    public bool IsTracked { get; set; }
 }
 
 public class ScannerResponse
@@ -205,6 +219,42 @@ public class YesterdayEodResponse
 }
 
 /// <summary>
+/// Active tracking record for a symbol that has entered an RSI extreme condition.
+/// One record per Symbol + ScanType — deactivated when signal is confirmed (IsActiveWatch = 0).
+/// </summary>
+public class StagedSignal
+{
+    public int StagedId { get; set; }
+    public string Symbol { get; set; } = string.Empty;
+    /// <summary>Oversold | Overbought</summary>
+    public string ScanType { get; set; } = string.Empty;
+
+    public decimal BasePrice { get; set; }
+    public decimal BaseRsi { get; set; }
+    public decimal BaseHigh { get; set; }
+    public decimal BaseLow { get; set; }
+
+    public decimal? PreviousPrice { get; set; }
+    public decimal? PreviousRsi { get; set; }
+
+    public decimal? CurrentPrice { get; set; }
+    public decimal? CurrentRsi { get; set; }
+
+    public decimal? RsiDelta1D { get; set; }
+
+    public decimal? ExtremeLow { get; set; }
+    public decimal? ExtremeHigh { get; set; }
+
+    public DateOnly StagedDate { get; set; }
+    public DateOnly? LastEvaluatedDate { get; set; }
+
+    public bool IsActiveWatch { get; set; } = true;
+
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
 /// A persisted daily EOD signal record stored in the database.
 /// Enables querying full signal history across multiple days with lifecycle tracking.
 /// </summary>
@@ -232,6 +282,20 @@ public class DailySignal
     public string VolumeSignal { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public DateTime? UpdatedAt { get; set; }
+
+    // ── Confirmation snapshot (populated when signal is confirmed) ────────────
+    /// <summary>Trend shift at confirmation: "Bull Turn" | "Bear Turn"</summary>
+    public string? TrendShift { get; set; }
+    /// <summary>RSI day-over-day delta at confirmation.</summary>
+    public decimal? RsiDelta1D { get; set; }
+    /// <summary>Market price at exact moment of confirmation.</summary>
+    public decimal? EntryPrice { get; set; }
+    /// <summary>Final stop-loss: ExtremeLow - 1.5×ATR or ExtremeHigh + 1.5×ATR.</summary>
+    public decimal? StopLossPrice { get; set; }
+    /// <summary>ABS(EntryPrice - StopLossPrice).</summary>
+    public decimal? RiskPerShare { get; set; }
+    /// <summary>200-day SMA at confirmation.</summary>
+    public decimal? Sma200 { get; set; }
 }
 
 /// <summary>Request DTO for updating a DailySignal's lifecycle state.</summary>

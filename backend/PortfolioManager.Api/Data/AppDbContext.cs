@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
     public DbSet<DailySignal> DailySignals => Set<DailySignal>();
+    public DbSet<StagedSignal> StagedSignals => Set<StagedSignal>();
     public DbSet<AllocationRiskTarget> AllocationRiskTargets => Set<AllocationRiskTarget>();
     public DbSet<AllocationSectorTarget> AllocationSectorTargets => Set<AllocationSectorTarget>();
     public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
@@ -109,9 +110,36 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
             entity.Property(e => e.ReversalProbability).HasMaxLength(20).HasDefaultValue("");
             entity.Property(e => e.VolumeSignal).HasMaxLength(30).HasDefaultValue("");
+            entity.Property(e => e.TrendShift).HasMaxLength(50);
+            entity.Property(e => e.RsiDelta1D).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.EntryPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StopLossPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.RiskPerShare).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Sma200).HasColumnType("decimal(18,4)");
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+        });
+
+        modelBuilder.Entity<StagedSignal>(entity =>
+        {
+            entity.HasKey(e => e.StagedId);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ScanType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.BasePrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseHigh).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseLow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PreviousPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PreviousRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CurrentPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CurrentRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.RsiDelta1D).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ExtremeLow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ExtremeHigh).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.IsActiveWatch).HasDefaultValue(true);
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.IsActiveWatch);
         });
 
         modelBuilder.Entity<AllocationRiskTarget>(entity =>

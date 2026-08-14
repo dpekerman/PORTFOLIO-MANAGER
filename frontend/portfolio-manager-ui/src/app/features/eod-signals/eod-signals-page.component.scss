@@ -398,6 +398,30 @@
     background: rgba(0, 0, 0, 0.06);
     color: rgba(0, 0, 0, 0.54);
   }
+  &.tag-trend-bull {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.3);
+  }
+  &.tag-trend-bear {
+    background: rgba(244, 67, 54, 0.1);
+    color: #ef5350;
+    border: 1px solid rgba(244, 67, 54, 0.25);
+  }
+  &.tag-trend-neutral {
+    background: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+  }
+}
+
+// Trend Shift in EOD signals table
+.trend-shift-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 // ── RSI Value ─────────────────────────────────────────────────────────────────
@@ -470,8 +494,12 @@
 }
 
 // ── Price diff colors ──────────────────────────────────────────────────────────
-.eod-pos { color: #2e7d32; }
-.eod-neg { color: #c62828; }
+.eod-pos {
+  color: #2e7d32;
+}
+.eod-neg {
+  color: #c62828;
+}
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 .spinning {

@@ -276,6 +276,20 @@
           </td>
         </ng-container>
 
+        <!-- Trend Shift -->
+        <ng-container matColumnDef="trendShift">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="trendShift">TREND SHIFT</th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.trendShift) {
+              <span class="trend-shift-tag" [class]="trendShiftClass(row.trendShift)">{{
+                row.trendShift
+              }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
         <!-- RSI -->
         <ng-container matColumnDef="rsi">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="rsi" class="num-col">RSI</th>
@@ -283,6 +297,83 @@
             <span class="rsi-val" [class]="scanTypeClass(row.scanType)">{{
               row.rsi | number: '1.1-1'
             }}</span>
+          </td>
+        </ng-container>
+
+        <!-- RSI Δ1D -->
+        <ng-container matColumnDef="rsiDelta1D">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="rsiDelta1D" class="num-col">
+            RSI Δ1D
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.rsiDelta1D !== null && row.rsiDelta1D !== undefined) {
+              <span
+                class="mono"
+                [class.eod-pos]="row.rsiDelta1D > 0"
+                [class.eod-neg]="row.rsiDelta1D < 0"
+              >
+                {{ row.rsiDelta1D >= 0 ? '+' : '' }}{{ row.rsiDelta1D | number: '1.2-2' }}
+                {{ row.rsiDelta1D > 0.05 ? '↑' : row.rsiDelta1D < -0.05 ? '↓' : '→' }}
+              </span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Entry Price -->
+        <ng-container matColumnDef="entryPrice">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="entryPrice" class="num-col">
+            ENTRY PRICE
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.entryPrice !== null && row.entryPrice !== undefined) {
+              <span class="mono">${{ row.entryPrice | number: '1.2-2' }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Stop Loss -->
+        <ng-container matColumnDef="stopLoss">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="stopLoss" class="num-col">
+            STOP LOSS
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.stopLossPrice !== null && row.stopLossPrice !== undefined) {
+              <span class="mono">${{ row.stopLossPrice | number: '1.2-2' }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- Risk / Share -->
+        <ng-container matColumnDef="riskPerShare">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="riskPerShare" class="num-col">
+            RISK/SHARE
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.riskPerShare !== null && row.riskPerShare !== undefined) {
+              <span class="mono">${{ row.riskPerShare | number: '1.2-2' }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
+        <!-- SMA 200 -->
+        <ng-container matColumnDef="sma200">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="sma200" class="num-col">
+            SMA 200
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.sma200 !== null && row.sma200 !== undefined) {
+              <span class="mono">${{ row.sma200 | number: '1.2-2' }}</span>
+            } @else {
+              <span class="muted">—</span>
+            }
           </td>
         </ng-container>
 
