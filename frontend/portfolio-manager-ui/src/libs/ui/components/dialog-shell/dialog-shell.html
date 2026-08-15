@@ -1,0 +1,17 @@
+<div class="dialog-shell">
+  <header class="dialog-shell__header">
+    <ng-content select="[uiDialogLeading]" />
+    <div>
+      <h2>{{ title() }}</h2>
+      @if (description()) {
+        <p>{{ description() }}</p>
+      }
+    </div>
+  </header>
+  <div class="dialog-shell__content">
+    <ng-content />
+  </div>
+  <footer class="dialog-shell__actions">
+    <ng-content select="[uiDialogActions]" />
+  </footer>
+</div>

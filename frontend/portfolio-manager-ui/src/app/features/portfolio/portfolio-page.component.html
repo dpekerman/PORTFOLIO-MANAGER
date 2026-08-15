@@ -1708,11 +1708,12 @@
       </div>
     } @else {
       <!-- Empty State -->
-      <div class="empty-state">
-        <mat-icon class="empty-icon">add_chart</mat-icon>
-        <h3 class="empty-title">No positions yet</h3>
-        <p class="empty-sub">Start tracking your investments by adding stocks, cash, or options.</p>
-        <div class="empty-actions">
+      <ui-empty-state
+        title="No positions yet"
+        description="Start tracking your investments by adding stocks, cash, or options."
+      >
+        <mat-icon uiEmptyStateIcon>add_chart</mat-icon>
+        <div>
           <button
             mat-flat-button
             class="action-btn-primary"
@@ -1738,7 +1739,7 @@
             <mat-icon>trending_up</mat-icon> Add Option
           </button>
         </div>
-      </div>
+      </ui-empty-state>
     }
   </section>
 </div>

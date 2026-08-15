@@ -1,4 +1,5 @@
 ﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { EmptyState } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -143,6 +144,7 @@ type OptionSortCol =
   styleUrl: './portfolio-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmptyState,
     FormsModule,
     CurrencyPipe,
     DatePipe,

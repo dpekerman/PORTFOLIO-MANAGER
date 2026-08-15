@@ -317,19 +317,18 @@
       }
     </div>
   } @else if (sourceMode() !== 'adhoc') {
-    <div class="empty-state">
-      <mat-icon class="empty-icon">analytics</mat-icon>
-      <h3 class="empty-title">No saved results yet</h3>
-      <p class="empty-sub">
-        Value Screener runs automatically at <strong>5:00 PM ET</strong> on weekdays. Click
-        <strong>Refresh</strong> to run it now.
-      </p>
-    </div>
+    <ui-empty-state
+      title="No saved results yet"
+      description="Value Screener runs automatically at 5:00 PM ET on weekdays. Click Refresh to run it now."
+    >
+      <mat-icon uiEmptyStateIcon>analytics</mat-icon>
+    </ui-empty-state>
   } @else {
-    <div class="empty-state">
-      <mat-icon class="empty-icon">search</mat-icon>
-      <h3 class="empty-title">Enter tickers to analyze</h3>
-      <p class="empty-sub">Type one or more ticker symbols above and click Analyze.</p>
-    </div>
+    <ui-empty-state
+      title="Enter tickers to analyze"
+      description="Type one or more ticker symbols above and click Analyze."
+    >
+      <mat-icon uiEmptyStateIcon>search</mat-icon>
+    </ui-empty-state>
   }
 </div>

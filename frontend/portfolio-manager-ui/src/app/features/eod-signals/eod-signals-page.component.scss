@@ -1,75 +1,9 @@
-﻿// EOD Signals Page — follows scanner-page/watchlist-page patterns
+// EOD Signals Page � follows scanner-page/watchlist-page patterns
 .eod-page {
   padding: 0 0 48px;
 }
 
-// ── Page Header ─────────────────────────────────────────────────────────────
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 24px 0;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.page-title-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.page-icon {
-  font-size: 28px;
-  width: 28px;
-  height: 28px;
-  margin-top: 4px;
-  color: var(--mat-primary-color, #1976d2);
-}
-
-.page-title {
-  margin: 0 0 4px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
-}
-
-.count-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 22px;
-  padding: 0 6px;
-  border-radius: 100px;
-  background: rgba(25, 118, 210, 0.15);
-  color: #1976d2;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.page-sub {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
-}
-
-.last-checked {
-  margin: 4px 0 0;
-  font-size: 0.7rem;
-  font-family: monospace;
-  color: var(--text-secondary, rgba(0, 0, 0, 0.4));
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-// ── Persist Progress Banner ──────────────────────────────────────────────────
+// -- Persist Progress Banner --------------------------------------------------
 .persist-banner {
   display: flex;
   align-items: flex-start;
@@ -124,7 +58,7 @@
   }
 }
 
-// ── EOD Window Active Banner ─────────────────────────────────────────────────
+// -- EOD Window Active Banner -------------------------------------------------
 .eod-banner {
   display: flex;
   align-items: center;
@@ -190,7 +124,7 @@
   color: #2196f3 !important;
 }
 
-// ── Filter Bar ───────────────────────────────────────────────────────────────
+// -- Filter Bar ---------------------------------------------------------------
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -228,12 +162,12 @@
   margin-top: 2px;
 }
 
-// ── Progress bar ─────────────────────────────────────────────────────────────
+// -- Progress bar -------------------------------------------------------------
 .progress-bar {
   margin: 0;
 }
 
-// ── Error Banner ──────────────────────────────────────────────────────────────
+// -- Error Banner --------------------------------------------------------------
 .error-banner {
   display: flex;
   align-items: center;
@@ -251,42 +185,7 @@
   }
 }
 
-// ── Empty State ───────────────────────────────────────────────────────────────
-.empty-state {
-  text-align: center;
-  padding: 64px 24px;
-  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
-}
-
-.empty-icon {
-  font-size: 64px;
-  width: 64px;
-  height: 64px;
-  opacity: 0.25;
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin: 0 0 8px;
-}
-
-.empty-sub {
-  font-size: 0.875rem;
-  max-width: 480px;
-  margin: 0 auto;
-  line-height: 1.5;
-}
-
-.inline-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-  vertical-align: middle;
-}
-
-// ── Table ─────────────────────────────────────────────────────────────────────
+// -- Table ---------------------------------------------------------------------
 .table-wrapper {
   overflow-x: auto;
   padding: 0;
@@ -315,7 +214,7 @@
   text-align: right;
 }
 
-// ── Row States ────────────────────────────────────────────────────────────────
+// -- Row States ----------------------------------------------------------------
 .signal-row {
   &.state-invalidated,
   &.state-expired {
@@ -329,7 +228,7 @@
   }
 }
 
-// ── Symbol Cell ───────────────────────────────────────────────────────────────
+// -- Symbol Cell ---------------------------------------------------------------
 .symbol-cell {
   display: flex;
   flex-direction: column;
@@ -350,13 +249,13 @@
   white-space: nowrap;
 }
 
-// ── Mono ──────────────────────────────────────────────────────────────────────
+// -- Mono ----------------------------------------------------------------------
 .mono {
   font-family: monospace;
   font-size: 0.82rem;
 }
 
-// ── Tags / Chips ──────────────────────────────────────────────────────────────
+// -- Tags / Chips --------------------------------------------------------------
 .tag {
   display: inline-block;
   padding: 2px 9px;
@@ -467,7 +366,7 @@
   color: #ffa726;
 }
 
-// ── RSI Value ─────────────────────────────────────────────────────────────────
+// -- RSI Value -----------------------------------------------------------------
 .rsi-val {
   font-weight: 700;
   font-size: 0.9rem;
@@ -479,7 +378,7 @@
   }
 }
 
-// ── Volume ────────────────────────────────────────────────────────────────────
+// -- Volume --------------------------------------------------------------------
 .vol-label {
   font-size: 0.72rem;
   &.vol-validated {
@@ -491,7 +390,7 @@
   }
 }
 
-// ── EMA9 at Entry ─────────────────────────────────────────────────────────────
+// -- EMA9 at Entry -------------------------------------------------------------
 .ema9-confirmed {
   font-size: 0.72rem;
   color: #2e7d32;
@@ -503,7 +402,7 @@
   color: #e65100;
 }
 
-// ── Rule Version ──────────────────────────────────────────────────────────────
+// -- Rule Version --------------------------------------------------------------
 .rule-ver {
   font-size: 0.75rem;
   color: var(--text-secondary, rgba(0, 0, 0, 0.54));
@@ -513,7 +412,7 @@
   }
 }
 
-// ── State select ──────────────────────────────────────────────────────────────
+// -- State select --------------------------------------------------------------
 .state-sel {
   font-size: 0.8rem;
   min-width: 120px;
@@ -536,19 +435,19 @@
   }
 }
 
-// ── Actions Cell ──────────────────────────────────────────────────────────────
+// -- Actions Cell --------------------------------------------------------------
 .actions-cell {
   white-space: nowrap;
   padding: 0 6px;
 }
 
-// ── Muted ─────────────────────────────────────────────────────────────────────
+// -- Muted ---------------------------------------------------------------------
 .muted {
   color: var(--text-secondary, rgba(0, 0, 0, 0.38));
   font-size: 0.78rem;
 }
 
-// ── Price diff colors ──────────────────────────────────────────────────────────
+// -- Price diff colors ----------------------------------------------------------
 .eod-pos {
   color: #2e7d32;
 }
@@ -556,7 +455,7 @@
   color: #c62828;
 }
 
-// ── Spinner ───────────────────────────────────────────────────────────────────
+// -- Spinner -------------------------------------------------------------------
 .spinning {
   animation: spin 1s linear infinite;
 }

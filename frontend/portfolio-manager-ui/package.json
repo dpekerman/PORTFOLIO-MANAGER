@@ -5,10 +5,9 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
-    "build:ui": "ng build portfolio-ui",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:ui": "ng test portfolio-ui --watch=false",
+    "test:ui": "ng test --watch=false",
     "test:e2e": "playwright test",
     "test:e2e:update": "playwright test --update-snapshots"
   },

@@ -1,4 +1,5 @@
 ﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { EmptyState, PageHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -89,6 +90,8 @@ type SortDir = 'asc' | 'desc';
   styleUrl: './watchlist-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmptyState,
+    PageHeader,
     FormsModule,
     CurrencyPipe,
     DecimalPipe,

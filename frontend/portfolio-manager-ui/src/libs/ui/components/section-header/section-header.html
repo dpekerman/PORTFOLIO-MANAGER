@@ -1,0 +1,11 @@
+<header class="section-header">
+  <div class="section-header__copy">
+    <h2>{{ title() }}</h2>
+    @if (description()) {
+      <p>{{ description() }}</p>
+    }
+  </div>
+  <div class="section-header__actions">
+    <ng-content />
+  </div>
+</header>

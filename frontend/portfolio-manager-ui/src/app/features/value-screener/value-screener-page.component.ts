@@ -1,4 +1,5 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { EmptyState } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -37,6 +38,7 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
   styleUrl: './value-screener-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmptyState,
     DecimalPipe,
     CurrencyPipe,
     DatePipe,

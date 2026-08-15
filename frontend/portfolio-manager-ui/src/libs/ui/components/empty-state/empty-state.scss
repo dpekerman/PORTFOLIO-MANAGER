@@ -1,0 +1,35 @@
+:host {
+  display: block;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty-state__icon {
+  color: var(--text-faint);
+}
+
+h2,
+p {
+  margin: 0;
+}
+
+h2 {
+  color: var(--text-primary);
+  font: var(--mat-sys-title-medium);
+}
+
+p {
+  max-width: 34rem;
+  color: var(--text-muted);
+  font: var(--mat-sys-body-medium);
+}
+
+.empty-state__actions {
+  margin-top: 0.75rem;
+}

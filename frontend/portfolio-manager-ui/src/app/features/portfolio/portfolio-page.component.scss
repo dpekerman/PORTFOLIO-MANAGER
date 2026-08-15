@@ -224,37 +224,12 @@
   }
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────────
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 64px 24px;
-  text-align: center;
-
-  .empty-icon {
-    font-size: 56px;
-    width: 56px;
-    height: 56px;
-    color: var(--text-faint);
-  }
-
   .empty-title {
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-secondary);
   }
-
-  .empty-sub {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-faint);
-    max-width: 320px;
-  }
-}
 
 // ── Spin animation ────────────────────────────────────────────────────────────
 .spinning {

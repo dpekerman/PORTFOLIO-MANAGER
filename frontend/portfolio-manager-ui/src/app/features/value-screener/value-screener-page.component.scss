@@ -568,33 +568,6 @@
   }
 }
 
-// Empty state
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  text-align: center;
-  color: var(--text-secondary);
-  .empty-icon {
-    font-size: 64px;
-    width: 64px;
-    height: 64px;
-    opacity: 0.3;
-    margin-bottom: 16px;
-  }
-  .empty-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0 0 8px 0;
-  }
-  .empty-sub {
-    font-size: 0.85rem;
-    max-width: 440px;
-    opacity: 0.8;
-  }
-}
 .scoring-hint {
   display: flex;
   gap: 10px;

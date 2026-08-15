@@ -1,4 +1,5 @@
 ﻿import { DatePipe, DecimalPipe } from '@angular/common';
+import { EmptyState, PageHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -72,6 +73,8 @@ type SortDir = 'asc' | 'desc';
   styleUrl: './eod-signals-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    EmptyState,
+    PageHeader,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,

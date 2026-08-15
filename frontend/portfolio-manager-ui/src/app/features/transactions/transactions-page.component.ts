@@ -1,4 +1,5 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { PageHeader } from '@ui';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -95,6 +96,7 @@ type OptionTxCol =
   styleUrl: './transactions-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PageHeader,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
