@@ -1,0 +1,45 @@
+@theme inline {
+  --font-sans: Roboto, 'Helvetica Neue', sans-serif;
+
+  --color-app: var(--bg-app);
+  --color-page: var(--bg-page);
+  --color-surface: var(--bg-surface);
+  --color-elevated: var(--bg-elevated);
+  --color-hover: var(--bg-hover);
+  --color-border: var(--border-color);
+  --color-border-subtle: var(--border-subtle);
+  --color-content: var(--text-primary);
+  --color-content-secondary: var(--text-secondary);
+  --color-content-muted: var(--text-muted);
+  --color-content-faint: var(--text-faint);
+  --color-positive: var(--status-positive);
+  --color-negative: var(--status-negative);
+  --color-warning: var(--status-warning);
+  --color-info: var(--status-info);
+
+  --breakpoint-sm: 30rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+  --breakpoint-2xl: 90rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  --shadow-panel: 0 0.25rem 1.25rem var(--shadow-card);
+}
+
+:root {
+  --status-positive: #00c853;
+  --status-negative: #ff5252;
+  --status-warning: #ffa726;
+  --status-info: #64b5f6;
+}
+
+body.light-theme {
+  --status-positive: #137333;
+  --status-negative: #c62828;
+  --status-warning: #a15c00;
+  --status-info: #1565c0;
+}

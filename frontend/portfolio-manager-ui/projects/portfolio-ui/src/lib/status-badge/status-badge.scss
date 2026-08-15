@@ -1,0 +1,28 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--badge-color, var(--border-color));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--badge-color, var(--text-muted)) 12%, transparent);
+  color: var(--badge-color, var(--text-secondary));
+  font: var(--mat-sys-label-small);
+  white-space: nowrap;
+}
+
+:host([data-tone='positive']) {
+  --badge-color: var(--status-positive);
+}
+
+:host([data-tone='negative']) {
+  --badge-color: var(--status-negative);
+}
+
+:host([data-tone='warning']) {
+  --badge-color: var(--status-warning);
+}
+
+:host([data-tone='info']) {
+  --badge-color: var(--status-info);
+}

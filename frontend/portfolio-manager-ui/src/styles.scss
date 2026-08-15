@@ -1,4 +1,8 @@
+@use 'tailwindcss';
+@use '../projects/portfolio-ui/src/styles/theme';
 @use '@angular/material' as mat;
+
+@source '../projects/portfolio-ui/src';
 
 // ── Dark theme (default) — Angular Material ───────────────────────────────────
 html {

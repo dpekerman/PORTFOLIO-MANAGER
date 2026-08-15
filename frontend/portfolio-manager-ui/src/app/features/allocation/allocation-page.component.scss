@@ -1,49 +1,3 @@
-.allocation-page {
-  padding: 0 0 48px;
-}
-
-// ── Page header ───────────────────────────────────────────────────────────────
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px 16px;
-  flex-wrap: wrap;
-  gap: 12px;
-
-  @media (max-width: 600px) {
-    padding: 16px;
-  }
-}
-
-.page-title-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.page-icon {
-  font-size: 24px;
-  width: 24px;
-  height: 24px;
-  color: #7e57c2;
-}
-
-.page-title {
-  margin: 0;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--text-secondary);
-}
-
-.page-sub {
-  margin: 2px 0 0;
-  font-size: 0.7rem;
-  color: var(--text-faint);
-  letter-spacing: 0.3px;
-}
-
 // ── KPI grid ──────────────────────────────────────────────────────────────────
 .kpi-grid {
   display: grid;
@@ -156,38 +110,6 @@
   letter-spacing: 1.2px;
   color: var(--text-secondary);
   text-transform: uppercase;
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 80px 24px;
-  text-align: center;
-
-  .empty-icon {
-    font-size: 56px;
-    width: 56px;
-    height: 56px;
-    color: var(--text-faint);
-  }
-
-  .empty-title {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .empty-sub {
-    margin: 0;
-    font-size: 0.85rem;
-    color: var(--text-faint);
-    max-width: 320px;
-  }
 }
 
 .action-btn-primary {

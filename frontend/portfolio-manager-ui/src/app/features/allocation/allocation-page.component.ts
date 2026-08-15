@@ -8,6 +8,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { EmptyState, PageHeader } from 'portfolio-ui';
 import { OptionItem } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
@@ -42,6 +43,8 @@ interface OptionTickerGroup {
     MatTableModule,
     MatTooltipModule,
     RouterLink,
+    EmptyState,
+    PageHeader,
     SectorExpositionComponent,
   ],
 })

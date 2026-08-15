@@ -1,0 +1,50 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1rem;
+}
+
+.page-header__identity,
+.page-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.page-header__copy {
+  min-width: 0;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+h1 {
+  color: var(--text-primary);
+  font: var(--mat-sys-headline-small);
+}
+
+p {
+  margin-top: 0.25rem;
+  color: var(--text-muted);
+  font: var(--mat-sys-body-small);
+}
+
+@media (max-width: 40rem) {
+  .page-header {
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .page-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

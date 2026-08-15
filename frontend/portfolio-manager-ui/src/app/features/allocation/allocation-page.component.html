@@ -1,14 +1,11 @@
-﻿<div class="allocation-page">
+﻿<div class="pb-12">
   <!-- ── Page Header ───────────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
-      <mat-icon class="page-icon">donut_large</mat-icon>
-      <div>
-        <h1 class="page-title">PORTFOLIO ALLOCATION</h1>
-        <p class="page-sub">Breakdown by sector &amp; industry · Click sectors to drill down</p>
-      </div>
-    </div>
-    <div class="page-actions">
+  <ui-page-header
+    title="Portfolio allocation"
+    subtitle="Breakdown by sector and industry · Click sectors to drill down"
+  >
+    <mat-icon uiPageHeaderLeading class="text-content-secondary">donut_large</mat-icon>
+    <div uiPageHeaderActions>
       <button
         mat-icon-button
         matTooltip="Backup allocation data (Cash + Options) to JSON"
@@ -42,18 +39,19 @@
         <mat-icon>download</mat-icon>
       </button>
     </div>
-  </div>
+  </ui-page-header>
 
   @if (portfolio.summaries().length === 0 && !portfolio.loading()) {
     <!-- ── Empty State ──────────────────────────────────────────────────────── -->
-    <div class="empty-state">
-      <mat-icon class="empty-icon">donut_large</mat-icon>
-      <h3 class="empty-title">No allocation data</h3>
-      <p class="empty-sub">Add positions to your portfolio to see sector allocation.</p>
+    <ui-empty-state
+      title="No allocation data"
+      description="Add positions to your portfolio to see sector allocation."
+    >
+      <mat-icon uiEmptyStateIcon class="!size-14 !text-[3.5rem]">donut_large</mat-icon>
       <a mat-flat-button class="action-btn-primary" routerLink="/portfolio">
         <mat-icon>account_balance_wallet</mat-icon> Go to Portfolio
       </a>
-    </div>
+    </ui-empty-state>
   } @else {
     <!-- ── KPI Cards ────────────────────────────────────────────────────────── -->
     <div class="kpi-grid">

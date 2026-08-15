@@ -11,6 +11,9 @@
     "isolatedModules": true,
     "experimentalDecorators": true,
     "importHelpers": true,
+    "paths": {
+      "portfolio-ui": ["./dist/portfolio-ui"]
+    },
     "target": "ES2022",
     "module": "preserve"
   },
@@ -26,6 +29,12 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "./projects/portfolio-ui/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/portfolio-ui/tsconfig.spec.json"
     }
   ]
 }
