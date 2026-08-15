@@ -1,5 +1,4 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { SectionHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -12,6 +11,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { SectionHeader } from '@ui';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';

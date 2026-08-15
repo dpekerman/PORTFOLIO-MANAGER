@@ -1,4 +1,4 @@
-﻿import { DatePipe, DecimalPipe } from '@angular/common';
+﻿import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,

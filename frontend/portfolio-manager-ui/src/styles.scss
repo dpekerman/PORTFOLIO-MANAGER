@@ -213,8 +213,12 @@ a.mat-mdc-button-base mat-icon {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 // ── Dialog title icon alignment ──────────────────────────────────────────────
