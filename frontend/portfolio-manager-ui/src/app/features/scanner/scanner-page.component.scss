@@ -88,26 +88,6 @@
   margin: 0 24px;
 }
 
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  @media (max-width: 480px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.section-title-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 .section-icon {
   font-size: 22px;
   width: 22px;
@@ -606,18 +586,5 @@
 
   @media (max-width: 768px) {
     border-radius: 6px;
-  }
-}
-
-.spinning {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
   }
 }

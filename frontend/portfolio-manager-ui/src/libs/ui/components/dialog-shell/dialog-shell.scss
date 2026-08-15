@@ -16,7 +16,10 @@
   padding: 1.25rem 1.5rem 0.75rem;
 }
 
-h2, p { margin: 0; }
+h2,
+p {
+  margin: 0;
+}
 
 h2 {
   color: var(--text-primary);

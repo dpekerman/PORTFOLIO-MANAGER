@@ -186,3 +186,41 @@ a.mat-mdc-button-base mat-icon {
   text-align: right !important;
   vertical-align: middle !important;
 }
+
+// ── Skip link (a11y) ─────────────────────────────────────────────────────────
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 2px solid var(--mat-sys-primary);
+  border-radius: 4px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.15s;
+
+  &:focus {
+    top: 0.5rem;
+  }
+}
+
+// ── Shared: spin animation (used across pages and components) ────────────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+// ── Dialog title icon alignment ──────────────────────────────────────────────
+h2[mat-dialog-title] {
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  font: var(--mat-sys-headline-small) !important;
+}

@@ -1,4 +1,5 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { SectionHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,6 +29,7 @@ const MORNING_AUTO_OPENED_KEY = 'morning-check-auto-opened';
   styleUrl: './scanner-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SectionHeader,
     DatePipe,
     DecimalPipe,
     MatButtonModule,

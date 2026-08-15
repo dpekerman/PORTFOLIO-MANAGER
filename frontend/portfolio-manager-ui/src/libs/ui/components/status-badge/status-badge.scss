@@ -11,7 +11,15 @@
   white-space: nowrap;
 }
 
-:host([data-tone='positive']) { --badge-color: var(--status-positive); }
-:host([data-tone='negative']) { --badge-color: var(--status-negative); }
-:host([data-tone='warning'])  { --badge-color: var(--status-warning); }
-:host([data-tone='info'])     { --badge-color: var(--status-info); }
+:host([data-tone='positive']) {
+  --badge-color: var(--status-positive);
+}
+:host([data-tone='negative']) {
+  --badge-color: var(--status-negative);
+}
+:host([data-tone='warning']) {
+  --badge-color: var(--status-warning);
+}
+:host([data-tone='info']) {
+  --badge-color: var(--status-info);
+}

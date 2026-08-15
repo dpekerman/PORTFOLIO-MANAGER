@@ -1,5 +1,4 @@
 ﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { EmptyState, PageHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,6 +20,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { EmptyState, PageHeader } from '@ui';
 import {
   Subject,
   catchError,

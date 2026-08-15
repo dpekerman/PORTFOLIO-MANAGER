@@ -1,5 +1,4 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { PageHeader } from '@ui';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,6 +11,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { PageHeader } from '@ui';
 import {
   OptionAnalysis,
   OptionItem,

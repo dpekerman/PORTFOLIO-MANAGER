@@ -47,28 +47,6 @@
 }
 
 // ── Section header ────────────────────────────────────────────────────────────
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.section-title-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-icon {
-  font-size: 22px;
-  width: 22px;
-  height: 22px;
-  color: #1565c0;
-}
-
 .section-title {
   margin: 0;
   font-size: 0.8rem;
@@ -224,26 +202,15 @@
   }
 }
 
-  .empty-title {
-    margin: 0;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
+.empty-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
 
 // ── Spin animation ────────────────────────────────────────────────────────────
-.spinning {
-  animation: spin 1s linear infinite;
-}
 
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 // ── View toggle ───────────────────────────────────────────────────────────────
 .view-toggle {

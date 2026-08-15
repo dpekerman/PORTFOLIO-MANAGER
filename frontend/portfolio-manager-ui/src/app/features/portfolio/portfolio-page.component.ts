@@ -1,5 +1,4 @@
 ﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { EmptyState } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,6 +18,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { EmptyState, PageHeader } from '@ui';
 import {
   CashItem,
   OptionAnalysis,
@@ -145,6 +145,7 @@ type OptionSortCol =
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     EmptyState,
+    PageHeader,
     FormsModule,
     CurrencyPipe,
     DatePipe,

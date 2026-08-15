@@ -1,6 +1,9 @@
 ﻿<div class="eod-page">
   <!-- ── Page Header ──────────────────────────────────────────────────── -->
-  <ui-page-header title="EOD Signals" subtitle="Confirmed end-of-day signals · Lifecycle tracking · History">
+  <ui-page-header
+    title="EOD Signals"
+    subtitle="Confirmed end-of-day signals · Lifecycle tracking · History"
+  >
     <mat-icon uiPageHeaderLeading>timeline</mat-icon>
     <div uiPageHeaderActions>
       <button mat-icon-button matTooltip="Refresh" (click)="loadSignals()" [disabled]="loading()">
@@ -194,9 +197,7 @@
           <button mat-button (click)="clearFilters()">Clear filters</button>
         </p>
       } @else {
-        <p>
-          EOD CONFIRM signals are recorded automatically when the end-of-day window closes.
-        </p>
+        <p>EOD CONFIRM signals are recorded automatically when the end-of-day window closes.</p>
       }
     </ui-empty-state>
   }

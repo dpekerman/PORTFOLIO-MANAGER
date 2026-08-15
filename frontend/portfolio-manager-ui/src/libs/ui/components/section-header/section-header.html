@@ -1,9 +1,12 @@
 <header class="section-header">
-  <div class="section-header__copy">
-    <h2>{{ title() }}</h2>
-    @if (description()) {
-      <p>{{ description() }}</p>
-    }
+  <div class="section-header__identity">
+    <ng-content select="[uiSectionHeaderLeading]" />
+    <div class="section-header__copy">
+      <h2>{{ title() }}</h2>
+      @if (description()) {
+        <p>{{ description() }}</p>
+      }
+    </div>
   </div>
   <div class="section-header__actions">
     <ng-content />

@@ -12,25 +12,6 @@
 }
 
 // Header
-.section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.section-title-group {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.section-icon {
-  font-size: 32px;
-  width: 32px;
-  height: 32px;
-  color: var(--accent-primary);
-}
 .section-title {
   font-size: 1.1rem;
   font-weight: 800;

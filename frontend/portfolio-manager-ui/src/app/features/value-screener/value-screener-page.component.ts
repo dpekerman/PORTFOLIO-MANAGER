@@ -1,5 +1,4 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { EmptyState } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -19,6 +18,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { EmptyState, PageHeader } from '@ui';
 import {
   ActionTrigger,
   TechnicalState,
@@ -39,6 +39,7 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     EmptyState,
+    PageHeader,
     DecimalPipe,
     CurrencyPipe,
     DatePipe,

@@ -1,5 +1,4 @@
 ﻿import { DatePipe, DecimalPipe } from '@angular/common';
-import { EmptyState, PageHeader } from '@ui';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -25,6 +24,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
+import { EmptyState, PageHeader } from '@ui';
 import { debounceTime, distinctUntilChanged, interval } from 'rxjs';
 import * as XLSX from 'xlsx';
 import {
@@ -75,7 +75,6 @@ type SortDir = 'asc' | 'desc';
   imports: [
     EmptyState,
     PageHeader,
-    DatePipe,
     DecimalPipe,
     ReactiveFormsModule,
     MatButtonModule,

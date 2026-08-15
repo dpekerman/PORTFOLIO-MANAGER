@@ -1,21 +1,9 @@
 <div class="portfolio-page">
   <!-- Section Header -->
   <section class="portfolio-section">
-    <div class="section-header">
-      <div class="section-title-group">
-        <mat-icon class="section-icon">account_balance_wallet</mat-icon>
-        <div>
-          <h2 class="section-title">
-            MY PORTFOLIO
-            <span class="count-badge">{{
-              portfolio.summaries().length + cashState.items().length + optionState.items().length
-            }}</span>
-          </h2>
-          <p class="section-sub">Stocks · Cash · Options · Live prices active with API key</p>
-        </div>
-      </div>
-
-      <div class="section-actions">
+    <ui-page-header title="My Portfolio" subtitle="Stocks · Cash · Options">
+      <mat-icon uiPageHeaderLeading>account_balance_wallet</mat-icon>
+      <div uiPageHeaderActions>
         <mat-button-toggle-group
           [value]="viewMode()"
           (change)="viewMode.set($event.value)"
@@ -111,7 +99,7 @@
           <span class="btn-text">Add Option</span>
         </button>
       </div>
-    </div>
+    </ui-page-header>
 
     @if (portfolio.loading()) {
       <div class="stock-grid skeleton-grid" aria-busy="true" aria-label="Loading portfolio...">

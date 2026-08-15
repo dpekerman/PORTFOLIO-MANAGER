@@ -119,31 +119,11 @@
 
   <!-- ── Oversold Section ──────────────────────────────────────────────────── -->
   <section class="scanner-section">
-    <div class="section-header">
-      <div class="section-title-group">
-        <mat-icon class="section-icon oversold-icon">trending_down</mat-icon>
-        <div>
-          <h2 class="section-title">
-            OVERSOLD CHAIN
-            <span class="count-badge oversold-badge">{{ scanner.oversold().length }}</span>
-            @if (scanner.eodConfirmOversold().length > 0) {
-              <span
-                class="count-badge eod-badge"
-                [matTooltip]="'EOD Confirm signals: all 4 EOD rules met'"
-              >
-                🎯 {{ scanner.eodConfirmOversold().length }} EOD
-              </span>
-            }
-          </h2>
-          <p class="section-sub">
-            RSI(14) &lt; 30 · Reversal Scanner ·
-            {{ scanner.confirmedOversold().length }} Confirmed ·
-            {{ scanner.eodConfirmOversold().length }} EOD Confirm
-          </p>
-        </div>
-      </div>
-
-      <div class="section-actions">
+    <ui-section-header
+      title="Oversold Chain"
+      description="RSI(14) < 30 · Reversal scanner · Confirmed + EOD Confirm signals"
+    >
+      <mat-icon uiSectionHeaderLeading class="oversold-icon">trending_down</mat-icon>
         @if (scanner.scannedAt()) {
           <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
         }
@@ -172,8 +152,7 @@
         >
           <mat-icon [class.spinning]="scanner.loading()">refresh</mat-icon>
         </button>
-      </div>
-    </div>
+    </ui-section-header>
 
     <div class="table-wrapper">
       @if (scanner.loading() || scanner.scannedAt() === null) {
@@ -195,36 +174,17 @@
 
   <!-- ── Overbought Section ─────────────────────────────────────────────────── -->
   <section class="scanner-section">
-    <div class="section-header">
-      <div class="section-title-group">
-        <mat-icon class="section-icon overbought-icon">trending_up</mat-icon>
-        <div>
-          <h2 class="section-title">
-            OVERBOUGHT CHAIN
-            <span class="count-badge overbought-badge">{{ scanner.overbought().length }}</span>
-            @if (scanner.eodConfirmOverbought().length > 0) {
-              <span
-                class="count-badge eod-badge"
-                [matTooltip]="'EOD Confirm signals: all 4 EOD rules met'"
-              >
-                🎯 {{ scanner.eodConfirmOverbought().length }} EOD
-              </span>
-            }
-          </h2>
-          <p class="section-sub">
-            RSI(14) &gt; 75 · Distribution Scanner ·
-            {{ scanner.confirmedOverbought().length }} Confirmed ·
-            {{ scanner.eodConfirmOverbought().length }} EOD Confirm
-          </p>
-        </div>
-      </div>
-
+    <ui-section-header
+      title="Overbought Chain"
+      description="RSI(14) > 75 · Distribution scanner · Confirmed + EOD Confirm signals"
+    >
+      <mat-icon uiSectionHeaderLeading class="overbought-icon">trending_up</mat-icon>
       @if (scanner.scannedAt()) {
         <span class="scan-time section-actions">
           Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}
         </span>
       }
-    </div>
+    </ui-section-header>
 
     <div class="table-wrapper">
       @if (scanner.loading() || scanner.scannedAt() === null) {

@@ -1,26 +1,9 @@
 ﻿<div class="value-screener-page">
   <!-- HEADER -->
   <section class="screener-section">
-    <div class="section-header">
-      <div class="section-title-group">
-        <mat-icon class="section-icon">analytics</mat-icon>
-        <div>
-          <h2 class="section-title">
-            VALUE SCREENER
-            @if (allActiveResults().length > 0) {
-              <span class="count-badge"
-                >{{ activeResults().length
-                }}{{ activeTierFilter() ? ' / ' + allActiveResults().length : '' }}</span
-              >
-            }
-          </h2>
-          <p class="section-sub">
-            Capital Valuation Engine &bull; Earnings Yield &bull; FCF &bull; P/B &bull; Piotroski
-            &bull; ROIC
-          </p>
-        </div>
-      </div>
-      <div class="section-actions-right">
+    <ui-page-header title="Value Screener" subtitle="Capital Valuation Engine · Earnings Yield · FCF · P/B · Piotroski">
+      <mat-icon uiPageHeaderLeading>analytics</mat-icon>
+      <div uiPageHeaderActions>
         @if (lastRunAt()) {
           <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
         }
@@ -66,7 +49,7 @@
           </button>
         }
       </div>
-    </div>
+    </ui-page-header>
 
     <!-- SOURCE SELECTION -->
     <div class="source-bar">
