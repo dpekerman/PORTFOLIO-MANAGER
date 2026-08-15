@@ -484,6 +484,8 @@ export interface DailySignal {
   stopLossPrice: number | null;
   riskPerShare: number | null;
   sma200: number | null;
+  ema9AtEntry: number | null;
+  ema9ConfirmedAtEntry: boolean | null;
 }
 
 export interface DailySignalPagedResponse {

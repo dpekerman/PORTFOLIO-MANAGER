@@ -552,7 +552,7 @@ public class EmailNotificationService(
             sb.AppendLine(@"  <div class=""card"">");
             foreach (var r in confirmed)
             {
-                bool priceConf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
+                bool ema9Conf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
                 decimal? riskPct = (r.CurrentPrice > 0 && r.DynamicStopLoss > 0)
                     ? Math.Round(Math.Abs(r.CurrentPrice - r.DynamicStopLoss) / r.CurrentPrice * 100m, 1)
                     : null;
@@ -564,6 +564,9 @@ public class EmailNotificationService(
                     ? trendShiftClean
                     : $"{trendShiftClean} \u2014 {r.TurnStrength}";
                 var trendSetup = r.TrendSetup200.Length > 0 ? r.TrendSetup200 : (r.Sma200 > 0 ? (r.CurrentPrice > r.Sma200 ? "Trend-Aligned" : "Counter-Trend") : "\u2014");
+                var ema9Pill = ema9Conf
+                    ? "<span class=\"pill pill-ok\">&#x2713; Confirmed</span>"
+                    : "<span class=\"pill pill-warn\">&#x23F3; Pending</span>";
 
                 sb.AppendLine($@"    <div class=""card-inner"">
       <div class=""card-title"">{r.Symbol}<span>— {r.ScanType}</span></div>
@@ -571,10 +574,12 @@ public class EmailNotificationService(
         <div class=""field""><span class=""lbl"">RSI</span><span class=""val"">{r.Rsi:F1}</span></div>
         <div class=""field""><span class=""lbl"">RSI &#x394;1D</span><span class=""val"">{rsiDeltaStr}</span></div>
         <div class=""field""><span class=""lbl"">Trend Shift</span><span class=""val"">{turnLabel}</span></div>
+        <div class=""field""><span class=""lbl"">EOD Price</span><span class=""val""><span class=""pill pill-ok"">&#x2713; Passed</span></span></div>
+        <div class=""field""><span class=""lbl"">Volume</span><span class=""val""><span class=""pill pill-ok"">&#x2713; {r.VolumeRatio:F2}x &#x2014; Validated</span></span></div>
+        <div class=""field""><span class=""lbl"">EMA9 (Supporting)</span><span class=""val"">{ema9Pill}</span></div>
         <div class=""field""><span class=""lbl"">Entry</span><span class=""val"">{"$"}{r.CurrentPrice:F2}</span></div>
         {(r.DynamicStopLoss > 0 ? $"<div class=\"field\"><span class=\"lbl\">Stop</span><span class=\"val\">${r.DynamicStopLoss:F2}</span></div>" : "")}
         {(r.DynamicStopLoss > 0 ? $"<div class=\"field\"><span class=\"lbl\">Risk / Share</span><span class=\"val\">${Math.Abs(r.CurrentPrice - r.DynamicStopLoss):F2}{(riskPct.HasValue ? $" / {riskPct:F1}%" : "")}</span></div>" : "")}
-        <div class=""field""><span class=""lbl"">Volume</span><span class=""val""><span class=""pill pill-ok"">&#x2713; Validated</span></span></div>
         {(r.Sma200 > 0 ? $"<div class=\"field\"><span class=\"lbl\">SMA200</span><span class=\"val\">${r.Sma200:F2}</span></div>" : "")}
         {(trendSetup != "\u2014" ? $"<div class=\"field\"><span class=\"lbl\">Setup</span><span class=\"val\">{trendSetup}</span></div>" : "")}
       </div>
@@ -596,11 +601,17 @@ public class EmailNotificationService(
             sb.AppendLine(@"  <div class=""card"">");
             foreach (var r in awaiting)
             {
-                bool priceConf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
+                bool eodPriceConf = r.DailyAtr > 0 && (r.ScanType == ScanType.Oversold
+                    ? r.CurrentPrice > r.OpenPrice && r.CurrentPrice >= r.DayHigh - (0.25m * r.DailyAtr)
+                    : r.CurrentPrice < r.OpenPrice && r.CurrentPrice <= r.DayLow + (0.25m * r.DailyAtr));
+                bool ema9Conf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
                 var trendShiftClean = r.TrendShift.Replace("\ud83d\udfe2 ", "").Replace("\ud83d\udfe1 ", "").Replace("\ud83d\udd34 ", "");
-                var pricePill = priceConf
+                var eodPricePill = eodPriceConf
                     ? "<span class=\"pill pill-ok\">&#x2713; Passed</span>"
-                    : $"<span class=\"pill pill-fail\">&#x274C; Failed (Price {(r.ScanType == ScanType.Oversold ? "<" : ">")} EMA9 ${r.Ema9Price:F2})</span>";
+                    : "<span class=\"pill pill-fail\">&#x274C; Failed</span>";
+                var ema9Pill = ema9Conf
+                    ? "<span class=\"pill pill-ok\">&#x2713; Confirmed</span>"
+                    : "<span class=\"pill pill-warn\">&#x23F3; Pending</span>";
                 // Stage-2 volume threshold is 1.5x — display pass/fail against that threshold.
                 var volPill = r.VolumeRatio >= 1.5m
                     ? $"<span class=\"pill pill-ok\">&#x2713; {r.VolumeRatio:F2}x \u2014 Validated</span>"
@@ -613,8 +624,9 @@ public class EmailNotificationService(
       <div class=""fields"">
         <div class=""field""><span class=""lbl"">RSI</span><span class=""val"">{r.Rsi:F1}</span></div>
         <div class=""field""><span class=""lbl"">Trend Shift</span><span class=""val"">{trendShiftClean}</span></div>
-        <div class=""field""><span class=""lbl"">Price Confirmation</span><span class=""val"">{pricePill}</span></div>
-        <div class=""field""><span class=""lbl"">Volume</span><span class=""val"">{volPill}</span></div>
+        <div class=""field""><span class=""lbl"">EOD Price (Required)</span><span class=""val"">{eodPricePill}</span></div>
+        <div class=""field""><span class=""lbl"">Volume (Required)</span><span class=""val"">{volPill}</span></div>
+        <div class=""field""><span class=""lbl"">EMA9 (Supporting)</span><span class=""val"">{ema9Pill}</span></div>
       </div>
       <div class=""status-bar status-await"">CONFIRMING</div>
       <div class=""action-bar"">Continue Monitoring</div>

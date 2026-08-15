@@ -500,6 +500,40 @@
           </td>
         </ng-container>
 
+        <!-- EMA9 at Entry -->
+        <ng-container matColumnDef="ema9Confirmed">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            matTooltip="Whether price had crossed EMA9 at the time this signal was promoted. Supporting context only — EMA9 is not a required promotion gate."
+          >
+            EMA9 AT ENTRY
+          </th>
+          <td mat-cell *matCellDef="let row">
+            @if (row.ema9ConfirmedAtEntry === true) {
+              <span
+                class="ema9-confirmed"
+                matTooltip="Price was above EMA9 at confirmation (EMA9 ${{
+                  row.ema9AtEntry | number: '1.2-2'
+                }})"
+              >
+                ✓ Confirmed
+              </span>
+            } @else if (row.ema9ConfirmedAtEntry === false) {
+              <span
+                class="ema9-pending"
+                matTooltip="Price had not yet reclaimed EMA9 at confirmation (EMA9 ${{
+                  row.ema9AtEntry | number: '1.2-2'
+                }})"
+              >
+                ⏳ Pending
+              </span>
+            } @else {
+              <span class="muted">—</span>
+            }
+          </td>
+        </ng-container>
+
         <!-- Volume -->
         <ng-container matColumnDef="volumeSignal">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="volumeSignal">VOLUME</th>

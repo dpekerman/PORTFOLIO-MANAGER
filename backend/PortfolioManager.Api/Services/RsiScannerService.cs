@@ -390,7 +390,7 @@ public sealed class RsiScannerService : IRsiScannerService
                               : "Inside";
 
             // ── Indicator 4: Volume Signal ──────────────────────────────────
-            string volumeSignal = volRatio >= 1.3m ? "Validated" : volRatio < 0.8m ? "Low-Volume Trap" : "Neutral";
+            string volumeSignal = volRatio >= 1.5m ? "Validated" : volRatio >= 1.3m ? "Elevated" : volRatio < 0.8m ? "Low-Volume Trap" : "Neutral";
 
             // ── Indicator 5: 50 / 200 DMA ───────────────────────────────────
             decimal dma50Dev  = 0m;

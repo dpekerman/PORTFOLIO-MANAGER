@@ -300,7 +300,15 @@
             class="ind-chip"
             [class]="volSignalClass(row.volumeSignal)"
             [matTooltip]="
-              'Volume ' + row.volumeSignal + ' (' + (row.volumeRatio | number: '1.1-1') + 'x avg)'
+              'Volume ' +
+              row.volumeSignal +
+              ' (' +
+              (row.volumeRatio | number: '1.1-1') +
+              'x avg)' +
+              (row.volumeSignal === 'Elevated'
+                ? ' — above display threshold but below Stage-2 gate (1.5x)'
+                : '') +
+              (row.volumeSignal === 'Validated' ? ' — meets Stage-2 gate (≥1.5x)' : '')
             "
           >
             <mat-icon>{{ volSignalIcon(row.volumeSignal) }}</mat-icon>
@@ -475,6 +483,34 @@
           <span class="stop-loss-val" [matTooltip]="'ATR14: ' + row.dailyAtr.toFixed(4)">
             ${{ row.dynamicStopLoss | number: '1.2-2' }}
           </span>
+        } @else {
+          <span class="no-data">—</span>
+        }
+      </td>
+    </ng-container>
+
+    <!-- EMA9 Confirmation Column -->
+    <ng-container matColumnDef="ema9Confirmed">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        matTooltip="EMA9 Confirmation: supporting evidence only — not a required promotion gate. Confirmed = price has crossed the 9-period EMA in the reversal direction."
+      >
+        EMA9 Confirm
+      </th>
+      <td mat-cell *matCellDef="let row">
+        @if (row.ema9Price > 0) {
+          @let confirmed =
+            isOversold() ? row.currentPrice > row.ema9Price : row.currentPrice < row.ema9Price;
+          <span
+            class="ema9-badge"
+            [class.ema9-confirmed]="confirmed"
+            [class.ema9-pending]="!confirmed"
+            [matTooltip]="
+              'EMA9: $' + row.ema9Price.toFixed(2) + (confirmed ? ' ✓ Confirmed' : ' ⏳ Pending')
+            "
+            >{{ confirmed ? '✓ Confirmed' : '⏳ Pending' }}</span
+          >
         } @else {
           <span class="no-data">—</span>
         }

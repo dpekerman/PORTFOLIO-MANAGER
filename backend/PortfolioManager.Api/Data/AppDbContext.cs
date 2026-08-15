@@ -117,6 +117,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.StopLossPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.RiskPerShare).HasColumnType("decimal(18,4)");
             entity.Property(e => e.Sma200).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Ema9AtEntry).HasColumnType("decimal(18,4)");
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });

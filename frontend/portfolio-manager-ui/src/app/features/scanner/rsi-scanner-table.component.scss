@@ -377,6 +377,12 @@
     border-color: rgba(255, 167, 38, 0.25);
   }
 
+  &.ind-elevated {
+    background: rgba(255, 213, 79, 0.12);
+    color: #f9a825;
+    border-color: rgba(255, 213, 79, 0.3);
+  }
+
   &.ind-neutral {
     background: rgba(255, 255, 255, 0.04);
     color: #616161;
@@ -1074,4 +1080,18 @@
   font-size: 0.82rem;
   font-weight: 600;
   color: #ef9a9a;
+}
+
+.ema9-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.ema9-confirmed {
+    color: #66bb6a;
+  }
+
+  &.ema9-pending {
+    color: #ffa726;
+  }
 }
