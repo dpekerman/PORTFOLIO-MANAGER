@@ -92,6 +92,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.DecisionSource).HasMaxLength(50);
+            entity.Property(e => e.DecisionSourceClosed).HasMaxLength(50);
         });
 
         modelBuilder.Entity<DailySignal>(entity =>

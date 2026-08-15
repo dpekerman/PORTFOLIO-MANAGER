@@ -118,36 +118,32 @@ public sealed class RsiAlertBackgroundService(
                 .Concat(result.OverboughtChain ?? [])
                 .ToList();
 
-            // Signals eligible for the Stage-2 promotion gate (EodConfirm or Confirmed status)
-            var allQualified = allResults
-                .Where(r => r.Status == SignalStatus.EodConfirm || r.Status == SignalStatus.Confirmed)
-                .ToList();
-
-            // Signals with a Bull/Bear Turn — candidates for the Awaiting section
+            // Stage-2 candidates: all signals with a Bull/Bear Turn, regardless of legacy Status.
+            // The Stage-2 gate inside SaveAsync (TrendShift + Price + Volume >= 1.5x) decides
+            // whether to promote. Legacy Status is intentionally ignored here.
             var bullBearTurns = allResults
                 .Where(r => r.TrendShift.Contains("Bull Turn") || r.TrendShift.Contains("Bear Turn"))
                 .ToList();
 
-            if (bullBearTurns.Count > 0 || allQualified.Count > 0)
+            if (bullBearTurns.Count > 0)
             {
                 logger.LogInformation(
-                    "[RsiAlertBg] EOD Window active ({Start}–{End} ET). " +
-                    "{Qualified} qualified, {Turns} Bull/Bear Turn signal(s).",
+                    "[RsiAlertBg] EOD Window active ({Start}\u2013{End} ET). " +
+                    "{Turns} Bull/Bear Turn signal(s) queued for Stage-2 gate.",
                     runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd,
-                    allQualified.Count, bullBearTurns.Count);
+                    bullBearTurns.Count);
 
-                // Save qualified signals — Stage-2 gate (TrendShift + Price + Volume) applied inside.
-                // Returns only the signals that were actually promoted to DailySignals.
-                var promoted = await eodPersistence.SaveAsync(allQualified, ct);
+                // SaveAsync applies the Stage-2 gate and returns only promoted signals.
+                var promoted = await eodPersistence.SaveAsync(bullBearTurns, ct);
 
-                // Awaiting = Bull/Bear Turn signals that did NOT pass the Stage-2 gate
+                // Awaiting = Bull/Bear Turn signals that did NOT pass the Stage-2 gate.
                 var promotedSymbols = new HashSet<string>(
                     promoted.Select(r => r.Symbol), StringComparer.OrdinalIgnoreCase);
                 var awaiting = bullBearTurns
                     .Where(r => !promotedSymbols.Contains(r.Symbol))
                     .ToList();
 
-                // Send the 2-stage EOD report (fires only for newly seen signals)
+                // Send the 2-stage EOD report (fires only for newly seen signals).
                 await notifier.NotifyEodReportAsync(promoted, awaiting, result.ScannedAt);
             }
         }

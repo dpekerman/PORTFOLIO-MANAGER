@@ -185,27 +185,25 @@ public class EodSignalsController(
         // Use Enhanced mode + default thresholds (matches background service + typical UI state)
         var result = await scanner.ScanAsync(extraSymbols, oversoldThreshold: 30m, overboughtThreshold: 75m, logicMode: "Enhanced", ct: ct);
 
-        var allQualified = (result.OversoldChain ?? [])
+        // Stage-2 gate: pass all Bull/Bear Turn candidates to SaveAsync — legacy Status is ignored.
+        var allWithTurn = (result.OversoldChain ?? [])
             .Concat(result.OverboughtChain ?? [])
-            .Where(r => r.Status == SignalStatus.EodConfirm || r.Status == SignalStatus.Confirmed)
+            .Where(r => r.TrendShift.Contains("Bull Turn") || r.TrendShift.Contains("Bear Turn"))
             .ToList();
 
-        if (allQualified.Count > 0)
-            await eodPersistence.SaveAsync(allQualified, ct);
+        List<RsiScanResult> promoted = [];
+        if (allWithTurn.Count > 0)
+            promoted = await eodPersistence.SaveAsync(allWithTurn, ct);
 
-        var eodCount = allQualified.Count(r => r.Status == SignalStatus.EodConfirm);
-        var confirmCount = allQualified.Count(r => r.Status == SignalStatus.Confirmed);
-
-        logger.LogInformation("PersistNow: scanned {Total} symbols, saved {Saved} signals ({Eod} EodConfirm, {Confirm} Confirmed).",
+        logger.LogInformation("PersistNow: scanned {Total} symbols, {Turns} Bull/Bear Turn candidate(s), {Saved} promoted.",
             (result.OversoldChain?.Count ?? 0) + (result.OverboughtChain?.Count ?? 0),
-            allQualified.Count, eodCount, confirmCount);
+            allWithTurn.Count, promoted.Count);
 
         return Ok(new
         {
-            persisted    = allQualified.Count,
-            eodConfirm   = eodCount,
-            confirmed    = confirmCount,
-            oversoldScanned  = result.OversoldChain?.Count  ?? 0,
+            persisted         = promoted.Count,
+            bullBearTurnCount = allWithTurn.Count,
+            oversoldScanned   = result.OversoldChain?.Count  ?? 0,
             overboughtScanned = result.OverboughtChain?.Count ?? 0,
         });
     }

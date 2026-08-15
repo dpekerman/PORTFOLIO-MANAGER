@@ -601,11 +601,12 @@ public class EmailNotificationService(
                 var pricePill = priceConf
                     ? "<span class=\"pill pill-ok\">&#x2713; Passed</span>"
                     : $"<span class=\"pill pill-fail\">&#x274C; Failed (Price {(r.ScanType == ScanType.Oversold ? "<" : ">")} EMA9 ${r.Ema9Price:F2})</span>";
-                var volPill = r.VolumeSignal == "Validated"
-                    ? "<span class=\"pill pill-ok\">&#x2713; Validated</span>"
-                    : r.VolumeSignal == "Low-Volume Trap"
-                        ? $"<span class=\"pill pill-fail\">&#x26A0; {r.VolumeRatio:F1}x \u2014 Low-Volume Trap</span>"
-                        : $"<span class=\"pill pill-warn\">{r.VolumeRatio:F1}x</span>";
+                // Stage-2 volume threshold is 1.5x — display pass/fail against that threshold.
+                var volPill = r.VolumeRatio >= 1.5m
+                    ? $"<span class=\"pill pill-ok\">&#x2713; {r.VolumeRatio:F2}x \u2014 Validated</span>"
+                    : r.VolumeRatio < 0.8m
+                        ? $"<span class=\"pill pill-fail\">&#x26A0; {r.VolumeRatio:F2}x \u2014 Low-Volume Trap</span>"
+                        : $"<span class=\"pill pill-fail\">&#x274C; {r.VolumeRatio:F2}x \u2014 Below 1.5x</span>";
 
                 sb.AppendLine($@"    <div class=""card-inner"">
       <div class=""card-title"">{r.Symbol}<span>— {r.ScanType}</span></div>

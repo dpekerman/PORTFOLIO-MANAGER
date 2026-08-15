@@ -60,21 +60,29 @@ public class EodSignalPersistenceService
 
         var resultList = eodResults.ToList();
 
-        // Stage-2 promotion gate: require TrendShift reversal + price confirmation + volume.
-        // All three must pass — a Bull/Bear Turn alone does NOT confirm the signal.
-        var confirmed = resultList
-            .Where(r => r.RsiDelta1D.HasValue
-                && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn")
-                && r.VolumeSignal == "Validated"
-                && IsPriceConfirmed(r))
-            .ToList();
-
-        if (confirmed.Count < resultList.Count)
+        // Stage-2 promotion gate: Bull/Bear Turn + Price confirmation + Volume >= 1.5x.
+        // All three must pass. Legacy scanner Status is NOT consulted here.
+        var confirmed = new List<RsiScanResult>();
+        foreach (var r in resultList)
         {
+            bool bullBearTurnPassed = r.RsiDelta1D.HasValue
+                && (r.TrendShift.Contains("Bull Turn") || r.TrendShift.Contains("Bear Turn"));
+            bool priceConfirmationPassed = IsPriceConfirmed(r);
+            bool volumeConfirmationPassed = r.VolumeRatio >= 1.5m;
+            bool promoted = bullBearTurnPassed && priceConfirmationPassed && volumeConfirmationPassed;
+
             _logger.LogInformation(
-                "[EodPersistence] {Total} qualified signals: {Confirmed} with TrendShift confirmation, {Waiting} still waiting.",
-                resultList.Count, confirmed.Count, resultList.Count - confirmed.Count);
+                "[Stage2Gate] {Symbol} {ScanType} | BullBearTurn={Turn} | Price={Price} | Volume={Vol} ({Ratio:F2}x) | Promoted={Promoted}",
+                r.Symbol, r.ScanType, bullBearTurnPassed, priceConfirmationPassed,
+                volumeConfirmationPassed, r.VolumeRatio, promoted);
+
+            if (promoted)
+                confirmed.Add(r);
         }
+
+        _logger.LogInformation(
+            "[EodPersistence] {Total} Stage-2 candidates: {Confirmed} promoted, {Waiting} still waiting.",
+            resultList.Count, confirmed.Count, resultList.Count - confirmed.Count);
 
         resultList = confirmed;
 
