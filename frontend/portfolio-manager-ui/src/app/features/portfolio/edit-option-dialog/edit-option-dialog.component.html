@@ -130,7 +130,7 @@
       <mat-hint>Price at which the option position was closed</mat-hint>
     </mat-form-field>
 
-    <!-- Decision Source -->
+    <!-- Decision Source (always shown — records opening decision) -->
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Decision Source</mat-label>
       <mat-select formControlName="decisionSource">
@@ -141,6 +141,20 @@
       </mat-select>
       <mat-hint>Signal or strategy that triggered this position</mat-hint>
     </mat-form-field>
+
+    <!-- Decision Source — Closed (only shown when Transaction Type = CLOSE) -->
+    @if (form.controls.transactionType.value === 'CLOSE') {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Decision Source — Closed</mat-label>
+        <mat-select formControlName="decisionSourceClosed">
+          <mat-option [value]="null">— None —</mat-option>
+          @for (ds of decisionSources; track ds) {
+            <mat-option [value]="ds">{{ ds }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Signal or reason that triggered the close</mat-hint>
+      </mat-form-field>
+    }
   </form>
 </mat-dialog-content>
 

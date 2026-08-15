@@ -91,6 +91,7 @@ export class EditOptionDialogComponent {
     closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
     closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
     decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
+    decisionSourceClosed: [this.data.item.decisionSourceClosed ?? (null as string | null)],
   });
 
   async submit(): Promise<void> {
@@ -112,6 +113,7 @@ export class EditOptionDialogComponent {
         closeDate: this.formatDate(this.form.value.closeDate),
         closingPrice: this.form.value.closingPrice ?? null,
         decisionSource: this.form.value.decisionSource ?? null,
+        decisionSourceClosed: this.form.value.decisionSourceClosed ?? null,
       });
       this.dialogRef.close(true);
     } finally {

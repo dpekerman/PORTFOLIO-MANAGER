@@ -1,9 +1,10 @@
 ﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
@@ -29,6 +30,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
     MatTooltipModule,
     MatChipsModule,
     MatProgressBarModule,
+    MatSortModule,
     RouterLink,
     DecimalPipe,
     CurrencyPipe,
@@ -43,6 +45,66 @@ export class RsiScannerTableComponent {
   readonly portfolioSymbols = input<ReadonlySet<string>>(new Set());
   readonly watchlistSymbols = input<ReadonlySet<string>>(new Set());
   readonly showHistory = input(true);
+
+  protected readonly sortCol = signal<string>('momentumShift');
+  protected readonly sortDir = signal<'asc' | 'desc'>('asc');
+
+  /** Sort priority for TrendShift: Bull/Bear Turns first, then Stabilizing, then Still Falling/Rising, then Waiting. */
+  private trendShiftPriority(shift: string): number {
+    if (shift.includes('Bull Turn') || shift.includes('Bear Turn')) return 0;
+    if (shift.includes('Stabilizing')) return 1;
+    if (shift.includes('Still')) return 2;
+    return 3; // Waiting / empty
+  }
+
+  protected readonly sortedResults = computed(() => {
+    const col = this.sortCol();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    return [...this.results()].sort((a, b) => {
+      let av: number | string;
+      let bv: number | string;
+      switch (col) {
+        case 'momentumShift':
+          av = this.trendShiftPriority(a.trendShift ?? '');
+          bv = this.trendShiftPriority(b.trendShift ?? '');
+          if (av !== bv) return (av - bv) * dir;
+          return a.symbol.localeCompare(b.symbol);
+        case 'symbol':
+          av = a.symbol;
+          bv = b.symbol;
+          break;
+        case 'rsi':
+          av = a.rsi;
+          bv = b.rsi;
+          break;
+        case 'rsiDelta1D':
+          av = a.rsiDelta1D ?? 0;
+          bv = b.rsiDelta1D ?? 0;
+          break;
+        case 'price':
+          av = a.currentPrice;
+          bv = b.currentPrice;
+          break;
+        case 'probability':
+          av = a.reversalProbability === 'High' ? 2 : a.reversalProbability === 'Medium' ? 1 : 0;
+          bv = b.reversalProbability === 'High' ? 2 : b.reversalProbability === 'Medium' ? 1 : 0;
+          break;
+        case 'analystUpside':
+          av = a.analystTargetUpside ?? 0;
+          bv = b.analystTargetUpside ?? 0;
+          break;
+        default:
+          return 0;
+      }
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  protected onSortChange(sort: Sort): void {
+    this.sortCol.set(sort.active || 'momentumShift');
+    this.sortDir.set((sort.direction as 'asc' | 'desc') || 'asc');
+  }
 
   private readonly engine = inject(DecisionEngineService);
   private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');
@@ -135,12 +197,14 @@ export class RsiScannerTableComponent {
 
   protected volSignalClass(sig: string): string {
     if (sig === 'Validated') return 'ind-bull';
+    if (sig === 'Elevated') return 'ind-elevated';
     if (sig === 'Low-Volume Trap') return 'ind-warn';
     return 'ind-neutral';
   }
 
   protected volSignalIcon(sig: string): string {
     if (sig === 'Validated') return 'volume_up';
+    if (sig === 'Elevated') return 'volume_down';
     if (sig === 'Low-Volume Trap') return 'volume_off';
     return 'volume_mute';
   }
@@ -242,27 +306,60 @@ export class RsiScannerTableComponent {
     const scanLabel = this.scanType();
     const data = this.results().map((r) => {
       const dec = this.decision(r);
+      const ema9Confirmed =
+        r.scanType === 'Oversold' ? r.currentPrice > r.ema9Price : r.currentPrice < r.ema9Price;
+      const eodPriceConfirmed =
+        r.dailyAtr > 0 &&
+        (r.scanType === 'Oversold'
+          ? r.currentPrice > r.openPrice && r.currentPrice >= r.dayHigh - 0.25 * r.dailyAtr
+          : r.currentPrice < r.openPrice && r.currentPrice <= r.dayLow + 0.25 * r.dailyAtr);
+      const promotionReady =
+        r.rsiDelta1D !== null &&
+        (r.trendShift.includes('Bull Turn') || r.trendShift.includes('Bear Turn')) &&
+        r.volumeRatio >= 1.5 &&
+        eodPriceConfirmed;
       return {
         Symbol: r.symbol,
-        Price: r.currentPrice,
-        'Change %': r.changePercent != null ? +r.changePercent.toFixed(2) : '',
-        'RSI (14)': r.rsi != null ? +r.rsi.toFixed(2) : '',
-        'RSI Signal': r.rsiSignal != null ? +r.rsiSignal.toFixed(2) : '',
-        'Vol Ratio': r.volumeRatio != null ? +r.volumeRatio.toFixed(2) : '',
+        ScanType: r.scanType,
+        BaseRsi: r.rsi != null ? +r.rsi.toFixed(2) : '',
+        PreviousRsi: '',
+        CurrentRsi: r.rsi != null ? +r.rsi.toFixed(2) : '',
+        'RSI Delta1D': r.rsiDelta1D != null ? +r.rsiDelta1D.toFixed(2) : '',
+        TrendShift: r.trendShift,
+        TurnStrength: r.turnStrength,
+        StageStatus: r.stageStatus,
+        CurrentPrice: r.currentPrice,
         EMA9: r.ema9Price ?? '',
-        EMA10: r.ema10Price ?? '',
-        EMA20: r.ema20Price ?? '',
-        SMA20: r.sma20Price ?? '',
-        SMA50: r.sma50Price ?? '',
-        'MACD Hist': r.macdHistogram != null ? +r.macdHistogram.toFixed(4) : '',
-        'MACD Delta': r.macdHistDelta != null ? +r.macdHistDelta.toFixed(4) : '',
-        'Day High': r.dayHigh ?? '',
-        'Day Low': r.dayLow ?? '',
-        Status: r.status,
-        'Scan Type': r.scanType,
-        'Trend Setup': dec.trendSetup,
-        'Momentum Shift': dec.momentumShift,
-        'Base Action': dec.baseAction,
+        Ema9Confirmed: ema9Confirmed,
+        VolumeRatio: r.volumeRatio != null ? +r.volumeRatio.toFixed(2) : '',
+        VolumeConfirmationPassed: r.volumeRatio >= 1.5,
+        EodPriceConfirmationPassed: eodPriceConfirmed,
+        TurnPassed:
+          r.rsiDelta1D !== null &&
+          (r.trendShift.includes('Bull Turn') || r.trendShift.includes('Bear Turn')),
+        PromotionReady: promotionReady,
+        BlockingReason: promotionReady
+          ? 'None'
+          : !(
+                r.rsiDelta1D !== null &&
+                (r.trendShift.includes('Bull Turn') || r.trendShift.includes('Bear Turn'))
+              )
+            ? r.rsiDelta1D === null
+              ? 'Waiting for Day-2 RSI'
+              : 'No Bull/Bear Turn'
+            : r.volumeRatio < 1.5
+              ? 'Low Volume'
+              : !eodPriceConfirmed
+                ? 'EOD Price Confirmation Failed'
+                : 'None',
+        SMA200: r.sma200 ?? '',
+        TrendSetup: dec.trendSetup,
+        StopLoss: r.dynamicStopLoss ?? '',
+        StagedDate: '',
+        LastEvaluatedDate: '',
+        IsActiveWatch: r.isTracked,
+        'Legacy Status': r.status,
+        'Legacy Action': dec.baseAction,
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);

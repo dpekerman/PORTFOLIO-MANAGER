@@ -7,6 +7,8 @@ export interface ColumnDef {
   label: string;
   /** Pinned columns are always visible and always rendered last; they cannot be hidden or reordered. */
   pinned?: boolean;
+  /** When true, this column is hidden by default for users who have not saved a preference. */
+  defaultHidden?: boolean;
 }
 
 export interface ColumnPreference {
@@ -152,6 +154,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'otx_gain_pct', label: 'Gain %' },
       { key: 'otx_mkt_value', label: 'Current Mkt Value' },
       { key: 'otx_decision_source', label: 'Decision Source' },
+      { key: 'otx_decision_source_closed', label: 'Decision Source — Closed' },
       { key: 'otx_age', label: 'Age (days)' },
       { key: 'otx_actions', label: 'Actions', pinned: true },
       { key: 'colConfig', label: '', pinned: true },
@@ -170,18 +173,19 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'rsiSignal', label: 'RSI (9 EMA)' },
       { key: 'price', label: 'Price' },
       { key: 'change', label: 'Change' },
-      { key: 'status', label: 'Signal' },
       { key: 'momentumShift', label: 'Trend Shift' },
       { key: 'indicators', label: 'Technical Signals' },
       { key: 'sma200', label: 'SMA 200' },
       { key: 'trendSetup200', label: 'Trend Setup' },
       { key: 'stopLoss', label: 'Stop Loss' },
+      { key: 'ema9Confirmed', label: 'EMA9 Confirm' },
       { key: 'probability', label: 'Reversal P.' },
       { key: 'analystUpside', label: 'Analyst Target' },
       { key: 'gapStatus', label: 'Gap Status' },
-      { key: 'trendSetup', label: 'Decision Trend' },
-      { key: 'baseAction', label: 'Base Action' },
-      { key: 'trigger', label: 'Trigger / Analysis' },
+      { key: 'status', label: 'Legacy Signal', defaultHidden: true },
+      { key: 'trendSetup', label: 'Decision Trend', defaultHidden: true },
+      { key: 'baseAction', label: 'Legacy Action', defaultHidden: true },
+      { key: 'trigger', label: 'Trigger / Analysis', defaultHidden: true },
       { key: 'signalHistory', label: 'History' },
       { key: 'colConfig', label: '', pinned: true },
     ],
@@ -205,6 +209,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'riskPerShare', label: 'Risk / Share' },
       { key: 'riskPercent', label: 'Risk %' },
       { key: 'sma200', label: 'SMA 200' },
+      { key: 'ema9Confirmed', label: 'EMA9 at Entry' },
       { key: 'price', label: 'Price' },
       { key: 'lastPrice', label: 'Last Price' },
       { key: 'priceDiff', label: 'Price Diff' },
@@ -325,7 +330,7 @@ export class GridColumnService {
     const prefKeys = new Set(storedPrefs.map((p) => p.key));
     for (const col of nonPinned) {
       if (!prefKeys.has(col.key)) {
-        result.push({ key: col.key, visible: true });
+        result.push({ key: col.key, visible: !col.defaultHidden });
       }
     }
 

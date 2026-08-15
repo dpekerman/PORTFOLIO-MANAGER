@@ -25,6 +25,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, distinctUntilChanged, interval } from 'rxjs';
+import * as XLSX from 'xlsx';
 import {
   DailySignal,
   DailySignalPagedResponse,
@@ -648,5 +649,34 @@ export class EodSignalsPageComponent implements OnInit {
   /** "Elevated" when TurnStrength is Explosive; "" otherwise. */
   protected chaseRisk(row: DailySignal): string {
     return this.turnStrength(row) === 'Explosive' ? 'Elevated' : '';
+  }
+
+  protected exportToExcel(): void {
+    const today = new Date().toISOString().slice(0, 10);
+    const data = this.sortedSignals().map((r) => ({
+      Date: r.signalDate,
+      Ticker: r.symbol,
+      'Scan Type': r.scanType,
+      'Signal Type': r.signalType,
+      'Trend Shift': r.trendShift ?? '',
+      'Turn Strength': this.turnStrength(r),
+      'RSI (14)': r.rsi != null ? +r.rsi.toFixed(2) : '',
+      'RSI Δ1D': r.rsiDelta1D != null ? +r.rsiDelta1D.toFixed(3) : '',
+      'Entry Price': r.entryPrice ?? '',
+      'Stop Loss': r.stopLossPrice ?? '',
+      'Risk / Share': r.riskPerShare != null ? +r.riskPerShare.toFixed(3) : '',
+      'Risk %': this.riskPercent(r) != null ? +this.riskPercent(r)!.toFixed(2) : '',
+      'SMA 200': r.sma200 ?? '',
+      'Signal Price': r.price,
+      Volume: r.volumeSignal ?? '',
+      'Reversal P.': r.reversalProbability,
+      Mode: r.ruleVersion,
+      State: r.signalState,
+      'Days Passed': this.daysPassed(r),
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'EOD Signals');
+    XLSX.writeFile(wb, `eod-signals-${today}.xlsx`);
   }
 }

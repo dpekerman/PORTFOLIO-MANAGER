@@ -247,6 +247,16 @@ public class EmailNotificationService(
 
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
 
+    private static TimeZoneInfo? GetEasternTz()
+    {
+        foreach (var id in EasternTzIds)
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); }
+            catch { /* try next */ }
+        }
+        return null;
+    }
+
     /// <summary>
     /// Sends an EOD email for signals already saved in the DailySignals table (manual trigger).
     /// Always fires — no deduplication — since this is an explicit user action.
@@ -402,8 +412,243 @@ public class EmailNotificationService(
     }
 
     /// <summary>
-    /// Checks the scan result for new EOD CONFIRM signals.
-    /// Only called by the background service during the configured EOD window.
+    /// Sends the RSI 2-Stage EOD Signal Report.
+    /// Section 1: ✅ CONFIRMED &amp; PROMOTED — signals inserted into DailySignals this run.
+    /// Section 2: ⏳ REVERSALS AWAITING CONFIRMATION — Bull/Bear Turns that did not pass the Stage-2 gate.
+    /// Fires only when there is at least one newly-seen signal (deduplication via tracker).
+    /// </summary>
+    public async Task NotifyEodReportAsync(
+        List<RsiScanResult> confirmed,
+        List<RsiScanResult> awaiting,
+        DateTime scannedAt)
+    {
+        if (!tracker.HasNewEodActivity(confirmed, awaiting)) return;
+        if (confirmed.Count == 0 && awaiting.Count == 0) return;
+
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0) return;
+        if (!_settings.Enabled) return;
+        if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password)) return;
+
+        try
+        {
+            var tz = GetEasternTz();
+            var etNow = tz is not null ? TimeZoneInfo.ConvertTimeFromUtc(scannedAt, tz) : scannedAt;
+            var dateTimeStr = etNow.ToString("dddd, MMMM d, yyyy") + " \u2014 " + etNow.ToString("h:mm tt") + " ET";
+
+            var tickerParts = confirmed.Select(s => $"{s.Symbol} RSI:{s.Rsi:F1}")
+                .Concat(awaiting.Select(s => $"{s.Symbol} \u23f3"))
+                .ToList();
+            var subject = confirmed.Count > 0
+                ? $"\ud83d\udcca RSI 2-Stage \u2014 {confirmed.Count} Confirmed: {string.Join(", ", confirmed.Select(s => s.Symbol))}"
+                : $"\u23f3 RSI 2-Stage \u2014 {awaiting.Count} Awaiting: {string.Join(", ", awaiting.Select(s => s.Symbol))}";
+
+            var body = BuildEod2HtmlBody(confirmed, awaiting, dateTimeStr);
+
+            using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
+            {
+                EnableSsl = _settings.UseStartTls,
+                Credentials = new NetworkCredential(_settings.Username, _settings.Password),
+                DeliveryMethod = SmtpDeliveryMethod.Network,
+                Timeout = 15_000,
+            };
+
+            using var message = new MailMessage
+            {
+                From = new MailAddress(
+                    !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username,
+                    _settings.FromName),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true,
+                Priority = MailPriority.High,
+            };
+            message.Headers.Add("X-Priority", "1");
+            message.Headers.Add("X-MSMail-Priority", "High");
+            message.Headers.Add("Importance", "High");
+
+            foreach (var email in recipientList)
+                message.To.Add(email);
+
+            await client.SendMailAsync(message);
+            logger.LogInformation(
+                "RSI 2-Stage EOD Report sent: {Confirmed} confirmed, {Awaiting} awaiting \u2014 {Recipients} recipient(s).",
+                confirmed.Count, awaiting.Count, recipientList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send RSI 2-Stage EOD Report email.");
+        }
+    }
+
+    private static string FormatEasternTime(DateTime utc)
+    {
+        var tz = GetEasternTz();
+        var et = tz is not null ? TimeZoneInfo.ConvertTimeFromUtc(utc, tz) : utc;
+        return et.ToString("dddd, MMMM d, yyyy") + " \u2014 " + et.ToString("h:mm tt") + " ET";
+    }
+
+    private static string BuildEod2HtmlBody(
+        List<RsiScanResult> confirmed,
+        List<RsiScanResult> awaiting,
+        string dateTimeStr)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(@"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+<meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width,initial-scale=1"">
+<style>
+  body{margin:0;padding:0;background:#f4f6fa;font-family:'Segoe UI',Arial,sans-serif;color:#1a1a2e}
+  .wrapper{max-width:700px;margin:0 auto;padding:24px 16px}
+  .header{background:linear-gradient(135deg,#1a237e,#283593);border-radius:12px;padding:24px 28px;margin-bottom:24px;color:#fff}
+  .header h1{margin:0 0 6px;font-size:1.35rem;letter-spacing:0.04em}
+  .header .dt{margin:0 0 12px;font-size:0.85rem;opacity:.85}
+  .header .intro{margin:0;font-size:0.82rem;opacity:.8;line-height:1.55}
+  .section-head{font-size:0.85rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:10px 16px;border-radius:8px 8px 0 0;margin:24px 0 0}
+  .section-head.conf{background:#1b5e20;color:#fff}
+  .section-head.await{background:#e65100;color:#fff}
+  .card{background:#fff;border-radius:0 0 8px 8px;box-shadow:0 2px 6px rgba(0,0,0,.08);margin-bottom:4px;padding:0}
+  .card-inner{padding:16px 20px}
+  .card+.section-head{margin-top:20px}
+  .card-title{font-size:1rem;font-weight:700;color:#1a237e;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid #e8eaf6}
+  .card-title span{font-weight:400;font-size:0.82rem;color:#666;margin-left:6px}
+  .fields{display:table;width:100%;border-collapse:collapse}
+  .field{display:table-row}
+  .field .lbl{display:table-cell;width:44%;padding:3px 0;font-size:0.8rem;color:#666;font-weight:600;letter-spacing:0.03em}
+  .field .val{display:table-cell;padding:3px 0;font-size:0.82rem;color:#1a1a2e;font-weight:500}
+  .status-bar{margin-top:14px;padding:8px 12px;border-radius:6px;font-size:0.82rem;font-weight:700;letter-spacing:0.04em}
+  .status-conf{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+  .status-await{background:#fff3e0;color:#e65100;border:1px solid #ffcc02}
+  .warn-bar{margin-top:8px;padding:7px 12px;border-radius:6px;background:#fff8e1;color:#bf360c;font-size:0.79rem;font-weight:600;border:1px solid #ffe082}
+  .action-bar{margin-top:8px;padding:7px 12px;border-radius:6px;background:#f3e5f5;color:#4a148c;font-size:0.79rem;font-weight:600;border:1px solid #ce93d8}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700}
+  .pill-ok{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+  .pill-fail{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+  .pill-warn{background:#fff3e0;color:#e65100;border:1px solid #ffcc02}
+  .empty{padding:16px 20px;background:#fff;border-radius:0 0 8px 8px;color:#999;font-size:0.82rem;font-style:italic}
+  .footer{margin-top:28px;padding-top:16px;border-top:1px solid #dde3f0;font-size:0.72rem;color:#999;text-align:center;line-height:1.7}
+</style>
+</head>
+<body>
+<div class=""wrapper"">");
+
+        sb.AppendLine($@"  <div class=""header"">
+    <h1>&#x1F4CA; RSI 2-Stage EOD Signal Report</h1>
+    <p class=""dt"">{dateTimeStr}</p>
+    <p class=""intro"">Confirmed signals originate from previously staged Oversold or Overbought setups.<br>
+    A signal is promoted only after RSI momentum reverses and required Price and Volume confirmation pass.</p>
+  </div>");
+
+        // ── Section 1: Confirmed & Promoted ──────────────────────────────────
+        sb.AppendLine($@"  <div class=""section-head conf"">&#x2705; CONFIRMED &amp; PROMOTED ({confirmed.Count})</div>");
+        if (confirmed.Count == 0)
+        {
+            sb.AppendLine(@"  <div class=""empty"">No signals were promoted to DailySignals during this EOD run.</div>");
+        }
+        else
+        {
+            sb.AppendLine(@"  <div class=""card"">");
+            foreach (var r in confirmed)
+            {
+                bool ema9Conf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
+                decimal? riskPct = (r.CurrentPrice > 0 && r.DynamicStopLoss > 0)
+                    ? Math.Round(Math.Abs(r.CurrentPrice - r.DynamicStopLoss) / r.CurrentPrice * 100m, 1)
+                    : null;
+                var rsiDeltaStr = r.RsiDelta1D.HasValue
+                    ? (r.RsiDelta1D.Value >= 0 ? $"+{r.RsiDelta1D.Value:F2} &#x2191;" : $"{r.RsiDelta1D.Value:F2} &#x2193;")
+                    : "\u2014";
+                var trendShiftClean = r.TrendShift.Replace("\ud83d\udfe2 ", "").Replace("\ud83d\udfe1 ", "").Replace("\ud83d\udd34 ", "");
+                var turnLabel = string.IsNullOrEmpty(r.TurnStrength) || r.TurnStrength == "Normal"
+                    ? trendShiftClean
+                    : $"{trendShiftClean} \u2014 {r.TurnStrength}";
+                var trendSetup = r.TrendSetup200.Length > 0 ? r.TrendSetup200 : (r.Sma200 > 0 ? (r.CurrentPrice > r.Sma200 ? "Trend-Aligned" : "Counter-Trend") : "\u2014");
+                var ema9Pill = ema9Conf
+                    ? "<span class=\"pill pill-ok\">&#x2713; Confirmed</span>"
+                    : "<span class=\"pill pill-warn\">&#x23F3; Pending</span>";
+
+                sb.AppendLine($@"    <div class=""card-inner"">
+      <div class=""card-title"">{r.Symbol}<span>— {r.ScanType}</span></div>
+      <div class=""fields"">
+        <div class=""field""><span class=""lbl"">RSI</span><span class=""val"">{r.Rsi:F1}</span></div>
+        <div class=""field""><span class=""lbl"">RSI &#x394;1D</span><span class=""val"">{rsiDeltaStr}</span></div>
+        <div class=""field""><span class=""lbl"">Trend Shift</span><span class=""val"">{turnLabel}</span></div>
+        <div class=""field""><span class=""lbl"">EOD Price</span><span class=""val""><span class=""pill pill-ok"">&#x2713; Passed</span></span></div>
+        <div class=""field""><span class=""lbl"">Volume</span><span class=""val""><span class=""pill pill-ok"">&#x2713; {r.VolumeRatio:F2}x &#x2014; Validated</span></span></div>
+        <div class=""field""><span class=""lbl"">EMA9 (Supporting)</span><span class=""val"">{ema9Pill}</span></div>
+        <div class=""field""><span class=""lbl"">Entry</span><span class=""val"">{"$"}{r.CurrentPrice:F2}</span></div>
+        {(r.DynamicStopLoss > 0 ? $"<div class=\"field\"><span class=\"lbl\">Stop</span><span class=\"val\">${r.DynamicStopLoss:F2}</span></div>" : "")}
+        {(r.DynamicStopLoss > 0 ? $"<div class=\"field\"><span class=\"lbl\">Risk / Share</span><span class=\"val\">${Math.Abs(r.CurrentPrice - r.DynamicStopLoss):F2}{(riskPct.HasValue ? $" / {riskPct:F1}%" : "")}</span></div>" : "")}
+        {(r.Sma200 > 0 ? $"<div class=\"field\"><span class=\"lbl\">SMA200</span><span class=\"val\">${r.Sma200:F2}</span></div>" : "")}
+        {(trendSetup != "\u2014" ? $"<div class=\"field\"><span class=\"lbl\">Setup</span><span class=\"val\">{trendSetup}</span></div>" : "")}
+      </div>
+      <div class=""status-bar status-conf"">&#x2705; CONFIRMED &amp; PROMOTED</div>
+      {(r.ChaseRisk == "Elevated" ? "<div class=\"warn-bar\">&#x26A0; Explosive reversal \u2014 elevated chase risk</div>" : "")}
+    </div>");
+            }
+            sb.AppendLine(@"  </div>");
+        }
+
+        // ── Section 2: Awaiting Confirmation ─────────────────────────────────
+        sb.AppendLine($@"  <div class=""section-head await"">&#x23F3; REVERSALS AWAITING CONFIRMATION ({awaiting.Count})</div>");
+        if (awaiting.Count == 0)
+        {
+            sb.AppendLine(@"  <div class=""empty"">No active setups are in the CONFIRMING stage.</div>");
+        }
+        else
+        {
+            sb.AppendLine(@"  <div class=""card"">");
+            foreach (var r in awaiting)
+            {
+                bool eodPriceConf = r.DailyAtr > 0 && (r.ScanType == ScanType.Oversold
+                    ? r.CurrentPrice > r.OpenPrice && r.CurrentPrice >= r.DayHigh - (0.25m * r.DailyAtr)
+                    : r.CurrentPrice < r.OpenPrice && r.CurrentPrice <= r.DayLow + (0.25m * r.DailyAtr));
+                bool ema9Conf = r.ScanType == ScanType.Oversold ? r.CurrentPrice > r.Ema9Price : r.CurrentPrice < r.Ema9Price;
+                var trendShiftClean = r.TrendShift.Replace("\ud83d\udfe2 ", "").Replace("\ud83d\udfe1 ", "").Replace("\ud83d\udd34 ", "");
+                var eodPricePill = eodPriceConf
+                    ? "<span class=\"pill pill-ok\">&#x2713; Passed</span>"
+                    : "<span class=\"pill pill-fail\">&#x274C; Failed</span>";
+                var ema9Pill = ema9Conf
+                    ? "<span class=\"pill pill-ok\">&#x2713; Confirmed</span>"
+                    : "<span class=\"pill pill-warn\">&#x23F3; Pending</span>";
+                // Stage-2 volume threshold is 1.5x — display pass/fail against that threshold.
+                var volPill = r.VolumeRatio >= 1.5m
+                    ? $"<span class=\"pill pill-ok\">&#x2713; {r.VolumeRatio:F2}x \u2014 Validated</span>"
+                    : r.VolumeRatio < 0.8m
+                        ? $"<span class=\"pill pill-fail\">&#x26A0; {r.VolumeRatio:F2}x \u2014 Low-Volume Trap</span>"
+                        : $"<span class=\"pill pill-fail\">&#x274C; {r.VolumeRatio:F2}x \u2014 Below 1.5x</span>";
+
+                sb.AppendLine($@"    <div class=""card-inner"">
+      <div class=""card-title"">{r.Symbol}<span>— {r.ScanType}</span></div>
+      <div class=""fields"">
+        <div class=""field""><span class=""lbl"">RSI</span><span class=""val"">{r.Rsi:F1}</span></div>
+        <div class=""field""><span class=""lbl"">Trend Shift</span><span class=""val"">{trendShiftClean}</span></div>
+        <div class=""field""><span class=""lbl"">EOD Price (Required)</span><span class=""val"">{eodPricePill}</span></div>
+        <div class=""field""><span class=""lbl"">Volume (Required)</span><span class=""val"">{volPill}</span></div>
+        <div class=""field""><span class=""lbl"">EMA9 (Supporting)</span><span class=""val"">{ema9Pill}</span></div>
+      </div>
+      <div class=""status-bar status-await"">CONFIRMING</div>
+      <div class=""action-bar"">Continue Monitoring</div>
+    </div>");
+            }
+            sb.AppendLine(@"  </div>");
+        }
+
+        sb.AppendLine($@"  <div class=""footer"">
+    RSI 2-Stage EOD Signal Report &nbsp;&middot;&nbsp; <strong>Portfolio Manager</strong><br>
+    {dateTimeStr} &nbsp;&middot;&nbsp; Not financial advice. Do your own research.
+  </div>
+</div>
+</body>
+</html>");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Checks the scan result for new EOD CONFIRM signals (legacy path — kept for backward compatibility).
+    /// Replaced by <see cref="NotifyEodReportAsync"/> in the background service.
     /// </summary>
     public async Task NotifyNewEodConfirmedSignalsAsync(ScannerResponse scanResult)
     {
@@ -523,13 +768,14 @@ public class EmailNotificationService(
 <div class=""wrapper"">");
 
         sb.AppendLine($@"  <div class=""header"">
-    <h1>🎯 RSI EOD Confirm Signal Alert</h1>
-    <p>All 4 end-of-day confirmation rules met for <strong>{oversold.Count + overbought.Count} signal(s)</strong>
-       on {scannedAt:dddd, MMMM d yyyy} at {scannedAt:HH:mm} UTC (EOD window active).</p>
+    <h1>&#x1F3AF; RSI 2-Stage EOD Signal Report</h1>
+    <p>Confirmed signals originate from previously staged Oversold or Overbought setups.
+       A signal is promoted only after RSI momentum reverses and required Price and Volume confirmation pass.</p>
+    <p>{oversold.Count + overbought.Count} signal(s) — {FormatEasternTime(scannedAt)}.</p>
   </div>
   <div class=""eod-banner"">
-    ⏰ EOD CONFIRM signals fire between 3:30–4:00 PM Eastern Time when strong directional
-    price action meets all 4 criteria: RSI extreme · Price vs 9-EMA · Volume ≥ 1.5× · EOD price position vs ATR
+    &#x23F0; EOD Confirm signals fire between 3:30&ndash;4:00&nbsp;PM Eastern Time when a staged setup passes
+    the Stage-2 gate: RSI reversal &middot; Price vs&nbsp;9-EMA &middot; Volume &ge;&nbsp;1.5&times;
   </div>");
 
         if (oversold.Count > 0)

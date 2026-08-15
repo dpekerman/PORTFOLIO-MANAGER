@@ -85,6 +85,29 @@ public class SignalNotificationTracker
     }
 
     /// <summary>
+    /// Returns true (and records the new keys) if any signal in <paramref name="promoted"/> or
+    /// <paramref name="awaiting"/> has not yet been reported in the current EOD window.
+    /// Promoted signals are tracked with the "PROMO|" prefix; awaiting with "AWAIT|".
+    /// When a signal moves from awaiting to promoted the new PROMO key is always fresh.
+    /// </summary>
+    public bool HasNewEodActivity(
+        IEnumerable<RsiScanResult> promoted,
+        IEnumerable<RsiScanResult> awaiting)
+    {
+        lock (_lock)
+        {
+            bool hasNew = false;
+            foreach (var r in promoted)
+                if (_notifiedKeys.Add($"PROMO|{r.Symbol}|{r.ScanType}"))
+                    hasNew = true;
+            foreach (var r in awaiting)
+                if (_notifiedKeys.Add($"AWAIT|{r.Symbol}|{r.ScanType}"))
+                    hasNew = true;
+            return hasNew;
+        }
+    }
+
+    /// <summary>
     /// Clears all tracked keys so that all currently CONFIRMED signals will fire emails again
     /// on the next notification check. Used by the manual "scan-now" endpoint.
     /// </summary>

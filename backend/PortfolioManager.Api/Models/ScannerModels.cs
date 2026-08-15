@@ -319,6 +319,10 @@ public class DailySignal
     public decimal? RiskPerShare { get; set; }
     /// <summary>200-day SMA at confirmation.</summary>
     public decimal? Sma200 { get; set; }
+    /// <summary>EMA9 price at the moment of promotion.</summary>
+    public decimal? Ema9AtEntry { get; set; }
+    /// <summary>Whether price had crossed EMA9 in the reversal direction at promotion time.</summary>
+    public bool? Ema9ConfirmedAtEntry { get; set; }
 }
 
 /// <summary>Request DTO for updating a DailySignal's lifecycle state.</summary>

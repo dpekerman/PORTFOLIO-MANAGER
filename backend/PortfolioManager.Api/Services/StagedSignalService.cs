@@ -187,7 +187,7 @@ public sealed class StagedSignalService(
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static string ComputeTrendShift(decimal? rsiDelta, ScanType scanType, decimal threshold)
+    internal static string ComputeTrendShift(decimal? rsiDelta, ScanType scanType, decimal threshold)
     {
         if (!rsiDelta.HasValue) return "Waiting";
 

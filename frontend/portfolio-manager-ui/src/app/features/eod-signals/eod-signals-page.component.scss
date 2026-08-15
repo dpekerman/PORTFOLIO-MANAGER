@@ -491,6 +491,18 @@
   }
 }
 
+// ── EMA9 at Entry ─────────────────────────────────────────────────────────────
+.ema9-confirmed {
+  font-size: 0.72rem;
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.ema9-pending {
+  font-size: 0.72rem;
+  color: #e65100;
+}
+
 // ── Rule Version ──────────────────────────────────────────────────────────────
 .rule-ver {
   font-size: 0.75rem;

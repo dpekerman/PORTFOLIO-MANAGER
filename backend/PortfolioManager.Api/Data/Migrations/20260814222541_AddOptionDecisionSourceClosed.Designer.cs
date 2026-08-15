@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortfolioManager.Api.Data;
 
@@ -11,9 +12,11 @@ using PortfolioManager.Api.Data;
 namespace PortfolioManager.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260814222541_AddOptionDecisionSourceClosed")]
+    partial class AddOptionDecisionSourceClosed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -381,12 +384,6 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasColumnType("nvarchar(200)")
                         .HasDefaultValue("");
 
-                    b.Property<decimal?>("Ema9AtEntry")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<bool?>("Ema9ConfirmedAtEntry")
-                        .HasColumnType("bit");
-
                     b.Property<decimal?>("EntryPrice")
                         .HasColumnType("decimal(18,4)");
 
@@ -520,8 +517,7 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("DecisionSourceClosed")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ExpirationDate")
                         .HasColumnType("datetime2");

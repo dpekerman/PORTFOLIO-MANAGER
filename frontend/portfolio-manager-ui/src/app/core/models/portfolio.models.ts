@@ -368,6 +368,8 @@ export interface OptionItem {
   notes?: string | null;
   /** @optional Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest */
   decisionSource?: string | null;
+  /** @optional Decision source recorded when the position was closed */
+  decisionSourceClosed?: string | null;
 }
 
 export interface AddOptionItemRequest {
@@ -400,6 +402,7 @@ export interface UpdateOptionItemRequest {
   closeDate?: string | null;
   closingPrice?: number | null;
   decisionSource?: string | null;
+  decisionSourceClosed?: string | null;
 }
 
 export interface OptionTechnicalData {
@@ -481,6 +484,8 @@ export interface DailySignal {
   stopLossPrice: number | null;
   riskPerShare: number | null;
   sma200: number | null;
+  ema9AtEntry: number | null;
+  ema9ConfirmedAtEntry: boolean | null;
 }
 
 export interface DailySignalPagedResponse {

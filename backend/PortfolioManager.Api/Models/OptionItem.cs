@@ -26,4 +26,6 @@ public class OptionItem
     public string? Notes { get; set; }
     /// <summary>Decision source: App Signal | Manual | Catalyst | Rebalance | Risk Control | Loss Harvest.</summary>
     public string? DecisionSource { get; set; }
+    /// <summary>Decision source recorded at the time the position was closed.</summary>
+    public string? DecisionSourceClosed { get; set; }
 }

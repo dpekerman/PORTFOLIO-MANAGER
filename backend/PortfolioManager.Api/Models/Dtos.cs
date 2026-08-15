@@ -124,7 +124,8 @@ public record UpdateOptionItemRequest(
     DateTime? OpenDate = null,
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
-    string? DecisionSource = null);
+    string? DecisionSource = null,
+    string? DecisionSourceClosed = null);
 
 public record UpdateOptionNotesRequest(string? Notes);
 
@@ -144,7 +145,8 @@ public record OptionItemDto(
     DateTime? CloseDate = null,
     decimal? ClosingPrice = null,
     string? Notes = null,
-    string? DecisionSource = null);
+    string? DecisionSource = null,
+    string? DecisionSourceClosed = null);
 
 /// <summary>Technical indicators for the underlying ticker, used by the frontend option state engine.</summary>
 public record OptionTechnicalDataDto(

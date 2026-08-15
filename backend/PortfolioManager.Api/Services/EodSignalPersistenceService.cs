@@ -51,7 +51,7 @@ public class EodSignalPersistenceService
     /// Overwrites any previously saved signals (only the latest EOD window is kept).
     /// Also appends to the DailySignals database table for full history tracking.
     /// </summary>
-    public async Task SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
+    public async Task<List<RsiScanResult>> SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
     {
         var tz = GetEasternTz();
         var etToday = tz is not null
@@ -60,20 +60,30 @@ public class EodSignalPersistenceService
 
         var resultList = eodResults.ToList();
 
-        // Promotion gate: require TrendShift momentum reversal AND volume confirmation.
-        // A Bull/Bear Turn with Low-Volume Trap must NOT be promoted (ATS.TO rule).
-        var confirmed = resultList
-            .Where(r => r.RsiDelta1D.HasValue
-                && (r.TrendShift == "\ud83d\udfe2 Bull Turn" || r.TrendShift == "\ud83d\udfe2 Bear Turn")
-                && r.VolumeSignal == "Validated")
-            .ToList();
-
-        if (confirmed.Count < resultList.Count)
+        // Stage-2 promotion gate: Bull/Bear Turn + Price confirmation + Volume >= 1.5x.
+        // All three must pass. Legacy scanner Status is NOT consulted here.
+        var confirmed = new List<RsiScanResult>();
+        foreach (var r in resultList)
         {
+            bool bullBearTurnPassed = r.RsiDelta1D.HasValue
+                && (r.TrendShift.Contains("Bull Turn") || r.TrendShift.Contains("Bear Turn"));
+            bool eodPriceConfirmationPassed = IsEodPriceConfirmed(r);
+            bool volumeConfirmationPassed = r.VolumeRatio >= 1.5m;
+            bool ema9Confirmed = IsEma9Confirmed(r);
+            bool promoted = bullBearTurnPassed && eodPriceConfirmationPassed && volumeConfirmationPassed;
+
             _logger.LogInformation(
-                "[EodPersistence] {Total} qualified signals: {Confirmed} with TrendShift confirmation, {Waiting} still waiting.",
-                resultList.Count, confirmed.Count, resultList.Count - confirmed.Count);
+                "[Stage2Gate] {Symbol} {ScanType} | Turn={Turn} | EodPrice={EodPrice} | Volume={Vol} ({Ratio:F2}x) | EMA9={Ema9} | Promoted={Promoted}",
+                r.Symbol, r.ScanType, bullBearTurnPassed, eodPriceConfirmationPassed,
+                volumeConfirmationPassed, r.VolumeRatio, ema9Confirmed, promoted);
+
+            if (promoted)
+                confirmed.Add(r);
         }
+
+        _logger.LogInformation(
+            "[EodPersistence] {Total} Stage-2 candidates: {Confirmed} promoted, {Waiting} still waiting.",
+            resultList.Count, confirmed.Count, resultList.Count - confirmed.Count);
 
         resultList = confirmed;
 
@@ -152,6 +162,8 @@ public class EodSignalPersistenceService
                             StopLossPrice      = stopLoss,
                             RiskPerShare       = riskPerShare,
                             Sma200             = r.Sma200 > 0 ? r.Sma200 : null,
+                            Ema9AtEntry        = r.Ema9Price > 0 ? r.Ema9Price : null,
+                            Ema9ConfirmedAtEntry = IsEma9Confirmed(r),
                         };
                     })
                     .ToList();
@@ -180,7 +192,32 @@ public class EodSignalPersistenceService
                 _logger.LogError(ex, "Failed to persist EOD signals to DailySignals table");
             }
         }
+
+        return resultList;
     }
+
+    // ── Helpers ─ promotion gate ─────────────────────────────────────────────
+
+    /// <summary>
+    /// EOD structural price rule: candle closed in the reversal direction and near its extreme.
+    /// Oversold: close > open AND close >= high − 0.25×ATR.
+    /// Overbought: close &lt; open AND close &lt;= low + 0.25×ATR.
+    /// EMA9 is intentionally NOT part of this check — it is supporting context only.
+    /// </summary>
+    private static bool IsEodPriceConfirmed(RsiScanResult r)
+    {
+        if (r.DailyAtr <= 0m) return false;
+        return r.ScanType == ScanType.Oversold
+            ? r.CurrentPrice > r.OpenPrice && r.CurrentPrice >= r.DayHigh - (0.25m * r.DailyAtr)
+            : r.CurrentPrice < r.OpenPrice && r.CurrentPrice <= r.DayLow + (0.25m * r.DailyAtr);
+    }
+
+    /// <summary>EMA9 supporting confirmation — price has crossed EMA9 in the reversal direction.
+    /// This is NOT required for promotion; use for confidence scoring and email context only.</summary>
+    private static bool IsEma9Confirmed(RsiScanResult r) =>
+        r.ScanType == ScanType.Oversold
+            ? r.CurrentPrice > r.Ema9Price
+            : r.CurrentPrice < r.Ema9Price;
 
     // ── Read ──────────────────────────────────────────────────────────────────
 

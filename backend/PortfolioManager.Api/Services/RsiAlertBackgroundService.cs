@@ -110,36 +110,41 @@ public sealed class RsiAlertBackgroundService(
         // Only EOD Confirm signals trigger email alerts (see EOD window below).
         // await notifier.NotifyNewConfirmedSignalsAsync(result);
 
-        // ── EOD window: persist Confirmed + EodConfirm signals to DailySignals table ──
+        // ── EOD window: persist confirmed signals and send 2-stage report email ──
         bool inEodWindow = runtimeConfig.IsEodWindowActive();
         if (inEodWindow)
         {
-            // Collect ALL signals that qualify for DB persistence during the EOD window:
-            // - EodConfirm: all 4 EOD rules met (RSI, Price vs EMA, Volume, ATR position)
-            // - Confirmed:  price-action trigger met on candle close
-            // Both OVERSOLD and OVERBOUGHT chains are included.
-            var allQualified = (result.OversoldChain ?? [])
+            var allResults = (result.OversoldChain ?? [])
                 .Concat(result.OverboughtChain ?? [])
-                .Where(r => r.Status == SignalStatus.EodConfirm || r.Status == SignalStatus.Confirmed)
                 .ToList();
 
-            var eodConfirmCount = allQualified.Count(r => r.Status == SignalStatus.EodConfirm);
-            var confirmedCount  = allQualified.Count(r => r.Status == SignalStatus.Confirmed);
+            // Stage-2 candidates: all signals with a Bull/Bear Turn, regardless of legacy Status.
+            // The Stage-2 gate inside SaveAsync (TrendShift + Price + Volume >= 1.5x) decides
+            // whether to promote. Legacy Status is intentionally ignored here.
+            var bullBearTurns = allResults
+                .Where(r => r.TrendShift.Contains("Bull Turn") || r.TrendShift.Contains("Bear Turn"))
+                .ToList();
 
-            logger.LogInformation(
-                "[RsiAlertBg] EOD Window active ({Start}–{End} ET). " +
-                "{EodCount} EodConfirm + {ConfCount} Confirmed signal(s) qualify for persistence.",
-                runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd,
-                eodConfirmCount, confirmedCount);
-
-            if (allQualified.Count > 0)
+            if (bullBearTurns.Count > 0)
             {
-                // Email for every signal that gets persisted to the EOD Signals page
-                await notifier.NotifyNewEodConfirmedSignalsAsync(result);
+                logger.LogInformation(
+                    "[RsiAlertBg] EOD Window active ({Start}\u2013{End} ET). " +
+                    "{Turns} Bull/Bear Turn signal(s) queued for Stage-2 gate.",
+                    runtimeConfig.EodWindowStart, runtimeConfig.EodWindowEnd,
+                    bullBearTurns.Count);
 
-                // Persist all qualified signals (EodConfirm + Confirmed) to the DailySignals DB
-                // table and to the JSON file for the morning panel.
-                await eodPersistence.SaveAsync(allQualified, ct);
+                // SaveAsync applies the Stage-2 gate and returns only promoted signals.
+                var promoted = await eodPersistence.SaveAsync(bullBearTurns, ct);
+
+                // Awaiting = Bull/Bear Turn signals that did NOT pass the Stage-2 gate.
+                var promotedSymbols = new HashSet<string>(
+                    promoted.Select(r => r.Symbol), StringComparer.OrdinalIgnoreCase);
+                var awaiting = bullBearTurns
+                    .Where(r => !promotedSymbols.Contains(r.Symbol))
+                    .ToList();
+
+                // Send the 2-stage EOD report (fires only for newly seen signals).
+                await notifier.NotifyEodReportAsync(promoted, awaiting, result.ScannedAt);
             }
         }
     }
