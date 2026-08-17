@@ -156,6 +156,14 @@ export class PortfolioApiService {
     });
   }
 
+  /** Lightweight batch price lookup — max 50 symbols, single Yahoo Finance call. Much faster than analyzeSymbols. */
+  getBatchPrices(symbols: string[]): Observable<{ symbol: string; price: number }[]> {
+    return this.http.post<{ symbol: string; price: number }[]>(
+      `${this.base}/stocks/batch-prices`,
+      symbols,
+    );
+  }
+
   /** Invalidate all server-side RSI scan cache entries (call after config/threshold change). */
   clearRsiCache(): Observable<void> {
     return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
