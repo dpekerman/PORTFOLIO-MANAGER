@@ -1,0 +1,1513 @@
+.portfolio-page {
+  padding: 0 0 48px;
+}
+
+// ── Inline editable price input for options grid ──────────────────────────────
+.inline-price-input {
+  width: 72px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: 'Roboto Mono', monospace;
+  padding: 3px 6px;
+  text-align: right;
+  outline: none;
+  transition: border-color 0.15s;
+
+  &:hover {
+    border-color: var(--border-subtle);
+  }
+
+  &:focus {
+    border-color: #1565c0;
+    background: rgba(21, 101, 192, 0.06);
+  }
+
+  /* Hide spinners in Chrome/Edge */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  /* Hide spinners in Firefox */
+  &[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+.portfolio-section {
+  padding: 20px 24px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.section-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-icon {
+  font-size: 22px;
+  width: 22px;
+  height: 22px;
+  color: #1565c0;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-sub {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  color: var(--text-faint);
+  letter-spacing: 0.3px;
+}
+
+.count-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(21, 101, 192, 0.12);
+  color: #64b5f6;
+  border: 1px solid rgba(21, 101, 192, 0.2);
+}
+
+// ── Action buttons ────────────────────────────────────────────────────────────
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  border-color: rgba(100, 181, 246, 0.4);
+  color: #64b5f6;
+  font-size: 0.8rem;
+  height: 34px;
+
+  .btn-text {
+    @media (max-width: 480px) {
+      display: none;
+    }
+  }
+}
+
+.action-btn-primary {
+  background: #1565c0;
+  color: #fff;
+  font-size: 0.82rem;
+  height: 34px;
+}
+
+// ── Bulk toolbar ──────────────────────────────────────────────────────────────
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  border-radius: 10px;
+  flex-wrap: wrap;
+
+  &.bulk-active {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+
+    .bulk-count {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #64b5f6;
+    }
+  }
+
+  &.bulk-hint {
+    background: transparent;
+    border: 1px dashed var(--border-subtle);
+    color: var(--text-faint);
+    font-size: 0.75rem;
+
+    mat-icon {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      opacity: 0.5;
+    }
+  }
+}
+
+// ── Sort bar ──────────────────────────────────────────────────────────────────
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+  flex-wrap: wrap;
+
+  .sort-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .sort-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .sort-chip {
+    font-size: 0.78rem;
+    height: 28px;
+    line-height: 28px;
+    padding: 0 10px;
+    border-radius: 14px;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    min-width: unset;
+
+    &.sort-active {
+      background: var(--mat-sys-primary);
+      color: var(--mat-sys-on-primary, #fff);
+      border-color: transparent;
+    }
+  }
+
+  .sort-dir-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+}
+
+// ── Stock grid ────────────────────────────────────────────────────────────────
+.stock-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 64px 24px;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 56px;
+    width: 56px;
+    height: 56px;
+    color: var(--text-faint);
+  }
+
+  .empty-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .empty-sub {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-faint);
+    max-width: 320px;
+  }
+}
+
+// ── Spin animation ────────────────────────────────────────────────────────────
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// ── View toggle ───────────────────────────────────────────────────────────────
+.view-toggle {
+  height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// ── Grid filters banner (collapsible toggle row) ──────────────────────────────
+.grid-filters-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 4px;
+  .gf-toggle-btn {
+    font-size: 0.8rem;
+    height: 32px;
+    mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+    }
+  }
+}
+
+// ── Grid filters bar ──────────────────────────────────────────────────────────
+.grid-filters-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 10px;
+  position: sticky;
+  top: 56px;
+  z-index: 10;
+  background: var(--bg-page);
+  padding: 6px 0;
+
+  .gf-field {
+    min-width: 160px;
+  }
+  .gf-ticker {
+    flex: 1;
+    min-width: 200px;
+    max-width: 320px;
+  }
+  .gf-select {
+    min-width: 160px;
+    max-width: 240px;
+  }
+  .gf-rsi {
+    min-width: 100px;
+    max-width: 120px;
+  }
+  .gf-age {
+    min-width: 130px;
+    max-width: 160px;
+  }
+}
+
+.gf-clear-btn {
+  height: 36px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.gf-count {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+.gf-filtered-total {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: rgba(21, 101, 192, 0.1);
+  border: 1px solid rgba(21, 101, 192, 0.25);
+  border-radius: 8px;
+  padding: 3px 10px;
+  color: #64b5f6;
+
+  .gf-ft-label {
+    font-weight: 500;
+    opacity: 0.8;
+  }
+}
+
+// ── Column config button action bar (cash / options) ─────────────────────────
+.pg-table-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0 2px;
+}
+
+// ── Portfolio grid table ──────────────────────────────────────────────────────
+.portfolio-table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 320px);
+  margin-top: 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.portfolio-grid-table {
+  width: 100%;
+  background: var(--bg-surface) !important;
+
+  th.mat-mdc-header-cell {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    background: var(--bg-elevated);
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  tr.pg-row:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.pg-num-header {
+  text-align: right !important;
+}
+.pg-num {
+  text-align: right !important;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+.pg-bold {
+  font-weight: 700;
+}
+.pg-pos {
+  color: #43a047 !important;
+}
+.pg-neg {
+  color: #e53935 !important;
+}
+.pg-dim {
+  color: var(--text-faint);
+}
+
+.pg-ma-strong-buy {
+  color: #43a047;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+// % Total column
+.pg-pct-total {
+  white-space: nowrap;
+}
+
+.pg-pct-pill {
+  display: inline-block;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.pg-pct-large {
+  color: #ffa726;
+  font-weight: 700;
+}
+
+.pg-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pg-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(21, 101, 192, 0.15);
+  color: #64b5f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.58rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.pg-symbol {
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+}
+
+.pg-manual-tag {
+  font-size: 0.6rem;
+  background: rgba(255, 160, 0, 0.12);
+  color: #ffa000;
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 700;
+}
+
+.pg-company {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+  display: block;
+}
+
+.pg-rsi {
+  font-family: 'Roboto Mono', monospace;
+  font-weight: 600;
+
+  &.pg-rsi-over {
+    color: #ef6c00;
+  }
+  &.pg-rsi-under {
+    color: #43a047;
+  }
+}
+
+.pg-no-results {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--text-faint);
+
+  mat-icon {
+    font-size: 28px;
+    width: 28px;
+    height: 28px;
+    display: block;
+    margin: 0 auto 8px;
+  }
+  span {
+    font-size: 0.85rem;
+  }
+  button {
+    margin-top: 8px;
+  }
+}
+
+// ── Grid actions column ───────────────────────────────────────────────────────
+.pg-actions-header {
+  width: 72px;
+  padding: 0 !important;
+}
+
+.pg-actions-cell {
+  white-space: nowrap;
+  padding: 0 4px !important;
+}
+
+.pg-action-btn {
+  width: 32px;
+  height: 32px;
+  line-height: 32px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--text-faint);
+  }
+
+  &:hover mat-icon {
+    color: var(--text-primary);
+  }
+}
+
+.pg-action-delete:hover mat-icon {
+  color: #ef5350 !important;
+}
+
+// ── Gap Status badges ─────────────────────────────────────────────────────────
+.gap-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 16px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  .gap-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+
+  &.gap-strong {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border-color: rgba(0, 200, 83, 0.25);
+  }
+  &.gap-weak {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border-color: rgba(255, 167, 38, 0.2);
+  }
+  &.gap-failed {
+    background: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.25);
+  }
+}
+
+// ── Portfolio Momentum Shift & Action badges ───────────────────────────────────
+.pg-ms-badge,
+.pg-ma-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: default;
+}
+
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+}
+.ms-bullish {
+  background: rgba(76, 175, 80, 0.72);
+  color: #000;
+  border-color: rgba(76, 175, 80, 0.82);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.18);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
+}
+.ms-neutral {
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
+}
+
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
+}
+.ma-avoid {
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
+}
+.ma-standby {
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
+}
+
+// TFSA profit-taking rule – amber/gold badge
+.ma-tfsa-profit {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.9);
+  font-weight: 600;
+}
+
+// ============================================================
+// Add Stock / Cash / Option action buttons
+// ============================================================
+.action-btn-cash {
+  background: #00796b;
+  color: #fff;
+  &:hover {
+    background: #00897b;
+  }
+}
+.action-btn-option {
+  background: #6a1b9a;
+  color: #fff;
+  &:hover {
+    background: #7b1fa2;
+  }
+}
+
+// ============================================================
+// Collapsible subsections
+// ============================================================
+.subsection {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  margin: 14px 0;
+  overflow: hidden;
+  background: var(--bg-surface, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.subsection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--bg-elevated);
+  border-bottom: 2px solid transparent;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+
+  &:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  }
+
+  // Section-specific accent via modifier on the .subsection wrapper
+  .subsection--stocks & {
+    border-bottom-color: #1565c0;
+  }
+  .subsection--cash & {
+    border-bottom-color: #00796b;
+  }
+  .subsection--options & {
+    border-bottom-color: #6a1b9a;
+  }
+}
+
+// Collapsed: remove bottom border when not expanded
+.subsection.collapsed .subsection-header {
+  border-bottom-color: transparent;
+}
+
+.subsection-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.subsection-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #1565c0;
+  .subsection--cash & {
+    color: #00796b;
+  }
+  .subsection--options & {
+    color: #6a1b9a;
+  }
+}
+.subsection-title {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.subsection-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: 20px;
+  flex-wrap: wrap;
+}
+.subsection-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  .stat-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .stat-value {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary, #212121);
+    font-family: 'Roboto Mono', monospace;
+  }
+}
+.subsection-total {
+  font-size: 14px;
+  font-weight: 600;
+  margin-left: 10px;
+}
+.subsection-chevron {
+  color: var(--text-faint);
+  flex-shrink: 0;
+  transition: transform 0.2s;
+}
+.subsection-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 20px;
+  color: var(--text-faint);
+  font-size: 0.82rem;
+  mat-icon {
+    color: var(--text-faint);
+    opacity: 0.5;
+  }
+}
+
+// ============================================================
+// Cash card grid
+// ============================================================
+.cash-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 16px;
+}
+.cash-card {
+  background: rgba(0, 121, 107, 0.08);
+  border: 1px solid rgba(0, 121, 107, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cash-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #4db6ac;
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+.cash-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #b0bec5;
+}
+.cash-card-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #4db6ac;
+}
+.cash-card-date {
+  font-size: 11px;
+  color: #616161;
+}
+.cash-card-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+// ============================================================
+// Options table
+// ============================================================
+.options-table-wrapper {
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.options-grid-table {
+  min-width: 1400px;
+}
+
+// Option type badges
+.opt-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  &.put-badge {
+    background: rgba(239, 83, 80, 0.12);
+    color: #ef5350;
+    border: 1px solid rgba(239, 83, 80, 0.25);
+  }
+  &.call-badge {
+    background: rgba(102, 187, 106, 0.12);
+    color: #66bb6a;
+    border: 1px solid rgba(102, 187, 106, 0.25);
+  }
+}
+
+// Badge variant for the ticker cell
+.badge-put {
+  background: rgba(239, 83, 80, 0.15) !important;
+  color: #ef5350 !important;
+}
+.badge-call {
+  background: rgba(102, 187, 106, 0.15) !important;
+  color: #66bb6a !important;
+}
+
+// DTE coloring
+.dte-urgent {
+  color: #ef5350;
+  font-weight: 700;
+}
+.dte-warning {
+  color: #ffa726;
+  font-weight: 600;
+}
+
+// Option state badges
+.opt-state-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.os-free-trade {
+  background: rgba(102, 187, 106, 0.12);
+  color: #66bb6a;
+  border: 1px solid rgba(102, 187, 106, 0.25);
+}
+.os-cut {
+  background: rgba(239, 83, 80, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.25);
+}
+.os-target {
+  background: rgba(102, 187, 106, 0.08);
+  color: #a5d6a7;
+  border: 1px solid rgba(102, 187, 106, 0.2);
+}
+.os-momentum {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.os-monitor {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.13);
+}
+.os-unknown {
+  background: rgba(97, 97, 97, 0.08);
+  color: #757575;
+  border: 1px solid rgba(97, 97, 97, 0.15);
+}
+
+// Option action badges
+.opt-action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.oa-exit {
+  background: rgba(239, 83, 80, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(239, 83, 80, 0.25);
+}
+.oa-profit {
+  background: rgba(102, 187, 106, 0.12);
+  color: #66bb6a;
+  border: 1px solid rgba(102, 187, 106, 0.25);
+}
+.oa-caution {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.oa-monitor {
+  background: rgba(158, 158, 158, 0.07);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.13);
+}
+
+// Empty-state action group
+.empty-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+// ── Multi-account group header row ────────────────────────────────────────────
+
+// ── Role select inline ─────────────────────────────────────────────────────────
+.role-select {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  min-width: 130px;
+
+  .mat-mdc-select-value-text {
+    font-size: 0.6rem;
+    font-weight: 800;
+  }
+}
+.role-core {
+  color: #00bcd4;
+}
+.role-strategic {
+  color: #42a5f5;
+}
+.role-strategic-income {
+  color: #26a69a;
+}
+.role-swing {
+  color: #ffa726;
+}
+.role-speculative {
+  color: #ef5350;
+}
+.role-options {
+  color: #ab47bc;
+}
+
+tr.pg-agg-row {
+  cursor: pointer;
+
+  td {
+    background: rgba(0, 0, 0, 0.03) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  &:hover td {
+    background: var(--bg-hover) !important;
+  }
+}
+
+// ── Child rows: look identical to regular rows ────────────────────────────────
+tr.pg-child-row td {
+  background: transparent !important;
+}
+
+tr.pg-child-row:hover td {
+  background: var(--bg-hover) !important;
+}
+
+// Child row ticker-column: account badge as primary identifier
+.pg-child-id-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.pg-child-connector {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+// ── Inline expand/collapse arrow inside the symbol text ──────────────────────
+.pg-agg-symbol-line {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.pg-inline-expand {
+  font-size: 14px !important;
+  width: 14px !important;
+  height: 14px !important;
+  color: var(--text-faint);
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+// ── Account badge ─────────────────────────────────────────────────────────────
+.pg-account-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(100, 181, 246, 0.12);
+  color: #64b5f6;
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+// -- Analyst Target cell ------------------------------------------------------
+.analyst-target-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.analyst-price {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.analyst-upside {
+  font-size: 0.7rem;
+  font-weight: 600;
+
+  &.at-positive {
+    color: #43a047;
+  }
+
+  &.at-negative {
+    color: #e53935;
+  }
+}
+
+// ── Sticky columns (Ticker + Company) ─────────────────────────────────────────
+.portfolio-table-wrapper {
+  overflow-x: auto;
+}
+
+.pg-sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--bg-surface);
+
+  &.mat-mdc-header-cell {
+    z-index: 3;
+    background: var(--bg-surface);
+  }
+}
+
+// Second sticky column offset
+.portfolio-grid-table th.mat-mdc-header-cell[aria-colindex='2'].pg-sticky-col,
+.portfolio-grid-table td.mat-mdc-cell[aria-colindex='2'].pg-sticky-col {
+  left: 130px; // approximate width of Ticker column
+}
+
+// ── Reversal Probability badge (mirrors scanner) ──────────────────────────────
+.prob-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.prob-high {
+    background: rgba(229, 57, 53, 0.15);
+    color: #ef5350;
+  }
+  &.prob-medium {
+    background: rgba(245, 124, 0, 0.15);
+    color: #fb8c00;
+  }
+  &.prob-low {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+  }
+}
+
+// ── Technical State badge ─────────────────────────────────────────────────────
+.pg-tech-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.state-badge {
+  &.state-reversal {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+  }
+  &.state-overbought {
+    background: rgba(239, 83, 80, 0.12);
+    color: #ef5350;
+  }
+  &.state-pullback {
+    background: rgba(255, 167, 38, 0.12);
+    color: #ffa726;
+  }
+  &.state-sideways {
+    background: rgba(66, 165, 245, 0.12);
+    color: #42a5f5;
+  }
+  &.state-mean {
+    background: rgba(171, 71, 188, 0.12);
+    color: #ab47bc;
+  }
+  &.state-exhaustion {
+    background: rgba(239, 83, 80, 0.12);
+    color: #e53935;
+  }
+  &.state-neutral {
+    background: rgba(120, 120, 120, 0.1);
+    color: #9e9e9e;
+  }
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Beta editable cell
+.beta-edit-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.beta-input {
+  width: 60px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-family: 'Roboto Mono', monospace;
+  padding: 2px 4px;
+  text-align: right;
+  &:focus {
+    outline: none;
+    border-color: #7e57c2;
+  }
+  &.beta-overridden {
+    border-color: #ffa726;
+    color: #ffa726;
+  }
+}
+.beta-clear-btn {
+  background: none;
+  border: none;
+  color: #ffa726;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 2px;
+  &:hover {
+    color: #ef5350;
+  }
+}

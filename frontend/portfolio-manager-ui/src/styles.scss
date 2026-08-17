@@ -1,0 +1,184 @@
+@use '@angular/material' as mat;
+
+// ── Dark theme (default) — Angular Material ───────────────────────────────────
+html {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: dark,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+}
+
+// ── Light theme ───────────────────────────────────────────────────────────────
+body.light-theme {
+  @include mat.theme(
+    (
+      color: (
+        primary: mat.$azure-palette,
+        tertiary: mat.$blue-palette,
+        theme-type: light,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+  color-scheme: light;
+}
+
+// ── CSS Custom Properties — Dark (default) ────────────────────────────────────
+:root {
+  --bg-app: #0a0a0a;
+  --bg-page: #0d0d0d;
+  --bg-surface: #161616;
+  --bg-elevated: #1e1e1e;
+  --bg-hover: #222222;
+  --bg-border: #2a2a2a;
+  --text-primary: #ececec;
+  --text-secondary: #c0c0c0;
+  --text-muted: #8c8c8c;
+  --text-faint: #6b6b6b;
+  --border-color: #2a2a2a;
+  --border-subtle: #333333;
+  --shadow-card: rgba(0, 0, 0, 0.4);
+}
+
+// ── CSS Custom Properties — Light ─────────────────────────────────────────────
+body.light-theme {
+  --bg-app: #ffffff;
+  --bg-page: #f5f5f5;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0f0f0;
+  --bg-hover: #e8e8e8;
+  --bg-border: #bdbdbd;
+  --text-primary: #1a1a1a;
+  --text-secondary: #333333;
+  --text-muted: #595959;
+  --text-faint: #858585;
+  --border-color: #d4d4d4;
+  --border-subtle: #c4c4c4;
+  --shadow-card: rgba(0, 0, 0, 0.08);
+}
+
+body {
+  color-scheme: dark;
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font: var(--mat-sys-body-medium);
+  margin: 0;
+  height: 100%;
+}
+
+html {
+  height: 100%;
+}
+
+// ── Skeleton shimmer CSS variables ────────────────────────────────────────────
+:root {
+  --skeleton-base: #1e1e1e;
+  --skeleton-shine: #2e2e2e;
+}
+body.light-theme {
+  --skeleton-base: #e8e8e8;
+  --skeleton-shine: #f0f0f0;
+}
+
+// ── Material Dialog — fixed layout to prevent control overlap ─────────────────
+.mat-mdc-dialog-container .mdc-dialog__container {
+  width: 100%;
+}
+
+.mat-mdc-dialog-surface {
+  border-radius: 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  // Allow overflow so floating labels are not clipped at the top
+  overflow: visible !important;
+}
+
+// Inner scrollable wrapper needs overflow-y
+.mat-mdc-dialog-inner-container {
+  overflow-y: auto !important;
+}
+
+.mat-mdc-dialog-title {
+  padding: 20px 24px 8px !important;
+  flex-shrink: 0;
+}
+
+.mat-mdc-dialog-content {
+  flex: 1 1 auto !important;
+  // Use overflow-x hidden so the surface clips horizontally but not vertically
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scrollbar-width: thin;
+  box-sizing: border-box !important;
+  // Extra top padding so outline form-field floating labels aren't clipped
+  padding: 16px 24px 16px !important;
+  max-height: 65vh !important;
+  min-width: min(340px, 90vw);
+
+  // Ensure form fields inside dialogs fill width
+  mat-form-field {
+    display: block;
+    width: 100%;
+  }
+}
+
+.mat-mdc-dialog-actions {
+  flex-shrink: 0 !important;
+  padding: 8px 16px 16px !important;
+  justify-content: flex-end !important;
+}
+
+.mat-mdc-dialog-actions {
+  padding: 8px 24px 16px !important;
+  min-height: unset !important;
+}
+
+// ── Demo mode value redaction ─────────────────────────────────────────────────
+// Applied to elements that contain sensitive financial values.
+// Values are blurred so the shape/layout is preserved but numbers are unreadable.
+.demo-redact {
+  filter: blur(6px);
+  user-select: none;
+  transition: filter 0.2s ease;
+  pointer-events: none;
+}
+
+// ── Button icon + text alignment (global fix) ─────────────────────────────────
+// Ensures mat-icon inside any flat/raised/stroked button is vertically centred
+// with the label text across all screens.
+.mdc-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+}
+
+button.mat-mdc-button-base mat-icon,
+a.mat-mdc-button-base mat-icon {
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+// ── Global grid header contrast improvements ─────────────────────────────────
+.mat-mdc-header-cell {
+  color: var(--text-secondary) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.07em;
+}
+
+// -- Column Config button — embedded in sticky grid header (all grids) ----------
+.col-config-th {
+  width: 44px;
+  min-width: 44px;
+  padding: 4px 6px !important;
+  text-align: right !important;
+  vertical-align: middle !important;
+}

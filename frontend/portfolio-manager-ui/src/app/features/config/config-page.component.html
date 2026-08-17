@@ -1,0 +1,1547 @@
+﻿<div class="config-page">
+  <!-- ── Sticky save-all bar ── -->
+  <div class="sticky-save-bar">
+    <div class="sticky-save-bar-inner">
+      <div class="sticky-save-bar-left">
+        <mat-icon class="sticky-icon">settings</mat-icon>
+        <div>
+          <span class="sticky-title">CONFIGURATION</span>
+          <span class="sticky-sub">All settings saved or reset in one action</span>
+        </div>
+      </div>
+      <div class="sticky-save-bar-actions">
+        <button
+          mat-stroked-button
+          (click)="resetAll()"
+          [disabled]="isSavingAll()"
+          matTooltip="Reset scanner intervals, RSI thresholds and EOD window to factory defaults"
+        >
+          <mat-icon>restore</mat-icon>
+          Reset All to Defaults
+        </button>
+        <button
+          mat-flat-button
+          (click)="saveAll()"
+          [disabled]="isSavingAll()"
+          matTooltip="Save all sections: scanner settings, EOD window, email recipients and sector/industry lists"
+        >
+          <mat-icon [class.spinning]="isSavingAll()">{{
+            isSavingAll() ? 'sync' : 'save'
+          }}</mat-icon>
+          {{ isSavingAll() ? 'Saving All…' : 'Save All Settings' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tab Navigation ── -->
+  <nav class="cfg-tab-nav" role="tablist" aria-label="Configuration sections">
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'demo'"
+      [class.cfg-tab-btn--active]="activeSection() === 'demo'"
+      [class.cfg-tab-btn--demo]="demoMode.isDemoMode()"
+      (click)="activeSection.set('demo')"
+    >
+      <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+      <span class="cfg-tab-label">Demo Mode</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'scanner'"
+      [class.cfg-tab-btn--active]="activeSection() === 'scanner'"
+      (click)="activeSection.set('scanner')"
+    >
+      <mat-icon>tune</mat-icon><span class="cfg-tab-label">Scanner</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'eod'"
+      [class.cfg-tab-btn--active]="activeSection() === 'eod'"
+      (click)="activeSection.set('eod')"
+    >
+      <mat-icon>schedule</mat-icon><span class="cfg-tab-label">EOD Window</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'screener'"
+      [class.cfg-tab-btn--active]="activeSection() === 'screener'"
+      (click)="activeSection.set('screener')"
+    >
+      <mat-icon>query_stats</mat-icon><span class="cfg-tab-label">Value Screener</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'alerts'"
+      [class.cfg-tab-btn--active]="activeSection() === 'alerts'"
+      (click)="activeSection.set('alerts')"
+    >
+      <mat-icon>notifications_active</mat-icon><span class="cfg-tab-label">Alerts</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'sectors'"
+      [class.cfg-tab-btn--active]="activeSection() === 'sectors'"
+      (click)="activeSection.set('sectors')"
+    >
+      <mat-icon>category</mat-icon><span class="cfg-tab-label">Sectors</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'allocation'"
+      [class.cfg-tab-btn--active]="activeSection() === 'allocation'"
+      (click)="activeSection.set('allocation')"
+    >
+      <mat-icon>pie_chart</mat-icon><span class="cfg-tab-label">Allocation</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
+      [attr.aria-selected]="activeSection() === 'decisions'"
+      [class.cfg-tab-btn--active]="activeSection() === 'decisions'"
+      (click)="setSection('decisions')"
+    >
+      <mat-icon>label</mat-icon><span class="cfg-tab-label">Decision Sources</span>
+    </button>
+    @if (authState.isAdmin()) {
+      <button
+        class="cfg-tab-btn"
+        role="tab"
+        [attr.aria-selected]="activeSection() === 'users'"
+        [class.cfg-tab-btn--active]="activeSection() === 'users'"
+        (click)="setSection('users')"
+      >
+        <mat-icon>manage_accounts</mat-icon><span class="cfg-tab-label">Users</span>
+      </button>
+    }
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 0 — DEMO MODE
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'demo'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>{{ demoMode.isDemoMode() ? 'visibility_off' : 'visibility' }}</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Demo Mode</h2>
+          <p class="section-subtitle">
+            Mask sensitive portfolio values for screen sharing or presentations
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        @if (demoMode.isDemoMode()) {
+          <div class="demo-active-banner" role="status">
+            <mat-icon>visibility_off</mat-icon>
+            <span>DEMO MODE is active — portfolio values are masked</span>
+          </div>
+        }
+
+        <div class="demo-toggle-row">
+          <mat-slide-toggle
+            [checked]="pendingDemoEnabled()"
+            (change)="pendingDemoEnabled.set($event.checked); demoSettingsDirty.set(true)"
+            color="warn"
+          >
+            {{
+              pendingDemoEnabled()
+                ? 'Demo mode ON — values will be masked'
+                : 'Demo mode OFF — real values shown'
+            }}
+          </mat-slide-toggle>
+        </div>
+
+        <div class="demo-info-card">
+          <mat-icon>info</mat-icon>
+          <div>
+            <p><strong>What gets masked:</strong></p>
+            <ul>
+              <li>All dollar amounts (portfolio value, cost, gain/loss, cash)</li>
+              <li>Percentages are varied to look realistic</li>
+            </ul>
+            <p><strong>What stays visible:</strong></p>
+            <ul>
+              <li>Ticker symbols and company names</li>
+              <li>RSI values, signals, and technical indicators</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ── Masking style ────────────────────────────────────────────── -->
+        @if (pendingDemoEnabled()) {
+          <div class="demo-style-section">
+            <p class="demo-style-label"><strong>Masking style</strong></p>
+            <mat-button-toggle-group
+              [value]="pendingDemoStyle()"
+              (change)="pendingDemoStyle.set($event.value); demoSettingsDirty.set(true)"
+              class="demo-style-toggle"
+              aria-label="Demo masking style"
+            >
+              <mat-button-toggle
+                value="blur"
+                matTooltip="Scales real values by 0.3–0.7× per session"
+              >
+                <mat-icon>blur_on</mat-icon>
+                Blur &amp; Scale
+              </mat-button-toggle>
+              <mat-button-toggle
+                value="fake"
+                matTooltip="Replaces values with completely unrelated plausible amounts"
+              >
+                <mat-icon>shuffle</mat-icon>
+                Fake Numbers
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+            <p class="demo-style-desc">
+              @if (pendingDemoStyle() === 'blur') {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Proportional factor applied — scale relationships still visible</span>
+              } @else {
+                <mat-icon class="demo-style-desc-icon">info_outline</mat-icon>
+                <span>Completely unrelated amounts shown — real scale is hidden</span>
+              }
+            </p>
+          </div>
+        }
+
+        <div class="demo-save-row">
+          <button
+            mat-flat-button
+            color="primary"
+            [disabled]="!demoSettingsDirty()"
+            (click)="saveDemoSettings()"
+          >
+            <mat-icon>save</mat-icon>
+            Save Settings
+          </button>
+          @if (demoSettingsDirty()) {
+            <button mat-stroked-button (click)="initPendingDemo()">
+              <mat-icon>undo</mat-icon>
+              Reset
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 1 — SCANNER SETTINGS
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'scanner'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>tune</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Scanner Settings</h2>
+          <p class="section-subtitle">
+            Refresh intervals and RSI thresholds · Stored in browser · Reset restores factory
+            defaults
+          </p>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="save()" id="scanner-form">
+        <div class="section-body">
+          <div class="scanner-cards-row">
+            <!-- Auto-Refresh Intervals -->
+            <div class="sub-card">
+              <div class="sub-card-header">
+                <mat-icon>timer</mat-icon>
+                <span class="sub-card-title">Auto-Refresh Intervals</span>
+              </div>
+              <div class="sub-card-body">
+                <div class="fields-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>RSI Scanner (seconds)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="scanIntervalSeconds"
+                      min="30"
+                      max="3600"
+                    />
+                    <mat-hint>Min 30s · Default 300s</mat-hint>
+                    @if (form.controls.scanIntervalSeconds.errors?.['min']) {
+                      <mat-error>Minimum 30 seconds</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Portfolio refresh (seconds)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="portfolioRefreshSeconds"
+                      min="30"
+                      max="3600"
+                    />
+                    <mat-hint>Min 30s · Default 120s</mat-hint>
+                    @if (form.controls.portfolioRefreshSeconds.errors?.['min']) {
+                      <mat-error>Minimum 30 seconds</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Watchlist refresh (seconds)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="watchlistRefreshSeconds"
+                      min="30"
+                      max="3600"
+                    />
+                    <mat-hint>Min 30s · Default 60s</mat-hint>
+                    @if (form.controls.watchlistRefreshSeconds.errors?.['min']) {
+                      <mat-error>Minimum 30 seconds</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Session timeout (minutes)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="sessionTimeoutMinutes"
+                      min="0"
+                      max="1440"
+                    />
+                    <mat-hint>0 = disabled · Default 480 min (8h)</mat-hint>
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['min']) {
+                      <mat-error>Minimum 0 (disabled)</mat-error>
+                    }
+                    @if (form.controls.sessionTimeoutMinutes.errors?.['max']) {
+                      <mat-error>Maximum 1440 min (24h)</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+
+            <!-- RSI Signal Thresholds -->
+            <div class="sub-card">
+              <div class="sub-card-header">
+                <mat-icon>show_chart</mat-icon>
+                <span class="sub-card-title">RSI Signal Thresholds</span>
+              </div>
+              <div class="sub-card-body">
+                <div class="fields-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Oversold threshold (≤)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="rsiOversoldThreshold"
+                      min="1"
+                      max="49"
+                    />
+                    <mat-hint>RSI at or below → Oversold. Default: 30</mat-hint>
+                    @if (form.controls.rsiOversoldThreshold.errors?.['min']) {
+                      <mat-error>Minimum 1</mat-error>
+                    }
+                    @if (form.controls.rsiOversoldThreshold.errors?.['max']) {
+                      <mat-error>Must be below 50</mat-error>
+                    }
+                  </mat-form-field>
+
+                  <mat-form-field appearance="outline">
+                    <mat-label>Overbought threshold (≥)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="rsiOverboughtThreshold"
+                      min="51"
+                      max="99"
+                    />
+                    <mat-hint>RSI at or above → Overbought. Default: 75</mat-hint>
+                    @if (form.controls.rsiOverboughtThreshold.errors?.['min']) {
+                      <mat-error>Must be above 50</mat-error>
+                    }
+                    @if (form.controls.rsiOverboughtThreshold.errors?.['max']) {
+                      <mat-error>Maximum 99</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-footer">
+          <span class="section-footer-hint"
+            >Changes apply immediately to both Auto-Refresh Intervals and RSI Thresholds</span
+          >
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="reset()"
+            matTooltip="Restore all scanner settings to factory defaults"
+          >
+            <mat-icon>restore</mat-icon> Reset to Defaults
+          </button>
+          <button
+            mat-flat-button
+            type="submit"
+            form="scanner-form"
+            [disabled]="form.invalid || form.pristine"
+            matTooltip="Save and apply scanner settings"
+          >
+            <mat-icon>save</mat-icon> Save Scanner Settings
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- /cfg-panel scanner -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 2 — EOD CONFIRMATION WINDOW
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'eod'">
+    <div class="config-section" [class.eod-section-border]="eodWindowActive()">
+      <div class="section-header">
+        <mat-icon [class.eod-active-icon]="eodWindowActive()">schedule</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">EOD Confirmation Window</h2>
+          <p class="section-subtitle">
+            Time window (Eastern Time) when EOD CONFIRM signals are evaluated and emailed · Default:
+            3:30 PM – 4:00 PM ET
+          </p>
+        </div>
+        @if (eodWindowActive()) {
+          <span class="section-header-badge">
+            <mat-icon class="eod-active-icon-sm">fiber_manual_record</mat-icon>
+            ACTIVE NOW
+          </span>
+        }
+      </div>
+
+      <form [formGroup]="eodForm" (ngSubmit)="saveEodSettings()" id="eod-form">
+        <div class="section-body">
+          <div class="eod-info-banner">
+            <mat-icon class="eod-info-icon">info_outline</mat-icon>
+            <span>
+              During this window the scanner evaluates 4 EOD rules:
+              <strong>RSI &lt; 25 / &gt; 75</strong> · <strong>Price vs 9-EMA</strong> ·
+              <strong>Volume &gt; 1.5× avg</strong> · <strong>Price position vs ATR</strong>.
+              Matching stocks are flagged as <span class="eod-inline-badge">EOD CONFIRM</span>
+              and a dedicated high-priority email is sent.
+            </span>
+          </div>
+
+          <div class="eod-time-row">
+            <mat-timepicker #startPicker interval="30m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Window start time (ET)</mat-label>
+              <input matInput [matTimepicker]="startPicker" formControlName="eodWindowStart" />
+              <mat-timepicker-toggle matSuffix [for]="startPicker"></mat-timepicker-toggle>
+              <mat-hint>Eastern Time · 30-min steps · Default: 3:30 PM</mat-hint>
+            </mat-form-field>
+
+            <mat-timepicker #endPicker interval="30m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Window end time (ET)</mat-label>
+              <input matInput [matTimepicker]="endPicker" formControlName="eodWindowEnd" />
+              <mat-timepicker-toggle matSuffix [for]="endPicker"></mat-timepicker-toggle>
+              <mat-hint>Eastern Time · 30-min steps · Default: 4:00 PM</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="eod-toggle-row">
+            <mat-slide-toggle formControlName="eodWindowEnabled" color="accent">
+              EOD window enabled
+            </mat-slide-toggle>
+            <span class="eod-toggle-hint">
+              @if (eodForm.value.eodWindowEnabled) {
+                EOD CONFIRM signals will be evaluated and emailed during the configured window.
+              } @else {
+                EOD CONFIRM rules are disabled — only standard Confirmed / Early Warning signals
+                apply.
+              }
+            </span>
+          </div>
+
+          <!-- EOD RSI Thresholds -->
+          <div class="eod-time-row">
+            <mat-form-field appearance="outline">
+              <mat-label>EOD Oversold RSI threshold (&lt;)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="eodOversoldRsiThreshold"
+                min="1"
+                max="49"
+              />
+              <mat-hint>RSI below this triggers EOD CONFIRM (oversold). Default: 25</mat-hint>
+              @if (eodForm.controls.eodOversoldRsiThreshold?.errors?.['min']) {
+                <mat-error>Minimum 1</mat-error>
+              }
+              @if (eodForm.controls.eodOversoldRsiThreshold?.errors?.['max']) {
+                <mat-error>Must be below 50</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>EOD Overbought RSI threshold (&gt;)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="eodOverboughtRsiThreshold"
+                min="51"
+                max="99"
+              />
+              <mat-hint>RSI above this triggers EOD CONFIRM (overbought). Default: 75</mat-hint>
+              @if (eodForm.controls.eodOverboughtRsiThreshold?.errors?.['min']) {
+                <mat-error>Must be above 50</mat-error>
+              }
+              @if (eodForm.controls.eodOverboughtRsiThreshold?.errors?.['max']) {
+                <mat-error>Maximum 99</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </div>
+
+        <div class="section-footer">
+          <span class="section-footer-hint"
+            >Saved to backend and applied immediately — no server restart needed</span
+          >
+          <button
+            mat-flat-button
+            type="submit"
+            form="eod-form"
+            color="accent"
+            [disabled]="eodForm.invalid || eodForm.pristine || savingEodSettings()"
+            matTooltip="Save EOD window settings to backend immediately"
+          >
+            <mat-icon [class.spinning]="savingEodSettings()">{{
+              savingEodSettings() ? 'sync' : 'schedule_send'
+            }}</mat-icon>
+            {{ savingEodSettings() ? 'Saving…' : 'Save EOD Window' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- /cfg-panel eod -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 3 — VALUE SCREENER SCHEDULE
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'screener'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>query_stats</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Value Screener Schedule</h2>
+          <p class="section-subtitle">
+            Automatic run time for Portfolio and Watchlist · Results saved to database · Default:
+            5:00 PM ET on weekdays
+          </p>
+        </div>
+      </div>
+
+      <form [formGroup]="vsForm" (ngSubmit)="saveVsSchedule()" id="vs-form">
+        <div class="section-body">
+          <div class="eod-info-banner">
+            <mat-icon class="eod-info-icon">info_outline</mat-icon>
+            <span>
+              The Value Screener runs automatically at the configured time on weekdays. Results are
+              saved to the database so the Value Screener page loads instantly. Use the
+              <strong>Refresh</strong> button on the Value Screener page to run it on demand.
+            </span>
+          </div>
+
+          <div class="eod-time-row">
+            <mat-timepicker #vsPicker interval="30m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Run time (Eastern Time)</mat-label>
+              <input matInput [matTimepicker]="vsPicker" formControlName="vsScheduleTime" />
+              <mat-timepicker-toggle matSuffix [for]="vsPicker"></mat-timepicker-toggle>
+              <mat-hint>Eastern Time · 30-min steps · Default: 5:00 PM</mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="eod-toggle-row">
+            <mat-slide-toggle formControlName="vsScheduleEnabled" color="accent">
+              Scheduled run enabled
+            </mat-slide-toggle>
+            <span class="eod-toggle-hint">
+              @if (vsForm.value.vsScheduleEnabled) {
+                Value Screener will run automatically at the configured time on weekdays.
+              } @else {
+                Scheduled runs are disabled. Use the Refresh button on the Value Screener page to
+                run manually.
+              }
+            </span>
+          </div>
+        </div>
+
+        <div class="section-footer">
+          <span class="section-footer-hint"
+            >Saved to database — persists across server restarts</span
+          >
+          <button
+            mat-flat-button
+            type="submit"
+            form="vs-form"
+            color="accent"
+            [disabled]="vsForm.invalid || vsForm.pristine || savingVsSchedule()"
+            matTooltip="Save Value Screener schedule to the database"
+          >
+            <mat-icon [class.spinning]="savingVsSchedule()">{{
+              savingVsSchedule() ? 'sync' : 'save'
+            }}</mat-icon>
+            {{ savingVsSchedule() ? 'Saving…' : 'Save VS Schedule' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <!-- /cfg-panel screener -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 4 — RSI SIGNAL ALERT RECIPIENTS
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'alerts'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>notifications_active</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">RSI Confirmed Signal Alerts</h2>
+          <p class="section-subtitle">
+            Email recipients for high-priority RSI CONFIRMED signal alerts · Each signal fires
+            <strong>once</strong> — no spam
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <p class="email-info">
+          <mat-icon class="email-info-icon">info_outline</mat-icon>
+          To enable sending, set <code>EmailNotification.Enabled = true</code> and fill in SMTP
+          credentials in <code>appsettings.json</code> on the backend.
+        </p>
+
+        <mat-form-field appearance="outline" class="email-input-field" subscriptSizing="dynamic">
+          <mat-label>Add recipient email</mat-label>
+          <mat-chip-grid #chipGrid>
+            @for (email of recipientEmails(); track email) {
+              <mat-chip-row (removed)="removeEmail(email)" [disabled]="savingEmails()">
+                {{ email }}
+                <button matChipRemove aria-label="Remove {{ email }}">
+                  <mat-icon>cancel</mat-icon>
+                </button>
+              </mat-chip-row>
+            }
+          </mat-chip-grid>
+          <input
+            matInput
+            placeholder="e.g. trader@example.com"
+            [matChipInputFor]="chipGrid"
+            [ngModel]="emailInputValue()"
+            (ngModelChange)="emailInputValue.set($event)"
+            (keydown)="onEmailKeydown($event)"
+            (blur)="addEmail(emailInputValue())"
+            [disabled]="savingEmails() || recipientEmails().length >= 50"
+            autocomplete="off"
+            type="email"
+          />
+          <mat-hint>Press Enter to add · Max 50 recipients</mat-hint>
+        </mat-form-field>
+
+        @if (recipientEmails().length === 0 && !loadingEmails()) {
+          <p class="no-recipients">No recipients configured — alerts will not be sent.</p>
+        }
+      </div>
+
+      <div class="section-footer">
+        <button
+          mat-stroked-button
+          class="test-email-btn"
+          (click)="sendTestEmail()"
+          [disabled]="sendingTestEmail() || savingEmails() || scanningNow()"
+          matTooltip="Send a test email to verify SMTP is working"
+        >
+          <mat-icon>{{ sendingTestEmail() ? 'hourglass_empty' : 'send' }}</mat-icon>
+          {{ sendingTestEmail() ? 'Sending…' : 'Send Test Email' }}
+        </button>
+        <button
+          mat-stroked-button
+          class="scan-now-btn"
+          (click)="scanAndNotifyNow()"
+          [disabled]="scanningNow() || savingEmails() || sendingTestEmail()"
+          matTooltip="Run a live RSI scan now and email all confirmed signals"
+        >
+          <mat-icon>{{ scanningNow() ? 'hourglass_empty' : 'radar' }}</mat-icon>
+          {{ scanningNow() ? 'Scanning…' : 'Scan & Notify Now' }}
+        </button>
+        <button
+          mat-flat-button
+          (click)="saveEmailRecipients()"
+          [disabled]="savingEmails()"
+          matTooltip="Save recipient list to backend"
+        >
+          <mat-icon>{{ savingEmails() ? 'hourglass_empty' : 'save' }}</mat-icon>
+          {{ savingEmails() ? 'Saving…' : 'Save Recipients' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- /cfg-panel alerts -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 5 — SECTORS & INDUSTRIES
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'sectors'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>category</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Sectors &amp; Industries</h2>
+          <p class="section-subtitle">
+            Dropdown values shown when editing a portfolio position's sector and industry
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <div class="lists-grid">
+          <!-- Sectors -->
+          <div class="list-panel">
+            <div class="list-header">
+              <span class="list-title">Sectors</span>
+              <span class="list-badge">{{ sectors().length }}</span>
+            </div>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="list-search">
+              <mat-icon matPrefix>search</mat-icon>
+              <input
+                matInput
+                placeholder="Filter sectors…"
+                [ngModel]="sectorFilter()"
+                (ngModelChange)="sectorFilter.set($event)"
+                autocomplete="off"
+              />
+              @if (sectorFilter()) {
+                <button matSuffix mat-icon-button (click)="sectorFilter.set('')" matTooltip="Clear">
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+            <div class="list-scroll">
+              @if (filteredSectors().length === 0) {
+                <p class="list-empty">
+                  {{ sectorFilter() ? 'No matches found' : 'No sectors yet' }}
+                </p>
+              }
+              <mat-list>
+                @for (s of filteredSectors(); track s) {
+                  <mat-list-item class="list-item">
+                    <span matListItemTitle>{{ s }}</span>
+                    <button
+                      matListItemMeta
+                      mat-icon-button
+                      (click)="removeSector(s)"
+                      matTooltip="Remove"
+                      class="list-delete-btn"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </mat-list-item>
+                }
+              </mat-list>
+            </div>
+            <mat-form-field appearance="outline" class="list-add-input" subscriptSizing="dynamic">
+              <mat-label>Add sector</mat-label>
+              <input
+                matInput
+                [ngModel]="newSectorInput()"
+                (ngModelChange)="newSectorInput.set($event)"
+                (keydown.enter)="$event.preventDefault(); addSector(newSectorInput())"
+                placeholder="e.g. Real Estate"
+                autocomplete="off"
+              />
+              <button
+                matSuffix
+                mat-icon-button
+                (click)="addSector(newSectorInput())"
+                matTooltip="Add sector"
+              >
+                <mat-icon>add_circle</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+
+          <!-- Industries -->
+          <div class="list-panel">
+            <div class="list-header">
+              <span class="list-title">Industries</span>
+              <span class="list-badge">{{ industries().length }}</span>
+            </div>
+            <mat-form-field appearance="outline" subscriptSizing="dynamic" class="list-search">
+              <mat-icon matPrefix>search</mat-icon>
+              <input
+                matInput
+                placeholder="Filter industries…"
+                [ngModel]="industryFilter()"
+                (ngModelChange)="industryFilter.set($event)"
+                autocomplete="off"
+              />
+              @if (industryFilter()) {
+                <button
+                  matSuffix
+                  mat-icon-button
+                  (click)="industryFilter.set('')"
+                  matTooltip="Clear"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            </mat-form-field>
+            <div class="list-scroll">
+              @if (filteredIndustries().length === 0) {
+                <p class="list-empty">
+                  {{ industryFilter() ? 'No matches found' : 'No industries yet' }}
+                </p>
+              }
+              <mat-list>
+                @for (i of filteredIndustries(); track i) {
+                  <mat-list-item class="list-item">
+                    <span matListItemTitle>{{ i }}</span>
+                    <button
+                      matListItemMeta
+                      mat-icon-button
+                      (click)="removeIndustry(i)"
+                      matTooltip="Remove"
+                      class="list-delete-btn"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </mat-list-item>
+                }
+              </mat-list>
+            </div>
+            <mat-form-field appearance="outline" class="list-add-input" subscriptSizing="dynamic">
+              <mat-label>Add industry</mat-label>
+              <input
+                matInput
+                [ngModel]="newIndustryInput()"
+                (ngModelChange)="newIndustryInput.set($event)"
+                (keydown.enter)="$event.preventDefault(); addIndustry(newIndustryInput())"
+                placeholder="e.g. Banks – Diversified"
+                autocomplete="off"
+              />
+              <button
+                matSuffix
+                mat-icon-button
+                (click)="addIndustry(newIndustryInput())"
+                matTooltip="Add industry"
+              >
+                <mat-icon>add_circle</mat-icon>
+              </button>
+            </mat-form-field>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-footer">
+        <span class="section-footer-hint">Unsaved changes will be lost if you leave the page</span>
+        <button
+          mat-flat-button
+          (click)="saveSectorIndustryLists()"
+          [disabled]="savingLists()"
+          matTooltip="Persist sector & industry lists to backend"
+        >
+          <mat-icon>{{ savingLists() ? 'hourglass_empty' : 'save' }}</mat-icon>
+          {{ savingLists() ? 'Saving…' : 'Save Sector &amp; Industry Lists' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- /cfg-panel sectors -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 6 — ALLOCATION & RISK MANAGEMENT
+       Row-level saves: each edit/add persists immediately to backend.
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'allocation'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>pie_chart</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Allocation &amp; Risk Management</h2>
+          <p class="section-subtitle">
+            Target allocations by role and sector · Single-position size limits
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <div class="alloc-grid">
+          <!-- ── Allocation by Role ── -->
+          <div class="alloc-panel">
+            <div class="alloc-header">
+              <span class="alloc-title">Allocation by Role</span>
+              <span class="alloc-badge">{{ riskTargets().length }}</span>
+              <button
+                mat-icon-button
+                matTooltip="Add row"
+                (click)="startAddRisk()"
+                class="alloc-add-btn"
+              >
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+            @if (editingRisk()?.id === null) {
+              <div class="alloc-edit-row">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                  <mat-label>Role</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="editingRisk()!.role"
+                    (ngModelChange)="editingRisk.update((e) => (e ? { ...e, role: $event } : e))"
+                  />
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="alloc-pct-field"
+                >
+                  <mat-label>%</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    [ngModel]="editingRisk()!.targetPct"
+                    (ngModelChange)="
+                      editingRisk.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                    "
+                  />
+                </mat-form-field>
+                <button mat-icon-button (click)="saveRisk()" matTooltip="Save">
+                  <mat-icon>check</mat-icon>
+                </button>
+                <button mat-icon-button (click)="cancelEditRisk()" matTooltip="Cancel">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
+            <div class="alloc-col-headers">
+              <span class="alloc-col-header-name">Role</span>
+              <span class="alloc-col-header-pct">Target</span>
+            </div>
+            <div class="alloc-list">
+              @for (item of riskTargets(); track item.id) {
+                @if (editingRisk()?.id === item.id) {
+                  <div class="alloc-edit-row">
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-field"
+                    >
+                      <input
+                        matInput
+                        [ngModel]="editingRisk()!.role"
+                        (ngModelChange)="
+                          editingRisk.update((e) => (e ? { ...e, role: $event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-pct-field"
+                    >
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        [ngModel]="editingRisk()!.targetPct"
+                        (ngModelChange)="
+                          editingRisk.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <button mat-icon-button (click)="saveRisk()"><mat-icon>check</mat-icon></button>
+                    <button mat-icon-button (click)="cancelEditRisk()">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="alloc-row">
+                    <span class="alloc-name">{{ item.role }}</span>
+                    <span class="alloc-pct">{{ item.targetPct }}%</span>
+                    <button
+                      mat-icon-button
+                      (click)="startEditRisk(item)"
+                      matTooltip="Edit"
+                      class="alloc-act"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      (click)="deleteRisk(item.id)"
+                      matTooltip="Delete"
+                      class="alloc-act alloc-del"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                }
+              }
+            </div>
+            <div class="alloc-total">
+              <span>TOTAL</span>
+              <span
+                [class.alloc-total-ok]="riskTotal() === 100"
+                [class.alloc-total-warn]="riskTotal() !== 100"
+                >{{ riskTotal() }}%</span
+              >
+            </div>
+          </div>
+
+          <!-- ── Allocation by Sector ── -->
+          <div class="alloc-panel">
+            <div class="alloc-header">
+              <span class="alloc-title">Allocation by Sector</span>
+              <span class="alloc-badge">{{ sectorTargets().length }}</span>
+              <button
+                mat-icon-button
+                matTooltip="Add row"
+                (click)="startAddSector()"
+                class="alloc-add-btn"
+              >
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+            @if (editingSector()?.id === null) {
+              <div class="alloc-edit-row">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                  <mat-label>Sector</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="editingSector()!.sector"
+                    (ngModelChange)="
+                      editingSector.update((e) => (e ? { ...e, sector: $event } : e))
+                    "
+                  />
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="alloc-pct-field"
+                >
+                  <mat-label>%</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    [ngModel]="editingSector()!.targetPct"
+                    (ngModelChange)="
+                      editingSector.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                    "
+                  />
+                </mat-form-field>
+                <button mat-icon-button (click)="saveSector()"><mat-icon>check</mat-icon></button>
+                <button mat-icon-button (click)="cancelEditSector()">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
+            <div class="alloc-col-headers">
+              <span class="alloc-col-header-name">Sector</span>
+              <span class="alloc-col-header-pct">Target</span>
+            </div>
+            <div class="alloc-list">
+              @for (item of sectorTargets(); track item.id) {
+                @if (editingSector()?.id === item.id) {
+                  <div class="alloc-edit-row">
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-field"
+                    >
+                      <input
+                        matInput
+                        [ngModel]="editingSector()!.sector"
+                        (ngModelChange)="
+                          editingSector.update((e) => (e ? { ...e, sector: $event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-pct-field"
+                    >
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        [ngModel]="editingSector()!.targetPct"
+                        (ngModelChange)="
+                          editingSector.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <button mat-icon-button (click)="saveSector()">
+                      <mat-icon>check</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="cancelEditSector()">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="alloc-row">
+                    <span class="alloc-name">{{ item.sector }}</span>
+                    <span class="alloc-pct">{{ item.targetPct }}%</span>
+                    <button mat-icon-button (click)="startEditSector(item)" class="alloc-act">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      (click)="deleteSector(item.id)"
+                      class="alloc-act alloc-del"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                }
+              }
+            </div>
+            <div class="alloc-total">
+              <span>TOTAL</span>
+              <span
+                [class.alloc-total-ok]="sectorTotal() === 100"
+                [class.alloc-total-warn]="sectorTotal() !== 100"
+                >{{ sectorTotal() }}%</span
+              >
+            </div>
+          </div>
+
+          <!-- ── Single Position Limits ── -->
+          <div class="alloc-panel">
+            <div class="alloc-header">
+              <span class="alloc-title">Single Position Limits</span>
+              <span class="alloc-badge">{{ positionLimits().length }}</span>
+              <button
+                mat-icon-button
+                matTooltip="Add row"
+                (click)="startAddLimit()"
+                class="alloc-add-btn"
+              >
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+            @if (editingLimit()?.id === null) {
+              <div class="alloc-edit-row">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                  <mat-label>Role</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="editingLimit()!.role"
+                    (ngModelChange)="editingLimit.update((e) => (e ? { ...e, role: $event } : e))"
+                  />
+                </mat-form-field>
+                <mat-form-field
+                  appearance="outline"
+                  subscriptSizing="dynamic"
+                  class="alloc-pct-field"
+                >
+                  <mat-label>Max %</mat-label>
+                  <input
+                    matInput
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.5"
+                    [ngModel]="editingLimit()!.targetPct"
+                    (ngModelChange)="
+                      editingLimit.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                    "
+                  />
+                </mat-form-field>
+                <button mat-icon-button (click)="saveLimit()"><mat-icon>check</mat-icon></button>
+                <button mat-icon-button (click)="cancelEditLimit()">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
+            <div class="alloc-col-headers">
+              <span class="alloc-col-header-name">Role</span>
+              <span class="alloc-col-header-pct">Target</span>
+            </div>
+            <div class="alloc-list">
+              @for (item of positionLimits(); track item.id) {
+                @if (editingLimit()?.id === item.id) {
+                  <div class="alloc-edit-row">
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-field"
+                    >
+                      <input
+                        matInput
+                        [ngModel]="editingLimit()!.role"
+                        (ngModelChange)="
+                          editingLimit.update((e) => (e ? { ...e, role: $event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-pct-field"
+                    >
+                      <input
+                        matInput
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        [ngModel]="editingLimit()!.targetPct"
+                        (ngModelChange)="
+                          editingLimit.update((e) => (e ? { ...e, targetPct: +$event } : e))
+                        "
+                      />
+                    </mat-form-field>
+                    <button mat-icon-button (click)="saveLimit()">
+                      <mat-icon>check</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="cancelEditLimit()">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="alloc-row">
+                    <span class="alloc-name">{{ item.role }}</span>
+                    <span class="alloc-pct">{{ item.targetPct }}%</span>
+                    <button mat-icon-button (click)="startEditLimit(item)" class="alloc-act">
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      (click)="deleteLimit(item.id)"
+                      class="alloc-act alloc-del"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                }
+              }
+            </div>
+            <p class="alloc-no-total-hint">No total — these are per-position maximums.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-footer">
+        <span class="section-footer-hint">
+          @if (allocationDirty()) {
+            <mat-icon
+              style="
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                vertical-align: middle;
+                margin-right: 4px;
+                color: #ff9800;
+              "
+              >warning_amber</mat-icon
+            >
+            Unsaved changes — click Save to persist to backend
+          } @else {
+            <mat-icon
+              style="
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                vertical-align: middle;
+                margin-right: 4px;
+              "
+              >check_circle</mat-icon
+            >
+            All changes saved to backend
+          }
+        </span>
+        <button
+          mat-flat-button
+          (click)="saveAllocationRisk()"
+          [disabled]="savingAllocation() || !allocationDirty()"
+          matTooltip="Persist all allocation & risk changes to backend"
+        >
+          @if (savingAllocation()) {
+            <ng-container><mat-icon class="spinning">sync</mat-icon> Saving…</ng-container>
+          } @else {
+            <ng-container><mat-icon>save</mat-icon> Save Allocation Settings</ng-container>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- /cfg-panel allocation -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 7 — DECISION SOURCE PICKLIST
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'decisions'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>label</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">Decision Source Picklist</h2>
+          <p class="section-subtitle">
+            Values shown in the Decision Source dropdown on Add / Edit transaction forms and
+            Portfolio &amp; Transactions grids · Saved to browser storage
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        <div class="alloc-grid" style="grid-template-columns: 1fr">
+          <div class="alloc-panel">
+            <div class="alloc-header">
+              <span class="alloc-title">Decision Sources</span>
+              <span class="alloc-badge">{{ decisionSources().length }}</span>
+              <button
+                mat-icon-button
+                matTooltip="Add new decision source"
+                (click)="startAddDecisionSource()"
+                class="alloc-add-btn"
+              >
+                <mat-icon>add</mat-icon>
+              </button>
+            </div>
+
+            @if (editingDecisionSource()?.index === null) {
+              <div class="alloc-edit-row">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+                  <mat-label>New decision source</mat-label>
+                  <input
+                    matInput
+                    [ngModel]="editingDecisionSource()!.value"
+                    (ngModelChange)="
+                      editingDecisionSource.update((e) => (e ? { ...e, value: $event } : e))
+                    "
+                    (keydown.enter)="saveDecisionSourceRow()"
+                    placeholder="e.g. Earnings Play"
+                    autocomplete="off"
+                  />
+                </mat-form-field>
+                <button mat-icon-button (click)="saveDecisionSourceRow()" matTooltip="Save">
+                  <mat-icon>check</mat-icon>
+                </button>
+                <button mat-icon-button (click)="cancelEditDecisionSource()" matTooltip="Cancel">
+                  <mat-icon>close</mat-icon>
+                </button>
+              </div>
+            }
+
+            <div class="alloc-col-headers">
+              <span class="alloc-col-header-name">Source Label</span>
+            </div>
+
+            <div class="alloc-list">
+              @for (source of decisionSources(); track source; let i = $index) {
+                @if (editingDecisionSource()?.index === i) {
+                  <div class="alloc-edit-row">
+                    <mat-form-field
+                      appearance="outline"
+                      subscriptSizing="dynamic"
+                      class="alloc-field"
+                    >
+                      <input
+                        matInput
+                        [ngModel]="editingDecisionSource()!.value"
+                        (ngModelChange)="
+                          editingDecisionSource.update((e) => (e ? { ...e, value: $event } : e))
+                        "
+                        (keydown.enter)="saveDecisionSourceRow()"
+                      />
+                    </mat-form-field>
+                    <button mat-icon-button (click)="saveDecisionSourceRow()">
+                      <mat-icon>check</mat-icon>
+                    </button>
+                    <button mat-icon-button (click)="cancelEditDecisionSource()">
+                      <mat-icon>close</mat-icon>
+                    </button>
+                  </div>
+                } @else {
+                  <div class="alloc-row">
+                    <span class="alloc-name">{{ source }}</span>
+                    <button
+                      mat-icon-button
+                      (click)="startEditDecisionSource(i, source)"
+                      matTooltip="Edit"
+                      class="alloc-act"
+                    >
+                      <mat-icon>edit</mat-icon>
+                    </button>
+                    <button
+                      mat-icon-button
+                      (click)="deleteDecisionSource(i)"
+                      matTooltip="Delete"
+                      class="alloc-act alloc-del"
+                    >
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-footer">
+        <span class="section-footer-hint">
+          @if (decisionSourceDirty()) {
+            <mat-icon
+              style="
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                vertical-align: middle;
+                margin-right: 4px;
+                color: var(--mat-sys-primary);
+              "
+              >edit</mat-icon
+            >
+            Unsaved changes
+          } @else {
+            <mat-icon
+              style="
+                font-size: 14px;
+                width: 14px;
+                height: 14px;
+                vertical-align: middle;
+                margin-right: 4px;
+              "
+              >check_circle</mat-icon
+            >
+            All changes saved to backend
+          }
+        </span>
+        <!--
+      <button
+        mat-stroked-button
+        (click)="resetDecisionSourcesToDefaults()"
+        matTooltip="Restore the default 6 decision source values"
+      >
+        <mat-icon>restore</mat-icon> Reset to Defaults
+      </button>
+-->
+        <button
+          mat-flat-button
+          (click)="saveDecisionSources()"
+          [disabled]="savingDecisionSources() || !decisionSourceDirty()"
+          matTooltip="Persist decision source list to backend"
+        >
+          @if (savingDecisionSources()) {
+            <ng-container><mat-icon class="spinning">sync</mat-icon> Saving…</ng-container>
+          } @else {
+            <ng-container><mat-icon>save</mat-icon> Save Decision Sources</ng-container>
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- /cfg-panel decisions -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 9 — USER MANAGEMENT (Admin only)
+       ════════════════════════════════════════════════════════════════════ -->
+  @if (authState.isAdmin()) {
+    <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'users'">
+      <div class="config-section">
+        <div class="section-header">
+          <h2 class="section-title">
+            <mat-icon class="section-icon">manage_accounts</mat-icon>
+            User Management
+          </h2>
+          <p class="section-desc">
+            Create and manage application users. Only Admins can access this section.
+          </p>
+        </div>
+
+        <div class="section-body">
+          <div class="alloc-table-header">
+            <button
+              mat-flat-button
+              color="primary"
+              (click)="openCreateUserDialog()"
+              [disabled]="savingUser()"
+            >
+              <mat-icon>person_add</mat-icon> Add User
+            </button>
+            <button
+              mat-icon-button
+              matTooltip="Refresh user list"
+              (click)="loadUsers()"
+              [disabled]="loadingUsers()"
+            >
+              <mat-icon [class.spinning]="loadingUsers()">refresh</mat-icon>
+            </button>
+          </div>
+
+          @if (loadingUsers()) {
+            <p class="hint-text">Loading users…</p>
+          } @else if (userList().length === 0) {
+            <p class="hint-text">No users found.</p>
+          } @else {
+            <div class="user-table">
+              <div class="user-table-header">
+                <span>Display Name</span>
+                <span>Email</span>
+                <span>Role</span>
+                <span></span>
+              </div>
+              @for (user of userList(); track user.id) {
+                <div class="user-table-row">
+                  <span class="user-name">{{ user.displayName }}</span>
+                  <span class="user-email">{{ user.email }}</span>
+                  <mat-form-field appearance="outline" class="role-select">
+                    <mat-select
+                      [value]="user.roles[0]"
+                      (selectionChange)="changeUserRole(user.id, $event.value)"
+                    >
+                      @for (role of availableRoles; track role) {
+                        <mat-option [value]="role">{{ role }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <button
+                    mat-icon-button
+                    color="warn"
+                    matTooltip="Delete user"
+                    (click)="confirmDeleteUser(user.id, user.displayName)"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <!-- /cfg-panel users -->
+  }
+</div>

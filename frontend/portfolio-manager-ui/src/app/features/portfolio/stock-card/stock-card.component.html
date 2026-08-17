@@ -1,0 +1,179 @@
+<mat-card
+  class="stock-card"
+  [class.positive]="isPositive()"
+  [class.negative]="!isPositive()"
+  [class.selected]="isSelected()"
+>
+  <mat-card-header>
+    <!--
+      Avatar doubles as selection toggle: click it to select/deselect.
+      On hover or when selected a checkmark scrim fades in over the avatar.
+    -->
+    <div
+      mat-card-avatar
+      class="symbol-avatar"
+      [class.positive]="isPositive()"
+      [class.negative]="!isPositive()"
+      [class.is-selected]="isSelected()"
+      (click)="toggleSelect()"
+      matTooltip="Click to select"
+    >
+      <!-- Normal initials — hidden when selected/hovered via CSS -->
+      <span class="avatar-label">{{ summary().item.symbol.substring(0, 2) }}</span>
+      <!-- Checkmark scrim -->
+      <span class="avatar-check"><mat-icon>check</mat-icon></span>
+    </div>
+    <mat-card-title>{{
+      summary().item.isManual ? summary().item.companyName : summary().item.symbol
+    }}</mat-card-title>
+    <mat-card-subtitle class="company-name">{{
+      summary().item.isManual
+        ? summary().item.industry || summary().item.sector
+        : summary().item.companyName
+    }}</mat-card-subtitle>
+    <button
+      mat-icon-button
+      class="edit-btn"
+      matTooltip="Edit shares / average cost"
+      (click)="edit()"
+    >
+      <mat-icon>edit</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      class="remove-btn"
+      matTooltip="Remove from portfolio"
+      (click)="remove()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </mat-card-header>
+
+  <mat-card-content>
+    <div class="price-row">
+      <span
+        class="current-price"
+        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+        >{{ currentPrice() | currency }}</span
+      >
+      @if (summary().quote) {
+        <span
+          class="change"
+          [class.positive]="isDailyPositive()"
+          [class.negative]="!isDailyPositive()"
+        >
+          <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+          <span [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+            {{ summary().quote!.change | number: '1.2-2' }}
+            ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
+          </span>
+        </span>
+        @if (summary().quote!.marketState && summary().quote!.marketState !== 'REGULAR') {
+          <span
+            class="market-closed-badge"
+            matTooltip="Market is currently closed — showing last traded price"
+          >
+            <mat-icon>schedule</mat-icon>
+          </span>
+        }
+      } @else {
+        @if (summary().item.isManual) {
+          <mat-chip
+            class="manual-chip"
+            matTooltip="Manually entered position — no live market data"
+          >
+            <mat-icon>edit_note</mat-icon>&nbsp;Manual
+          </mat-chip>
+        } @else {
+          <mat-chip
+            class="no-quote-chip"
+            matTooltip="Live price unavailable — showing average cost basis"
+          >
+            <mat-icon>info_outline</mat-icon>&nbsp;Avg cost
+          </mat-chip>
+        }
+      }
+    </div>
+
+    <div class="metrics-grid">
+      @if (!summary().item.isManual) {
+        <div class="metric">
+          <span class="label">Shares</span>
+          <span class="value">{{ summary().item.shares | number: '1.0-4' }}</span>
+        </div>
+        <div class="metric">
+          <span class="label">Avg Cost</span>
+          <span
+            class="value"
+            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+            >{{ summary().item.averageCostBasis | currency }}</span
+          >
+        </div>
+      }
+      <div class="metric">
+        <span class="label">Market Value</span>
+        <span
+          class="value"
+          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          >{{ marketValue() | currency }}</span
+        >
+      </div>
+      <div class="metric">
+        <span class="label">{{ summary().item.isManual ? 'P&amp;L' : 'Gain / Loss' }}</span>
+        <span
+          class="value"
+          [class.positive]="isPositive()"
+          [class.negative]="!isPositive()"
+          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+        >
+          {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
+        </span>
+      </div>
+    </div>
+
+    @if (summary().quote) {
+      <div class="range-row">
+        <span class="range-label">52 Week:</span>
+        @if (summary().quote!.week52Low > 0 || summary().quote!.week52High > 0) {
+          <span
+            >{{ summary().quote!.week52Low | currency }} –
+            {{ summary().quote!.week52High | currency }}</span
+          >
+        } @else {
+          <span
+            >{{ summary().quote!.lowPrice | currency }} –
+            {{ summary().quote!.highPrice | currency }}</span
+          >
+        }
+      </div>
+      @if (rsi() !== null) {
+        <div class="rsi-row">
+          <span class="range-label">RSI (14):</span>
+          <span
+            class="rsi-badge"
+            [class.rsi-oversold]="rsi()! < 30"
+            [class.rsi-overbought]="rsi()! > 75"
+            [class.rsi-neutral]="rsi()! >= 30 && rsi()! <= 75"
+            >{{ rsi()! | number: '1.1-1' }}</span
+          >
+        </div>
+      }
+    }
+    @if (!summary().item.isManual) {
+      @if (summary().item.sector) {
+        <div class="meta-row">
+          <span class="meta-label">Sector:</span>
+          <span class="meta-value" [class.override-badge]="summary().item.sectorIsOverridden">{{
+            summary().item.sector
+          }}</span>
+        </div>
+      }
+      @if (summary().item.industry) {
+        <div class="meta-row">
+          <span class="meta-label">Industry:</span>
+          <span class="meta-value">{{ summary().item.industry }}</span>
+        </div>
+      }
+    }
+  </mat-card-content>
+</mat-card>

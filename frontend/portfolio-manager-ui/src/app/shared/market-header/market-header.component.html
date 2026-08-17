@@ -1,0 +1,62 @@
+<div class="market-header">
+  <!-- Left: Branding -->
+  <div class="brand-block">
+    <mat-icon class="brand-icon">candlestick_chart</mat-icon>
+    <div class="brand-text">
+      <span class="brand-title">RSI Momentum Scanner</span>
+      <span class="brand-sub"
+        >{{ scanner.market() || 'TSX' }} · {{ scanner.isDemo() ? 'DEMO MODE' : 'LIVE' }}</span
+      >
+    </div>
+    @if (scanner.isDemo()) {
+      <div class="demo-badge" matTooltip="Live data could not be fetched – showing demo signals">
+        <mat-icon>info_outline</mat-icon> DEMO
+      </div>
+    }
+  </div>
+
+  <!-- Center: Signal stats -->
+  <div class="signal-stats">
+    <div class="stat-tile oversold-tile">
+      <span class="stat-number">{{ scanner.oversold().length }}</span>
+      <div class="stat-detail">
+        <span class="stat-label">OVERSOLD</span>
+        <span class="stat-sub">{{ scanner.confirmedOversold().length }} confirmed</span>
+      </div>
+      <mat-icon class="stat-icon">arrow_downward</mat-icon>
+    </div>
+
+    <div class="bias-indicator" [class]="biasClass()">
+      <span class="bias-label">MARKET BIAS</span>
+      <span class="bias-value">{{ signalBias() }}</span>
+    </div>
+
+    <div class="stat-tile overbought-tile">
+      <mat-icon class="stat-icon">arrow_upward</mat-icon>
+      <div class="stat-detail">
+        <span class="stat-label">OVERBOUGHT</span>
+        <span class="stat-sub">{{ scanner.confirmedOverbought().length }} confirmed</span>
+      </div>
+      <span class="stat-number">{{ scanner.overbought().length }}</span>
+    </div>
+  </div>
+
+  <!-- Right: Market Indices -->
+  @if (scanner.marketIndices().length > 0) {
+    <div class="market-indices">
+      @for (idx of scanner.marketIndices(); track idx.symbol) {
+        <div class="index-tile" [matTooltip]="idx.symbol">
+          <span class="index-name">{{ idx.name }}</span>
+          <span class="index-price">{{ idx.price | number: '1.2-2' }}</span>
+          <span
+            class="index-change"
+            [class.up]="idx.changePercent >= 0"
+            [class.down]="idx.changePercent < 0"
+          >
+            {{ idx.changePercent >= 0 ? '+' : '' }}{{ idx.changePercent | number: '1.2-2' }}%
+          </span>
+        </div>
+      }
+    </div>
+  }
+</div>

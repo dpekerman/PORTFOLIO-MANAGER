@@ -1,0 +1,250 @@
+﻿<div class="sector-exposition">
+  <!-- ── Toolbar ── -->
+  <div class="expo-toolbar">
+    <span class="expo-hint">Click a sector to expand · Expand/collapse all at once</span>
+
+    <div class="expo-actions">
+      <!-- Expand All / Collapse All -->
+      <button
+        mat-stroked-button
+        (click)="expandAll()"
+        matTooltip="Expand all sectors and industries"
+        [disabled]="sectors().length === 0"
+      >
+        <mat-icon>unfold_more</mat-icon>
+        Expand All
+      </button>
+      <button
+        mat-stroked-button
+        (click)="collapseAll()"
+        matTooltip="Collapse all sectors and industries"
+        [disabled]="expandedSectors().size === 0"
+      >
+        <mat-icon>unfold_less</mat-icon>
+        Collapse All
+      </button>
+
+      <!-- Refresh Sectors -->
+      <button
+        mat-stroked-button
+        class="refresh-btn"
+        [disabled]="refreshing()"
+        (click)="refreshSectors()"
+        matTooltip="Fetch sector & industry from Yahoo Finance for all positions"
+      >
+        @if (refreshing()) {
+          <ng-container>
+            <mat-progress-spinner diameter="16" mode="indeterminate" />
+            Refreshing…
+          </ng-container>
+        } @else {
+          <ng-container>
+            <mat-icon>sync</mat-icon>
+            Refresh Sectors
+          </ng-container>
+        }
+      </button>
+    </div>
+  </div>
+
+  @if (sectors().length === 0) {
+    <p class="empty-msg">No sector data available yet. Add stocks or click Refresh Sectors.</p>
+  } @else {
+    <!-- ── Column header row for sector/industry totals ── -->
+    <div class="sector-col-headers">
+      <div class="sector-col-headers-left"></div>
+      <div class="sector-col-headers-right">
+        <span class="col-hdr-bar">ALLOCATION</span>
+        <span class="col-hdr-pct">% TOTAL</span>
+        <span class="col-hdr-mv">TOTAL MV</span>
+        <span class="col-hdr-gl">GAIN / LOSS</span>
+        <span class="col-hdr-glpct">G/L %</span>
+      </div>
+    </div>
+    <div class="sector-list">
+      @for (row of sectors(); track row.sector) {
+        <div class="sector-row">
+          <!-- ── Sector header ── -->
+          <div class="sector-header" (click)="toggleSector(row.sector)">
+            <div class="sector-left">
+              <mat-icon class="expand-icon">
+                {{ isSectorExpanded(row.sector) ? 'expand_less' : 'expand_more' }}
+              </mat-icon>
+              <span class="sector-name">{{ row.sector }}</span>
+              <span class="position-count">
+                {{ row.industries.length }} industr{{ row.industries.length !== 1 ? 'ies' : 'y' }}
+              </span>
+            </div>
+            <div class="sector-right">
+              <div class="bar-track">
+                <div class="bar-fill" [style.width.%]="row.pct"></div>
+              </div>
+              <span class="pct">{{ row.pct | number: '1.1-1' }}%</span>
+              <span
+                class="mv"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                >${{ dv(row.marketValue) / 1000 | number: '1.0-0' }}k</span
+              >
+              <span
+                class="gl-val"
+                [class.gl-pos]="row.gainLoss >= 0"
+                [class.gl-neg]="row.gainLoss < 0"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+              >
+                {{ row.gainLoss >= 0 ? '+' : '' }}${{ dv(row.gainLoss) / 1000 | number: '1.1-1' }}k
+              </span>
+              <span
+                class="gl-pct"
+                [class.gl-pos]="row.gainLossPct >= 0"
+                [class.gl-neg]="row.gainLossPct < 0"
+              >
+                {{ row.gainLossPct >= 0 ? '+' : '' }}{{ dvp(row.gainLossPct) | number: '1.1-1' }}%
+              </span>
+            </div>
+          </div>
+
+          <!-- ── Industry drill-down ── -->
+          @if (isSectorExpanded(row.sector)) {
+            <div class="industry-list">
+              @for (ind of row.industries; track ind.industry) {
+                <div class="industry-row">
+                  <!-- Industry sub-header -->
+                  <div
+                    class="industry-header"
+                    (click)="toggleIndustry(industryKey(row.sector, ind.industry))"
+                  >
+                    <div class="industry-left">
+                      <mat-icon class="expand-icon-sm">
+                        {{
+                          isIndustryExpanded(industryKey(row.sector, ind.industry))
+                            ? 'expand_less'
+                            : 'expand_more'
+                        }}
+                      </mat-icon>
+                      <span class="industry-name">{{ ind.industry }}</span>
+                      <span class="position-count">
+                        {{ ind.positions.length }} position{{
+                          ind.positions.length !== 1 ? 's' : ''
+                        }}
+                      </span>
+                    </div>
+                    <div class="sector-right">
+                      <div class="bar-track">
+                        <div
+                          class="bar-fill industry-bar"
+                          [style.width.%]="(ind.pct / row.pct) * 100"
+                        ></div>
+                      </div>
+                      <span class="pct pct-sm">{{ ind.pct | number: '1.1-1' }}%</span>
+                      <span
+                        class="mv"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
+                        >${{ dv(ind.marketValue) / 1000 | number: '1.1-1' }}k</span
+                      >
+                      <span
+                        class="gl-val gl-sm"
+                        [class.gl-pos]="ind.gainLoss >= 0"
+                        [class.gl-neg]="ind.gainLoss < 0"
+                        [class.demo-redact]="
+                          demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                        "
+                      >
+                        {{ ind.gainLoss >= 0 ? '+' : '' }}${{
+                          dv(ind.gainLoss) / 1000 | number: '1.1-1'
+                        }}k
+                      </span>
+                      <span
+                        class="gl-pct gl-sm"
+                        [class.gl-pos]="ind.gainLossPct >= 0"
+                        [class.gl-neg]="ind.gainLossPct < 0"
+                      >
+                        {{ ind.gainLossPct >= 0 ? '+' : ''
+                        }}{{ dvp(ind.gainLossPct) | number: '1.1-1' }}%
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Position rows inside industry -->
+                  @if (isIndustryExpanded(industryKey(row.sector, ind.industry))) {
+                    <div class="ticker-list">
+                      <div class="ticker-row ticker-header-row">
+                        <span class="ticker-symbol-col">Ticker</span>
+                        <span class="ticker-desc-col">Description</span>
+                        <span class="ticker-bar-spacer"></span>
+                        <span class="ticker-pct-col">% Total</span>
+                        <span class="ticker-mv-col">Total MV</span>
+                        <span class="ticker-price-col">Last Price</span>
+                        <span class="ticker-gl-col">Gain/Loss</span>
+                        <span class="ticker-glpct-col">G/L %</span>
+                      </div>
+                      @for (pos of ind.positions; track pos.symbol) {
+                        <div class="ticker-row">
+                          <span class="ticker-symbol">{{ pos.symbol }}</span>
+                          <span class="ticker-name ticker-desc-col">{{ pos.companyName }}</span>
+                          <div class="ticker-bar-track">
+                            <div
+                              class="ticker-bar-fill"
+                              [style.width.%]="(pos.pct / ind.pct) * 100"
+                            ></div>
+                          </div>
+                          <span class="ticker-pct">{{ pos.pct | number: '1.1-1' }}%</span>
+                          <span
+                            class="ticker-mv"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
+                            >${{ dv(pos.marketValue) / 1000 | number: '1.1-1' }}k</span
+                          >
+                          <span
+                            class="ticker-price-col ticker-num"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
+                          >
+                            {{
+                              pos.lastPrice != null ? '$' + (pos.lastPrice | number: '1.2-2') : '—'
+                            }}
+                          </span>
+                          <span
+                            class="ticker-gl-col ticker-num"
+                            [class.gl-pos]="(pos.gainLoss ?? 0) >= 0"
+                            [class.gl-neg]="(pos.gainLoss ?? 0) < 0"
+                            [class.demo-redact]="
+                              demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'
+                            "
+                          >
+                            @if (pos.gainLoss != null) {
+                              {{ pos.gainLoss >= 0 ? '+' : '' }}${{
+                                dv(pos.gainLoss) / 1000 | number: '1.1-1'
+                              }}k
+                            } @else {
+                              —
+                            }
+                          </span>
+                          <span
+                            class="ticker-glpct-col ticker-num"
+                            [class.gl-pos]="(pos.gainLossPct ?? 0) >= 0"
+                            [class.gl-neg]="(pos.gainLossPct ?? 0) < 0"
+                          >
+                            @if (pos.gainLossPct != null) {
+                              {{ pos.gainLossPct >= 0 ? '+' : ''
+                              }}{{ dvp(pos.gainLossPct) | number: '1.1-1' }}%
+                            } @else {
+                              —
+                            }
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

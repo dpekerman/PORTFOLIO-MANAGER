@@ -1,0 +1,76 @@
+<div class="watchlist-card" [class.up]="isUp()" [class.down]="!isUp()" [class.nodata]="!hasData()">
+  <div class="card-header">
+    <div class="symbol-row">
+      <div class="symbol-badge" [class.up]="isUp()" [class.down]="!isUp()">
+        {{ summary().item.symbol.substring(0, 2) }}
+      </div>
+      <div class="symbol-info">
+        <span class="symbol">{{ summary().item.symbol }}</span>
+        @if (quote()) {
+          <span class="name">{{ quote()!.companyName }}</span>
+        }
+      </div>
+    </div>
+    <button
+      mat-icon-button
+      class="remove-btn"
+      matTooltip="Remove from watchlist"
+      (click)="remove()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  @if (quote()) {
+    <div class="price-row">
+      <span class="price">{{ quote()!.currentPrice | currency }}</span>
+      <span class="change" [class.up]="isUp()" [class.down]="!isUp()">
+        <mat-icon>{{ isUp() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
+        {{ quote()!.change | number: '1.2-2' }} ({{ quote()!.changePercent | number: '1.2-2' }}%)
+      </span>
+    </div>
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-label">High</span>
+        <span class="stat-value">{{ quote()!.highPrice | currency }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Low</span>
+        <span class="stat-value">{{ quote()!.lowPrice | currency }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Prev Close</span>
+        <span class="stat-value">{{ quote()!.previousClose | currency }}</span>
+      </div>
+      @if (quote()!.sector) {
+        <div class="stat sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
+      }
+    </div>
+    @if (quote()!.week52High > 0) {
+      <div class="week52-strip">
+        <div class="week52-item">
+          <span class="week52-tag">52W H</span>
+          <span class="week52-val">{{ quote()!.week52High | currency }}</span>
+          <span class="week52-delta down">
+            {{
+              ((quote()!.currentPrice - quote()!.week52High) / quote()!.week52High) * 100
+                | number: '1.1-1'
+            }}%
+          </span>
+        </div>
+        <div class="week52-item">
+          <span class="week52-tag">52W L</span>
+          <span class="week52-val">{{ quote()!.week52Low | currency }}</span>
+          <span class="week52-delta up">
+            +{{
+              ((quote()!.currentPrice - quote()!.week52Low) / quote()!.week52Low) * 100
+                | number: '1.1-1'
+            }}%
+          </span>
+        </div>
+      </div>
+    }
+  } @else {
+    <mat-chip class="no-data-chip">No live data</mat-chip>
+  }
+</div>

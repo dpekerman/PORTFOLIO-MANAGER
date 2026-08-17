@@ -1,0 +1,1097 @@
+.scanner-table {
+  width: 100%;
+  background: transparent;
+
+  th.mat-mdc-header-cell {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-elevated);
+    padding: 10px 12px;
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+    padding: 10px 12px;
+    vertical-align: middle;
+  }
+
+  tr.mat-mdc-row {
+    background: var(--bg-surface);
+    transition: background 0.15s;
+
+    &:hover {
+      background: var(--bg-hover);
+    }
+
+    &.row-confirmed {
+      background: rgba(255, 255, 255, 0.02);
+      border-left: 3px solid transparent;
+    }
+  }
+
+  &.oversold-table tr.row-confirmed {
+    border-left-color: #00c853;
+  }
+
+  &.overbought-table tr.row-confirmed {
+    border-left-color: #ff1744;
+  }
+}
+
+// Symbol cell
+.symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.symbol-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: white;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+
+  &.oversold {
+    background: linear-gradient(135deg, #1b5e20, #2e7d32);
+  }
+
+  &.overbought {
+    background: linear-gradient(135deg, #b71c1c, #d32f2f);
+  }
+
+  &.neutral {
+    background: linear-gradient(135deg, #424242, #616161);
+  }
+}
+
+.symbol-info {
+  display: flex;
+  flex-direction: column;
+
+  .symbol-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .company-name {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// RSI cell
+.rsi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 90px;
+
+  .rsi-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffa726;
+
+    &.rsi-extreme {
+      color: #ef5350;
+    }
+  }
+
+  .rsi-bar-track {
+    height: 3px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+    overflow: hidden;
+
+    .rsi-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+  }
+
+  .rsi-zone {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+
+    &.oversold {
+      color: #00c853;
+    }
+    &.overbought {
+      color: #ff1744;
+    }
+    &.neutral {
+      color: #9e9e9e;
+    }
+  }
+}
+
+// ── RSI Signal (9-EMA) column ────────────────────────────────────────────────
+.rsi-signal-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  .rsi-signal-value {
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .rsi-signal-arrow {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.signal-above {
+    .rsi-signal-value {
+      color: #4caf50;
+    }
+    .rsi-signal-arrow {
+      color: #4caf50;
+    }
+  }
+
+  &.signal-below {
+    .rsi-signal-value {
+      color: #ef5350;
+    }
+    .rsi-signal-arrow {
+      color: #ef5350;
+    }
+  }
+}
+
+.rsi-signal-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-faint);
+  cursor: help;
+
+  .rsi-signal-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  .rsi-signal-na {
+    font-size: 0.72rem;
+    font-style: italic;
+  }
+}
+
+// Price
+.price-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: 'Roboto Mono', monospace;
+}
+
+// Change
+.change-cell {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.85rem;
+  font-weight: 600;
+
+  .change-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.positive {
+    color: #00c853;
+  }
+  &.negative {
+    color: #ff5252;
+  }
+}
+
+// Volume ratio
+.vol-ratio {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Roboto Mono', monospace;
+
+  &.elevated {
+    color: #ffa726;
+  }
+}
+
+// Status badges
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+
+  &.confirmed {
+    background: rgba(0, 200, 83, 0.82);
+    color: #000;
+    border: 1px solid rgba(0, 200, 83, 0.9);
+  }
+
+  &.confirmed-bear {
+    background: rgba(255, 23, 68, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 23, 68, 0.3);
+  }
+
+  &.warning {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border: 1px solid rgba(255, 167, 38, 0.25);
+  }
+
+  &.eod-confirm {
+    background: rgba(255, 152, 0, 0.15);
+    color: #ff9800;
+    border: 1px solid rgba(255, 152, 0, 0.4);
+    animation: eod-pulse 2s ease-in-out infinite;
+  }
+}
+
+@keyframes eod-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 152, 0, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(255, 152, 0, 0.15);
+  }
+}
+
+// Trigger text
+.trigger-text {
+  font-size: 0.78rem;
+  color: #757575;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 300px;
+  cursor: default;
+  line-height: 1.4;
+}
+
+.signal-history-cell {
+  white-space: nowrap;
+  padding: 0 4px;
+}
+
+// Empty state
+.no-data-cell {
+  padding: 32px !important;
+  text-align: center;
+  color: #424242;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  mat-icon {
+    color: #424242;
+  }
+}
+
+// ── Indicators column ─────────────────────────────────────────────────────────
+.indicators-header {
+  min-width: 320px;
+}
+
+.indicators-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 340px;
+  align-items: flex-start;
+}
+
+.ind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: 12px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 11px;
+    width: 11px;
+    height: 11px;
+  }
+
+  &.ind-bull {
+    background: rgba(0, 200, 83, 0.78);
+    color: #000;
+    border-color: rgba(0, 200, 83, 0.88);
+  }
+
+  &.ind-bear {
+    background: rgba(255, 23, 68, 0.1);
+    color: #ff5252;
+    border-color: rgba(255, 23, 68, 0.2);
+  }
+
+  &.ind-warn {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border-color: rgba(255, 167, 38, 0.25);
+  }
+
+  &.ind-elevated {
+    background: rgba(255, 213, 79, 0.12);
+    color: #f9a825;
+    border-color: rgba(255, 213, 79, 0.3);
+  }
+
+  &.ind-neutral {
+    background: rgba(255, 255, 255, 0.04);
+    color: #616161;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+
+  // Enhanced mode: histogram momentum chip gets a subtle purple accent
+  &.ind-chip--enhanced {
+    border-style: dashed;
+    &.ind-bull {
+      border-color: rgba(0, 200, 83, 0.45);
+    }
+    &.ind-bear {
+      border-color: rgba(255, 82, 82, 0.45);
+    }
+    &.ind-warn {
+      border-color: rgba(255, 167, 38, 0.45);
+    }
+    &.ind-neutral {
+      border-color: rgba(179, 157, 219, 0.3);
+    }
+  }
+
+  .dma200-badge {
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+}
+
+// ── Probability badge ─────────────────────────────────────────────────────────
+.prob-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+
+  &.prob-high {
+    background: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.25);
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.15);
+  }
+
+  &.prob-medium {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border-color: rgba(255, 167, 38, 0.2);
+  }
+
+  &.prob-low {
+    background: rgba(255, 255, 255, 0.04);
+    color: #616161;
+    border-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+// ── Gap Status badges ─────────────────────────────────────────────────────────
+.gap-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 16px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+
+  .gap-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+
+  &.gap-strong {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border-color: rgba(0, 200, 83, 0.25);
+  }
+
+  &.gap-weak {
+    background: rgba(255, 167, 38, 0.1);
+    color: #ffa726;
+    border-color: rgba(255, 167, 38, 0.2);
+  }
+
+  &.gap-failed {
+    background: rgba(244, 67, 54, 0.12);
+    color: #f44336;
+    border-color: rgba(244, 67, 54, 0.25);
+  }
+}
+
+.no-gap-text {
+  color: #616161;
+  font-size: 0.75rem;
+}
+
+// ── Momentum Shift & Action badges ────────────────────────────────────────────
+.momentum-shift-badge,
+.momentum-action-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: default;
+}
+
+// Momentum Shift states
+.ms-confirmed-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+  box-shadow: 0 0 8px rgba(0, 200, 83, 0.25);
+}
+.ms-bullish {
+  background: rgba(76, 175, 80, 0.72);
+  color: #000;
+  border-color: rgba(76, 175, 80, 0.82);
+}
+.ms-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.35);
+  box-shadow: 0 0 8px rgba(255, 23, 68, 0.18);
+}
+.ms-bearish {
+  background: rgba(255, 23, 68, 0.08);
+  color: #ef5350;
+  border-color: rgba(255, 23, 68, 0.2);
+}
+.ms-warning {
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
+}
+.ms-uptrend {
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
+}
+.ms-consolidation {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.9);
+}
+.ms-breakdown {
+  background: rgba(244, 67, 54, 0.78);
+  color: #000;
+  border-color: rgba(244, 67, 54, 0.88);
+  font-weight: 800;
+}
+.ms-downtrend {
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
+}
+.ms-neutral {
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
+}
+
+// Action states
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.35);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
+}
+.ma-avoid {
+  background: rgba(158, 158, 158, 0.65);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.75);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
+}
+.ma-accumulate {
+  background: rgba(0, 188, 212, 0.78);
+  color: #000;
+  border-color: rgba(0, 188, 212, 0.88);
+}
+.ma-reduce {
+  background: rgba(255, 87, 34, 0.82);
+  color: #000;
+  border-color: rgba(255, 87, 34, 0.9);
+}
+.ma-standby {
+  background: rgba(158, 158, 158, 0.6);
+  color: #000;
+  border-color: rgba(158, 158, 158, 0.7);
+}
+
+// TFSA profit-taking rule – amber/gold badge
+.ma-tfsa-profit {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.9);
+  font-weight: 600;
+}
+
+// ── Mobile responsive ─────────────────────────────────────────────────────────
+// On small screens, keep horizontal scroll (cleaner than card view for data tables)
+@media (max-width: 768px) {
+  .scanner-table {
+    // Keep table layout but allow compact display
+    th.mat-mdc-header-cell {
+      font-size: 0.65rem;
+      padding: 8px 8px;
+      letter-spacing: 0.5px;
+    }
+
+    td.mat-mdc-cell {
+      padding: 8px;
+    }
+  }
+
+  .symbol-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 0.55rem;
+  }
+
+  .symbol-info .symbol-name {
+    font-size: 0.78rem;
+  }
+
+  .symbol-info .company-name {
+    max-width: 90px;
+  }
+
+  .rsi-cell {
+    min-width: 70px;
+
+    .rsi-value {
+      font-size: 0.9rem;
+    }
+  }
+
+  // Indicators wrap normally on smaller screens
+  .indicators-grid {
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+  .indicators-header {
+    min-width: unset;
+  }
+  .trigger-text {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .scanner-table {
+    th.mat-mdc-header-cell {
+      padding: 6px 6px;
+    }
+    td.mat-mdc-cell {
+      padding: 6px;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .ind-chip {
+    font-size: 0.6rem;
+  }
+  .prob-badge {
+    font-size: 0.65rem;
+    padding: 3px 7px;
+  }
+}
+
+// ── Tracking column ─────────────────────────────────────────────────────────
+.tracking-header {
+  white-space: nowrap;
+  min-width: 90px;
+}
+
+.tracking-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+
+  .tracking-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
+  &.track-portfolio {
+    background: rgba(66, 165, 245, 0.12);
+    color: #42a5f5;
+    border: 1px solid rgba(66, 165, 245, 0.25);
+  }
+  &.track-watchlist {
+    background: rgba(171, 71, 188, 0.12);
+    color: #ab47bc;
+    border: 1px solid rgba(171, 71, 188, 0.25);
+  }
+  &.track-market {
+    background: rgba(120, 120, 120, 0.08);
+    color: #757575;
+    border: 1px solid rgba(120, 120, 120, 0.15);
+  }
+}
+
+// ── Analyst Target Upside column ─────────────────────────────────────────────
+.analyst-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1px;
+  min-width: 72px;
+}
+
+.upside-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.upside-target {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  font-weight: 400;
+}
+
+.upside-pos {
+  .upside-value {
+    color: #00c853;
+  }
+}
+.upside-neg {
+  .upside-value {
+    color: #ff5252;
+  }
+}
+.upside-neutral {
+  .upside-value {
+    color: #bdbdbd;
+  }
+}
+
+.no-data {
+  color: #424242;
+  font-size: 0.8rem;
+}
+
+// ── Scanner table wrapper & export toolbar ─────────────────────────────────
+.scanner-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.scanner-table-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 4px 8px 0;
+}
+
+// ── Mobile: hide less critical columns, shrink padding ───────────────────────
+@media (max-width: 768px) {
+  .scanner-table {
+    th.mat-mdc-header-cell,
+    td.mat-mdc-cell {
+      padding: 8px 6px;
+      font-size: 0.75rem;
+    }
+  }
+
+  .symbol-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 0.55rem;
+  }
+
+  .symbol-ticker {
+    font-size: 0.85rem;
+  }
+
+  .symbol-company {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .scanner-table {
+    th.mat-mdc-header-cell,
+    td.mat-mdc-cell {
+      padding: 6px 4px;
+    }
+  }
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Trend Setup Classes (ts-*) ------------------------------------------------
+.ts-waterfall {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.28);
+}
+.ts-reversal {
+  background: rgba(0, 200, 83, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.85);
+}
+.ts-extended {
+  background: rgba(255, 160, 0, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 160, 0, 0.88);
+}
+.ts-quality {
+  background: rgba(0, 188, 212, 0.75);
+  color: #000;
+  border: 1px solid rgba(0, 188, 212, 0.85);
+}
+.ts-constructive {
+  background: rgba(33, 150, 243, 0.68);
+  color: #000;
+  border: 1px solid rgba(33, 150, 243, 0.78);
+}
+.ts-early-reversal {
+  background: rgba(255, 193, 7, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 193, 7, 0.88);
+}
+.ts-cooling {
+  background: rgba(158, 158, 158, 0.62);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.72);
+}
+.ts-caution {
+  background: rgba(255, 87, 34, 0.78);
+  color: #000;
+  border: 1px solid rgba(255, 87, 34, 0.88);
+}
+.ts-neutral {
+  background: rgba(158, 158, 158, 0.55);
+  color: #000;
+  border: 1px solid rgba(158, 158, 158, 0.65);
+}
+.ts-ob-weak {
+  background: rgba(244, 67, 54, 0.1);
+  color: #ef5350;
+  border: 1px solid rgba(244, 67, 54, 0.22);
+}
+.ts-ob-resetting {
+  background: rgba(255, 167, 38, 0.1);
+  color: #ffa726;
+  border: 1px solid rgba(255, 167, 38, 0.22);
+}
+.ts-reclaim {
+  background: rgba(0, 200, 83, 0.72);
+  color: #000;
+  border: 1px solid rgba(0, 200, 83, 0.82);
+}
+.ms-neutral-weak {
+  background: rgba(158, 158, 158, 0.4);
+  color: #555;
+  border: 1px solid rgba(158, 158, 158, 0.5);
+}
+
+// -- Day-over-Day RSI Tracking Styles -----------------------------------------
+.trend-shift-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.trend-shift-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.trend-bull {
+  background: rgba(0, 200, 83, 0.15);
+  color: #00c853;
+  border-color: rgba(0, 200, 83, 0.35);
+}
+.trend-bear {
+  background: rgba(244, 67, 54, 0.12);
+  color: #ef5350;
+  border-color: rgba(244, 67, 54, 0.3);
+}
+.trend-neutral {
+  background: rgba(255, 193, 7, 0.12);
+  color: #ffc107;
+  border-color: rgba(255, 193, 7, 0.3);
+}
+.trend-waiting {
+  background: rgba(158, 158, 158, 0.1);
+  color: #757575;
+  border-color: rgba(158, 158, 158, 0.2);
+}
+.stage-status-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.stage-confirming {
+  background: rgba(0, 200, 83, 0.1);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.25);
+}
+.stage-tracking {
+  background: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+  border: 1px solid rgba(255, 193, 7, 0.25);
+}
+.stage-staged {
+  background: rgba(158, 158, 158, 0.1);
+  color: #9e9e9e;
+  border: 1px solid rgba(158, 158, 158, 0.2);
+}
+.chase-risk-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  cursor: default;
+}
+.rsi-delta {
+  font-size: 0.82rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.delta-positive {
+  color: #00c853;
+}
+.delta-negative {
+  color: #ef5350;
+}
+.delta-neutral {
+  color: #9e9e9e;
+}
+.sma200-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+.sma200-cell .sma200-price {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.sma200-cell .sma200-dev {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+.sma200-above .sma200-dev {
+  color: #00c853;
+}
+.sma200-below .sma200-dev {
+  color: #ef5350;
+}
+.trend-setup-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+.setup-aligned {
+  background: rgba(0, 200, 83, 0.12);
+  color: #00c853;
+  border: 1px solid rgba(0, 200, 83, 0.25);
+}
+.setup-counter {
+  background: rgba(255, 152, 0, 0.12);
+  color: #ffa726;
+  border: 1px solid rgba(255, 152, 0, 0.25);
+}
+.stop-loss-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ef9a9a;
+}
+
+.ema9-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.ema9-confirmed {
+    color: #66bb6a;
+  }
+
+  &.ema9-pending {
+    color: #ffa726;
+  }
+}

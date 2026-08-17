@@ -1,0 +1,335 @@
+﻿<div class="value-screener-page">
+  <!-- HEADER -->
+  <section class="screener-section">
+    <div class="section-header">
+      <div class="section-title-group">
+        <mat-icon class="section-icon">analytics</mat-icon>
+        <div>
+          <h2 class="section-title">
+            VALUE SCREENER
+            @if (allActiveResults().length > 0) {
+              <span class="count-badge"
+                >{{ activeResults().length
+                }}{{ activeTierFilter() ? ' / ' + allActiveResults().length : '' }}</span
+              >
+            }
+          </h2>
+          <p class="section-sub">
+            Capital Valuation Engine &bull; Earnings Yield &bull; FCF &bull; P/B &bull; Piotroski
+            &bull; ROIC
+          </p>
+        </div>
+      </div>
+      <div class="section-actions-right">
+        @if (lastRunAt()) {
+          <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
+        }
+        @if (sourceMode() !== 'adhoc') {
+          <button
+            mat-stroked-button
+            class="refresh-btn"
+            (click)="refresh()"
+            [disabled]="refreshing() || loading() || clearing()"
+            matTooltip="Re-run Value Screener for Portfolio and Watchlist, then save results"
+          >
+            @if (refreshing()) {
+              <mat-spinner diameter="16" class="btn-spinner" />
+            } @else {
+              <mat-icon>refresh</mat-icon>
+            }
+            {{ refreshing() ? 'Refreshing...' : 'Refresh' }}
+          </button>
+          <button
+            mat-stroked-button
+            class="clear-data-btn"
+            (click)="clearData()"
+            [disabled]="refreshing() || loading() || clearing()"
+            matTooltip="Delete all saved Value Screener data and start fresh"
+          >
+            @if (clearing()) {
+              <mat-spinner diameter="16" class="btn-spinner" />
+            } @else {
+              <mat-icon>delete_sweep</mat-icon>
+            }
+            Clear Data
+          </button>
+        }
+        @if (allActiveResults().length > 0) {
+          <button
+            mat-stroked-button
+            class="export-btn"
+            (click)="exportCsv()"
+            matTooltip="Export current view to CSV"
+          >
+            <mat-icon>download</mat-icon>
+            Export CSV
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- SOURCE SELECTION -->
+    <div class="source-bar">
+      <span class="source-label">View:</span>
+
+      <div class="source-options">
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'portfolio'"
+          (click)="selectPortfolio()"
+          [disabled]="loading()"
+          matTooltip="Show saved Portfolio analysis (refreshed at 5 PM weekdays)"
+        >
+          <mat-icon>account_balance_wallet</mat-icon>
+          Portfolio
+        </button>
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'watchlist'"
+          (click)="selectWatchlist()"
+          [disabled]="loading()"
+          matTooltip="Show saved Watchlist analysis (refreshed at 5 PM weekdays)"
+        >
+          <mat-icon>bookmark</mat-icon>
+          Watchlist
+        </button>
+      </div>
+
+      <!-- Ad-Hoc: live analysis -->
+      <div class="adhoc-trigger-group">
+        <button
+          class="source-chip"
+          [class.source-active]="sourceMode() === 'adhoc'"
+          (click)="selectAdhoc()"
+          matTooltip="Enter ticker symbols manually for a live one-off analysis"
+        >
+          <mat-icon>search</mat-icon>
+          Ad-Hoc
+        </button>
+
+        @if (sourceMode() === 'adhoc') {
+          <mat-form-field class="adhoc-field" appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Ticker symbols</mat-label>
+            <input
+              matInput
+              [value]="adHocInput()"
+              (input)="adHocInput.set($any($event.target).value)"
+              placeholder="e.g. RY.TO, AAPL, MSFT"
+              (keydown.enter)="analyze()"
+            />
+            <mat-icon matSuffix>search</mat-icon>
+          </mat-form-field>
+          <button mat-flat-button class="analyze-btn" (click)="analyze()" [disabled]="loading()">
+            @if (loading()) {
+              <mat-spinner diameter="18" class="btn-spinner" />
+            } @else {
+              <mat-icon>bar_chart</mat-icon>
+            }
+            {{ loading() ? 'Analyzing...' : 'Analyze' }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- TIER SUMMARY CARDS — clickable to filter -->
+    @if (allActiveResults().length > 0) {
+      <div class="tier-summary">
+        <div
+          class="tier-card tier-card--high"
+          [class.tier-card--active]="activeTierFilter() === 'HighConviction'"
+          [class.tier-card--dimmed]="
+            activeTierFilter() !== null && activeTierFilter() !== 'HighConviction'
+          "
+          matTooltip="Score 8.0-10.0: Click to show only High-Conviction symbols"
+          (click)="filterByTier('HighConviction')"
+          style="cursor: pointer"
+        >
+          <div class="tier-count">{{ highConviction().length }}</div>
+          <div class="tier-label">High-Conviction</div>
+          <div class="tier-sub">Score 8.0 &ndash; 10.0</div>
+        </div>
+        <div
+          class="tier-card tier-card--fair"
+          [class.tier-card--active]="activeTierFilter() === 'FairValue'"
+          [class.tier-card--dimmed]="
+            activeTierFilter() !== null && activeTierFilter() !== 'FairValue'
+          "
+          matTooltip="Score 5.0-7.5: Click to show only Fair Value symbols"
+          (click)="filterByTier('FairValue')"
+          style="cursor: pointer"
+        >
+          <div class="tier-count">{{ fairValue().length }}</div>
+          <div class="tier-label">Fair Value</div>
+          <div class="tier-sub">Score 5.0 &ndash; 7.5</div>
+        </div>
+        <div
+          class="tier-card tier-card--trap"
+          [class.tier-card--active]="activeTierFilter() === 'ValueTrap'"
+          [class.tier-card--dimmed]="
+            activeTierFilter() !== null && activeTierFilter() !== 'ValueTrap'
+          "
+          matTooltip="Score < 5.0: Click to show only Value Trap symbols"
+          (click)="filterByTier('ValueTrap')"
+          style="cursor: pointer"
+        >
+          <div class="tier-count">{{ valueTrap().length }}</div>
+          <div class="tier-label">Value Trap</div>
+          <div class="tier-sub">Score &lt; 5.0</div>
+        </div>
+        @if (activeTierFilter()) {
+          <button mat-button class="clear-filter-btn" (click)="activeTierFilter.set(null)">
+            <mat-icon>filter_list_off</mat-icon> Show All
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- RESULTS TABLE -->
+  @if (activeResults().length > 0) {
+    <div class="table-wrapper">
+      <table
+        mat-table
+        [dataSource]="activeResults()"
+        matSort
+        (matSortChange)="onSortChange($event)"
+        [matSortActive]="sortCol()"
+        [matSortDirection]="sortDir()"
+        class="screener-table"
+      >
+        <!-- TICKER Column -->
+        <ng-container matColumnDef="ticker">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>TICKER</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="symbol-cell">
+              <span class="symbol-text">{{ row.symbol }}</span>
+              @if (row.currentRsi > 0) {
+                <span
+                  class="rsi-mini"
+                  [class.rsi-over]="row.currentRsi > 75"
+                  [class.rsi-under]="row.currentRsi < 30"
+                  [class.rsi-mid]="row.currentRsi >= 30 && row.currentRsi <= 75"
+                  [matTooltip]="'RSI(14): ' + (row.currentRsi | number: '1.1-1')"
+                  >{{ row.currentRsi | number: '1.1-1' }}</span
+                >
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Description Column -->
+        <ng-container matColumnDef="description">
+          <th mat-header-cell *matHeaderCellDef>Description</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="desc-cell">
+              <span class="company-name">{{ row.description }}</span>
+              @if (row.sector) {
+                <span class="sector-label">{{ row.sector }}</span>
+              }
+              @if (row.currentPrice > 0) {
+                <span class="price-label">{{ row.currentPrice | currency }}</span>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Technical State Column -->
+        <ng-container matColumnDef="technicalState">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Technical State</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="state-badge"
+              [class]="techStateClass(row.technicalState)"
+              [matTooltip]="techStateTooltip(row.technicalState)"
+              matTooltipClass="value-screener-tooltip"
+              matTooltipPosition="right"
+              >{{ techStateLabel(row.technicalState) }}</span
+            >
+          </td>
+        </ng-container>
+
+        <!-- Score Column -->
+        <ng-container matColumnDef="score">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header matTooltip="0-10 composite score">
+            Score
+          </th>
+          <td mat-cell *matCellDef="let row">
+            <div
+              class="score-cell"
+              [class]="tierClass(row.tier)"
+              [matTooltip]="scoreTooltip(row)"
+              matTooltipClass="value-screener-tooltip"
+            >
+              <span class="score-value">{{ row.score | number: '1.1-1' }}</span>
+              <span class="score-out">/10</span>
+            </div>
+            <div class="score-bar">
+              <div
+                class="score-fill"
+                [class]="tierClass(row.tier)"
+                [style.width.%]="row.score * 10"
+              ></div>
+            </div>
+          </td>
+        </ng-container>
+
+        <!-- Action Trigger Column -->
+        <ng-container matColumnDef="actionTrigger">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Action Trigger</th>
+          <td mat-cell *matCellDef="let row">
+            <span
+              class="action-badge"
+              [class]="actionClass(row.actionTrigger)"
+              [matTooltip]="actionTooltip(row.actionTrigger)"
+              matTooltipClass="value-screener-tooltip"
+              matTooltipPosition="left"
+              >{{ actionLabel(row.actionTrigger) }}</span
+            >
+          </td>
+        </ng-container>
+
+        <!-- Column Config button — embedded in the sticky header row -->
+        <ng-container matColumnDef="colConfig" stickyEnd>
+          <th mat-header-cell *matHeaderCellDef class="col-config-th">
+            <app-grid-column-btn gridId="value-screener" />
+          </th>
+          <td mat-cell *matCellDef="let row"></td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns()"
+          [class]="tierClass(row.tier) + '-row'"
+        ></tr>
+      </table>
+    </div>
+  } @else if (loading() || refreshing()) {
+    <div class="loading-state">
+      <mat-spinner diameter="48" class="loading-spinner" />
+      <p class="loading-label">
+        {{ refreshing() ? 'Refreshing Value Screener...' : 'Loading saved results...' }}
+      </p>
+      @if (refreshing()) {
+        <p class="loading-sub">
+          Fetching fundamentals &bull; Calculating RSI &bull; Scoring symbols
+        </p>
+      }
+    </div>
+  } @else if (sourceMode() !== 'adhoc') {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">analytics</mat-icon>
+      <h3 class="empty-title">No saved results yet</h3>
+      <p class="empty-sub">
+        Value Screener runs automatically at <strong>5:00 PM ET</strong> on weekdays. Click
+        <strong>Refresh</strong> to run it now.
+      </p>
+    </div>
+  } @else {
+    <div class="empty-state">
+      <mat-icon class="empty-icon">search</mat-icon>
+      <h3 class="empty-title">Enter tickers to analyze</h3>
+      <p class="empty-sub">Type one or more ticker symbols above and click Analyze.</p>
+    </div>
+  }
+</div>

@@ -1,0 +1,256 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Data;
+using PortfolioManager.Api.Models;
+using System.Security.Claims;
+
+namespace PortfolioManager.Api.Services;
+
+public interface IPortfolioService
+{
+    Task<IReadOnlyList<PortfolioItemDto>> GetAllAsync(CancellationToken ct = default);
+    Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default);
+    Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default);
+    Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default);
+    Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default);
+    Task<bool> DeleteAsync(int id, CancellationToken ct = default);
+    Task<int> RefreshSectorsAsync(CancellationToken ct = default);
+    Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
+    Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
+    Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default);
+    Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default);
+}
+
+public sealed class PortfolioService(
+    AppDbContext db,
+    IMarketDataProvider marketData,
+    IHttpContextAccessor httpCtx) : IPortfolioService
+{
+    private string? CurrentUserId() => httpCtx.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
+    private bool IsAdmin() => httpCtx.HttpContext?.User.IsInRole("Admin") ?? false;
+
+    private IQueryable<PortfolioItem> OwnedItems()
+    {
+        var q = db.PortfolioItems.AsQueryable();
+        if (IsAdmin()) return q; // Admins see everything
+        var uid = CurrentUserId();
+        return q.Where(x => x.UserId == uid || x.UserId == null);
+    }
+
+    public async Task<IReadOnlyList<PortfolioItemDto>> GetAllAsync(CancellationToken ct = default)
+    {
+        var items = await OwnedItems()
+            .AsNoTracking()
+            .OrderBy(x => x.Symbol)
+            .ToListAsync(ct);
+
+        return items.Select(ToDto).ToList();
+    }
+
+    public async Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        return item is null ? null : ToDto(item);
+    }
+
+    public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
+    {
+        // Auto-fetch sector/industry from Yahoo Finance
+        var (sector, industry) = await marketData.GetSectorAsync(request.Symbol, ct);
+
+        var item = new PortfolioItem
+        {
+            UserId           = CurrentUserId(),
+            Symbol           = request.Symbol.ToUpperInvariant(),
+            CompanyName      = request.CompanyName,
+            Shares           = request.Shares,
+            AverageCostBasis = request.AverageCostBasis,
+            Sector           = sector,
+            Industry         = industry,
+            AddedAt          = DateTime.UtcNow,
+            TransactionType  = request.TransactionType,
+            AccountType      = request.AccountType,
+            OpenDate         = request.OpenDate,
+            CloseDate        = request.CloseDate,
+            ClosingPrice     = request.ClosingPrice,
+            DecisionSource   = request.DecisionSource,
+            HoldingRole      = request.HoldingRole
+        };
+
+        db.PortfolioItems.Add(item);
+        await db.SaveChangesAsync(ct);
+        return ToDto(item);
+    }
+
+    public async Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default)
+    {
+        // Generate a unique short symbol so the unique-index constraint is satisfied.
+        // Manual positions are never looked up by symbol on Yahoo Finance.
+        var sym = "M_" + Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();
+
+        var item = new PortfolioItem
+        {
+            UserId           = CurrentUserId(),
+            Symbol           = sym,
+            CompanyName      = request.Name,
+            Shares           = 1,
+            AverageCostBasis = request.AverageCost,
+            Sector           = request.Name,
+            Industry         = request.Description,
+            IsManual         = true,
+            ManualMarketValue = request.MarketValue,
+            AddedAt          = DateTime.UtcNow
+        };
+
+        db.PortfolioItems.Add(item);
+        await db.SaveChangesAsync(ct);
+        return ToDto(item);
+    }
+
+    public async Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return null;
+
+        item.CompanyName      = request.CompanyName;
+        item.Shares           = request.Shares;
+        item.AverageCostBasis = request.AverageCostBasis;
+
+        // When OverrideSector is true, always save the supplied values (even empty to clear).
+        // When false, only update if non-empty (legacy behaviour).
+        if (request.OverrideSector)
+        {
+            item.Sector            = request.Sector ?? string.Empty;
+            item.Industry          = request.Industry ?? string.Empty;
+            item.SectorIsOverridden = true;
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(request.Sector))   item.Sector   = request.Sector;
+            if (!string.IsNullOrWhiteSpace(request.Industry)) item.Industry = request.Industry;
+        }
+
+        item.TransactionType      = request.TransactionType;
+        item.AccountType           = request.AccountType;
+        item.OpenDate              = request.OpenDate;
+        item.CloseDate             = request.CloseDate;
+        item.ClosingPrice          = request.ClosingPrice;
+        if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
+        item.DecisionSource        = request.DecisionSource;
+        item.DecisionSourceClosed  = request.DecisionSourceClosed;
+
+        await db.SaveChangesAsync(ct);
+        return ToDto(item);
+    }
+
+    public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return false;
+        item.HoldingRole = holdingRole;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return false;
+        item.Notes = notes;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return false;
+
+        db.PortfolioItems.Remove(item);
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private static PortfolioItemDto ToDto(PortfolioItem item) =>
+        new(item.Id, item.Symbol, item.CompanyName, item.Shares, item.AverageCostBasis,
+            item.Sector, item.Industry, item.SectorIsOverridden, item.IsManual, item.ManualMarketValue, item.AddedAt,
+            item.TransactionType, item.AccountType, item.OpenDate, item.CloseDate, item.ClosingPrice, item.HoldingRole,
+            item.Notes, item.DecisionSource, item.DecisionSourceClosed);
+
+    public async Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default)
+    {
+        var items = await db.PortfolioItems.AsNoTracking().OrderBy(x => x.Symbol).ToListAsync(ct);
+        return items.Select(x => new PortfolioBackupItem(
+            x.Symbol, x.CompanyName, x.Shares, x.AverageCostBasis,
+            x.Sector, x.Industry, x.SectorIsOverridden, x.IsManual, x.ManualMarketValue,
+            x.TransactionType, x.AccountType, x.OpenDate, x.CloseDate, x.ClosingPrice,
+            x.HoldingRole, x.Notes, x.AddedAt)).ToList();
+    }
+
+    public async Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default)
+    {
+        var existing = await db.PortfolioItems.ToListAsync(ct);
+        db.PortfolioItems.RemoveRange(existing);
+
+        var newItems = items.Select(i => new PortfolioItem
+        {
+            UserId            = CurrentUserId(),
+            Symbol            = i.Symbol,
+            CompanyName       = i.CompanyName,
+            Shares            = i.Shares,
+            AverageCostBasis  = i.AverageCostBasis,
+            Sector            = i.Sector,
+            Industry          = i.Industry,
+            SectorIsOverridden = i.SectorIsOverridden,
+            IsManual          = i.IsManual,
+            ManualMarketValue = i.ManualMarketValue,
+            TransactionType   = i.TransactionType,
+            AccountType       = i.AccountType,
+            OpenDate          = i.OpenDate,
+            CloseDate         = i.CloseDate,
+            ClosingPrice      = i.ClosingPrice,
+            HoldingRole       = i.HoldingRole,
+            Notes             = i.Notes,
+            AddedAt           = i.AddedAt
+        }).ToList();
+
+        db.PortfolioItems.AddRange(newItems);
+        await db.SaveChangesAsync(ct);
+        return newItems.Count;
+    }
+
+    public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
+    {
+        var items = await db.PortfolioItems.ToListAsync(ct);
+        // Process all items; throttle to 3 concurrent requests to avoid Yahoo rate limiting
+        var semaphore = new SemaphoreSlim(3, 3);
+        int updated  = 0;
+
+        var tasks = items
+            .Where(item => !item.IsManual && !item.SectorIsOverridden)  // skip manual positions and user overrides
+            .Select(async item =>
+        {
+            await semaphore.WaitAsync(ct);
+            try
+            {
+                var (sector, industry) = await marketData.GetSectorAsync(item.Symbol, ct);
+                if (!string.IsNullOrWhiteSpace(sector))
+                {
+                    item.Sector   = sector;
+                    item.Industry = industry;
+                    Interlocked.Increment(ref updated);
+                }
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
+        await Task.WhenAll(tasks);
+        if (updated > 0)
+            await db.SaveChangesAsync(ct);
+
+        return updated;
+    }
+}

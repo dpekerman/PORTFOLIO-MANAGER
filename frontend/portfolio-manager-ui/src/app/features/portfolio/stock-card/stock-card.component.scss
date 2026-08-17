@@ -1,0 +1,319 @@
+﻿.stock-card {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  border-radius: 10px !important;
+  border-top: 3px solid var(--border-subtle);
+  background: var(--bg-surface) !important;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--shadow-card);
+  }
+
+  &.positive {
+    border-top-color: #00c853;
+  }
+  &.negative {
+    border-top-color: #ff5252;
+  }
+  &.selected {
+    outline: 2px solid #64b5f6;
+    outline-offset: -1px;
+  }
+
+  mat-card-header {
+    position: relative;
+
+    .company-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+      color: var(--text-muted) !important;
+    }
+
+    mat-card-title {
+      color: var(--text-primary) !important;
+    }
+
+    .edit-btn {
+      position: absolute;
+      top: -8px;
+      right: 28px;
+      opacity: 0.4;
+      transition:
+        opacity 0.2s,
+        color 0.2s;
+      color: #616161;
+    }
+
+    .remove-btn {
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      opacity: 0.4;
+      transition:
+        opacity 0.2s,
+        color 0.2s;
+      color: #616161;
+    }
+  }
+
+  &:hover .remove-btn,
+  &:hover .edit-btn {
+    opacity: 1;
+  }
+
+  &:hover .remove-btn {
+    color: #ff5252;
+  }
+
+  &:hover .edit-btn {
+    color: #64b5f6;
+  }
+}
+
+.symbol-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: white;
+  background: var(--bg-border);
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+
+  .avatar-label {
+    transition: opacity 0.15s;
+  }
+
+  .avatar-check {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.15s;
+
+    mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      color: #fff;
+    }
+  }
+
+  // Show checkmark on card hover or when selected
+  &:hover .avatar-check,
+  &.is-selected .avatar-check {
+    opacity: 1;
+  }
+
+  // Dim the label text when checkmark is visible
+  &:hover .avatar-label,
+  &.is-selected .avatar-label {
+    opacity: 0;
+  }
+
+  &.positive {
+    background: #1b5e20;
+  }
+  &.negative {
+    background: #b71c1c;
+  }
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  .current-price {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .change {
+    display: flex;
+    align-items: center;
+    font-size: 0.82rem;
+    font-weight: 600;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+    &.positive {
+      color: #00c853;
+    }
+    &.negative {
+      color: #ff5252;
+    }
+  }
+
+  .no-quote-chip {
+    font-size: 0.7rem;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+
+    mat-icon {
+      font-size: 0.85rem;
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+  }
+
+  .manual-chip {
+    font-size: 0.7rem;
+    background: rgba(100, 120, 255, 0.15);
+    color: #8899ff;
+    display: inline-flex;
+    align-items: center;
+
+    mat-icon {
+      font-size: 0.85rem;
+      width: 0.85rem;
+      height: 0.85rem;
+    }
+  }
+
+  .market-closed-badge {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    margin-left: 4px;
+    cursor: default;
+
+    mat-icon {
+      font-size: 0.9rem;
+      width: 0.9rem;
+      height: 0.9rem;
+    }
+  }
+}
+
+// Sector / Industry meta rows at the bottom of the card
+.meta-row {
+  font-size: 0.72rem;
+  color: var(--text-faint);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 3px;
+
+  .meta-label {
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .meta-value {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.override-badge::after {
+      content: '✎';
+      font-size: 0.6rem;
+      color: var(--accent-primary);
+      margin-left: 4px;
+      vertical-align: super;
+    }
+  }
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+
+  .metric {
+    display: flex;
+    flex-direction: column;
+
+    .label {
+      font-size: 0.68rem;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-family: 'Roboto Mono', monospace;
+      &.positive {
+        color: #00c853;
+      }
+      &.negative {
+        color: #ff5252;
+      }
+    }
+  }
+}
+
+.range-row {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  display: flex;
+  gap: 6px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+
+  .range-label {
+    font-weight: 600;
+  }
+}
+
+.rsi-row {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+
+  .range-label {
+    font-weight: 600;
+  }
+}
+
+.rsi-badge {
+  font-weight: 700;
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 9px;
+
+  &.rsi-oversold {
+    background: rgba(0, 200, 83, 0.12);
+    color: #00c853;
+    border: 1px solid rgba(0, 200, 83, 0.25);
+  }
+  &.rsi-overbought {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+    border: 1px solid rgba(255, 82, 82, 0.25);
+  }
+  &.rsi-neutral {
+    background: rgba(120, 120, 120, 0.08);
+    color: #9e9e9e;
+    border: 1px solid rgba(120, 120, 120, 0.15);
+  }
+}

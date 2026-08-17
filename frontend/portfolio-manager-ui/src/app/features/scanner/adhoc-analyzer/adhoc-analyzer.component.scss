@@ -1,0 +1,188 @@
+.adhoc-analyzer {
+  padding: 0 0 32px;
+}
+
+.adhoc-header {
+  display: flex;
+  align-items: flex-start;
+  padding: 24px 24px 12px;
+}
+
+.adhoc-title-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.adhoc-icon {
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.adhoc-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adhoc-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Input Row ── */
+.adhoc-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0 24px 16px;
+  flex-wrap: wrap;
+}
+
+.symbol-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-height: 36px;
+}
+
+.symbol-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  background: color-mix(in srgb, var(--bg-hover) 60%, transparent);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.symbol-input {
+  flex: 1;
+  min-width: 220px;
+}
+
+.adhoc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.analyze-btn {
+  background: var(--mat-sys-primary) !important;
+  color: var(--mat-sys-on-primary, #fff) !important;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ── Results ── */
+.adhoc-results {
+  padding: 0 24px;
+}
+
+.loading-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.adhoc-result-section {
+  margin-bottom: 24px;
+}
+
+.result-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 12px;
+}
+
+.oversold-label {
+  color: #4caf82;
+}
+
+.overbought-label {
+  color: #f44336;
+}
+
+.neutral-label {
+  color: var(--text-muted);
+}
+
+.adhoc-no-signal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 24px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border-radius: 8px;
+  margin: 0 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.adhoc-no-signal mat-icon {
+  color: #4caf82;
+}
+
+/* ── Error ── */
+.adhoc-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  color: #f44336;
+  font-size: 0.875rem;
+}
+
+/* ── Badges ── */
+.count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.neutral-badge {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+}
+
+/* Spinning animation */
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

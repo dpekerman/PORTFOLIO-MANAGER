@@ -1,0 +1,140 @@
+<h2 mat-dialog-title>
+  <mat-icon>edit</mat-icon>
+  Edit Position · {{ data.item.symbol }}
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="form" (ngSubmit)="save()" id="edit-form" class="edit-form">
+    <!-- Row 1: Transaction Type | Company Name -->
+    <mat-form-field appearance="outline">
+      <mat-label>Transaction Type</mat-label>
+      <mat-select formControlName="transactionType">
+        <mat-option value="OPEN">OPEN</mat-option>
+        <mat-option value="CLOSE">CLOSE</mat-option>
+      </mat-select>
+      <mat-hint>CLOSE moves this record to Transactions</mat-hint>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Company Name</mat-label>
+      <input matInput formControlName="companyName" autocomplete="off" />
+      @if (form.controls.companyName.errors?.['required']) {
+        <mat-error>Required</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Row 2: Shares | Avg Cost -->
+    <mat-form-field appearance="outline">
+      <mat-label>Shares</mat-label>
+      <input matInput type="number" formControlName="shares" step="0.0001" min="0.0001" />
+      @if (form.controls.shares.errors?.['min']) {
+        <mat-error>Must be &gt; 0</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Avg Cost / Share</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput type="number" formControlName="averageCostBasis" step="0.01" min="0" />
+      @if (form.controls.averageCostBasis.errors?.['required']) {
+        <mat-error>Required</mat-error>
+      }
+    </mat-form-field>
+
+    <!-- Row 3: Sector | Industry -->
+    <mat-form-field appearance="outline">
+      <mat-label>Sector</mat-label>
+      <mat-select formControlName="sector">
+        <mat-option value="">— Keep current —</mat-option>
+        @for (s of sectors(); track s) {
+          <mat-option [value]="s">{{ s }}</mat-option>
+        }
+      </mat-select>
+      @if (data.item.sectorIsOverridden) {
+        <mat-hint>✏ Manually overridden</mat-hint>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Industry</mat-label>
+      <mat-select formControlName="industry">
+        <mat-option value="">— Keep current —</mat-option>
+        @for (i of industries(); track i) {
+          <mat-option [value]="i">{{ i }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Row 4: Account Type | Open Date -->
+    <mat-form-field appearance="outline">
+      <mat-label>Account Type</mat-label>
+      <mat-select formControlName="accountType">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (a of accountTypes; track a) {
+          <mat-option [value]="a">{{ a }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Open Date</mat-label>
+      <input matInput [matDatepicker]="openPicker" formControlName="openDate" />
+      <mat-datepicker-toggle matSuffix [for]="openPicker" />
+      <mat-datepicker #openPicker />
+    </mat-form-field>
+
+    <!-- Row 5: Close Date | Closing Price -->
+    <mat-form-field appearance="outline">
+      <mat-label>Close Date</mat-label>
+      <input matInput [matDatepicker]="closePicker" formControlName="closeDate" />
+      <mat-datepicker-toggle matSuffix [for]="closePicker" />
+      <mat-datepicker #closePicker />
+    </mat-form-field>
+
+    <mat-form-field appearance="outline">
+      <mat-label>Closing Price / Share</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput type="number" formControlName="closingPrice" step="0.01" min="0" />
+      <mat-hint>Price at which position was closed</mat-hint>
+    </mat-form-field>
+
+    <!-- Row 6: Decision Source (full width) -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Decision Source</mat-label>
+      <mat-select formControlName="decisionSource">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (ds of decisionSources; track ds) {
+          <mat-option [value]="ds">{{ ds }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <!-- Row 7: Decision Source - Closed (full width, only when CLOSE) -->
+    @if (form.controls.transactionType.value === 'CLOSE') {
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Decision Source - Closed</mat-label>
+        <mat-select formControlName="decisionSourceClosed">
+          <mat-option [value]="null">— None —</mat-option>
+          @for (ds of decisionSources; track ds) {
+            <mat-option [value]="ds">{{ ds }}</mat-option>
+          }
+        </mat-select>
+        <mat-hint>Why was this position closed?</mat-hint>
+      </mat-form-field>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+  <button
+    mat-flat-button
+    type="submit"
+    form="edit-form"
+    [disabled]="form.invalid || form.pristine"
+    (click)="save()"
+  >
+    <mat-icon>save</mat-icon>
+    Save Changes
+  </button>
+</mat-dialog-actions>

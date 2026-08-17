@@ -1,0 +1,205 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Models;
+
+namespace PortfolioManager.Api.Data;
+
+public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<ApplicationUser>(options)
+{
+    public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
+    public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
+    public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
+    public DbSet<CashItem> CashItems => Set<CashItem>();
+    public DbSet<OptionItem> OptionItems => Set<OptionItem>();
+    public DbSet<DailySignal> DailySignals => Set<DailySignal>();
+    public DbSet<StagedSignal> StagedSignals => Set<StagedSignal>();
+    public DbSet<AllocationRiskTarget> AllocationRiskTargets => Set<AllocationRiskTarget>();
+    public DbSet<AllocationSectorTarget> AllocationSectorTargets => Set<AllocationSectorTarget>();
+    public DbSet<SinglePositionLimit> SinglePositionLimits => Set<SinglePositionLimit>();
+    public DbSet<ValueScreenerSnapshot> ValueScreenerSnapshots => Set<ValueScreenerSnapshot>();
+    public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
+    public DbSet<PortfolioValueHistory> PortfolioValueHistories => Set<PortfolioValueHistory>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<PortfolioItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CompanyName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Shares).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.AverageCostBasis).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.Industry).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.SectorIsOverridden).HasDefaultValue(false);
+            entity.Property(e => e.IsManual).HasDefaultValue(false);
+            entity.Property(e => e.ManualMarketValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TransactionType).HasMaxLength(10);
+            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.HoldingRole).HasMaxLength(20);
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
+            entity.Property(e => e.DecisionSourceClosed).HasMaxLength(50);
+            entity.HasIndex(e => e.Symbol); // non-unique: same ticker can exist across multiple accounts
+        });
+
+        modelBuilder.Entity<CashItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.TransactionDate).IsRequired(false);
+        });
+
+        modelBuilder.Entity<WatchlistItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
+            entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
+            entity.Property(e => e.IsFavorite).HasDefaultValue(false);
+            // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
+            entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AdhocAnalysisSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SessionKey).IsRequired().HasMaxLength(100).HasDefaultValue("default");
+            entity.Property(e => e.Symbols).IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.OversoldThreshold).HasColumnType("decimal(5,2)").HasDefaultValue(30m);
+            entity.Property(e => e.OverboughtThreshold).HasColumnType("decimal(5,2)").HasDefaultValue(75m);
+            entity.Property(e => e.LogicMode).HasMaxLength(20).HasDefaultValue("Legacy");
+            entity.HasIndex(e => new { e.SessionKey, e.UpdatedAt });
+        });
+
+        modelBuilder.Entity<OptionItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.UnderlyingTicker).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.PositionType).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Strike).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Premium).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.MarketPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TransactionType).HasMaxLength(10);
+            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DecisionSource).HasMaxLength(50);
+            entity.Property(e => e.DecisionSourceClosed).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<DailySignal>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CompanyName).HasMaxLength(200).HasDefaultValue("");
+            entity.Property(e => e.ScanType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.SignalType).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Rsi).HasColumnType("decimal(7,4)");
+            entity.Property(e => e.Price).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TriggerDetails).HasMaxLength(1000).HasDefaultValue("");
+            entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
+            entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
+            entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
+            entity.Property(e => e.ReversalProbability).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.VolumeSignal).HasMaxLength(30).HasDefaultValue("");
+            entity.Property(e => e.TrendShift).HasMaxLength(50);
+            entity.Property(e => e.RsiDelta1D).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.EntryPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StopLossPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.RiskPerShare).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Sma200).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Ema9AtEntry).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.SignalDate);
+            entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+        });
+
+        modelBuilder.Entity<StagedSignal>(entity =>
+        {
+            entity.HasKey(e => e.StagedId);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ScanType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.BasePrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseHigh).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.BaseLow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PreviousPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PreviousRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CurrentPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CurrentRsi).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.RsiDelta1D).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ExtremeLow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.ExtremeHigh).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.IsActiveWatch).HasDefaultValue(true);
+            entity.HasIndex(e => e.Symbol);
+            entity.HasIndex(e => e.IsActiveWatch);
+        });
+
+        modelBuilder.Entity<AllocationRiskTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<AllocationSectorTarget>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sector).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<SinglePositionLimit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.TargetPct).HasColumnType("decimal(5,2)");
+        });
+
+        modelBuilder.Entity<ValueScreenerSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Origin).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ResultsJson).IsRequired().HasDefaultValue("[]");
+            entity.HasIndex(e => new { e.Origin, e.RunAt });
+        });
+
+        modelBuilder.Entity<ValueScreenerScheduleConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ScheduledTimeEt).IsRequired().HasMaxLength(10).HasDefaultValue("17:00");
+            entity.Property(e => e.Enabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<PortfolioValueHistory>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RecordedDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TotalValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StocksValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.CashValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.OptionsValue).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => e.RecordedDate);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).IsRequired().HasMaxLength(64); // hex-encoded SHA-256
+            entity.HasIndex(e => e.Token).IsUnique();
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+}

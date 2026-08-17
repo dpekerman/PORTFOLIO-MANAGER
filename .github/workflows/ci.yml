@@ -1,4 +1,4 @@
-name: CI Build
+name: CI – Build, Lint & Test
 
 on:
   push:
@@ -7,58 +7,168 @@ on:
     branches: [main, develop]
 
 jobs:
-  build:
+  # ── Backend: build + test ───────────────────────────────────────────────────
+  backend:
+    name: .NET 8 API
     runs-on: ubuntu-latest
 
-    env:
-      DOTNET_VERSION: "9.0.x"
-      NODE_VERSION: "22.x"
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── .NET Backend ──────────────────────────────────────────────
-      - name: Setup .NET
+      - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          dotnet-version: "8.0.x"
 
-      - name: Restore .NET dependencies
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Restore dependencies
+        working-directory: backend/PortfolioManager.Api
         run: dotnet restore
 
-      - name: Build .NET API
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Build (Release)
+        working-directory: backend/PortfolioManager.Api
         run: dotnet build --configuration Release --no-restore
 
-      - name: Publish .NET API
-        working-directory: modern-stack-employee-app/backend/EmployeeApp.Api
+      - name: Run unit tests
+        working-directory: backend
+        run: |
+          if [ -d "PortfolioManager.Tests" ]; then
+            dotnet test PortfolioManager.Tests/PortfolioManager.Tests.csproj --configuration Release --verbosity normal
+          else
+            echo "No test project found – skipping (create backend/PortfolioManager.Tests to add tests)"
+          fi
+
+      - name: Publish API artifact
+        working-directory: backend/PortfolioManager.Api
         run: dotnet publish --configuration Release --output ${{ github.workspace }}/artifacts/api
 
-      # ── Angular Frontend ──────────────────────────────────────────
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "npm"
-          cache-dependency-path: modern-stack-employee-app/frontend/employee-client/package-lock.json
-
-      - name: Install Node dependencies
-        working-directory: modern-stack-employee-app/frontend/employee-client
-        run: npm ci
-
-      - name: Build Angular client
-        working-directory: modern-stack-employee-app/frontend/employee-client
-        run: npm run build
-
-      # ── Upload Artifacts ──────────────────────────────────────────
-      - name: Upload API artifact
+      - name: Upload API drop
         uses: actions/upload-artifact@v4
         with:
           name: api-drop
           path: ${{ github.workspace }}/artifacts/api
+          retention-days: 7
 
-      # NOTE: SQL connection string must be set as a GitHub Secret
-      # (Settings → Secrets → Actions → SQL_CONNECTION_STRING)
-      # It is injected at runtime and NEVER stored in source code.
+  # ── Frontend: lint + build ──────────────────────────────────────────────────
+  frontend:
+    name: Angular 22 Client
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Angular 22 requires Node 22 LTS
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          # Only use cache when lock file exists to avoid CI failure
+          cache: ${{ hashFiles('frontend/portfolio-manager-ui/package-lock.json') != '' && 'npm' || '' }}
+          cache-dependency-path: frontend/portfolio-manager-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/portfolio-manager-ui
+        # Use npm install (not npm ci) so it works with or without a lock file
+        run: npm install --prefer-offline --no-audit
+
+      - name: Lint (skip if no lint target configured)
+        working-directory: frontend/portfolio-manager-ui
+        run: |
+          if npx ng lint --help > /dev/null 2>&1; then
+            npx ng lint || echo "Lint warnings present – review before merge"
+          else
+            echo "No lint target configured in angular.json – skipping"
+          fi
+
+      - name: Production build
+        working-directory: frontend/portfolio-manager-ui
+        run: npx ng build --configuration production
+
+      - name: Upload Angular drop
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular-drop
+          path: frontend/portfolio-manager-ui/dist
+          retention-days: 7
+
+  # ── Security: dependency audit ──────────────────────────────────────────────
+  security:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+
+      - name: Install frontend dependencies
+        working-directory: frontend/portfolio-manager-ui
+        run: npm install --prefer-offline --no-audit
+
+      - name: npm audit (high+)
+        working-directory: frontend/portfolio-manager-ui
+        run: npm audit --audit-level=high || echo "Review npm audit output above"
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: NuGet vulnerability check
+        working-directory: backend/PortfolioManager.Api
+        run: dotnet list package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
+
+  # ── Notify on success ───────────────────────────────────────────────────────
+  notify-success:
+    name: Notify on Success
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    # Fire on every successful push AND every successful pull_request
+    if: success()
+
+    steps:
+      - name: Post workflow annotation
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const event  = context.eventName;
+            const branch = context.ref.replace('refs/heads/', '');
+            const sha    = context.sha.slice(0, 7);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            core.notice(`✅ CI passed — ${event} on ${branch} (${sha}) — ${runUrl}`);
+
+      # ── Email notification ─────────────────────────────────────────────────
+      # Gmail SMTP is hard-coded. Only ONE secret is required:
+      #   GMAIL_APP_PASSWORD — create at https://myaccount.google.com/apppasswords
+      #     (Google Account → Security → 2-Step Verification → App passwords)
+      - name: Send success email
+        uses: dawidd6/action-send-mail@v3
+        continue-on-error: true # never fail the pipeline if SMTP is unavailable
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          secure: false # STARTTLS on port 587
+          username: dima.pekerman@gmail.com
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          to: dima.pekerman@gmail.com
+          from: "Portfolio Manager CI <dima.pekerman@gmail.com>"
+          subject: "✅ CI Passed — ${{ github.ref_name }} @ ${{ github.repository }}"
+          body: |
+            ✅ All CI checks passed
+
+            Repository : ${{ github.repository }}
+            Branch     : ${{ github.ref_name }}
+            Event      : ${{ github.event_name }}
+            Commit     : ${{ github.sha }}
+            Triggered  : ${{ github.actor }}
+
+            View run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+# NOTE: Add this ONE secret in GitHub → Settings → Secrets → Actions:
+#   GMAIL_APP_PASSWORD  — Gmail App Password (not your regular Gmail password)
+#     How to get it: Google Account → Security → 2-Step Verification → App passwords
+#     App name: "GitHub Actions Portfolio Manager"
+#   SQL_CONNECTION_STRING  → Server=...;Database=PortfolioManagerDb;...

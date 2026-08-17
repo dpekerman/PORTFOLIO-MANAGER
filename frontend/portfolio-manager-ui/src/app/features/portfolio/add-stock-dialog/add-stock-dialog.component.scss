@@ -1,0 +1,53 @@
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.2rem;
+}
+
+.dialog-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  padding-top: 8px;
+  min-width: 480px;
+  width: 100%;
+
+  .full-width {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .two-col {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+}
+
+.autocomplete-symbol {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.autocomplete-exch {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(100, 181, 246, 0.15);
+  color: #64b5f6;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.autocomplete-desc {
+  color: #888;
+  font-size: 0.85rem;
+}
+
+mat-dialog-actions {
+  padding: 8px 0 0;
+  gap: 8px;
+}
