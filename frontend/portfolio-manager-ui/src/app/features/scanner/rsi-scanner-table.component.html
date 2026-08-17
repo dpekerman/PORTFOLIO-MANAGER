@@ -623,14 +623,25 @@
 
     <!-- Fibonacci 61.8 Column -->
     <ng-container matColumnDef="fib61_8">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header
-          matTooltip="Fibonacci 61.8% retracement level — SwingHigh − (range × 0.618)">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        mat-sort-header
+        matTooltip="Fibonacci 61.8% retracement level — SwingHigh − (range × 0.618)"
+      >
         Fib 61.8
       </th>
       <td mat-cell *matCellDef="let row">
         @if (row.fib61_8 > 0) {
-          <span class="fib-level"
-                [matTooltip]="'Swing Low: $' + row.fibSwingLow?.toFixed(2) + ' · Swing High: $' + row.fibSwingHigh?.toFixed(2)">
+          <span
+            class="fib-level"
+            [matTooltip]="
+              'Swing Low: $' +
+              row.fibSwingLow?.toFixed(2) +
+              ' · Swing High: $' +
+              row.fibSwingHigh?.toFixed(2)
+            "
+          >
             ${{ row.fib61_8 | number: '1.2-2' }}
           </span>
         } @else {
@@ -641,14 +652,30 @@
 
     <!-- Fibonacci Zone Column -->
     <ng-container matColumnDef="fibZone">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header
-          matTooltip="Price zone relative to Fibonacci levels">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        mat-sort-header
+        matTooltip="Price zone relative to Fibonacci levels"
+      >
         Fib Zone
       </th>
       <td mat-cell *matCellDef="let row">
         @if (row.fibZone) {
-          <span class="fib-zone-badge" [class]="fibZoneClass(row.fibZone)"
-                [matTooltip]="'38.2: $' + row.fib38_2?.toFixed(2) + ' · 50: $' + row.fib50?.toFixed(2) + ' · 61.8: $' + row.fib61_8?.toFixed(2) + ' · 78.6: $' + row.fib78_6?.toFixed(2)">
+          <span
+            class="fib-zone-badge"
+            [class]="fibZoneClass(row.fibZone)"
+            [matTooltip]="
+              '38.2: $' +
+              row.fib38_2?.toFixed(2) +
+              ' · 50: $' +
+              row.fib50?.toFixed(2) +
+              ' · 61.8: $' +
+              row.fib61_8?.toFixed(2) +
+              ' · 78.6: $' +
+              row.fib78_6?.toFixed(2)
+            "
+          >
             {{ row.fibZone }}
           </span>
         } @else {
@@ -659,8 +686,12 @@
 
     <!-- Fibonacci Status Column -->
     <ng-container matColumnDef="fibStatus">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header
-          matTooltip="Price status relative to the 61.8% Fibonacci level">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        mat-sort-header
+        matTooltip="Price status relative to the 61.8% Fibonacci level"
+      >
         Fib Status
       </th>
       <td mat-cell *matCellDef="let row">
@@ -676,16 +707,23 @@
 
     <!-- Distance to Fib 61.8% Column -->
     <ng-container matColumnDef="fibDist">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header
-          matTooltip="((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above the level.">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        mat-sort-header
+        matTooltip="((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above the level."
+      >
         Dist. Fib 61.8%
       </th>
       <td mat-cell *matCellDef="let row">
         @if (row.fib61_8 > 0) {
-          <span class="fib-dist"
-                [class.fib-dist-above]="row.distanceToFib61_8Pct >= 0"
-                [class.fib-dist-below]="row.distanceToFib61_8Pct < 0">
-            {{ row.distanceToFib61_8Pct >= 0 ? '+' : '' }}{{ row.distanceToFib61_8Pct | number: '1.1-1' }}%
+          <span
+            class="fib-dist"
+            [class.fib-dist-above]="row.distanceToFib61_8Pct >= 0"
+            [class.fib-dist-below]="row.distanceToFib61_8Pct < 0"
+          >
+            {{ row.distanceToFib61_8Pct >= 0 ? '+' : ''
+            }}{{ row.distanceToFib61_8Pct | number: '1.1-1' }}%
           </span>
         } @else {
           <span class="no-data">—</span>

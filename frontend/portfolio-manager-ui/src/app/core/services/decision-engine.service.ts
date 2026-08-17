@@ -923,20 +923,16 @@ export class DecisionEngineService {
    * Uses Fib levels as supporting context to upgrade/downgrade an existing action.
    * Does NOT replace the existing RSI/momentum engine — only refines it.
    */
-  private applyFibonacciModifier(
-    action: string,
-    r: RsiScanResult,
-    role: string | null,
-  ): string {
+  private applyFibonacciModifier(action: string, r: RsiScanResult, role: string | null): string {
     const fib61_8 = r.fib61_8 ?? 0;
     const fib78_6 = r.fib78_6 ?? 0;
-    const fib50   = r.fib50   ?? 0;
+    const fib50 = r.fib50 ?? 0;
     const fib38_2 = r.fib38_2 ?? 0;
 
     if (!fib61_8) return action; // Fib not calculable — no modification
 
     const price = r.currentPrice;
-    const zone  = r.fibZone   ?? '';
+    const zone = r.fibZone ?? '';
     const status = r.fibStatus ?? '';
     const rsiImproving = (r.rsiDelta1D ?? 0) > 0;
     const trendAligned = r.trendSetup200 === 'Trend-Aligned';
@@ -945,7 +941,7 @@ export class DecisionEngineService {
     const aboveSma200 = sma200 > 0 && price > sma200;
 
     const isStrategicOrCore = role === 'Strategic' || role === 'Core';
-    const isSwingTactical   = role === 'Swing' || role === 'Speculative';
+    const isSwingTactical = role === 'Swing' || role === 'Speculative';
 
     // ── Downgrade rules (highest priority, prevent bad entries) ──────────────
 
@@ -957,14 +953,20 @@ export class DecisionEngineService {
 
     // Below 78.6 + RSI delta falling → AVOID / TREND DAMAGE
     if (price < fib78_6 && (r.rsiDelta1D ?? 0) < 0) {
-      if (['Confirmed Buy Signal', 'Buy / Accumulate', 'Accumulate Starter',
-           'Early Buy Watch', 'Watch / Starter OK'].includes(action))
+      if (
+        [
+          'Confirmed Buy Signal',
+          'Buy / Accumulate',
+          'Accumulate Starter',
+          'Early Buy Watch',
+          'Watch / Starter OK',
+        ].includes(action)
+      )
         return 'Avoid / Trend Damage';
     }
 
     // BUY CANDIDATE + price below 78.6 + RSI momentum weak → WAIT
-    if (action === 'Buy / Accumulate' && price < fib78_6 && !rsiImproving)
-      return 'Wait';
+    if (action === 'Buy / Accumulate' && price < fib78_6 && !rsiImproving) return 'Wait';
 
     // ── Upgrade rules ─────────────────────────────────────────────────────────
 
@@ -983,8 +985,11 @@ export class DecisionEngineService {
 
     // Price in 50-61.8 Value Zone + RSI Delta > 0 + above SMA200 → ACCUMULATE
     if (
-      fib50 > 0 && price >= fib61_8 && price <= fib50 &&
-      rsiImproving && aboveSma200 &&
+      fib50 > 0 &&
+      price >= fib61_8 &&
+      price <= fib50 &&
+      rsiImproving &&
+      aboveSma200 &&
       (action === 'Accumulate Starter' || action === 'Watch / Starter OK')
     ) {
       return isSwingTactical ? 'Buy / Accumulate' : 'Accumulate Starter';
@@ -1000,7 +1005,8 @@ export class DecisionEngineService {
     if (isStrategicOrCore) {
       if (
         (zone === 'Value Zone' || zone === 'Key Fib Support') &&
-        bullTurn && aboveSma200 &&
+        bullTurn &&
+        aboveSma200 &&
         ['Watch / Starter OK', 'Stand By'].includes(action)
       ) {
         return 'Accumulate Starter';

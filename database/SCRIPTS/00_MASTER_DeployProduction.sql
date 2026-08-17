@@ -987,24 +987,27 @@ GO
 PRINT '-- Step 9: Fibonacci Retracement V1 snapshot columns --';
 
 IF NOT EXISTS (
-    SELECT 1 FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'Fib61_8AtSignal'
+    SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'Fib61_8AtSignal'
 )
 BEGIN
     ALTER TABLE [dbo].[DailySignals] ADD [Fib61_8AtSignal] DECIMAL(18,4) NULL;
     PRINT '  Added Fib61_8AtSignal.';
 END
 IF NOT EXISTS (
-    SELECT 1 FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibZoneAtSignal'
+    SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibZoneAtSignal'
 )
 BEGIN
     ALTER TABLE [dbo].[DailySignals] ADD [FibZoneAtSignal] NVARCHAR(30) NULL;
     PRINT '  Added FibZoneAtSignal.';
 END
 IF NOT EXISTS (
-    SELECT 1 FROM sys.columns
-    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibStatusAtSignal'
+    SELECT 1
+FROM sys.columns
+WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibStatusAtSignal'
 )
 BEGIN
     ALTER TABLE [dbo].[DailySignals] ADD [FibStatusAtSignal] NVARCHAR(30) NULL;

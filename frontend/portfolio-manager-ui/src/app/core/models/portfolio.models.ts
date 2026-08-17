@@ -216,7 +216,7 @@ export interface RsiScanResult {
   /** RSI velocity label: "" | "Early" | "Normal" | "Strong" | "Explosive" */
   turnStrength: string;
   /** "Elevated" when TurnStrength is Explosive; "" otherwise */
-  chaseRisk: string;  // -- Fibonacci Retracement V1 -----------------------------------------------
+  chaseRisk: string; // -- Fibonacci Retracement V1 -----------------------------------------------
   /** Swing low price used for Fib calculation (60-day lookback). 0 when not calculable. */
   fibSwingLow: number;
   /** Swing high price (after swing low). 0 when not calculable. */
@@ -234,7 +234,8 @@ export interface RsiScanResult {
   /** Fib status vs 61.8: "Above 61.8" | "Testing 61.8" | "Reclaimed 61.8" | "Below 61.8" | "Below 78.6" | "" */
   fibStatus: string;
   /** ((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above level. 0 when not calculable. */
-  distanceToFib61_8Pct: number;}
+  distanceToFib61_8Pct: number;
+}
 
 export interface ScannerResponse {
   oversoldChain: RsiScanResult[];

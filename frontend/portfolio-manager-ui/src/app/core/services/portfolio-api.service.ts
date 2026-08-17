@@ -381,8 +381,8 @@ export class PortfolioApiService {
     return this.http.post<{ seeded: number; skipped: number }>(`${this.base}/eod-signals/seed`, {});
   }
 
-  persistEodSignalsNow(): Observable<{ persisted: number; eodConfirm: number; confirmed: number }> {
-    return this.http.post<{ persisted: number; eodConfirm: number; confirmed: number }>(
+  persistEodSignalsNow(): Observable<{ persisted: number; bullBearTurnCount: number; oversoldScanned: number; overboughtScanned: number }> {
+    return this.http.post<{ persisted: number; bullBearTurnCount: number; oversoldScanned: number; overboughtScanned: number }>(
       `${this.base}/eod-signals/persist-now`,
       {},
     );
