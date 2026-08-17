@@ -537,9 +537,12 @@ public sealed class RsiScannerService : IRsiScannerService
     /// <summary>
     /// Calculates Fibonacci retracement levels from the last <paramref name="lookback"/>
     /// trading days of OHLCV data.
-    /// V1 algorithm: find the lowest close in the window as swing low, then find
-    /// the highest high in the bars after the swing low as swing high.
-    /// Requires at least an 8% move from swing low to swing high.
+    /// V1 algorithm: find the highest high in the window (swing high = the peak before
+    /// the decline), then find the lowest close after that swing high (swing low = the
+    /// bottom of the decline). This works for oversold/declining stocks where the current
+    /// price is near its recent low, which is the primary RSI scanner use case.
+    /// Requires at least an 8% decline from swing high to swing low.
+    /// Fibonacci levels represent potential bounce/recovery targets.
     /// </summary>
     private static FibCalcResult CalculateFibonacci(
         List<decimal> closes, List<decimal> highs, List<decimal> lows,
@@ -549,27 +552,29 @@ public sealed class RsiScannerService : IRsiScannerService
         var count = Math.Min(closes.Count - 1, lookback); // exclude current bar from swing search
         if (count < 10) return _fibNoData;
 
-        // Find swing low index: index of the minimum close in the lookback window
-        int offset = closes.Count - 1 - count; // first index of the window
-        int swingLowIdx = offset;
-        decimal swingLow = closes[offset];
+        int offset = closes.Count - 1 - count; // first index of the lookback window
+
+        // Find swing high: highest high in the lookback window (the peak before the decline)
+        int swingHighIdx = offset;
+        decimal swingHigh = highs[offset];
         for (int i = offset + 1; i < closes.Count - 1; i++)
         {
-            if (closes[i] < swingLow) { swingLow = closes[i]; swingLowIdx = i; }
+            if (highs[i] > swingHigh) { swingHigh = highs[i]; swingHighIdx = i; }
         }
 
-        // Find swing high: highest high in bars AFTER the swing low (up to current bar)
-        if (swingLowIdx >= closes.Count - 2) return _fibNoData; // no room for a swing high after low
+        // Find swing low: minimum close AFTER the swing high (the bottom of the decline)
+        // Include the current bar so that currently-declining stocks are captured
+        if (swingHighIdx >= closes.Count - 2) return _fibNoData;
 
-        decimal swingHigh = highs[swingLowIdx + 1];
-        for (int i = swingLowIdx + 2; i < closes.Count; i++)
+        decimal swingLow = closes[swingHighIdx + 1];
+        for (int i = swingHighIdx + 2; i < closes.Count; i++)
         {
-            if (highs[i] > swingHigh) swingHigh = highs[i];
+            if (closes[i] < swingLow) swingLow = closes[i];
         }
 
-        // Validate: require at least minMovePercent% move
-        if (swingLow <= 0m || swingHigh <= swingLow) return _fibNoData;
-        decimal movePct = (swingHigh - swingLow) / swingLow * 100m;
+        // Validate: require at least minMovePercent% decline from high to low
+        if (swingHigh <= 0m || swingLow >= swingHigh) return _fibNoData;
+        decimal movePct = (swingHigh - swingLow) / swingHigh * 100m;
         if (movePct < minMovePercent) return _fibNoData;
 
         decimal range  = swingHigh - swingLow;

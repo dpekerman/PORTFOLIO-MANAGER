@@ -450,14 +450,13 @@ export class EodSignalsPageComponent implements OnInit {
       .subscribe({
         next: (r) => {
           this.persistingNow.set(false);
-          const detail = r.persisted > 0
-            ? `${r.bullBearTurnCount} Bull/Bear Turn candidate(s) evaluated`
-            : 'No signals met Stage-2 criteria';
-          this.snackBar.open(
-            `Persisted ${r.persisted} signal(s) — ${detail}.`,
-            'OK',
-            { duration: 5000 },
-          );
+          const detail =
+            r.persisted > 0
+              ? `${r.bullBearTurnCount} Bull/Bear Turn candidate(s) evaluated`
+              : 'No signals met Stage-2 criteria';
+          this.snackBar.open(`Persisted ${r.persisted} signal(s) — ${detail}.`, 'OK', {
+            duration: 5000,
+          });
           this.loadSignals();
           this.refreshMeta();
         },

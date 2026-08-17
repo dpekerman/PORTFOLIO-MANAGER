@@ -381,11 +381,18 @@ export class PortfolioApiService {
     return this.http.post<{ seeded: number; skipped: number }>(`${this.base}/eod-signals/seed`, {});
   }
 
-  persistEodSignalsNow(): Observable<{ persisted: number; bullBearTurnCount: number; oversoldScanned: number; overboughtScanned: number }> {
-    return this.http.post<{ persisted: number; bullBearTurnCount: number; oversoldScanned: number; overboughtScanned: number }>(
-      `${this.base}/eod-signals/persist-now`,
-      {},
-    );
+  persistEodSignalsNow(): Observable<{
+    persisted: number;
+    bullBearTurnCount: number;
+    oversoldScanned: number;
+    overboughtScanned: number;
+  }> {
+    return this.http.post<{
+      persisted: number;
+      bullBearTurnCount: number;
+      oversoldScanned: number;
+      overboughtScanned: number;
+    }>(`${this.base}/eod-signals/persist-now`, {});
   }
 
   // ── Backup / Restore ────────────────────────────────────────────────────────
