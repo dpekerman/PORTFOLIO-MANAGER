@@ -164,6 +164,9 @@ public class EodSignalPersistenceService
                             Sma200             = r.Sma200 > 0 ? r.Sma200 : null,
                             Ema9AtEntry        = r.Ema9Price > 0 ? r.Ema9Price : null,
                             Ema9ConfirmedAtEntry = IsEma9Confirmed(r),
+                            Fib61_8AtSignal    = r.Fib61_8 > 0 ? r.Fib61_8 : null,
+                            FibZoneAtSignal    = !string.IsNullOrEmpty(r.FibZone) ? r.FibZone : null,
+                            FibStatusAtSignal  = !string.IsNullOrEmpty(r.FibStatus) ? r.FibStatus : null,
                         };
                     })
                     .ToList();

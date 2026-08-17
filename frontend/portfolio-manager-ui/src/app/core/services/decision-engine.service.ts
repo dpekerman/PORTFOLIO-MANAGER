@@ -246,6 +246,7 @@ export class DecisionEngineService {
     );
     let finalAction: string = dec.baseAction;
     finalAction = this.applyGapRules(finalAction, gap, null, null);
+    finalAction = this.applyFibonacciModifier(finalAction, r, null);
     return {
       ...dec,
       finalAction,
@@ -341,6 +342,7 @@ export class DecisionEngineService {
       r.dayLow ?? 0,
     );
     finalAction = this.applyGapRules(finalAction, gap, buyScore, valueScore);
+    finalAction = this.applyFibonacciModifier(finalAction, r, role);
 
     return {
       ...dec,
@@ -431,6 +433,7 @@ export class DecisionEngineService {
       r.changePercent ?? 0,
     );
     finalAction = this.applyGapRules(finalAction, gap, null, null);
+    finalAction = this.applyFibonacciModifier(finalAction, r, role);
     return {
       ...dec,
       finalAction,
@@ -910,6 +913,109 @@ export class DecisionEngineService {
         return 'Watch / Gap Strong (Confirm Setup)';
       }
       return action;
+    }
+
+    return action;
+  }
+
+  /**
+   * Fibonacci Action Modifier (V1).
+   * Uses Fib levels as supporting context to upgrade/downgrade an existing action.
+   * Does NOT replace the existing RSI/momentum engine — only refines it.
+   */
+  private applyFibonacciModifier(
+    action: string,
+    r: RsiScanResult,
+    role: string | null,
+  ): string {
+    const fib61_8 = r.fib61_8 ?? 0;
+    const fib78_6 = r.fib78_6 ?? 0;
+    const fib50   = r.fib50   ?? 0;
+    const fib38_2 = r.fib38_2 ?? 0;
+
+    if (!fib61_8) return action; // Fib not calculable — no modification
+
+    const price = r.currentPrice;
+    const zone  = r.fibZone   ?? '';
+    const status = r.fibStatus ?? '';
+    const rsiImproving = (r.rsiDelta1D ?? 0) > 0;
+    const trendAligned = r.trendSetup200 === 'Trend-Aligned';
+    const bullTurn = (r.trendShift ?? '').includes('Bull Turn');
+    const sma200 = r.sma200 ?? 0;
+    const aboveSma200 = sma200 > 0 && price > sma200;
+
+    const isStrategicOrCore = role === 'Strategic' || role === 'Core';
+    const isSwingTactical   = role === 'Swing' || role === 'Speculative';
+
+    // ── Downgrade rules (highest priority, prevent bad entries) ──────────────
+
+    // Still falling + below 61.8 → WAIT
+    if ((r.trendShift ?? '').includes('Still Falling') && price < fib61_8) {
+      if (['Confirmed Buy Signal', 'Buy / Accumulate', 'Accumulate Starter'].includes(action))
+        return 'Wait';
+    }
+
+    // Below 78.6 + RSI delta falling → AVOID / TREND DAMAGE
+    if (price < fib78_6 && (r.rsiDelta1D ?? 0) < 0) {
+      if (['Confirmed Buy Signal', 'Buy / Accumulate', 'Accumulate Starter',
+           'Early Buy Watch', 'Watch / Starter OK'].includes(action))
+        return 'Avoid / Trend Damage';
+    }
+
+    // BUY CANDIDATE + price below 78.6 + RSI momentum weak → WAIT
+    if (action === 'Buy / Accumulate' && price < fib78_6 && !rsiImproving)
+      return 'Wait';
+
+    // ── Upgrade rules ─────────────────────────────────────────────────────────
+
+    // WATCH → ACCUMULATE STARTER: Value Zone + RSI improving
+    if (
+      (action === 'Watch / Starter OK' || action === 'Early Buy Watch') &&
+      (zone === 'Value Zone' || zone === 'Key Fib Support') &&
+      rsiImproving
+    ) {
+      return isStrategicOrCore ? 'Accumulate Starter' : action;
+    }
+
+    // ACCUMULATE STARTER → ACCUMULATE: Bull Turn + Reclaimed 61.8
+    if (action === 'Accumulate Starter' && bullTurn && status === 'Reclaimed 61.8')
+      return 'Buy / Accumulate';
+
+    // Price in 50-61.8 Value Zone + RSI Delta > 0 + above SMA200 → ACCUMULATE
+    if (
+      fib50 > 0 && price >= fib61_8 && price <= fib50 &&
+      rsiImproving && aboveSma200 &&
+      (action === 'Accumulate Starter' || action === 'Watch / Starter OK')
+    ) {
+      return isSwingTactical ? 'Buy / Accumulate' : 'Accumulate Starter';
+    }
+
+    // Bull Turn + Reclaimed 61.8 + above SMA200 → BUY / ACCUMULATE CANDIDATE
+    if (bullTurn && status === 'Reclaimed 61.8' && aboveSma200) {
+      if (['Accumulate Starter', 'Watch / Starter OK', 'Early Buy Watch'].includes(action))
+        return isSwingTactical ? 'Buy / Accumulate' : 'Accumulate Starter';
+    }
+
+    // For Strategic/Core: strong Fib setup → keep as conservative accumulate
+    if (isStrategicOrCore) {
+      if (
+        (zone === 'Value Zone' || zone === 'Key Fib Support') &&
+        bullTurn && aboveSma200 &&
+        ['Watch / Starter OK', 'Stand By'].includes(action)
+      ) {
+        return 'Accumulate Starter';
+      }
+    }
+
+    // For Swing/Tactical: strong Fib + Bull Turn → BUY CANDIDATE
+    if (isSwingTactical) {
+      if (
+        bullTurn &&
+        (zone === 'Value Zone' || zone === 'Key Fib Support' || status === 'Reclaimed 61.8') &&
+        ['Watch / Starter OK', 'Accumulate Starter'].includes(action)
+      ) {
+        return 'Buy / Accumulate';
+      }
     }
 
     return action;

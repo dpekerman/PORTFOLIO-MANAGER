@@ -980,3 +980,36 @@ WHERE TABLE_NAME = 'AspNetUsers')
 ELSE
     PRINT '  Step 8 OK: Identity tables verified.';
 GO
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- STEP 9: Fibonacci snapshot columns on DailySignals (14_AddFibonacciToDailySignals.sql)
+-- ════════════════════════════════════════════════════════════════════════════
+PRINT '-- Step 9: Fibonacci Retracement V1 snapshot columns --';
+
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'Fib61_8AtSignal'
+)
+BEGIN
+    ALTER TABLE [dbo].[DailySignals] ADD [Fib61_8AtSignal] DECIMAL(18,4) NULL;
+    PRINT '  Added Fib61_8AtSignal.';
+END
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibZoneAtSignal'
+)
+BEGIN
+    ALTER TABLE [dbo].[DailySignals] ADD [FibZoneAtSignal] NVARCHAR(30) NULL;
+    PRINT '  Added FibZoneAtSignal.';
+END
+IF NOT EXISTS (
+    SELECT 1 FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'[dbo].[DailySignals]') AND name = N'FibStatusAtSignal'
+)
+BEGIN
+    ALTER TABLE [dbo].[DailySignals] ADD [FibStatusAtSignal] NVARCHAR(30) NULL;
+    PRINT '  Added FibStatusAtSignal.';
+END
+PRINT '  Step 9 OK: Fibonacci columns verified.';
+GO
+

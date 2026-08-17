@@ -1007,6 +1007,111 @@
                       }
                     </td>
                   </ng-container>
+
+                  <!-- Fibonacci Swing Low / High -->
+                  <ng-container matColumnDef="fibSwing">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Swing Low / Swing High used for Fibonacci calculation (60-day lookback, ≥8% move required)">
+                      SWING LOW / HIGH
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fibSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fibR = fibForSymbol(fibSym);
+                      @if (fibR && fibR.fib61_8 > 0) {
+                        <div class="fib-swing-cell">
+                          <span class="fib-swing-low">${{ fibR.fibSwingLow | number: '1.2-2' }}</span>
+                          <mat-icon class="fib-swing-arrow">arrow_forward</mat-icon>
+                          <span class="fib-swing-high">${{ fibR.fibSwingHigh | number: '1.2-2' }}</span>
+                        </div>
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci 38.2% -->
+                  <ng-container matColumnDef="fib38_2">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Fibonacci 38.2% retracement level">FIB 38.2</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fib382Sym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fib382R = fibForSymbol(fib382Sym);
+                      @if (fib382R && fib382R.fib38_2 > 0) {
+                        <span class="fib-level">${{ fib382R.fib38_2 | number: '1.2-2' }}</span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci 50% -->
+                  <ng-container matColumnDef="fib50">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Fibonacci 50% retracement level">FIB 50</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fib50Sym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fib50R = fibForSymbol(fib50Sym);
+                      @if (fib50R && fib50R.fib50 > 0) {
+                        <span class="fib-level">${{ fib50R.fib50 | number: '1.2-2' }}</span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci 61.8% -->
+                  <ng-container matColumnDef="fib61_8">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Fibonacci 61.8% (Golden Ratio) retracement level">FIB 61.8</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fib618Sym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fib618R = fibForSymbol(fib618Sym);
+                      @if (fib618R && fib618R.fib61_8 > 0) {
+                        <span class="fib-level" [class.fib-level-key]="fib618R.fibStatus === 'Testing 61.8' || fib618R.fibStatus === 'Reclaimed 61.8'"
+                              [matTooltip]="fib618R.fibStatus">
+                          ${{ fib618R.fib61_8 | number: '1.2-2' }}
+                        </span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci 78.6% -->
+                  <ng-container matColumnDef="fib78_6">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Fibonacci 78.6% retracement level">FIB 78.6</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fib786Sym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fib786R = fibForSymbol(fib786Sym);
+                      @if (fib786R && fib786R.fib78_6 > 0) {
+                        <span class="fib-level">${{ fib786R.fib78_6 | number: '1.2-2' }}</span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci Zone -->
+                  <ng-container matColumnDef="fibZone">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Price zone relative to Fibonacci levels">FIB ZONE</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fibZoneSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fibZoneR = fibForSymbol(fibZoneSym);
+                      @if (fibZoneR && fibZoneR.fibZone) {
+                        <span class="fib-zone-badge" [class]="fibZoneClass(fibZoneR.fibZone)">{{ fibZoneR.fibZone }}</span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Fibonacci Status -->
+                  <ng-container matColumnDef="fibStatus">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="Price status relative to the 61.8% Fibonacci level">FIB STATUS</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fibStatusSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fibStatusR = fibForSymbol(fibStatusSym);
+                      @if (fibStatusR && fibStatusR.fibStatus) {
+                        <span class="fib-status-badge" [class]="fibStatusClass(fibStatusR.fibStatus)">{{ fibStatusR.fibStatus }}</span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+                  <!-- Distance to Fib 61.8% -->
+                  <ng-container matColumnDef="fibDist">
+                    <th mat-header-cell *matHeaderCellDef matTooltip="((Price − Fib61.8) / Fib61.8) × 100. Positive = above level.">DIST. FIB 61.8%</th>
+                    <td mat-cell *matCellDef="let row">
+                      @let fibDistSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fibDistR = fibForSymbol(fibDistSym);
+                      @if (fibDistR && fibDistR.fib61_8 > 0) {
+                        <span class="fib-dist"
+                              [class.fib-dist-above]="fibDistR.distanceToFib61_8Pct >= 0"
+                              [class.fib-dist-below]="fibDistR.distanceToFib61_8Pct < 0">
+                          {{ fibDistR.distanceToFib61_8Pct >= 0 ? '+' : '' }}{{ fibDistR.distanceToFib61_8Pct | number: '1.1-1' }}%
+                        </span>
+                      } @else { <span class="pg-dim">—</span> }
+                    </td>
+                  </ng-container>
+
                   <ng-container matColumnDef="actions">
                     <th mat-header-cell *matHeaderCellDef class="pg-actions-header"></th>
                     <td mat-cell *matCellDef="let row" class="pg-actions-cell">

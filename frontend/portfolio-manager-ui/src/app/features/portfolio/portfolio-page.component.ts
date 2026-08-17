@@ -427,6 +427,33 @@ export class PortfolioPageComponent {
     return null;
   }
 
+  protected fibForSymbol(symbol: string) {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected fibZoneClass(zone: string): string {
+    switch (zone) {
+      case 'Value Zone':      return 'fib-zone-value';
+      case 'Key Fib Support': return 'fib-zone-key';
+      case 'Shallow Pullback':return 'fib-zone-shallow';
+      case 'Normal Pullback': return 'fib-zone-normal';
+      case 'Deep Pullback':   return 'fib-zone-deep';
+      case 'Trend Damage':    return 'fib-zone-damage';
+      default:                return '';
+    }
+  }
+
+  protected fibStatusClass(status: string): string {
+    switch (status) {
+      case 'Reclaimed 61.8':  return 'fib-status-reclaimed';
+      case 'Testing 61.8':    return 'fib-status-testing';
+      case 'Above 61.8':      return 'fib-status-above';
+      case 'Below 61.8':      return 'fib-status-below';
+      case 'Below 78.6':      return 'fib-status-damage';
+      default:                return '';
+    }
+  }
+
   protected probClass(prob: string): string {
     if (prob === 'High') return 'prob-high';
     if (prob === 'Medium') return 'prob-medium';
