@@ -218,7 +218,7 @@ a.mat-mdc-button-base mat-icon {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
-  color: #111;
+  color: #000 !important;
 }
 .fib-zone-value {
   background: rgba(76, 175, 80, 0.82);
@@ -241,9 +241,9 @@ a.mat-mdc-button-base mat-icon {
   border: 1px solid #ff9800;
 }
 .fib-zone-damage {
-  background: rgba(239, 83, 80, 0.82);
-  border: 1px solid #ef5350;
-  color: #fff;
+  background: rgba(194, 24, 21, 0.90);
+  border: 1px solid #c62828;
+  color: #fff !important;
 }
 
 .fib-status-badge {
@@ -253,7 +253,7 @@ a.mat-mdc-button-base mat-icon {
   font-size: 0.71rem;
   font-weight: 700;
   white-space: nowrap;
-  color: #111;
+  color: #000 !important;
 }
 .fib-status-reclaimed {
   background: rgba(76, 175, 80, 0.82);
@@ -272,9 +272,9 @@ a.mat-mdc-button-base mat-icon {
   border: 1px solid #ff9800;
 }
 .fib-status-damage {
-  background: rgba(239, 83, 80, 0.82);
-  border: 1px solid #ef5350;
-  color: #fff;
+  background: rgba(194, 24, 21, 0.90);
+  border: 1px solid #c62828;
+  color: #fff !important;
 }
 
 .fib-dist {
