@@ -117,7 +117,14 @@ type GridSortCol =
   | 'trendSetup'
   | 'momentumShift'
   | 'finalAction'
-  | 'maStatus';
+  | 'maStatus'
+  | 'fib38_2'
+  | 'fib50'
+  | 'fib61_8'
+  | 'fib78_6'
+  | 'fibZone'
+  | 'fibStatus'
+  | 'fibDist';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -914,6 +921,20 @@ export class PortfolioPageComponent {
         );
       case 'maStatus':
         return this.maStatusForSymbol(s.item.symbol) === 'STRONG BUY' ? 1 : 0;
+      case 'fib38_2':
+        return this.fibForSymbol(s.item.symbol)?.fib38_2 ?? 0;
+      case 'fib50':
+        return this.fibForSymbol(s.item.symbol)?.fib50 ?? 0;
+      case 'fib61_8':
+        return this.fibForSymbol(s.item.symbol)?.fib61_8 ?? 0;
+      case 'fib78_6':
+        return this.fibForSymbol(s.item.symbol)?.fib78_6 ?? 0;
+      case 'fibZone':
+        return this.fibForSymbol(s.item.symbol)?.fibZone ?? '';
+      case 'fibStatus':
+        return this.fibForSymbol(s.item.symbol)?.fibStatus ?? '';
+      case 'fibDist':
+        return this.fibForSymbol(s.item.symbol)?.distanceToFib61_8Pct ?? 0;
       default:
         return 0;
     }

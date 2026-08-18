@@ -1008,14 +1008,14 @@
                     </td>
                   </ng-container>
 
-                  <!-- Fibonacci Swing Low / High -->
+                  <!-- Fibonacci Swing High / Low -->
                   <ng-container matColumnDef="fibSwing">
                     <th
                       mat-header-cell
                       *matHeaderCellDef
-                      matTooltip="Swing Low / Swing High used for Fibonacci calculation (60-day lookback, ≥8% move required)"
+                      matTooltip="Swing High / Low used for Fibonacci calculation (60-day lookback, ≥8% decline required)"
                     >
-                      SWING LOW / HIGH
+                      FIB SWING HIGH/LOW
                     </th>
                     <td mat-cell *matCellDef="let row">
                       @let fibSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
@@ -1040,6 +1040,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fib38_2"
                       matTooltip="Fibonacci 38.2% retracement level"
                     >
                       FIB 38.2
@@ -1060,6 +1061,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fib50"
                       matTooltip="Fibonacci 50% retracement level"
                     >
                       FIB 50
@@ -1080,6 +1082,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fib61_8"
                       matTooltip="Fibonacci 61.8% (Golden Ratio) retracement level"
                     >
                       FIB 61.8
@@ -1109,6 +1112,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fib78_6"
                       matTooltip="Fibonacci 78.6% retracement level"
                     >
                       FIB 78.6
@@ -1129,6 +1133,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fibZone"
                       matTooltip="Price zone relative to Fibonacci levels"
                     >
                       FIB ZONE
@@ -1151,6 +1156,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fibStatus"
                       matTooltip="Price status relative to the 61.8% Fibonacci level"
                     >
                       FIB STATUS
@@ -1175,6 +1181,7 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header="fibDist"
                       matTooltip="((Price − Fib61.8) / Fib61.8) × 100. Positive = above level."
                     >
                       DIST. FIB 61.8%

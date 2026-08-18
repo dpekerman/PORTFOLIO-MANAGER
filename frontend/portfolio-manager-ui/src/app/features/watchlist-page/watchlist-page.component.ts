@@ -80,7 +80,14 @@ type SortColumn =
   | 'valueScore'
   | 'valueStatus'
   | 'reversalP'
-  | 'maStatus';
+  | 'maStatus'
+  | 'fib38_2'
+  | 'fib50'
+  | 'fib61_8'
+  | 'fib78_6'
+  | 'fibZone'
+  | 'fibStatus'
+  | 'fibDist';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -600,6 +607,34 @@ export class WatchlistPageComponent {
         case 'maStatus':
           av = this.maStatusForSymbol(a.item.symbol) === 'STRONG BUY' ? 1 : 0;
           bv = this.maStatusForSymbol(b.item.symbol) === 'STRONG BUY' ? 1 : 0;
+          break;
+        case 'fib38_2':
+          av = this.fibForSymbol(a.item.symbol)?.fib38_2 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib38_2 ?? 0;
+          break;
+        case 'fib50':
+          av = this.fibForSymbol(a.item.symbol)?.fib50 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib50 ?? 0;
+          break;
+        case 'fib61_8':
+          av = this.fibForSymbol(a.item.symbol)?.fib61_8 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib61_8 ?? 0;
+          break;
+        case 'fib78_6':
+          av = this.fibForSymbol(a.item.symbol)?.fib78_6 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib78_6 ?? 0;
+          break;
+        case 'fibZone':
+          av = this.fibForSymbol(a.item.symbol)?.fibZone ?? '';
+          bv = this.fibForSymbol(b.item.symbol)?.fibZone ?? '';
+          break;
+        case 'fibStatus':
+          av = this.fibForSymbol(a.item.symbol)?.fibStatus ?? '';
+          bv = this.fibForSymbol(b.item.symbol)?.fibStatus ?? '';
+          break;
+        case 'fibDist':
+          av = this.fibForSymbol(a.item.symbol)?.distanceToFib61_8Pct ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.distanceToFib61_8Pct ?? 0;
           break;
         default:
           av = a.item.symbol;
