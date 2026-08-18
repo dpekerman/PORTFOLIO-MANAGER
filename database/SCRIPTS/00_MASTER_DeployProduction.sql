@@ -9,13 +9,15 @@
 --   is idempotent (guarded by IF NOT EXISTS / MERGE).
 --
 -- EXECUTION ORDER:
---   Step 1  Backup check / pre-flight         (this file)
---   Step 2  01_CreateDatabase.sql             (database creation)
---   Step 3  02_CreateTables.sql               (all tables + columns + indexes)
---   Step 4  07_AdhocAnalysisSession.sql       (AdhocAnalysisSessions + stored proc)
---   Step 5  08_CreateDailySignals.sql         (DailySignals table)
---   Step 6  03_SeedData.sql                   (demo / default data + migrations history)
---   Step 7  09_SetStrategicIncomeRole.sql     (Strategic-Income role assignment)
+--   Step 1  Backup check / pre-flight                   (this file)
+--   Step 2  01_CreateDatabase.sql                       (database creation)
+--   Step 3  02_CreateTables.sql                         (all tables + columns + indexes)
+--   Step 4  07_AdhocAnalysisSession.sql                 (AdhocAnalysisSessions + stored proc)
+--   Step 5  08_CreateDailySignals.sql                   (DailySignals table)
+--   Step 6  03_SeedData.sql                             (demo / default data + migrations history)
+--   Step 7  09_SetStrategicIncomeRole.sql               (Strategic-Income role assignment)
+--   Step 8  11_AddIdentityAndAuth.sql                   (ASP.NET Core Identity + RefreshTokens)
+--   Step 9  14_AddFibonacciToDailySignals.sql           (Fibonacci snapshot columns on DailySignals)
 --
 -- SCRIPTS NOT RUN IN THIS MASTER:
 --   04_SeedNotificationRecipients.sql  -- contains placeholder emails; run manually
