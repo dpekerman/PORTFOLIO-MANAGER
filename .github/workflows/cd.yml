@@ -50,7 +50,7 @@ jobs:
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
-          app-name: portfolio-api
+          app-name: portfolio-manager
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ github.workspace }}/publish/api
 
@@ -89,4 +89,3 @@ jobs:
           app_location: frontend/portfolio-manager-ui
           output_location: dist/portfolio-manager-ui/browser
           skip_app_build: true
-
