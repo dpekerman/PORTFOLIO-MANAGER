@@ -150,6 +150,26 @@ public class RsiScanResult
     /// rebound may have already occurred before confirmation.  Empty otherwise.
     /// </summary>
     public string ChaseRisk { get; set; } = string.Empty;
+
+    // ── Fibonacci Retracement V1 ─────────────────────────────────────────────
+    /// <summary>Swing low price used for Fibonacci calculation (60-day lookback).</summary>
+    public decimal FibSwingLow { get; set; }
+    /// <summary>Swing high price used for Fibonacci calculation (must be after swing low).</summary>
+    public decimal FibSwingHigh { get; set; }
+    /// <summary>Fibonacci 38.2% retracement level: SwingHigh − (range × 0.382). 0 when not calculable.</summary>
+    public decimal Fib38_2 { get; set; }
+    /// <summary>Fibonacci 50% retracement level: SwingHigh − (range × 0.50).</summary>
+    public decimal Fib50 { get; set; }
+    /// <summary>Fibonacci 61.8% retracement level (Golden Ratio): SwingHigh − (range × 0.618).</summary>
+    public decimal Fib61_8 { get; set; }
+    /// <summary>Fibonacci 78.6% retracement level: SwingHigh − (range × 0.786).</summary>
+    public decimal Fib78_6 { get; set; }
+    /// <summary>Price zone relative to Fibonacci levels: "Shallow Pullback" | "Normal Pullback" | "Value Zone" | "Key Fib Support" | "Deep Pullback" | "Trend Damage". Empty when Fib not calculable.</summary>
+    public string FibZone { get; set; } = string.Empty;
+    /// <summary>Fibonacci status at current price: "Above 61.8" | "Testing 61.8" | "Reclaimed 61.8" | "Below 61.8" | "Below 78.6". Empty when Fib not calculable.</summary>
+    public string FibStatus { get; set; } = string.Empty;
+    /// <summary>((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above the level. 0 when Fib not calculable.</summary>
+    public decimal DistanceToFib61_8Pct { get; set; }
 }
 
 public class ScannerResponse
@@ -323,6 +343,14 @@ public class DailySignal
     public decimal? Ema9AtEntry { get; set; }
     /// <summary>Whether price had crossed EMA9 in the reversal direction at promotion time.</summary>
     public bool? Ema9ConfirmedAtEntry { get; set; }
+
+    // ── Fibonacci snapshot (informational, not a promotion gate) ─────────────
+    /// <summary>Fib 61.8% level at the moment the signal was generated. Null when not calculable.</summary>
+    public decimal? Fib61_8AtSignal { get; set; }
+    /// <summary>Fibonacci zone at the moment the signal was generated. Null when not calculable.</summary>
+    public string? FibZoneAtSignal { get; set; }
+    /// <summary>Fibonacci status at the moment the signal was generated. Null when not calculable.</summary>
+    public string? FibStatusAtSignal { get; set; }
 }
 
 /// <summary>Request DTO for updating a DailySignal's lifecycle state.</summary>

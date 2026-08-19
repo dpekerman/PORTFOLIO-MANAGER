@@ -30,4 +30,30 @@ public class PortfolioValueHistoryController(IPortfolioValueHistoryService histo
         var dto = await historyService.RecordCurrentValueAsync(ct);
         return Ok(dto);
     }
+
+    /// <summary>
+    /// Returns the list of weekday dates within the past lookbackDays that have no snapshot,
+    /// without modifying the database.
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpGet("missing-days")]
+    public async Task<ActionResult<IReadOnlyList<string>>> GetMissingDays(
+        [FromQuery] int lookbackDays = 30, CancellationToken ct = default)
+    {
+        var missing = await historyService.GetMissingDatesAsync(Math.Clamp(lookbackDays, 1, 365), ct);
+        return Ok(missing);
+    }
+
+    /// <summary>
+    /// Backfills any missing weekday snapshots within the past <paramref name="lookbackDays"/> days
+    /// by fetching historical closing prices from Yahoo Finance.
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("backfill")]
+    public async Task<ActionResult<IReadOnlyList<PortfolioValueHistoryDto>>> Backfill(
+        [FromQuery] int lookbackDays = 14, CancellationToken ct = default)
+    {
+        var filled = await historyService.BackfillMissingAsync(Math.Clamp(lookbackDays, 1, 90), ct);
+        return Ok(filled);
+    }
 }

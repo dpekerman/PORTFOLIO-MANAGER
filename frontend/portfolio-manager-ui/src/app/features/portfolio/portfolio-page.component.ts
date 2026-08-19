@@ -117,7 +117,14 @@ type GridSortCol =
   | 'trendSetup'
   | 'momentumShift'
   | 'finalAction'
-  | 'maStatus';
+  | 'maStatus'
+  | 'fib38_2'
+  | 'fib50'
+  | 'fib61_8'
+  | 'fib78_6'
+  | 'fibZone'
+  | 'fibStatus'
+  | 'fibDist';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -425,6 +432,46 @@ export class PortfolioPageComponent {
     const ma200 = price / (1 + r.dma200Deviation / 100);
     if (price > ma10 && ma10 > ma20 && ma20 > ma50 && ma50 > ma200) return 'STRONG BUY';
     return null;
+  }
+
+  protected fibForSymbol(symbol: string) {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected fibZoneClass(zone: string): string {
+    switch (zone) {
+      case 'Value Zone':
+        return 'fib-zone-value';
+      case 'Key Fib Support':
+        return 'fib-zone-key';
+      case 'Shallow Pullback':
+        return 'fib-zone-shallow';
+      case 'Normal Pullback':
+        return 'fib-zone-normal';
+      case 'Deep Pullback':
+        return 'fib-zone-deep';
+      case 'Trend Damage':
+        return 'fib-zone-damage';
+      default:
+        return '';
+    }
+  }
+
+  protected fibStatusClass(status: string): string {
+    switch (status) {
+      case 'Reclaimed 61.8':
+        return 'fib-status-reclaimed';
+      case 'Testing 61.8':
+        return 'fib-status-testing';
+      case 'Above 61.8':
+        return 'fib-status-above';
+      case 'Below 61.8':
+        return 'fib-status-below';
+      case 'Below 78.6':
+        return 'fib-status-damage';
+      default:
+        return '';
+    }
   }
 
   protected probClass(prob: string): string {
@@ -874,6 +921,20 @@ export class PortfolioPageComponent {
         );
       case 'maStatus':
         return this.maStatusForSymbol(s.item.symbol) === 'STRONG BUY' ? 1 : 0;
+      case 'fib38_2':
+        return this.fibForSymbol(s.item.symbol)?.fib38_2 ?? 0;
+      case 'fib50':
+        return this.fibForSymbol(s.item.symbol)?.fib50 ?? 0;
+      case 'fib61_8':
+        return this.fibForSymbol(s.item.symbol)?.fib61_8 ?? 0;
+      case 'fib78_6':
+        return this.fibForSymbol(s.item.symbol)?.fib78_6 ?? 0;
+      case 'fibZone':
+        return this.fibForSymbol(s.item.symbol)?.fibZone ?? '';
+      case 'fibStatus':
+        return this.fibForSymbol(s.item.symbol)?.fibStatus ?? '';
+      case 'fibDist':
+        return this.fibForSymbol(s.item.symbol)?.distanceToFib61_8Pct ?? 0;
       default:
         return 0;
     }

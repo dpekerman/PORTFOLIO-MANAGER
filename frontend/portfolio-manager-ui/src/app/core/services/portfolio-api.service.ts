@@ -156,6 +156,14 @@ export class PortfolioApiService {
     });
   }
 
+  /** Lightweight batch price lookup — max 50 symbols, single Yahoo Finance call. Much faster than analyzeSymbols. */
+  getBatchPrices(symbols: string[]): Observable<{ symbol: string; price: number }[]> {
+    return this.http.post<{ symbol: string; price: number }[]>(
+      `${this.base}/stocks/batch-prices`,
+      symbols,
+    );
+  }
+
   /** Invalidate all server-side RSI scan cache entries (call after config/threshold change). */
   clearRsiCache(): Observable<void> {
     return this.http.delete<void>(`${this.base}/scanner/rsi/cache`);
@@ -381,11 +389,18 @@ export class PortfolioApiService {
     return this.http.post<{ seeded: number; skipped: number }>(`${this.base}/eod-signals/seed`, {});
   }
 
-  persistEodSignalsNow(): Observable<{ persisted: number; eodConfirm: number; confirmed: number }> {
-    return this.http.post<{ persisted: number; eodConfirm: number; confirmed: number }>(
-      `${this.base}/eod-signals/persist-now`,
-      {},
-    );
+  persistEodSignalsNow(): Observable<{
+    persisted: number;
+    bullBearTurnCount: number;
+    oversoldScanned: number;
+    overboughtScanned: number;
+  }> {
+    return this.http.post<{
+      persisted: number;
+      bullBearTurnCount: number;
+      oversoldScanned: number;
+      overboughtScanned: number;
+    }>(`${this.base}/eod-signals/persist-now`, {});
   }
 
   // ── Backup / Restore ────────────────────────────────────────────────────────
@@ -426,6 +441,21 @@ export class PortfolioApiService {
     return this.http.post<PortfolioValueHistoryDto>(
       `${this.base}/portfoliovaluehistory/record-now`,
       {},
+    );
+  }
+
+  /** Backfills any missing weekday snapshots in the past lookbackDays days using Yahoo Finance historical prices. */
+  backfillMissingHistory(lookbackDays = 14): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.post<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/backfill?lookbackDays=${lookbackDays}`,
+      {},
+    );
+  }
+
+  /** Returns the list of weekday dates in the past lookbackDays that have no snapshot (read-only). */
+  getMissingHistoryDays(lookbackDays = 30): Observable<string[]> {
+    return this.http.get<string[]>(
+      `${this.base}/portfoliovaluehistory/missing-days?lookbackDays=${lookbackDays}`,
     );
   }
 

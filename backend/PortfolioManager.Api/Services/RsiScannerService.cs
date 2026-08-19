@@ -459,6 +459,9 @@ public sealed class RsiScannerService : IRsiScannerService
                 trigger = $"RSI {Math.Round(rsi, 1)} — neutral range ({oversoldThreshold}–{overboughtThreshold}). No directional signal. Technical indicators shown for reference.";
             }
 
+            // ── Fibonacci Retracement V1 ─────────────────────────────────────────
+            var fib = CalculateFibonacci(closes, highs, lows, todayClose, prevClose);
+
             return new RsiScanResult
             {
                 Symbol = symbol,
@@ -501,7 +504,16 @@ public sealed class RsiScannerService : IRsiScannerService
                 OpenPrice = Math.Round(todayOpen, 4),
                 PreviousClose = Math.Round(prevClose, 4),
                 Sma200 = has200Dma ? Math.Round(sma200, 4) : 0m,
-                IsDemo = false
+                IsDemo = false,
+                FibSwingLow = fib.SwingLow,
+                FibSwingHigh = fib.SwingHigh,
+                Fib38_2 = fib.Fib38_2,
+                Fib50 = fib.Fib50,
+                Fib61_8 = fib.Fib61_8,
+                Fib78_6 = fib.Fib78_6,
+                FibZone = fib.FibZone,
+                FibStatus = fib.FibStatus,
+                DistanceToFib61_8Pct = fib.DistanceToFib61_8Pct,
             };
         }
         catch (Exception ex)
@@ -510,6 +522,107 @@ public sealed class RsiScannerService : IRsiScannerService
         }
 
         return null;
+    }
+
+    // ── Fibonacci Retracement V1 ──────────────────────────────────────────────
+
+    private record FibCalcResult(
+        decimal SwingLow, decimal SwingHigh,
+        decimal Fib38_2, decimal Fib50, decimal Fib61_8, decimal Fib78_6,
+        string FibZone, string FibStatus, decimal DistanceToFib61_8Pct);
+
+    private static readonly FibCalcResult _fibNoData =
+        new(0m, 0m, 0m, 0m, 0m, 0m, string.Empty, string.Empty, 0m);
+
+    /// <summary>
+    /// Calculates Fibonacci retracement levels from the last <paramref name="lookback"/>
+    /// trading days of OHLCV data.
+    /// V1 algorithm: find the highest high in the window (swing high = the peak before
+    /// the decline), then find the lowest close after that swing high (swing low = the
+    /// bottom of the decline). This works for oversold/declining stocks where the current
+    /// price is near its recent low, which is the primary RSI scanner use case.
+    /// Requires at least an 8% decline from swing high to swing low.
+    /// Fibonacci levels represent potential bounce/recovery targets.
+    /// </summary>
+    private static FibCalcResult CalculateFibonacci(
+        List<decimal> closes, List<decimal> highs, List<decimal> lows,
+        decimal currentClose, decimal prevClose,
+        int lookback = 60, decimal minMovePercent = 8m)
+    {
+        var count = Math.Min(closes.Count - 1, lookback); // exclude current bar from swing search
+        if (count < 10) return _fibNoData;
+
+        int offset = closes.Count - 1 - count; // first index of the lookback window
+
+        // Find swing high: highest high in the lookback window (the peak before the decline)
+        int swingHighIdx = offset;
+        decimal swingHigh = highs[offset];
+        for (int i = offset + 1; i < closes.Count - 1; i++)
+        {
+            if (highs[i] > swingHigh) { swingHigh = highs[i]; swingHighIdx = i; }
+        }
+
+        // Find swing low: minimum close AFTER the swing high (the bottom of the decline)
+        // Include the current bar so that currently-declining stocks are captured
+        if (swingHighIdx >= closes.Count - 2) return _fibNoData;
+
+        decimal swingLow = closes[swingHighIdx + 1];
+        for (int i = swingHighIdx + 2; i < closes.Count; i++)
+        {
+            if (closes[i] < swingLow) swingLow = closes[i];
+        }
+
+        // Validate: require at least minMovePercent% decline from high to low
+        if (swingHigh <= 0m || swingLow >= swingHigh) return _fibNoData;
+        decimal movePct = (swingHigh - swingLow) / swingHigh * 100m;
+        if (movePct < minMovePercent) return _fibNoData;
+
+        decimal range  = swingHigh - swingLow;
+        decimal f38_2  = Math.Round(swingHigh - range * 0.382m, 4);
+        decimal f50    = Math.Round(swingHigh - range * 0.500m, 4);
+        decimal f61_8  = Math.Round(swingHigh - range * 0.618m, 4);
+        decimal f78_6  = Math.Round(swingHigh - range * 0.786m, 4);
+
+        string fibZone   = ClassifyFibZone(currentClose, f38_2, f50, f61_8, f78_6);
+        string fibStatus = ClassifyFibStatus(currentClose, prevClose, f61_8, f78_6);
+        decimal distPct  = f61_8 > 0m ? Math.Round(((currentClose - f61_8) / f61_8) * 100m, 2) : 0m;
+
+        return new FibCalcResult(
+            Math.Round(swingLow, 4), Math.Round(swingHigh, 4),
+            f38_2, f50, f61_8, f78_6,
+            fibZone, fibStatus, distPct);
+    }
+
+    private static string ClassifyFibZone(
+        decimal price, decimal f38_2, decimal f50, decimal f61_8, decimal f78_6)
+    {
+        // Near 61.8 within ±2% → Key Fib Support (takes precedence)
+        if (f61_8 > 0m && Math.Abs((price - f61_8) / f61_8) <= 0.02m)
+            return "Key Fib Support";
+
+        if (price > f38_2)  return "Shallow Pullback";
+        if (price > f50)    return "Normal Pullback";
+        if (price > f61_8)  return "Value Zone";
+        if (price > f78_6)  return "Deep Pullback";
+        return "Trend Damage";
+    }
+
+    private static string ClassifyFibStatus(
+        decimal currentClose, decimal prevClose, decimal f61_8, decimal f78_6)
+    {
+        if (f61_8 <= 0m) return string.Empty;
+
+        // Reclaimed 61.8: previous close was below AND current close is at or above
+        if (prevClose < f61_8 && currentClose >= f61_8) return "Reclaimed 61.8";
+
+        if (currentClose < f78_6)  return "Below 78.6";
+        if (currentClose < f61_8)  return "Below 61.8";
+
+        // Within 1% of 61.8 but above it → "Testing 61.8"
+        if (f61_8 > 0m && currentClose >= f61_8 && ((currentClose - f61_8) / f61_8) <= 0.01m)
+            return "Testing 61.8";
+
+        return "Above 61.8";
     }
 
     // ── RSI full series (Wilder's smoothed method) ───────────────────────────

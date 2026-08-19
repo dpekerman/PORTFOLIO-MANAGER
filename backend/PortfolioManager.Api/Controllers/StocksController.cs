@@ -76,4 +76,17 @@ public class StocksController(IMarketDataProvider marketData, IPortfolioService 
         var results = await marketData.SearchSymbolAsync(q, ct);
         return Ok(results);
     }
+
+    /// <summary>Lightweight batch price lookup for arbitrary symbols. Max 50 symbols per call.
+    /// Used by EOD Signals page to refresh last-price column without running a full RSI scan.</summary>
+    [HttpPost("batch-prices")]
+    public async Task<IActionResult> GetBatchPrices(
+        [FromBody] IReadOnlyList<string> symbols, CancellationToken ct)
+    {
+        if (symbols is null || symbols.Count == 0) return Ok(Array.Empty<object>());
+        var distinct = symbols.Take(50).Select(s => s.Trim().ToUpperInvariant()).Distinct().ToList();
+        var quotes = await marketData.GetBatchQuotesAsync(distinct, ct);
+        var result = quotes.Select(kv => new { symbol = kv.Key, price = kv.Value.CurrentPrice }).ToList();
+        return Ok(result);
+    }
 }

@@ -114,6 +114,15 @@
       <button
         class="cfg-tab-btn"
         role="tab"
+        [attr.aria-selected]="activeSection() === 'history'"
+        [class.cfg-tab-btn--active]="activeSection() === 'history'"
+        (click)="activeSection.set('history')"
+      >
+        <mat-icon>history</mat-icon><span class="cfg-tab-label">Portfolio History</span>
+      </button>
+      <button
+        class="cfg-tab-btn"
+        role="tab"
         [attr.aria-selected]="activeSection() === 'users'"
         [class.cfg-tab-btn--active]="activeSection() === 'users'"
         (click)="setSection('users')"
@@ -1543,5 +1552,156 @@
       </div>
     </div>
     <!-- /cfg-panel users -->
+  }
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 10 — PORTFOLIO HISTORY BACKFILL (Admin only)
+       ════════════════════════════════════════════════════════════════════ -->
+  @if (authState.isAdmin()) {
+    <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'history'">
+      <div class="config-section">
+        <div class="section-header">
+          <mat-icon>history</mat-icon>
+          <div class="section-header-text">
+            <h2 class="section-title">Portfolio History Reconstruction</h2>
+            <p class="section-subtitle">
+              Detect and backfill missing end-of-day portfolio value snapshots using Yahoo Finance
+              historical closing prices
+            </p>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <!-- Info card -->
+          <div class="demo-info-card">
+            <mat-icon>info_outline</mat-icon>
+            <div>
+              <p>
+                The EOD background service saves a snapshot at 4:30 PM ET every weekday. If the
+                backend was offline during that window, the day's snapshot is missing and the
+                <strong>1-Day Change</strong> on the portfolio page will show an incorrect value.
+              </p>
+              <p style="margin-top: 8px">
+                <strong>Step 1</strong> — Scan to preview which days are missing (read-only).<br />
+                <strong>Step 2</strong> — Reconstruct to fetch historical prices and save the
+                missing snapshots.
+              </p>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="demo-save-row" style="margin-top: 16px">
+            <button
+              mat-stroked-button
+              (click)="scanMissingDays()"
+              [disabled]="historyScanning() || historyReconstructing()"
+              matTooltip="Check which weekday snapshots are missing (past 30 days)"
+            >
+              @if (historyScanning()) {
+                <ng-container><mat-icon class="spinning">sync</mat-icon> Scanning…</ng-container>
+              } @else {
+                <ng-container><mat-icon>search</mat-icon> Scan for Missing Days</ng-container>
+              }
+            </button>
+
+            @if (historyScanned() && historyMissingDays().length > 0) {
+              <button
+                mat-flat-button
+                (click)="reconstructMissingDays()"
+                [disabled]="historyReconstructing()"
+                matTooltip="Fetch historical closing prices from Yahoo Finance and save snapshots"
+              >
+                @if (historyReconstructing()) {
+                  <ng-container
+                    ><mat-icon class="spinning">sync</mat-icon> Reconstructing…</ng-container
+                  >
+                } @else {
+                  <ng-container>
+                    <mat-icon>restore_page</mat-icon> Reconstruct
+                    {{ historyMissingDays().length }} Day(s)
+                  </ng-container>
+                }
+              </button>
+            }
+
+            @if (historyScanned() && historyMissingDays().length === 0) {
+              <button
+                mat-flat-button
+                (click)="reconstructMissingDays()"
+                [disabled]="historyReconstructing()"
+                matTooltip="Run backfill anyway (also picks up any days missed since last scan)"
+              >
+                @if (historyReconstructing()) {
+                  <ng-container
+                    ><mat-icon class="spinning">sync</mat-icon> Reconstructing…</ng-container
+                  >
+                } @else {
+                  <ng-container><mat-icon>restore_page</mat-icon> Reconstruct (Force)</ng-container>
+                }
+              </button>
+            }
+          </div>
+
+          <!-- Scan results — missing days preview -->
+          @if (historyScanned()) {
+            <div class="history-result-card" style="margin-top: 20px">
+              <div class="sub-card-header">
+                <mat-icon>{{
+                  historyMissingDays().length > 0 ? 'warning' : 'check_circle'
+                }}</mat-icon>
+                <span class="sub-card-title">
+                  @if (historyMissingDays().length > 0) {
+                    {{ historyMissingDays().length }} missing snapshot(s) detected (past 30 days)
+                  } @else {
+                    No missing snapshots — history is complete
+                  }
+                </span>
+              </div>
+
+              @if (historyMissingDays().length > 0) {
+                <div class="history-date-list">
+                  @for (date of historyMissingDays(); track date) {
+                    <span class="history-date-chip missing">{{ date }}</span>
+                  }
+                </div>
+                <p class="history-note">
+                  Reconstruction will fetch Yahoo Finance historical close prices for each symbol
+                  open on these dates. Cash and options values will use current balances as an
+                  approximation.
+                </p>
+              }
+            </div>
+          }
+
+          <!-- Reconstruction results -->
+          @if (historyReconstructResult() !== null) {
+            <div class="history-result-card" style="margin-top: 20px">
+              <div class="sub-card-header">
+                <mat-icon>check_circle</mat-icon>
+                <span class="sub-card-title">
+                  @if (historyReconstructResult()!.length > 0) {
+                    {{ historyReconstructResult()!.length }} snapshot(s) saved to database
+                  } @else {
+                    History was already complete — no snapshots added
+                  }
+                </span>
+              </div>
+
+              @if (historyReconstructResult()!.length > 0) {
+                <div class="history-date-list" style="margin-top: 12px">
+                  @for (row of historyReconstructResult()!; track row.recordedDate) {
+                    <div class="history-filled-row">
+                      <span class="history-date-chip filled">{{ row.recordedDate }}</span>
+                      <span class="history-value">\${{ row.totalValue | number: '1.2-2' }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+    <!-- /cfg-panel history -->
   }
 </div>

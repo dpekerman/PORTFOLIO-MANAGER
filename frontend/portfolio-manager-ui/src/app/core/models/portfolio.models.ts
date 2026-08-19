@@ -216,7 +216,25 @@ export interface RsiScanResult {
   /** RSI velocity label: "" | "Early" | "Normal" | "Strong" | "Explosive" */
   turnStrength: string;
   /** "Elevated" when TurnStrength is Explosive; "" otherwise */
-  chaseRisk: string;
+  chaseRisk: string; // -- Fibonacci Retracement V1 -----------------------------------------------
+  /** Swing low price used for Fib calculation (60-day lookback). 0 when not calculable. */
+  fibSwingLow: number;
+  /** Swing high price (after swing low). 0 when not calculable. */
+  fibSwingHigh: number;
+  /** Fibonacci 38.2% level. 0 when not calculable. */
+  fib38_2: number;
+  /** Fibonacci 50% level. */
+  fib50: number;
+  /** Fibonacci 61.8% level (Golden Ratio). */
+  fib61_8: number;
+  /** Fibonacci 78.6% level. */
+  fib78_6: number;
+  /** Price zone relative to Fib levels: "Shallow Pullback" | "Normal Pullback" | "Value Zone" | "Key Fib Support" | "Deep Pullback" | "Trend Damage" | "" */
+  fibZone: string;
+  /** Fib status vs 61.8: "Above 61.8" | "Testing 61.8" | "Reclaimed 61.8" | "Below 61.8" | "Below 78.6" | "" */
+  fibStatus: string;
+  /** ((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above level. 0 when not calculable. */
+  distanceToFib61_8Pct: number;
 }
 
 export interface ScannerResponse {
@@ -486,6 +504,10 @@ export interface DailySignal {
   sma200: number | null;
   ema9AtEntry: number | null;
   ema9ConfirmedAtEntry: boolean | null;
+  // -- Fibonacci snapshot (informational) ------------------------------------
+  fib61_8AtSignal: number | null;
+  fibZoneAtSignal: string | null;
+  fibStatusAtSignal: string | null;
 }
 
 export interface DailySignalPagedResponse {

@@ -80,7 +80,14 @@ type SortColumn =
   | 'valueScore'
   | 'valueStatus'
   | 'reversalP'
-  | 'maStatus';
+  | 'maStatus'
+  | 'fib38_2'
+  | 'fib50'
+  | 'fib61_8'
+  | 'fib78_6'
+  | 'fibZone'
+  | 'fibStatus'
+  | 'fibDist';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -444,6 +451,46 @@ export class WatchlistPageComponent {
     return null;
   }
 
+  protected fibForSymbol(symbol: string) {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected fibZoneClass(zone: string): string {
+    switch (zone) {
+      case 'Value Zone':
+        return 'fib-zone-value';
+      case 'Key Fib Support':
+        return 'fib-zone-key';
+      case 'Shallow Pullback':
+        return 'fib-zone-shallow';
+      case 'Normal Pullback':
+        return 'fib-zone-normal';
+      case 'Deep Pullback':
+        return 'fib-zone-deep';
+      case 'Trend Damage':
+        return 'fib-zone-damage';
+      default:
+        return '';
+    }
+  }
+
+  protected fibStatusClass(status: string): string {
+    switch (status) {
+      case 'Reclaimed 61.8':
+        return 'fib-status-reclaimed';
+      case 'Testing 61.8':
+        return 'fib-status-testing';
+      case 'Above 61.8':
+        return 'fib-status-above';
+      case 'Below 61.8':
+        return 'fib-status-below';
+      case 'Below 78.6':
+        return 'fib-status-damage';
+      default:
+        return '';
+    }
+  }
+
   protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
@@ -560,6 +607,34 @@ export class WatchlistPageComponent {
         case 'maStatus':
           av = this.maStatusForSymbol(a.item.symbol) === 'STRONG BUY' ? 1 : 0;
           bv = this.maStatusForSymbol(b.item.symbol) === 'STRONG BUY' ? 1 : 0;
+          break;
+        case 'fib38_2':
+          av = this.fibForSymbol(a.item.symbol)?.fib38_2 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib38_2 ?? 0;
+          break;
+        case 'fib50':
+          av = this.fibForSymbol(a.item.symbol)?.fib50 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib50 ?? 0;
+          break;
+        case 'fib61_8':
+          av = this.fibForSymbol(a.item.symbol)?.fib61_8 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib61_8 ?? 0;
+          break;
+        case 'fib78_6':
+          av = this.fibForSymbol(a.item.symbol)?.fib78_6 ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.fib78_6 ?? 0;
+          break;
+        case 'fibZone':
+          av = this.fibForSymbol(a.item.symbol)?.fibZone ?? '';
+          bv = this.fibForSymbol(b.item.symbol)?.fibZone ?? '';
+          break;
+        case 'fibStatus':
+          av = this.fibForSymbol(a.item.symbol)?.fibStatus ?? '';
+          bv = this.fibForSymbol(b.item.symbol)?.fibStatus ?? '';
+          break;
+        case 'fibDist':
+          av = this.fibForSymbol(a.item.symbol)?.distanceToFib61_8Pct ?? 0;
+          bv = this.fibForSymbol(b.item.symbol)?.distanceToFib61_8Pct ?? 0;
           break;
         default:
           av = a.item.symbol;

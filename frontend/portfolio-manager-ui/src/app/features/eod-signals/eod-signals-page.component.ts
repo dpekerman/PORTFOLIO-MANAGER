@@ -321,6 +321,14 @@ export class EodSignalsPageComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.pollForUpdates());
 
+    // ── Refresh last prices every 5 min while page is open ───────────────────
+    interval(5 * 60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        const items = this.rawSignals();
+        if (items.length > 0) this.fetchCurrentPrices(items);
+      });
+
     this.loadSignals();
   }
 
@@ -363,32 +371,21 @@ export class EodSignalsPageComponent implements OnInit {
       });
   }
 
-  /** Fetches current prices for the given signals and stores in currentPriceMap. */
+  /** Fetches current prices for the given signals using a fast batch-prices call. */
   private fetchCurrentPrices(signals: DailySignal[]): void {
     const symbols = [...new Set(signals.map((s) => s.symbol.toUpperCase()))];
     if (symbols.length === 0) return;
-    const batchSize = 50;
-    const batches: string[][] = [];
-    for (let i = 0; i < symbols.length; i += batchSize)
-      batches.push(symbols.slice(i, i + batchSize));
-    const merged = new Map<string, number>(this.currentPriceMap());
-    let completed = 0;
-    for (const batch of batches) {
-      this.api
-        .analyzeSymbols(batch, 30, 75, 'Enhanced')
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: (results) => {
-            for (const r of results) merged.set(r.symbol.toUpperCase(), r.currentPrice);
-            completed++;
-            if (completed === batches.length) this.currentPriceMap.set(new Map(merged));
-          },
-          error: () => {
-            completed++;
-            if (completed === batches.length) this.currentPriceMap.set(new Map(merged));
-          },
-        });
-    }
+    this.api
+      .getBatchPrices(symbols)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (results) => {
+          const map = new Map<string, number>(this.currentPriceMap());
+          for (const r of results) map.set(r.symbol.toUpperCase(), r.price);
+          this.currentPriceMap.set(new Map(map));
+        },
+        error: () => {}, // non-critical — table still shows signal data without last-price
+      });
   }
 
   /** Silent background poll: fetches only meta (totalCount).
@@ -450,11 +447,13 @@ export class EodSignalsPageComponent implements OnInit {
       .subscribe({
         next: (r) => {
           this.persistingNow.set(false);
-          this.snackBar.open(
-            `Persisted ${r.persisted} signal(s) — ${r.eodConfirm} EodConfirm, ${r.confirmed} Confirmed.`,
-            'OK',
-            { duration: 5000 },
-          );
+          const detail =
+            r.persisted > 0
+              ? `${r.bullBearTurnCount} Bull/Bear Turn candidate(s) evaluated`
+              : 'No signals met Stage-2 criteria';
+          this.snackBar.open(`Persisted ${r.persisted} signal(s) — ${detail}.`, 'OK', {
+            duration: 5000,
+          });
           this.loadSignals();
           this.refreshMeta();
         },

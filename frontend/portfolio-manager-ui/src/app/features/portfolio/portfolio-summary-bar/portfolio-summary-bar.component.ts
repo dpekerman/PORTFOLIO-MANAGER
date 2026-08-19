@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { PortfolioValueHistoryDto } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
@@ -58,25 +59,50 @@ export class PortfolioSummaryBarComponent {
   });
 
   constructor() {
+    this.loadHistory();
+  }
+
+  private loadHistory(): void {
     this.api.getPortfolioValueHistory(2).subscribe({
       next: (history) => {
         if (history.length > 0) {
-          // Determine today's date in ET (use UTC as a close approximation)
           const todayDate = new Date().toISOString().split('T')[0];
           const isFirstRecordToday = history[0].recordedDate === todayDate;
 
           if (isFirstRecordToday && history.length >= 2) {
-            // Today's EOD snapshot is in history[0]; use history[1] as the previous-day value
             this.previousDayValue.set(history[1].totalValue);
+            this.oneDayChangeLoading.set(false);
           } else if (!isFirstRecordToday) {
-            // Today's snapshot hasn't been saved yet; history[0] IS yesterday's value
-            this.previousDayValue.set(history[0].totalValue);
+            // Check whether the most recent record is from yesterday or older
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            // Skip back over weekends to find the last trading day
+            while (yesterday.getDay() === 0 || yesterday.getDay() === 6)
+              yesterday.setDate(yesterday.getDate() - 1);
+            const lastTradingDay = yesterday.toISOString().split('T')[0];
+
+            if (history[0].recordedDate < lastTradingDay) {
+              // Gap detected — attempt silent backfill then reload
+              this.api.backfillMissingHistory(14).subscribe({
+                next: (filled) => {
+                  if (filled.length > 0) this.loadHistory();
+                  else this.setPreviousDay(history);
+                },
+                error: () => this.setPreviousDay(history),
+              });
+              return;
+            }
+            this.setPreviousDay(history);
           }
-          // If only 1 record and it is today: cannot compute change — card stays null
         }
         this.oneDayChangeLoading.set(false);
       },
       error: () => this.oneDayChangeLoading.set(false),
     });
+  }
+
+  private setPreviousDay(history: PortfolioValueHistoryDto[]): void {
+    this.previousDayValue.set(history[0].totalValue);
+    this.oneDayChangeLoading.set(false);
   }
 }

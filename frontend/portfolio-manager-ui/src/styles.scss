@@ -182,3 +182,108 @@ a.mat-mdc-button-base mat-icon {
   text-align: right !important;
   vertical-align: middle !important;
 }
+
+// ── Fibonacci Retracement — shared styles (used by Scanner, Portfolio, Watchlist) ──
+.fib-level {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  &.fib-level-key {
+    color: #ffd54f;
+    font-weight: 700;
+  }
+}
+.fib-swing-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  .fib-swing-low {
+    color: #ef9a9a;
+    font-weight: 500;
+  }
+  .fib-swing-high {
+    color: #a5d6a7;
+    font-weight: 500;
+  }
+  .fib-swing-arrow {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+}
+.fib-zone-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #000 !important;
+}
+.fib-zone-value {
+  background: rgba(76, 175, 80, 0.82);
+  border: 1px solid #4caf50;
+}
+.fib-zone-key {
+  background: rgba(251, 192, 45, 0.88);
+  border: 1px solid #f9a825;
+}
+.fib-zone-shallow {
+  background: rgba(41, 182, 246, 0.82);
+  border: 1px solid #29b6f6;
+}
+.fib-zone-normal {
+  background: rgba(102, 187, 106, 0.8);
+  border: 1px solid #66bb6a;
+}
+.fib-zone-deep {
+  background: rgba(255, 152, 0, 0.85);
+  border: 1px solid #ff9800;
+}
+.fib-zone-damage {
+  background: rgba(194, 24, 21, 0.9);
+  border: 1px solid #c62828;
+  color: #fff !important;
+}
+
+.fib-status-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.71rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #000 !important;
+}
+.fib-status-reclaimed {
+  background: rgba(76, 175, 80, 0.82);
+  border: 1px solid #4caf50;
+}
+.fib-status-testing {
+  background: rgba(251, 192, 45, 0.88);
+  border: 1px solid #f9a825;
+}
+.fib-status-above {
+  background: rgba(41, 182, 246, 0.82);
+  border: 1px solid #29b6f6;
+}
+.fib-status-below {
+  background: rgba(255, 152, 0, 0.85);
+  border: 1px solid #ff9800;
+}
+.fib-status-damage {
+  background: rgba(194, 24, 21, 0.9);
+  border: 1px solid #c62828;
+  color: #fff !important;
+}
+
+.fib-dist {
+  font-size: 0.8rem;
+  font-weight: 600;
+  &.fib-dist-above {
+    color: #a5d6a7;
+  }
+  &.fib-dist-below {
+    color: #ef9a9a;
+  }
+}
