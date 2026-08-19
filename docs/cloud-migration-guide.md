@@ -46,18 +46,18 @@ Canada Central (Toronto) has full service availability and keeps data in Canada.
 
 ## What Was Changed in This Branch
 
-| File | Change |
-|---|---|
-| `Services/EodSignalPersistenceService.cs` | Removed JSON file writes/reads; now queries `DailySignals` DB table — no `eod-signal-history.json` file needed |
-| `Program.cs` | Added rate limiting (200 req/min per IP); CORS now also reads `CorsOrigin` config key for production origin |
-| `appsettings.Production.json` | New file — production logging levels; secrets come from App Service env vars |
-| `src/environments/environment.ts` | New — dev uses empty `apiBaseUrl` (proxy handles it) |
-| `src/environments/environment.prod.ts` | New — production `apiBaseUrl` points to App Service |
-| `src/app/core/interceptors/base-url.interceptor.ts` | New — prepends `apiBaseUrl` to all `/api` calls in production |
-| `src/app/app.config.ts` | Added `baseUrlInterceptor` before `authInterceptor` |
-| `angular.json` | Added `fileReplacements` for production build (swaps environment file) |
-| `staticwebapp.config.json` | New — SPA fallback routing + security headers |
-| `.github/workflows/cd.yml` | New — CD workflow that deploys on every push to `main` |
+| File                                                | Change                                                                                                         |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `Services/EodSignalPersistenceService.cs`           | Removed JSON file writes/reads; now queries `DailySignals` DB table — no `eod-signal-history.json` file needed |
+| `Program.cs`                                        | Added rate limiting (200 req/min per IP); CORS now also reads `CorsOrigin` config key for production origin    |
+| `appsettings.Production.json`                       | New file — production logging levels; secrets come from App Service env vars                                   |
+| `src/environments/environment.ts`                   | New — dev uses empty `apiBaseUrl` (proxy handles it)                                                           |
+| `src/environments/environment.prod.ts`              | New — production `apiBaseUrl` points to App Service                                                            |
+| `src/app/core/interceptors/base-url.interceptor.ts` | New — prepends `apiBaseUrl` to all `/api` calls in production                                                  |
+| `src/app/app.config.ts`                             | Added `baseUrlInterceptor` before `authInterceptor`                                                            |
+| `angular.json`                                      | Added `fileReplacements` for production build (swaps environment file)                                         |
+| `staticwebapp.config.json`                          | New — SPA fallback routing + security headers                                                                  |
+| `.github/workflows/cd.yml`                          | New — CD workflow that deploys on every push to `main`                                                         |
 
 ---
 
@@ -91,7 +91,7 @@ Replace `portfolio-api.azurewebsites.net` with your actual App Service hostname:
 ```typescript
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://YOUR-APP-NAME.azurewebsites.net',  // ← change this
+  apiBaseUrl: "https://YOUR-APP-NAME.azurewebsites.net", // ← change this
 };
 ```
 
@@ -104,6 +104,7 @@ export const environment = {
 Go to [https://portal.azure.com](https://portal.azure.com) and sign in with your Microsoft account.
 
 If you don't have an Azure subscription:
+
 1. Go to [https://azure.microsoft.com/en-ca/pricing/purchase-options/azure-account](https://azure.microsoft.com/en-ca/pricing/purchase-options/azure-account)
 2. Click **Start free** or **Pay as you go**
 3. You need a credit card for verification, but the SQL database will be $0
@@ -151,6 +152,7 @@ If you don't have an Azure subscription:
 10. Replace `{your_password}` with your actual password → save this full string
 
 **Allow Azure services to connect:**
+
 1. Go to the SQL Server (not the database) → **Security → Networking**
 2. Under **Firewall rules**, toggle **Allow Azure services and resources to access this server** → ON
 3. Also click **+ Add your client IPv4 address** (adds your current IP for running migrations locally)
@@ -218,28 +220,30 @@ Go to your App Service (`portfolio-api`) → **Settings → Configuration → Ap
 
 Click **+ New application setting** for each entry below:
 
-| Name | Value |
-|---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Production` |
-| `ConnectionStrings__DefaultConnection` | your Azure SQL connection string from Step 3 |
-| `Jwt__Secret` | generate a 64-character random string (see below) |
-| `Jwt__Issuer` | `PortfolioManager` |
-| `Jwt__Audience` | `PortfolioManagerClient` |
-| `CorsOrigin` | `https://your-static-web-app.azurestaticapps.net` |
-| `EmailNotification__Enabled` | `true` |
-| `EmailNotification__SmtpHost` | `smtp.gmail.com` |
-| `EmailNotification__SmtpPort` | `587` |
-| `EmailNotification__UseStartTls` | `true` |
-| `EmailNotification__Username` | `dima.pekerman@gmail.com` |
-| `EmailNotification__Password` | your Gmail app password |
-| `EmailNotification__FromAddress` | `dima.pekerman@gmail.com` |
+| Name                                   | Value                                             |
+| -------------------------------------- | ------------------------------------------------- |
+| `ASPNETCORE_ENVIRONMENT`               | `Production`                                      |
+| `ConnectionStrings__DefaultConnection` | your Azure SQL connection string from Step 3      |
+| `Jwt__Secret`                          | generate a 64-character random string (see below) |
+| `Jwt__Issuer`                          | `PortfolioManager`                                |
+| `Jwt__Audience`                        | `PortfolioManagerClient`                          |
+| `CorsOrigin`                           | `https://your-static-web-app.azurestaticapps.net` |
+| `EmailNotification__Enabled`           | `true`                                            |
+| `EmailNotification__SmtpHost`          | `smtp.gmail.com`                                  |
+| `EmailNotification__SmtpPort`          | `587`                                             |
+| `EmailNotification__UseStartTls`       | `true`                                            |
+| `EmailNotification__Username`          | `dima.pekerman@gmail.com`                         |
+| `EmailNotification__Password`          | your Gmail app password                           |
+| `EmailNotification__FromAddress`       | `dima.pekerman@gmail.com`                         |
 
 Click **Save** after adding all settings.
 
 **Generate JWT secret (run in PowerShell):**
+
 ```powershell
 [Convert]::ToBase64String((1..48 | ForEach-Object { [byte](Get-Random -Max 256) }))
 ```
+
 Copy the output — that is your `Jwt__Secret`. It must be at least 32 characters; 48 bytes encoded = 64 chars.
 
 ---
@@ -285,6 +289,7 @@ dotnet ef database update `
 ```
 
 This applies all 20+ EF migrations including:
+
 - ASP.NET Identity tables (`AspNetUsers`, `AspNetRoles`, `AspNetUserRoles`, `RefreshTokens`, etc.)
 - All business tables (`PortfolioItems`, `WatchlistItems`, `DailySignals`, `StagedSignals`, `ValueScreenerSnapshots`, etc.)
 - All indexes and constraints
@@ -305,7 +310,7 @@ Edit `frontend/portfolio-manager-ui/src/environments/environment.prod.ts`:
 ```typescript
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://portfolio-api.azurewebsites.net',  // ← use your actual App Service name
+  apiBaseUrl: "https://portfolio-api.azurewebsites.net", // ← use your actual App Service name
 };
 ```
 
@@ -321,6 +326,7 @@ git push origin feature/cloud-migration
 Then create a Pull Request from `feature/cloud-migration` → `main` on GitHub and merge it.
 
 **GitHub Actions CD workflow triggers automatically on merge to `main`:**
+
 1. Job 1: Builds .NET 8 API → deploys to App Service via Zip Deploy
 2. Job 2: Builds Angular 22 → deploys to Static Web Apps
 
@@ -339,6 +345,7 @@ Both jobs run in parallel. Total deployment time: ~3–5 minutes.
 4. Click **Setup** — you are now logged in as Admin
 
 **Create additional users** (Admin UI → Config/Users page):
+
 1. Go to Settings → Users (or `/config` page)
 2. Click **Add User** for each additional user:
    - User 2: assign role **Trader** or **Viewer**
@@ -350,15 +357,15 @@ Both jobs run in parallel. Total deployment time: ~3–5 minutes.
 
 Run these checks after deployment:
 
-| Check | How | Expected |
-|---|---|---|
-| App loads | Open Static Web App URL | Redirects to `/login` |
-| Auth enforced | GET `https://portfolio-api.azurewebsites.net/api/portfolio` | Returns `401 Unauthorized` |
-| Swagger disabled | GET `https://portfolio-api.azurewebsites.net/swagger` | Returns `404` |
-| Login works | Use login page with admin credentials | Dashboard loads |
-| Background services alive | App Service → **Log stream** | RSI scan logs every 60s |
-| CORS correct | Browser DevTools → check `/api` call origin headers | No CORS errors |
-| Rate limiting | Not normally tested; limit is 200 req/min per IP | — |
+| Check                     | How                                                         | Expected                   |
+| ------------------------- | ----------------------------------------------------------- | -------------------------- |
+| App loads                 | Open Static Web App URL                                     | Redirects to `/login`      |
+| Auth enforced             | GET `https://portfolio-api.azurewebsites.net/api/portfolio` | Returns `401 Unauthorized` |
+| Swagger disabled          | GET `https://portfolio-api.azurewebsites.net/swagger`       | Returns `404`              |
+| Login works               | Use login page with admin credentials                       | Dashboard loads            |
+| Background services alive | App Service → **Log stream**                                | RSI scan logs every 60s    |
+| CORS correct              | Browser DevTools → check `/api` call origin headers         | No CORS errors             |
+| Rate limiting             | Not normally tested; limit is 200 req/min per IP            | —                          |
 
 ---
 
@@ -384,24 +391,29 @@ Run these checks after deployment:
 ## Troubleshooting
 
 ### App Service won't start
+
 1. Go to App Service → **Diagnose and solve problems**
 2. Check **Application Logs** → look for startup errors
 3. Common cause: missing `Jwt__Secret` or wrong connection string format
 
 ### 401 errors on all API calls after login
+
 - Check `CorsOrigin` setting matches the exact Static Web App URL (no trailing slash)
 - Check `Jwt__Issuer` and `Jwt__Audience` match values in `appsettings.json`
 
 ### Angular 404 on page refresh
+
 - Verify `staticwebapp.config.json` is deployed (it should be in the build output)
 - The `/*` → `/index.html` route handles all Angular deep links
 
 ### Email notifications not sending
+
 - Verify `EmailNotification__Password` is the Gmail App Password (16-char, no spaces)
   — get it at Google Account → Security → 2-Step Verification → App passwords
 - Check App Service log stream for `[EmailNotification]` entries
 
 ### SQL Database paused (auto-pause after free limit)
+
 - This is expected if you exceeded 100K vCore-seconds
 - The database resumes automatically on the 1st of next month
 - App Service will fail to connect until then — plan your usage accordingly
@@ -411,14 +423,14 @@ Run these checks after deployment:
 
 ## Cost Summary
 
-| Service | Tier | CAD/month |
-|---|---|---|
-| Azure Static Web Apps | Free | $0 |
-| Azure App Service | B1 Linux, Canada Central | ~$18 |
-| Azure SQL Database | Free Serverless (100K vCore-s) | $0 |
-| Outbound bandwidth | ~1–3 GB/month (3 users) | $0 |
-| Application Insights | Free 5 GB ingestion | $0 |
-| **Total** | | **~$18–22 CAD/month** |
+| Service               | Tier                           | CAD/month             |
+| --------------------- | ------------------------------ | --------------------- |
+| Azure Static Web Apps | Free                           | $0                    |
+| Azure App Service     | B1 Linux, Canada Central       | ~$18                  |
+| Azure SQL Database    | Free Serverless (100K vCore-s) | $0                    |
+| Outbound bandwidth    | ~1–3 GB/month (3 users)        | $0                    |
+| Application Insights  | Free 5 GB ingestion            | $0                    |
+| **Total**             |                                | **~$18–22 CAD/month** |
 
 Set a budget alert at **$25 CAD** for safety margin.
 
@@ -446,9 +458,9 @@ EF database migrations in future features apply automatically on App Service sta
 The scripts in `database/SCRIPTS/` are for setting up a new local SQL Server instance.
 **Do NOT run them against Azure SQL.** EF migrations are the authoritative schema source for Azure.
 
-| Script | Purpose |
-|---|---|
-| `01_CreateDatabase.sql` | Creates local DB |
-| `02_CreateTables.sql` | Initial table set (pre-EF) |
-| `03_SeedData.sql` | Optional seed data |
+| Script                              | Purpose                                               |
+| ----------------------------------- | ----------------------------------------------------- |
+| `01_CreateDatabase.sql`             | Creates local DB                                      |
+| `02_CreateTables.sql`               | Initial table set (pre-EF)                            |
+| `03_SeedData.sql`                   | Optional seed data                                    |
 | `14_AddFibonacciToDailySignals.sql` | Fibonacci columns (applied via EF migration on Azure) |
