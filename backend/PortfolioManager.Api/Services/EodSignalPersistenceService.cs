@@ -1,35 +1,14 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
-/// <summary>
-/// Singleton service that persists EOD CONFIRM signals to a JSON file on disk
-/// (eod-signal-history.json, located next to the API binary).
-///
-/// Purpose — "Gap 3 / Overnight Persistence":
-///   When the EOD window closes, confirmed signals are saved so that the next morning
-///   traders can see what was flagged and decide whether the setup is still valid.
-///
-/// The file holds ONE day's worth of signals (the most recent EOD window).
-/// On the next save (next trading day) the file is overwritten with fresh data.
-/// A read operation returns the stored history plus metadata (date, morning window flag).
-/// </summary>
+// Overnight persistence for EOD CONFIRM signals — reads/writes from DailySignals DB table.
 public class EodSignalPersistenceService
 {
-    private readonly string _filePath;
     private readonly ILogger<EodSignalPersistenceService> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
-
-    private static readonly JsonSerializerOptions _json = new()
-    {
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
 
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
 
@@ -39,9 +18,6 @@ public class EodSignalPersistenceService
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
-        // Resolve path relative to the application's base directory
-        var baseDir = AppContext.BaseDirectory;
-        _filePath = Path.Combine(baseDir, "eod-signal-history.json");
     }
 
     // ── Write ─────────────────────────────────────────────────────────────────
@@ -87,35 +63,7 @@ public class EodSignalPersistenceService
 
         resultList = confirmed;
 
-        var history = new EodSignalHistory
-        {
-            Date = etToday,
-            Signals = resultList.Select(r => new EodSignalRecord
-            {
-                Symbol        = r.Symbol,
-                CompanyName   = r.CompanyName ?? string.Empty,
-                ScanType      = r.ScanType.ToString(),
-                Rsi           = Math.Round(r.Rsi, 2),
-                Price         = r.CurrentPrice,
-                TriggerDetails = r.TriggerDetails ?? string.Empty,
-                ScannedAt     = r.ScannedAt,
-            }).ToList()
-        };
-
-        // ── 1. Write to JSON file (overnight persistence / morning panel) ──────
-        try
-        {
-            var json = JsonSerializer.Serialize(history, _json);
-            await File.WriteAllTextAsync(_filePath, json, ct);
-            _logger.LogInformation("Persisted {Count} EOD CONFIRM signal(s) for {Date} to {Path}",
-                history.Signals.Count, etToday, _filePath);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to persist EOD signals to {Path}", _filePath);
-        }
-
-        // ── 2. Append to DailySignals DB table (full history for EOD Dashboard) ─
+        // ── Append to DailySignals DB table (full history + overnight persistence) ─
         if (resultList.Count > 0)
         {
             try
@@ -224,10 +172,7 @@ public class EodSignalPersistenceService
 
     // ── Read ──────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Returns the persisted EOD signal history plus contextual metadata.
-    /// If the file does not exist or is unreadable, returns an empty response with HasData = false.
-    /// </summary>
+    /// <summary>Returns the most recent EOD signals from the DailySignals table.</summary>
     public async Task<YesterdayEodResponse> GetYesterdayEodAsync(CancellationToken ct = default)
     {
         var tz = GetEasternTz();
@@ -236,30 +181,50 @@ public class EodSignalPersistenceService
         if (tz is not null)
         {
             var etNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
-            isMorning = etNow.Hour < 12;  // Before noon ET = morning window
+            isMorning = etNow.Hour < 12;
         }
-
-        if (!File.Exists(_filePath))
-            return new YesterdayEodResponse { HasData = false, IsMorningWindow = isMorning };
 
         try
         {
-            var json = await File.ReadAllTextAsync(_filePath, ct);
-            var history = JsonSerializer.Deserialize<EodSignalHistory>(json, _json);
-            if (history is null || history.Signals.Count == 0)
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var latestDate = await db.DailySignals
+                .OrderByDescending(s => s.SignalDate)
+                .Select(s => s.SignalDate)
+                .FirstOrDefaultAsync(ct);
+
+            if (latestDate is null)
+                return new YesterdayEodResponse { HasData = false, IsMorningWindow = isMorning };
+
+            var signals = await db.DailySignals
+                .Where(s => s.SignalDate == latestDate)
+                .Select(s => new EodSignalRecord
+                {
+                    Symbol         = s.Symbol,
+                    CompanyName    = s.CompanyName,
+                    ScanType       = s.ScanType,
+                    Rsi            = s.Rsi,
+                    Price          = s.Price,
+                    TriggerDetails = s.TriggerDetails,
+                    ScannedAt      = s.RecordedAt,
+                })
+                .ToListAsync(ct);
+
+            if (signals.Count == 0)
                 return new YesterdayEodResponse { HasData = false, IsMorningWindow = isMorning };
 
             return new YesterdayEodResponse
             {
-                HasData        = true,
-                SignalDate     = history.Date,
+                HasData         = true,
+                SignalDate      = latestDate,
                 IsMorningWindow = isMorning,
-                Signals        = history.Signals
+                Signals         = signals
             };
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Could not read EOD signal history from {Path}", _filePath);
+            _logger.LogWarning(ex, "Could not read EOD signal history from DailySignals table");
             return new YesterdayEodResponse { HasData = false, IsMorningWindow = isMorning };
         }
     }

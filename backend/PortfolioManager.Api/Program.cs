@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +10,7 @@ using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -130,11 +132,31 @@ builder.Services.AddSingleton<ValueScreenerPersistenceService>();
 // Background service: runs Value Screener at configured time (default 5 PM ET weekdays)
 builder.Services.AddHostedService<ValueScreenerSchedulerService>();
 
-// ── CORS (allow Angular dev server + credentials for httpOnly cookie) ────────
+// ── Rate Limiting (fixed window per IP — 200 req/min) ───────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 200,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
+// ── CORS — localhost:4200 always allowed; production origin from config ───────
+var allowedOrigins = new List<string> { "http://localhost:4200" };
+var prodOrigin = builder.Configuration["CorsOrigin"];
+if (!string.IsNullOrWhiteSpace(prodOrigin))
+    allowedOrigins.Add(prodOrigin);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularDevPolicy", policy =>
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins([.. allowedOrigins])
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -220,6 +242,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseRateLimiter();
 app.UseCors("AngularDevPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
