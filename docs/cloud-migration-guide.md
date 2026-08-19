@@ -1,6 +1,6 @@
 # Portfolio Manager — Azure Cloud Deployment Guide
 
-**Branch:** `feature/cloud-migration`  
+**Status:** Code preparation complete — awaiting Azure resource creation  
 **Target environment:** Azure (Canada Central)  
 **Estimated monthly cost:** $18–25 CAD  
 **Date prepared:** 2026-08-19
@@ -44,7 +44,7 @@ Canada Central (Toronto) has full service availability and keeps data in Canada.
 
 ---
 
-## What Was Changed in This Branch
+## What Was Changed ✅ DONE
 
 | File                                                | Change                                                                                                         |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
@@ -71,14 +71,13 @@ Canada Central (Toronto) has full service availability and keeps data in Canada.
 
 ## Phase 0 — Git Setup ✅ DONE
 
-Both steps were completed automatically when you approved implementation:
-
 - ✅ `develop` merged into `main` and pushed
-- ✅ Branch `feature/cloud-migration` created from `develop` and pushed
+- ✅ `feature/cloud-migration` branch created, all code implemented, merged into `main` + `develop`, deleted
+- ✅ `docs/development-workflow.md` created — see [Development Workflow](development-workflow.md)
 
 ---
 
-## Phase 1 — Update `environment.prod.ts` with Your App Service Hostname ✏️ Manual
+## Phase 1 — Update `environment.prod.ts` with Your App Service Hostname ✏️ Manual ← START HERE
 
 > **Do this AFTER you create the App Service in Phase 2 (Step 5).**
 
@@ -314,18 +313,20 @@ export const environment = {
 };
 ```
 
-### 6b — Commit and merge to `main` 🤖 Automated
+### 6b — Commit and deploy to Azure 🤖 Automated
 
 ```powershell
 cd D:\PORTFOLIO-MANAGER
+git checkout develop
 git add -A
-git commit -m "feat: configure production environment for Azure deployment"
-git push origin feature/cloud-migration
+git commit -m "feat: set production API URL"
+git push origin develop
+git checkout main
+git merge develop --no-edit
+git push origin main
 ```
 
-Then create a Pull Request from `feature/cloud-migration` → `main` on GitHub and merge it.
-
-**GitHub Actions CD workflow triggers automatically on merge to `main`:**
+**GitHub Actions CD workflow triggers automatically on push to `main`:**
 
 1. Job 1: Builds .NET 8 API → deploys to App Service via Zip Deploy
 2. Job 2: Builds Angular 22 → deploys to Static Web Apps
