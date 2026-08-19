@@ -62,7 +62,7 @@
   ],
   "DecisionSources": [
     "App Signal - Trim",
-    "Manual",
+    "Manual - Buy on pullback",
     "Catalyst",
     "Rebalance",
     "Risk Control - Trim",
