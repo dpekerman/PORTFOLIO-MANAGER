@@ -444,6 +444,21 @@ export class PortfolioApiService {
     );
   }
 
+  /** Backfills any missing weekday snapshots in the past lookbackDays days using Yahoo Finance historical prices. */
+  backfillMissingHistory(lookbackDays = 14): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.post<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/backfill?lookbackDays=${lookbackDays}`,
+      {},
+    );
+  }
+
+  /** Returns the list of weekday dates in the past lookbackDays that have no snapshot (read-only). */
+  getMissingHistoryDays(lookbackDays = 30): Observable<string[]> {
+    return this.http.get<string[]>(
+      `${this.base}/portfoliovaluehistory/missing-days?lookbackDays=${lookbackDays}`,
+    );
+  }
+
   // ── Portfolio Beta ──────────────────────────────────────────────────────────
   getPortfolioBeta(): Observable<PortfolioBetaResult> {
     return this.http.get<PortfolioBetaResult>(`${this.base}/portfoliobeta`);

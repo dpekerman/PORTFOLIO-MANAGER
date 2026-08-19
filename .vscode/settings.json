@@ -3,7 +3,8 @@
     "**/node_modules/**",
     "**/bin/**",
     "**/obj/**",
-    "**/dist/**"
+    "**/dist/**",
+     "**/docs/**"
   ],
   "todo-tree.general.rootFolder": "${workspaceFolder}",
   "search.exclude": {

@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -50,6 +51,7 @@ import { UsersApiService } from '../../core/services/users-api.service';
   styleUrl: './config-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DecimalPipe,
     FormsModule,
     ReactiveFormsModule,
     MatButtonModule,
@@ -963,6 +965,58 @@ ${overboughtRsi}.`,
 
   resetAll(): void {
     this.reset(); // resets scanner form + EOD form to defaults
+  }
+
+  // ── Portfolio History Backfill ────────────────────────────────────────────
+  protected readonly historyMissingDays = signal<string[]>([]);
+  protected readonly historyScanning = signal(false);
+  protected readonly historyReconstructing = signal(false);
+  protected readonly historyReconstructResult = signal<
+    { recordedDate: string; totalValue: number }[] | null
+  >(null);
+  protected readonly historyScanned = signal(false);
+
+  scanMissingDays(): void {
+    this.historyScanning.set(true);
+    this.historyScanned.set(false);
+    this.historyReconstructResult.set(null);
+    this.api.getMissingHistoryDays(30).subscribe({
+      next: (days) => {
+        this.historyMissingDays.set(days);
+        this.historyScanned.set(true);
+        this.historyScanning.set(false);
+      },
+      error: () => {
+        this.historyScanning.set(false);
+        this.snackBar.open('Failed to scan for missing days.', 'Dismiss', { duration: 4000 });
+      },
+    });
+  }
+
+  reconstructMissingDays(): void {
+    this.historyReconstructing.set(true);
+    this.historyReconstructResult.set(null);
+    this.api.backfillMissingHistory(30).subscribe({
+      next: (filled) => {
+        this.historyReconstructing.set(false);
+        this.historyReconstructResult.set(
+          filled.map((d) => ({ recordedDate: d.recordedDate, totalValue: d.totalValue })),
+        );
+        this.historyMissingDays.set([]);
+        this.historyScanned.set(false);
+        const msg =
+          filled.length > 0
+            ? `${filled.length} day(s) reconstructed successfully.`
+            : 'No missing days found — history is up to date.';
+        this.snackBar.open(msg, 'OK', { duration: 4000 });
+      },
+      error: () => {
+        this.historyReconstructing.set(false);
+        this.snackBar.open('Reconstruction failed. Check backend logs.', 'Dismiss', {
+          duration: 5000,
+        });
+      },
+    });
   }
 
   // ── User Management (Admin only) ─────────────────────────────────────────

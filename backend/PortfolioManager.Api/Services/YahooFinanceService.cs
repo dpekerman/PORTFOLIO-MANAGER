@@ -25,6 +25,12 @@ public interface IMarketDataProvider
     /// Returns null if the symbol is not found or quoteSummary returns an error.
     /// </summary>
     Task<FundamentalsSnapshot?> GetFundamentalsAsync(string symbol, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns the historical closing price for each symbol on the given trading date ("yyyy-MM-dd").
+    /// Symbols with no data for that date (market closed, delisted, etc.) are omitted from the result.
+    /// </summary>
+    Task<Dictionary<string, decimal>> GetHistoricalClosingPricesAsync(string dateStr, IEnumerable<string> symbols, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -550,6 +556,71 @@ public sealed class YahooFinanceService : IMarketDataProvider
             Beta               = Raw(sd?.Beta),
             DataAvailable      = true
         };
+    }
+
+    public async Task<Dictionary<string, decimal>> GetHistoricalClosingPricesAsync(
+        string dateStr, IEnumerable<string> symbols, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var symbolList = symbols.ToList();
+        if (symbolList.Count == 0) return result;
+
+        if (!DateTime.TryParseExact(dateStr, "yyyy-MM-dd", null,
+                System.Globalization.DateTimeStyles.None, out var targetDate))
+            return result;
+
+        // Bracket the target date so Yahoo returns at least one candle for the day
+        var period1 = new DateTimeOffset(targetDate.AddDays(-1), TimeSpan.Zero).ToUnixTimeSeconds();
+        var period2 = new DateTimeOffset(targetDate.AddDays(2),  TimeSpan.Zero).ToUnixTimeSeconds();
+
+        async Task<decimal?> FetchCloseAsync(string sym)
+        {
+            try
+            {
+                var resp = await _http.GetAsync(
+                    $"https://query1.finance.yahoo.com/v8/finance/chart/{Uri.EscapeDataString(sym)}"
+                    + $"?interval=1d&period1={period1}&period2={period2}", ct);
+                if (!resp.IsSuccessStatusCode) return null;
+
+                var json        = await resp.Content.ReadAsStringAsync(ct);
+                var data        = JsonSerializer.Deserialize<YahooChartResponse>(json, _json);
+                var chartResult = data?.Chart?.Result?.FirstOrDefault();
+                var quotes      = chartResult?.Indicators?.Quote?.FirstOrDefault();
+                var timestamps  = chartResult?.Timestamp;
+                if (quotes?.Close is null || timestamps is null) return null;
+
+                for (int i = 0; i < Math.Min(timestamps.Count, quotes.Close.Count); i++)
+                {
+                    var dt = DateTimeOffset.FromUnixTimeSeconds(timestamps[i]).UtcDateTime.Date;
+                    if (dt == targetDate.Date && quotes.Close[i].HasValue)
+                        return quotes.Close[i]!.Value;
+                }
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "GetHistoricalClosingPricesAsync failed for {Sym} on {Date}", sym, dateStr);
+                return null;
+            }
+        }
+
+        foreach (var symbol in symbolList)
+        {
+            var price = await FetchCloseAsync(symbol);
+            if (price.HasValue)
+            {
+                result[symbol] = price.Value;
+            }
+            else if (!symbol.Contains('.'))
+            {
+                // TSX fallback
+                var tsxPrice = await FetchCloseAsync(symbol + ".TO");
+                if (tsxPrice.HasValue) result[symbol] = tsxPrice.Value;
+            }
+            await Task.Delay(150, ct);
+        }
+
+        return result;
     }
 }
 
