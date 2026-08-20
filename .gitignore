@@ -28,6 +28,11 @@ appsettings.*.json
 # Notification recipients contain personal email addresses — managed at runtime
 notification-recipients.json
 
+# Migration config contains Azure SQL password — never commit
+scripts/migration-config.ps1
+# Migration SQL output files — local only
+scripts/migration-output-*.sql
+
 # ========================================
 # Interview prep / TEST folder
 # ========================================
