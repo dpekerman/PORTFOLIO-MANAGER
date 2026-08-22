@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import {
   AddCashItemRequest,
   AddManualPositionRequest,
@@ -126,7 +126,17 @@ export class PortfolioApiService {
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
-  /** @param force true = bypass server-side 4-minute cache (use on manual refresh only) */
+  /** Returns the latest persisted RSI scan snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */
+  getRsiSnapshot(): Observable<ScannerResponse | null> {
+    return this.http
+      .get<ScannerResponse>(`${this.base}/scanner/rsi/snapshot`, { observe: 'response' })
+      .pipe(
+        map((r) => (r.status === 204 ? null : r.body)),
+        catchError(() => of(null)),
+      );
+  }
+
+  /** Triggers a live RSI scan against Yahoo Finance and saves the result as the new snapshot. */
   getRsiScan(
     force = false,
     oversold = 30,

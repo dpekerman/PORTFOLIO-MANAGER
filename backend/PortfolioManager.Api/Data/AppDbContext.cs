@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<ValueScreenerScheduleConfig> ValueScreenerScheduleConfigs => Set<ValueScreenerScheduleConfig>();
     public DbSet<PortfolioValueHistory> PortfolioValueHistories => Set<PortfolioValueHistory>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<RsiScanSnapshot> RsiScanSnapshots => Set<RsiScanSnapshot>();
+    public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -203,6 +205,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                   .WithMany()
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RsiScanSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Single-row upsert table — Id is always explicitly 1, never auto-generated
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.SnapshotJson).IsRequired().HasDefaultValue("{}");
+        });
+
+        modelBuilder.Entity<UserPreference>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.PreferenceKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PreferenceValue).IsRequired().HasDefaultValue("");
+            entity.HasIndex(e => new { e.UserId, e.PreferenceKey }).IsUnique();
         });
     }
 }

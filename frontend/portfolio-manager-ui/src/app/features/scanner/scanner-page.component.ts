@@ -152,11 +152,7 @@ export class ScannerPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    // Refresh when navigating back to this page if data is stale (> 5 min)
-    const scanned = this.scanner.scannedAt();
-    if (!scanned || Date.now() - new Date(scanned).getTime() > 5 * 60 * 1000) {
-      this.scanner.refresh(false);
-    }
+    // No refresh on navigate — the service loads snapshot on init and the Refresh button handles live scans.
   }
 
   refresh(): void {

@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { interval, switchMap } from 'rxjs';
+import { EMPTY, interval, switchMap } from 'rxjs';
 import {
   LogicMode,
   MarketIndexDto,
@@ -20,6 +20,8 @@ export class ScannerStateService {
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
   private readonly _logicMode = signal<LogicMode>('Enhanced');
+  /** True when the current response was loaded from the DB snapshot (not a live scan). */
+  private readonly _fromSnapshot = signal(false);
 
   /** True when the EOD window is currently active on the server. */
   readonly eodWindowActive = signal(false);
@@ -34,6 +36,14 @@ export class ScannerStateService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly logicMode = this._logicMode.asReadonly();
+  /** True while showing cached DB snapshot data (before first live scan). */
+  readonly fromSnapshot = this._fromSnapshot.asReadonly();
+  /** Minutes since last scan. Null when no data loaded yet. */
+  readonly snapshotAgeMinutes = computed(() => {
+    const scannedAt = this._response()?.scannedAt;
+    if (!scannedAt) return null;
+    return Math.round((Date.now() - new Date(scannedAt).getTime()) / 60_000);
+  });
 
   readonly oversold = computed(() => this._response()?.oversoldChain ?? []);
   readonly overbought = computed(() => this._response()?.overboughtChain ?? []);
@@ -65,7 +75,8 @@ export class ScannerStateService {
   readonly adhocSessionRestored = signal(false);
 
   constructor() {
-    this.refresh();
+    // Load persisted snapshot immediately — no Yahoo Finance call
+    this.loadSnapshot();
     // Restore ad-hoc session from DB once on service init
     this.api.loadAdhocSession().subscribe({
       next: (session) => {
@@ -80,11 +91,14 @@ export class ScannerStateService {
       },
       error: () => this.adhocSessionRestored.set(true),
     });
-    // Restart auto-refresh whenever the configured interval changes
+    // Restart auto-refresh whenever the configured interval changes.
+    // interval = 0 means disabled — emit EMPTY so no timer fires.
     toObservable(this.configService.config)
       .pipe(
         takeUntilDestroyed(),
-        switchMap((cfg) => interval(cfg.scanIntervalSeconds * 1000)),
+        switchMap((cfg) =>
+          cfg.scanIntervalSeconds > 0 ? interval(cfg.scanIntervalSeconds * 1000) : EMPTY,
+        ),
         switchMap(() => {
           const cfg = this.configService.config();
           return this.api.getRsiScan(
@@ -98,6 +112,7 @@ export class ScannerStateService {
       .subscribe({
         next: (r) => {
           this._response.set(r);
+          this._fromSnapshot.set(false);
           this.updateEodSummary();
         },
       });
@@ -162,6 +177,29 @@ export class ScannerStateService {
     }
   }
 
+  /** Load last scan from DB snapshot (instant — no Yahoo Finance call).
+   * If no snapshot exists yet, does a single initial live scan to populate the DB. */
+  private loadSnapshot(): void {
+    this._loading.set(true);
+    this.api.getRsiSnapshot().subscribe({
+      next: (r) => {
+        if (r) {
+          this._response.set(r);
+          this._fromSnapshot.set(true);
+          this.updateEodSummary();
+          this._loading.set(false);
+        } else {
+          // No snapshot in DB yet — run one initial scan to populate it.
+          this.refresh(false);
+        }
+      },
+      error: () => {
+        // Snapshot API unavailable — fall back to a live scan.
+        this.refresh(false);
+      },
+    });
+  }
+
   toggleLogicMode(): void {
     const next: LogicMode = this._logicMode() === 'Legacy' ? 'Enhanced' : 'Legacy';
     this._logicMode.set(next);
@@ -177,9 +215,10 @@ export class ScannerStateService {
       .subscribe({
         next: (r) => {
           this._response.set(r);
+          this._fromSnapshot.set(false);
           this._loading.set(false);
           this.updateEodSummary();
-          this.loadMarketIndices(); // refresh indices on every scan
+          this.loadMarketIndices(); // refresh indices on every live scan
         },
         error: () => {
           this._error.set('Scanner unavailable');

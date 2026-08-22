@@ -110,11 +110,23 @@ export class ConfigPageComponent implements OnInit {
   readonly availableRoles: AppRole[] = ['Admin', 'Trader', 'Viewer'];
 
   // ── Refresh interval + RSI form ──────────────────────────────────────────
+  /** Interval options in seconds: 0 = disabled, then 30-min steps. */
+  readonly SCAN_INTERVAL_OPTIONS: { label: string; value: number }[] = [
+    { label: '0:00 — Disabled', value: 0 },
+    { label: '0:30 (30 min)', value: 1800 },
+    { label: '1:00 (1 hour)', value: 3600 },
+    { label: '1:30', value: 5400 },
+    { label: '2:00', value: 7200 },
+    { label: '3:00', value: 10800 },
+    { label: '4:00', value: 14400 },
+    { label: '6:00', value: 21600 },
+    { label: '8:00', value: 28800 },
+    { label: '12:00', value: 43200 },
+    { label: '24:00', value: 86400 },
+  ];
+
   protected readonly form = this.fb.group({
-    scanIntervalSeconds: [
-      this.configService.config().scanIntervalSeconds,
-      [Validators.required, Validators.min(30), Validators.max(3600)],
-    ],
+    scanIntervalSeconds: [this.configService.config().scanIntervalSeconds, [Validators.required]],
     portfolioRefreshSeconds: [
       this.configService.config().portfolioRefreshSeconds,
       [Validators.required, Validators.min(30), Validators.max(3600)],

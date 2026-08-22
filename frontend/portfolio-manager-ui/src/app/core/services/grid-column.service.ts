@@ -1,4 +1,5 @@
-import { computed, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
+import { UserPreferencesStateService } from './user-preferences-state.service';
 
 // ── Public Interfaces ─────────────────────────────────────────────────────────
 
@@ -296,7 +297,18 @@ type StoredPrefs = Record<string, ColumnPreference[]>;
 
 @Injectable({ providedIn: 'root' })
 export class GridColumnService {
+  private readonly userPrefs = inject(UserPreferencesStateService);
   private readonly _prefs = signal<StoredPrefs>(this.loadFromStorage());
+
+  constructor() {
+    // When DB preferences load, overlay them onto the signal (DB wins over localStorage)
+    effect(() => {
+      const dbValue = this.userPrefs.get<StoredPrefs>(LS_KEY);
+      if (dbValue) {
+        this._prefs.set(dbValue);
+      }
+    });
+  }
 
   /** All registered grids. */
   readonly grids = GRID_REGISTRY;
@@ -361,6 +373,7 @@ export class GridColumnService {
   updatePrefs(gridId: string, prefs: ColumnPreference[]): void {
     this._prefs.update((current) => ({ ...current, [gridId]: prefs }));
     this.saveToStorage(this._prefs());
+    this.userPrefs.set(LS_KEY, this._prefs()); // write-through to DB
   }
 
   /** Clear saved preferences for one grid (restores defaults). */
@@ -371,6 +384,7 @@ export class GridColumnService {
       return next;
     });
     this.saveToStorage(this._prefs());
+    this.userPrefs.set(LS_KEY, this._prefs());
   }
 
   /** Clear ALL saved column preferences. */
@@ -381,6 +395,7 @@ export class GridColumnService {
     } catch {
       // storage unavailable — ignore
     }
+    this.userPrefs.remove(LS_KEY);
   }
 
   // ── Private helpers ─────────────────────────────────────────────────────────
