@@ -2,14 +2,31 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class WatchlistController(IWatchlistService watchlistService, IMarketDataProvider marketData) : ControllerBase
+public class WatchlistController(
+    IWatchlistService watchlistService,
+    IMarketDataProvider marketData,
+    IWatchlistSnapshotService watchlistSnapshot) : ControllerBase
 {
+    private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+    /// <summary>Returns the latest persisted watchlist snapshot from DB — no Yahoo Finance call. 204 when no snapshot exists yet.</summary>
+    [HttpGet("snapshot")]
+    public async Task<ActionResult<IReadOnlyList<WatchlistSummaryDto>>> GetWatchlistSnapshot(CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        if (string.IsNullOrEmpty(uid)) return Unauthorized();
+        var snapshot = await watchlistSnapshot.GetLatestAsync(uid, ct);
+        if (snapshot is null) return NoContent();
+        return Ok(snapshot);
+    }
+
     /// <summary>Gets all watchlist items with live quotes.</summary>
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<WatchlistSummaryDto>>> GetAll(CancellationToken ct)
@@ -24,6 +41,11 @@ public class WatchlistController(IWatchlistService watchlistService, IMarketData
             quotes.TryGetValue(item.Symbol, out var quote);
             return new WatchlistSummaryDto(item, quote);
         }).ToList();
+
+        // Persist snapshot so the frontend loads instantly on next page open
+        var uid = CurrentUserId();
+        if (!string.IsNullOrEmpty(uid))
+            await watchlistSnapshot.SaveAsync(uid, results.AsReadOnly(), ct);
 
         return Ok(results);
     }

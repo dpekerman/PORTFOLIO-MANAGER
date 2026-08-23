@@ -1,13 +1,15 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { interval, switchMap } from 'rxjs';
+import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
 import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
   PortfolioSummary,
   UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
+import { AuthStateService } from './auth-state.service';
+import { ConfigService } from './config.service';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -16,6 +18,8 @@ export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly demoMode = inject(DemoModeService);
+  private readonly configService = inject(ConfigService);
+  private readonly authState = inject(AuthStateService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -27,6 +31,17 @@ export class PortfolioStateService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly selectedIds = this._selectedIds.asReadonly();
+
+  /** True when the current data was loaded from the DB snapshot (not a live Yahoo call). */
+  readonly fromSnapshot = signal(false);
+
+  /** Human-readable label for the configured auto-refresh interval. */
+  readonly refreshIntervalLabel = computed(() => {
+    const secs = this.configService.portfolioRefreshSeconds();
+    if (secs === 0) return 'Auto-refresh disabled';
+    const min = Math.round(secs / 60);
+    return min >= 1 ? `Auto-refreshes every ${min}min` : `Auto-refreshes every ${secs}s`;
+  });
 
   readonly selectedCount = computed(() => this._selectedIds().size);
   readonly hasSelection = computed(() => this._selectedIds().size > 0);
@@ -66,11 +81,22 @@ export class PortfolioStateService {
   );
 
   constructor() {
-    this.refresh();
-
-    interval(30_000)
+    // Wait for auth before loading snapshot — prevents 401 race on app start
+    toObservable(this.authState.isAuthenticated)
       .pipe(
         takeUntilDestroyed(),
+        filter((a) => a),
+        take(1),
+      )
+      .subscribe(() => this.loadSnapshot());
+
+    // Restart auto-refresh whenever the configured interval changes; 0 = disabled
+    toObservable(this.configService.config)
+      .pipe(
+        takeUntilDestroyed(),
+        switchMap((cfg) =>
+          cfg.portfolioRefreshSeconds > 0 ? interval(cfg.portfolioRefreshSeconds * 1000) : EMPTY,
+        ),
         switchMap(() => this.api.getAllQuotes()),
       )
       .subscribe({
@@ -79,9 +105,28 @@ export class PortfolioStateService {
       });
   }
 
+  /** Load last snapshot from DB (instant — no Yahoo Finance call).
+   * Falls back to a live refresh when no snapshot exists yet. */
+  private loadSnapshot(): void {
+    this._loading.set(true);
+    this.api.getPortfolioSnapshot().subscribe({
+      next: (data) => {
+        if (data) {
+          this._summaries.set(data);
+          this.fromSnapshot.set(true);
+          this._loading.set(false);
+        } else {
+          this.refresh();
+        }
+      },
+      error: () => this.refresh(),
+    });
+  }
+
   refresh(): void {
     this._loading.set(true);
     this._error.set(null);
+    this.fromSnapshot.set(false);
     this.api.getAllQuotes().subscribe({
       next: (data) => {
         this._summaries.set(data);
