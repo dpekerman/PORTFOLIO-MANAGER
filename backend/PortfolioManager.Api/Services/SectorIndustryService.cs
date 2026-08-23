@@ -144,11 +144,13 @@ public class SectorIndustryService
             {
                 var json = File.ReadAllText(_filePath);
                 var dto = JsonSerializer.Deserialize<SectorIndustryListsDto>(json);
-                if (dto is not null)
+                // Guard: if file exists but sectors/industries are empty, fall through to defaults
+                if (dto is not null && (dto.Sectors.Count > 0 || dto.Industries.Count > 0))
                 {
                     _logger.LogInformation("Loaded {S} sectors and {I} industries from file.", dto.Sectors.Count, dto.Industries.Count);
                     return dto;
                 }
+                _logger.LogWarning("sector-industry-lists.json exists but has empty sectors/industries — using defaults.");
             }
         }
         catch (Exception ex)

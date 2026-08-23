@@ -1,14 +1,18 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { interval, switchMap } from 'rxjs';
+import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
 import { WatchlistSummary } from '../models/portfolio.models';
+import { AuthStateService } from './auth-state.service';
+import { ConfigService } from './config.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class WatchlistStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly configService = inject(ConfigService);
+  private readonly authState = inject(AuthStateService);
 
   private readonly _items = signal<WatchlistSummary[]>([]);
   private readonly _loading = signal(false);
@@ -19,13 +23,34 @@ export class WatchlistStateService {
   readonly error = this._error.asReadonly();
   readonly count = computed(() => this._items().length);
 
-  constructor() {
-    this.refresh();
+  /** Human-readable label for the configured auto-refresh interval. */
+  readonly refreshIntervalLabel = computed(() => {
+    const secs = this.configService.watchlistRefreshSeconds();
+    if (secs === 0) return 'Auto-refresh disabled';
+    const min = Math.round(secs / 60);
+    return min >= 1 ? `Auto-refreshes every ${min}min` : `Auto-refreshes every ${secs}s`;
+  });
 
-    // Auto-refresh every 60 seconds (watchlist is lower priority than portfolio)
-    interval(60_000)
+  /** True when the current data was loaded from the DB snapshot (not a live Yahoo call). */
+  readonly fromSnapshot = signal(false);
+
+  constructor() {
+    // Wait for auth before loading snapshot — prevents 401 race on app start
+    toObservable(this.authState.isAuthenticated)
       .pipe(
         takeUntilDestroyed(),
+        filter((a) => a),
+        take(1),
+      )
+      .subscribe(() => this.loadSnapshot());
+
+    // Restart auto-refresh whenever the configured interval changes; 0 = disabled
+    toObservable(this.configService.config)
+      .pipe(
+        takeUntilDestroyed(),
+        switchMap((cfg) =>
+          cfg.watchlistRefreshSeconds > 0 ? interval(cfg.watchlistRefreshSeconds * 1000) : EMPTY,
+        ),
         switchMap(() => this.api.getWatchlist()),
       )
       .subscribe({
@@ -34,9 +59,28 @@ export class WatchlistStateService {
       });
   }
 
+  /** Load last snapshot from DB (instant — no Yahoo Finance call).
+   * Falls back to a live refresh when no snapshot exists yet. */
+  private loadSnapshot(): void {
+    this._loading.set(true);
+    this.api.getWatchlistSnapshot().subscribe({
+      next: (data) => {
+        if (data) {
+          this._items.set(data);
+          this.fromSnapshot.set(true);
+          this._loading.set(false);
+        } else {
+          this.refresh();
+        }
+      },
+      error: () => this.refresh(),
+    });
+  }
+
   refresh(): void {
     this._loading.set(true);
     this._error.set(null);
+    this.fromSnapshot.set(false);
     this.api.getWatchlist().subscribe({
       next: (data) => {
         this._items.set(data);

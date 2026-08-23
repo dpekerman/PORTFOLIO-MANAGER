@@ -2,14 +2,31 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class StocksController(IMarketDataProvider marketData, IPortfolioService portfolioService) : ControllerBase
+public class StocksController(
+    IMarketDataProvider marketData,
+    IPortfolioService portfolioService,
+    IPortfolioSnapshotService portfolioSnapshot) : ControllerBase
 {
+    private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+    /// <summary>Returns the latest persisted portfolio snapshot from DB — no Yahoo Finance call. 204 when no snapshot exists yet.</summary>
+    [HttpGet("quotes/snapshot")]
+    public async Task<ActionResult<IReadOnlyList<PortfolioSummaryDto>>> GetPortfolioSnapshot(CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        if (string.IsNullOrEmpty(uid)) return Unauthorized();
+        var snapshot = await portfolioSnapshot.GetLatestAsync(uid, ct);
+        if (snapshot is null) return NoContent();
+        return Ok(snapshot);
+    }
+
     /// <summary>Gets live quotes for all portfolio items (uses Yahoo batch endpoint to avoid rate limits).</summary>
     [HttpGet("quotes")]
     public async Task<ActionResult<IReadOnlyList<PortfolioSummaryDto>>> GetAllQuotes(CancellationToken ct)
@@ -55,7 +72,14 @@ public class StocksController(IMarketDataProvider marketData, IPortfolioService 
         }
 
         // Return in original sort order (by symbol)
-        return Ok(results.OrderBy(r => r.Item.Symbol).ToList());
+        var sorted = results.OrderBy(r => r.Item.Symbol).ToList();
+
+        // Persist snapshot so the frontend loads instantly on next page open
+        var uid = CurrentUserId();
+        if (!string.IsNullOrEmpty(uid))
+            await portfolioSnapshot.SaveAsync(uid, sorted.AsReadOnly(), ct);
+
+        return Ok(sorted);
     }
 
     /// <summary>Gets a live quote for a single symbol.</summary>

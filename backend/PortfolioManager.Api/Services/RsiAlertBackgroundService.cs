@@ -66,6 +66,7 @@ public sealed class RsiAlertBackgroundService(
         var scanner = scope.ServiceProvider.GetRequiredService<IRsiScannerService>();
         var notifier = scope.ServiceProvider.GetRequiredService<EmailNotificationService>();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var snapshotSvc = scope.ServiceProvider.GetRequiredService<IRsiSnapshotService>();
 
         // Mirror what ScannerController does: include all user-defined symbols from the
         // portfolio and watchlist so that non-TSX stocks (e.g. BABA, US-listed holdings)
@@ -98,6 +99,9 @@ public sealed class RsiAlertBackgroundService(
             logger.LogDebug("[RsiAlertBg] Scan returned demo data — skipping notification check.");
             return;
         }
+
+        // Persist scan snapshot so the frontend displays fresh data on next load
+        await snapshotSvc.SaveAsync(result, ct);
 
         // ── Standard Confirmed signal notifications ───────────────────────────
         var totalConfirmed =

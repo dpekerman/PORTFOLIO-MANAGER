@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortfolioManager.Api.Data;
 
@@ -11,9 +12,11 @@ using PortfolioManager.Api.Data;
 namespace PortfolioManager.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260821160920_AddRsiSnapshotAndUserPreferences")]
+    partial class AddRsiSnapshotAndUserPreferences
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -675,29 +678,6 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("PortfolioItems");
                 });
 
-            modelBuilder.Entity("PortfolioManager.Api.Models.PortfolioSnapshot", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("ItemCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("[]");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("PortfolioSnapshots");
-                });
-
             modelBuilder.Entity("PortfolioManager.Api.Models.PortfolioValueHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -767,34 +747,6 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
-                });
-
-            modelBuilder.Entity("PortfolioManager.Api.Models.RsiScanSnapshot", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OverboughtCount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("OversoldCount")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ScannedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("{}");
-
-                    b.Property<int>("SymbolCount")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("RsiScanSnapshots");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.SinglePositionLimit", b =>
@@ -896,41 +848,6 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasIndex("Symbol");
 
                     b.ToTable("StagedSignals");
-                });
-
-            modelBuilder.Entity("PortfolioManager.Api.Models.UserPreference", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("PreferenceKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PreferenceValue")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId", "PreferenceKey")
-                        .IsUnique();
-
-                    b.ToTable("UserPreferences");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.ValueScreenerScheduleConfig", b =>
@@ -1039,29 +956,6 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasFilter("[UserId] IS NOT NULL");
 
                     b.ToTable("WatchlistItems");
-                });
-
-            modelBuilder.Entity("PortfolioManager.Api.Models.WatchlistSnapshot", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("ItemCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("SnapshotJson")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("nvarchar(max)")
-                        .HasDefaultValue("[]");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("WatchlistSnapshots");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

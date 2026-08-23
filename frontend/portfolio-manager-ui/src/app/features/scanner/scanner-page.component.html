@@ -145,7 +145,19 @@
 
       <div class="section-actions">
         @if (scanner.scannedAt()) {
-          <span class="scan-time">Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}</span>
+          <span class="scan-time">
+            Scanned {{ scanner.scannedAt() | date: 'HH:mm:ss' }}
+            @if (scanner.snapshotAgeMinutes() !== null && scanner.snapshotAgeMinutes()! > 0) {
+              <span class="scan-age">&nbsp;({{ scanner.snapshotAgeMinutes() }} min ago)</span>
+            }
+            @if (scanner.fromSnapshot()) {
+              <span
+                class="scan-cached"
+                matTooltip="Showing saved snapshot — click Refresh for live data"
+                >&nbsp;· cached</span
+              >
+            }
+          </span>
         }
         <!-- Morning Check force-show toggle -->
         @if (yesterdayEod()?.hasData) {
@@ -176,8 +188,18 @@
     </div>
 
     <div class="table-wrapper">
-      @if (scanner.loading() || scanner.scannedAt() === null) {
+      @if (scanner.loading()) {
         <app-scanner-row-skeleton aria-label="Loading oversold signals…" />
+      } @else if (scanner.scannedAt() === null) {
+        @if (scanner.error()) {
+          <div class="scan-error-state">
+            <mat-icon>wifi_off</mat-icon>
+            <span>Scanner unavailable &mdash; could not reach Yahoo Finance.</span>
+            <button mat-stroked-button (click)="refresh()">Retry</button>
+          </div>
+        } @else {
+          <app-scanner-row-skeleton aria-label="Loading oversold signals…" />
+        }
       } @else {
         <app-rsi-scanner-table
           [results]="scanner.oversold()"
@@ -227,8 +249,18 @@
     </div>
 
     <div class="table-wrapper">
-      @if (scanner.loading() || scanner.scannedAt() === null) {
+      @if (scanner.loading()) {
         <app-scanner-row-skeleton aria-label="Loading overbought signals…" />
+      } @else if (scanner.scannedAt() === null) {
+        @if (scanner.error()) {
+          <div class="scan-error-state">
+            <mat-icon>wifi_off</mat-icon>
+            <span>Scanner unavailable &mdash; could not reach Yahoo Finance.</span>
+            <button mat-stroked-button (click)="refresh()">Retry</button>
+          </div>
+        } @else {
+          <app-scanner-row-skeleton aria-label="Loading overbought signals…" />
+        }
       } @else {
         <app-rsi-scanner-table
           [results]="scanner.overbought()"

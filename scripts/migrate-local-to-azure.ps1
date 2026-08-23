@@ -1,4 +1,4 @@
-# Portfolio Manager - Data Migration Script
+﻿# Portfolio Manager - Data Migration Script
 # Exports all business data from local SQL Server and optionally imports to Azure SQL
 #
 # Usage:
@@ -36,7 +36,10 @@ $tables = @(
     "StagedSignals",
     "ValueScreenerScheduleConfigs",
     "ValueScreenerSnapshots",
-    "PortfolioValueHistories"
+    "PortfolioValueHistories",
+    "UserPreferences"
+    # Snapshot tables (RsiScanSnapshots, PortfolioSnapshots, WatchlistSnapshots) are intentionally
+    # excluded - they are ephemeral caches that regenerate automatically on first page load after deploy.
 )
 
 function Format-SqlValue($value, $typeName) {
@@ -113,20 +116,21 @@ foreach ($table in $tables) {
     }
     $metaReader.Close()
 
-    $hasIdentity = ($cols | Where-Object { $_.IsIdentity }).Count -gt 0
-    $colList = ($cols | ForEach-Object { "[$($_.Name)]" }) -join ", "
+    # Exclude identity columns - let Azure SQL auto-generate IDs (no IDENTITY_INSERT needed)
+    $insertCols = $cols | Where-Object { -not $_.IsIdentity }
+    $colList = ($insertCols | ForEach-Object { "[$($_.Name)]" }) -join ", "
 
     $writer.WriteLine("-- [$table] : $count rows")
     if ($CleanFirst) {
         $writer.WriteLine("DELETE FROM [$table];")
     }
-    if ($hasIdentity) { $writer.WriteLine("SET IDENTITY_INSERT [$table] ON;") }
 
     $cmd.CommandText = "SELECT * FROM [$table] ORDER BY (SELECT NULL)"
     $dataReader = $cmd.ExecuteReader()
     while ($dataReader.Read()) {
         $vals = @()
         for ($i = 0; $i -lt $dataReader.FieldCount; $i++) {
+            if ($cols[$i].IsIdentity) { continue }  # skip identity - Azure generates new IDs
             $val = if ($dataReader.IsDBNull($i)) { $null } else { $dataReader.GetValue($i) }
             $vals += Format-SqlValue $val $cols[$i].Type
         }
@@ -134,12 +138,10 @@ foreach ($table in $tables) {
     }
     $dataReader.Close()
 
-    if ($hasIdentity) { $writer.WriteLine("SET IDENTITY_INSERT [$table] OFF;") }
     $writer.WriteLine("")
     $totalRows += $count
 }
 
-$writer.WriteLine("COMMIT TRANSACTION;")
 $writer.WriteLine("-- Migration complete: $totalRows total rows")
 $writer.Flush()
 $writer.Close()
@@ -170,17 +172,60 @@ try {
     exit 1
 }
 
+# Discover which tables actually exist on Azure (EF migrations may not have run yet)
+$existsCmd = $azureConn.CreateCommand()
+$existsCmd.CommandText = "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE'"
+$existsReader = $existsCmd.ExecuteReader()
+$azureTables = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+while ($existsReader.Read()) { $azureTables.Add($existsReader[0]) | Out-Null }
+$existsReader.Close()
+
 Write-Host ("Importing " + $totalRows + " rows to Azure SQL...") -ForegroundColor Cyan
-$sql = [System.IO.File]::ReadAllText($outputFile)
+
+# Read generated SQL, split by table block, execute each block separately
+$sqlContent = [System.IO.File]::ReadAllText($outputFile)
 
 $azureCmd = $azureConn.CreateCommand()
 $azureCmd.CommandTimeout = 300
-$azureCmd.CommandText = $sql
-try {
-    $azureCmd.ExecuteNonQuery() | Out-Null
-    Write-Host ("Import complete. " + $totalRows + " rows written to Azure SQL.") -ForegroundColor Green
-} catch {
-    Write-Error ("Import failed: " + $_)
-    Write-Host "Tip: open the generated .sql file in Azure portal Query Editor and run it there instead." -ForegroundColor Yellow
+
+# Execute each table's SQL block (DELETE + INSERTs) as one batch
+$blocks = [System.Text.RegularExpressions.Regex]::Split($sqlContent, "(?m)^-- \[")
+$imported = 0; $skipped = 0
+
+$azureCmd.CommandText = "BEGIN TRANSACTION;"; $azureCmd.ExecuteNonQuery() | Out-Null
+
+foreach ($block in $blocks) {
+    $b = $block.Trim()
+    if ([string]::IsNullOrWhiteSpace($b)) { continue }
+    # Reconstruct table name from first line: "TableName] : N rows"
+    $tableMatch = [System.Text.RegularExpressions.Regex]::Match($b, '^(\w+)\]')
+    if (-not $tableMatch.Success) { continue }
+    $tableName = $tableMatch.Groups[1].Value
+    if (-not $azureTables.Contains($tableName)) {
+        Write-Host ("  SKIPPED [$tableName] - table not found on Azure (run EF migrations first)") -ForegroundColor Yellow
+        $skipped++
+        continue
+    }
+    $rowCount = ([System.Text.RegularExpressions.Regex]::Matches($b, 'INSERT INTO')).Count
+    try {
+        # Re-add the comment prefix that was stripped by the split
+        $azureCmd.CommandText = "-- [$b"
+        $azureCmd.ExecuteNonQuery() | Out-Null
+        $imported += $rowCount
+        Write-Host ("  [" + $tableName + "] : " + $rowCount + " rows") -ForegroundColor Green
+    } catch {
+        Write-Error ("Import failed on [$tableName]: $_")
+        $azureCmd.CommandText = "ROLLBACK TRANSACTION;"; $azureCmd.ExecuteNonQuery() | Out-Null
+        $azureConn.Close()
+        Write-Host "Tip: open $outputFile in Azure portal Query Editor and run it manually." -ForegroundColor Yellow
+        exit 1
+    }
 }
+
+$azureCmd.CommandText = "COMMIT TRANSACTION;"; $azureCmd.ExecuteNonQuery() | Out-Null
 $azureConn.Close()
+if ($skipped -gt 0) {
+    Write-Host ("Import complete. " + $imported + " rows written. " + $skipped + " table(s) skipped (missing on Azure - re-run after deploying code).") -ForegroundColor Yellow
+} else {
+    Write-Host ("Import complete. " + $imported + " rows written to Azure SQL.") -ForegroundColor Green
+}

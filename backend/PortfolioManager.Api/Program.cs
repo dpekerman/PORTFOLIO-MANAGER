@@ -203,6 +203,12 @@ builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
 // Portfolio beta calculation
 builder.Services.AddScoped<IPortfolioBetaService, PortfolioBetaService>();
 
+// RSI snapshot persistence and per-user preferences
+builder.Services.AddScoped<IRsiSnapshotService, RsiSnapshotService>();
+builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
+builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
+builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
+
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────

@@ -8,7 +8,16 @@
           MY WATCHLIST
           <span class="count-badge">{{ watchlist.count() }}</span>
         </h1>
-        <p class="page-sub">Tracked symbols · Live prices · Auto-refreshes every 60s</p>
+        <p class="page-sub">
+          Tracked symbols · Live prices · {{ watchlist.refreshIntervalLabel() }}
+          @if (watchlist.fromSnapshot()) {
+            <span
+              class="cached-badge"
+              title="Showing saved snapshot — click Refresh for live prices"
+              >&nbsp;&middot; cached</span
+            >
+          }
+        </p>
       </div>
     </div>
 
@@ -83,15 +92,16 @@
   </div>
 
   @if (watchlist.loading()) {
-    <!-- ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Skeleton Grid (loading / refresh) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ -->
-    <div
-      class="watchlist-grid skeleton-grid"
-      aria-busy="true"
-      aria-label="Loading watchlistÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"
-    >
+    <div class="watchlist-grid skeleton-grid" aria-busy="true" aria-label="Loading watchlistâ€¦">
       @for (i of [0, 1, 2, 3, 4]; track i) {
         <app-watchlist-card-skeleton />
       }
+    </div>
+  } @else if (watchlist.error() && watchlist.items().length === 0) {
+    <div class="load-error-state">
+      <mat-icon>wifi_off</mat-icon>
+      <span>Could not load watchlist â€” could not reach Yahoo Finance.</span>
+      <button mat-stroked-button (click)="refresh()">Retry</button>
     </div>
   } @else if (watchlist.items().length > 0) {
     @if (viewMode() === 'grid') {
