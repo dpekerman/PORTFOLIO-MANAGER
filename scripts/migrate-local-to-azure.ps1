@@ -223,6 +223,24 @@ foreach ($block in $blocks) {
 }
 
 $azureCmd.CommandText = "COMMIT TRANSACTION;"; $azureCmd.ExecuteNonQuery() | Out-Null
+
+# Reassign all migrated UserIds to the Azure admin user
+# (local and Azure user GUIDs differ because they were created independently)
+Write-Host "Reassigning UserIds to Azure admin..." -ForegroundColor Cyan
+$fixSql = @'
+DECLARE @AdminId NVARCHAR(450);
+SELECT TOP 1 @AdminId = u.Id FROM AspNetUsers u
+  JOIN AspNetUserRoles ur ON u.Id = ur.UserId
+  JOIN AspNetRoles r ON ur.RoleId = r.Id WHERE r.Name = 'Admin';
+IF @AdminId IS NULL SELECT TOP 1 @AdminId = Id FROM AspNetUsers ORDER BY CreatedAt;
+UPDATE PortfolioItems SET UserId = @AdminId;
+UPDATE WatchlistItems SET UserId = @AdminId;
+UPDATE CashItems      SET UserId = @AdminId;
+UPDATE OptionItems    SET UserId = @AdminId;
+'@
+$fixCmd = $azureConn.CreateCommand(); $fixCmd.CommandText = $fixSql; $fixCmd.CommandTimeout = 60
+$fixCmd.ExecuteNonQuery() | Out-Null
+
 $azureConn.Close()
 if ($skipped -gt 0) {
     Write-Host ("Import complete. " + $imported + " rows written. " + $skipped + " table(s) skipped (missing on Azure - re-run after deploying code).") -ForegroundColor Yellow
