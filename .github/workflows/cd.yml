@@ -54,6 +54,23 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ${{ github.workspace }}/publish/api
 
+      - name: Set email App Password in App Service
+        if: ${{ secrets.EMAIL_APP_PASSWORD != '' }}
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          EMAIL_PWD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        # Uses Kudu REST API with publish-profile credentials — no service principal needed
+        run: |
+          KUDU_USER=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | sed 's/userName="//;s/"//')
+          KUDU_PASS=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"'  | head -1 | sed 's/userPWD="//;s/"//')
+          HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "https://portfolio-manager-f8e7evc3e9feb2hm.scm.canadacentral-01.azurewebsites.net/api/settings" \
+            -H "Content-Type: application/json" \
+            -u "$KUDU_USER:$KUDU_PASS" \
+            -d "{\"EmailNotification__Password\": \"$EMAIL_PWD\"}")
+          echo "Kudu settings API response: $HTTP"
+          [ "$HTTP" = "204" ] && echo "✅ Email password updated" || echo "⚠️  Unexpected status $HTTP"
+
   # ── Frontend: build + deploy to Azure Static Web Apps ─────────────────────
   deploy-frontend:
     name: Deploy Angular 22 → Static Web Apps
