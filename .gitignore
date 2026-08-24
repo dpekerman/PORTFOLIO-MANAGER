@@ -32,6 +32,8 @@ notification-recipients.json
 scripts/migration-config.ps1
 # Migration SQL output files — local only
 scripts/migration-output-*.sql
+scripts/restore-output-*.sql
+scripts/local-backups/
 
 # ========================================
 # Interview prep / TEST folder
