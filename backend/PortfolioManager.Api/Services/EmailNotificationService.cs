@@ -1,7 +1,9 @@
-using System.Net;
-using System.Net.Mail;
+﻿using System.Net.Mail;
 using System.Text;
+using MailKit.Net.Smtp;
+using MailKit.Security;
 using Microsoft.Extensions.Options;
+using MimeKit;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -80,14 +82,6 @@ public class EmailNotificationService(
 
         try
         {
-            using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-            {
-                EnableSsl = _settings.UseStartTls,
-                Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                Timeout = 20_000,
-            };
-
             var from = !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username;
 
             using var message = new MailMessage
@@ -113,7 +107,7 @@ public class EmailNotificationService(
             };
 
             message.To.Add(toEmail);
-            await client.SendMailAsync(message);
+            await SendViaMailKitAsync(message);
             logger.LogInformation("Test email sent successfully to {Email}.", toEmail);
             return null; // success
         }
@@ -129,13 +123,7 @@ public class EmailNotificationService(
         List<string> recipientEmails,
         DateTime scannedAt)
     {
-        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-        {
-            EnableSsl = _settings.UseStartTls,
-            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            Timeout = 15_000,
-        };
+
 
         var oversold  = signals.Where(s => s.ScanType == ScanType.Oversold).ToList();
         var overbought = signals.Where(s => s.ScanType == ScanType.Overbought).ToList();
@@ -167,7 +155,22 @@ public class EmailNotificationService(
         foreach (var email in recipientEmails)
             message.To.Add(email);
 
-        await client.SendMailAsync(message);
+        await SendViaMailKitAsync(message);
+    }
+
+    /// <summary>Sends a MailMessage via MailKit — handles Gmail StartTLS correctly on Linux.</summary>
+    private async Task SendViaMailKitAsync(MailMessage mailMessage, CancellationToken ct = default)
+    {
+        var mimeMessage = MimeMessage.CreateFromMailMessage(mailMessage);
+        using var client = new MailKit.Net.Smtp.SmtpClient();
+        // Port 465 = implicit SSL; port 587 = STARTTLS (Gmail default)
+        var options = _settings.SmtpPort == 465
+            ? SecureSocketOptions.SslOnConnect
+            : SecureSocketOptions.StartTls;
+        await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, options, ct);
+        await client.AuthenticateAsync(_settings.Username, _settings.Password.Replace(" ", ""), ct);
+        await client.SendAsync(mimeMessage, ct);
+        await client.DisconnectAsync(true, ct);
     }
 
     private static string BuildHtmlBody(
@@ -287,13 +290,7 @@ public class EmailNotificationService(
 
     private async Task SendSavedSignalsEmailAsync(List<DailySignal> signals, List<string> recipientEmails, DateTime triggeredAt)
     {
-        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-        {
-            EnableSsl = _settings.UseStartTls,
-            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            Timeout = 15_000,
-        };
+
 
         var tickerSummary = string.Join(", ", signals.Select(s => $"{s.Symbol} RSI:{s.Rsi:F1}"));
         var subject = signals.Count == 1
@@ -319,7 +316,7 @@ public class EmailNotificationService(
         foreach (var email in recipientEmails)
             message.To.Add(email);
 
-        await client.SendMailAsync(message);
+        await SendViaMailKitAsync(message);
     }
 
     private static string BuildSavedSignalsHtmlBody(List<DailySignal> signals, DateTime triggeredAt)
@@ -445,13 +442,7 @@ public class EmailNotificationService(
 
             var body = BuildEod2HtmlBody(confirmed, awaiting, dateTimeStr);
 
-            using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-            {
-                EnableSsl = _settings.UseStartTls,
-                Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-                DeliveryMethod = SmtpDeliveryMethod.Network,
-                Timeout = 15_000,
-            };
+
 
             using var message = new MailMessage
             {
@@ -470,7 +461,7 @@ public class EmailNotificationService(
             foreach (var email in recipientList)
                 message.To.Add(email);
 
-            await client.SendMailAsync(message);
+            await SendViaMailKitAsync(message);
             logger.LogInformation(
                 "RSI 2-Stage EOD Report sent: {Confirmed} confirmed, {Awaiting} awaiting \u2014 {Recipients} recipient(s).",
                 confirmed.Count, awaiting.Count, recipientList.Count);
@@ -686,13 +677,7 @@ public class EmailNotificationService(
         List<string> recipientEmails,
         DateTime scannedAt)
     {
-        using var client = new SmtpClient(_settings.SmtpHost, _settings.SmtpPort)
-        {
-            EnableSsl = _settings.UseStartTls,
-            Credentials = new NetworkCredential(_settings.Username, _settings.Password),
-            DeliveryMethod = SmtpDeliveryMethod.Network,
-            Timeout = 15_000,
-        };
+
 
         var oversold   = signals.Where(s => s.ScanType == ScanType.Oversold).ToList();
         var overbought = signals.Where(s => s.ScanType == ScanType.Overbought).ToList();
@@ -722,7 +707,7 @@ public class EmailNotificationService(
         foreach (var email in recipientEmails)
             message.To.Add(email);
 
-        await client.SendMailAsync(message);
+        await SendViaMailKitAsync(message);
     }
 
     private static string BuildEodHtmlBody(
