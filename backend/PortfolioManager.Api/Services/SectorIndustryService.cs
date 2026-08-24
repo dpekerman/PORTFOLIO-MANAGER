@@ -93,7 +93,9 @@ public class SectorIndustryService
     }
 
     private static List<string> DefaultDecisionSources() =>
-        ["App Signal", "Catalyst", "Loss Harvest", "Manual", "Rebalance", "Risk Control"];
+        ["App Signal", "App Signal - Add", "App Signal - RSI Oversold", "App Signal - Trim",
+         "Bought Deal", "Catalyst", "Legacy", "Loss Harvest", "Manual", "Manual - Buy on pullback",
+         "Rebalance", "Risk Control", "Risk Control - all out", "Risk Control - Trim"];
 
     /// <summary>Returns the current Decision Source list, falling back to defaults.</summary>
     public DecisionSourcesDto GetDecisionSources()
