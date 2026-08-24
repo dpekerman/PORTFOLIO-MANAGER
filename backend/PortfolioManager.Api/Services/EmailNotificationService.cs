@@ -168,7 +168,7 @@ public class EmailNotificationService(
             ? SecureSocketOptions.SslOnConnect
             : SecureSocketOptions.StartTls;
         await client.ConnectAsync(_settings.SmtpHost, _settings.SmtpPort, options, ct);
-        await client.AuthenticateAsync(_settings.Username, _settings.Password.Trim(), ct);
+        await client.AuthenticateAsync(_settings.Username, _settings.Password.Replace(" ", ""), ct);
         await client.SendAsync(mimeMessage, ct);
         await client.DisconnectAsync(true, ct);
     }
