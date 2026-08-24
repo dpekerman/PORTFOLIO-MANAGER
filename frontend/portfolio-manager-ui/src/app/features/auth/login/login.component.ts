@@ -51,7 +51,7 @@ export class LoginComponent {
       .subscribe({
         next: (response) => {
           this.authState.setAuth(response);
-          this.router.navigate(['/scanner']);
+          this.router.navigate(['/portfolio']);
         },
         error: () => {
           this.errorMessage.set('Invalid email or password.');
