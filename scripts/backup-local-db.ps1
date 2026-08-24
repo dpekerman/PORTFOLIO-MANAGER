@@ -8,11 +8,11 @@ Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
 $LocalServer   = "localhost"
-$LocalDatabase = "PortfolioManagerDb"
+$LocalDatabase = "PortfolioManagerLocal"
 $BackupRoot    = "D:\PORTFOLIO-MANAGER-SQL-BACKUP"
 $stamp         = Get-Date -Format 'yyyyMMdd-HHmmss'
-$bakFile       = Join-Path $BackupRoot ("PortfolioManagerDb_" + $stamp + ".bak")
-$sqlFile       = Join-Path $BackupRoot ("PortfolioManagerDb_DataExport_" + $stamp + ".sql")
+$bakFile       = Join-Path $BackupRoot ($LocalDatabase + "_" + $stamp + ".bak")
+$sqlFile       = Join-Path $BackupRoot ($LocalDatabase + "_DataExport_" + $stamp + ".sql")
 
 # All business + settings tables (same list used by the migration scripts).
 $tables = @(
@@ -29,7 +29,8 @@ $tables = @(
     "ValueScreenerScheduleConfigs",
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
-    "UserPreferences"
+    "UserPreferences",
+    "SectorIndustryConfigs"
 )
 
 function Format-SqlValue($value, $typeName) {

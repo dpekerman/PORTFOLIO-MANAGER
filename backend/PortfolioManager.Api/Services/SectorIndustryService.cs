@@ -1,181 +1,120 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
 /// <summary>
-/// Singleton that manages the curated lists of sectors and industries,
-/// persisting them to a JSON file so they survive application restarts.
+/// Manages the curated lists of sectors, industries, and decision sources,
+/// persisted in the SectorIndustryConfigs table (single row, Id = 1) so they
+/// are covered by the normal DB backup/migration process instead of a loose file.
 /// </summary>
-public class SectorIndustryService
+public class SectorIndustryService(AppDbContext db)
 {
-    private readonly string _filePath;
-    private readonly ILogger<SectorIndustryService> _logger;
-    private readonly object _lock = new();
-    private SectorIndustryListsDto _lists;
+    private static readonly List<string> DefaultSectors =
+    [
+        "Communication Services", "Consumer Discretionary", "Consumer Staples", "Energy",
+        "ETFs & Funds", "Financial Services", "Healthcare", "Industrials",
+        "Information Technology", "Materials", "Real Estate", "Technology", "Utilities"
+    ];
 
-    private static readonly SectorIndustryListsDto _defaults = new(
-        Sectors:
-        [
-            "Communication Services",
-            "Consumer Discretionary",
-            "Consumer Staples",
-            "Energy",
-            "ETFs & Funds",
-            "Financial Services",
-            "Healthcare",
-            "Industrials",
-            "Information Technology",
-            "Materials",
-            "Real Estate",
-            "Technology",
-            "Utilities"
-        ],
-        Industries:
-        [
-            "Airlines",
-            "Asset Management",
-            "Banks – Diversified",
-            "Banks – Regional",
-            "Biotechnology",
-            "Broadcasting",
-            "Capital Markets",
-            "Chemicals",
-            "Communication Equipment",
-            "Consumer Electronics",
-            "Drug Manufacturers",
-            "Electric Utilities",
-            "Electronic Components",
-            "ETFs & Funds",
-            "Food Distribution",
-            "Gold",
-            "Healthcare Plans",
-            "Independent Power Producers",
-            "Information Technology Services",
-            "Insurance – Diversified",
-            "Integrated Freight & Logistics",
-            "Internet Content & Information",
-            "Medical Devices",
-            "Medical Instruments & Supplies",
-            "Oil & Gas Exploration & Production",
-            "Oil & Gas Integrated",
-            "Oil & Gas Midstream",
-            "Oil & Gas Refining & Marketing",
-            "Packaged Foods",
-            "Pharmaceuticals",
-            "REIT – Diversified",
-            "REIT – Industrial",
-            "REIT – Office",
-            "REIT – Retail",
-            "Semiconductors",
-            "Software – Application",
-            "Software – Infrastructure",
-            "Specialty Chemicals",
-            "Telecom Services",
-            "Utilities – Regulated Electric",
-            "Utilities – Regulated Gas"
-        ]
-    );
-
-    public SectorIndustryService(ILogger<SectorIndustryService> logger, IWebHostEnvironment env)
-    {
-        _logger = logger;
-        _filePath = Path.Combine(env.ContentRootPath, "sector-industry-lists.json");
-        _lists = Load();
-    }
-
-    public SectorIndustryListsDto GetLists()
-    {
-        lock (_lock) return new(
-            _lists.Sectors.OrderBy(s => s).ToList(),
-            _lists.Industries.OrderBy(i => i).ToList(),
-            _lists.DecisionSources ?? DefaultDecisionSources());
-    }
+    private static readonly List<string> DefaultIndustries =
+    [
+        "Airlines", "Asset Management", "Banks – Diversified", "Banks – Regional", "Biotechnology",
+        "Broadcasting", "Capital Markets", "Chemicals", "Communication Equipment",
+        "Consumer Electronics", "Drug Manufacturers", "Electric Utilities", "Electronic Components",
+        "ETFs & Funds", "Food Distribution", "Gold", "Healthcare Plans",
+        "Independent Power Producers", "Information Technology Services", "Insurance – Diversified",
+        "Integrated Freight & Logistics", "Internet Content & Information", "Medical Devices",
+        "Medical Instruments & Supplies", "Oil & Gas Exploration & Production",
+        "Oil & Gas Integrated", "Oil & Gas Midstream", "Oil & Gas Refining & Marketing",
+        "Packaged Foods", "Pharmaceuticals", "REIT – Diversified", "REIT – Industrial",
+        "REIT – Office", "REIT – Retail", "Semiconductors", "Software – Application",
+        "Software – Infrastructure", "Specialty Chemicals", "Telecom Services",
+        "Utilities – Regulated Electric", "Utilities – Regulated Gas"
+    ];
 
     private static List<string> DefaultDecisionSources() =>
         ["App Signal", "App Signal - Add", "App Signal - RSI Oversold", "App Signal - Trim",
          "Bought Deal", "Catalyst", "Legacy", "Loss Harvest", "Manual", "Manual - Buy on pullback",
          "Rebalance", "Risk Control", "Risk Control - all out", "Risk Control - Trim"];
 
-    /// <summary>Returns the current Decision Source list, falling back to defaults.</summary>
-    public DecisionSourcesDto GetDecisionSources()
+    /// <summary>Loads the single config row, seeding it with defaults on first run.</summary>
+    private async Task<SectorIndustryConfig> LoadAsync(CancellationToken ct)
     {
-        lock (_lock)
-            return new(_lists.DecisionSources ?? DefaultDecisionSources());
+        var row = await db.SectorIndustryConfigs.FirstOrDefaultAsync(r => r.Id == 1, ct);
+        if (row is not null) return row;
+
+        row = new SectorIndustryConfig
+        {
+            Id = 1,
+            SectorsJson = JsonSerializer.Serialize(DefaultSectors),
+            IndustriesJson = JsonSerializer.Serialize(DefaultIndustries),
+            DecisionSourcesJson = JsonSerializer.Serialize(DefaultDecisionSources()),
+        };
+        db.SectorIndustryConfigs.Add(row);
+        await db.SaveChangesAsync(ct);
+        return row;
     }
 
-    /// <summary>Replaces the Decision Source list and persists to disk.</summary>
-    public DecisionSourcesDto SaveDecisionSources(UpdateDecisionSourcesRequest request)
+    private static List<string> ParseOrEmpty(string json) =>
+        JsonSerializer.Deserialize<List<string>>(json) ?? [];
+
+    public async Task<SectorIndustryListsDto> GetListsAsync(CancellationToken ct = default)
+    {
+        var row = await LoadAsync(ct);
+        var sectors = ParseOrEmpty(row.SectorsJson);
+        var industries = ParseOrEmpty(row.IndustriesJson);
+        var decisionSources = ParseOrEmpty(row.DecisionSourcesJson);
+        return new(
+            sectors.Count > 0 ? sectors.OrderBy(s => s).ToList() : DefaultSectors,
+            industries.Count > 0 ? industries.OrderBy(i => i).ToList() : DefaultIndustries,
+            decisionSources.Count > 0 ? decisionSources : DefaultDecisionSources());
+    }
+
+    public async Task<DecisionSourcesDto> GetDecisionSourcesAsync(CancellationToken ct = default)
+    {
+        var row = await LoadAsync(ct);
+        var items = ParseOrEmpty(row.DecisionSourcesJson);
+        return new(items.Count > 0 ? items : DefaultDecisionSources());
+    }
+
+    /// <summary>Replaces the Decision Source list and persists to the DB.</summary>
+    public async Task<DecisionSourcesDto> SaveDecisionSourcesAsync(
+        UpdateDecisionSourcesRequest request, CancellationToken ct = default)
     {
         var items = request.Items
             .Select(d => d.Trim()).Where(d => d.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        lock (_lock)
-        {
-            _lists = _lists with { DecisionSources = items };
-            Persist();
-            return new(items);
-        }
+        var row = await LoadAsync(ct);
+        row.DecisionSourcesJson = JsonSerializer.Serialize(items);
+        await db.SaveChangesAsync(ct);
+        return new(items);
     }
 
-    public void SaveLists(UpdateSectorIndustryListsRequest request)
+    public async Task SaveListsAsync(UpdateSectorIndustryListsRequest request, CancellationToken ct = default)
     {
-        var updated = new SectorIndustryListsDto(
-            Sectors: request.Sectors.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList(),
-            Industries: request.Industries.Select(i => i.Trim()).Where(i => i.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(i => i).ToList(),
-            DecisionSources: request.DecisionSources?
-                .Select(d => d.Trim()).Where(d => d.Length > 0)
-                .Distinct(StringComparer.OrdinalIgnoreCase).ToList()
-                ?? _lists.DecisionSources
-        );
+        var row = await LoadAsync(ct);
 
-        lock (_lock)
-        {
-            _lists = updated;
-            Persist();
-        }
-    }
+        row.SectorsJson = JsonSerializer.Serialize(
+            request.Sectors.Select(s => s.Trim()).Where(s => s.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(s => s).ToList());
 
-    private SectorIndustryListsDto Load()
-    {
-        try
+        row.IndustriesJson = JsonSerializer.Serialize(
+            request.Industries.Select(i => i.Trim()).Where(i => i.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(i => i).ToList());
+
+        if (request.DecisionSources is not null)
         {
-            if (File.Exists(_filePath))
-            {
-                var json = File.ReadAllText(_filePath);
-                var dto = JsonSerializer.Deserialize<SectorIndustryListsDto>(json);
-                // Guard: if file exists but sectors/industries are empty, fall through to defaults
-                if (dto is not null && (dto.Sectors.Count > 0 || dto.Industries.Count > 0))
-                {
-                    _logger.LogInformation("Loaded {S} sectors and {I} industries from file.", dto.Sectors.Count, dto.Industries.Count);
-                    return dto;
-                }
-                _logger.LogWarning("sector-industry-lists.json exists but has empty sectors/industries — using defaults.");
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not load sector-industry-lists.json — using defaults.");
+            row.DecisionSourcesJson = JsonSerializer.Serialize(
+                request.DecisionSources.Select(d => d.Trim()).Where(d => d.Length > 0)
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList());
         }
 
-        // Persist defaults on first run
-        _lists = _defaults;
-        Persist();
-        return _defaults;
-    }
-
-    private void Persist()
-    {
-        try
-        {
-            var json = JsonSerializer.Serialize(_lists, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_filePath, json);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save sector-industry-lists.json.");
-        }
+        await db.SaveChangesAsync(ct);
     }
 }
+

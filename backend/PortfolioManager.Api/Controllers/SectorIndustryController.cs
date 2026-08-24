@@ -11,25 +11,26 @@ namespace PortfolioManager.Api.Controllers;
 public class SectorIndustryController(SectorIndustryService service) : ControllerBase
 {
     [HttpGet]
-    public ActionResult<SectorIndustryListsDto> GetLists() => Ok(service.GetLists());
+    public async Task<ActionResult<SectorIndustryListsDto>> GetLists(CancellationToken ct)
+        => Ok(await service.GetListsAsync(ct));
 
     [Authorize(Roles = "Admin")]
     [HttpPut]
-    public IActionResult SaveLists([FromBody] UpdateSectorIndustryListsRequest request)
+    public async Task<IActionResult> SaveLists([FromBody] UpdateSectorIndustryListsRequest request, CancellationToken ct)
     {
-        service.SaveLists(request);
-        return Ok(service.GetLists());
+        await service.SaveListsAsync(request, ct);
+        return Ok(await service.GetListsAsync(ct));
     }
 
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Dedicated Decision Sources endpoints Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Dedicated Decision Sources endpoints ────────────────────────────────────
 
     [HttpGet("decision-sources")]
-    public ActionResult<DecisionSourcesDto> GetDecisionSources()
-        => Ok(service.GetDecisionSources());
+    public async Task<ActionResult<DecisionSourcesDto>> GetDecisionSources(CancellationToken ct)
+        => Ok(await service.GetDecisionSourcesAsync(ct));
 
     [Authorize(Roles = "Admin")]
     [HttpPut("decision-sources")]
-    public ActionResult<DecisionSourcesDto> SaveDecisionSources(
-        [FromBody] UpdateDecisionSourcesRequest request)
-        => Ok(service.SaveDecisionSources(request));
+    public async Task<ActionResult<DecisionSourcesDto>> SaveDecisionSources(
+        [FromBody] UpdateDecisionSourcesRequest request, CancellationToken ct)
+        => Ok(await service.SaveDecisionSourcesAsync(request, ct));
 }

@@ -186,7 +186,7 @@ builder.Services.AddSingleton<ScannerRuntimeConfig>(sp =>
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailNotification"));
 builder.Services.AddSingleton<NotificationRecipientsService>();
-builder.Services.AddSingleton<SectorIndustryService>();
+builder.Services.AddScoped<SectorIndustryService>();
 builder.Services.AddSingleton<SignalNotificationTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();

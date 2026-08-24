@@ -14,9 +14,22 @@ public class AuthController(
     UserManager<ApplicationUser> userManager,
     ITokenService tokenService,
     AppDbContext db,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    IWebHostEnvironment env) : ControllerBase
 {
     private static readonly string[] ValidRoles = ["Admin", "Trader", "Viewer"];
+
+    // Frontend (Static Web Apps) and backend (App Service) are different domains in production,
+    // so the refresh cookie must be SameSite=None+Secure to survive cross-site requests there.
+    // Locally everything is same-site (proxied through localhost), so Lax+non-Secure works over http.
+    private CookieOptions RefreshCookieOptions(DateTimeOffset expires) => new()
+    {
+        HttpOnly = true,
+        Secure = env.IsProduction(),
+        SameSite = env.IsProduction() ? SameSiteMode.None : SameSiteMode.Lax,
+        Expires = expires,
+        Path = "/api/auth"
+    };
 
     [HttpGet("setup-required")]
     [AllowAnonymous]
@@ -102,7 +115,7 @@ public class AuthController(
             }
         }
 
-        Response.Cookies.Delete("refreshToken");
+        Response.Cookies.Delete("refreshToken", RefreshCookieOptions(DateTimeOffset.UtcNow));
         return NoContent();
     }
 
@@ -135,14 +148,8 @@ public class AuthController(
         });
         await db.SaveChangesAsync(ct);
 
-        Response.Cookies.Append("refreshToken", rawToken, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = Request.IsHttps,
-            SameSite = SameSiteMode.Strict,
-            Expires = DateTimeOffset.UtcNow.AddDays(expiryDays),
-            Path = "/api/auth"     // limit cookie scope to auth endpoints only
-        });
+        Response.Cookies.Append("refreshToken", rawToken,
+            RefreshCookieOptions(DateTimeOffset.UtcNow.AddDays(expiryDays)));
 
         return Ok(new AuthResponse(accessToken, new UserInfoDto(user.Id, user.DisplayName, user.Email!, roles)));
     }
