@@ -24,7 +24,8 @@
 
 `EmailNotification__Password` in App Service settings may be a regular Gmail password, not a 16-character App Password. If settings are ever exposed, your main Google account is at risk.
 
-1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+1. Go to [myaccount.google.com/apppasswords](https://myaccount.google.
+com/apppasswords)
 2. Enable 2-Step Verification if not already on
 3. Create App Password → name it `Portfolio Manager Azure`
 4. Copy the 16-character code (format: `xxxx xxxx xxxx xxxx`)
