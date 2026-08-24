@@ -57,5 +57,20 @@
     "Utilities \u2013 Regulated Electric",
     "Utilities \u2013 Regulated Gas"
   ],
-  "DecisionSources": null
+  "DecisionSources": [
+    "App Signal",
+    "App Signal - Add",
+    "App Signal - RSI Oversold",
+    "App Signal - Trim",
+    "Bought Deal",
+    "Catalyst",
+    "Legacy",
+    "Loss Harvest",
+    "Manual",
+    "Manual - Buy on pullback",
+    "Rebalance",
+    "Risk Control",
+    "Risk Control - all out",
+    "Risk Control - Trim"
+  ]
 }

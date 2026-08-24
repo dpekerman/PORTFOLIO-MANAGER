@@ -32,11 +32,19 @@ const DEFAULTS: AppConfig = {
   eodWindowEnabled: true,
   decisionSources: [
     'App Signal',
-    'Manual',
+    'App Signal - Add',
+    'App Signal - RSI Oversold',
+    'App Signal - Trim',
+    'Bought Deal',
     'Catalyst',
+    'Legacy',
+    'Loss Harvest',
+    'Manual',
+    'Manual - Buy on pullback',
     'Rebalance',
     'Risk Control',
-    'Loss Harvest',
+    'Risk Control - all out',
+    'Risk Control - Trim',
   ],
   sessionTimeoutMinutes: 480, // 8 hours
 };
