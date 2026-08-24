@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import {
   AddCashItemRequest,
   AddManualPositionRequest,
@@ -125,8 +125,38 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/notes`, { notes });
   }
 
+  /** Returns the latest persisted portfolio snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */
+  getPortfolioSnapshot(): Observable<PortfolioSummary[] | null> {
+    return this.http
+      .get<PortfolioSummary[]>(`${this.base}/stocks/quotes/snapshot`, { observe: 'response' })
+      .pipe(
+        map((r) => (r.status === 204 ? null : r.body)),
+        catchError(() => of(null)),
+      );
+  }
+
+  /** Returns the latest persisted watchlist snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */
+  getWatchlistSnapshot(): Observable<WatchlistSummary[] | null> {
+    return this.http
+      .get<WatchlistSummary[]>(`${this.base}/watchlist/snapshot`, { observe: 'response' })
+      .pipe(
+        map((r) => (r.status === 204 ? null : r.body)),
+        catchError(() => of(null)),
+      );
+  }
+
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
-  /** @param force true = bypass server-side 4-minute cache (use on manual refresh only) */
+  /** Returns the latest persisted RSI scan snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */
+  getRsiSnapshot(): Observable<ScannerResponse | null> {
+    return this.http
+      .get<ScannerResponse>(`${this.base}/scanner/rsi/snapshot`, { observe: 'response' })
+      .pipe(
+        map((r) => (r.status === 204 ? null : r.body)),
+        catchError(() => of(null)),
+      );
+  }
+
+  /** Triggers a live RSI scan against Yahoo Finance and saves the result as the new snapshot. */
   getRsiScan(
     force = false,
     oversold = 30,

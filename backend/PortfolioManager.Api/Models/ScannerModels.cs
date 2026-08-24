@@ -183,6 +183,18 @@ public class ScannerResponse
 
 // ── Ad-Hoc Session Persistence ───────────────────────────────────────────────
 
+/// <summary>Single-row upsert table (Id always 1). Persists the latest RSI scan JSON
+/// so the scanner page loads instantly without hitting Yahoo Finance.</summary>
+public class RsiScanSnapshot
+{
+    public int Id { get; set; } = 1;
+    public string SnapshotJson { get; set; } = "{}";
+    public DateTime ScannedAt { get; set; } = DateTime.UtcNow;
+    public int SymbolCount { get; set; }
+    public int OversoldCount { get; set; }
+    public int OverboughtCount { get; set; }
+}
+
 public class AdhocAnalysisSession
 {
     public int Id { get; set; }

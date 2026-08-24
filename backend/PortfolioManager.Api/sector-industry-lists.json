@@ -28,7 +28,6 @@
     "Drug Manufacturers",
     "Electric Utilities",
     "Electronic Components",
-    "Entertainment",
     "ETFs \u0026 Funds",
     "Food Distribution",
     "Gold",
@@ -55,22 +54,8 @@
     "Software \u2013 Infrastructure",
     "Specialty Chemicals",
     "Telecom Services",
-    "Test",
-    "Uranium",
     "Utilities \u2013 Regulated Electric",
     "Utilities \u2013 Regulated Gas"
   ],
-  "DecisionSources": [
-    "App Signal - Trim",
-    "Manual - Buy on pullback",
-    "Catalyst",
-    "Rebalance",
-    "Risk Control - Trim",
-    "Loss Harvest",
-    "Legacy",
-    "App Signal - Add",
-    "Risk Control - all out",
-    "Bought Deal",
-    "App Signal - RSI Oversold"
-  ]
+  "DecisionSources": null
 }

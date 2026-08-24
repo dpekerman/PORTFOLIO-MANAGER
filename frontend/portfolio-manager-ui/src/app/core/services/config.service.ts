@@ -1,4 +1,5 @@
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
+import { UserPreferencesStateService } from './user-preferences-state.service';
 
 export interface AppConfig {
   scanIntervalSeconds: number;
@@ -21,7 +22,7 @@ export interface AppConfig {
 const STORAGE_KEY = 'pm_app_config';
 
 const DEFAULTS: AppConfig = {
-  scanIntervalSeconds: 300, // 5 minutes
+  scanIntervalSeconds: 0, // 0 = disabled by default; user enables manually
   portfolioRefreshSeconds: 120, // 2 minutes
   watchlistRefreshSeconds: 60, // 1 minute
   rsiOversoldThreshold: 30,
@@ -42,6 +43,7 @@ const DEFAULTS: AppConfig = {
 
 @Injectable({ providedIn: 'root' })
 export class ConfigService {
+  private readonly userPrefs = inject(UserPreferencesStateService);
   private readonly _config = signal<AppConfig>(this.load());
 
   readonly config = this._config.asReadonly();
@@ -57,14 +59,23 @@ export class ConfigService {
     effect(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this._config()));
     });
+    // When DB preferences load, overlay DB value (DB wins over localStorage)
+    effect(() => {
+      const dbValue = this.userPrefs.get<AppConfig>(STORAGE_KEY);
+      if (dbValue) {
+        this._config.set({ ...DEFAULTS, ...dbValue });
+      }
+    });
   }
 
   update(patch: Partial<AppConfig>): void {
     this._config.update((cur) => ({ ...cur, ...patch }));
+    this.userPrefs.set(STORAGE_KEY, this._config()); // write-through to DB
   }
 
   reset(): void {
     this._config.set({ ...DEFAULTS });
+    this.userPrefs.remove(STORAGE_KEY);
   }
 
   private load(): AppConfig {

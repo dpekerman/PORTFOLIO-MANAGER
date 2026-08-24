@@ -45,6 +45,25 @@
   font-size: 0.7rem;
   color: var(--text-faint);
   letter-spacing: 0.3px;
+
+  .cached-badge {
+    color: var(--accent, #ffb300);
+    opacity: 0.85;
+    cursor: help;
+  }
+}
+
+.load-error-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 16px;
+  color: var(--text-faint);
+  font-size: 0.85rem;
+
+  mat-icon {
+    opacity: 0.5;
+  }
 }
 
 .count-badge {
