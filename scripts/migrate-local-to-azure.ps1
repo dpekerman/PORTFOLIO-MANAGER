@@ -13,7 +13,7 @@
 
 param(
     [string]$LocalServer            = "localhost",
-    [string]$LocalDatabase          = "PortfolioManagerDb",
+    [string]$LocalDatabase          = "PortfolioManagerLocal",
     [switch]$ImportToAzure,
     [switch]$CleanFirst,
     [string]$AzureConnectionString  = ""

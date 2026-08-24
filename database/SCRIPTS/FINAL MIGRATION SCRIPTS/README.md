@@ -37,6 +37,34 @@ for history) — this is the current process as of **2026-08-24**.
 - `BACKUP DATABASE ... WITH COMPRESSION` is not supported on SQL Server
   Express — removed `COMPRESSION` from both `backup-local-db.ps1` and
   `restore-from-azure.ps1`'s pre-restore backup step.
+- **New default local database: `PortfolioManagerLocal`.** Cloned from the
+  old `PortfolioManagerDb` via native `RESTORE DATABASE` (byte-perfect schema:
+  all tables, indexes, constraints, local login accounts), then overlaid with
+  Azure's exact business data via `restore-from-azure.ps1`. The backend's
+  `appsettings.json` `DefaultConnection` now points at `PortfolioManagerLocal`.
+  All three scripts default `$LocalDatabase` to `PortfolioManagerLocal`; pass
+  `-LocalDatabase <name>` to target a different database. The old
+  `PortfolioManagerDb` is left untouched as a fallback.
+- Moved the Decision Source / Sector / Industry picklists out of
+  `sector-industry-lists.json` (a loose file that was silently reset to
+  defaults by a past commit, losing custom entries like "Manual - Buy on
+  pullback") into a new `SectorIndustryConfigs` DB table (EF migration
+  `AddSectorIndustryConfig`). Now covered by the normal DB backup/migration
+  process. Added to the synced table list in all three scripts.
+- Fixed a `UserPreferences` reassignment bug: when the source environment has
+  multiple distinct users' preference rows, blindly reassigning all of them to
+  one target admin violates the unique `(UserId, PreferenceKey)` index. Both
+  scripts now de-duplicate (keep most-recently-updated per key) before
+  reassigning. The verify step treats a `UserPreferences` count drop from this
+  dedup as expected, not a mismatch.
+- Both scripts now skip tables that don't exist yet on the source side (e.g.
+  a brand-new table not yet deployed to Azure) instead of crashing.
+- Fixed a session-timeout bug (unrelated to the "Session timeout (minutes)"
+  setting): the refresh-token cookie was `SameSite=Strict`, which browsers
+  block on cross-site requests — exactly the local-frontend/Azure-backend
+  topology used in production. Every access-token expiry (15 min) silently
+  failed to refresh and forced a re-login. `AuthController` now sets
+  `SameSite=None; Secure=true` in production and `SameSite=Lax` locally.
 
 ## What is synced
 
@@ -46,7 +74,8 @@ Business + settings tables (exact list in `$tables` in both scripts):
 AllocationRiskTargets, AllocationSectorTargets, SinglePositionLimits,
 AdhocAnalysisSessions, PortfolioItems, WatchlistItems, CashItems,
 OptionItems, DailySignals, StagedSignals, ValueScreenerScheduleConfigs,
-ValueScreenerSnapshots, PortfolioValueHistories, UserPreferences
+ValueScreenerSnapshots, PortfolioValueHistories, UserPreferences,
+SectorIndustryConfigs
 ```
 
 `UserPreferences` is where saved grid column layouts/settings live — it is

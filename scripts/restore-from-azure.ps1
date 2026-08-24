@@ -9,6 +9,10 @@
 # Auth/Identity tables (AspNetUsers, AspNetRoles, RefreshTokens, etc.) are
 # intentionally excluded - each environment keeps its own login accounts.
 
+param(
+    [string]$LocalDatabase = "PortfolioManagerLocal"
+)
+
 Set-StrictMode -Off
 $ErrorActionPreference = "Stop"
 
@@ -28,10 +32,9 @@ if ($AzureSqlConnectionString -like "*YOUR_PASSWORD_HERE*") {
 
 # ---- Settings --------------------------------------------------------------
 $LocalServer   = "localhost"
-$LocalDatabase = "PortfolioManagerDb"
 $outputFile    = Join-Path $PSScriptRoot ("restore-output-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".sql")
 $backupDir     = Join-Path $PSScriptRoot "local-backups"
-$backupFile    = Join-Path $backupDir ("PortfolioManagerDb_PreRestore_" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".bak")
+$backupFile    = Join-Path $backupDir ($LocalDatabase + "_PreRestore_" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".bak")
 
 # Same exact table list as migrate-full.ps1 - keep these two files in sync.
 $tables = @(
@@ -48,7 +51,8 @@ $tables = @(
     "ValueScreenerScheduleConfigs",
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
-    "UserPreferences"
+    "UserPreferences",
+    "SectorIndustryConfigs"
 )
 
 function Format-SqlValue($value, $typeName) {
@@ -137,6 +141,10 @@ $writer.WriteLine("")
 $totalRows = 0
 
 foreach ($table in $tables) {
+    if (-not (Test-TableExists $azureConn $table)) {
+        Write-Host ("  " + $table + " : not deployed on Azure yet - skipped") -ForegroundColor Yellow
+        continue
+    }
     $cmd = $azureConn.CreateCommand()
     $cmd.CommandText = "SELECT COUNT(*) FROM [$table]"
     $count = [int]$cmd.ExecuteScalar()
@@ -221,6 +229,13 @@ UPDATE PortfolioItems  SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE WatchlistItems  SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE CashItems       SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE OptionItems     SET UserId = @AdminId WHERE UserId IS NOT NULL;
+-- Dedupe first: reassigning all rows to one admin would otherwise violate the
+-- unique (UserId, PreferenceKey) index when multiple distinct users had saved prefs.
+;WITH Ranked AS (
+    SELECT Id, ROW_NUMBER() OVER (PARTITION BY PreferenceKey ORDER BY UpdatedAt DESC) AS rn
+    FROM UserPreferences
+)
+DELETE FROM UserPreferences WHERE Id IN (SELECT Id FROM Ranked WHERE rn > 1);
 UPDATE UserPreferences SET UserId = @AdminId;
 '@
 Run-SQL $localConn $reassignSql
@@ -235,6 +250,10 @@ $azureVerifyConn.Open()
 
 $allMatch = $true
 foreach ($table in $tables) {
+    if (-not (Test-TableExists $azureVerifyConn $table)) {
+        Write-Host ("  " + $table + " : not deployed on Azure yet - skipped") -ForegroundColor Yellow
+        continue
+    }
     $ac = $azureVerifyConn.CreateCommand(); $ac.CommandText = "SELECT COUNT(*) FROM [$table]"
     $azureCount = [int]$ac.ExecuteScalar()
 
@@ -243,6 +262,10 @@ foreach ($table in $tables) {
 
     if ($localCount -eq $azureCount) {
         Write-Host ("  " + $table + " : " + $localCount + " rows (match)") -ForegroundColor Green
+    } elseif ($table -eq "UserPreferences") {
+        # Expected: multiple distinct Azure users' rows are deduped down to one per
+        # PreferenceKey when reassigned to the single local admin (Step 7b) - not a bug.
+        Write-Host ("  " + $table + " : azure=" + $azureCount + " local=" + $localCount + " (deduped to one admin - expected)") -ForegroundColor DarkGray
     } else {
         Write-Host ("  " + $table + " : azure=" + $azureCount + " local=" + $localCount + " MISMATCH") -ForegroundColor Red
         $allMatch = $false

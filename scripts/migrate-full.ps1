@@ -26,7 +26,7 @@ if ($AzureSqlConnectionString -like "*YOUR_PASSWORD_HERE*") {
 
 # ---- Settings --------------------------------------------------------------
 $LocalServer   = "localhost"
-$LocalDatabase = "PortfolioManagerDb"
+$LocalDatabase = "PortfolioManagerLocal"
 $outputFile    = Join-Path $PSScriptRoot ("migration-output-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".sql")
 
 # Business + settings tables - exact list synced between environments.
@@ -48,7 +48,8 @@ $tables = @(
     "ValueScreenerScheduleConfigs",
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
-    "UserPreferences"
+    "UserPreferences",
+    "SectorIndustryConfigs"
 )
 
 function Format-SqlValue($value, $typeName) {
@@ -213,6 +214,13 @@ UPDATE PortfolioItems  SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE WatchlistItems  SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE CashItems       SET UserId = @AdminId WHERE UserId IS NOT NULL;
 UPDATE OptionItems     SET UserId = @AdminId WHERE UserId IS NOT NULL;
+-- Dedupe first: reassigning all rows to one admin would otherwise violate the
+-- unique (UserId, PreferenceKey) index when multiple distinct users had saved prefs.
+;WITH Ranked AS (
+    SELECT Id, ROW_NUMBER() OVER (PARTITION BY PreferenceKey ORDER BY UpdatedAt DESC) AS rn
+    FROM UserPreferences
+)
+DELETE FROM UserPreferences WHERE Id IN (SELECT Id FROM Ranked WHERE rn > 1);
 UPDATE UserPreferences SET UserId = @AdminId;
 '@
 Run-AzureSQL $azureConn $reassignSql
@@ -236,6 +244,10 @@ foreach ($table in $tables) {
 
     if ($localCount -eq $azureCount) {
         Write-Host ("  " + $table + " : " + $azureCount + " rows (match)") -ForegroundColor Green
+    } elseif ($table -eq "UserPreferences") {
+        # Expected: multiple distinct local users' rows are deduped down to one per
+        # PreferenceKey when reassigned to the single Azure admin (Step 6b) - not a bug.
+        Write-Host ("  " + $table + " : local=" + $localCount + " azure=" + $azureCount + " (deduped to one admin - expected)") -ForegroundColor DarkGray
     } else {
         Write-Host ("  " + $table + " : local=" + $localCount + " azure=" + $azureCount + " MISMATCH") -ForegroundColor Red
         $allMatch = $false

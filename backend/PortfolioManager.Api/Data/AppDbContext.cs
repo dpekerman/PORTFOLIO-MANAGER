@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
     public DbSet<PortfolioSnapshot> PortfolioSnapshots => Set<PortfolioSnapshot>();
     public DbSet<WatchlistSnapshot> WatchlistSnapshots => Set<WatchlistSnapshot>();
+    public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -185,6 +186,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ScheduledTimeEt).IsRequired().HasMaxLength(10).HasDefaultValue("17:00");
             entity.Property(e => e.Enabled).HasDefaultValue(true);
+        });
+
+        modelBuilder.Entity<SectorIndustryConfig>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            // Single-row upsert table — Id is always explicitly 1, never auto-generated
+            entity.Property(e => e.Id).ValueGeneratedNever();
+            entity.Property(e => e.SectorsJson).IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.IndustriesJson).IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.DecisionSourcesJson).IsRequired().HasDefaultValue("[]");
         });
 
         modelBuilder.Entity<PortfolioValueHistory>(entity =>
