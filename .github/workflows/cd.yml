@@ -55,12 +55,17 @@ jobs:
           package: ${{ github.workspace }}/publish/api
 
       - name: Set email App Password in App Service
-        if: ${{ secrets.EMAIL_APP_PASSWORD != '' }}
         env:
           PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           EMAIL_PWD: ${{ secrets.EMAIL_APP_PASSWORD }}
         # Uses Kudu REST API with publish-profile credentials — no service principal needed
+        # Secret emptiness is checked in-shell (not via step `if:`) — referencing `secrets`
+        # in a step-level `if:` conditional fails workflow parsing ("Unrecognized named-value").
         run: |
+          if [ -z "$EMAIL_PWD" ]; then
+            echo "⏭️  EMAIL_APP_PASSWORD secret not set — skipping"
+            exit 0
+          fi
           KUDU_USER=$(echo "$PUBLISH_PROFILE" | grep -o 'userName="[^"]*"' | head -1 | sed 's/userName="//;s/"//')
           KUDU_PASS=$(echo "$PUBLISH_PROFILE" | grep -o 'userPWD="[^"]*"'  | head -1 | sed 's/userPWD="//;s/"//')
           HTTP=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
