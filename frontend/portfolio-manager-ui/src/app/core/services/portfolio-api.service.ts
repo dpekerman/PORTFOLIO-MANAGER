@@ -13,6 +13,7 @@ import {
   AllocationSectorTarget,
   CashItem,
   DailySignalPagedResponse,
+  DashboardResponse,
   EodSignalFilters,
   EodSignalsMeta,
   MarketIndicesResponse,
@@ -117,6 +118,17 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/notes`, { notes });
   }
 
+  updateWatchlistEarningsDate(id: number, earningsDate: string | null): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/earnings-date`, { earningsDate });
+  }
+
+  refreshWatchlistEarnings(): Observable<{ refreshed: number; total: number }> {
+    return this.http.post<{ refreshed: number; total: number }>(
+      `${this.base}/watchlist/refresh-earnings`,
+      {},
+    );
+  }
+
   updatePortfolioHoldingRole(id: number, holdingRole: string): Observable<void> {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/holding-role`, { holdingRole });
   }
@@ -154,6 +166,17 @@ export class PortfolioApiService {
         map((r) => (r.status === 204 ? null : r.body)),
         catchError(() => of(null)),
       );
+  }
+
+  getDashboard(): Observable<DashboardResponse | null> {
+    return this.http.get<DashboardResponse>(`${this.base}/dashboard`, { observe: 'response' }).pipe(
+      map((r) => (r.status === 204 ? null : r.body)),
+      catchError(() => of(null)),
+    );
+  }
+
+  refreshDashboard(): Observable<DashboardResponse> {
+    return this.http.post<DashboardResponse>(`${this.base}/dashboard/refresh`, {});
   }
 
   /** Triggers a live RSI scan against Yahoo Finance and saves the result as the new snapshot. */

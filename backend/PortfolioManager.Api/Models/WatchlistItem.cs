@@ -12,4 +12,5 @@ public class WatchlistItem
     public string Role { get; set; } = "Strategic";
     /// <summary>Whether this symbol is marked as a favourite for quick filtering.</summary>
     public bool IsFavorite { get; set; } = false;
+    public DateTime? EarningsDate { get; set; }
 }

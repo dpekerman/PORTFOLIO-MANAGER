@@ -31,9 +31,8 @@ $outputFile    = Join-Path $PSScriptRoot ("migration-output-" + (Get-Date -Forma
 
 # Business + settings tables - exact list synced between environments.
 # (Order is cosmetic only - no DB-level FK constraints exist between these tables.)
-# Snapshot/cache tables (RsiScanSnapshots, PortfolioSnapshots, WatchlistSnapshots) are
-# intentionally excluded - they are ephemeral caches that regenerate automatically
-# on first page load after deploy.
+# RSI/quote snapshots are ephemeral caches. DashboardSnapshots is persistent user data
+# and must be included in Azure/local data migration.
 $tables = @(
     "AllocationRiskTargets",
     "AllocationSectorTargets",
@@ -49,7 +48,8 @@ $tables = @(
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
     "UserPreferences",
-    "SectorIndustryConfigs"
+    "SectorIndustryConfigs",
+    "DashboardSnapshots"
 )
 
 function Format-SqlValue($value, $typeName) {

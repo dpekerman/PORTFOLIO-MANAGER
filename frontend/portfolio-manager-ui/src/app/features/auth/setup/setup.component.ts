@@ -76,7 +76,7 @@ export class SetupComponent implements OnInit {
         next: (response) => {
           this.authState.setAuth(response);
           this.authState.setupRequired.set(false);
-          this.router.navigate(['/portfolio']);
+          this.router.navigate(['/dashboard']);
         },
         error: (err) => {
           const msg =

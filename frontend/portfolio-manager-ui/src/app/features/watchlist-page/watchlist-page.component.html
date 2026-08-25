@@ -80,6 +80,17 @@
         <mat-icon>download</mat-icon>
       </button>
       <button
+        mat-icon-button
+        [matTooltip]="
+          'Refresh earnings dates from Yahoo Finance (' + watchlist.count() + ' symbols)'
+        "
+        (click)="refreshEarningsFromYahoo()"
+        [disabled]="earningsRefreshing()"
+        aria-label="Refresh earnings dates from Yahoo Finance"
+      >
+        <mat-icon [class.spinning]="earningsRefreshing()">calendar_month</mat-icon>
+      </button>
+      <button
         mat-flat-button
         class="add-btn"
         (click)="openAddDialog()"
@@ -291,6 +302,25 @@
                     <mat-option [value]="r">{{ r }}</mat-option>
                   }
                 </mat-select>
+              </td>
+            </ng-container>
+
+            <!-- Price -->
+            <ng-container matColumnDef="earningsDate">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header
+                matTooltip="Earnings date from Yahoo Finance. Use the calendar button in the toolbar to refresh."
+              >
+                EARNINGS DATE
+              </th>
+              <td mat-cell *matCellDef="let w" class="wl-earnings-date-cell">
+                @if (w.item.earningsDate) {
+                  <span class="wl-earn-date">{{ w.item.earningsDate | date: 'MMM d, y' }}</span>
+                } @else {
+                  <span class="wl-earn-none">—</span>
+                }
               </td>
             </ng-container>
 

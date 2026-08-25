@@ -416,6 +416,26 @@
           </td>
         </ng-container>
 
+        <ng-container matColumnDef="positionSizingShares">
+          <th
+            mat-header-cell
+            *matHeaderCellDef
+            mat-sort-header="positionSizingShares"
+            class="num-col"
+          >
+            SUGGESTED SHARES
+          </th>
+          <td mat-cell *matCellDef="let row" class="num-col">
+            @if (row.positionSizingShares != null) {
+              <span [matTooltip]="row.positionSizingLimitingReason ?? ''">{{
+                row.positionSizingShares | number: '1.0-2'
+              }}</span>
+            } @else {
+              <span class="grid-no-data">—</span>
+            }
+          </td>
+        </ng-container>
+
         <!-- SMA 200 -->
         <ng-container matColumnDef="sma200">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="sma200" class="num-col">

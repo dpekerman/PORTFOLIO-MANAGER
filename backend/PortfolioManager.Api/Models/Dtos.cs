@@ -75,12 +75,13 @@ public record UpdateWatchlistRoleRequest(string Role);
 public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
 public record UpdatePortfolioNotesRequest(string? Notes);
 
-public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false);
+public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null);
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
 
 public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);
+public record UpdateWatchlistEarningsDateRequest(DateTime? EarningsDate);
 
 // ── Sector / Industry Lists ─────────────────────────────────────────────────────
 public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries, List<string>? DecisionSources = null);
@@ -168,7 +169,7 @@ public record OptionTechnicalDataDto(
 // ── Backup / Restore ───────────────────────────────────────────────────────────
 
 /// <summary>Single watchlist item in a backup export.</summary>
-public record WatchlistBackupItem(string Symbol, string Notes, string Role, DateTime AddedAt);
+public record WatchlistBackupItem(string Symbol, string Notes, string Role, DateTime AddedAt, DateTime? EarningsDate = null);
 /// <summary>Restore request: clears existing watchlist and inserts all provided items.</summary>
 public record RestoreWatchlistRequest(List<WatchlistBackupItem> Items);
 

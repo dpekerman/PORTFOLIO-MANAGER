@@ -1469,6 +1469,7 @@ export class DecisionEngineService {
 
   private finalActionClass(action: string): string {
     const a = action.toLowerCase();
+    if (a.includes('stand by') && a.includes('no add')) return 'ma-standby-no-add';
     // TFSA profit-taking rule gets its own amber class
     if (a.includes('partial profit') || a.includes('profit watch') || a.includes('protect gain'))
       return 'ma-tfsa-profit';

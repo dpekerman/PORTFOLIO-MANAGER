@@ -12,7 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public class StocksController(
     IMarketDataProvider marketData,
     IPortfolioService portfolioService,
-    IPortfolioSnapshotService portfolioSnapshot) : ControllerBase
+    IPortfolioSnapshotService portfolioSnapshot,
+    IDashboardService dashboard) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
@@ -77,7 +78,10 @@ public class StocksController(
         // Persist snapshot so the frontend loads instantly on next page open
         var uid = CurrentUserId();
         if (!string.IsNullOrEmpty(uid))
+        {
             await portfolioSnapshot.SaveAsync(uid, sorted.AsReadOnly(), ct);
+            await dashboard.RebuildAsync(uid, ct);
+        }
 
         return Ok(sorted);
     }

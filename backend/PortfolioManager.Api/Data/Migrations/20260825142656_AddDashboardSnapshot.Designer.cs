@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PortfolioManager.Api.Data;
 
@@ -11,9 +12,11 @@ using PortfolioManager.Api.Data;
 namespace PortfolioManager.Api.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260825142656_AddDashboardSnapshot")]
+    partial class AddDashboardSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -403,19 +406,6 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.Property<string>("Notes")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PositionSizingLimitingReason")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<decimal?>("PositionSizingPositionValue")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal?>("PositionSizingRiskAmount")
-                        .HasColumnType("decimal(18,4)");
-
-                    b.Property<decimal?>("PositionSizingShares")
-                        .HasColumnType("decimal(18,6)");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,4)");
@@ -1063,9 +1053,6 @@ namespace PortfolioManager.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("AddedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("EarningsDate")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsFavorite")

@@ -14,6 +14,7 @@ public interface IWatchlistService
     Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
     Task<bool> UpdateFavoriteAsync(int id, bool isFavorite, CancellationToken ct = default);
     Task<bool> UpdateNotesAsync(int id, string notes, CancellationToken ct = default);
+    Task<bool> UpdateEarningsDateAsync(int id, DateTime? earningsDate, CancellationToken ct = default);
     Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default);
     Task<int> RestoreAsync(IReadOnlyList<WatchlistBackupItem> items, CancellationToken ct = default);
 }
@@ -91,13 +92,22 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
         return true;
     }
 
+    public async Task<bool> UpdateEarningsDateAsync(int id, DateTime? earningsDate, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return false;
+        item.EarningsDate = earningsDate?.Date;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
     private static WatchlistItemDto ToDto(WatchlistItem item) =>
-        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic", item.IsFavorite);
+        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic", item.IsFavorite, item.EarningsDate);
 
     public async Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default)
     {
         var items = await OwnedItems().AsNoTracking().OrderBy(x => x.Symbol).ToListAsync(ct);
-        return items.Select(x => new WatchlistBackupItem(x.Symbol, x.Notes, x.Role ?? "Strategic", x.AddedAt)).ToList();
+        return items.Select(x => new WatchlistBackupItem(x.Symbol, x.Notes, x.Role ?? "Strategic", x.AddedAt, x.EarningsDate)).ToList();
     }
 
     public async Task<int> RestoreAsync(IReadOnlyList<WatchlistBackupItem> items, CancellationToken ct = default)
@@ -112,7 +122,8 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
             Symbol  = i.Symbol.ToUpperInvariant(),
             Notes   = i.Notes ?? "",
             Role    = i.Role ?? "Strategic",
-            AddedAt = i.AddedAt
+            AddedAt = i.AddedAt,
+            EarningsDate = i.EarningsDate
         }).ToList();
 
         db.WatchlistItems.AddRange(newItems);

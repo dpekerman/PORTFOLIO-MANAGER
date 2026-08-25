@@ -67,6 +67,7 @@ export class LayoutComponent {
   protected readonly showMarketHeader = computed(() => this.currentUrl().startsWith('/scanner'));
 
   protected readonly navLinks = [
+    { path: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/scanner', label: 'RSI Scanner', icon: 'radar' },

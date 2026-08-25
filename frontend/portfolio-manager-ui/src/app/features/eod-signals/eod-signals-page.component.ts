@@ -55,6 +55,7 @@ type SortCol =
   | 'stopLoss'
   | 'riskPerShare'
   | 'riskPercent'
+  | 'positionSizingShares'
   | 'sma200'
   | 'price'
   | 'lastPrice'
@@ -184,6 +185,10 @@ export class EodSignalsPageComponent implements OnInit {
         case 'riskPerShare':
           av = a.riskPerShare ?? 0;
           bv = b.riskPerShare ?? 0;
+          break;
+        case 'positionSizingShares':
+          av = a.positionSizingShares ?? 0;
+          bv = b.positionSizingShares ?? 0;
           break;
         case 'riskPercent':
           av = a.entryPrice && a.riskPerShare ? a.riskPerShare / a.entryPrice : 0;
@@ -670,6 +675,10 @@ export class EodSignalsPageComponent implements OnInit {
       'Entry Price': r.entryPrice ?? '',
       'Stop Loss': r.stopLossPrice ?? '',
       'Risk / Share': r.riskPerShare != null ? +r.riskPerShare.toFixed(3) : '',
+      'Recommended Shares': r.positionSizingShares ?? '',
+      'Position Risk': r.positionSizingRiskAmount ?? '',
+      'Position Value': r.positionSizingPositionValue ?? '',
+      'Sizing Limit': r.positionSizingLimitingReason ?? '',
       'Risk %': this.riskPercent(r) != null ? +this.riskPercent(r)!.toFixed(2) : '',
       'SMA 200': r.sma200 ?? '',
       'Signal Price': r.price,
