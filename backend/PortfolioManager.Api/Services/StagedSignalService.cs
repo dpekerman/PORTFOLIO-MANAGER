@@ -27,6 +27,9 @@ public interface IStagedSignalService
 
     /// <summary>Marks the staged signal inactive after a confirmed signal is written to DailySignals.</summary>
     Task DeactivateAsync(string symbol, string scanType, CancellationToken ct = default);
+
+    /// <summary>Deletes deactivated staged signals older than <paramref name="retentionDays"/> — these are temporary tracking rows, not meant for long-term retention.</summary>
+    Task<int> CleanupStaleAsync(int retentionDays = 30, CancellationToken ct = default);
 }
 
 public sealed class StagedSignalService(
@@ -183,6 +186,22 @@ public sealed class StagedSignalService(
             await db.SaveChangesAsync(ct);
             logger.LogInformation("[StagedSignal] Deactivated staged signal: {Symbol} {ScanType}", symbol, scanType);
         }
+    }
+
+    public async Task<int> CleanupStaleAsync(int retentionDays = 30, CancellationToken ct = default)
+    {
+        var cutoff = DateTime.UtcNow.AddDays(-retentionDays);
+        var stale = await db.StagedSignals
+            .Where(s => !s.IsActiveWatch && s.UpdatedAt < cutoff)
+            .ToListAsync(ct);
+
+        if (stale.Count == 0) return 0;
+
+        db.StagedSignals.RemoveRange(stale);
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("[StagedSignal] Cleaned up {Count} stale deactivated staged signal(s) older than {Days} days.",
+            stale.Count, retentionDays);
+        return stale.Count;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

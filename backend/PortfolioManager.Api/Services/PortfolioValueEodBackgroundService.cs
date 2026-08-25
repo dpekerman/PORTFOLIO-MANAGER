@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
@@ -11,6 +12,7 @@ namespace PortfolioManager.Api.Services;
 /// </summary>
 public sealed class PortfolioValueEodBackgroundService(
     IServiceScopeFactory scopeFactory,
+    IHostEnvironment env,
     ILogger<PortfolioValueEodBackgroundService> logger) : BackgroundService
 {
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
@@ -38,10 +40,14 @@ public sealed class PortfolioValueEodBackgroundService(
 
         var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
 
-        // Only fire at 4:30 PM ET on weekdays (within a 2-minute window)
-        if (nowEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
-        var target = new TimeSpan(16, 30, 0);
-        if (nowEt.TimeOfDay < target || nowEt.TimeOfDay > target.Add(TimeSpan.FromMinutes(2))) return;
+        // Dev bypasses so local testing works at any time; enforced only in Production.
+        if (!env.IsDevelopment())
+        {
+            // Only fire at 4:30 PM ET on weekdays (within a 2-minute window)
+            if (nowEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
+            var target = new TimeSpan(16, 30, 0);
+            if (nowEt.TimeOfDay < target || nowEt.TimeOfDay > target.Add(TimeSpan.FromMinutes(2))) return;
+        }
 
         var recordedDate = nowEt.ToString("yyyy-MM-dd");
 

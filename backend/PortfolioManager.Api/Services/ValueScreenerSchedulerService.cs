@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -10,9 +11,14 @@ namespace PortfolioManager.Api.Services;
 public sealed class ValueScreenerSchedulerService(
     IServiceScopeFactory scopeFactory,
     ValueScreenerPersistenceService persistence,
+    IHostEnvironment env,
     ILogger<ValueScreenerSchedulerService> logger) : BackgroundService
 {
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
+    private static readonly TimeSpan ConfigCacheTtl = TimeSpan.FromMinutes(10);
+
+    private ValueScreenerScheduleConfig? _cachedConfig;
+    private DateTime _cachedConfigAt = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -40,9 +46,6 @@ public sealed class ValueScreenerSchedulerService(
 
     private async Task RunCheckAsync(CancellationToken ct)
     {
-        var cfg = await persistence.GetOrCreateScheduleConfigAsync(ct);
-        if (!cfg.Enabled) return;
-
         var tz = GetEasternTz();
         if (tz is null)
         {
@@ -52,15 +55,21 @@ public sealed class ValueScreenerSchedulerService(
 
         var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
 
-        // Only run on weekdays
-        if (nowEt.DayOfWeek == DayOfWeek.Saturday || nowEt.DayOfWeek == DayOfWeek.Sunday) return;
+        // Skip weekends without touching the DB at all — dev bypasses so local testing works anytime.
+        if (!env.IsDevelopment() && nowEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
+
+        var cfg = await GetConfigCachedAsync(ct);
+        if (!cfg.Enabled) return;
 
         if (!TimeSpan.TryParse(cfg.ScheduledTimeEt, out var scheduledTime)) return;
 
-        // Fire when current time is within a 2-minute window of the scheduled time
+        // Fire when current time is within a 2-minute window of the scheduled time.
+        // Refresh from the DB here (bypassing the cache) so Configuration-page edits apply promptly.
         var diff = nowEt.TimeOfDay - scheduledTime;
         bool inWindow = diff.TotalMinutes >= 0 && diff.TotalMinutes < 2;
         if (!inWindow) return;
+        cfg = await RefreshConfigCacheAsync(ct);
+        if (!cfg.Enabled) return;
 
         // Avoid re-running if we already ran today
         var etToday = nowEt.Date;
@@ -88,6 +97,7 @@ public sealed class ValueScreenerSchedulerService(
                     new ValueScreenerRequest { IncludePortfolio = true, IncludeWatchlist = false }, ct);
                 await persistence.SaveAsync("Portfolio", results, ct);
                 logger.LogInformation("[ValueScreenerScheduler] Portfolio screener complete ({Count} results).", results.Count);
+                cfg.LastPortfolioRunAt = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
@@ -106,6 +116,7 @@ public sealed class ValueScreenerSchedulerService(
                     new ValueScreenerRequest { IncludePortfolio = false, IncludeWatchlist = true }, ct);
                 await persistence.SaveAsync("Watchlist", results, ct);
                 logger.LogInformation("[ValueScreenerScheduler] Watchlist screener complete ({Count} results).", results.Count);
+                cfg.LastWatchlistRunAt = DateTime.UtcNow;
             }
             catch (Exception ex)
             {
@@ -122,5 +133,20 @@ public sealed class ValueScreenerSchedulerService(
             catch { /* try next */ }
         }
         return null;
+    }
+
+    /// <summary>Returns the schedule config, refreshing from the DB at most every <see cref="ConfigCacheTtl"/> instead of every 2-minute tick.</summary>
+    private async Task<ValueScreenerScheduleConfig> GetConfigCachedAsync(CancellationToken ct)
+    {
+        if (_cachedConfig is null || DateTime.UtcNow - _cachedConfigAt > ConfigCacheTtl)
+            return await RefreshConfigCacheAsync(ct);
+        return _cachedConfig;
+    }
+
+    private async Task<ValueScreenerScheduleConfig> RefreshConfigCacheAsync(CancellationToken ct)
+    {
+        _cachedConfig = await persistence.GetOrCreateScheduleConfigAsync(ct);
+        _cachedConfigAt = DateTime.UtcNow;
+        return _cachedConfig;
     }
 }
