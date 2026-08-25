@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { EMPTY, interval, switchMap } from 'rxjs';
+import { EMPTY, filter, interval, switchMap } from 'rxjs';
 import {
   LogicMode,
   MarketIndexDto,
@@ -93,12 +93,14 @@ export class ScannerStateService {
     });
     // Restart auto-refresh whenever the configured interval changes.
     // interval = 0 means disabled — emit EMPTY so no timer fires.
+    // Skipped while the tab is hidden/backgrounded to avoid unnecessary API calls.
     toObservable(this.configService.config)
       .pipe(
         takeUntilDestroyed(),
         switchMap((cfg) =>
           cfg.scanIntervalSeconds > 0 ? interval(cfg.scanIntervalSeconds * 1000) : EMPTY,
         ),
+        filter(() => document.visibilityState === 'visible'),
         switchMap(() => {
           const cfg = this.configService.config();
           return this.api.getRsiScan(
@@ -117,23 +119,32 @@ export class ScannerStateService {
         },
       });
 
-    // Poll EOD window status every 30 seconds
+    // Poll EOD window status every 30 seconds (skipped while the tab is hidden/backgrounded)
     interval(30_000)
-      .pipe(takeUntilDestroyed())
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(),
+      )
       .subscribe(() => this.checkEodWindowStatus());
 
     // Initial check
     this.checkEodWindowStatus();
-    // Load yesterday's EOD signals on init; refresh every 5 minutes
+    // Load yesterday's EOD signals on init; refresh every 5 minutes (skipped while tab hidden)
     this.loadYesterdayEod();
     interval(5 * 60_000)
-      .pipe(takeUntilDestroyed())
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(),
+      )
       .subscribe(() => this.loadYesterdayEod());
 
-    // Load market indices on init; refresh every 5 minutes
+    // Load market indices on init; refresh every 5 minutes (skipped while tab hidden)
     this.loadMarketIndices();
     interval(5 * 60_000)
-      .pipe(takeUntilDestroyed())
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(),
+      )
       .subscribe(() => this.loadMarketIndices());
   }
 

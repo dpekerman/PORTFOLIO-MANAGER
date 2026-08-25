@@ -91,12 +91,14 @@ export class PortfolioStateService {
       .subscribe(() => this.loadSnapshot());
 
     // Restart auto-refresh whenever the configured interval changes; 0 = disabled
+    // Skipped while the tab is hidden/backgrounded to avoid unnecessary API calls.
     toObservable(this.configService.config)
       .pipe(
         takeUntilDestroyed(),
         switchMap((cfg) =>
           cfg.portfolioRefreshSeconds > 0 ? interval(cfg.portfolioRefreshSeconds * 1000) : EMPTY,
         ),
+        filter(() => document.visibilityState === 'visible'),
         switchMap(() => this.api.getAllQuotes()),
       )
       .subscribe({

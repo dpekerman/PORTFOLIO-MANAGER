@@ -24,7 +24,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
-import { debounceTime, distinctUntilChanged, interval } from 'rxjs';
+import { debounceTime, distinctUntilChanged, filter, interval } from 'rxjs';
 import * as XLSX from 'xlsx';
 import {
   DailySignal,
@@ -316,14 +316,20 @@ export class EodSignalsPageComponent implements OnInit {
       this.loadSignals();
     });
 
-    // ── Auto-poll every 30 s: silently check for new records ────────────────
+    // ── Auto-poll every 30 s: silently check for new records (skipped while tab hidden) ──
     interval(30_000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(() => this.pollForUpdates());
 
-    // ── Refresh last prices every 5 min while page is open ───────────────────
+    // ── Refresh last prices every 5 min while page is open (skipped while tab hidden) ────
     interval(5 * 60_000)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        filter(() => document.visibilityState === 'visible'),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(() => {
         const items = this.rawSignals();
         if (items.length > 0) this.fetchCurrentPrices(items);

@@ -45,12 +45,14 @@ export class WatchlistStateService {
       .subscribe(() => this.loadSnapshot());
 
     // Restart auto-refresh whenever the configured interval changes; 0 = disabled
+    // Skipped while the tab is hidden/backgrounded to avoid unnecessary API calls.
     toObservable(this.configService.config)
       .pipe(
         takeUntilDestroyed(),
         switchMap((cfg) =>
           cfg.watchlistRefreshSeconds > 0 ? interval(cfg.watchlistRefreshSeconds * 1000) : EMPTY,
         ),
+        filter(() => document.visibilityState === 'visible'),
         switchMap(() => this.api.getWatchlist()),
       )
       .subscribe({

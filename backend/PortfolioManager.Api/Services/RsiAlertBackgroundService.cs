@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
@@ -20,9 +21,11 @@ public sealed class RsiAlertBackgroundService(
     IOptionsMonitor<EmailSettings> settingsMonitor,
     ScannerRuntimeConfig runtimeConfig,
     EodSignalPersistenceService eodPersistence,
+    IHostEnvironment env,
     ILogger<RsiAlertBackgroundService> logger) : BackgroundService
 {
     private EmailSettings Settings => settingsMonitor.CurrentValue;
+    private DateOnly _lastCleanupDate = DateOnly.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,7 +42,20 @@ public sealed class RsiAlertBackgroundService(
         {
             try
             {
-                await RunScanCycleAsync(stoppingToken);
+                var easternNow = MarketHoursGate.GetEasternNow();
+
+                // Dev environment bypasses the gate entirely so local testing works at any time.
+                // In Production this keeps the DB idle (and free to auto-pause) outside market hours.
+                if (env.IsDevelopment() || (easternNow is not null && MarketHoursGate.IsMarketHours(easternNow.Value)))
+                {
+                    await RunScanCycleAsync(stoppingToken);
+                }
+                else
+                {
+                    logger.LogDebug("[RsiAlertBg] Outside market hours (9:00-16:30 ET, Mon-Fri) — skipping scan cycle.");
+                }
+
+                await MaybeRunDailyCleanupAsync(easternNow, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -57,6 +73,18 @@ public sealed class RsiAlertBackgroundService(
         }
 
         logger.LogInformation("[RsiAlertBg] Background RSI alert scanner stopped.");
+    }
+
+    /// <summary>Purges deactivated StagedSignals once per Eastern calendar day (they're temporary tracking rows).</summary>
+    private async Task MaybeRunDailyCleanupAsync(DateTime? easternNow, CancellationToken ct)
+    {
+        var today = DateOnly.FromDateTime(easternNow ?? DateTime.UtcNow);
+        if (today == _lastCleanupDate) return;
+        _lastCleanupDate = today;
+
+        using var scope = scopeFactory.CreateScope();
+        var staged = scope.ServiceProvider.GetRequiredService<IStagedSignalService>();
+        await staged.CleanupStaleAsync(ct: ct);
     }
 
     private async Task RunScanCycleAsync(CancellationToken ct)
