@@ -54,9 +54,29 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var values = history.OrderBy(h => h.RecordedDate).ToList();
         var latest = values.LastOrDefault();
         var previous = values.Count > 1 ? values[^2] : null;
-        var todayChange = latest is not null && previous is not null ? latest.TotalValue - previous.TotalValue : 0m;
-        var todayPercent = Percent(todayChange, previous?.TotalValue);
         var todayEt = EasternToday();
+        var etTodayStr = todayEt.ToString("yyyy-MM-dd");
+
+        // Compute live total from portfolio snapshot + DB cash/options — matches the portfolio page.
+        var liveStocksValue = portfolio
+            .Where(s => !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .Sum(s => s.Item.IsManual
+                ? (s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares)
+                : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares);
+        var liveCashValue    = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var liveOptionsValue = await db.OptionItems
+            .Where(o => o.TransactionType != "CLOSE")
+            .SumAsync(o => o.MarketPrice * o.NumberOfContracts * 100, ct);
+        var liveTotal = liveStocksValue + liveCashValue + liveOptionsValue;
+
+        // Always show live snapshot total (matches portfolio page).
+        // Use history entries only to find yesterday's close for the change computation.
+        var hasTodayEntry = latest?.RecordedDate == etTodayStr;
+        var summaryTotal = liveTotal;
+        var yesterdayEntry = hasTodayEntry ? previous : latest;
+        var todayChange = yesterdayEntry is not null ? liveTotal - yesterdayEntry.TotalValue : 0m;
+        var todayPercent = Percent(todayChange, yesterdayEntry?.TotalValue);
+
         var daysSinceMonday = ((int)todayEt.DayOfWeek + 6) % 7;
         var weekStart = todayEt.AddDays(-daysSinceMonday);
         var weekStartDate = DateOnly.FromDateTime(weekStart);
@@ -68,8 +88,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var monthBase = values.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < monthFirstDay)
             ?? values.FirstOrDefault(h => DateOnly.Parse(h.RecordedDate).Month == todayEt.Month
                 && DateOnly.Parse(h.RecordedDate).Year == todayEt.Year);
-        var weekChange = latest is not null && weekBase is not null ? latest.TotalValue - weekBase.TotalValue : 0m;
-        var monthChange = latest is not null && monthBase is not null ? latest.TotalValue - monthBase.TotalValue : 0m;
+        var weekChange = weekBase is not null ? summaryTotal - weekBase.TotalValue : 0m;
+        var monthChange = monthBase is not null ? summaryTotal - monthBase.TotalValue : 0m;
 
         // Exclude closed positions so CLOSE transactions don't appear as active portfolio movers
         var moverSources = portfolio
@@ -118,7 +138,6 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
             })
             .ToList();
-        var etTodayStr = todayEt.ToString("yyyy-MM-dd");
         var newToday   = await db.DailySignals.CountAsync(s => s.SignalDate == etTodayStr, ct);
         var actionReq  = scanner.OversoldChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm)
                        + scanner.OverboughtChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm);
@@ -165,7 +184,7 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var response = new DashboardResponse(
             DateTime.UtcNow,
             new DashboardSummary(
-                latest?.TotalValue ?? 0m,
+                summaryTotal,
                 todayChange,
                 todayPercent,
                 weekChange,
