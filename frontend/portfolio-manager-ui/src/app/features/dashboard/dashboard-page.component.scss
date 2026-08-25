@@ -806,3 +806,183 @@ mat-card.db-panel {
     min-width: 80px;
   }
 }
+
+/* ── Dark mode overrides ─────────────────────────────────────────────────── */
+:host-context(body:not(.light-theme)) {
+  .db-header h1 {
+    color: var(--text-primary);
+  }
+
+  .db-hero-label {
+    color: var(--text-muted);
+  }
+  .db-hero-total {
+    color: var(--text-primary);
+  }
+  .db-hero-ts {
+    color: var(--text-faint);
+  }
+
+  .db-metric-label {
+    color: var(--text-faint);
+  }
+  .db-metric strong {
+    color: inherit;
+  }
+
+  .db-chart-title {
+    color: var(--text-muted);
+  }
+  .db-baseline {
+    stroke: #3a3a3a;
+  }
+  .db-grid-line {
+    stroke: #252525;
+  }
+
+  .db-panel-title {
+    color: var(--text-primary);
+  }
+
+  .db-mover-row {
+    border-bottom-color: var(--border-color);
+  }
+  .mover-sym {
+    color: var(--text-primary);
+  }
+  .mover-name {
+    color: var(--text-muted);
+  }
+  .mover-badge {
+    &.positive {
+      background: rgba(26, 158, 122, 0.18);
+      color: #3fcfa3;
+    }
+    &.negative {
+      background: rgba(229, 62, 62, 0.18);
+      color: #f07070;
+    }
+  }
+  .mover-src {
+    color: var(--text-faint);
+  }
+  .db-sub-hd {
+    color: var(--text-faint);
+  }
+
+  .db-index-row {
+    border-bottom-color: var(--border-color);
+  }
+  .idx-name {
+    color: var(--text-secondary);
+  }
+  .idx-price {
+    color: var(--text-primary);
+  }
+  .idx-chg {
+    color: var(--text-secondary);
+  }
+
+  .db-sig-divider {
+    background: var(--border-color);
+  }
+  .db-sig-hint {
+    color: var(--text-faint);
+  }
+  .db-sig-section-hd {
+    color: var(--text-muted);
+  }
+
+  .db-sig-table {
+    th {
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      border-bottom-color: var(--border-color);
+    }
+    td {
+      border-bottom-color: var(--border-subtle);
+    }
+    .st-sym {
+      color: var(--text-primary);
+    }
+    .st-rsi,
+    .st-ms {
+      color: var(--text-secondary);
+    }
+  }
+
+  .db-alloc-table {
+    th {
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      border-bottom-color: var(--border-color);
+    }
+    td {
+      border-bottom-color: var(--border-subtle);
+    }
+    .alloc-sector {
+      color: var(--text-primary);
+    }
+    .alloc-num {
+      color: var(--text-secondary);
+    }
+    .alloc-bar-mini {
+      background: var(--bg-border);
+    }
+  }
+
+  .alloc-status-badge {
+    &.alloc-good {
+      background: rgba(26, 158, 122, 0.2);
+      color: #3fcfa3;
+    }
+    &.alloc-watch {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f8c061;
+    }
+    &.alloc-off {
+      background: rgba(229, 62, 62, 0.2);
+      color: #f07070;
+    }
+    &.alloc-none {
+      background: var(--bg-elevated);
+      color: var(--text-faint);
+    }
+  }
+
+  .db-earn-chip {
+    background: rgba(26, 158, 122, 0.1);
+    border-color: rgba(26, 158, 122, 0.3);
+  }
+  .earn-sym {
+    color: var(--text-primary);
+  }
+  .earn-name {
+    color: var(--text-muted);
+  }
+  .earn-src {
+    color: var(--text-faint);
+  }
+
+  .db-alert {
+    background: rgba(229, 62, 62, 0.15);
+    color: #f07070;
+  }
+
+  .db-sig-no-data {
+    color: var(--text-faint);
+    mat-icon {
+      color: var(--text-faint);
+    }
+  }
+
+  .db-chart-empty {
+    color: var(--text-faint);
+  }
+  .db-empty {
+    color: var(--text-faint);
+  }
+  .db-muted {
+    color: var(--text-faint);
+  }
+}
