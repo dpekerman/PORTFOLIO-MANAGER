@@ -36,7 +36,7 @@ $outputFile    = Join-Path $PSScriptRoot ("restore-output-" + (Get-Date -Format 
 $backupDir     = Join-Path $PSScriptRoot "local-backups"
 $backupFile    = Join-Path $backupDir ($LocalDatabase + "_PreRestore_" + (Get-Date -Format 'yyyyMMdd-HHmmss') + ".bak")
 
-# Same exact table list as migrate-full.ps1 - keep these two files in sync.
+# Same exact persistent table list as migrate-full.ps1 - keep these files in sync.
 $tables = @(
     "AllocationRiskTargets",
     "AllocationSectorTargets",
@@ -52,7 +52,8 @@ $tables = @(
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
     "UserPreferences",
-    "SectorIndustryConfigs"
+    "SectorIndustryConfigs",
+    "DashboardSnapshots"
 )
 
 function Format-SqlValue($value, $typeName) {

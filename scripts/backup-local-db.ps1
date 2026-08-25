@@ -30,7 +30,8 @@ $tables = @(
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
     "UserPreferences",
-    "SectorIndustryConfigs"
+    "SectorIndustryConfigs",
+    "DashboardSnapshots"
 )
 
 function Format-SqlValue($value, $typeName) {

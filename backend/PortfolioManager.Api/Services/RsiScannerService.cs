@@ -370,7 +370,9 @@ public sealed class RsiScannerService : IRsiScannerService
             decimal ema20Price = closes.Count >= 20 ? CalculateEma(closes, 20) : 0m;
 
             // ── Indicator 1: Stochastics ────────────────────────────────────
-            decimal stochK = CalculateStochasticK(highs, lows, closes, 14);
+            var stochastic = CalculateStochastic(highs, lows, closes, 14);
+            decimal stochK = stochastic.K;
+            decimal stochD = stochastic.D;
             bool stochConfirm = rsi < oversoldThreshold ? stochK < 20 : stochK > 80;
 
             // ── Indicator 2: MACD ───────────────────────────────────────────
@@ -383,7 +385,11 @@ public sealed class RsiScannerService : IRsiScannerService
             string macdCrossover = DetermineMacdCrossover(macdVal, macdSig, prevMacdHist, macdHist);
 
             // ── Indicator 3: Bollinger Bands ────────────────────────────────
-            var (bbUpper, _, bbLower) = CalculateBollingerBands(closes, 20);
+            var (bbUpper, bbMiddle, bbLower) = CalculateBollingerBands(closes, 20);
+            decimal bbRange = bbUpper - bbLower;
+            decimal bbPctB = bbRange > 0 ? (todayClose - bbLower) / bbRange : 0.5m;
+            decimal bbBandwidth = bbMiddle != 0 ? bbRange / bbMiddle : 0m;
+            string rsiDivergence = DetectRsiDivergence(closes, CalculateRsiSeries(closes, 14), highs, lows);
             bool bbBreakout = rsi < oversoldThreshold ? todayClose < bbLower : todayClose > bbUpper;
             string bbPosition = todayClose < bbLower ? "Below Lower"
                               : todayClose > bbUpper ? "Above Upper"
@@ -477,13 +483,18 @@ public sealed class RsiScannerService : IRsiScannerService
                 TriggerDetails = trigger,
                 Volume = todayVol,
                 VolumeRatio = Math.Round(volRatio, 2),
+                VolumeProjection = Math.Round(ProjectIntradayVolume(todayVol), 0),
                 StochasticK = Math.Round(stochK, 1),
+                StochasticD = Math.Round(stochD, 1),
                 StochasticsConfirm = stochConfirm,
+                RsiDivergence = rsiDivergence,
                 MacdValue = Math.Round(macdVal, 4),
                 MacdSignalLine = Math.Round(macdSig, 4),
                 MacdCrossover = macdCrossover,
                 BollingerBreakout = bbBreakout,
                 BollingerPosition = bbPosition,
+                BollingerPctB = Math.Round(bbPctB, 4),
+                BollingerBandwidth = Math.Round(bbBandwidth, 4),
                 VolumeSignal = volumeSignal,
                 Dma50Deviation = dma50Dev,
                 Dma200Deviation = dma200Dev,
@@ -702,14 +713,50 @@ public sealed class RsiScannerService : IRsiScannerService
     }
 
     // ── Stochastic Fast %K ────────────────────────────────────────────────────
-    private static decimal CalculateStochasticK(
+    private static (decimal K, decimal D) CalculateStochastic(
         List<decimal> highs, List<decimal> lows, List<decimal> closes, int period = 14)
     {
-        if (closes.Count < period) return 50m;
-        decimal highestHigh = highs.TakeLast(period).Max();
-        decimal lowestLow   = lows.TakeLast(period).Min();
-        decimal rng = highestHigh - lowestLow;
-        return rng > 0 ? ((closes.Last() - lowestLow) / rng) * 100m : 50m;
+        if (closes.Count < period) return (50m, 50m);
+        var values = new List<decimal>();
+        for (var end = period - 1; end < closes.Count; end++)
+        {
+            var high = highs.Skip(end - period + 1).Take(period).Max();
+            var low = lows.Skip(end - period + 1).Take(period).Min();
+            var range = high - low;
+            values.Add(range > 0 ? (closes[end] - low) / range * 100m : 50m);
+        }
+        return (values[^1], values.Count >= 3 ? values.TakeLast(3).Average() : values.Average());
+    }
+
+    private static string DetectRsiDivergence(
+        List<decimal> closes, List<decimal> rsiSeries, List<decimal> highs, List<decimal> lows,
+        int minBars = 20, int maxBars = 60)
+    {
+        var start = Math.Max(1, rsiSeries.Count - maxBars);
+        var peaks = Enumerable.Range(start, rsiSeries.Count - start - 1)
+            .Where(i => rsiSeries[i] >= 70m && rsiSeries[i] >= rsiSeries[i - 1] && rsiSeries[i] >= rsiSeries[i + 1])
+            .ToList();
+        var troughs = Enumerable.Range(start, rsiSeries.Count - start - 1)
+            .Where(i => rsiSeries[i] <= 30m && rsiSeries[i] <= rsiSeries[i - 1] && rsiSeries[i] <= rsiSeries[i + 1])
+            .ToList();
+
+        if (peaks.Count >= 2 && peaks[^1] - peaks[^2] >= minBars)
+        {
+            var first = peaks[^2];
+            var second = peaks[^1];
+            var offset = closes.Count - rsiSeries.Count;
+            if (highs[second + offset] > highs[first + offset] && rsiSeries[second] < rsiSeries[first])
+                return "Bearish";
+        }
+        if (troughs.Count >= 2 && troughs[^1] - troughs[^2] >= minBars)
+        {
+            var first = troughs[^2];
+            var second = troughs[^1];
+            var offset = closes.Count - rsiSeries.Count;
+            if (lows[second + offset] < lows[first + offset] && rsiSeries[second] > rsiSeries[first])
+                return "Bullish";
+        }
+        return "None";
     }
 
     // ── EMA helper ────────────────────────────────────────────────────────────
@@ -1056,8 +1103,12 @@ public sealed class RsiScannerService : IRsiScannerService
     /// </summary>
     private static decimal ProjectIntradayVolume(decimal rawVolume)
     {
-        const double sessionStartMinutes = 9.5 * 60;   // 09:30 ET in minutes from midnight
-        const double sessionTotalMinutes = 390.0;       // 9:30 AM – 4:00 PM = 390 min
+        const double sessionStartMinutes = 9.5 * 60;
+        const double sessionTotalMinutes = 390.0;
+        // Approximate TSX U-curve, one weight per 30-minute bucket.
+        ReadOnlySpan<double> weights = [
+            0.105, 0.085, 0.075, 0.070, 0.065, 0.060, 0.060,
+            0.060, 0.065, 0.070, 0.075, 0.085, 0.120];
 
         TimeZoneInfo? tz = null;
         foreach (var id in new[] { "Eastern Standard Time", "America/New_York" })
@@ -1070,13 +1121,17 @@ public sealed class RsiScannerService : IRsiScannerService
         var etNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
         double elapsedMinutes = etNow.TimeOfDay.TotalMinutes - sessionStartMinutes;
 
-        // Only scale when meaningfully inside the trading session (> 15 min elapsed).
-        // Before open or after close: return raw volume unchanged.
-        if (elapsedMinutes < 15.0 || elapsedMinutes >= sessionTotalMinutes)
+        if (elapsedMinutes <= 0.0 || elapsedMinutes >= sessionTotalMinutes)
             return rawVolume;
 
-        // Cap scale factor at 2.0× to avoid wild projections at session open.
-        double scaleFactor = Math.Min(2.0, sessionTotalMinutes / elapsedMinutes);
+        var completedBuckets = Math.Clamp((int)(elapsedMinutes / 30.0), 0, weights.Length - 1);
+        double expectedThroughBucket = 0;
+        for (var i = 0; i < completedBuckets; i++) expectedThroughBucket += weights[i];
+        var bucketProgress = (elapsedMinutes - completedBuckets * 30.0) / 30.0;
+        expectedThroughBucket += weights[completedBuckets] * bucketProgress;
+        if (expectedThroughBucket <= 0) return rawVolume;
+
+        double scaleFactor = Math.Min(2.0, 1.0 / expectedThroughBucket);
         return rawVolume * (decimal)scaleFactor;
     }
 

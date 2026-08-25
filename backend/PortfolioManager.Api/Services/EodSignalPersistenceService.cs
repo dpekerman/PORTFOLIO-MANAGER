@@ -70,6 +70,10 @@ public class EodSignalPersistenceService
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var accountValue = await db.PortfolioValueHistories
+                    .OrderByDescending(h => h.RecordedAt)
+                    .Select(h => h.TotalValue)
+                    .FirstOrDefaultAsync(ct);
 
                 // Avoid duplicates: skip symbols already recorded for this date
                 var existingSymbols = await db.DailySignals
@@ -88,6 +92,15 @@ public class EodSignalPersistenceService
                         decimal? riskPerShare = (entryPrice.HasValue && stopLoss.HasValue)
                             ? Math.Abs(entryPrice.Value - stopLoss.Value)
                             : null;
+                        var riskBudget = accountValue > 0 ? accountValue * 0.01m : 0m;
+                        var maxPositionValue = accountValue > 0 ? accountValue * 0.10m : 0m;
+                        var sharesByRisk = riskPerShare is > 0 && riskBudget > 0
+                            ? Math.Floor(riskBudget / riskPerShare.Value)
+                            : 0m;
+                        var sharesByValue = entryPrice is > 0 && maxPositionValue > 0
+                            ? Math.Floor(maxPositionValue / entryPrice.Value)
+                            : 0m;
+                        var sizingShares = Math.Max(0m, Math.Min(sharesByRisk, sharesByValue));
                         return new DailySignal
                         {
                             Symbol             = r.Symbol,
@@ -109,6 +122,10 @@ public class EodSignalPersistenceService
                             EntryPrice         = entryPrice,
                             StopLossPrice      = stopLoss,
                             RiskPerShare       = riskPerShare,
+                            PositionSizingShares = sizingShares > 0 ? sizingShares : null,
+                            PositionSizingRiskAmount = sizingShares > 0 && riskPerShare.HasValue ? sizingShares * riskPerShare.Value : null,
+                            PositionSizingPositionValue = sizingShares > 0 && entryPrice.HasValue ? sizingShares * entryPrice.Value : null,
+                            PositionSizingLimitingReason = accountValue <= 0 ? "No persisted account value" : riskPerShare is not > 0 ? "No valid stop loss" : sharesByRisk <= sharesByValue ? "Risk budget (1%)" : "Position limit (10%)",
                             Sma200             = r.Sma200 > 0 ? r.Sma200 : null,
                             Ema9AtEntry        = r.Ema9Price > 0 ? r.Ema9Price : null,
                             Ema9ConfirmedAtEntry = IsEma9Confirmed(r),

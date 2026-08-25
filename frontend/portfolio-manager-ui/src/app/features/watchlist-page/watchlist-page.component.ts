@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
+﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -67,6 +67,7 @@ type SortColumn =
   | 'symbol'
   | 'company'
   | 'role'
+  | 'earningsDate'
   | 'price'
   | 'change'
   | 'changePct'
@@ -98,6 +99,7 @@ type SortDir = 'asc' | 'desc';
   imports: [
     FormsModule,
     CurrencyPipe,
+    DatePipe,
     DecimalPipe,
     MatButtonModule,
     MatButtonToggleModule,
@@ -548,6 +550,10 @@ export class WatchlistPageComponent {
           av = a.item.role ?? 'Strategic';
           bv = b.item.role ?? 'Strategic';
           break;
+        case 'earningsDate':
+          av = a.item.earningsDate ?? '';
+          bv = b.item.earningsDate ?? '';
+          break;
         case 'price':
           av = a.quote?.currentPrice ?? 0;
           bv = b.quote?.currentPrice ?? 0;
@@ -733,6 +739,30 @@ export class WatchlistPageComponent {
     this.watchlist.updateRole(w.item.id, role);
   }
 
+  protected readonly earningsRefreshing = signal(false);
+
+  refreshEarningsFromYahoo(): void {
+    this.earningsRefreshing.set(true);
+    this.api.refreshWatchlistEarnings().subscribe({
+      next: (r) => {
+        this.earningsRefreshing.set(false);
+        this.watchlist.refresh();
+        const snack = (this as any).snackBar;
+        if (snack)
+          snack.open(`Updated earnings dates for ${r.refreshed} of ${r.total} symbols.`, 'OK', {
+            duration: 5000,
+          });
+      },
+      error: () => this.earningsRefreshing.set(false),
+    });
+  }
+
+  updateEarningsDate(w: WatchlistSummary, value: string): void {
+    this.api.updateWatchlistEarningsDate(w.item.id, value || null).subscribe({
+      next: () => this.watchlist.refresh(),
+    });
+  }
+
   exportToExcel(): void {
     const today = new Date().toISOString().slice(0, 10);
     const data = this.filteredSorted().map((w) => {
@@ -750,6 +780,7 @@ export class WatchlistPageComponent {
 
       return {
         Symbol: w.item.symbol,
+        'Earnings Date': w.item.earningsDate ?? '',
         Company: w.quote?.companyName ?? '',
         Role: w.item.role ?? 'Strategic',
         Price: w.quote?.currentPrice ?? '',

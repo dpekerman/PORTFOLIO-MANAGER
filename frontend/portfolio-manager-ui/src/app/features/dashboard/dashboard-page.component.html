@@ -1,0 +1,553 @@
+﻿<section class="db-page" aria-labelledby="db-title">
+  <header class="db-header">
+    <h1 id="db-title">Dashboard</h1>
+    <button
+      mat-stroked-button
+      type="button"
+      (click)="refresh()"
+      [disabled]="dashboard.loading()"
+      aria-label="Refresh dashboard"
+    >
+      <mat-icon [class.spinning]="dashboard.loading()">refresh</mat-icon> Refresh
+    </button>
+  </header>
+  @if (dashboard.loading() && !snapshot()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+  @if (dashboard.error(); as err) {
+    <div class="db-alert" role="alert">{{ err }}</div>
+  }
+  @if (!dashboard.loading() && !snapshot()) {
+    <div class="db-empty">
+      <mat-icon>dashboard_customize</mat-icon>
+      <p>No snapshot yet. Click <strong>Refresh</strong> to build the first dashboard.</p>
+      <button mat-flat-button color="primary" (click)="refresh()">Build snapshot</button>
+    </div>
+  }
+  @if (snapshot(); as data) {
+    <!-- ── Hero ─────────────────────────────────────────────────────────── -->
+    <div class="db-hero">
+      <div class="db-hero-value">
+        <span class="db-hero-label">Portfolio value</span>
+        <strong class="db-hero-total">{{
+          value(data.summary.totalValue) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+        }}</strong>
+        <span class="db-hero-day" [class]="signCls(data.summary.todayChangePercent)">
+          <mat-icon class="sign-ico">{{ signIcon(data.summary.todayChangePercent) }}</mat-icon>
+          {{ value(data.summary.todayChange) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+          ({{ percent(data.summary.todayChangePercent) | number: '1.2-2' }}%) today
+        </span>
+        <span class="db-hero-ts">Snapshot {{ data.updatedAt | date: 'MMM d, h:mm a' }}</span>
+      </div>
+      <div class="db-metric-strip">
+        @for (
+          m of [
+            {
+              label: 'Today',
+              change: data.summary.todayChange,
+              pct: data.summary.todayChangePercent,
+            },
+            {
+              label: 'This week',
+              change: data.summary.weekChange,
+              pct: data.summary.weekChangePercent,
+            },
+            {
+              label: 'This month',
+              change: data.summary.monthChange,
+              pct: data.summary.monthChangePercent,
+            },
+          ];
+          track m.label
+        ) {
+          <div class="db-metric">
+            <span class="db-metric-label">{{ m.label }}</span>
+            <strong [class]="signCls(m.change)">{{
+              value(m.change) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+            }}</strong>
+            <span class="db-metric-pct" [class]="signCls(m.pct)"
+              >{{ percent(m.pct) | number: '1.2-2' }}%</span
+            >
+          </div>
+        }
+      </div>
+    </div>
+    <!-- ── Chart ─────────────────────────────────────────────────────────── -->
+    <mat-card class="db-chart-card"
+      ><mat-card-content>
+        <div class="db-chart-header">
+          <div class="db-chart-header-left">
+            <button
+              mat-icon-button
+              routerLink="/portfolio"
+              matTooltip="Go to Portfolio"
+              class="panel-nav-btn"
+              aria-label="Portfolio"
+            >
+              <mat-icon>show_chart</mat-icon>
+            </button>
+            <span class="db-chart-title">Portfolio value history</span>
+          </div>
+          <mat-button-toggle-group
+            [value]="selectedRange()"
+            (change)="selectedRange.set($event.value)"
+            class="db-range-group"
+            aria-label="Chart range"
+          >
+            @for (r of chartRanges; track r) {
+              <mat-button-toggle [value]="r">{{ r }}</mat-button-toggle>
+            }
+          </mat-button-toggle-group>
+        </div>
+        @if (svgChart(); as chart) {
+          <svg
+            class="db-svg"
+            [attr.viewBox]="chart.viewBox"
+            preserveAspectRatio="none"
+            role="img"
+            aria-label="Portfolio value chart"
+          >
+            <defs>
+              <linearGradient id="gradUp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#1a9e7a" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#1a9e7a" stop-opacity="0" />
+              </linearGradient>
+              <linearGradient id="gradDown" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#e53e3e" stop-opacity="0.28" />
+                <stop offset="100%" stop-color="#e53e3e" stop-opacity="0" />
+              </linearGradient>
+            </defs>
+            @for (yl of chart.yLabels; track yl.label) {
+              <line
+                [attr.x1]="chart.padL"
+                [attr.y1]="yl.gridY"
+                x2="960"
+                [attr.y2]="yl.gridY"
+                class="db-grid-line"
+              />
+              <text
+                [attr.x]="chart.padL - 5"
+                [attr.y]="yl.y + 4"
+                class="db-y-label"
+                text-anchor="end"
+              >
+                {{ yl.label }}
+              </text>
+            }
+            <line
+              x1="0"
+              [attr.y1]="chart.baselineY"
+              x2="960"
+              [attr.y2]="chart.baselineY"
+              class="db-baseline"
+            />
+            <path
+              [attr.d]="chart.areaPath"
+              [attr.fill]="chart.isUp ? 'url(#gradUp)' : 'url(#gradDown)'"
+            />
+            <path [attr.d]="chart.linePath" [class]="chart.isUp ? 'db-line up' : 'db-line down'" />
+            @for (lbl of chart.xLabels; track lbl.label) {
+              <text [attr.x]="lbl.x" y="206" class="db-x-label" text-anchor="middle">
+                {{ lbl.label }}
+              </text>
+            }
+          </svg>
+        } @else {
+          <div class="db-chart-empty">
+            <mat-icon>show_chart</mat-icon>
+            <p>Value history appears after the next portfolio close is recorded.</p>
+          </div>
+        }
+      </mat-card-content></mat-card
+    >
+    <!-- ── Main 2-col grid ───────────────────────────────────────────────── -->
+    <div class="db-grid">
+      <!-- Top movers -->
+      <mat-card class="db-panel">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <button
+              mat-icon-button
+              routerLink="/portfolio"
+              matTooltip="Go to Portfolio"
+              class="panel-nav-btn"
+              aria-label="Portfolio"
+            >
+              <mat-icon class="db-panel-ico">moving</mat-icon>
+            </button>
+            <span class="db-panel-title">Top movers</span>
+          </div>
+          <mat-select
+            [value]="moversCount()"
+            (selectionChange)="moversCount.set($event.value)"
+            class="movers-count-sel"
+            aria-label="Number of movers"
+          >
+            @for (n of moversOptions; track n) {
+              <mat-option [value]="n">{{ n }}</mat-option>
+            }
+          </mat-select>
+        </div>
+        <div class="db-mover-list">
+          @for (m of visibleMovers(); track m.symbol) {
+            <div class="db-mover-row">
+              <span class="mover-sym">{{ m.symbol }}</span>
+              <span class="mover-name">{{ m.companyName }}</span>
+              <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
+              <span class="mover-src">{{ m.isPortfolio ? 'Ptf' : 'WL' }}</span>
+            </div>
+          } @empty {
+            <p class="db-muted">No quote snapshot available.</p>
+          }
+        </div>
+        <div class="db-sub-hd">Losers today</div>
+        <div class="db-mover-list">
+          @for (m of visibleLosers(); track m.symbol) {
+            <div class="db-mover-row">
+              <span class="mover-sym">{{ m.symbol }}</span>
+              <span class="mover-name">{{ m.companyName }}</span>
+              <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
+              <span class="mover-src">{{ m.isPortfolio ? 'Ptf' : 'WL' }}</span>
+            </div>
+          }
+        </div>
+      </mat-card>
+      <!-- Market indices -->
+      <mat-card class="db-panel">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <button
+              mat-icon-button
+              routerLink="/scanner"
+              matTooltip="Go to RSI Scanner"
+              class="panel-nav-btn"
+              aria-label="Scanner"
+            >
+              <mat-icon class="db-panel-ico">public</mat-icon>
+            </button>
+            <span class="db-panel-title">Market indices</span>
+          </div>
+        </div>
+        <div class="db-index-list">
+          @for (idx of data.marketIndices; track idx.symbol) {
+            <div class="db-index-row">
+              <span class="idx-name">{{ idx.name }}</span>
+              <span class="idx-price">{{ fmtIdx(idx.price) }}</span>
+              <span class="idx-chg" [class]="signCls(idx.change)"
+                >{{ idx.change >= 0 ? '+' : '' }}{{ fmtIdx(idx.change) }}</span
+              >
+              <span class="idx-pct" [class]="signCls(idx.changePercent)"
+                >{{ idx.changePercent >= 0 ? '+' : ''
+                }}{{ idx.changePercent | number: '1.2-2' }}%</span
+              >
+            </div>
+          } @empty {
+            <p class="db-muted">Index data appears on next refresh.</p>
+          }
+        </div>
+      </mat-card>
+      <!-- RSI signals -->
+      <mat-card class="db-panel db-rsi-panel">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <button
+              mat-icon-button
+              routerLink="/eod-signals"
+              matTooltip="Go to EOD Signals"
+              class="panel-nav-btn"
+              aria-label="EOD Signals"
+            >
+              <mat-icon class="db-panel-ico">radar</mat-icon>
+            </button>
+            <span class="db-panel-title">Market signals</span>
+          </div>
+          <button
+            mat-icon-button
+            (click)="rsiExpanded.set(!rsiExpanded())"
+            [matTooltip]="rsiExpanded() ? 'Collapse' : 'Expand signals'"
+            aria-label="Toggle signal details"
+            [style.display]="
+              data.rsiSection &&
+              (data.rsiSection.oversoldSignals.length > 0 ||
+                data.rsiSection.overboughtSignals.length > 0)
+                ? ''
+                : 'none'
+            "
+          >
+            <mat-icon>{{ rsiExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        </div>
+        @if (data.rsiSection; as rsi) {
+          <div class="db-signal-summary">
+            <div class="db-sig oversold">
+              <strong>{{ rsi.oversoldCount }}</strong
+              ><span>Oversold</span>
+            </div>
+            <div class="db-sig-divider"></div>
+            <div class="db-sig overbought">
+              <strong>{{ rsi.overboughtCount }}</strong
+              ><span>Overbought</span>
+            </div>
+            <div class="db-sig-divider"></div>
+            <div class="db-sig new">
+              <strong>{{ rsi.newTodayCount }}</strong
+              ><span>New today</span>
+            </div>
+            <div class="db-sig-divider"></div>
+            <div class="db-sig action">
+              <strong>{{ rsi.actionRequiredCount }}</strong
+              ><span>Action req.</span>
+            </div>
+          </div>
+          @if (rsiExpanded()) {
+            @if (rsi.oversoldSignals.length === 0 && rsi.overboughtSignals.length === 0) {
+              <div class="db-sig-no-data">
+                <mat-icon>radar</mat-icon>
+                <p>No active RSI signals in the current scanner snapshot.</p>
+                <a mat-stroked-button routerLink="/scanner" class="db-sig-scan-btn"
+                  >Run scanner &rarr;</a
+                >
+              </div>
+            }
+            @if (rsi.oversoldSignals.length > 0) {
+              <div class="db-sig-section-hd">
+                <span class="db-sig-dot os"></span>Oversold opportunities
+              </div>
+              <table class="db-sig-table" aria-label="Oversold signals">
+                <thead>
+                  <tr>
+                    <th>Ticker</th>
+                    <th>RSI</th>
+                    <th>Momentum</th>
+                    <th>Volume</th>
+                    <th>Chg%</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (s of rsi.oversoldSignals.slice(0, 8); track s.symbol) {
+                    <tr>
+                      <td class="st-sym">{{ s.symbol }}</td>
+                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
+                      <td class="st-ms">{{ s.momentumShift }}</td>
+                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
+                        {{
+                          s.volumeSignal === 'Validated'
+                            ? '✓ Valid'
+                            : s.volumeSignal === 'Low-Volume Trap'
+                              ? '⚠ Low'
+                              : s.volumeSignal
+                        }}
+                      </td>
+                      <td class="st-ret" [class]="signCls(s.returnPct)">
+                        {{ s.returnPct | number: '1.2-2' }}%
+                      </td>
+                      <td
+                        class="st-act"
+                        [class]="
+                          s.action === 'BUY WATCH'
+                            ? 'act-buy'
+                            : s.action === 'WAIT'
+                              ? 'act-wait'
+                              : 'act-watch'
+                        "
+                      >
+                        {{ s.action }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              @if (rsi.oversoldSignals.length > 8) {
+                <a routerLink="/scanner" class="db-view-all"
+                  >View all {{ rsi.oversoldSignals.length }} oversold &rarr;</a
+                >
+              }
+            }
+            @if (rsi.overboughtSignals.length > 0) {
+              <div class="db-sig-section-hd">
+                <span class="db-sig-dot ob"></span>Overbought / trim watch
+              </div>
+              <table class="db-sig-table" aria-label="Overbought signals">
+                <thead>
+                  <tr>
+                    <th>Ticker</th>
+                    <th>RSI</th>
+                    <th>Momentum</th>
+                    <th>Volume</th>
+                    <th>Chg%</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (s of rsi.overboughtSignals.slice(0, 8); track s.symbol) {
+                    <tr>
+                      <td class="st-sym">{{ s.symbol }}</td>
+                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
+                      <td class="st-ms">{{ s.momentumShift }}</td>
+                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
+                        {{
+                          s.volumeSignal === 'Validated'
+                            ? '✓ Valid'
+                            : s.volumeSignal === 'Low-Volume Trap'
+                              ? '⚠ Low'
+                              : s.volumeSignal
+                        }}
+                      </td>
+                      <td class="st-ret" [class]="signCls(s.returnPct)">
+                        {{ s.returnPct | number: '1.2-2' }}%
+                      </td>
+                      <td
+                        class="st-act"
+                        [class]="s.action === 'TRIM WATCH' ? 'act-trim' : 'act-watch'"
+                      >
+                        {{ s.action }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              @if (rsi.overboughtSignals.length > 8) {
+                <a routerLink="/scanner" class="db-view-all"
+                  >View all {{ rsi.overboughtSignals.length }} overbought &rarr;</a
+                >
+              }
+            }
+          } @else {
+            <p class="db-sig-hint">
+              From last scanner snapshot &middot;
+              <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
+            </p>
+          }
+        } @else {
+          <div class="db-signal-row">
+            <div class="db-sig oversold">
+              <strong>{{ data.summary.oversoldCount }}</strong
+              ><span>Oversold</span>
+            </div>
+            <div class="db-sig-divider"></div>
+            <div class="db-sig overbought">
+              <strong>{{ data.summary.overboughtCount }}</strong
+              ><span>Overbought</span>
+            </div>
+          </div>
+          <p class="db-sig-hint">
+            From last scanner snapshot &middot;
+            <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
+          </p>
+        }
+      </mat-card>
+      <!-- Allocation vs targets -->
+      <mat-card class="db-panel">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <button
+              mat-icon-button
+              routerLink="/allocation"
+              matTooltip="Go to Allocation"
+              class="panel-nav-btn"
+              aria-label="Allocation"
+            >
+              <mat-icon class="db-panel-ico">donut_large</mat-icon>
+            </button>
+            <span class="db-panel-title">Allocation vs targets</span>
+          </div>
+        </div>
+        <div class="db-alloc-table-wrap">
+          <table class="db-alloc-table" aria-label="Sector allocation vs targets">
+            <thead>
+              <tr>
+                <th>Sector</th>
+                <th>Actual</th>
+                <th>Target</th>
+                <th>Delta</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of data.allocation; track s.label) {
+                <tr>
+                  <td class="alloc-sector">{{ s.label }}</td>
+                  <td class="alloc-num">
+                    {{ s.percent | number: '1.1-1' }}%
+                    <div class="alloc-bar-mini">
+                      <span [style.width.%]="s.percent" [class]="allocStatusClass(s.status)"></span>
+                    </div>
+                  </td>
+                  <td class="alloc-num">
+                    {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
+                  </td>
+                  <td class="alloc-num" [class]="signCls(s.delta)">
+                    {{
+                      s.targetPercent > 0
+                        ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
+                        : '—'
+                    }}
+                  </td>
+                  <td>
+                    <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
+                      s.status === 'good'
+                        ? 'On target'
+                        : s.status === 'watch-over'
+                          ? 'Slight over'
+                          : s.status === 'watch-under'
+                            ? 'Slight under'
+                            : s.status === 'over'
+                              ? 'Over'
+                              : s.status === 'under'
+                                ? 'Under'
+                                : 'No target'
+                    }}</span>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5" class="db-muted">
+                    Allocation appears when portfolio quotes are loaded.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </mat-card>
+    </div>
+    <!-- ── Upcoming earnings ──────────────────────────────────────────── -->
+    @if (data.nextSevenDayEarnings.length > 0) {
+      <mat-card class="db-earnings-card">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <button
+              mat-icon-button
+              routerLink="/watchlist"
+              matTooltip="Go to Watchlist"
+              class="panel-nav-btn"
+              aria-label="Watchlist"
+            >
+              <mat-icon class="db-panel-ico">event</mat-icon>
+            </button>
+            <span class="db-panel-title">Upcoming earnings (next 7 days)</span>
+          </div>
+        </div>
+        <div class="db-earnings-list">
+          @for (e of data.nextSevenDayEarnings; track e.symbol) {
+            <div class="db-earn-chip">
+              <span class="earn-sym">{{ e.symbol }}</span
+              ><span class="earn-name">{{ e.companyName }}</span
+              ><span class="earn-date">{{ e.earningsDate | date: 'MMM d' }}</span
+              ><span class="earn-src" [class.earn-src-manual]="e.source === 'Manual'">{{
+                e.source
+              }}</span>
+            </div>
+          }
+        </div>
+      </mat-card>
+    }
+    <!-- ── Scan now quick action only ─────────────────────────────────── -->
+    <nav class="db-actions" aria-label="Quick actions">
+      <a mat-flat-button color="primary" routerLink="/scanner"
+        ><mat-icon>radar</mat-icon>Scan now</a
+      >
+    </nav>
+  }
+</section>

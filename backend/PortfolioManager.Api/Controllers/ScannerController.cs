@@ -6,6 +6,7 @@ using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 using System.Text.Json;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Controllers;
 
@@ -19,6 +20,7 @@ public class ScannerController(
     ScannerRuntimeConfig runtimeConfig,
     EodSignalPersistenceService eodPersistence,
     IRsiSnapshotService snapshotService,
+    IDashboardService dashboard,
     ILogger<ScannerController> logger) : ControllerBase
 {
     private const string CacheKeyPrefix = "rsi_scan";
@@ -59,7 +61,11 @@ public class ScannerController(
 
         // Persist snapshot so the frontend loads instantly without hitting Yahoo Finance ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â demo data has no TTL value
         if (!result.IsDemo)
+        {
             await snapshotService.SaveAsync(result, ct);
+            var uid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!string.IsNullOrEmpty(uid)) await dashboard.RebuildAsync(uid, ct);
+        }
 
         return Ok(result);
     }

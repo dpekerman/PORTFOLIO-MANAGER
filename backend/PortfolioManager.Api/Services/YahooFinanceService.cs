@@ -25,6 +25,7 @@ public interface IMarketDataProvider
     /// Returns null if the symbol is not found or quoteSummary returns an error.
     /// </summary>
     Task<FundamentalsSnapshot?> GetFundamentalsAsync(string symbol, CancellationToken ct = default);
+    Task<Dictionary<string, DateTime>> GetEarningsDatesAsync(IEnumerable<string> symbols, CancellationToken ct = default);
 
     /// <summary>
     /// Returns the historical closing price for each symbol on the given trading date ("yyyy-MM-dd").
@@ -482,6 +483,36 @@ public sealed class YahooFinanceService : IMarketDataProvider
             await Task.Delay(250, ct);
         }
         return null;
+    }
+
+    public async Task<Dictionary<string, DateTime>> GetEarningsDatesAsync(IEnumerable<string> symbols, CancellationToken ct = default)
+    {
+        var result = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var symbol in symbols.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var response = await SendWithCrumbAsync(
+                    $"v10/finance/quoteSummary/{Uri.EscapeDataString(symbol)}?modules=calendarEvents", ct);
+                if (!response.IsSuccessStatusCode) continue;
+                using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+                var dates = document.RootElement
+                    .GetProperty("quoteSummary").GetProperty("result")[0]
+                    .GetProperty("calendarEvents").GetProperty("earnings").GetProperty("earningsDate");
+                var date = dates.EnumerateArray()
+                    .Select(x => x.TryGetProperty("raw", out var raw) && raw.TryGetInt64(out var unix)
+                        ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.Date
+                        : (DateTime?)null)
+                    .FirstOrDefault(x => x.HasValue);
+                if (date.HasValue) result[symbol] = date.Value;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Earnings date unavailable for {Symbol}", symbol);
+            }
+            await Task.Delay(300, ct);
+        }
+        return result;
     }
 
     private static FundamentalsSnapshot MapFundamentalsSnapshot(string symbol, YahooQuoteSummaryModules r)

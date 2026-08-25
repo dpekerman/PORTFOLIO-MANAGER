@@ -12,7 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public class WatchlistController(
     IWatchlistService watchlistService,
     IMarketDataProvider marketData,
-    IWatchlistSnapshotService watchlistSnapshot) : ControllerBase
+    IWatchlistSnapshotService watchlistSnapshot,
+    IDashboardService dashboard) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
@@ -45,7 +46,10 @@ public class WatchlistController(
         // Persist snapshot so the frontend loads instantly on next page open
         var uid = CurrentUserId();
         if (!string.IsNullOrEmpty(uid))
+        {
             await watchlistSnapshot.SaveAsync(uid, results.AsReadOnly(), ct);
+            await dashboard.RebuildAsync(uid, ct);
+        }
 
         return Ok(results);
     }
@@ -92,6 +96,37 @@ public class WatchlistController(
     public async Task<IActionResult> UpdateNotes(int id, [FromBody] UpdateWatchlistNotesRequest request, CancellationToken ct)
     {
         var updated = await watchlistService.UpdateNotesAsync(id, request.Notes, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPost("refresh-earnings")]
+    public async Task<IActionResult> RefreshEarnings(CancellationToken ct)
+    {
+        var items = await watchlistService.GetAllAsync(ct);
+        if (items.Count == 0) return Ok(new { refreshed = 0 });
+        var earningsDates = await marketData.GetEarningsDatesAsync(items.Select(i => i.Symbol), ct);
+        var count = 0;
+        foreach (var (symbol, date) in earningsDates)
+        {
+            var item = items.FirstOrDefault(i => i.Symbol.Equals(symbol, StringComparison.OrdinalIgnoreCase));
+            if (item is null) continue;
+            await watchlistService.UpdateEarningsDateAsync(item.Id, date, ct);
+            count++;
+        }
+        return Ok(new { refreshed = count, total = items.Count });
+    }
+
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPatch("{id:int}/earnings-date")]
+    public async Task<IActionResult> UpdateEarningsDate(int id, [FromBody] UpdateWatchlistEarningsDateRequest request, CancellationToken ct)
+    {
+        var updated = await watchlistService.UpdateEarningsDateAsync(id, request.EarningsDate, ct);
+        if (updated)
+        {
+            var uid = CurrentUserId();
+            if (!string.IsNullOrEmpty(uid)) await dashboard.RebuildAsync(uid, ct);
+        }
         return updated ? NoContent() : NotFound();
     }
 

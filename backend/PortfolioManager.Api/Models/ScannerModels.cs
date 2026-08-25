@@ -40,7 +40,9 @@ public class RsiScanResult
     /// <summary>Stochastic Fast %K (0-100). Confirms extreme reading when
     /// below 20 (oversold) or above 80 (overbought).</summary>
     public decimal StochasticK { get; set; }
+    public decimal StochasticD { get; set; }
     public bool StochasticsConfirm { get; set; }
+    public string RsiDivergence { get; set; } = "None";
 
     /// <summary>MACD line and signal line values.</summary>
     public decimal MacdValue { get; set; }
@@ -52,6 +54,8 @@ public class RsiScanResult
     public bool BollingerBreakout { get; set; }
     /// <summary>"Below Lower" | "Above Upper" | "Inside"</summary>
     public string BollingerPosition { get; set; } = "Inside";
+    public decimal BollingerPctB { get; set; }
+    public decimal BollingerBandwidth { get; set; }
 
     /// <summary>"Validated" (high-vol confirms move) | "Low-Volume Trap" | "Neutral"</summary>
     public string VolumeSignal { get; set; } = "Neutral";
@@ -127,6 +131,11 @@ public class RsiScanResult
     public decimal DynamicStopLoss { get; set; }
     /// <summary>Whether this result comes from an active staged signal (RSI may have recovered from extreme).</summary>
     public bool IsTracked { get; set; }
+    public decimal VolumeProjection { get; set; }
+    public decimal PositionSizingShares { get; set; }
+    public decimal PositionSizingRiskAmount { get; set; }
+    public decimal PositionSizingPositionValue { get; set; }
+    public string PositionSizingLimitingReason { get; set; } = string.Empty;
 
     // ── 2-Stage Engine — Status &amp; Velocity ──────────────────────────────────────
     /// <summary>
@@ -349,6 +358,10 @@ public class DailySignal
     public decimal? StopLossPrice { get; set; }
     /// <summary>ABS(EntryPrice - StopLossPrice).</summary>
     public decimal? RiskPerShare { get; set; }
+    public decimal? PositionSizingShares { get; set; }
+    public decimal? PositionSizingRiskAmount { get; set; }
+    public decimal? PositionSizingPositionValue { get; set; }
+    public string? PositionSizingLimitingReason { get; set; }
     /// <summary>200-day SMA at confirmation.</summary>
     public decimal? Sma200 { get; set; }
     /// <summary>EMA9 price at the moment of promotion.</summary>

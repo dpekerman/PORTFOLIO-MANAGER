@@ -232,12 +232,28 @@
             [matTooltip]="
               'Stoch %K: ' +
               (row.stochasticK | number: '1.1-1') +
-              (row.stochasticsConfirm ? ' ✓ Confirms extreme reading' : ' — Not extreme')
+              (row.stochasticsConfirm ? ' ✓ Confirms extreme reading' : ' — Not extreme') +
+              ' · %D: ' +
+              (row.stochasticD | number: '1.1-1')
             "
           >
             <mat-icon>show_chart</mat-icon>
-            <span>Stoch {{ row.stochasticK | number: '1.0-0' }}</span>
+            <span
+              >Stoch {{ row.stochasticK | number: '1.0-0' }}/{{
+                row.stochasticD | number: '1.0-0'
+              }}</span
+            >
           </div>
+
+          @if (row.rsiDivergence !== 'None') {
+            <div
+              class="ind-chip"
+              [class.ind-bull]="row.rsiDivergence === 'Bullish'"
+              [class.ind-bear]="row.rsiDivergence === 'Bearish'"
+            >
+              <mat-icon>compare_arrows</mat-icon><span>{{ row.rsiDivergence }} divergence</span>
+            </div>
+          }
 
           <!-- 2a. MACD — Legacy: crossover signal -->
           @if (!isEnhanced()) {
@@ -280,7 +296,14 @@
             [class]="
               row.bollingerBreakout ? (isOversold() ? 'ind-bull' : 'ind-bear') : 'ind-neutral'
             "
-            [matTooltip]="'Bollinger: ' + row.bollingerPosition"
+            [matTooltip]="
+              'Bollinger: ' +
+              row.bollingerPosition +
+              ' · %B ' +
+              (row.bollingerPctB | number: '1.2-2') +
+              ' · Bandwidth ' +
+              (row.bollingerBandwidth | number: '1.2-2')
+            "
           >
             <mat-icon>{{ row.bollingerBreakout ? 'bolt' : 'radio_button_unchecked' }}</mat-icon>
             <span
@@ -302,6 +325,8 @@
             [matTooltip]="
               'Volume ' +
               row.volumeSignal +
+              ' · Projected ' +
+              (row.volumeProjection | number: '1.0-0') +
               ' (' +
               (row.volumeRatio | number: '1.1-1') +
               'x avg)' +

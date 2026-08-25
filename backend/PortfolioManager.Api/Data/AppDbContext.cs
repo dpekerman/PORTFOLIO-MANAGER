@@ -24,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<UserPreference> UserPreferences => Set<UserPreference>();
     public DbSet<PortfolioSnapshot> PortfolioSnapshots => Set<PortfolioSnapshot>();
     public DbSet<WatchlistSnapshot> WatchlistSnapshots => Set<WatchlistSnapshot>();
+    public DbSet<DashboardSnapshot> DashboardSnapshots => Set<DashboardSnapshot>();
     public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -69,6 +70,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Notes).HasMaxLength(500).HasDefaultValue("");
             entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
             entity.Property(e => e.IsFavorite).HasDefaultValue(false);
+            entity.Property(e => e.EarningsDate).IsRequired(false);
             // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
             entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
         });
@@ -121,6 +123,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.EntryPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.StopLossPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.RiskPerShare).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PositionSizingShares).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.PositionSizingRiskAmount).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PositionSizingPositionValue).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.PositionSizingLimitingReason).HasMaxLength(200);
             entity.Property(e => e.Sma200).HasColumnType("decimal(18,4)");
             entity.Property(e => e.Ema9AtEntry).HasColumnType("decimal(18,4)");
             entity.Property(e => e.Fib61_8AtSignal).HasColumnType("decimal(18,4)");
@@ -249,6 +255,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasKey(e => e.UserId);
             entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.SnapshotJson).IsRequired().HasDefaultValue("[]");
+        });
+
+        modelBuilder.Entity<DashboardSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.SnapshotJson).IsRequired().HasDefaultValue("{}");
         });
     }
 }

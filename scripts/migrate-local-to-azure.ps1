@@ -37,9 +37,10 @@ $tables = @(
     "ValueScreenerScheduleConfigs",
     "ValueScreenerSnapshots",
     "PortfolioValueHistories",
-    "UserPreferences"
-    # Snapshot tables (RsiScanSnapshots, PortfolioSnapshots, WatchlistSnapshots) are intentionally
-    # excluded - they are ephemeral caches that regenerate automatically on first page load after deploy.
+    "UserPreferences",
+    "DashboardSnapshots"
+    # RSI/quote snapshots are intentionally excluded as ephemeral caches. DashboardSnapshots
+    # is persistent user data and is included above.
 )
 
 function Format-SqlValue($value, $typeName) {

@@ -66,6 +66,7 @@ export interface WatchlistItem {
   role: string;
   /** Whether this symbol is marked as a favourite. */
   isFavorite: boolean;
+  earningsDate?: string | null;
 }
 
 export interface WatchlistSummary {
@@ -134,6 +135,7 @@ export type VolumeSignal = 'Validated' | 'Low-Volume Trap' | 'Neutral';
 export type BollingerPosition = 'Below Lower' | 'Above Upper' | 'Inside';
 export type MacdHistSlope = 'Rising' | 'Falling' | 'Neutral';
 export type LogicMode = 'Legacy' | 'Enhanced';
+export type RsiDivergence = 'Bullish' | 'Bearish' | 'None';
 
 export interface RsiScanResult {
   symbol: string;
@@ -152,12 +154,21 @@ export interface RsiScanResult {
   isDemo: boolean;
   // ── 5 Technical Indicators ────────────────────────────────────────────────
   stochasticK: number;
+  stochasticD: number;
+  rsiDivergence: RsiDivergence;
   stochasticsConfirm: boolean;
   macdValue: number;
   macdSignalLine: number;
   macdCrossover: MacdCrossover;
   bollingerBreakout: boolean;
   bollingerPosition: BollingerPosition;
+  bollingerPctB: number;
+  bollingerBandwidth: number;
+  volumeProjection: number;
+  positionSizingShares: number;
+  positionSizingRiskAmount: number;
+  positionSizingPositionValue: number;
+  positionSizingLimitingReason: string;
   volumeSignal: VolumeSignal;
   dma50Deviation: number;
   dma200Deviation: number;
@@ -501,6 +512,10 @@ export interface DailySignal {
   entryPrice: number | null;
   stopLossPrice: number | null;
   riskPerShare: number | null;
+  positionSizingShares: number | null;
+  positionSizingRiskAmount: number | null;
+  positionSizingPositionValue: number | null;
+  positionSizingLimitingReason: string | null;
   sma200: number | null;
   ema9AtEntry: number | null;
   ema9ConfirmedAtEntry: boolean | null;
@@ -607,6 +622,79 @@ export interface SetupRequiredResponse {
 export interface MarketIndicesResponse {
   indices: MarketIndexDto[];
   fetchedAt: string;
+}
+
+export interface DashboardSummary {
+  totalValue: number;
+  todayChange: number;
+  todayChangePercent: number;
+  weekChange: number;
+  weekChangePercent: number;
+  monthChange: number;
+  monthChangePercent: number;
+  oversoldCount: number;
+  overboughtCount: number;
+}
+
+export interface DashboardMover {
+  symbol: string;
+  companyName: string;
+  changePercent: number;
+  isPortfolio: boolean;
+  isWatchlist: boolean;
+}
+
+export interface DashboardChartPoint {
+  date: string;
+  totalValue: number;
+}
+
+export interface DashboardAllocation {
+  label: string;
+  value: number;
+  percent: number;
+  targetPercent: number;
+  delta: number;
+  status: string; // good | watch-over | watch-under | over | under | no-target
+}
+
+export interface DashboardRsiSignal {
+  symbol: string;
+  companyName: string;
+  rsi: number;
+  momentumShift: string;
+  volumeSignal: string;
+  returnPct: number;
+  action: string;
+  signalStatus: string;
+}
+
+export interface DashboardRsiSection {
+  oversoldCount: number;
+  overboughtCount: number;
+  newTodayCount: number;
+  actionRequiredCount: number;
+  oversoldSignals: DashboardRsiSignal[];
+  overboughtSignals: DashboardRsiSignal[];
+}
+
+export interface DashboardEarning {
+  symbol: string;
+  companyName: string;
+  earningsDate: string;
+  source: string;
+}
+
+export interface DashboardResponse {
+  updatedAt: string;
+  summary: DashboardSummary;
+  topMovers: DashboardMover[];
+  bottomMovers: DashboardMover[];
+  valueHistory: DashboardChartPoint[];
+  marketIndices: MarketIndexDto[];
+  allocation: DashboardAllocation[];
+  nextSevenDayEarnings: DashboardEarning[];
+  rsiSection?: DashboardRsiSection;
 }
 
 export interface EodSignalFilters {

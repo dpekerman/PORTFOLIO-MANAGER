@@ -18,6 +18,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     children: [
       {
+        path: 'dashboard',
+        loadChildren: () =>
+          import('./features/dashboard/dashboard.routes').then((m) => m.DASHBOARD_ROUTES),
+      },
+      {
         path: 'portfolio',
         loadChildren: () =>
           import('./features/portfolio/portfolio.routes').then((m) => m.PORTFOLIO_ROUTES),
@@ -58,7 +63,7 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/eod-signals/eod-signals.routes').then((m) => m.EOD_SIGNALS_ROUTES),
       },
-      { path: '', redirectTo: 'portfolio', pathMatch: 'full' },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },
   { path: '**', redirectTo: 'login' },

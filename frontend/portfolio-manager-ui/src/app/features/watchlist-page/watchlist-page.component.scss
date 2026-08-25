@@ -402,10 +402,28 @@ button[mat-icon-button] {
   color: #000;
   border-color: rgba(255, 87, 34, 0.9);
 }
+.wl-earnings-date-cell {
+  white-space: nowrap;
+}
+.wl-earn-date {
+  font-size: 0.82rem;
+  color: #1a9e7a;
+  font-weight: 500;
+}
+.wl-earn-none {
+  color: #aab8be;
+}
+
 .ma-standby {
   background: rgba(255, 235, 59, 0.35);
   color: #555;
   border-color: rgba(255, 235, 59, 0.55);
+}
+.ma-standby-no-add {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.95);
+  font-weight: 600;
 }
 
 // TFSA profit-taking rule – amber/gold badge
