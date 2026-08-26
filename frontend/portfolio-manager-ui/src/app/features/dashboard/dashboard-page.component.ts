@@ -54,7 +54,7 @@ export class DashboardPageComponent {
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
   /** Whether the RSI signals detail table is expanded. */
-  protected readonly rsiExpanded = signal(false);
+  protected readonly rsiExpanded = signal(true);
 
   protected readonly visibleMovers = computed(() =>
     (this.snapshot()?.topMovers ?? []).slice(0, this.moversCount()),
