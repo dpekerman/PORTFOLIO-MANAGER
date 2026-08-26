@@ -59,6 +59,11 @@ export class AllocationPageComponent {
   protected readonly betaSortDir = signal<'asc' | 'desc'>('asc');
   protected readonly betaColumns = ['symbol', 'weightPct', 'beta', 'actions'] as const;
 
+  /** Active (non-CLOSE) stock count. */
+  protected readonly activeStockCount = computed(
+    () => this.portfolio.summaries().filter((s) => s.item.transactionType !== 'CLOSE').length,
+  );
+
   protected readonly sortedBetaContributors = computed(() => {
     const contributors = this.betaState.result()?.topContributors ?? [];
     const col = this.betaSortCol();

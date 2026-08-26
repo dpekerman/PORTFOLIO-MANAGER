@@ -272,7 +272,7 @@
               <span class="idx-name">{{ idx.name }}</span>
               <span class="idx-price">{{ fmtIdx(idx.price) }}</span>
               <span class="idx-chg" [class]="signCls(idx.change)"
-                >{{ idx.change >= 0 ? '+' : '' }}{{ fmtIdx(idx.change) }}</span
+                >{{ idx.change >= 0 ? '+' : '-' }}{{ fmtChg(idx.change) }}</span
               >
               <span class="idx-pct" [class]="signCls(idx.changePercent)"
                 >{{ idx.changePercent >= 0 ? '+' : ''

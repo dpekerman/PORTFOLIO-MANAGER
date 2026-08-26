@@ -81,7 +81,7 @@
           </div>
           <div class="kpi-value kpi-neutral">
             {{
-              portfolio.summaries().length + cashState.items().length + optionState.items().length
+              activeStockCount() + optionTransactionCount() + (cashState.items().length > 0 ? 1 : 0)
             }}
           </div>
           <div class="kpi-sub">Active holdings</div>

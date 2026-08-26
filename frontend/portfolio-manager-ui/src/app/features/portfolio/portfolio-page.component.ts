@@ -227,6 +227,24 @@ export class PortfolioPageComponent {
 
   // ── Option grid sort ────────────────────────────────────────────────────
   // Default: sort by expiry date ascending (closest expiry first)
+  /** Active (non-CLOSE) stock count for display badges. */
+  protected readonly activeStockCount = computed(
+    () => this.portfolio.summaries().filter((s) => s.item.transactionType !== 'CLOSE').length,
+  );
+
+  /** Active option count (individual contracts, not grouped). */
+  protected readonly activeOptionCount = computed(
+    () => this.optionState.analyses().filter((a) => a.item.transactionType !== 'CLOSE').length,
+  );
+
+  /** Total position count: active stocks + active options + 1 if any cash. */
+  protected readonly totalPositionCount = computed(
+    () =>
+      this.activeStockCount() +
+      this.activeOptionCount() +
+      (this.cashState.items().length > 0 ? 1 : 0),
+  );
+
   protected readonly optionSortCol = signal<OptionSortCol>('opt_expiry');
   protected readonly optionSortDir = signal<SortDir>('asc');
 

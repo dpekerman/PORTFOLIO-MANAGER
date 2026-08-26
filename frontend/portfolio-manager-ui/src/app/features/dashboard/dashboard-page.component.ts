@@ -195,12 +195,20 @@ export class DashboardPageComponent {
     return v >= 0 ? 'north' : 'south';
   }
 
-  /** Format market index price: large numbers as integer, small as 2 decimals. */
+  /** Format market index price: large numbers as integer, small as 2 decimals. Prices only (>0). */
   protected fmtIdx(price: number): string {
-    if (price <= 0) return 'â€”';
+    if (price <= 0) return '—';
     return price > 500
       ? price.toLocaleString('en-US', { maximumFractionDigits: 0 })
       : price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /** Format market index change — handles negative values correctly. */
+  protected fmtChg(change: number): string {
+    const abs = Math.abs(change);
+    return abs > 500
+      ? abs.toLocaleString('en-US', { maximumFractionDigits: 0 })
+      : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   protected allocStatusClass(status: string): string {
