@@ -1,5 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { PortfolioBetaResult } from '../models/portfolio.models';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioBetaApiService } from './portfolio-beta-api.service';
 
 const BETA_OVERRIDES_KEY = 'pm_beta_overrides_v1';
@@ -7,6 +8,13 @@ const BETA_OVERRIDES_KEY = 'pm_beta_overrides_v1';
 @Injectable({ providedIn: 'root' })
 export class PortfolioBetaStateService {
   private readonly api = inject(PortfolioBetaApiService);
+  private readonly globalLoading = inject(GlobalLoadingService);
+  private readonly _loadingSync = effect((onCleanup) => {
+    if (this._loading()) {
+      this.globalLoading.push();
+      onCleanup(() => this.globalLoading.pop());
+    }
+  });
 
   private readonly _result = signal<PortfolioBetaResult | null>(null);
   private readonly _loading = signal(false);

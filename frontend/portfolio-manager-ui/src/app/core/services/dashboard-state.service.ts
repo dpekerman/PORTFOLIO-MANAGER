@@ -1,12 +1,14 @@
-import { DestroyRef, Injectable, inject, signal } from '@angular/core';
+import { DestroyRef, Injectable, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DashboardResponse } from '../models/portfolio.models';
 import { DashboardApiService } from './dashboard-api.service';
+import { GlobalLoadingService } from './global-loading.service';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardStateService {
   private readonly api = inject(DashboardApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly globalLoading = inject(GlobalLoadingService);
   private readonly _data = signal<DashboardResponse | null>(null);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
@@ -17,6 +19,12 @@ export class DashboardStateService {
   readonly hasData = this._data.asReadonly();
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     this.load();
   }
 

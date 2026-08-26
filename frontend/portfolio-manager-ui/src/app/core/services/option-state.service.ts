@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   AddOptionItemRequest,
@@ -8,12 +8,14 @@ import {
   OptionTechnicalData,
   UpdateOptionItemRequest,
 } from '../models/portfolio.models';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class OptionStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   private readonly _items = signal<OptionItem[]>([]);
   private readonly _technicalMap = signal<Map<string, OptionTechnicalData>>(new Map());
@@ -39,6 +41,12 @@ export class OptionStateService {
   );
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     this.refresh();
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, filter, interval, switchMap } from 'rxjs';
 import {
@@ -9,12 +9,14 @@ import {
   YesterdayEodResponse,
 } from '../models/portfolio.models';
 import { ConfigService } from './config.service';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ScannerStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly configService = inject(ConfigService);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   private readonly _response = signal<ScannerResponse | null>(null);
   private readonly _loading = signal(false);
@@ -75,6 +77,12 @@ export class ScannerStateService {
   readonly adhocSessionRestored = signal(false);
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     // Load persisted snapshot immediately — no Yahoo Finance call
     this.loadSnapshot();
     // Restore ad-hoc session from DB once on service init

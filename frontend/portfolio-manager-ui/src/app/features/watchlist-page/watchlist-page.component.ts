@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -44,6 +45,7 @@ import {
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
+import { GlobalLoadingService } from '../../core/services/global-loading.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -149,6 +151,13 @@ export class WatchlistPageComponent {
   protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
   private readonly _rsiLoading = signal(false);
   protected readonly rsiLoading = this._rsiLoading.asReadonly();
+  private readonly globalLoading = inject(GlobalLoadingService);
+  private readonly _rsiLoadingSync = effect((onCleanup) => {
+    if (this._rsiLoading()) {
+      this.globalLoading.push();
+      onCleanup(() => this.globalLoading.pop());
+    }
+  });
 
   /** Emits the full symbol list whenever an RSI refresh is requested. */
   private readonly rsiTrigger$ = new Subject<string[]>();

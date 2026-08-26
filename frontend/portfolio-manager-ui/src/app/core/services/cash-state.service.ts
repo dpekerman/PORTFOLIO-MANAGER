@@ -1,12 +1,14 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { AddCashItemRequest, CashItem, UpdateCashItemRequest } from '../models/portfolio.models';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class CashStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   private readonly _items = signal<CashItem[]>([]);
   private readonly _loading = signal(false);
@@ -17,6 +19,12 @@ export class CashStateService {
   readonly totalCash = computed(() => this._items().reduce((acc, item) => acc + item.amount, 0));
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     this.refresh();
   }
 

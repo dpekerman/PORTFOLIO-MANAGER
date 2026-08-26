@@ -17,6 +17,7 @@ import { PortfolioStateService } from '../../core/services/portfolio-state.servi
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { LoadingOverlayComponent } from '../loading-overlay/loading-overlay.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
 
 @Component({
@@ -37,6 +38,7 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
     MatTooltipModule,
     MatDividerModule,
     MarketHeaderComponent,
+    LoadingOverlayComponent,
   ],
 })
 export class LayoutComponent {

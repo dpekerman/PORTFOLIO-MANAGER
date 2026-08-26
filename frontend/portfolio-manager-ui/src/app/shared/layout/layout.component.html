@@ -125,10 +125,8 @@
       </div>
     }
     -->
-    <!-- Global progress bar -->
-    @if (isLoading()) {
-      <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
-    }
+    <!-- Global loading overlay -->
+    <app-loading-overlay />
 
     <!-- Executive market header (RSI Scanner page only) -->
     @if (showMarketHeader()) {

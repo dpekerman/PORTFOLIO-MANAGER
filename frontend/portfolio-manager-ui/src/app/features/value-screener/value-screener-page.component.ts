@@ -4,6 +4,7 @@ import {
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -25,6 +26,7 @@ import {
   ValueScreenerResult,
   ValueTier,
 } from '../../core/models/portfolio.models';
+import { GlobalLoadingService } from '../../core/services/global-loading.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
@@ -56,11 +58,22 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
 export class ValueScreenerPageComponent implements OnInit {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   // -- Data state -----------------------------------------------------------
   protected readonly loading = signal(false);
   protected readonly refreshing = signal(false);
   protected readonly clearing = signal(false);
+
+  private readonly _anyLoading = computed(
+    () => this.loading() || this.refreshing() || this.clearing(),
+  );
+  private readonly _loadingSync = effect((onCleanup) => {
+    if (this._anyLoading()) {
+      this.globalLoading.push();
+      onCleanup(() => this.globalLoading.pop());
+    }
+  });
 
   // Persisted results loaded from DB
   protected readonly portfolioResults = signal<ValueScreenerResult[]>([]);

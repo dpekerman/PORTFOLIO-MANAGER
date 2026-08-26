@@ -85,7 +85,6 @@
         </span>
       </div>
     </div>
-    <mat-progress-bar mode="indeterminate" class="persist-progress-bar" />
   }
 
   <!-- ── EOD Window Active Banner ─────────────────────────────────────── -->
@@ -196,11 +195,6 @@
       </button>
     }
   </div>
-
-  <!-- ── Progress bar ─────────────────────────────────────────────────── -->
-  @if (loading()) {
-    <mat-progress-bar mode="indeterminate" class="progress-bar" />
-  }
 
   <!-- ── Error Banner ──────────────────────────────────────────────────── -->
   @if (error()) {

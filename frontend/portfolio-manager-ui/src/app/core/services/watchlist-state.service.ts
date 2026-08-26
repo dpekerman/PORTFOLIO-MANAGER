@@ -1,10 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
 import { WatchlistSummary } from '../models/portfolio.models';
 import { AuthStateService } from './auth-state.service';
 import { ConfigService } from './config.service';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -13,6 +14,7 @@ export class WatchlistStateService {
   private readonly snackBar = inject(MatSnackBar);
   private readonly configService = inject(ConfigService);
   private readonly authState = inject(AuthStateService);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   private readonly _items = signal<WatchlistSummary[]>([]);
   private readonly _loading = signal(false);
@@ -35,6 +37,12 @@ export class WatchlistStateService {
   readonly fromSnapshot = signal(false);
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     // Wait for auth before loading snapshot — prevents 401 race on app start
     toObservable(this.authState.isAuthenticated)
       .pipe(

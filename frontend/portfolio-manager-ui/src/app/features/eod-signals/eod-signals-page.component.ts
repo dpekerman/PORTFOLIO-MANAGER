@@ -5,6 +5,7 @@ import {
   DestroyRef,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -33,6 +34,7 @@ import {
   EodSignalsMeta,
   SignalState,
 } from '../../core/models/portfolio.models';
+import { GlobalLoadingService } from '../../core/services/global-loading.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -97,6 +99,7 @@ export class EodSignalsPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
   private readonly scannerState = inject(ScannerStateService);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   // state
   protected readonly loading = signal(false);
@@ -105,6 +108,14 @@ export class EodSignalsPageComponent implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly seeding = signal(false);
   protected readonly persistingNow = signal(false);
+
+  private readonly _anyLoading = computed(() => this.loading() || this.persistingNow());
+  private readonly _loadingSync = effect((onCleanup) => {
+    if (this._anyLoading()) {
+      this.globalLoading.push();
+      onCleanup(() => this.globalLoading.pop());
+    }
+  });
   protected readonly lastCheckedAt = signal<Date | null>(null);
   protected readonly autoRefreshing = signal(false);
   /** Current price map: symbol (upper) → current price fetched after signals load */

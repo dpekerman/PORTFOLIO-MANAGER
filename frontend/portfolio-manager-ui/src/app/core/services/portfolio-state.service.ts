@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
@@ -11,6 +11,7 @@ import {
 import { AuthStateService } from './auth-state.service';
 import { ConfigService } from './config.service';
 import { DemoModeService } from './demo-mode.service';
+import { GlobalLoadingService } from './global-loading.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +21,7 @@ export class PortfolioStateService {
   private readonly demoMode = inject(DemoModeService);
   private readonly configService = inject(ConfigService);
   private readonly authState = inject(AuthStateService);
+  private readonly globalLoading = inject(GlobalLoadingService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -81,6 +83,12 @@ export class PortfolioStateService {
   );
 
   constructor() {
+    effect((onCleanup) => {
+      if (this._loading()) {
+        this.globalLoading.push();
+        onCleanup(() => this.globalLoading.pop());
+      }
+    });
     // Wait for auth before loading snapshot — prevents 401 race on app start
     toObservable(this.authState.isAuthenticated)
       .pipe(

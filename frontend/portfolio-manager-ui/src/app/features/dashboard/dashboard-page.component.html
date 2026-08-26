@@ -11,9 +11,6 @@
       <mat-icon [class.spinning]="dashboard.loading()">refresh</mat-icon> Refresh
     </button>
   </header>
-  @if (dashboard.loading() && !snapshot()) {
-    <mat-progress-bar mode="indeterminate" />
-  }
   @if (dashboard.error(); as err) {
     <div class="db-alert" role="alert">{{ err }}</div>
   }

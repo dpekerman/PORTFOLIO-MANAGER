@@ -1,0 +1,40 @@
+:host {
+  display: contents;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: lo-fade 180ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes lo-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.spinner-card {
+  animation: lo-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes lo-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
