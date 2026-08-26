@@ -14,6 +14,15 @@ import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
+export const HOLDING_ROLES = [
+  'Core',
+  'Strategic',
+  'Strategic-Income',
+  'Swing',
+  'Speculative',
+  'Options',
+] as const;
+
 export interface EditPositionDialogData {
   item: PortfolioItem;
 }
@@ -32,6 +41,7 @@ export interface EditPositionDialogResult {
   closingPrice: number | null;
   decisionSource: string | null;
   decisionSourceClosed: string | null;
+  holdingRole: string | null;
 }
 
 @Component({
@@ -62,6 +72,7 @@ export class EditPositionDialogComponent implements OnInit {
   protected readonly sectors = signal<string[]>([]);
   protected readonly industries = signal<string[]>([]);
   protected readonly accountTypes = ACCOUNT_TYPES;
+  protected readonly holdingRoles = HOLDING_ROLES;
   protected readonly decisionSources = this.configService.config().decisionSources;
 
   private toDate(val: string | null | undefined): Date | null {
@@ -93,6 +104,7 @@ export class EditPositionDialogComponent implements OnInit {
     closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
     decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
     decisionSourceClosed: [this.data.item.decisionSourceClosed ?? (null as string | null)],
+    holdingRole: [this.data.item.holdingRole ?? (null as string | null)],
   });
 
   ngOnInit(): void {
@@ -125,6 +137,7 @@ export class EditPositionDialogComponent implements OnInit {
       closingPrice: this.form.value.closingPrice ?? null,
       decisionSource: this.form.value.decisionSource ?? null,
       decisionSourceClosed: this.form.value.decisionSourceClosed ?? null,
+      holdingRole: this.form.value.holdingRole ?? null,
     };
     this.dialogRef.close(result);
   }

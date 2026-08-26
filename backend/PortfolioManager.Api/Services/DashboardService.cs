@@ -138,6 +138,29 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
             })
             .ToList();
+
+        // ── Role allocation vs risk targets ──────────────────────────────────────
+        var roleTargets = await db.AllocationRiskTargets
+            .AsNoTracking()
+            .ToDictionaryAsync(t => t.Role, t => t.TargetPct, StringComparer.OrdinalIgnoreCase, ct);
+        var roleAllocation = portfolio
+            .Where(s => s.Quote is not null
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(s => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole)
+            .Select(group =>
+            {
+                var value = group.Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
+                var pct   = Percent(value, portfolioTotal);
+                roleTargets.TryGetValue(group.Key, out var target);
+                var delta  = pct - target;
+                var status = target == 0m ? "no-target"
+                           : Math.Abs(delta) <= 2m  ? "good"
+                           : Math.Abs(delta) <= 5m  ? (delta > 0 ? "watch-over" : "watch-under")
+                           :                          (delta > 0 ? "over"        : "under");
+                return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
+            })
+            .OrderByDescending(a => a.Value)
+            .ToList();
         var newToday   = await db.DailySignals.CountAsync(s => s.SignalDate == etTodayStr, ct);
         var actionReq  = scanner.OversoldChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm)
                        + scanner.OverboughtChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm);
@@ -204,7 +227,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             }).ToList(),
             allocation,
             earnings,
-            rsiSection);
+            rsiSection,
+            roleAllocation);
 
         var entity = await db.DashboardSnapshots.SingleOrDefaultAsync(s => s.UserId == userId, ct);
         if (entity is null)

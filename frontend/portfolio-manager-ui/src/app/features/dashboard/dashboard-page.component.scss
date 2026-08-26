@@ -286,17 +286,50 @@ mat-card.db-panel {
     font-size: 0.76rem;
   }
 }
+
+/* Side-by-side movers columns */
+.db-movers-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border-top: 1px solid #f2f5f6;
+}
+.db-movers-col {
+  &:first-child {
+    border-right: 1px solid #f2f5f6;
+  }
+}
+.db-movers-col-hd {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 14px 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #687481;
+  background: #f8fafb;
+  border-bottom: 1px solid #f2f5f6;
+}
+.db-movers-col-ico {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: #687481;
+}
+
 .db-mover-list {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0 16px;
+  padding: 0 12px;
 }
 .db-mover-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 0;
+  gap: 6px;
+  padding: 4px 0;
   border-bottom: 1px solid #f2f5f6;
   &:last-child {
     border-bottom: none;
@@ -304,23 +337,22 @@ mat-card.db-panel {
 }
 .mover-sym {
   font-weight: 600;
-  font-size: 0.85rem;
-  min-width: 54px;
+  font-size: 0.82rem;
+  min-width: 48px;
   color: #1a2e35;
 }
 .mover-name {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: #687481;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 160px;
 }
 .mover-badge {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 10px;
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
@@ -333,19 +365,46 @@ mat-card.db-panel {
     color: #e53e3e;
   }
 }
-.mover-src {
-  font-size: 0.68rem;
-  color: #aab8be;
-  min-width: 22px;
-  text-align: right;
-}
 .db-sub-hd {
-  padding: 8px 16px 2px;
+  padding: 6px 12px 2px;
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   color: #aab8be;
+}
+
+/* ── Allocation tabs ─────────────────────────────────────────────────────── */
+.db-alloc-tabs {
+  display: flex;
+  gap: 2px;
+}
+.db-alloc-tab {
+  padding: 4px 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 1px solid #dde4e8;
+  border-radius: 14px;
+  background: transparent;
+  color: #687481;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover {
+    background: #f0f4f6;
+    color: #1a2e35;
+  }
+  &.active {
+    background: #1a2e35;
+    color: #fff;
+    border-color: #1a2e35;
+  }
+}
+.alloc-total-row {
+  td {
+    border-top: 2px solid #dde4e8;
+    font-size: 0.82rem;
+    padding: 6px 8px;
+  }
 }
 
 /* ── Indices ─────────────────────────────────────────────────────────────── */

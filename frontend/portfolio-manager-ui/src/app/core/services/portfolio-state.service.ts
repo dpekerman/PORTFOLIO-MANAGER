@@ -10,6 +10,7 @@ import {
 } from '../models/portfolio.models';
 import { AuthStateService } from './auth-state.service';
 import { ConfigService } from './config.service';
+import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -20,6 +21,7 @@ export class PortfolioStateService {
   private readonly demoMode = inject(DemoModeService);
   private readonly configService = inject(ConfigService);
   private readonly authState = inject(AuthStateService);
+  private readonly dashboardState = inject(DashboardStateService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -102,7 +104,11 @@ export class PortfolioStateService {
         switchMap(() => this.api.getAllQuotes()),
       )
       .subscribe({
-        next: (data) => this._summaries.set(data),
+        next: (data) => {
+          this._summaries.set(data);
+          // Portfolio snapshot is now fresh — rebuild dashboard to keep it in sync
+          this.dashboardState.refresh();
+        },
         error: () => this._error.set('Auto-refresh failed'),
       });
   }

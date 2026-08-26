@@ -16,7 +16,8 @@ public sealed record DashboardResponse(
     IReadOnlyList<MarketIndexDto> MarketIndices,
     IReadOnlyList<DashboardAllocation> Allocation,
     IReadOnlyList<DashboardEarning> NextSevenDayEarnings,
-    DashboardRsiSection? RsiSection = null);
+    DashboardRsiSection? RsiSection = null,
+    IReadOnlyList<DashboardAllocation>? RoleAllocation = null);
 
 public sealed record DashboardSummary(
     decimal TotalValue,

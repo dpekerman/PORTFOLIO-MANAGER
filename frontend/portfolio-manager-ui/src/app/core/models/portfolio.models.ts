@@ -695,6 +695,7 @@ export interface DashboardResponse {
   allocation: DashboardAllocation[];
   nextSevenDayEarnings: DashboardEarning[];
   rsiSection?: DashboardRsiSection;
+  roleAllocation?: DashboardAllocation[];
 }
 
 export interface EodSignalFilters {

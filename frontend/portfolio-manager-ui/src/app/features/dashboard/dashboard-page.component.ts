@@ -8,6 +8,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { DashboardAllocation } from '../../core/models/portfolio.models';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 
@@ -55,12 +56,26 @@ export class DashboardPageComponent {
   protected readonly moversOptions = [3, 5, 7, 10];
   /** Whether the RSI signals detail table is expanded. */
   protected readonly rsiExpanded = signal(true);
+  /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
+  protected readonly allocTab = signal<'sector' | 'role'>('sector');
 
-  protected readonly visibleMovers = computed(() =>
-    (this.snapshot()?.topMovers ?? []).slice(0, this.moversCount()),
+  // ── Portfolio-only movers ──────────────────────────────────────────────────
+  protected readonly portfolioTopMovers = computed(() =>
+    (this.snapshot()?.topMovers ?? []).filter((m) => m.isPortfolio).slice(0, this.moversCount()),
   );
-  protected readonly visibleLosers = computed(() =>
-    (this.snapshot()?.bottomMovers ?? []).slice(0, this.moversCount()),
+  protected readonly portfolioBottomMovers = computed(() =>
+    (this.snapshot()?.bottomMovers ?? []).filter((m) => m.isPortfolio).slice(0, this.moversCount()),
+  );
+  // ── Watchlist-only movers (not already in portfolio) ──────────────────────
+  protected readonly watchlistTopMovers = computed(() =>
+    (this.snapshot()?.topMovers ?? [])
+      .filter((m) => m.isWatchlist && !m.isPortfolio)
+      .slice(0, this.moversCount()),
+  );
+  protected readonly watchlistBottomMovers = computed(() =>
+    (this.snapshot()?.bottomMovers ?? [])
+      .filter((m) => m.isWatchlist && !m.isPortfolio)
+      .slice(0, this.moversCount()),
   );
 
   protected readonly filteredChartPoints = computed(() => {
@@ -201,6 +216,14 @@ export class DashboardPageComponent {
       default:
         return 'alloc-none';
     }
+  }
+
+  protected sumTargets(items: DashboardAllocation[]): number {
+    return items.reduce((acc, a) => acc + a.targetPercent, 0);
+  }
+
+  protected sumActual(items: DashboardAllocation[]): number {
+    return items.reduce((acc, a) => acc + a.percent, 0);
   }
 
   protected refresh(): void {

@@ -1219,6 +1219,7 @@ export class PortfolioPageComponent {
           closingPrice: result.closingPrice,
           decisionSource: result.decisionSource,
           decisionSourceClosed: result.decisionSourceClosed,
+          holdingRole: result.holdingRole,
         });
       });
   }
