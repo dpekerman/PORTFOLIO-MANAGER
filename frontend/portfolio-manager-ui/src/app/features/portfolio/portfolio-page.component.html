@@ -33,10 +33,10 @@
           mat-icon-button
           matTooltip="Refresh live prices"
           (click)="refresh()"
-          [disabled]="portfolio.loading()"
+          [disabled]="appRefresh.isRefreshing()"
           aria-label="Refresh portfolio prices"
         >
-          <mat-icon [class.spinning]="portfolio.loading()">refresh</mat-icon>
+          <mat-icon [class.spinning]="appRefresh.isRefreshing()">refresh</mat-icon>
         </button>
         <button
           mat-icon-button

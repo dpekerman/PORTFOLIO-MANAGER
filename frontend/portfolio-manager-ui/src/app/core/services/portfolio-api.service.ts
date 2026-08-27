@@ -14,6 +14,7 @@ import {
   CashItem,
   DailySignalPagedResponse,
   DashboardResponse,
+  DataRefreshResultDto,
   EodSignalFilters,
   EodSignalsMeta,
   MarketIndicesResponse,
@@ -159,6 +160,11 @@ export class PortfolioApiService {
         map((r) => (r.status === 204 ? null : r.body)),
         catchError(() => of(null)),
       );
+  }
+
+  /** Batch-refreshes portfolio + watchlist quotes and rebuilds the dashboard in one backend call. */
+  refreshAll(): Observable<DataRefreshResultDto> {
+    return this.http.post<DataRefreshResultDto>(`${this.base}/data/refresh`, {});
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────

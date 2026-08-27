@@ -37,6 +37,7 @@ import {
   ValueScreenerResult,
   WatchlistSummary,
 } from '../../core/models/portfolio.models';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import {
   DecisionEngineService,
@@ -122,6 +123,9 @@ export class WatchlistPageComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
   protected readonly authState = inject(AuthStateService);
+  protected readonly appRefresh = inject(AppRefreshService);
+
+  protected readonly trackById = (_: number, w: WatchlistSummary): number => w.item.id;
 
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
@@ -720,7 +724,7 @@ export class WatchlistPageComponent {
   }
 
   refresh(): void {
-    this.watchlist.refresh();
+    this.appRefresh.refreshAll();
     const symbols = this.watchlist.items().map((w) => w.item.symbol);
     if (symbols.length > 0) this.rsiTrigger$.next(symbols);
   }
@@ -753,9 +757,7 @@ export class WatchlistPageComponent {
   );
 
   updateTier(w: WatchlistSummary, tier: string): void {
-    this.api.updateWatchlistTier(w.item.id, tier).subscribe({
-      next: () => this.watchlist.refresh(),
-    });
+    this.watchlist.updateTier(w.item.id, tier);
   }
 
   protected readonly earningsRefreshing = signal(false);
@@ -777,9 +779,7 @@ export class WatchlistPageComponent {
   }
 
   updateEarningsDate(w: WatchlistSummary, value: string): void {
-    this.api.updateWatchlistEarningsDate(w.item.id, value || null).subscribe({
-      next: () => this.watchlist.refresh(),
-    });
+    this.watchlist.updateEarningsDate(w.item.id, value || null);
   }
 
   exportToExcel(): void {

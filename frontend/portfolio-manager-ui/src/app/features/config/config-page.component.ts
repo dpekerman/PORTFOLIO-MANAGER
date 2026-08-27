@@ -124,18 +124,7 @@ export class ConfigPageComponent implements OnInit {
     { label: '24:00', value: 86400 },
   ];
 
-  readonly PORTFOLIO_REFRESH_OPTIONS: { label: string; value: number }[] = [
-    { label: '0:00 — Disabled', value: 0 },
-    { label: '1:00 (1 min)', value: 60 },
-    { label: '2:00 (2 min)', value: 120 },
-    { label: '5:00 (5 min)', value: 300 },
-    { label: '10:00 (10 min)', value: 600 },
-    { label: '15:00 (15 min)', value: 900 },
-    { label: '30:00 (30 min)', value: 1800 },
-    { label: '60:00 (1 hour)', value: 3600 },
-  ];
-
-  readonly WATCHLIST_REFRESH_OPTIONS: { label: string; value: number }[] = [
+  readonly APP_REFRESH_OPTIONS: { label: string; value: number }[] = [
     { label: '0:00 — Disabled', value: 0 },
     { label: '1:00 (1 min)', value: 60 },
     { label: '2:00 (2 min)', value: 120 },
@@ -148,14 +137,7 @@ export class ConfigPageComponent implements OnInit {
 
   protected readonly form = this.fb.group({
     scanIntervalSeconds: [this.configService.config().scanIntervalSeconds, [Validators.required]],
-    portfolioRefreshSeconds: [
-      this.configService.config().portfolioRefreshSeconds,
-      [Validators.required],
-    ],
-    watchlistRefreshSeconds: [
-      this.configService.config().watchlistRefreshSeconds,
-      [Validators.required],
-    ],
+    appRefreshSeconds: [this.configService.config().appRefreshSeconds, [Validators.required]],
     rsiOversoldThreshold: [
       this.configService.config().rsiOversoldThreshold,
       [Validators.required, Validators.min(1), Validators.max(49)],
@@ -491,8 +473,7 @@ export class ConfigPageComponent implements OnInit {
     const cfg = this.configService.config();
     this.form.setValue({
       scanIntervalSeconds: cfg.scanIntervalSeconds,
-      portfolioRefreshSeconds: cfg.portfolioRefreshSeconds,
-      watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
+      appRefreshSeconds: cfg.appRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
@@ -653,8 +634,7 @@ ${overboughtRsi}.`,
     if (this.form.invalid) return;
     this.configService.update({
       scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
-      portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
-      watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+      appRefreshSeconds: this.form.value.appRefreshSeconds ?? 120,
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
       sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
@@ -674,8 +654,7 @@ ${overboughtRsi}.`,
     const cfg = this.configService.config();
     this.form.setValue({
       scanIntervalSeconds: cfg.scanIntervalSeconds,
-      portfolioRefreshSeconds: cfg.portfolioRefreshSeconds,
-      watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
+      appRefreshSeconds: cfg.appRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
@@ -921,8 +900,7 @@ ${overboughtRsi}.`,
     if (this.form.valid) {
       this.configService.update({
         scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
-        portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
-        watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+        appRefreshSeconds: this.form.value.appRefreshSeconds ?? 120,
         rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
         rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
         sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,

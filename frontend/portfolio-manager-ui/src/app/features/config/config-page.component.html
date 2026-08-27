@@ -281,23 +281,16 @@
                   </mat-form-field>
 
                   <mat-form-field appearance="outline">
-                    <mat-label>Dashboard/Portfolio auto-refresh</mat-label>
-                    <mat-select formControlName="portfolioRefreshSeconds">
-                      @for (opt of PORTFOLIO_REFRESH_OPTIONS; track opt.value) {
+                    <mat-label>App auto-refresh interval</mat-label>
+                    <mat-select formControlName="appRefreshSeconds">
+                      @for (opt of APP_REFRESH_OPTIONS; track opt.value) {
                         <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                       }
                     </mat-select>
-                    <mat-hint>0:00 = disabled · Default 2 min</mat-hint>
-                  </mat-form-field>
-
-                  <mat-form-field appearance="outline">
-                    <mat-label>Watchlist auto-refresh</mat-label>
-                    <mat-select formControlName="watchlistRefreshSeconds">
-                      @for (opt of WATCHLIST_REFRESH_OPTIONS; track opt.value) {
-                        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
-                      }
-                    </mat-select>
-                    <mat-hint>0:00 = disabled · Default 1 min</mat-hint>
+                    <mat-hint
+                      >Refreshes portfolio, watchlist &amp; dashboard together · 0:00 = disabled ·
+                      Default 2 min</mat-hint
+                    >
                   </mat-form-field>
 
                   <mat-form-field appearance="outline">

@@ -9,7 +9,7 @@
           <span class="count-badge">{{ watchlist.count() }}</span>
         </h1>
         <p class="page-sub">
-          Tracked symbols · Live prices · {{ watchlist.refreshIntervalLabel() }}
+          Tracked symbols · Live prices
           @if (watchlist.fromSnapshot()) {
             <span
               class="cached-badge"
@@ -42,7 +42,7 @@
         mat-icon-button
         matTooltip="Refresh watchlist"
         (click)="refresh()"
-        [disabled]="watchlist.loading()"
+        [disabled]="appRefresh.isRefreshing()"
         aria-label="Refresh watchlist"
       >
         <mat-icon [class.spinning]="watchlist.loading()">refresh</mat-icon>
@@ -237,6 +237,7 @@
           <table
             mat-table
             [dataSource]="filteredSorted()"
+            [trackBy]="trackById"
             matSort
             (matSortChange)="onMatSortChange($event)"
             class="watchlist-table"

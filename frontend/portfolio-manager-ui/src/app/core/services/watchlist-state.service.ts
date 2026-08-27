@@ -1,17 +1,15 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
+import { filter, take } from 'rxjs';
 import { WatchlistSummary } from '../models/portfolio.models';
 import { AuthStateService } from './auth-state.service';
-import { ConfigService } from './config.service';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class WatchlistStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly configService = inject(ConfigService);
   private readonly authState = inject(AuthStateService);
 
   private readonly _items = signal<WatchlistSummary[]>([]);
@@ -22,14 +20,6 @@ export class WatchlistStateService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly count = computed(() => this._items().length);
-
-  /** Human-readable label for the configured auto-refresh interval. */
-  readonly refreshIntervalLabel = computed(() => {
-    const secs = this.configService.watchlistRefreshSeconds();
-    if (secs === 0) return 'Auto-refresh disabled';
-    const min = Math.round(secs / 60);
-    return min >= 1 ? `Auto-refreshes every ${min}min` : `Auto-refreshes every ${secs}s`;
-  });
 
   /** True when the current data was loaded from the DB snapshot (not a live Yahoo call). */
   readonly fromSnapshot = signal(false);
@@ -43,27 +33,11 @@ export class WatchlistStateService {
         take(1),
       )
       .subscribe(() => this.loadSnapshot());
-
-    // Restart auto-refresh whenever the configured interval changes; 0 = disabled
-    // Skipped while the tab is hidden/backgrounded to avoid unnecessary API calls.
-    toObservable(this.configService.config)
-      .pipe(
-        takeUntilDestroyed(),
-        switchMap((cfg) =>
-          cfg.watchlistRefreshSeconds > 0 ? interval(cfg.watchlistRefreshSeconds * 1000) : EMPTY,
-        ),
-        filter(() => document.visibilityState === 'visible'),
-        switchMap(() => this.api.getWatchlist()),
-      )
-      .subscribe({
-        next: (data) => this._items.set(data),
-        error: () => {},
-      });
   }
 
   /** Load last snapshot from DB (instant — no Yahoo Finance call).
    * Falls back to a live refresh when no snapshot exists yet. */
-  private loadSnapshot(): void {
+  loadSnapshot(): void {
     this._loading.set(true);
     this.api.getWatchlistSnapshot().subscribe({
       next: (data) => {
@@ -132,6 +106,29 @@ export class WatchlistStateService {
         );
       },
       error: () => this.snackBar.open('Failed to update role', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateTier(id: number, watchlistTier: string): void {
+    this.api.updateWatchlistTier(id, watchlistTier).subscribe({
+      next: () => {
+        this._items.update((items) =>
+          items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, watchlistTier } } : s)),
+        );
+      },
+      error: () => this.snackBar.open('Failed to update tier', 'Close', { duration: 4000 }),
+    });
+  }
+
+  updateEarningsDate(id: number, earningsDate: string | null): void {
+    this.api.updateWatchlistEarningsDate(id, earningsDate).subscribe({
+      next: () => {
+        this._items.update((items) =>
+          items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, earningsDate } } : s)),
+        );
+      },
+      error: () =>
+        this.snackBar.open('Failed to update earnings date', 'Close', { duration: 4000 }),
     });
   }
 

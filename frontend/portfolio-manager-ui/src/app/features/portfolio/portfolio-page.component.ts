@@ -27,6 +27,7 @@ import {
   TechnicalState,
   ValueScreenerResult,
 } from '../../core/models/portfolio.models';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
@@ -176,6 +177,7 @@ export class PortfolioPageComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
+  protected readonly appRefresh = inject(AppRefreshService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
@@ -1431,7 +1433,7 @@ export class PortfolioPageComponent {
   }
 
   refresh(): void {
-    this.portfolio.refresh();
+    this.appRefresh.refreshAll();
   }
 
   backupPortfolioData(): void {

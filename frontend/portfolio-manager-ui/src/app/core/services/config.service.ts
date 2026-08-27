@@ -3,8 +3,7 @@ import { UserPreferencesStateService } from './user-preferences-state.service';
 
 export interface AppConfig {
   scanIntervalSeconds: number;
-  portfolioRefreshSeconds: number;
-  watchlistRefreshSeconds: number;
+  appRefreshSeconds: number;
   rsiOversoldThreshold: number;
   rsiOverboughtThreshold: number;
   /** EOD confirmation window start time in HH:mm (Eastern Time). Default: 15:30 */
@@ -23,8 +22,7 @@ const STORAGE_KEY = 'pm_app_config';
 
 const DEFAULTS: AppConfig = {
   scanIntervalSeconds: 0, // 0 = disabled by default; user enables manually
-  portfolioRefreshSeconds: 120, // 2 minutes
-  watchlistRefreshSeconds: 60, // 1 minute
+  appRefreshSeconds: 120, // 2 minutes
   rsiOversoldThreshold: 30,
   rsiOverboughtThreshold: 75,
   eodWindowStart: '15:30',
@@ -57,8 +55,7 @@ export class ConfigService {
   readonly config = this._config.asReadonly();
 
   readonly scanIntervalSeconds = () => this._config().scanIntervalSeconds;
-  readonly portfolioRefreshSeconds = () => this._config().portfolioRefreshSeconds;
-  readonly watchlistRefreshSeconds = () => this._config().watchlistRefreshSeconds;
+  readonly appRefreshSeconds = () => this._config().appRefreshSeconds;
   readonly rsiOversoldThreshold = () => this._config().rsiOversoldThreshold;
   readonly rsiOverboughtThreshold = () => this._config().rsiOverboughtThreshold;
 
@@ -90,7 +87,14 @@ export class ConfigService {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as Partial<AppConfig>;
+        const parsed = JSON.parse(raw) as Partial<AppConfig> & { portfolioRefreshSeconds?: number };
+        // Migrate from old split intervals to single appRefreshSeconds
+        if (
+          parsed.portfolioRefreshSeconds !== undefined &&
+          parsed.appRefreshSeconds === undefined
+        ) {
+          parsed.appRefreshSeconds = parsed.portfolioRefreshSeconds;
+        }
         return { ...DEFAULTS, ...parsed };
       }
     } catch {

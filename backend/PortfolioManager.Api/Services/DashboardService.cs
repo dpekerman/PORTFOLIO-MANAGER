@@ -9,7 +9,7 @@ namespace PortfolioManager.Api.Services;
 public interface IDashboardService
 {
     Task<DashboardResponse?> GetLatestAsync(string userId, CancellationToken ct);
-    Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct);
+    Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true);
 }
 
 public sealed class DashboardService(AppDbContext db, IMarketDataProvider marketData) : IDashboardService
@@ -33,7 +33,7 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         return snapshot is null ? null : Deserialize<DashboardResponse>(snapshot.SnapshotJson);
     }
 
-    public async Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct)
+    public async Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true)
     {
         var portfolioSnapshot = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
         var watchlistSnapshot = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
@@ -48,8 +48,11 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var scanner = Deserialize<ScannerResponse>(rsiSnapshot?.SnapshotJson ?? "{}")
             ?? new ScannerResponse();
         var indexQuotes = await marketData.GetBatchQuotesAsync(IndexSymbols.Select(i => i.Symbol), ct);
-        var trackedSymbols = portfolio.Select(s => s.Item.Symbol).Concat(watchlist.Select(s => s.Item.Symbol));
-        var providerEarnings = await marketData.GetEarningsDatesAsync(trackedSymbols, ct);
+        // Skip earnings fetch during batch refresh to avoid ~9s delay (300ms/symbol)
+        Dictionary<string, DateTime> providerEarnings = includeEarnings
+            ? await marketData.GetEarningsDatesAsync(
+                portfolio.Select(s => s.Item.Symbol).Concat(watchlist.Select(s => s.Item.Symbol)), ct)
+            : [];
 
         var values = history.OrderBy(h => h.RecordedDate).ToList();
         var latest = values.LastOrDefault();

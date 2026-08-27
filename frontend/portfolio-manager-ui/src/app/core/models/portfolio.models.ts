@@ -76,6 +76,14 @@ export interface WatchlistSummary {
   quote: StockQuote | null;
 }
 
+export interface DataRefreshResultDto {
+  portfolioSymbolCount: number;
+  watchlistSymbolCount: number;
+  dashboardRebuilt: boolean;
+  refreshedAt: string;
+  durationMs: number;
+}
+
 export interface AddPortfolioItemRequest {
   symbol: string;
   companyName: string;

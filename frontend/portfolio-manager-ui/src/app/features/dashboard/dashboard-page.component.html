@@ -5,10 +5,10 @@
       mat-stroked-button
       type="button"
       (click)="refresh()"
-      [disabled]="dashboard.loading()"
+      [disabled]="appRefresh.isRefreshing()"
       aria-label="Refresh dashboard"
     >
-      <mat-icon [class.spinning]="dashboard.loading()">refresh</mat-icon> Refresh
+      <mat-icon [class.spinning]="appRefresh.isRefreshing()">refresh</mat-icon> Refresh
     </button>
   </header>
   @if (dashboard.loading() && !snapshot()) {

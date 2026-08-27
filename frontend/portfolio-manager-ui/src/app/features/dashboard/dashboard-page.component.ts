@@ -9,6 +9,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { DashboardAllocation } from '../../core/models/portfolio.models';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
@@ -57,6 +58,7 @@ export interface SvgChart {
 export class DashboardPageComponent {
   protected readonly dashboard = inject(DashboardStateService);
   private readonly demoMode = inject(DemoModeService);
+  protected readonly appRefresh = inject(AppRefreshService);
 
   protected readonly snapshot = this.dashboard.data;
   protected readonly chartRanges: ChartRange[] = ['1M', '3M', '6M', 'YTD', '1Y', 'ALL'];
@@ -249,6 +251,6 @@ export class DashboardPageComponent {
   }
 
   protected refresh(): void {
-    this.dashboard.refresh();
+    this.appRefresh.refreshAll();
   }
 }
