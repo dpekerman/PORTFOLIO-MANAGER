@@ -26,6 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<WatchlistSnapshot> WatchlistSnapshots => Set<WatchlistSnapshot>();
     public DbSet<DashboardSnapshot> DashboardSnapshots => Set<DashboardSnapshot>();
     public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
+    public DbSet<TransactionContextSnapshot> TransactionContextSnapshots => Set<TransactionContextSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +72,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Role).HasMaxLength(20).HasDefaultValue("Strategic");
             entity.Property(e => e.IsFavorite).HasDefaultValue(false);
             entity.Property(e => e.EarningsDate).IsRequired(false);
+            entity.Property(e => e.WatchlistTier).HasMaxLength(20).HasDefaultValue("Strategic");
             // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
             entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
         });
@@ -115,6 +117,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
             entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
             entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
+            entity.Property(e => e.PreviousSignalState).HasMaxLength(30).IsRequired(false);
             entity.Property(e => e.Sector).HasMaxLength(100).HasDefaultValue("");
             entity.Property(e => e.ReversalProbability).HasMaxLength(20).HasDefaultValue("");
             entity.Property(e => e.VolumeSignal).HasMaxLength(30).HasDefaultValue("");
@@ -262,6 +265,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasKey(e => e.UserId);
             entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.SnapshotJson).IsRequired().HasDefaultValue("{}");
+        });
+
+        modelBuilder.Entity<TransactionContextSnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrendShiftAtEntry).HasMaxLength(50);
+            entity.Property(e => e.FibZoneAtEntry).HasMaxLength(30);
+            entity.Property(e => e.VolumeSignalAtEntry).HasMaxLength(30);
+            entity.Property(e => e.TurnStrengthAtEntry).HasMaxLength(20);
+            entity.Property(e => e.ValueTierAtEntry).HasMaxLength(30);
+            entity.Property(e => e.HoldingRoleAtEntry).HasMaxLength(20);
+            entity.Property(e => e.SectorAllocationStatusAtEntry).HasMaxLength(20);
+            entity.Property(e => e.RsiAtEntry).HasColumnType("decimal(7,4)");
+            entity.Property(e => e.ValueScoreAtEntry).HasColumnType("decimal(7,2)");
+            entity.HasIndex(e => e.TransactionId);
         });
     }
 }

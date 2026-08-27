@@ -80,7 +80,9 @@
             Positions
           </div>
           <div class="kpi-value kpi-neutral">
-            {{ portfolio.summaries().length }}
+            {{
+              activeStockCount() + optionTransactionCount() + (cashState.items().length > 0 ? 1 : 0)
+            }}
           </div>
           <div class="kpi-sub">Active holdings</div>
         </mat-card-content>
@@ -475,24 +477,6 @@
               [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
             >
               ${{ dv(grandTotal()) / 1000 | number: '1.0-0' }}k
-            </span>
-            <span
-              class="alloc-col-gl alloc-net-val"
-              [class.alloc-gl-pos]="grandTotalGainLossIsPositive()"
-              [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
-              [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-            >
-              {{ grandTotalGainLoss() >= 0 ? '+' : '' }}${{
-                dv(grandTotalGainLoss()) / 1000 | number: '1.1-1'
-              }}k
-            </span>
-            <span
-              class="alloc-col-glpct alloc-net-val"
-              [class.alloc-gl-pos]="grandTotalGainLossIsPositive()"
-              [class.alloc-gl-neg]="!grandTotalGainLossIsPositive()"
-            >
-              {{ grandTotalGainLoss() >= 0 ? '+' : ''
-              }}{{ dvp(grandTotalGainLossPct()) | number: '1.1-1' }}%
             </span>
           </div>
         </div>

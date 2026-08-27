@@ -341,6 +341,8 @@ public class DailySignal
     public string RuleVersion { get; set; } = string.Empty;
     /// <summary>Signal lifecycle state: Active | FollowThrough | Invalidated | Expired | Reversed</summary>
     public string SignalState { get; set; } = "Active";
+    /// <summary>State before the last transition — used to surface "Changed Today" on the dashboard.</summary>
+    public string? PreviousSignalState { get; set; }
     public string Sector { get; set; } = string.Empty;
     public string ReversalProbability { get; set; } = string.Empty;
     public string VolumeSignal { get; set; } = string.Empty;

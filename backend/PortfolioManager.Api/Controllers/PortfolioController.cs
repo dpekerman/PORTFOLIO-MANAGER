@@ -2,14 +2,19 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class PortfolioController(IPortfolioService portfolioService) : ControllerBase
+public class PortfolioController(
+    IPortfolioService portfolioService,
+    IPortfolioSnapshotService portfolioSnapshot,
+    ITransactionContextCaptureService contextCapture) : ControllerBase
 {
+    private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<PortfolioItemDto>>> GetAll(CancellationToken ct)
     {
@@ -29,6 +34,9 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddAsync(request, ct);
+        // Only capture context for OPEN (buy) transactions
+        if (!string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            await contextCapture.TryCaptureAsync(item.Id, item.Symbol, request.HoldingRole, item.Sector, ct);
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
@@ -58,6 +66,12 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     public async Task<IActionResult> UpdateHoldingRole(int id, [FromBody] UpdatePortfolioHoldingRoleRequest request, CancellationToken ct)
     {
         var updated = await portfolioService.UpdateHoldingRoleAsync(id, request.HoldingRole, ct);
+        if (updated)
+        {
+            var uid = CurrentUserId();
+            if (!string.IsNullOrEmpty(uid))
+                await portfolioSnapshot.PatchHoldingRoleAsync(uid, id, request.HoldingRole, ct);
+        }
         return updated ? NoContent() : NotFound();
     }
 
@@ -104,5 +118,13 @@ public class PortfolioController(IPortfolioService portfolioService) : Controlle
     {
         var count = await portfolioService.RestoreAsync(request.Items, ct);
         return Ok(new { restored = count });
+    }
+
+    /// <summary>Returns the decision journal context snapshot for a specific transaction, if captured.</summary>
+    [HttpGet("{id:int}/context")]
+    public async Task<ActionResult<TransactionContextSnapshot>> GetContext(int id, CancellationToken ct)
+    {
+        var snap = await contextCapture.GetSnapshotAsync(id, ct);
+        return snap is null ? NoContent() : Ok(snap);
     }
 }

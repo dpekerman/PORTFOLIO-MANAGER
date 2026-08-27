@@ -40,11 +40,19 @@ export class PortfolioSummaryBarComponent {
       this.optionState.totalMarketValue(),
   );
 
+  protected readonly activeStockCount = computed(
+    () => this.stockState.summaries().filter((s) => s.item.transactionType !== 'CLOSE').length,
+  );
+
+  protected readonly activeOptionCount = computed(
+    () => this.optionState.analyses().filter((a) => a.item.transactionType !== 'CLOSE').length,
+  );
+
   protected readonly totalPositions = computed(
     () =>
-      this.stockState.summaries().length +
-      this.cashState.items().length +
-      this.optionState.items().length,
+      this.activeStockCount() +
+      this.activeOptionCount() +
+      (this.cashState.items().length > 0 ? 1 : 0),
   );
 
   /** Previous day stored portfolio value (from DB). Loaded once on init. */

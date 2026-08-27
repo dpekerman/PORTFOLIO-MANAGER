@@ -67,6 +67,8 @@ export interface WatchlistItem {
   /** Whether this symbol is marked as a favourite. */
   isFavorite: boolean;
   earningsDate?: string | null;
+  /** Monitoring intensity: Active | Strategic | Universe. Default: Strategic. */
+  watchlistTier: string;
 }
 
 export interface WatchlistSummary {
@@ -695,6 +697,7 @@ export interface DashboardResponse {
   allocation: DashboardAllocation[];
   nextSevenDayEarnings: DashboardEarning[];
   rsiSection?: DashboardRsiSection;
+  roleAllocation?: DashboardAllocation[];
 }
 
 export interface EodSignalFilters {
@@ -735,4 +738,118 @@ export interface AllocationRiskConfig {
   riskTargets: AllocationRiskTarget[];
   sectorTargets: AllocationSectorTarget[];
   positionLimits: SinglePositionLimit[];
+}
+
+// ── Watchlist Tier ──────────────────────────────────────────────────────────────
+export type WatchlistTier = 'Active' | 'Strategic' | 'Universe';
+
+// ── Portfolio Actions (Dashboard) ──────────────────────────────────────────────
+export interface PortfolioActionDto {
+  symbol: string;
+  companyName: string;
+  holdingRole: string;
+  scanType: string;
+  rsi: number;
+  trendShift: string;
+  fibZone: string;
+  chaseRisk: string;
+  allocationStatus: string; // "over" | "under" | "on-target" | ""
+  actionLabel: string;
+  actionSeverity: string; // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+  isInPortfolio: boolean;
+  isInWatchlist: boolean;
+}
+
+export interface StateChangeDto {
+  signalId: number;
+  symbol: string;
+  companyName: string;
+  scanType: string;
+  previousState: string;
+  newState: string;
+  rsi: number;
+  trendShift: string;
+  changedAt: string;
+}
+
+// ── Decision Analytics ──────────────────────────────────────────────────────────
+export interface DecisionPerformanceRow {
+  decisionSource: string;
+  tradeCount: number;
+  winCount: number;
+  winRatePct: number;
+  avgReturnPct: number;
+  avgHoldingDays: number;
+}
+
+export interface AnalyticsDecisionPerformanceResponse {
+  rows: DecisionPerformanceRow[];
+  totalClosedTrades: number;
+  overallWinRatePct: number;
+  overallAvgReturnPct: number;
+}
+
+// ── Transaction Context Snapshot (Decision Journal) ────────────────────────────
+export interface TransactionContextSnapshot {
+  id: number;
+  transactionId: number;
+  capturedAt: string;
+  rsiAtEntry: number | null;
+  trendShiftAtEntry: string | null;
+  fibZoneAtEntry: string | null;
+  volumeSignalAtEntry: string | null;
+  turnStrengthAtEntry: string | null;
+  valueScoreAtEntry: number | null;
+  valueTierAtEntry: string | null;
+  holdingRoleAtEntry: string | null;
+  sectorAllocationStatusAtEntry: string | null;
+}
+
+// ── Portfolio Action Score ───────────────────────────────────────────────────────
+export interface ActionScoreDto {
+  symbol: string;
+  companyName: string;
+  holdingRole: string;
+  watchlistTier: string;
+  portfolioNeedScore: number;
+  technicalScore: number;
+  fundamentalScore: number;
+  riskScore: number;
+  totalScore: number;
+  badge: string; // HIGH_PRIORITY | WATCH | NO_ADD
+  trendShift: string;
+  rsi: number;
+  allocationStatus: string;
+}
+
+// ── Market Leadership ────────────────────────────────────────────────────────────
+export interface MarketLeadershipRow {
+  sector: string;
+  symbolCount: number;
+  avgRsi: number;
+  avg1MReturnPct: number;
+  pctAboveEma20: number;
+  leadership: string; // Strong | Improving | Neutral | Weakening | Declining
+  leadershipEmoji: string;
+}
+
+export interface MarketLeadershipResponse {
+  rows: MarketLeadershipRow[];
+  computedAt: string;
+}
+
+// ── Performance Summary (Alpha) ───────────────────────────────────────────────────
+export interface BenchmarkReturn {
+  name: string;
+  symbol: string;
+  ytdReturnPct: number;
+}
+
+export interface PerformanceSummaryResponse {
+  portfolioYtdReturnPct: number;
+  portfolioStartValue: number;
+  portfolioCurrentValue: number;
+  benchmarks: BenchmarkReturn[];
+  alphaVsPrimaryBenchmarkPct: number;
+  primaryBenchmarkName: string;
 }

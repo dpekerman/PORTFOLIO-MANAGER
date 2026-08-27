@@ -48,9 +48,7 @@
   }
   <div
     class="summary-tile"
-    matTooltip="Stocks: {{ stockState.summaries().length }} · Cash: {{
-      cashState.items().length
-    }} · Options: {{ optionState.items().length }}"
+    matTooltip="Stocks: {{ activeStockCount() }} · Cash: 1 · Options: {{ activeOptionCount() }}"
   >
     <span class="label">Positions</span>
     <span class="value">{{ totalPositions() }}</span>

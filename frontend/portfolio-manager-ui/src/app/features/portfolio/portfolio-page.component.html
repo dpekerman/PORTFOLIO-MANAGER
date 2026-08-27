@@ -7,9 +7,7 @@
         <div>
           <h2 class="section-title">
             MY PORTFOLIO
-            <span class="count-badge">{{
-              portfolio.summaries().length + cashState.items().length + optionState.items().length
-            }}</span>
+            <span class="count-badge">{{ totalPositionCount() }}</span>
           </h2>
           <p class="section-sub">Stocks · Cash · Options · Live prices active with API key</p>
         </div>
@@ -134,7 +132,7 @@
           <div class="subsection-title-group">
             <mat-icon class="subsection-icon">bar_chart</mat-icon>
             <span class="subsection-title"
-              >Stocks <span class="count-badge">{{ portfolio.summaries().length }}</span></span
+              >Stocks <span class="count-badge">{{ activeStockCount() }}</span></span
             >
             @if (portfolio.summaries().length > 0) {
               <div class="subsection-meta">

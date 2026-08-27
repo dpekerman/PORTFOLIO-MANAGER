@@ -1,0 +1,32 @@
+<div class="ml-widget">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="ml-progress" />
+  }
+  @if (leadership(); as ml) {
+    @if (ml.rows.length === 0) {
+      <div class="ml-empty">
+        <mat-icon>donut_large</mat-icon>
+        <span>Refresh portfolio and watchlist data to compute sector leadership</span>
+      </div>
+    } @else {
+      <div class="ml-grid">
+        @for (row of ml.rows; track row.sector) {
+          <div class="ml-row" [class]="leadershipCls(row.leadership)">
+            <span class="ml-emoji" [matTooltip]="row.leadership">{{ row.leadershipEmoji }}</span>
+            <span class="ml-sector">{{ row.sector }}</span>
+            <span class="ml-breadth" [matTooltip]="row.pctAboveEma20 + '% above EMA20'"
+              >{{ row.pctAboveEma20 }}%</span
+            >
+            <span class="ml-rsi" [matTooltip]="'Avg RSI: ' + (row.avgRsi | number: '1.1-1')"
+              >RSI {{ row.avgRsi | number: '1.0-0' }}</span
+            >
+            <span class="ml-label" [class]="leadershipCls(row.leadership)">{{
+              row.leadership
+            }}</span>
+            <span class="ml-count">{{ row.symbolCount }}sym</span>
+          </div>
+        }
+      </div>
+    }
+  }
+</div>

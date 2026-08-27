@@ -8,8 +8,14 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
+import { DashboardAllocation } from '../../core/models/portfolio.models';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
+import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
+import { PortfolioActionsWidgetComponent } from './portfolio-actions-widget/portfolio-actions-widget.component';
+import { PriorityCandidatesWidgetComponent } from './priority-candidates-widget/priority-candidates-widget.component';
+import { StateChangesWidgetComponent } from './state-changes-widget/state-changes-widget.component';
 
 export type ChartRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 
@@ -41,6 +47,11 @@ export interface SvgChart {
     MatSelectModule,
     MatTooltipModule,
     RouterLink,
+    PortfolioActionsWidgetComponent,
+    StateChangesWidgetComponent,
+    MarketLeadershipWidgetComponent,
+    PriorityCandidatesWidgetComponent,
+    PerformanceSummaryWidgetComponent,
   ],
 })
 export class DashboardPageComponent {
@@ -54,14 +65,32 @@ export class DashboardPageComponent {
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
   /** Whether the RSI signals detail table is expanded. */
-  protected readonly rsiExpanded = signal(false);
+  protected readonly rsiExpanded = signal(true);
+  /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
+  protected readonly allocTab = signal<'sector' | 'role'>('sector');
 
-  protected readonly visibleMovers = computed(() =>
-    (this.snapshot()?.topMovers ?? []).slice(0, this.moversCount()),
+  // ── Portfolio-only movers ──────────────────────────────────────────────────
+  protected readonly portfolioTopMovers = computed(() =>
+    (this.snapshot()?.topMovers ?? []).filter((m) => m.isPortfolio).slice(0, this.moversCount()),
   );
-  protected readonly visibleLosers = computed(() =>
-    (this.snapshot()?.bottomMovers ?? []).slice(0, this.moversCount()),
+  protected readonly portfolioBottomMovers = computed(() =>
+    (this.snapshot()?.bottomMovers ?? []).filter((m) => m.isPortfolio).slice(0, this.moversCount()),
   );
+  // ── Watchlist-only movers (not already in portfolio) ──────────────────────
+  protected readonly watchlistTopMovers = computed(() =>
+    (this.snapshot()?.topMovers ?? [])
+      .filter((m) => m.isWatchlist && !m.isPortfolio)
+      .slice(0, this.moversCount()),
+  );
+  protected readonly watchlistBottomMovers = computed(() =>
+    (this.snapshot()?.bottomMovers ?? [])
+      .filter((m) => m.isWatchlist && !m.isPortfolio)
+      .slice(0, this.moversCount()),
+  );
+
+  // ── Portfolio Actions & State Changes counts ──────────────────────────────
+  protected readonly actionsCount = computed(() => this.dashboard.portfolioActions().length);
+  protected readonly stateChangesCount = computed(() => this.dashboard.stateChanges().length);
 
   protected readonly filteredChartPoints = computed(() => {
     const all = this.snapshot()?.valueHistory ?? [];
@@ -180,12 +209,20 @@ export class DashboardPageComponent {
     return v >= 0 ? 'north' : 'south';
   }
 
-  /** Format market index price: large numbers as integer, small as 2 decimals. */
+  /** Format market index price: large numbers as integer, small as 2 decimals. Prices only (>0). */
   protected fmtIdx(price: number): string {
-    if (price <= 0) return 'â€”';
+    if (price <= 0) return '—';
     return price > 500
       ? price.toLocaleString('en-US', { maximumFractionDigits: 0 })
       : price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /** Format market index change — handles negative values correctly. */
+  protected fmtChg(change: number): string {
+    const abs = Math.abs(change);
+    return abs > 500
+      ? abs.toLocaleString('en-US', { maximumFractionDigits: 0 })
+      : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   protected allocStatusClass(status: string): string {
@@ -201,6 +238,14 @@ export class DashboardPageComponent {
       default:
         return 'alloc-none';
     }
+  }
+
+  protected sumTargets(items: DashboardAllocation[]): number {
+    return items.reduce((acc, a) => acc + a.targetPercent, 0);
+  }
+
+  protected sumActual(items: DashboardAllocation[]): number {
+    return items.reduce((acc, a) => acc + a.percent, 0);
   }
 
   protected refresh(): void {

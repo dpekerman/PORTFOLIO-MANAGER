@@ -18,6 +18,7 @@ import {
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
+import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -116,7 +117,15 @@ export class TransactionsPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
+  protected readonly dashboardState = inject(DashboardStateService);
   private readonly api = inject(PortfolioApiService);
+
+  protected readonly activeTab = signal<'transactions' | 'analytics'>('transactions');
+
+  protected onTabChange(tab: 'transactions' | 'analytics'): void {
+    this.activeTab.set(tab);
+    if (tab === 'analytics') this.dashboardState.loadDecisionPerformance();
+  }
 
   /** Returns masked value when fake mode is on, original value otherwise. */
   protected dv(v: number): number {

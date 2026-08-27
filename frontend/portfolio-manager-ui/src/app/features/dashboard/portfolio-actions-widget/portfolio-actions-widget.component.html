@@ -1,0 +1,78 @@
+<div class="pa-widget">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="pa-progress" />
+  }
+
+  @if (!loading() && actions().length === 0) {
+    <div class="pa-empty">
+      <mat-icon class="pa-empty-icon">check_circle_outline</mat-icon>
+      <span>No active signals on your holdings or watchlist</span>
+    </div>
+  }
+
+  @if (actions().length > 0) {
+    <div class="pa-table-wrap">
+      <table class="pa-table" role="table" aria-label="Portfolio actions">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Role</th>
+            <th>RSI</th>
+            <th>Trend</th>
+            <th>Fib Zone</th>
+            <th>Allocation</th>
+            <th class="pa-action-col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of actions(); track a.symbol) {
+            <tr [class]="severityCls(a.actionSeverity)">
+              <td class="pa-symbol">
+                <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
+                  scanIcon(a.scanType)
+                }}</mat-icon>
+                <strong>{{ a.symbol }}</strong>
+                @if (a.isInPortfolio) {
+                  <span class="pa-badge pa-portfolio" matTooltip="In Portfolio">P</span>
+                }
+                @if (a.isInWatchlist && !a.isInPortfolio) {
+                  <span class="pa-badge pa-watchlist" matTooltip="On Watchlist">W</span>
+                }
+              </td>
+              <td>
+                <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
+              </td>
+              <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
+              <td class="pa-trend">{{ a.trendShift }}</td>
+              <td class="pa-fib">{{ a.fibZone || '—' }}</td>
+              <td class="pa-alloc">
+                @if (a.allocationStatus === 'over') {
+                  <span class="pa-alloc-over" matTooltip="Sector overweight">↑ Over</span>
+                } @else if (a.allocationStatus === 'under') {
+                  <span class="pa-alloc-under" matTooltip="Sector underweight">↓ Under</span>
+                } @else if (a.allocationStatus === 'on-target') {
+                  <span class="pa-alloc-ok">On target</span>
+                } @else {
+                  <span class="pa-alloc-none">—</span>
+                }
+              </td>
+              <td class="pa-action-col">
+                <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">
+                  {{ a.actionLabel }}
+                </span>
+                @if (a.chaseRisk) {
+                  <mat-icon
+                    class="pa-chase-ico"
+                    matTooltip="Chase risk — large rebound may be priced in"
+                    color="warn"
+                    >warning</mat-icon
+                  >
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

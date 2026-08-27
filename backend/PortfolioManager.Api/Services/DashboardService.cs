@@ -138,6 +138,62 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
             })
             .ToList();
+
+        // ── Role allocation vs risk targets ──────────────────────────────────────
+        var roleTargets = await db.AllocationRiskTargets
+            .AsNoTracking()
+            .ToDictionaryAsync(t => t.Role, t => t.TargetPct, StringComparer.OrdinalIgnoreCase, ct);
+
+        // Group active stocks by role using liveTotal as denominator (includes cash + options)
+        var stockRoleGroups = portfolio
+            .Where(s => s.Quote is not null
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(s => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole)
+            .Select(group =>
+            {
+                var value = group.Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
+                var pct   = Percent(value, liveTotal);
+                roleTargets.TryGetValue(group.Key, out var target);
+                var delta  = pct - target;
+                var status = target == 0m ? "no-target"
+                           : Math.Abs(delta) <= 2m  ? "good"
+                           : Math.Abs(delta) <= 5m  ? (delta > 0 ? "watch-over" : "watch-under")
+                           :                          (delta > 0 ? "over"        : "under");
+                return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
+            })
+            .ToList();
+
+        // Merge options value into the "Options" role entry
+        if (liveOptionsValue > 0m)
+        {
+            var optionsPct = Percent(liveOptionsValue, liveTotal);
+            roleTargets.TryGetValue("Options", out var optTarget);
+            var optDelta  = optionsPct - optTarget;
+            var optStatus = optTarget == 0m ? "no-target"
+                          : Math.Abs(optDelta) <= 2m  ? "good"
+                          : Math.Abs(optDelta) <= 5m  ? (optDelta > 0 ? "watch-over" : "watch-under")
+                          :                             (optDelta > 0 ? "over"        : "under");
+            var existingOptions = stockRoleGroups.FirstOrDefault(r =>
+                string.Equals(r.Label, "Options", StringComparison.OrdinalIgnoreCase));
+            if (existingOptions is not null)
+            {
+                // Merge any stocks with Options role + actual options market value
+                var mergedValue = existingOptions.Value + liveOptionsValue;
+                var mergedPct   = Percent(mergedValue, liveTotal);
+                var mergedDelta = mergedPct - optTarget;
+                var mergedStatus = optTarget == 0m ? "no-target"
+                                 : Math.Abs(mergedDelta) <= 2m  ? "good"
+                                 : Math.Abs(mergedDelta) <= 5m  ? (mergedDelta > 0 ? "watch-over" : "watch-under")
+                                 :                                 (mergedDelta > 0 ? "over"        : "under");
+                stockRoleGroups[stockRoleGroups.IndexOf(existingOptions)] =
+                    new DashboardAllocation("Options", mergedValue, mergedPct, optTarget, Math.Round(mergedDelta, 2), mergedStatus);
+            }
+            else
+            {
+                stockRoleGroups.Add(new DashboardAllocation("Options", liveOptionsValue, optionsPct, optTarget, Math.Round(optDelta, 2), optStatus));
+            }
+        }
+        var roleAllocation = stockRoleGroups.OrderByDescending(a => a.Value).ToList();
         var newToday   = await db.DailySignals.CountAsync(s => s.SignalDate == etTodayStr, ct);
         var actionReq  = scanner.OversoldChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm)
                        + scanner.OverboughtChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm);
@@ -193,8 +249,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 Percent(monthChange, monthBase?.TotalValue),
                 scanner.OversoldChain.Count(r => r.Status != SignalStatus.Neutral),
                 scanner.OverboughtChain.Count(r => r.Status != SignalStatus.Neutral)),
-            movers.Take(10).ToList(),
-            movers.OrderBy(m => m.ChangePercent).Take(10).ToList(),
+            movers.Take(50).ToList(),
+            movers.OrderBy(m => m.ChangePercent).Take(50).ToList(),
             values.Select(h => new DashboardChartPoint(h.RecordedDate, h.TotalValue)).ToList(),
             IndexSymbols.Select(index =>
             {
@@ -204,7 +260,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             }).ToList(),
             allocation,
             earnings,
-            rsiSection);
+            rsiSection,
+            roleAllocation);
 
         var entity = await db.DashboardSnapshots.SingleOrDefaultAsync(s => s.UserId == userId, ct);
         if (entity is null)

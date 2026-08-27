@@ -12,6 +12,7 @@ public interface IWatchlistService
     Task<WatchlistItemDto> AddAsync(AddWatchlistItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
+    Task<bool> UpdateTierAsync(int id, string tier, CancellationToken ct = default);
     Task<bool> UpdateFavoriteAsync(int id, bool isFavorite, CancellationToken ct = default);
     Task<bool> UpdateNotesAsync(int id, string notes, CancellationToken ct = default);
     Task<bool> UpdateEarningsDateAsync(int id, DateTime? earningsDate, CancellationToken ct = default);
@@ -49,6 +50,7 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
             Symbol  = request.Symbol.ToUpperInvariant(),
             Notes   = request.Notes ?? "",
             Role    = request.Role ?? "Strategic",
+            WatchlistTier = request.WatchlistTier ?? "Strategic",
             AddedAt = DateTime.UtcNow
         };
         db.WatchlistItems.Add(item);
@@ -70,6 +72,15 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
         item.Role = role;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<bool> UpdateTierAsync(int id, string tier, CancellationToken ct = default)
+    {
+        var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (item is null) return false;
+        item.WatchlistTier = tier;
         await db.SaveChangesAsync(ct);
         return true;
     }
@@ -102,7 +113,7 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
     }
 
     private static WatchlistItemDto ToDto(WatchlistItem item) =>
-        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic", item.IsFavorite, item.EarningsDate);
+        new(item.Id, item.Symbol, item.Notes, item.AddedAt, item.Role ?? "Strategic", item.IsFavorite, item.EarningsDate, item.WatchlistTier ?? "Strategic");
 
     public async Task<IReadOnlyList<WatchlistBackupItem>> BackupAsync(CancellationToken ct = default)
     {

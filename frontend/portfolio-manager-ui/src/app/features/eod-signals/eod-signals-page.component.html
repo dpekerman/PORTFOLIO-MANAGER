@@ -265,6 +265,9 @@
             <div class="symbol-cell">
               <span class="symbol-text">{{ row.symbol }}</span>
               <span class="company-name">{{ row.companyName }}</span>
+              @if (portfolioRole(row.symbol); as role) {
+                <span class="eod-role-badge" [attr.data-role]="role">{{ role }}</span>
+              }
             </div>
           </td>
         </ng-container>

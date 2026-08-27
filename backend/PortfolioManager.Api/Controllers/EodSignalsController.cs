@@ -83,6 +83,7 @@ public class EodSignalsController(
 
         var signal = await db.DailySignals.FindAsync([id], ct);
         if (signal is null) return NotFound();
+        signal.PreviousSignalState = signal.SignalState;
         signal.SignalState = request.SignalState;
         signal.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);

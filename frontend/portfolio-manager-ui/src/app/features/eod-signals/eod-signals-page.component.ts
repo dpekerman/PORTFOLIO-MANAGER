@@ -35,6 +35,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
@@ -97,6 +98,21 @@ export class EodSignalsPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
   private readonly scannerState = inject(ScannerStateService);
+  private readonly portfolioState = inject(PortfolioStateService);
+
+  protected readonly portfolioRoleMap = computed<ReadonlyMap<string, string>>(
+    () =>
+      new Map(
+        this.portfolioState
+          .summaries()
+          .filter((s) => s.item.transactionType !== 'CLOSE' && !!s.item.holdingRole)
+          .map((s) => [s.item.symbol.toLowerCase(), s.item.holdingRole!]),
+      ),
+  );
+
+  protected portfolioRole(symbol: string): string | null {
+    return this.portfolioRoleMap().get(symbol.toLowerCase()) ?? null;
+  }
 
   // state
   protected readonly loading = signal(false);

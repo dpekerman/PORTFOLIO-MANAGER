@@ -122,6 +122,18 @@
         <mat-hint>Why was this position closed?</mat-hint>
       </mat-form-field>
     }
+
+    <!-- Row 8: Holding Role -->
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Holding Role</mat-label>
+      <mat-select formControlName="holdingRole">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (r of holdingRoles; track r) {
+          <mat-option [value]="r">{{ r }}</mat-option>
+        }
+      </mat-select>
+      <mat-hint>Investment role for this position</mat-hint>
+    </mat-form-field>
   </form>
 </mat-dialog-content>
 

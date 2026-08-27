@@ -69,13 +69,14 @@ public record PortfolioSummaryDto(
     StockQuote? Quote);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
-public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic");
+public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic", string WatchlistTier = "Strategic");
 
 public record UpdateWatchlistRoleRequest(string Role);
+public record UpdateWatchlistTierRequest(string WatchlistTier);
 public record UpdatePortfolioHoldingRoleRequest(string HoldingRole);
 public record UpdatePortfolioNotesRequest(string? Notes);
 
-public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null);
+public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null, string WatchlistTier = "Strategic");
 
 public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
 

@@ -188,28 +188,66 @@
             }
           </mat-select>
         </div>
-        <div class="db-mover-list">
-          @for (m of visibleMovers(); track m.symbol) {
-            <div class="db-mover-row">
-              <span class="mover-sym">{{ m.symbol }}</span>
-              <span class="mover-name">{{ m.companyName }}</span>
-              <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
-              <span class="mover-src">{{ m.isPortfolio ? 'Ptf' : 'WL' }}</span>
+        <!-- Side-by-side: Portfolio | Watchlist -->
+        <div class="db-movers-cols">
+          <!-- Portfolio movers -->
+          <div class="db-movers-col">
+            <div class="db-movers-col-hd">
+              <mat-icon class="db-movers-col-ico">account_balance_wallet</mat-icon> Portfolio
             </div>
-          } @empty {
-            <p class="db-muted">No quote snapshot available.</p>
-          }
-        </div>
-        <div class="db-sub-hd">Losers today</div>
-        <div class="db-mover-list">
-          @for (m of visibleLosers(); track m.symbol) {
-            <div class="db-mover-row">
-              <span class="mover-sym">{{ m.symbol }}</span>
-              <span class="mover-name">{{ m.companyName }}</span>
-              <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
-              <span class="mover-src">{{ m.isPortfolio ? 'Ptf' : 'WL' }}</span>
+            <div class="db-mover-list">
+              @for (m of portfolioTopMovers(); track m.symbol) {
+                <div class="db-mover-row">
+                  <span class="mover-sym">{{ m.symbol }}</span>
+                  <span class="mover-name">{{ m.companyName }}</span>
+                  <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
+                </div>
+              } @empty {
+                <p class="db-muted">—</p>
+              }
             </div>
-          }
+            <div class="db-sub-hd">Losers</div>
+            <div class="db-mover-list">
+              @for (m of portfolioBottomMovers(); track m.symbol) {
+                <div class="db-mover-row">
+                  <span class="mover-sym">{{ m.symbol }}</span>
+                  <span class="mover-name">{{ m.companyName }}</span>
+                  <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
+                </div>
+              } @empty {
+                <p class="db-muted">—</p>
+              }
+            </div>
+          </div>
+          <!-- Watchlist movers -->
+          <div class="db-movers-col">
+            <div class="db-movers-col-hd">
+              <mat-icon class="db-movers-col-ico">visibility</mat-icon> Watchlist
+            </div>
+            <div class="db-mover-list">
+              @for (m of watchlistTopMovers(); track m.symbol) {
+                <div class="db-mover-row">
+                  <span class="mover-sym">{{ m.symbol }}</span>
+                  <span class="mover-name">{{ m.companyName }}</span>
+                  <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
+                </div>
+              } @empty {
+                <p class="db-muted">—</p>
+              }
+            </div>
+            <div class="db-sub-hd">Losers</div>
+            <div class="db-mover-list">
+              @for (m of watchlistBottomMovers(); track m.symbol) {
+                <div class="db-mover-row">
+                  <span class="mover-sym">{{ m.symbol }}</span>
+                  <span class="mover-name">{{ m.companyName }}</span>
+                  <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
+                </div>
+              } @empty {
+                <p class="db-muted">—</p>
+              }
+            </div>
+          </div>
         </div>
       </mat-card>
       <!-- Market indices -->
@@ -234,7 +272,7 @@
               <span class="idx-name">{{ idx.name }}</span>
               <span class="idx-price">{{ fmtIdx(idx.price) }}</span>
               <span class="idx-chg" [class]="signCls(idx.change)"
-                >{{ idx.change >= 0 ? '+' : '' }}{{ fmtIdx(idx.change) }}</span
+                >{{ idx.change >= 0 ? '+' : '-' }}{{ fmtChg(idx.change) }}</span
               >
               <span class="idx-pct" [class]="signCls(idx.changePercent)"
                 >{{ idx.changePercent >= 0 ? '+' : ''
@@ -452,64 +490,178 @@
             </button>
             <span class="db-panel-title">Allocation vs targets</span>
           </div>
+          <!-- Tab toggles -->
+          <div class="db-alloc-tabs">
+            <button
+              class="db-alloc-tab"
+              [class.active]="allocTab() === 'sector'"
+              (click)="allocTab.set('sector')"
+              type="button"
+            >
+              Sector
+            </button>
+            <button
+              class="db-alloc-tab"
+              [class.active]="allocTab() === 'role'"
+              (click)="allocTab.set('role')"
+              type="button"
+            >
+              By Role
+            </button>
+          </div>
         </div>
-        <div class="db-alloc-table-wrap">
-          <table class="db-alloc-table" aria-label="Sector allocation vs targets">
-            <thead>
-              <tr>
-                <th>Sector</th>
-                <th>Actual</th>
-                <th>Target</th>
-                <th>Delta</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (s of data.allocation; track s.label) {
+
+        <!-- SECTOR view -->
+        @if (allocTab() === 'sector') {
+          <div class="db-alloc-table-wrap">
+            <table class="db-alloc-table" aria-label="Sector allocation vs targets">
+              <thead>
                 <tr>
-                  <td class="alloc-sector">{{ s.label }}</td>
-                  <td class="alloc-num">
-                    {{ s.percent | number: '1.1-1' }}%
-                    <div class="alloc-bar-mini">
-                      <span [style.width.%]="s.percent" [class]="allocStatusClass(s.status)"></span>
-                    </div>
-                  </td>
-                  <td class="alloc-num">
-                    {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
-                  </td>
-                  <td class="alloc-num" [class]="signCls(s.delta)">
-                    {{
-                      s.targetPercent > 0
-                        ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
-                        : '—'
-                    }}
-                  </td>
-                  <td>
-                    <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
-                      s.status === 'good'
-                        ? 'On target'
-                        : s.status === 'watch-over'
-                          ? 'Slight over'
-                          : s.status === 'watch-under'
-                            ? 'Slight under'
-                            : s.status === 'over'
-                              ? 'Over'
-                              : s.status === 'under'
-                                ? 'Under'
-                                : 'No target'
-                    }}</span>
-                  </td>
+                  <th>Sector</th>
+                  <th>Actual</th>
+                  <th>Target</th>
+                  <th>Delta</th>
+                  <th>Status</th>
                 </tr>
-              } @empty {
+              </thead>
+              <tbody>
+                @for (s of data.allocation; track s.label) {
+                  <tr>
+                    <td class="alloc-sector">{{ s.label }}</td>
+                    <td class="alloc-num">
+                      {{ s.percent | number: '1.1-1' }}%
+                      <div class="alloc-bar-mini">
+                        <span
+                          [style.width.%]="s.percent"
+                          [class]="allocStatusClass(s.status)"
+                        ></span>
+                      </div>
+                    </td>
+                    <td class="alloc-num">
+                      {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
+                    </td>
+                    <td class="alloc-num" [class]="signCls(s.delta)">
+                      {{
+                        s.targetPercent > 0
+                          ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
+                          : '—'
+                      }}
+                    </td>
+                    <td>
+                      <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
+                        s.status === 'good'
+                          ? 'On target'
+                          : s.status === 'watch-over'
+                            ? 'Slight over'
+                            : s.status === 'watch-under'
+                              ? 'Slight under'
+                              : s.status === 'over'
+                                ? 'Over'
+                                : s.status === 'under'
+                                  ? 'Under'
+                                  : 'No target'
+                      }}</span>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="db-muted">
+                      Allocation appears when portfolio quotes are loaded.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="alloc-total-row">
+                  <td><strong>Total</strong></td>
+                  <td class="alloc-num"><strong>100%</strong></td>
+                  <td class="alloc-num">
+                    <strong>{{ sumTargets(data.allocation) | number: '1.1-1' }}%</strong>
+                  </td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+
+        <!-- BY ROLE view -->
+        @if (allocTab() === 'role') {
+          <div class="db-alloc-table-wrap">
+            <table class="db-alloc-table" aria-label="Role allocation vs targets">
+              <thead>
                 <tr>
-                  <td colspan="5" class="db-muted">
-                    Allocation appears when portfolio quotes are loaded.
-                  </td>
+                  <th>Role</th>
+                  <th>Actual</th>
+                  <th>Target</th>
+                  <th>Delta</th>
+                  <th>Status</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                @for (r of data.roleAllocation ?? []; track r.label) {
+                  <tr>
+                    <td class="alloc-sector">{{ r.label }}</td>
+                    <td class="alloc-num">
+                      {{ r.percent | number: '1.1-1' }}%
+                      <div class="alloc-bar-mini">
+                        <span
+                          [style.width.%]="r.percent"
+                          [class]="allocStatusClass(r.status)"
+                        ></span>
+                      </div>
+                    </td>
+                    <td class="alloc-num">
+                      {{ r.targetPercent > 0 ? (r.targetPercent | number: '1.1-1') + '%' : '—' }}
+                    </td>
+                    <td class="alloc-num" [class]="signCls(r.delta)">
+                      {{
+                        r.targetPercent > 0
+                          ? (r.delta >= 0 ? '+' : '') + (r.delta | number: '1.1-1') + '%'
+                          : '—'
+                      }}
+                    </td>
+                    <td>
+                      <span class="alloc-status-badge" [class]="allocStatusClass(r.status)">{{
+                        r.status === 'good'
+                          ? 'On target'
+                          : r.status === 'watch-over'
+                            ? 'Slight over'
+                            : r.status === 'watch-under'
+                              ? 'Slight under'
+                              : r.status === 'over'
+                                ? 'Over'
+                                : r.status === 'under'
+                                  ? 'Under'
+                                  : 'No target'
+                      }}</span>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5" class="db-muted">
+                      Role allocation appears after next dashboard refresh.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr class="alloc-total-row">
+                  <td><strong>Total</strong></td>
+                  <td class="alloc-num">
+                    <strong>{{ sumActual(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong>
+                  </td>
+                  <td class="alloc-num">
+                    <strong>{{ sumTargets(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong>
+                  </td>
+                  <td></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
       </mat-card>
     </div>
     <!-- ── Upcoming earnings ──────────────────────────────────────────── -->
@@ -549,5 +701,61 @@
         ><mat-icon>radar</mat-icon>Scan now</a
       >
     </nav>
+    <!-- ── Portfolio Actions ──────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">assignment_turned_in</mat-icon>
+          <span class="db-panel-title">Portfolio actions</span>
+          @if (actionsCount() > 0) {
+            <span class="db-panel-badge">{{ actionsCount() }}</span>
+          }
+        </div>
+      </div>
+      <app-portfolio-actions-widget />
+    </mat-card>
+    <!-- ── Changed Today ──────────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">update</mat-icon>
+          <span class="db-panel-title">Signal changes today</span>
+          @if (stateChangesCount() > 0) {
+            <span class="db-panel-badge">{{ stateChangesCount() }}</span>
+          }
+        </div>
+      </div>
+      <app-state-changes-widget />
+    </mat-card>
+    <!-- ── Market Leadership ──────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">leaderboard</mat-icon>
+          <span class="db-panel-title">Market leadership</span>
+        </div>
+      </div>
+      <app-market-leadership-widget />
+    </mat-card>
+    <!-- ── Priority Candidates ────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">star_rate</mat-icon>
+          <span class="db-panel-title">Priority candidates</span>
+        </div>
+      </div>
+      <app-priority-candidates-widget />
+    </mat-card>
+    <!-- ── Performance Summary ────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">show_chart</mat-icon>
+          <span class="db-panel-title">YTD performance</span>
+        </div>
+      </div>
+      <app-performance-summary-widget />
+    </mat-card>
   }
 </section>

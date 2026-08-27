@@ -1,0 +1,40 @@
+<div class="pc-widget">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="pc-progress" />
+  }
+  @if (!loading() && scores().length === 0) {
+    <div class="pc-empty">
+      <mat-icon>playlist_add_check</mat-icon>
+      <span>No watchlist candidates scored yet — ensure scanner has run recently</span>
+    </div>
+  }
+  @if (scores().length > 0) {
+    <div class="pc-list">
+      @for (s of scores().slice(0, 5); track s.symbol) {
+        <div class="pc-row">
+          <div class="pc-score-ring" [matTooltip]="'Score: ' + s.totalScore">
+            <span class="pc-score-val">{{ s.totalScore | number: '1.0-0' }}</span>
+          </div>
+          <div class="pc-info">
+            <strong>{{ s.symbol }}</strong>
+            <span class="pc-company">{{ s.companyName }}</span>
+          </div>
+          <div class="pc-meta">
+            @if (s.trendShift) {
+              <span class="pc-trend">{{ s.trendShift }}</span>
+            }
+            @if (s.allocationStatus === 'under') {
+              <span class="pc-alloc-under" matTooltip="Sector underweight">↓ Under</span>
+            } @else if (s.allocationStatus === 'over') {
+              <span class="pc-alloc-over" matTooltip="Sector overweight">↑ Over</span>
+            }
+          </div>
+          <span class="pc-badge" [class]="badgeCls(s.badge)">{{ badgeLabel(s.badge) }}</span>
+        </div>
+      }
+    </div>
+    @if (scores().length > 5) {
+      <p class="pc-more">+{{ scores().length - 5 }} more in Watchlist</p>
+    }
+  }
+</div>

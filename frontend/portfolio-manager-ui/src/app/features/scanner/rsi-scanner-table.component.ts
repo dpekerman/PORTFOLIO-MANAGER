@@ -44,6 +44,7 @@ export class RsiScannerTableComponent {
   readonly loading = input(false);
   readonly portfolioSymbols = input<ReadonlySet<string>>(new Set());
   readonly watchlistSymbols = input<ReadonlySet<string>>(new Set());
+  readonly portfolioRoleMap = input<ReadonlyMap<string, string>>(new Map());
   readonly showHistory = input(true);
 
   protected readonly sortCol = signal<string>('momentumShift');
@@ -133,6 +134,10 @@ export class RsiScannerTableComponent {
     if (status === 'Portfolio') return 'track-portfolio';
     if (status === 'Watchlist') return 'track-watchlist';
     return 'track-market';
+  }
+
+  protected portfolioRole(symbol: string): string | null {
+    return this.portfolioRoleMap().get(symbol.toLowerCase()) ?? null;
   }
 
   protected trackingIcon(status: 'Portfolio' | 'Watchlist' | 'Market'): string {
