@@ -69,6 +69,12 @@ export class WatchlistStateService {
     });
   }
 
+  /** Silently update prices from a completed batch refresh — no loading state, no extra HTTP call. */
+  setFromRefresh(data: WatchlistSummary[]): void {
+    this._items.set(data);
+    this.fromSnapshot.set(false);
+  }
+
   addItem(symbol: string, role = 'Strategic'): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addWatchlistItem(symbol.toUpperCase(), '', role).subscribe({

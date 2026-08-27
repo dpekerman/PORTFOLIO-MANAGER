@@ -122,11 +122,14 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var sectorTargets = await db.AllocationSectorTargets
             .AsNoTracking()
             .ToDictionaryAsync(t => t.Sector, t => t.TargetPct, StringComparer.OrdinalIgnoreCase, ct);
-        var portfolioTotal = portfolio
-            .Where(s => s.Quote is not null)
-            .Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
-        var allocation = portfolio
-            .Where(s => s.Quote is not null)
+        // Stocks + cash only; exclude Options-role items (manual positions classified as options)
+        var sectorItems = portfolio
+            .Where(s => s.Quote is not null
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(s.Item.HoldingRole, "Options", StringComparison.OrdinalIgnoreCase));
+        var stocksValue = sectorItems.Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
+        var portfolioTotal = stocksValue + liveCashValue; // denominator = stocks + cash
+        var allocation = sectorItems
             .GroupBy(s => string.IsNullOrWhiteSpace(s.Item.Sector) ? "Unclassified" : s.Item.Sector)
             .Select(group =>
             {

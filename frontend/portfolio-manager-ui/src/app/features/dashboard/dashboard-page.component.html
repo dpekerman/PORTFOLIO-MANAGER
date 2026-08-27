@@ -517,15 +517,43 @@
             <table class="db-alloc-table" aria-label="Sector allocation vs targets">
               <thead>
                 <tr>
-                  <th>Sector</th>
-                  <th>Actual</th>
-                  <th>Target</th>
-                  <th>Delta</th>
+                  <th class="sortable" (click)="toggleSectorSort('label')">
+                    Sector
+                    @if (sectorSortCol() === 'label') {
+                      <mat-icon class="sort-icon">{{
+                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </th>
+                  <th class="sortable alloc-num" (click)="toggleSectorSort('percent')">
+                    Actual
+                    @if (sectorSortCol() === 'percent') {
+                      <mat-icon class="sort-icon">{{
+                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </th>
+                  <th class="sortable alloc-num" (click)="toggleSectorSort('targetPercent')">
+                    Target
+                    @if (sectorSortCol() === 'targetPercent') {
+                      <mat-icon class="sort-icon">{{
+                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </th>
+                  <th class="sortable alloc-num" (click)="toggleSectorSort('delta')">
+                    Delta
+                    @if (sectorSortCol() === 'delta') {
+                      <mat-icon class="sort-icon">{{
+                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                      }}</mat-icon>
+                    }
+                  </th>
                   <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                @for (s of data.allocation; track s.label) {
+                @for (s of sortedSectorAllocation(); track s.label) {
                   <tr>
                     <td class="alloc-sector">{{ s.label }}</td>
                     <td class="alloc-num">

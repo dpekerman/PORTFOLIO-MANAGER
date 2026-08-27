@@ -138,6 +138,7 @@ export class EodSignalsPageComponent implements OnInit {
   protected readonly signalTypeFilter = signal<string>('');
   protected readonly signalStateFilter = signal<string>('');
   protected readonly ruleVersionFilter = signal<string>('');
+  protected readonly volumeSignalFilter = signal<string>('');
   protected readonly dateFromControl = new FormControl<Date | null>(null);
   protected readonly dateToControl = new FormControl<Date | null>(null);
   protected readonly pageIndex = signal(0);
@@ -292,6 +293,7 @@ export class EodSignalsPageComponent implements OnInit {
     'Reversed',
   ];
   protected readonly ruleVersionOptions = ['Legacy', 'Enhanced'];
+  protected readonly volumeSignalOptions = ['Validated', 'Elevated', 'Neutral', 'Low-Volume Trap'];
 
   protected readonly hasFilters = computed(
     () =>
@@ -301,6 +303,7 @@ export class EodSignalsPageComponent implements OnInit {
         this.signalTypeFilter() ||
         this.signalStateFilter() ||
         this.ruleVersionFilter() ||
+        this.volumeSignalFilter() ||
         this.dateFromControl.value ||
         this.dateToControl.value
       ),
@@ -376,6 +379,7 @@ export class EodSignalsPageComponent implements OnInit {
       signalType: this.signalTypeFilter() || undefined,
       signalState: this.signalStateFilter() || undefined,
       ruleVersion: this.ruleVersionFilter() || undefined,
+      volumeSignal: this.volumeSignalFilter() || undefined,
       dateFrom: this.dateToStr(this.dateFromControl.value),
       dateTo: this.dateToStr(this.dateToControl.value),
       page: this.pageIndex() + 1,

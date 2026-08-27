@@ -68,14 +68,14 @@ export class AppRefreshService {
       .refreshAll()
       .pipe(takeUntil(this.cancel$))
       .subscribe({
-        next: () => {
+        next: (result) => {
           this.setStepStatus('fetch', 'done');
           this.setStepStatus('dashboard', 'done');
           this.setStepStatus('ui', 'loading');
 
-          // Re-read snapshots from DB into state signals — no additional Yahoo Finance calls
-          this.portfolioState.loadSnapshot();
-          this.watchlistState.loadSnapshot();
+          // Push fresh data directly — no loading state, no extra HTTP round-trips
+          this.portfolioState.setFromRefresh(result.portfolioSummaries);
+          this.watchlistState.setFromRefresh(result.watchlistSummaries);
           this.dashboardState.load();
 
           this.setStepStatus('ui', 'done');

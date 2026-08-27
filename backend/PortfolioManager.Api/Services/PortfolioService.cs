@@ -19,6 +19,7 @@ public interface IPortfolioService
     Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default);
     Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default);
+    Task RefreshSectorForItemAsync(int id, string symbol, CancellationToken ct = default);
 }
 
 public sealed class PortfolioService(
@@ -55,9 +56,6 @@ public sealed class PortfolioService(
 
     public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
     {
-        // Auto-fetch sector/industry from Yahoo Finance
-        var (sector, industry) = await marketData.GetSectorAsync(request.Symbol, ct);
-
         var item = new PortfolioItem
         {
             UserId           = CurrentUserId(),
@@ -65,8 +63,8 @@ public sealed class PortfolioService(
             CompanyName      = request.CompanyName,
             Shares           = request.Shares,
             AverageCostBasis = request.AverageCostBasis,
-            Sector           = sector,
-            Industry         = industry,
+            Sector           = string.Empty, // populated in background after response
+            Industry         = string.Empty,
             AddedAt          = DateTime.UtcNow,
             TransactionType  = request.TransactionType,
             AccountType      = request.AccountType,
@@ -169,6 +167,16 @@ public sealed class PortfolioService(
         db.PortfolioItems.Remove(item);
         await db.SaveChangesAsync(ct);
         return true;
+    }
+
+    public async Task RefreshSectorForItemAsync(int id, string symbol, CancellationToken ct = default)
+    {
+        var (sector, industry) = await marketData.GetSectorAsync(symbol, ct);
+        var item = await db.PortfolioItems.FindAsync([id], ct);
+        if (item is null || (!string.IsNullOrWhiteSpace(item.Sector) && item.SectorIsOverridden)) return;
+        item.Sector   = sector;
+        item.Industry = industry;
+        await db.SaveChangesAsync(ct);
     }
 
     private static PortfolioItemDto ToDto(PortfolioItem item) =>

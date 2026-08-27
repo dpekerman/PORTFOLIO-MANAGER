@@ -82,6 +82,8 @@ export interface DataRefreshResultDto {
   dashboardRebuilt: boolean;
   refreshedAt: string;
   durationMs: number;
+  portfolioSummaries: PortfolioSummary[];
+  watchlistSummaries: WatchlistSummary[];
 }
 
 export interface AddPortfolioItemRequest {
@@ -714,6 +716,7 @@ export interface EodSignalFilters {
   signalType?: string;
   signalState?: string;
   ruleVersion?: string;
+  volumeSignal?: string;
   dateFrom?: string;
   dateTo?: string;
   page: number;

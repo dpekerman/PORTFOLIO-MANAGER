@@ -88,6 +88,8 @@ public sealed class DataRefreshService(
             WatchlistSymbolCount: watchlistSummaries.Count,
             DashboardRebuilt: true,
             RefreshedAt: DateTime.UtcNow,
-            DurationMs: sw.ElapsedMilliseconds);
+            DurationMs: sw.ElapsedMilliseconds,
+            PortfolioSummaries: sortedPortfolio.AsReadOnly(),
+            WatchlistSummaries: watchlistSummaries.AsReadOnly());
     }
 }

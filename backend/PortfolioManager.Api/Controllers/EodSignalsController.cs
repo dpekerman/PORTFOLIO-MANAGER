@@ -25,6 +25,7 @@ public class EodSignalsController(
         [FromQuery] string? signalType = null,
         [FromQuery] string? signalState = null,
         [FromQuery] string? ruleVersion = null,
+        [FromQuery] string? volumeSignal = null,
         [FromQuery] string? dateFrom = null,
         [FromQuery] string? dateTo = null,
         [FromQuery] int page = 1,
@@ -46,6 +47,8 @@ public class EodSignalsController(
             query = query.Where(s => s.SignalState == signalState);
         if (!string.IsNullOrWhiteSpace(ruleVersion))
             query = query.Where(s => s.RuleVersion == ruleVersion);
+        if (!string.IsNullOrWhiteSpace(volumeSignal))
+            query = query.Where(s => s.VolumeSignal == volumeSignal);
         if (!string.IsNullOrWhiteSpace(dateFrom))
             query = query.Where(s => string.Compare(s.SignalDate, dateFrom, StringComparison.Ordinal) >= 0);
         if (!string.IsNullOrWhiteSpace(dateTo))

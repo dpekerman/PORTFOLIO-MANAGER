@@ -12,7 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public class PortfolioController(
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
-    ITransactionContextCaptureService contextCapture) : ControllerBase
+    ITransactionContextCaptureService contextCapture,
+    IServiceScopeFactory scopeFactory) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     [HttpGet]
@@ -34,9 +35,19 @@ public class PortfolioController(
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddAsync(request, ct);
-        // Only capture context for OPEN (buy) transactions
         if (!string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
             await contextCapture.TryCaptureAsync(item.Id, item.Symbol, request.HoldingRole, item.Sector, ct);
+        // Fetch sector/industry in background so the dialog closes immediately
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var svc = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
+                await svc.RefreshSectorForItemAsync(item.Id, item.Symbol);
+            }
+            catch { /* best-effort */ }
+        });
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 

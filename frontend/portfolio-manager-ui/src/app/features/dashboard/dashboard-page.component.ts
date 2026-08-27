@@ -70,6 +70,32 @@ export class DashboardPageComponent {
   protected readonly rsiExpanded = signal(true);
   /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
   protected readonly allocTab = signal<'sector' | 'role'>('sector');
+  /** Sector table sort column and direction. Default: percent desc (highest actual first). */
+  protected readonly sectorSortCol = signal<'label' | 'percent' | 'targetPercent' | 'delta'>(
+    'percent',
+  );
+  protected readonly sectorSortDir = signal<1 | -1>(-1);
+
+  protected readonly sortedSectorAllocation = computed(() => {
+    const items = this.snapshot()?.allocation ?? [];
+    const col = this.sectorSortCol();
+    const dir = this.sectorSortDir();
+    return [...items].sort((a, b) => {
+      const av = a[col] as string | number;
+      const bv = b[col] as string | number;
+      if (typeof av === 'string') return av.localeCompare(bv as string) * dir;
+      return ((av as number) - (bv as number)) * dir;
+    });
+  });
+
+  protected toggleSectorSort(col: 'label' | 'percent' | 'targetPercent' | 'delta'): void {
+    if (this.sectorSortCol() === col) {
+      this.sectorSortDir.update((d) => (d === 1 ? -1 : 1));
+    } else {
+      this.sectorSortCol.set(col);
+      this.sectorSortDir.set(col === 'label' ? 1 : -1);
+    }
+  }
 
   // ── Portfolio-only movers ──────────────────────────────────────────────────
   protected readonly portfolioTopMovers = computed(() =>

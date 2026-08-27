@@ -118,6 +118,12 @@ export class PortfolioStateService {
     });
   }
 
+  /** Silently update prices from a completed batch refresh — no loading state, no extra HTTP call. */
+  setFromRefresh(data: PortfolioSummary[]): void {
+    this._summaries.set(data);
+    this.fromSnapshot.set(false);
+  }
+
   toggleSelection(id: number): void {
     this._selectedIds.update((s) => {
       const copy = new Set(s);

@@ -657,6 +657,21 @@ mat-card.db-panel {
     &:not(:first-child) {
       text-align: right;
     }
+    &.sortable {
+      cursor: pointer;
+      user-select: none;
+      &:hover {
+        color: #2d6a8a;
+      }
+    }
+  }
+  .sort-icon {
+    font-size: 12px;
+    width: 12px;
+    height: 12px;
+    vertical-align: middle;
+    margin-left: 2px;
+    opacity: 0.7;
   }
   td {
     padding: 6px 6px;

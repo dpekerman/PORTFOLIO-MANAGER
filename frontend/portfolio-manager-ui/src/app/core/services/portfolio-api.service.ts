@@ -415,6 +415,7 @@ export class PortfolioApiService {
     if (filters.signalType) params = params.set('signalType', filters.signalType);
     if (filters.signalState) params = params.set('signalState', filters.signalState);
     if (filters.ruleVersion) params = params.set('ruleVersion', filters.ruleVersion);
+    if (filters.volumeSignal) params = params.set('volumeSignal', filters.volumeSignal);
     if (filters.dateFrom) params = params.set('dateFrom', filters.dateFrom);
     if (filters.dateTo) params = params.set('dateTo', filters.dateTo);
     return this.http.get<DailySignalPagedResponse>(`${this.base}/eod-signals`, { params });

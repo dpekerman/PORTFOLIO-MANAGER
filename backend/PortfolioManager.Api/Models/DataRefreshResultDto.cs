@@ -5,4 +5,6 @@ public record DataRefreshResultDto(
     int WatchlistSymbolCount,
     bool DashboardRebuilt,
     DateTime RefreshedAt,
-    long DurationMs);
+    long DurationMs,
+    IReadOnlyList<PortfolioSummaryDto> PortfolioSummaries,
+    IReadOnlyList<WatchlistSummaryDto> WatchlistSummaries);

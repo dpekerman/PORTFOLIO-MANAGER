@@ -165,6 +165,19 @@
       </mat-select>
     </mat-form-field>
 
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-select">
+      <mat-label>Volume</mat-label>
+      <mat-select
+        [value]="volumeSignalFilter()"
+        (selectionChange)="volumeSignalFilter.set($event.value); onFilterChange()"
+      >
+        <mat-option value="">All</mat-option>
+        @for (opt of volumeSignalOptions; track opt) {
+          <mat-option [value]="opt">{{ opt }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
       <mat-label>Date From</mat-label>
       <input
