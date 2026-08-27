@@ -1,0 +1,40 @@
+<div class="sc-widget">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="sc-progress" />
+  }
+
+  @if (!loading() && changes().length === 0) {
+    <div class="sc-empty">
+      <mat-icon class="sc-empty-icon">check_circle_outline</mat-icon>
+      <span>No signal state changes today — nothing requires your attention</span>
+    </div>
+  }
+
+  @if (changes().length > 0) {
+    <div class="sc-list">
+      @for (c of changes(); track c.signalId) {
+        <div class="sc-row">
+          <mat-icon class="sc-scan-ico" [matTooltip]="c.scanType">{{
+            scanIcon(c.scanType)
+          }}</mat-icon>
+          <strong class="sc-symbol">{{ c.symbol }}</strong>
+          <span class="sc-company">{{ c.companyName }}</span>
+          <div class="sc-transition">
+            <span class="sc-state" [class]="stateCls(c.previousState)">{{ c.previousState }}</span>
+            <mat-icon class="sc-arrow">arrow_forward</mat-icon>
+            <span class="sc-state sc-state-new" [class]="stateCls(c.newState)">{{
+              c.newState
+            }}</span>
+          </div>
+          <span class="sc-rsi" [matTooltip]="'RSI: ' + (c.rsi | number: '1.1-1')">{{
+            c.rsi | number: '1.1-1'
+          }}</span>
+          @if (c.trendShift) {
+            <span class="sc-trend">{{ c.trendShift }}</span>
+          }
+          <span class="sc-time">{{ c.changedAt | date: 'h:mm a' }}</span>
+        </div>
+      }
+    </div>
+  }
+</div>

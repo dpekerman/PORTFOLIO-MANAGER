@@ -209,6 +209,12 @@ builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
 builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
+builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
+builder.Services.AddScoped<ITransactionContextCaptureService, TransactionContextCaptureService>();
+builder.Services.AddScoped<IPortfolioActionScoreService, PortfolioActionScoreService>();
+builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
+builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
 
 var app = builder.Build();
 

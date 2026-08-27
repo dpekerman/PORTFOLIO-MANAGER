@@ -701,5 +701,61 @@
         ><mat-icon>radar</mat-icon>Scan now</a
       >
     </nav>
+    <!-- ── Portfolio Actions ──────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">assignment_turned_in</mat-icon>
+          <span class="db-panel-title">Portfolio actions</span>
+          @if (actionsCount() > 0) {
+            <span class="db-panel-badge">{{ actionsCount() }}</span>
+          }
+        </div>
+      </div>
+      <app-portfolio-actions-widget />
+    </mat-card>
+    <!-- ── Changed Today ──────────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">update</mat-icon>
+          <span class="db-panel-title">Signal changes today</span>
+          @if (stateChangesCount() > 0) {
+            <span class="db-panel-badge">{{ stateChangesCount() }}</span>
+          }
+        </div>
+      </div>
+      <app-state-changes-widget />
+    </mat-card>
+    <!-- ── Market Leadership ──────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">leaderboard</mat-icon>
+          <span class="db-panel-title">Market leadership</span>
+        </div>
+      </div>
+      <app-market-leadership-widget />
+    </mat-card>
+    <!-- ── Priority Candidates ────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">star_rate</mat-icon>
+          <span class="db-panel-title">Priority candidates</span>
+        </div>
+      </div>
+      <app-priority-candidates-widget />
+    </mat-card>
+    <!-- ── Performance Summary ────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">show_chart</mat-icon>
+          <span class="db-panel-title">YTD performance</span>
+        </div>
+      </div>
+      <app-performance-summary-widget />
+    </mat-card>
   }
 </section>

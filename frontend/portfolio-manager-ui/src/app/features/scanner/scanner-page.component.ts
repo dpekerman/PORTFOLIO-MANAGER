@@ -56,6 +56,16 @@ export class ScannerPageComponent implements OnInit {
       ),
   );
 
+  protected readonly portfolioRoleMap = computed<ReadonlyMap<string, string>>(
+    () =>
+      new Map(
+        this.portfolio
+          .summaries()
+          .filter((s) => s.item.transactionType !== 'CLOSE' && !!s.item.holdingRole)
+          .map((s) => [s.item.symbol.toLowerCase(), s.item.holdingRole!]),
+      ),
+  );
+
   protected readonly watchlistSymbols = computed<ReadonlySet<string>>(
     () => new Set(this.watchlist.items().map((w) => w.item.symbol.toLowerCase())),
   );

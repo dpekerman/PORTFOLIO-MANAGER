@@ -33,6 +33,9 @@
         >
           <mat-icon class="tracking-icon">{{ trackingIcon(status) }}</mat-icon>
           <span class="tracking-label">{{ status }}</span>
+          @if (status === 'Portfolio' && portfolioRole(row.symbol); as role) {
+            <span class="tracking-role-badge" [attr.data-role]="role">{{ role }}</span>
+          }
         </div>
       </td>
     </ng-container>

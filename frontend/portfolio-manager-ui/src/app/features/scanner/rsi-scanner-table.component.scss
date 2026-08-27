@@ -726,6 +726,30 @@
   }
 }
 
+.tracking-role-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(66, 165, 245, 0.2);
+  color: #1565c0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+
+  &[data-role='Core'] {
+    background: rgba(46, 125, 50, 0.18);
+    color: #1b5e20;
+  }
+  &[data-role='Swing'] {
+    background: rgba(21, 101, 192, 0.18);
+    color: #0d47a1;
+  }
+  &[data-role='Speculative'] {
+    background: rgba(74, 20, 140, 0.18);
+    color: #4a148c;
+  }
+}
+
 // ── Analyst Target Upside column ─────────────────────────────────────────────
 .analyst-cell {
   display: flex;

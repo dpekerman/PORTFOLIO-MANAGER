@@ -1,0 +1,122 @@
+.ml-widget {
+  min-height: 40px;
+  position: relative;
+}
+
+.ml-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+.ml-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 4px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.83rem;
+  mat-icon {
+    opacity: 0.5;
+  }
+}
+
+.ml-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ml-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  border-left: 3px solid transparent;
+
+  &.ml-strong {
+    border-left-color: #2e7d32;
+    background: rgba(46, 125, 50, 0.06);
+  }
+  &.ml-improving {
+    border-left-color: #1565c0;
+    background: rgba(21, 101, 192, 0.06);
+  }
+  &.ml-weakening {
+    border-left-color: #f57c00;
+    background: rgba(245, 124, 0, 0.06);
+  }
+  &.ml-declining {
+    border-left-color: #c62828;
+    background: rgba(198, 40, 40, 0.06);
+  }
+  &.ml-neutral {
+    border-left-color: var(--mat-sys-outline-variant);
+  }
+}
+
+.ml-emoji {
+  font-size: 1rem;
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+.ml-sector {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ml-breadth {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  min-width: 36px;
+  text-align: right;
+}
+.ml-rsi {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  min-width: 52px;
+  text-align: right;
+}
+.ml-count {
+  font-size: 0.68rem;
+  color: var(--mat-sys-on-surface-variant);
+  min-width: 32px;
+  text-align: right;
+}
+
+.ml-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  min-width: 68px;
+  text-align: center;
+  &.ml-strong {
+    background: rgba(46, 125, 50, 0.15);
+    color: #1b5e20;
+  }
+  &.ml-improving {
+    background: rgba(21, 101, 192, 0.15);
+    color: #0d47a1;
+  }
+  &.ml-weakening {
+    background: rgba(245, 124, 0, 0.15);
+    color: #e65100;
+  }
+  &.ml-declining {
+    background: rgba(198, 40, 40, 0.15);
+    color: #b71c1c;
+  }
+  &.ml-neutral {
+    background: var(--mat-sys-surface-variant);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}

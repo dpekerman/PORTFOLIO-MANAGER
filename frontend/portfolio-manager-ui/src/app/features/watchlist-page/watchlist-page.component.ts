@@ -134,6 +134,8 @@ export class WatchlistPageComponent {
   protected readonly filterTrendSetup = signal('');
   protected readonly filterFinalAction = signal('');
   protected readonly filterFavorites = signal(false);
+  protected readonly tierFilter = signal<string>('All');
+  protected readonly tiers = ['All', 'Active', 'Strategic', 'Universe'];
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
   protected readonly roles = [
@@ -500,7 +502,12 @@ export class WatchlistPageComponent {
     const filterTrendSetup = this.filterTrendSetup();
     const filterFinalAction = this.filterFinalAction();
     const filterFavorites = this.filterFavorites();
+    const tier = this.tierFilter();
     let items = this.watchlist.items();
+
+    if (tier !== 'All') {
+      items = items.filter((w) => (w.item.watchlistTier ?? 'Strategic') === tier);
+    }
 
     if (filterFavorites) {
       items = items.filter((w) => w.item.isFavorite);
@@ -737,6 +744,18 @@ export class WatchlistPageComponent {
 
   updateRole(w: WatchlistSummary, role: string): void {
     this.watchlist.updateRole(w.item.id, role);
+  }
+
+  protected readonly activeTierCount = computed(
+    () =>
+      this.watchlist.items().filter((w) => (w.item.watchlistTier ?? 'Strategic') === 'Active')
+        .length,
+  );
+
+  updateTier(w: WatchlistSummary, tier: string): void {
+    this.api.updateWatchlistTier(w.item.id, tier).subscribe({
+      next: () => this.watchlist.refresh(),
+    });
   }
 
   protected readonly earningsRefreshing = signal(false);

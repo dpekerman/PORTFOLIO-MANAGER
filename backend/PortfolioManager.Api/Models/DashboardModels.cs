@@ -70,3 +70,31 @@ public sealed record DashboardRsiSection(
     IReadOnlyList<DashboardRsiSignal> OversoldSignals,
     IReadOnlyList<DashboardRsiSignal> OverboughtSignals);
 
+/// <summary>An existing holding or watchlist item with an active RSI signal, plus a role-aware action recommendation.</summary>
+public sealed record PortfolioActionDto(
+    string Symbol,
+    string CompanyName,
+    string HoldingRole,
+    string ScanType,
+    decimal Rsi,
+    string TrendShift,
+    string FibZone,
+    string ChaseRisk,
+    string AllocationStatus,   // "over" | "under" | "on-target" | ""
+    string ActionLabel,        // role-aware recommendation
+    string ActionSeverity,     // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+    bool IsInPortfolio,
+    bool IsInWatchlist);
+
+/// <summary>An EOD signal whose lifecycle state changed today.</summary>
+public sealed record StateChangeDto(
+    int SignalId,
+    string Symbol,
+    string CompanyName,
+    string ScanType,
+    string PreviousState,
+    string NewState,
+    decimal Rsi,
+    string TrendShift,
+    DateTime ChangedAt);
+

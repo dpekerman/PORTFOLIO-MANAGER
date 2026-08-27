@@ -1,0 +1,62 @@
+.ps-widget {
+  min-height: 40px;
+  position: relative;
+}
+.ps-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+.ps-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.ps-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+
+  .ps-label {
+    font-size: 0.72rem;
+    color: var(--mat-sys-on-surface-variant);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  strong {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+}
+
+.ps-na {
+  font-size: 0.82rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+.ps-divider {
+  width: 1px;
+  height: 36px;
+  background: var(--mat-sys-outline-variant);
+}
+.ps-stat-ytd-values strong {
+  font-size: 0.9rem;
+}
+
+.pos {
+  color: #2e7d32;
+}
+.neg {
+  color: #c62828;
+}
+
+.ps-empty {
+  font-size: 0.82rem;
+  color: var(--mat-sys-on-surface-variant);
+  padding: 12px 0;
+}

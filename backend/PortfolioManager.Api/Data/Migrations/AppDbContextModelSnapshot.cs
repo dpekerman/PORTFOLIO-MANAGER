@@ -417,6 +417,10 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<decimal?>("PositionSizingShares")
                         .HasColumnType("decimal(18,6)");
 
+                    b.Property<string>("PreviousSignalState")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,4)");
 
@@ -959,6 +963,61 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("StagedSignals");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.TransactionContextSnapshot", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CapturedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FibZoneAtEntry")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("HoldingRoleAtEntry")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("RsiAtEntry")
+                        .HasColumnType("decimal(7,4)");
+
+                    b.Property<string>("SectorAllocationStatusAtEntry")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("TransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TrendShiftAtEntry")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TurnStrengthAtEntry")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("ValueScoreAtEntry")
+                        .HasColumnType("decimal(7,2)");
+
+                    b.Property<string>("ValueTierAtEntry")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("VolumeSignalAtEntry")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("TransactionContextSnapshots");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.UserPreference", b =>
                 {
                     b.Property<int>("Id")
@@ -1095,6 +1154,13 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<string>("UserId")
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("WatchlistTier")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Strategic");
 
                     b.HasKey("Id");
 

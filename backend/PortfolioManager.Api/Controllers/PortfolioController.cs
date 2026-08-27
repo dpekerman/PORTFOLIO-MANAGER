@@ -9,7 +9,10 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class PortfolioController(IPortfolioService portfolioService, IPortfolioSnapshotService portfolioSnapshot) : ControllerBase
+public class PortfolioController(
+    IPortfolioService portfolioService,
+    IPortfolioSnapshotService portfolioSnapshot,
+    ITransactionContextCaptureService contextCapture) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     [HttpGet]
@@ -31,6 +34,9 @@ public class PortfolioController(IPortfolioService portfolioService, IPortfolioS
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddAsync(request, ct);
+        // Only capture context for OPEN (buy) transactions
+        if (!string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            await contextCapture.TryCaptureAsync(item.Id, item.Symbol, request.HoldingRole, item.Sector, ct);
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
@@ -112,5 +118,13 @@ public class PortfolioController(IPortfolioService portfolioService, IPortfolioS
     {
         var count = await portfolioService.RestoreAsync(request.Items, ct);
         return Ok(new { restored = count });
+    }
+
+    /// <summary>Returns the decision journal context snapshot for a specific transaction, if captured.</summary>
+    [HttpGet("{id:int}/context")]
+    public async Task<ActionResult<TransactionContextSnapshot>> GetContext(int id, CancellationToken ct)
+    {
+        var snap = await contextCapture.GetSnapshotAsync(id, ct);
+        return snap is null ? NoContent() : Ok(snap);
     }
 }

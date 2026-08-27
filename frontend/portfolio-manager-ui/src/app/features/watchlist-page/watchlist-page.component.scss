@@ -847,6 +847,54 @@ button[mat-icon-button] {
     font-weight: 700;
   }
 }
+
+.role-tier-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tier-select {
+  font-size: 0.62rem;
+  min-width: 80px;
+  opacity: 0.75;
+
+  .mat-mdc-select-value-text {
+    font-size: 0.62rem;
+  }
+
+  &[data-tier='Active'] {
+    color: #2e7d32;
+    opacity: 1;
+  }
+  &[data-tier='Universe'] {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.tier-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+
+.tier-toggle {
+  .mat-button-toggle {
+    font-size: 0.78rem;
+  }
+}
+
+.tier-active-count {
+  font-size: 0.68rem;
+  margin-left: 4px;
+  font-weight: 700;
+  color: #2e7d32;
+
+  &.tier-count-warn {
+    color: #c62828;
+  }
+}
 .role-core {
   color: #00bcd4;
 }

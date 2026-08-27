@@ -13,4 +13,6 @@ public class WatchlistItem
     /// <summary>Whether this symbol is marked as a favourite for quick filtering.</summary>
     public bool IsFavorite { get; set; } = false;
     public DateTime? EarningsDate { get; set; }
+    /// <summary>Monitoring intensity: Active | Strategic | Universe. Default: Strategic.</summary>
+    public string WatchlistTier { get; set; } = "Strategic";
 }

@@ -11,6 +11,11 @@ import { RouterLink } from '@angular/router';
 import { DashboardAllocation } from '../../core/models/portfolio.models';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
+import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
+import { PortfolioActionsWidgetComponent } from './portfolio-actions-widget/portfolio-actions-widget.component';
+import { PriorityCandidatesWidgetComponent } from './priority-candidates-widget/priority-candidates-widget.component';
+import { StateChangesWidgetComponent } from './state-changes-widget/state-changes-widget.component';
 
 export type ChartRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 
@@ -42,6 +47,11 @@ export interface SvgChart {
     MatSelectModule,
     MatTooltipModule,
     RouterLink,
+    PortfolioActionsWidgetComponent,
+    StateChangesWidgetComponent,
+    MarketLeadershipWidgetComponent,
+    PriorityCandidatesWidgetComponent,
+    PerformanceSummaryWidgetComponent,
   ],
 })
 export class DashboardPageComponent {
@@ -77,6 +87,10 @@ export class DashboardPageComponent {
       .filter((m) => m.isWatchlist && !m.isPortfolio)
       .slice(0, this.moversCount()),
   );
+
+  // ── Portfolio Actions & State Changes counts ──────────────────────────────
+  protected readonly actionsCount = computed(() => this.dashboard.portfolioActions().length);
+  protected readonly stateChangesCount = computed(() => this.dashboard.stateChanges().length);
 
   protected readonly filteredChartPoints = computed(() => {
     const all = this.snapshot()?.valueHistory ?? [];

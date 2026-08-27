@@ -110,6 +110,10 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/role`, { role });
   }
 
+  updateWatchlistTier(id: number, watchlistTier: string): Observable<void> {
+    return this.http.patch<void>(`${this.base}/watchlist/${id}/tier`, { watchlistTier });
+  }
+
   updateWatchlistFavorite(id: number, isFavorite: boolean): Observable<void> {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/favorite`, { isFavorite });
   }

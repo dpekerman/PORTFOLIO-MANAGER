@@ -1,0 +1,42 @@
+<div class="ps-widget">
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" class="ps-progress" />
+  }
+  @if (summary(); as s) {
+    <div class="ps-stats">
+      <div class="ps-stat">
+        <span class="ps-label">Portfolio YTD</span>
+        <strong [class]="signCls(s.portfolioYtdReturnPct)">
+          {{ sign(s.portfolioYtdReturnPct) }}{{ s.portfolioYtdReturnPct | number: '1.2-2' }}%
+        </strong>
+      </div>
+      @for (b of s.benchmarks; track b.symbol) {
+        <div class="ps-stat">
+          <span class="ps-label">{{ b.name }}</span>
+          @if (b.ytdReturnPct !== 0) {
+            <strong [class]="signCls(b.ytdReturnPct)">
+              {{ sign(b.ytdReturnPct) }}{{ b.ytdReturnPct | number: '1.2-2' }}%
+            </strong>
+          } @else {
+            <span
+              class="ps-na"
+              matTooltip="Benchmark YTD requires a candle history call — update in progress"
+              >N/A</span
+            >
+          }
+        </div>
+      }
+      <div class="ps-divider"></div>
+      <div class="ps-stat ps-stat-ytd-values">
+        <span class="ps-label">Start of year</span>
+        <strong>{{ maskVal(s.portfolioStartValue) | number: '1.0-0' }}</strong>
+      </div>
+      <div class="ps-stat ps-stat-ytd-values">
+        <span class="ps-label">Current</span>
+        <strong>{{ maskVal(s.portfolioCurrentValue) | number: '1.0-0' }}</strong>
+      </div>
+    </div>
+  } @else if (!loading()) {
+    <p class="ps-empty">Portfolio history data appears after the first EOD snapshot is recorded.</p>
+  }
+</div>

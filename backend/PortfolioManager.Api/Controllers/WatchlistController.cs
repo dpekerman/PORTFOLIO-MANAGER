@@ -81,6 +81,15 @@ public class WatchlistController(
         return updated ? NoContent() : NotFound();
     }
 
+    /// <summary>Updates the monitoring tier for a watchlist item.</summary>
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPatch("{id:int}/tier")]
+    public async Task<IActionResult> UpdateTier(int id, [FromBody] UpdateWatchlistTierRequest request, CancellationToken ct)
+    {
+        var updated = await watchlistService.UpdateTierAsync(id, request.WatchlistTier, ct);
+        return updated ? NoContent() : NotFound();
+    }
+
     /// <summary>Toggles the favourite flag for a watchlist item.</summary>
     [Authorize(Roles = "Admin,Trader")]
     [HttpPatch("{id:int}/favorite")]
