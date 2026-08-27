@@ -4,12 +4,22 @@
   }
   @if (summary(); as s) {
     <div class="ps-stats">
-      <div class="ps-stat">
+      <!-- Portfolio YTD % -->
+      <div class="ps-stat ps-stat-main">
         <span class="ps-label">Portfolio YTD</span>
-        <strong [class]="signCls(s.portfolioYtdReturnPct)">
-          {{ sign(s.portfolioYtdReturnPct) }}{{ s.portfolioYtdReturnPct | number: '1.2-2' }}%
+        <strong [class]="signCls(ytdPct())" class="ps-big">
+          {{ sign(ytdPct()) }}{{ ytdPct() | number: '1.2-2' }}%
         </strong>
       </div>
+      <!-- Portfolio $ YTD -->
+      <div class="ps-stat">
+        <span class="ps-label">Portfolio $ YTD</span>
+        <strong [class]="signCls(ytdDollar())">
+          {{ sign(ytdDollar())
+          }}{{ maskVal(ytdDollar()) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+        </strong>
+      </div>
+      <!-- Benchmarks -->
       @for (b of s.benchmarks; track b.symbol) {
         <div class="ps-stat">
           <span class="ps-label">{{ b.name }}</span>
@@ -18,22 +28,33 @@
               {{ sign(b.ytdReturnPct) }}{{ b.ytdReturnPct | number: '1.2-2' }}%
             </strong>
           } @else {
-            <span
-              class="ps-na"
-              matTooltip="Benchmark YTD requires a candle history call — update in progress"
+            <span class="ps-na" matTooltip="Fetching YTD from Yahoo Finance on next refresh"
               >N/A</span
             >
           }
         </div>
       }
       <div class="ps-divider"></div>
-      <div class="ps-stat ps-stat-ytd-values">
+      <!-- Start of Year -->
+      <div class="ps-stat ps-stat-date-block">
         <span class="ps-label">Start of year</span>
-        <strong>{{ maskVal(s.portfolioStartValue) | number: '1.0-0' }}</strong>
+        <strong class="ps-value-num">{{
+          maskVal(s.portfolioStartValue) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+        }}</strong>
+        <span class="ps-date-sub">{{ fmtDate(s.portfolioStartDate) }}</span>
       </div>
-      <div class="ps-stat ps-stat-ytd-values">
+      <!-- Current -->
+      <div class="ps-stat ps-stat-date-block">
         <span class="ps-label">Current</span>
-        <strong>{{ maskVal(s.portfolioCurrentValue) | number: '1.0-0' }}</strong>
+        <strong class="ps-value-num">{{
+          maskVal(liveCurrentValue() || s.portfolioCurrentValue)
+            | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+        }}</strong>
+        <span
+          class="ps-date-sub"
+          [matTooltip]="'Last EOD record: ' + fmtDate(s.portfolioCurrentDate)"
+          >{{ todayLabel }}</span
+        >
       </div>
     </div>
   } @else if (!loading()) {

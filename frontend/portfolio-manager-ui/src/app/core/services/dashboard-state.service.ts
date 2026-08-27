@@ -87,6 +87,9 @@ export class DashboardStateService {
           this.loadPortfolioActions();
           this.loadStateChanges();
           this.loadMarketLeadership();
+          this._actionScores.set([]);
+          this.loadActionScores();
+          this.loadPerformanceSummary();
         },
         error: () => {
           this._error.set('Dashboard refresh failed');
@@ -153,7 +156,6 @@ export class DashboardStateService {
   }
 
   loadActionScores(): void {
-    if (this._actionScores().length > 0) return;
     this._actionScoresLoading.set(true);
     this.api
       .getActionScores()

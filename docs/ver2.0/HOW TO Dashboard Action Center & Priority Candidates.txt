@@ -1,0 +1,202 @@
+# Dashboard: Action Center & Priority Candidates — Logic Reference
+
+_Last updated: 2026-08-27_
+
+---
+
+## Action Center
+
+### What it shows
+
+The **Action Center** surfaces every ticker from your **Portfolio** and **Watchlist** (all tiers: Active, Strategic, Universe) that currently appears in the latest RSI Scanner snapshot. It is the single place where RSI momentum meets position management.
+
+### Data sources
+
+| Source                         | Role                                                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| RSI Scanner snapshot (DB)      | Provides oversold / overbought signals, trend shift, Fib zone, chase-risk flag, RSI value   |
+| Portfolio snapshot (DB)        | Identifies which tickers are held and in what role (Core / Strategic / Swing / Speculative) |
+| Watchlist snapshot (DB)        | Identifies which tickers are on the watchlist (any tier)                                    |
+| Allocation sector targets (DB) | Used to compute whether a sector is over/under weight                                       |
+
+A ticker is included **only if** it appears in the RSI Scanner snapshot AND is either in the portfolio or on the watchlist. Tickers that appear in the scanner but are not tracked are ignored.
+
+### Ticker selection logic
+
+```
+For each signal in RSI Scanner (Oversold + Overbought chains):
+  if ticker is in Portfolio OR Watchlist → include
+  else → skip
+```
+
+No watchlist-tier filtering is applied. All tiers (Active, Strategic, Universe) are eligible.
+
+### Action derivation
+
+Each ticker is assigned an **Action Label**, **Severity** and **Priority** based on these rules:
+
+#### Chase Risk override (highest priority)
+
+If the scanner flagged `ChaseRisk` → **DO NOT CHASE** (severity: danger, priority: REQUIRED)
+
+#### Watchlist items (not held)
+
+| Scan type  | Trend shift  | Fib zone        | Action               | Priority      |
+| ---------- | ------------ | --------------- | -------------------- | ------------- |
+| Overbought | any          | any             | WAIT FOR PULLBACK    | INFORMATIONAL |
+| Oversold   | Bull Turn    | no trend damage | ENTRY CANDIDATE      | REQUIRED      |
+| Oversold   | Stabilizing  | no trend damage | STARTER ENTRY        | REQUIRED      |
+| Oversold   | any bullish  | trend damage    | BUY WATCH            | DEVELOPING    |
+| Oversold   | neutral/bear | trend damage    | AVOID — TREND DAMAGE | INFORMATIONAL |
+| Oversold   | neutral/bear | no trend damage | WAIT FOR REVERSAL    | DEVELOPING    |
+
+#### Portfolio holdings — Overbought territory
+
+| Role                | Bear signal present?           | Action          | Priority      |
+| ------------------- | ------------------------------ | --------------- | ------------- |
+| Core                | Yes (Bear Turn / Still Rising) | TRIM WATCH      | DEVELOPING    |
+| Core                | No                             | HOLD — EXTENDED | INFORMATIONAL |
+| Swing / Speculative | Yes                            | TRIM            | REQUIRED      |
+| Swing / Speculative | No                             | TRIM WATCH      | DEVELOPING    |
+| Strategic (default) | Yes                            | TRIM WATCH      | DEVELOPING    |
+| Strategic (default) | No                             | HOLD — EXTENDED | INFORMATIONAL |
+
+#### Portfolio holdings — Oversold territory
+
+| Role        | Trend shift | Other             | Action               | Priority      |
+| ----------- | ----------- | ----------------- | -------------------- | ------------- |
+| Core        | Bullish     | Sector overweight | HOLD — SECTOR FULL   | INFORMATIONAL |
+| Core        | Bullish     | Sector OK         | ADD WATCH            | DEVELOPING    |
+| Core        | Neutral     | Trend damage      | HOLD — WAIT          | INFORMATIONAL |
+| Core        | Neutral     | No damage         | HOLD — WEAKNESS      | INFORMATIONAL |
+| Swing       | Bullish     | —                 | REVERSAL WATCH       | DEVELOPING    |
+| Swing       | Neutral     | Trend damage      | EXIT REVIEW          | REQUIRED      |
+| Swing       | Neutral     | No damage         | HOLD — WAIT          | INFORMATIONAL |
+| Speculative | Bullish     | —                 | REVERSAL WATCH       | DEVELOPING    |
+| Speculative | Neutral     | Trend damage      | RISK REVIEW          | REQUIRED      |
+| Speculative | Neutral     | No damage         | HOLD — WAIT          | INFORMATIONAL |
+| Strategic   | Bullish     | —                 | BUY WATCH            | DEVELOPING    |
+| Strategic   | Neutral     | Trend damage      | HOLD / REVIEW THESIS | DEVELOPING    |
+| Strategic   | Neutral     | No damage         | HOLD — WEAKNESS      | INFORMATIONAL |
+
+### Sort order
+
+Results are sorted by:
+
+1. Priority: REQUIRED → DEVELOPING → INFORMATIONAL
+2. Portfolio holdings before watchlist items (same priority)
+3. Severity: danger → review → trim → buy → wait → hold
+4. RSI proximity to the extreme (most oversold / most overbought first)
+
+### Priority levels defined
+
+| Level             | Meaning                                                                 | Action required                               |
+| ----------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
+| **REQUIRED**      | Immediate attention — entry candidate, trim, exit review, or chase risk | Act today; check size and risk                |
+| **DEVELOPING**    | Signal forming — monitor over next 1–3 sessions                         | Prepare a plan; do not rush                   |
+| **INFORMATIONAL** | Awareness only — no urgent action                                       | Note context; re-evaluate on next scanner run |
+
+### How to use the Action Center
+
+1. **Start with REQUIRED items** — these have confirmed signals or active risk flags.
+2. **For ENTRY CANDIDATE / STARTER ENTRY**: verify position sizing against your risk limit, check Allocation vs Targets for sector room, and cross-reference with Value Screener if available.
+3. **For TRIM / TRIM WATCH**: assess how extended the position is relative to your cost basis; partial trims preserve upside while reducing risk.
+4. **For EXIT REVIEW / RISK REVIEW**: re-evaluate the thesis; if the reason you bought no longer holds, exit is appropriate.
+5. **DEVELOPING items**: set a price or RSI alert. Do not enter prematurely — wait for the next scanner run to see if it resolves to ENTRY or rolls back.
+6. **INFORMATIONAL items**: no action today. Use as context when reviewing allocation and sector balance.
+
+---
+
+## Priority Candidates
+
+### What it shows
+
+A scored ranking of **watchlist-only** tickers — tickers already held in the portfolio are excluded. The goal is to surface the best new entry candidates from your watchlist based on a composite 0–100 score.
+
+### Data sources
+
+| Source                       | Role                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------- |
+| Watchlist items (DB)         | Universe of candidates                                                       |
+| Portfolio snapshot (DB)      | Used to compute actual sector allocation AND to exclude already-held tickers |
+| RSI Scanner snapshot (DB)    | Technical signals                                                            |
+| Value Screener snapshot (DB) | Fundamental quality score                                                    |
+| Allocation targets (DB)      | Portfolio need score                                                         |
+
+### Scoring model (0–100)
+
+#### 1. Portfolio Need — max 30 pts
+
+Measures how much the portfolio would benefit from adding a ticker in this sector.
+
+| Sector delta (actual − target)      | Points |
+| ----------------------------------- | ------ |
+| < −5% (strongly underweight)        | 30     |
+| −5% to −2% (moderately underweight) | 22     |
+| −2% to +2% (on target)              | 15     |
+| +2% to +5% (slightly overweight)    | 7      |
+| > +5% (significantly overweight)    | 0      |
+
+If the sector is unknown: 15 pts (neutral). If no target set: 10 pts.
+
+#### 2. Technical Setup — max 30 pts
+
+Derived from the RSI Scanner snapshot.
+
+| Condition                         | Points            |
+| --------------------------------- | ----------------- |
+| No scanner signal for this ticker | 0                 |
+| ChaseRisk flag is set             | 0 (overrides all) |
+| Oversold, RSI < 25                | 20 base           |
+| Oversold, RSI 25–30               | 14 base           |
+| Overbought                        | 0                 |
+| + Bull Turn trend shift           | +8                |
+| + Stabilizing trend shift         | +4                |
+| + Validated volume                | +2                |
+
+Maximum capped at 30 pts.
+
+#### 3. Fundamental Quality — max 25 pts
+
+Derived from the latest Value Screener snapshot: `score / 4` (VS scores 0–100 → 0–25).
+
+If no Value Screener data is available: 0 pts.
+
+#### 4. Risk / Position Room — max 15 pts
+
+Measures how much room remains in this holding role before the role target is hit.
+
+| Role room (target − actual) | Points |
+| --------------------------- | ------ |
+| > 5% room                   | 15     |
+| 1–5% room                   | 10     |
+| 0–1% room                   | 5      |
+| Role already over target    | 0      |
+
+If no role target configured: 8 pts (neutral).
+
+### Badge thresholds
+
+| Total score | Badge             | Meaning                                            |
+| ----------- | ----------------- | -------------------------------------------------- |
+| ≥ 75        | **HIGH PRIORITY** | Strong setup across all four dimensions — act soon |
+| 50–74       | **WATCH**         | Good setup but one dimension is weak — monitor     |
+| < 50        | **NO ADD**        | Not yet positioned for an entry                    |
+
+### Portfolio exclusion
+
+Any ticker that is currently held in the portfolio (open position) is excluded from the list. This ensures only new capital deployment opportunities are shown.
+
+### How to use Priority Candidates
+
+1. **Focus on HIGH badges** — these have the best combination of portfolio need, technical setup, fundamental quality, and available risk room.
+2. **Hover the score ring** to see the score breakdown across all four dimensions. This tells you _why_ a ticker ranked where it did.
+3. **Confirm with the RSI Scanner** — check the ticker's current RSI, trend shift, and whether volume is validated.
+4. **Confirm with Value Screener** — verify the fundamental tier and action trigger before sizing a position.
+5. **Check allocation** — before entering, look at Allocation vs Targets to confirm there is sector and role room.
+6. **WATCH badges**: wait for technical improvement (trend shift to Bullish) before committing capital.
+7. **Top 5 are shown on the dashboard**; the full list is available in the Watchlist page with the full score breakdown.
+
+
+
+

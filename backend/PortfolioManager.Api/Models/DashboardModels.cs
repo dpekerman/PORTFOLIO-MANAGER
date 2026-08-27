@@ -81,8 +81,9 @@ public sealed record PortfolioActionDto(
     string FibZone,
     string ChaseRisk,
     string AllocationStatus,   // "over" | "under" | "on-target" | ""
-    string ActionLabel,        // role-aware recommendation
+    string ActionLabel,
     string ActionSeverity,     // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+    string ActionPriority,     // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
     bool IsInPortfolio,
     bool IsInWatchlist);
 

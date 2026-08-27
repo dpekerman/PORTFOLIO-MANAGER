@@ -157,9 +157,10 @@ export class PortfolioStateService {
   addItem(request: AddPortfolioItemRequest): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addItem(request).subscribe({
-        next: () => {
-          this.snackBar.open(`${request.symbol} added to portfolio`, 'Close', { duration: 3000 });
-          this.refresh();
+        next: (newItem) => {
+          // Append immediately — quote populates on next refresh
+          this._summaries.update((items) => [...items, { item: newItem, quote: null }]);
+          this.snackBar.open(`${newItem.symbol} added to portfolio`, 'Close', { duration: 3000 });
           resolve();
         },
         error: (err) => {
@@ -173,9 +174,9 @@ export class PortfolioStateService {
   addManualPosition(request: AddManualPositionRequest): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addManualPosition(request).subscribe({
-        next: () => {
+        next: (newItem) => {
+          this._summaries.update((items) => [...items, { item: newItem, quote: null }]);
           this.snackBar.open(`${request.name} added to portfolio`, 'Close', { duration: 3000 });
-          this.refresh();
           resolve();
         },
         error: (err) => {

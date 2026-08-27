@@ -196,6 +196,9 @@
   gap: 14px;
   margin-bottom: 14px;
 }
+.db-span-2 {
+  grid-column: 1 / -1;
+}
 mat-card.db-panel {
   padding: 0;
 }
@@ -218,6 +221,52 @@ mat-card.db-panel {
   color: #1a2e35;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.db-panel-subtitle {
+  font-size: 0.72rem;
+  color: var(--mat-sys-on-surface-variant);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.db-collapsed-hint {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+  padding: 4px 16px 12px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.db-inline-ico {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+  vertical-align: middle;
+  opacity: 0.6;
+}
+.db-how-to {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: var(--mat-sys-surface-variant);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 16px 8px;
+  font-size: 0.72rem;
+  color: var(--mat-sys-on-surface-variant);
+  line-height: 1.5;
+  strong {
+    color: var(--mat-sys-on-surface);
+  }
+}
+.db-how-to-ico {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.7;
 }
 .db-panel-ico {
   color: #1a9e7a !important;

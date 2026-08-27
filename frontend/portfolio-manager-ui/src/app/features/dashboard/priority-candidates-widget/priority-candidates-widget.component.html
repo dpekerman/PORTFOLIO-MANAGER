@@ -2,6 +2,15 @@
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" class="pc-progress" />
   }
+  <div class="pc-how-to">
+    <mat-icon class="pc-info-ico">info_outline</mat-icon>
+    <span
+      >Watchlist-only candidates ranked 0–100 by four factors: Portfolio Need (30 pts) · Technical
+      Setup (30 pts) · Fundamental Quality (25 pts) · Risk Room (15 pts). Tickers already held in
+      your portfolio are excluded. HIGH ≥ 75 · WATCH ≥ 50. Act on HIGH badges first — confirm with
+      RSI Scanner and Value Screener before entering.</span
+    >
+  </div>
   @if (!loading() && scores().length === 0) {
     <div class="pc-empty">
       <mat-icon>playlist_add_check</mat-icon>
@@ -12,16 +21,44 @@
     <div class="pc-list">
       @for (s of scores().slice(0, 5); track s.symbol) {
         <div class="pc-row">
-          <div class="pc-score-ring" [matTooltip]="'Score: ' + s.totalScore">
+          <div
+            class="pc-score-ring"
+            [class.ring-high]="s.badge === 'HIGH_PRIORITY'"
+            [class.ring-watch]="s.badge === 'WATCH'"
+            [matTooltip]="
+              'Score: ' +
+              (s.totalScore | number: '1.0-0') +
+              '\nNeed: ' +
+              (s.portfolioNeedScore | number: '1.0-0') +
+              '/30  Technical: ' +
+              (s.technicalScore | number: '1.0-0') +
+              '/30\nFundamental: ' +
+              (s.fundamentalScore | number: '1.1-1') +
+              '/25  Risk Room: ' +
+              (s.riskScore | number: '1.1-1') +
+              '/15'
+            "
+          >
             <span class="pc-score-val">{{ s.totalScore | number: '1.0-0' }}</span>
           </div>
           <div class="pc-info">
             <strong>{{ s.symbol }}</strong>
             <span class="pc-company">{{ s.companyName }}</span>
           </div>
+          <div class="pc-price-col">
+            @if (s.currentPrice > 0) {
+              <span class="pc-price">{{
+                s.currentPrice | currency: 'USD' : 'symbol' : '1.2-2'
+              }}</span>
+              <span class="pc-rsi-val">RSI {{ s.rsi | number: '1.0-0' }}</span>
+            }
+          </div>
           <div class="pc-meta">
             @if (s.trendShift) {
-              <span class="pc-trend">{{ s.trendShift }}</span>
+              <span class="pc-trend">
+                {{ trendLabel(s.trendShift)
+                }}<span class="pc-trend-dot" [class]="trendDotCls(s.trendShift)"></span>
+              </span>
             }
             @if (s.allocationStatus === 'under') {
               <span class="pc-alloc-under" matTooltip="Sector underweight">↓ Under</span>

@@ -14,14 +14,16 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    private static readonly HashSet<string> BullishShifts = new(StringComparer.OrdinalIgnoreCase)
+    // Strict bull = confirmed reversal candle; any bullish includes Stabilizing
+    private static readonly HashSet<string> StrictBullish = new(StringComparer.OrdinalIgnoreCase)
+        { "🟢 Bull Turn" };
+    private static readonly HashSet<string> AnyBullish = new(StringComparer.OrdinalIgnoreCase)
         { "🟢 Bull Turn", "🟡 Stabilizing" };
     private static readonly HashSet<string> BearishShifts = new(StringComparer.OrdinalIgnoreCase)
         { "🟢 Bear Turn", "🔴 Still Rising" };
 
     public async Task<IReadOnlyList<PortfolioActionDto>> GetActionsAsync(string userId, CancellationToken ct = default)
     {
-        // Load data from snapshots — avoids Yahoo Finance calls on every request
         var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking()
             .SingleOrDefaultAsync(s => s.UserId == userId, ct);
         var watchlistSnap = await db.WatchlistSnapshots.AsNoTracking()
@@ -32,9 +34,8 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 
         var portfolio = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
         var watchlist = Deserialize<List<WatchlistSummaryDto>>(watchlistSnap?.SnapshotJson ?? "[]") ?? [];
-        var scanner = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
+        var scanner   = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
 
-        // Build a flat lookup of all RSI signals keyed by symbol
         var signals = scanner.OversoldChain
             .Concat(scanner.OverboughtChain)
             .GroupBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
@@ -42,7 +43,6 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 
         if (signals.Count == 0) return [];
 
-        // Compute sector allocations to determine over/under status
         var totalValue = portfolio
             .Where(p => !IsClose(p.Item.TransactionType))
             .Sum(p => MarketValue(p));
@@ -53,92 +53,141 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 g => totalValue > 0 ? g.Sum(p => MarketValue(p)) / totalValue * 100m : 0m,
                 StringComparer.OrdinalIgnoreCase);
 
-        var results = new List<PortfolioActionDto>();
-
-        // Portfolio holdings with signals
         var portfolioBySymbol = portfolio
             .Where(p => !IsClose(p.Item.TransactionType))
             .GroupBy(p => p.Item.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var results = new List<PortfolioActionDto>();
+
         foreach (var (symbol, scan) in signals)
         {
             portfolioBySymbol.TryGetValue(symbol, out var pos);
-            var wlItem = watchlist.FirstOrDefault(w => string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
+            var wlItem = watchlist.FirstOrDefault(w =>
+                string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
 
             if (pos is null && wlItem is null) continue;
 
-            var holdingRole = pos?.Item.HoldingRole ?? wlItem?.Item.Role ?? "Strategic";
-            var sector = pos?.Item.Sector ?? scan.Sector ?? "";
+            var holdingRole      = pos?.Item.HoldingRole ?? wlItem?.Item.Role ?? "Strategic";
+            var sector           = pos?.Item.Sector ?? scan.Sector ?? "";
             var allocationStatus = ComputeAllocationStatus(sector, sectorActuals, sectorTargets);
-            var (actionLabel, severity) = DeriveAction(scan, holdingRole, allocationStatus);
+            var isHolding        = pos is not null;
+
+            var (actionLabel, severity, priority) =
+                DeriveAction(scan, holdingRole, allocationStatus, isHolding);
 
             results.Add(new PortfolioActionDto(
-                Symbol: symbol,
-                CompanyName: scan.CompanyName,
-                HoldingRole: holdingRole,
-                ScanType: scan.ScanType.ToString(),
-                Rsi: scan.Rsi,
-                TrendShift: scan.TrendShift ?? "",
-                FibZone: scan.FibZone ?? "",
-                ChaseRisk: scan.ChaseRisk ?? "",
+                Symbol:           symbol,
+                CompanyName:      scan.CompanyName,
+                HoldingRole:      holdingRole,
+                ScanType:         scan.ScanType.ToString(),
+                Rsi:              scan.Rsi,
+                TrendShift:       scan.TrendShift ?? "",
+                FibZone:          scan.FibZone ?? "",
+                ChaseRisk:        scan.ChaseRisk ?? "",
                 AllocationStatus: allocationStatus,
-                ActionLabel: actionLabel,
-                ActionSeverity: severity,
-                IsInPortfolio: pos is not null,
-                IsInWatchlist: wlItem is not null));
+                ActionLabel:      actionLabel,
+                ActionSeverity:   severity,
+                ActionPriority:   priority,
+                IsInPortfolio:    pos is not null,
+                IsInWatchlist:    wlItem is not null));
         }
 
-        // Sort: portfolio first, then by severity priority, then by RSI
         return results
-            .OrderByDescending(r => r.IsInPortfolio)
+            .OrderBy(r => PriorityOrder(r.ActionPriority))
+            .ThenByDescending(r => r.IsInPortfolio)
             .ThenBy(r => SeverityOrder(r.ActionSeverity))
             .ThenBy(r => r.ScanType == "Oversold" ? r.Rsi : 100 - r.Rsi)
             .ToList()
             .AsReadOnly();
     }
 
-    private static (string label, string severity) DeriveAction(RsiScanResult scan, string role, string allocationStatus)
+    private static (string label, string severity, string priority)
+        DeriveAction(RsiScanResult scan, string role, string allocationStatus, bool isHolding)
     {
-        // Chase risk overrides everything
         if (!string.IsNullOrEmpty(scan.ChaseRisk))
-            return ("DO NOT CHASE", "danger");
+            return ("DO NOT CHASE", "danger", "REQUIRED");
 
-        var isBullish = BullishShifts.Contains(scan.TrendShift ?? "");
-        var isBearish = BearishShifts.Contains(scan.TrendShift ?? "");
+        var isBullish     = AnyBullish.Contains(scan.TrendShift ?? "");
+        var isStrictBull  = StrictBullish.Contains(scan.TrendShift ?? "");
+        var isBearish     = BearishShifts.Contains(scan.TrendShift ?? "");
         var isTrendDamage = string.Equals(scan.FibZone, "Trend Damage", StringComparison.OrdinalIgnoreCase);
-        var isOversold = scan.ScanType == ScanType.Oversold;
-        var isCore = string.Equals(role, "Core", StringComparison.OrdinalIgnoreCase);
-        var isSwingSpec = role is "Swing" or "Speculative";
+        var isOversold    = scan.ScanType == ScanType.Oversold;
+        var r             = (role ?? "Strategic").Trim();
+        var isCore        = string.Equals(r, "Core",        StringComparison.OrdinalIgnoreCase);
+        var isSwing       = string.Equals(r, "Swing",       StringComparison.OrdinalIgnoreCase);
+        var isSpec        = string.Equals(r, "Speculative", StringComparison.OrdinalIgnoreCase);
 
-        if (isTrendDamage)
-            return ("REVIEW — TREND DAMAGE", "review");
-
-        if (isOversold && isBullish)
+        // ── WATCHLIST ITEMS (no position) ────────────────────────────────────
+        if (!isHolding)
         {
-            if (isCore)
-                return allocationStatus == "over" ? ("HOLD — SECTOR OVERWEIGHT", "hold") : ("ADD WATCH", "buy");
-            if (isSwingSpec)
-                return ("ENTRY CANDIDATE", "buy");
-            return ("BUY WATCH", "buy");
+            if (!isOversold)
+                return ("WAIT FOR PULLBACK", "wait", "INFORMATIONAL");
+
+            if (isBullish && !isTrendDamage)
+                return isStrictBull
+                    ? ("ENTRY CANDIDATE", "buy", "REQUIRED")
+                    : ("STARTER ENTRY",   "buy", "REQUIRED");
+
+            if (isBullish && isTrendDamage)
+                return ("BUY WATCH", "buy", "DEVELOPING");
+
+            return isTrendDamage
+                ? ("AVOID — TREND DAMAGE", "wait", "INFORMATIONAL")
+                : ("WAIT FOR REVERSAL",     "wait", "DEVELOPING");
         }
 
-        if (isOversold && !isBullish)
-            return ("WAIT — STILL FALLING", "wait");
-
-        if (!isOversold && isBearish)
+        // ── PORTFOLIO HOLDINGS ──────────────────────────────────────────────
+        if (!isOversold) // Overbought territory
         {
             if (isCore)
-                return ("HOLD / TRIM WATCH", "trim");
-            if (isSwingSpec)
-                return ("TRIM / TAKE PROFIT", "trim");
-            return ("TRIM WATCH", "trim");
+                return isBearish
+                    ? ("TRIM WATCH",      "trim", "DEVELOPING")
+                    : ("HOLD — EXTENDED", "hold", "INFORMATIONAL");
+
+            if (isSwing || isSpec)
+                return isBearish
+                    ? ("TRIM",       "trim", "REQUIRED")
+                    : ("TRIM WATCH", "trim", "DEVELOPING");
+
+            return isBearish
+                ? ("TRIM WATCH",      "trim", "DEVELOPING")
+                : ("HOLD — EXTENDED", "hold", "INFORMATIONAL");
         }
 
-        if (!isOversold && !isBearish)
-            return ("HOLD — EXTENDED", "hold");
+        // Oversold territory
+        if (isCore)
+        {
+            if (isBullish)
+                return allocationStatus == "over"
+                    ? ("HOLD — SECTOR FULL", "hold", "INFORMATIONAL")
+                    : ("ADD WATCH",           "buy",  "DEVELOPING");
+            return isTrendDamage
+                ? ("HOLD — WAIT",    "hold", "INFORMATIONAL")
+                : ("HOLD — WEAKNESS", "hold", "INFORMATIONAL");
+        }
 
-        return ("MONITOR", "hold");
+        if (isSwing)
+        {
+            if (isBullish) return ("REVERSAL WATCH", "buy",    "DEVELOPING");
+            return isTrendDamage
+                ? ("EXIT REVIEW", "review", "REQUIRED")
+                : ("HOLD — WAIT", "hold",   "INFORMATIONAL");
+        }
+
+        if (isSpec)
+        {
+            if (isBullish) return ("REVERSAL WATCH", "buy",    "DEVELOPING");
+            return isTrendDamage
+                ? ("RISK REVIEW", "review", "REQUIRED")
+                : ("HOLD — WAIT", "hold",   "INFORMATIONAL");
+        }
+
+        // Strategic (default)
+        if (isBullish) return ("BUY WATCH", "buy", "DEVELOPING");
+        return isTrendDamage
+            ? ("HOLD / REVIEW THESIS", "review", "DEVELOPING")
+            : ("HOLD — WEAKNESS",     "hold",   "INFORMATIONAL");
     }
 
     private static string ComputeAllocationStatus(
@@ -147,7 +196,8 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         List<AllocationSectorTarget> targets)
     {
         if (string.IsNullOrEmpty(sector)) return "";
-        var target = targets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
+        var target = targets.FirstOrDefault(t =>
+            string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
         if (target is null) return "";
         actuals.TryGetValue(sector, out var actual);
         var delta = actual - target.TargetPct;
@@ -163,6 +213,14 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             return p.Item.ManualMarketValue ?? p.Item.AverageCostBasis * p.Item.Shares;
         return (p.Quote?.CurrentPrice ?? p.Item.AverageCostBasis) * p.Item.Shares;
     }
+
+    private static int PriorityOrder(string p) => p switch
+    {
+        "REQUIRED"      => 0,
+        "DEVELOPING"    => 1,
+        "INFORMATIONAL" => 2,
+        _               => 3,
+    };
 
     private static int SeverityOrder(string severity) => severity switch
     {

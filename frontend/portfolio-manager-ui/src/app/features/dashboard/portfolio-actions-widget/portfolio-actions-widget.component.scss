@@ -200,3 +200,77 @@
   vertical-align: middle;
   margin-left: 4px;
 }
+
+// ── Priority counts bar ───────────────────────────────────────────
+.pa-counts {
+  display: flex;
+  gap: 20px;
+  padding: 4px 0 10px;
+  flex-wrap: wrap;
+}
+
+.pa-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.pa-count-required {
+    color: #c62828;
+  }
+  &.pa-count-developing {
+    color: #e65100;
+  }
+  &.pa-count-info {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+// ── Section headers (Holdings / Watchlist) ──────────────────────
+.pa-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #1565c0;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  margin-top: 4px;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.pa-section-watchlist {
+    color: #6a1b9a;
+  }
+}
+
+// ── Priority row intensity ────────────────────────────────────
+.pa-table {
+  tr.priority-required td:first-child {
+    border-left-width: 4px;
+  }
+  tr.priority-developing td:first-child {
+    border-left-width: 2px;
+  }
+  tr.priority-informational {
+    opacity: 0.65;
+    td:first-child {
+      border-left-width: 0;
+      border-left-color: transparent;
+    }
+  }
+}

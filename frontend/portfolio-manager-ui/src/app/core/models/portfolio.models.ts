@@ -767,6 +767,7 @@ export interface PortfolioActionDto {
   allocationStatus: string; // "over" | "under" | "on-target" | ""
   actionLabel: string;
   actionSeverity: string; // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+  actionPriority: string; // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
   isInPortfolio: boolean;
   isInWatchlist: boolean;
 }
@@ -831,6 +832,7 @@ export interface ActionScoreDto {
   trendShift: string;
   rsi: number;
   allocationStatus: string;
+  currentPrice: number;
 }
 
 // ── Market Leadership ────────────────────────────────────────────────────────────
@@ -858,8 +860,11 @@ export interface BenchmarkReturn {
 
 export interface PerformanceSummaryResponse {
   portfolioYtdReturnPct: number;
+  portfolioYtdDollar: number;
   portfolioStartValue: number;
+  portfolioStartDate: string;
   portfolioCurrentValue: number;
+  portfolioCurrentDate: string;
   benchmarks: BenchmarkReturn[];
   alphaVsPrimaryBenchmarkPct: number;
   primaryBenchmarkName: string;

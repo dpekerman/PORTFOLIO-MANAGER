@@ -59,8 +59,9 @@ export class AppRefreshService {
     this._isRefreshing.set(true);
     this._error.set(null);
     this._steps.set([
-      { key: 'fetch', label: 'Fetching portfolio & watchlist quotes', status: 'loading' },
+      { key: 'fetch', label: 'Fetching live quotes (portfolio & watchlist)', status: 'loading' },
       { key: 'dashboard', label: 'Rebuilding dashboard snapshot', status: 'idle' },
+      { key: 'actions', label: 'Reloading action scores & signals', status: 'idle' },
       { key: 'ui', label: 'Updating all views', status: 'idle' },
     ]);
 
@@ -70,14 +71,24 @@ export class AppRefreshService {
       .subscribe({
         next: (result) => {
           this.setStepStatus('fetch', 'done');
-          this.setStepStatus('dashboard', 'done');
-          this.setStepStatus('ui', 'loading');
+          this.setStepStatus('dashboard', 'loading');
 
           // Push fresh data directly — no loading state, no extra HTTP round-trips
           this.portfolioState.setFromRefresh(result.portfolioSummaries);
           this.watchlistState.setFromRefresh(result.watchlistSummaries);
           this.dashboardState.load();
 
+          this.setStepStatus('dashboard', 'done');
+          this.setStepStatus('actions', 'loading');
+
+          // Force-reload action scores and performance summary after snapshot rebuild
+          this.dashboardState.loadPortfolioActions();
+          this.dashboardState.loadStateChanges();
+          this.dashboardState.loadMarketLeadership();
+          this.dashboardState.loadPerformanceSummary();
+
+          this.setStepStatus('actions', 'done');
+          this.setStepStatus('ui', 'loading');
           this.setStepStatus('ui', 'done');
           this._isRefreshing.set(false);
           const now = new Date();
@@ -114,8 +125,9 @@ export class AppRefreshService {
 
   private buildSteps(): RefreshStep[] {
     return [
-      { key: 'fetch', label: 'Fetching portfolio & watchlist quotes', status: 'idle' },
+      { key: 'fetch', label: 'Fetching live quotes (portfolio & watchlist)', status: 'idle' },
       { key: 'dashboard', label: 'Rebuilding dashboard snapshot', status: 'idle' },
+      { key: 'actions', label: 'Reloading action scores & signals', status: 'idle' },
       { key: 'ui', label: 'Updating all views', status: 'idle' },
     ];
   }

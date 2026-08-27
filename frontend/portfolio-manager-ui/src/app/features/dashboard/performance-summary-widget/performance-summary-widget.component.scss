@@ -12,7 +12,7 @@
 
 .ps-stats {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 20px;
   flex-wrap: wrap;
   padding: 4px 0;
@@ -28,6 +28,7 @@
     color: var(--mat-sys-on-surface-variant);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    white-space: nowrap;
   }
   strong {
     font-size: 1.1rem;
@@ -35,17 +36,35 @@
   }
 }
 
+.ps-stat-main strong {
+  font-size: 1.35rem;
+}
+
+.ps-value-num {
+  font-size: 0.95rem !important;
+}
+
+.ps-stat-date-block {
+  gap: 2px;
+}
+
+.ps-date-sub {
+  font-size: 0.68rem;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: default;
+}
+
 .ps-na {
   font-size: 0.82rem;
   color: var(--mat-sys-on-surface-variant);
+  cursor: help;
 }
 .ps-divider {
   width: 1px;
-  height: 36px;
+  height: 44px;
   background: var(--mat-sys-outline-variant);
-}
-.ps-stat-ytd-values strong {
-  font-size: 0.9rem;
+  align-self: center;
+  margin: 0 16px;
 }
 
 .pos {

@@ -284,6 +284,32 @@
           }
         </div>
       </mat-card>
+      <!-- Market Leadership — collapsible, spans both grid columns -->
+      <mat-card class="db-panel db-span-2">
+        <div class="db-panel-hd">
+          <div class="db-panel-hd-left">
+            <mat-icon class="db-panel-ico">leaderboard</mat-icon>
+            <span class="db-panel-title">Market leadership</span>
+            <span class="db-panel-subtitle">Sector breadth &amp; RSI trend by sector</span>
+          </div>
+          <button
+            mat-icon-button
+            (click)="leadershipExpanded.set(!leadershipExpanded())"
+            [matTooltip]="leadershipExpanded() ? 'Collapse' : 'Expand market leadership'"
+            aria-label="Toggle market leadership"
+          >
+            <mat-icon>{{ leadershipExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        </div>
+        @if (leadershipExpanded()) {
+          <app-market-leadership-widget />
+        } @else {
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view sector breadth, avg
+            RSI and leadership status for each sector.
+          </p>
+        }
+      </mat-card>
       <!-- RSI signals -->
       <mat-card class="db-panel db-rsi-panel">
         <div class="db-panel-hd">
@@ -724,16 +750,26 @@
       </mat-card>
     }
     <!-- Scan now nav hidden — available via RSI Scanner page in nav -->
-    <!-- ── Portfolio Actions ──────────────────────────────────────────── -->
+    <!-- ── Action Center ────────────────────────────────────────────── -->
     <mat-card class="db-panel db-full-width-panel">
       <div class="db-panel-hd">
         <div class="db-panel-hd-left">
-          <mat-icon class="db-panel-ico">assignment_turned_in</mat-icon>
-          <span class="db-panel-title">Portfolio actions</span>
+          <mat-icon class="db-panel-ico">hub</mat-icon>
+          <span class="db-panel-title">Action Center</span>
           @if (actionsCount() > 0) {
             <span class="db-panel-badge">{{ actionsCount() }}</span>
           }
         </div>
+      </div>
+      <div class="db-how-to">
+        <mat-icon class="db-how-to-ico">info_outline</mat-icon>
+        <span
+          >Shows every ticker from your <strong>Portfolio</strong> and
+          <strong>Watchlist</strong> (all tiers) that appears in the latest RSI Scanner snapshot.
+          Holdings and watchlist items are scored separately: REQUIRED = act now · DEVELOPING =
+          monitor closely · INFORMATIONAL = no immediate action. Use this section to decide position
+          sizing changes (add, trim, exit) or time watchlist entries.</span
+        >
       </div>
       <app-portfolio-actions-widget />
     </mat-card>
@@ -749,16 +785,6 @@
         </div>
       </div>
       <app-state-changes-widget />
-    </mat-card>
-    <!-- ── Market Leadership ──────────────────────────────────────────── -->
-    <mat-card class="db-panel db-full-width-panel">
-      <div class="db-panel-hd">
-        <div class="db-panel-hd-left">
-          <mat-icon class="db-panel-ico">leaderboard</mat-icon>
-          <span class="db-panel-title">Market leadership</span>
-        </div>
-      </div>
-      <app-market-leadership-widget />
     </mat-card>
     <!-- ── Priority Candidates ────────────────────────────────────────── -->
     <mat-card class="db-panel db-full-width-panel">

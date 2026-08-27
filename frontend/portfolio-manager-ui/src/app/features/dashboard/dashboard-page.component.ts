@@ -68,6 +68,8 @@ export class DashboardPageComponent {
   protected readonly moversOptions = [3, 5, 7, 10];
   /** Whether the RSI signals detail table is expanded. */
   protected readonly rsiExpanded = signal(true);
+  /** Whether the Market Leadership section is expanded. */
+  protected readonly leadershipExpanded = signal(false);
   /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
   protected readonly allocTab = signal<'sector' | 'role'>('sector');
   /** Sector table sort column and direction. Default: percent desc (highest actual first). */

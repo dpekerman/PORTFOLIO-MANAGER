@@ -18,7 +18,8 @@ public sealed record ActionScoreDto(
     string Badge,                 // HIGH_PRIORITY | WATCH | NO_ADD
     string TrendShift,
     decimal Rsi,
-    string AllocationStatus);
+    string AllocationStatus,
+    decimal CurrentPrice);        // latest price from scanner snapshot
 
 public interface IPortfolioActionScoreService
 {
@@ -75,10 +76,16 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
                 g => totalValue > 0 ? g.Sum(p => MarketValue(p)) / totalValue * 100m : 0m,
                 StringComparer.OrdinalIgnoreCase);
 
+        var portfolioSymbols = new HashSet<string>(
+            openPortfolio.Select(p => p.Item.Symbol),
+            StringComparer.OrdinalIgnoreCase);
+
         var results = new List<ActionScoreDto>();
 
         foreach (var item in watchlistItems)
         {
+            // Exclude tickers already held in the portfolio
+            if (portfolioSymbols.Contains(item.Symbol)) continue;
             signalMap.TryGetValue(item.Symbol, out var scan);
             valueMap.TryGetValue(item.Symbol, out var vs);
 
@@ -114,7 +121,8 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
                 Badge: badge,
                 TrendShift: scan?.TrendShift ?? "",
                 Rsi: scan?.Rsi ?? 0m,
-                AllocationStatus: allocationStatus));
+                AllocationStatus: allocationStatus,
+                CurrentPrice: scan?.CurrentPrice ?? 0m));
         }
 
         return results

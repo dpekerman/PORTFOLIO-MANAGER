@@ -128,7 +128,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
                 && !string.Equals(s.Item.HoldingRole, "Options", StringComparison.OrdinalIgnoreCase));
         var stocksValue = sectorItems.Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
-        var portfolioTotal = stocksValue + liveCashValue; // denominator = stocks + cash
+        // Denominator = stocks only, matching the Allocation page anchor
+        var portfolioTotal = stocksValue;
         var allocation = sectorItems
             .GroupBy(s => string.IsNullOrWhiteSpace(s.Item.Sector) ? "Unclassified" : s.Item.Sector)
             .Select(group =>
@@ -144,6 +145,20 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
             })
             .ToList();
+
+        // Add Cash row — % of (stocks + cash) so it sums naturally alongside sector rows
+        if (liveCashValue > 0m)
+        {
+            var cashBase = stocksValue + liveCashValue;
+            var cashPct  = Percent(liveCashValue, cashBase);
+            sectorTargets.TryGetValue("Cash", out var cashTarget);
+            var cashDelta  = cashPct - cashTarget;
+            var cashStatus = cashTarget == 0m ? "no-target"
+                           : Math.Abs(cashDelta) <= 2m  ? "good"
+                           : Math.Abs(cashDelta) <= 5m  ? (cashDelta > 0 ? "watch-over" : "watch-under")
+                           :                              (cashDelta > 0 ? "over"        : "under");
+            allocation.Add(new DashboardAllocation("Cash", liveCashValue, cashPct, cashTarget, Math.Round(cashDelta, 2), cashStatus));
+        }
 
         // ── Role allocation vs risk targets ──────────────────────────────────────
         var roleTargets = await db.AllocationRiskTargets
