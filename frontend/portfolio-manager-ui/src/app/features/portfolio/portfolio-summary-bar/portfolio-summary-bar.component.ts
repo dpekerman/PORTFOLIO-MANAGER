@@ -55,15 +55,33 @@ export class PortfolioSummaryBarComponent {
       (this.cashState.items().length > 0 ? 1 : 0),
   );
 
-  /** Previous day stored portfolio value (from DB). Loaded once on init. */
-  protected readonly previousDayValue = signal<number | null>(null);
+  /** Previous day full history entry. Loaded once on init. */
+  protected readonly previousDayEntry = signal<PortfolioValueHistoryDto | null>(null);
   protected readonly oneDayChangeLoading = signal(true);
 
   /** 1 Day Change = current value − previous day stored value */
   protected readonly oneDayChange = computed<number | null>(() => {
-    const prev = this.previousDayValue();
+    const prev = this.previousDayEntry();
     if (prev === null) return null;
-    return this.totalValue() - prev;
+    return this.totalValue() - prev.totalValue;
+  });
+
+  protected readonly todayStocksChange = computed<number | null>(() => {
+    const prev = this.previousDayEntry();
+    if (prev === null) return null;
+    return this.stockState.totalValue() - prev.stocksValue;
+  });
+
+  protected readonly todayCashChange = computed<number | null>(() => {
+    const prev = this.previousDayEntry();
+    if (prev === null) return null;
+    return this.cashState.totalCash() - prev.cashValue;
+  });
+
+  protected readonly todayOptionsChange = computed<number | null>(() => {
+    const prev = this.previousDayEntry();
+    if (prev === null) return null;
+    return this.optionState.totalMarketValue() - prev.optionsValue;
   });
 
   constructor() {
@@ -78,7 +96,7 @@ export class PortfolioSummaryBarComponent {
           const isFirstRecordToday = history[0].recordedDate === todayDate;
 
           if (isFirstRecordToday && history.length >= 2) {
-            this.previousDayValue.set(history[1].totalValue);
+            this.previousDayEntry.set(history[1]);
             this.oneDayChangeLoading.set(false);
           } else if (!isFirstRecordToday) {
             // Check whether the most recent record is from yesterday or older
@@ -110,7 +128,7 @@ export class PortfolioSummaryBarComponent {
   }
 
   private setPreviousDay(history: PortfolioValueHistoryDto[]): void {
-    this.previousDayValue.set(history[0].totalValue);
+    this.previousDayEntry.set(history[0]);
     this.oneDayChangeLoading.set(false);
   }
 }

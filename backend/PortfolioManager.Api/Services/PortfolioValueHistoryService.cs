@@ -54,7 +54,11 @@ public sealed class PortfolioValueHistoryService(
 
     public async Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct)
     {
-        var recordedDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+        // Use ET date to match the EOD background service and dashboard logic
+        var tz = TryGetEasternTz();
+        var recordedDate = (tz is not null
+            ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            : DateTime.UtcNow).ToString("yyyy-MM-dd");
 
         // ── Stocks market value ─────────────────────────────────────────────
         var portfolioItems = await db.PortfolioItems

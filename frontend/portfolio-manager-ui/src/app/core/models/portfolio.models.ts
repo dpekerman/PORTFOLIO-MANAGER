@@ -640,6 +640,9 @@ export interface DashboardSummary {
   totalValue: number;
   todayChange: number;
   todayChangePercent: number;
+  todayStocksChange: number;
+  todayCashChange: number;
+  todayOptionsChange: number;
   weekChange: number;
   weekChangePercent: number;
   monthChange: number;

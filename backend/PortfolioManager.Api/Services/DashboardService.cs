@@ -79,6 +79,10 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var yesterdayEntry = hasTodayEntry ? previous : latest;
         var todayChange = yesterdayEntry is not null ? liveTotal - yesterdayEntry.TotalValue : 0m;
         var todayPercent = Percent(todayChange, yesterdayEntry?.TotalValue);
+        // Per-component breakdown: shows exactly what drove the 1-day change
+        var todayStocksChange  = yesterdayEntry is not null ? liveStocksValue  - yesterdayEntry.StocksValue  : 0m;
+        var todayCashChange    = yesterdayEntry is not null ? liveCashValue     - yesterdayEntry.CashValue    : 0m;
+        var todayOptionsChange = yesterdayEntry is not null ? liveOptionsValue  - yesterdayEntry.OptionsValue : 0m;
 
         var daysSinceMonday = ((int)todayEt.DayOfWeek + 6) % 7;
         var weekStart = todayEt.AddDays(-daysSinceMonday);
@@ -264,6 +268,9 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 summaryTotal,
                 todayChange,
                 todayPercent,
+                todayStocksChange,
+                todayCashChange,
+                todayOptionsChange,
                 weekChange,
                 Percent(weekChange, weekBase?.TotalValue),
                 monthChange,

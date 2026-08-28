@@ -40,13 +40,49 @@
         <span class="db-hero-ts">Snapshot {{ data.updatedAt | date: 'MMM d, h:mm a' }}</span>
       </div>
       <div class="db-metric-strip">
+        <!-- 1 Day Change with component breakdown -->
+        <div class="db-metric db-metric--today">
+          <span class="db-metric-label">1 Day Change</span>
+          <strong [class]="signCls(data.summary.todayChange)">{{
+            value(data.summary.todayChange) | currency: 'CAD' : 'symbol-narrow' : '1.0-2'
+          }}</strong>
+          <span class="db-metric-pct" [class]="signCls(data.summary.todayChangePercent)"
+            >{{ percent(data.summary.todayChangePercent) | number: '1.2-2' }}%</span
+          >
+          @let isStale =
+            data.summary.todayChange !== 0 &&
+            data.summary.todayStocksChange === 0 &&
+            data.summary.todayCashChange === 0 &&
+            data.summary.todayOptionsChange === 0;
+          @if (isStale) {
+            <span class="db-breakdown-stale">Click Refresh for breakdown ↑</span>
+          } @else {
+            <div class="db-breakdown">
+              <div class="db-breakdown-row">
+                <span class="db-breakdown-label">Stocks</span>
+                <span [class]="signCls(data.summary.todayStocksChange)" class="db-breakdown-val">{{
+                  value(data.summary.todayStocksChange)
+                    | currency: 'CAD' : 'symbol-narrow' : '1.0-2'
+                }}</span>
+              </div>
+              <div class="db-breakdown-row">
+                <span class="db-breakdown-label">Cash</span>
+                <span [class]="signCls(data.summary.todayCashChange)" class="db-breakdown-val">{{
+                  value(data.summary.todayCashChange) | currency: 'CAD' : 'symbol-narrow' : '1.0-2'
+                }}</span>
+              </div>
+              <div class="db-breakdown-row">
+                <span class="db-breakdown-label">Options</span>
+                <span [class]="signCls(data.summary.todayOptionsChange)" class="db-breakdown-val">{{
+                  value(data.summary.todayOptionsChange)
+                    | currency: 'CAD' : 'symbol-narrow' : '1.0-2'
+                }}</span>
+              </div>
+            </div>
+          }
+        </div>
         @for (
           m of [
-            {
-              label: 'Today',
-              change: data.summary.todayChange,
-              pct: data.summary.todayChangePercent,
-            },
             {
               label: 'This week',
               change: data.summary.weekChange,

@@ -92,6 +92,52 @@
 .db-metric-pct {
   font-size: 0.78rem;
 }
+/* Today 1-day-change card */
+.db-metric--today {
+  min-width: 190px;
+  border-left: 2px solid var(--border-color, #dde3e7);
+  padding-left: 12px;
+}
+.db-breakdown {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid rgba(158, 173, 180, 0.3);
+  padding-top: 6px;
+}
+.db-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.db-breakdown-label {
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #9eadb4;
+  white-space: nowrap;
+}
+.db-breakdown-val {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Roboto Mono', monospace;
+  color: #9eadb4;
+  &.positive {
+    color: #1a9e7a;
+  }
+  &.negative {
+    color: #e53e3e;
+  }
+}
+.db-breakdown-stale {
+  margin-top: 6px;
+  font-size: 0.65rem;
+  color: #9eadb4;
+  font-style: italic;
+}
 
 /* ── Chart ───────────────────────────────────────────────────────────────── */
 .db-chart-card {
