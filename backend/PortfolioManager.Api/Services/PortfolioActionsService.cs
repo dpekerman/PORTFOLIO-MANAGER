@@ -90,7 +90,16 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 ActionSeverity:   severity,
                 ActionPriority:   priority,
                 IsInPortfolio:    pos is not null,
-                IsInWatchlist:    wlItem is not null));
+                IsInWatchlist:    wlItem is not null,
+                ChannelState:     scan.ChannelState,
+                ChannelDirection: scan.ChannelDirection,
+                ChannelQuality:   scan.ChannelQuality,
+                PriorConfirmedLowerTouches: scan.PriorConfirmedLowerTouches,
+                LowerRailToday:   scan.LowerRailToday,
+                DistanceToLowerRailPercent: scan.DistanceToLowerRailPercent,
+                DistanceToLowerRailATR: scan.DistanceToLowerRailATR,
+                LastLowerTouchDate: scan.LastLowerTouchDate,
+                NearestOpenGapAbove: scan.NearestOpenGapAbove));
         }
 
         return results
@@ -117,6 +126,20 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var isCore        = string.Equals(r, "Core",        StringComparison.OrdinalIgnoreCase);
         var isSwing       = string.Equals(r, "Swing",       StringComparison.OrdinalIgnoreCase);
         var isSpec        = string.Equals(r, "Speculative", StringComparison.OrdinalIgnoreCase);
+        var channelState  = scan.ChannelState ?? "NONE";
+
+        if (channelState is "THIRD_TOUCH_APPROACHING" or "THIRD_TOUCH_TEST"
+            or "REVERSAL_DEVELOPING" or "BOUNCE_CONFIRMED" or "CHANNEL_BROKEN")
+        {
+            var channelAction = DeriveChannelAction(channelState, scan.TrendShift ?? "", r, isHolding);
+            if (channelAction.HasValue)
+            {
+                var (label, severity, priority) = channelAction.Value;
+                if (allocationStatus == "over" && severity == "buy")
+                    return (isHolding ? "HOLD — ALLOCATION FULL" : "WATCH — ALLOCATION BLOCKED", "hold", "INFORMATIONAL");
+                return channelAction.Value;
+            }
+        }
 
         // ── WATCHLIST ITEMS (no position) ────────────────────────────────────
         if (!isHolding)
@@ -188,6 +211,50 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         return isTrendDamage
             ? ("HOLD / REVIEW THESIS", "review", "DEVELOPING")
             : ("HOLD — WEAKNESS",     "hold",   "INFORMATIONAL");
+    }
+
+    private static (string label, string severity, string priority)? DeriveChannelAction(
+        string channelState, string trendShift, string role, bool isHolding)
+    {
+        var isBullTurn = string.Equals(trendShift, "🟢 Bull Turn", StringComparison.OrdinalIgnoreCase);
+        var isStabilizing = trendShift.Contains("Stabilizing", StringComparison.OrdinalIgnoreCase);
+        var isStillFalling = trendShift.Contains("Still Falling", StringComparison.OrdinalIgnoreCase);
+        var isCore = string.Equals(role, "Core", StringComparison.OrdinalIgnoreCase);
+        var isStrategic = string.Equals(role, "Strategic", StringComparison.OrdinalIgnoreCase);
+        var isSwing = string.Equals(role, "Swing", StringComparison.OrdinalIgnoreCase);
+
+        if (channelState == "CHANNEL_BROKEN")
+            return isHolding
+                ? isSwing ? ("EXIT REVIEW", "review", "REQUIRED") : ("TECHNICAL REVIEW", "review", "REQUIRED")
+                : ("AVOID", "danger", "REQUIRED");
+
+        if (!isHolding && channelState == "THIRD_TOUCH_APPROACHING")
+            return ("WATCH CHANNEL", "wait", "DEVELOPING");
+
+        if (channelState == "THIRD_TOUCH_TEST")
+        {
+            if (isStillFalling) return ("WAIT FOR REVERSAL", "wait", "DEVELOPING");
+            if (isStabilizing) return ("REVERSAL WATCH", "wait", "DEVELOPING");
+            if (isBullTurn)
+            {
+                if (!isHolding) return ("BUY WATCH", "buy", "DEVELOPING");
+                if (isSwing) return ("STAGED ADD / HOLD", "buy", "DEVELOPING");
+                if (isCore || isStrategic) return ("ADD CANDIDATE", "buy", "REQUIRED");
+            }
+            return null;
+        }
+
+        if (channelState == "REVERSAL_DEVELOPING")
+            return (isHolding ? "ADD WATCH" : "REVERSAL WATCH", "wait", "DEVELOPING");
+
+        if (channelState == "BOUNCE_CONFIRMED")
+        {
+            if (!isHolding) return ("ENTRY CANDIDATE", "buy", "REQUIRED");
+            if (isSwing) return ("STAGED ADD / HOLD", "buy", "DEVELOPING");
+            return ("ADD CANDIDATE", "buy", "REQUIRED");
+        }
+
+        return null;
     }
 
     private static string ComputeAllocationStatus(

@@ -88,7 +88,16 @@ public sealed record PortfolioActionDto(
     string ActionSeverity,     // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
     string ActionPriority,     // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
     bool IsInPortfolio,
-    bool IsInWatchlist);
+    bool IsInWatchlist,
+    string ChannelState,
+    string ChannelDirection,
+    int ChannelQuality,
+    int PriorConfirmedLowerTouches,
+    decimal LowerRailToday,
+    decimal DistanceToLowerRailPercent,
+    decimal DistanceToLowerRailATR,
+    DateTime? LastLowerTouchDate,
+    decimal? NearestOpenGapAbove);
 
 /// <summary>An EOD signal whose lifecycle state changed today.</summary>
 public sealed record StateChangeDto(

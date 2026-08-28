@@ -118,6 +118,8 @@ builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddMemoryCache();          // used by ScannerController to cache scan results
+builder.Services.AddScoped<IChannelAnalysisService, ChannelAnalysisService>();
+builder.Services.AddScoped<ITechnicalChannelPersistenceService, TechnicalChannelPersistenceService>();
 builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
 {
     client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");

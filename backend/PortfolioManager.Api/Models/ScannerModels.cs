@@ -2,6 +2,18 @@ namespace PortfolioManager.Api.Models;
 
 public enum ScanType { Oversold, Overbought, Neutral }
 
+public enum ChannelDirection { NONE, RISING }
+public enum ChannelState
+{
+    NONE,
+    CHANNEL_ACTIVE,
+    THIRD_TOUCH_APPROACHING,
+    THIRD_TOUCH_TEST,
+    REVERSAL_DEVELOPING,
+    BOUNCE_CONFIRMED,
+    CHANNEL_BROKEN,
+}
+
 /// <summary>
 /// Signal classification levels (in descending priority):
 /// Confirmed    — price-action trigger met on candle close.
@@ -131,6 +143,20 @@ public class RsiScanResult
     public decimal DynamicStopLoss { get; set; }
     /// <summary>Whether this result comes from an active staged signal (RSI may have recovered from extreme).</summary>
     public bool IsTracked { get; set; }
+    public string ChannelDirection { get; set; } = "NONE";
+    public decimal ChannelSlope { get; set; }
+    public decimal LowerRailToday { get; set; }
+    public decimal UpperRailToday { get; set; }
+    public int ChannelQuality { get; set; }
+    public int PriorConfirmedLowerTouches { get; set; }
+    public DateTime? LastLowerTouchDate { get; set; }
+    public decimal DistanceToLowerRailPercent { get; set; }
+    public decimal DistanceToLowerRailATR { get; set; }
+    public string ChannelState { get; set; } = "NONE";
+    public decimal? NearestOpenGapAbove { get; set; }
+    public decimal? NearestOpenGapBelow { get; set; }
+    public decimal? DistanceToGapAbovePercent { get; set; }
+    public decimal? DistanceToGapBelowPercent { get; set; }
     public decimal VolumeProjection { get; set; }
     public decimal PositionSizingShares { get; set; }
     public decimal PositionSizingRiskAmount { get; set; }
@@ -179,6 +205,28 @@ public class RsiScanResult
     public string FibStatus { get; set; } = string.Empty;
     /// <summary>((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above the level. 0 when Fib not calculable.</summary>
     public decimal DistanceToFib61_8Pct { get; set; }
+}
+
+public class TechnicalChannel
+{
+    public int Id { get; set; }
+    public string Ticker { get; set; } = string.Empty;
+    public string Timeframe { get; set; } = "1D";
+    public string Direction { get; set; } = "NONE";
+    public decimal Slope { get; set; }
+    public decimal LowerRailCurrent { get; set; }
+    public decimal UpperRailCurrent { get; set; }
+    public int ChannelQuality { get; set; }
+    public int LowerTouchCount { get; set; }
+    public DateTime? LastLowerTouchDate { get; set; }
+    public decimal DistanceToLowerRailPercent { get; set; }
+    public decimal DistanceToLowerRailATR { get; set; }
+    public string ChannelState { get; set; } = "NONE";
+    public decimal? NearestOpenGapAbove { get; set; }
+    public decimal? NearestOpenGapBelow { get; set; }
+    public decimal? DistanceToGapAbovePercent { get; set; }
+    public decimal? DistanceToGapBelowPercent { get; set; }
+    public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
 }
 
 public class ScannerResponse

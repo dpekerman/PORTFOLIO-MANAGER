@@ -48,6 +48,7 @@
               <th>RSI</th>
               <th>Trend</th>
               <th>Fib Zone</th>
+              <th>Channel</th>
               <th>Allocation</th>
               <th class="pa-action-col">Position Action</th>
             </tr>
@@ -71,6 +72,34 @@
                 <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
                 <td class="pa-trend">{{ a.trendShift }}</td>
                 <td class="pa-fib">{{ a.fibZone || '—' }}</td>
+                <td
+                  class="pa-channel"
+                  [matTooltip]="
+                    a.channelState !== 'NONE'
+                      ? 'Rail ' +
+                        (a.lowerRailToday | number: '1.2-2') +
+                        ' | ' +
+                        (a.distanceToLowerRailPercent | number: '1.2-2') +
+                        '% / ' +
+                        (a.distanceToLowerRailATR | number: '1.2-2') +
+                        ' ATR'
+                      : ''
+                  "
+                >
+                  {{
+                    a.channelState === 'THIRD_TOUCH_APPROACHING'
+                      ? '3rd Touch Approaching'
+                      : a.channelState === 'THIRD_TOUCH_TEST'
+                        ? '3rd Touch'
+                        : a.channelState === 'REVERSAL_DEVELOPING'
+                          ? 'Reversal Developing'
+                          : a.channelState === 'BOUNCE_CONFIRMED'
+                            ? 'Bounce Confirmed'
+                            : a.channelState === 'CHANNEL_BROKEN'
+                              ? 'Channel Broken'
+                              : '—'
+                  }}
+                </td>
                 <td class="pa-alloc">
                   @if (a.allocationStatus === 'over') {
                     <span class="pa-alloc-over" matTooltip="Sector overweight">↑ Over</span>
@@ -117,6 +146,7 @@
               <th>RSI</th>
               <th>Trend</th>
               <th>Fib Zone</th>
+              <th>Channel</th>
               <th class="pa-action-col">Entry Status</th>
             </tr>
           </thead>
@@ -136,6 +166,34 @@
                 <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
                 <td class="pa-trend">{{ a.trendShift }}</td>
                 <td class="pa-fib">{{ a.fibZone || '—' }}</td>
+                <td
+                  class="pa-channel"
+                  [matTooltip]="
+                    a.channelState !== 'NONE'
+                      ? 'Rail ' +
+                        (a.lowerRailToday | number: '1.2-2') +
+                        ' | ' +
+                        (a.distanceToLowerRailPercent | number: '1.2-2') +
+                        '% / ' +
+                        (a.distanceToLowerRailATR | number: '1.2-2') +
+                        ' ATR'
+                      : ''
+                  "
+                >
+                  {{
+                    a.channelState === 'THIRD_TOUCH_APPROACHING'
+                      ? '3rd Touch Approaching'
+                      : a.channelState === 'THIRD_TOUCH_TEST'
+                        ? '3rd Touch'
+                        : a.channelState === 'REVERSAL_DEVELOPING'
+                          ? 'Reversal Developing'
+                          : a.channelState === 'BOUNCE_CONFIRMED'
+                            ? 'Bounce Confirmed'
+                            : a.channelState === 'CHANNEL_BROKEN'
+                              ? 'Channel Broken'
+                              : '—'
+                  }}
+                </td>
                 <td class="pa-action-col">
                   <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">{{
                     a.actionLabel

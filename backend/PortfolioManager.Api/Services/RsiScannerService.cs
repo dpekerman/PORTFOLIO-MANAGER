@@ -20,6 +20,8 @@ public sealed class RsiScannerService : IRsiScannerService
     private readonly ILogger<RsiScannerService> _logger;
     private readonly IMarketDataProvider _marketData;
     private readonly IStagedSignalService _stagedSignals;
+    private readonly IChannelAnalysisService _channelAnalysis;
+    private readonly ITechnicalChannelPersistenceService _channelPersistence;
 
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
@@ -67,13 +69,15 @@ public sealed class RsiScannerService : IRsiScannerService
         ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
     };
 
-    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig, IStagedSignalService stagedSignals)
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig, IStagedSignalService stagedSignals, IChannelAnalysisService channelAnalysis, ITechnicalChannelPersistenceService channelPersistence)
     {
         _http = http;
         _logger = logger;
         _marketData = marketData;
         _runtimeConfig = runtimeConfig;
         _stagedSignals = stagedSignals;
+        _channelAnalysis = channelAnalysis;
+        _channelPersistence = channelPersistence;
     }
 
     private readonly ScannerRuntimeConfig _runtimeConfig;
@@ -205,6 +209,15 @@ public sealed class RsiScannerService : IRsiScannerService
             _logger.LogWarning(ex, "[StagedSignals] UpsertAndEnrichAsync failed — continuing without staged enrichment");
         }
 
+        try
+        {
+            await _channelPersistence.UpsertAsync(allResults, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Channels] Persistence failed; continuing with scan response");
+        }
+
         // Enrich with analyst targets and 52-week range in a single batch call
         await EnrichWithQuoteDataAsync(allResults, ct);
 
@@ -319,6 +332,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
             var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
             if (qd is null) return null;
+            var timestamps = chartResult.Timestamp ?? [];
 
             // Filter out null slots (non-trading days Yahoo sometimes returns as null)
             var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
@@ -357,6 +371,14 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── ATR (14-day, Wilder's) — needed for EOD Confirm Condition 4 ─
             decimal dailyAtr   = CalculateAtr(highs, lows, closes, 14);
+
+            var candleCount = Math.Min(timestamps.Count, Math.Min(opens.Count, Math.Min(highs.Count, Math.Min(lows.Count, closes.Count))));
+            var candles = Enumerable.Range(0, candleCount)
+                .Select(i => new ChannelCandle(
+                    DateTimeOffset.FromUnixTimeSeconds(timestamps[i]).UtcDateTime.Date,
+                    opens[i], highs[i], lows[i], closes[i]))
+                .ToList();
+            var channel = _channelAnalysis.Analyze(candles, dailyAtr, todayClose);
 
             // ── 9-day EMA of price — EOD Confirm Condition 2 + Momentum Shift
             decimal ema9Price  = CalculateEma(closes, 9);
@@ -525,6 +547,20 @@ public sealed class RsiScannerService : IRsiScannerService
                 FibZone = fib.FibZone,
                 FibStatus = fib.FibStatus,
                 DistanceToFib61_8Pct = fib.DistanceToFib61_8Pct,
+                ChannelDirection = channel.Direction.ToString(),
+                ChannelSlope = channel.Slope,
+                LowerRailToday = channel.LowerRailCurrent,
+                UpperRailToday = channel.UpperRailCurrent,
+                ChannelQuality = channel.Quality,
+                PriorConfirmedLowerTouches = channel.ConfirmedLowerTouches,
+                LastLowerTouchDate = channel.LastLowerTouchDate,
+                DistanceToLowerRailPercent = channel.DistanceToLowerRailPercent,
+                DistanceToLowerRailATR = channel.DistanceToLowerRailAtr,
+                ChannelState = channel.State.ToString(),
+                NearestOpenGapAbove = channel.NearestOpenGapAbove,
+                NearestOpenGapBelow = channel.NearestOpenGapBelow,
+                DistanceToGapAbovePercent = channel.DistanceToGapAbovePercent,
+                DistanceToGapBelowPercent = channel.DistanceToGapBelowPercent,
             };
         }
         catch (Exception ex)

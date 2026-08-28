@@ -60,6 +60,7 @@ type SortColumn =
   | 'buyScore'
   | 'trendSetup'
   | 'momentumShift'
+  | 'channel'
   | 'finalAction'
   | 'technical'
   | 'valueScore'
@@ -158,6 +159,46 @@ export class WatchlistPageComponent {
 
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected channelForSymbol(symbol: string): RsiScanResult | null {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected channelLabel(symbol: string): string {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return state === 'THIRD_TOUCH_APPROACHING'
+      ? '3rd Touch Approaching'
+      : state === 'THIRD_TOUCH_TEST'
+        ? '3rd Touch'
+        : state === 'REVERSAL_DEVELOPING'
+          ? 'Reversal Developing'
+          : state === 'BOUNCE_CONFIRMED'
+            ? 'Bounce Confirmed'
+            : state === 'CHANNEL_BROKEN'
+              ? 'Channel Broken'
+              : '';
+  }
+
+  protected channelTooltip(symbol: string): string {
+    const channel = this.channelForSymbol(symbol);
+    if (!channel || !this.channelLabel(symbol)) return '';
+    return `Direction: ${channel.channelDirection} | Quality: ${channel.channelQuality}\nTouches: ${channel.priorConfirmedLowerTouches}\nLower rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}% / ${channel.distanceToLowerRailATR.toFixed(2)} ATR\nLast touch: ${channel.lastLowerTouchDate ?? '—'}\nOpen gap above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+  }
+
+  protected channelSortValue(symbol: string): number {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return (
+      {
+        NONE: 0,
+        CHANNEL_ACTIVE: 0,
+        THIRD_TOUCH_APPROACHING: 1,
+        THIRD_TOUCH_TEST: 2,
+        REVERSAL_DEVELOPING: 3,
+        BOUNCE_CONFIRMED: 4,
+        CHANNEL_BROKEN: 5,
+      }[state ?? 'NONE'] ?? 0
+    );
   }
 
   protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
@@ -509,6 +550,10 @@ export class WatchlistPageComponent {
         case 'momentumShift':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.momentumShift ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.momentumShift ?? '';
+          break;
+        case 'channel':
+          av = this.channelSortValue(a.item.symbol);
+          bv = this.channelSortValue(b.item.symbol);
           break;
         case 'finalAction':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.finalAction ?? '';

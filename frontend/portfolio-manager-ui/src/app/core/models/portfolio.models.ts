@@ -148,6 +148,15 @@ export type BollingerPosition = 'Below Lower' | 'Above Upper' | 'Inside';
 export type MacdHistSlope = 'Rising' | 'Falling' | 'Neutral';
 export type LogicMode = 'Legacy' | 'Enhanced';
 export type RsiDivergence = 'Bullish' | 'Bearish' | 'None';
+export type ChannelDirection = 'NONE' | 'RISING';
+export type ChannelState =
+  | 'NONE'
+  | 'CHANNEL_ACTIVE'
+  | 'THIRD_TOUCH_APPROACHING'
+  | 'THIRD_TOUCH_TEST'
+  | 'REVERSAL_DEVELOPING'
+  | 'BOUNCE_CONFIRMED'
+  | 'CHANNEL_BROKEN';
 
 export interface RsiScanResult {
   symbol: string;
@@ -258,6 +267,20 @@ export interface RsiScanResult {
   fibStatus: string;
   /** ((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above level. 0 when not calculable. */
   distanceToFib61_8Pct: number;
+  channelDirection: ChannelDirection;
+  channelSlope: number;
+  lowerRailToday: number;
+  upperRailToday: number;
+  channelQuality: number;
+  priorConfirmedLowerTouches: number;
+  lastLowerTouchDate: string | null;
+  distanceToLowerRailPercent: number;
+  distanceToLowerRailATR: number;
+  channelState: ChannelState;
+  nearestOpenGapAbove: number | null;
+  nearestOpenGapBelow: number | null;
+  distanceToGapAbovePercent: number | null;
+  distanceToGapBelowPercent: number | null;
 }
 
 export interface ScannerResponse {
@@ -773,6 +796,15 @@ export interface PortfolioActionDto {
   actionPriority: string; // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
   isInPortfolio: boolean;
   isInWatchlist: boolean;
+  channelState: ChannelState;
+  channelDirection: ChannelDirection;
+  channelQuality: number;
+  priorConfirmedLowerTouches: number;
+  lowerRailToday: number;
+  distanceToLowerRailPercent: number;
+  distanceToLowerRailATR: number;
+  lastLowerTouchDate: string | null;
+  nearestOpenGapAbove: number | null;
 }
 
 export interface StateChangeDto {

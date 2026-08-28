@@ -27,6 +27,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<DashboardSnapshot> DashboardSnapshots => Set<DashboardSnapshot>();
     public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
     public DbSet<TransactionContextSnapshot> TransactionContextSnapshots => Set<TransactionContextSnapshot>();
+    public DbSet<TechnicalChannel> TechnicalChannels => Set<TechnicalChannel>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -159,6 +160,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.IsActiveWatch).HasDefaultValue(true);
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.IsActiveWatch);
+        });
+
+        modelBuilder.Entity<TechnicalChannel>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Ticker).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Timeframe).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Direction).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ChannelState).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Slope).HasColumnType("decimal(18,8)");
+            entity.Property(e => e.LowerRailCurrent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.UpperRailCurrent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToLowerRailPercent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToLowerRailATR).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.NearestOpenGapAbove).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.NearestOpenGapBelow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToGapAbovePercent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToGapBelowPercent).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => new { e.Ticker, e.Timeframe }).IsUnique();
         });
 
         modelBuilder.Entity<AllocationRiskTarget>(entity =>

@@ -117,6 +117,7 @@ type GridSortCol =
   | 'holdingRole'
   | 'trendSetup'
   | 'momentumShift'
+  | 'channel'
   | 'finalAction'
   | 'maStatus'
   | 'fib38_2'
@@ -458,6 +459,46 @@ export class PortfolioPageComponent {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
   }
 
+  protected channelForSymbol(symbol: string): RsiScanResult | null {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected channelLabel(symbol: string): string {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return state === 'THIRD_TOUCH_APPROACHING'
+      ? '3rd Touch Approaching'
+      : state === 'THIRD_TOUCH_TEST'
+        ? '3rd Touch'
+        : state === 'REVERSAL_DEVELOPING'
+          ? 'Reversal Developing'
+          : state === 'BOUNCE_CONFIRMED'
+            ? 'Bounce Confirmed'
+            : state === 'CHANNEL_BROKEN'
+              ? 'Channel Broken'
+              : '';
+  }
+
+  protected channelTooltip(symbol: string): string {
+    const channel = this.channelForSymbol(symbol);
+    if (!channel || !this.channelLabel(symbol)) return '';
+    return `Direction: ${channel.channelDirection} | Quality: ${channel.channelQuality}\nTouches: ${channel.priorConfirmedLowerTouches}\nLower rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}% / ${channel.distanceToLowerRailATR.toFixed(2)} ATR\nLast touch: ${channel.lastLowerTouchDate ?? '—'}\nOpen gap above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+  }
+
+  protected channelSortValue(symbol: string): number {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return (
+      {
+        NONE: 0,
+        CHANNEL_ACTIVE: 0,
+        THIRD_TOUCH_APPROACHING: 1,
+        THIRD_TOUCH_TEST: 2,
+        REVERSAL_DEVELOPING: 3,
+        BOUNCE_CONFIRMED: 4,
+        CHANNEL_BROKEN: 5,
+      }[state ?? 'NONE'] ?? 0
+    );
+  }
+
   protected fibZoneClass(zone: string): string {
     switch (zone) {
       case 'Value Zone':
@@ -691,8 +732,6 @@ export class PortfolioPageComponent {
     const list = [...this.portfolio.summaries()].filter((s) => s.item.transactionType !== 'CLOSE');
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
-
-    if (field === 'default') return list;
 
     return list.sort((a, b) => {
       const av = this.sortValue(a, field);
@@ -935,6 +974,8 @@ export class PortfolioPageComponent {
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? ''
         );
+      case 'channel':
+        return this.channelSortValue(s.item.symbol);
       case 'finalAction':
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? ''
