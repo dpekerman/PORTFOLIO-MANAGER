@@ -561,6 +561,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 NearestOpenGapBelow = channel.NearestOpenGapBelow,
                 DistanceToGapAbovePercent = channel.DistanceToGapAbovePercent,
                 DistanceToGapBelowPercent = channel.DistanceToGapBelowPercent,
+                ChannelTouchDetails = channel.TouchDetails.ToList(),
             };
         }
         catch (Exception ex)

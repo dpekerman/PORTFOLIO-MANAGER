@@ -62,7 +62,11 @@ public sealed record DashboardRsiSignal(
     string VolumeSignal,
     decimal ReturnPct,
     string Action,
-    string SignalStatus); // Confirmed | EodConfirm | EarlyWarning
+    string SignalStatus,
+    bool IsNewToday,
+    bool IsActionRequired,
+    string Severity,
+    string ChannelState = "NONE"); // REQUIRED | DEVELOPING | INFORMATIONAL
 
 /// <summary>Aggregated RSI market-signals section for the dashboard.</summary>
 public sealed record DashboardRsiSection(
@@ -94,10 +98,12 @@ public sealed record PortfolioActionDto(
     int ChannelQuality,
     int PriorConfirmedLowerTouches,
     decimal LowerRailToday,
+    decimal EodClose,
     decimal DistanceToLowerRailPercent,
     decimal DistanceToLowerRailATR,
     DateTime? LastLowerTouchDate,
-    decimal? NearestOpenGapAbove);
+    decimal? NearestOpenGapAbove,
+    IReadOnlyList<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails);
 
 /// <summary>An EOD signal whose lifecycle state changed today.</summary>
 public sealed record StateChangeDto(

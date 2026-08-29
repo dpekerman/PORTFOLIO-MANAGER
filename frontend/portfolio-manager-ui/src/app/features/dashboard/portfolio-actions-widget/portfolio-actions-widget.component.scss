@@ -32,7 +32,48 @@
 .pa-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.82rem;
+
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 15%;
+  }
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 11%;
+  }
+  th:nth-child(3),
+  td:nth-child(3) {
+    width: 7%;
+  }
+  th:nth-child(4),
+  td:nth-child(4) {
+    width: 15%;
+  }
+  th:nth-child(5),
+  td:nth-child(5) {
+    width: 15%;
+  }
+  th:nth-child(6),
+  td:nth-child(6) {
+    width: 15%;
+  }
+  th:nth-child(7),
+  td:nth-child(7) {
+    width: 10%;
+  }
+  th:nth-child(8),
+  td:nth-child(8) {
+    width: 12%;
+  }
+
+  &:has(th:nth-child(7):last-child) {
+    th:nth-child(7),
+    td:nth-child(7) {
+      width: 22%;
+    }
+  }
 
   th {
     text-align: left;
@@ -210,11 +251,20 @@
 }
 
 .pa-count {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 4px;
   font-size: 0.75rem;
   font-weight: 500;
+
+  &.active {
+    background: var(--mat-sys-surface-container-high);
+    border-radius: 4px;
+    padding: 3px 6px;
+  }
 
   mat-icon {
     font-size: 14px;

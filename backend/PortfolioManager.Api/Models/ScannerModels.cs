@@ -9,6 +9,8 @@ public enum ChannelState
     CHANNEL_ACTIVE,
     THIRD_TOUCH_APPROACHING,
     THIRD_TOUCH_TEST,
+    LOWER_RAIL_APPROACHING,
+    LOWER_RAIL_RETEST,
     REVERSAL_DEVELOPING,
     BOUNCE_CONFIRMED,
     CHANNEL_BROKEN,
@@ -157,6 +159,7 @@ public class RsiScanResult
     public decimal? NearestOpenGapBelow { get; set; }
     public decimal? DistanceToGapAbovePercent { get; set; }
     public decimal? DistanceToGapBelowPercent { get; set; }
+    public List<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails { get; set; } = [];
     public decimal VolumeProjection { get; set; }
     public decimal PositionSizingShares { get; set; }
     public decimal PositionSizingRiskAmount { get; set; }
@@ -227,6 +230,7 @@ public class TechnicalChannel
     public decimal? DistanceToGapAbovePercent { get; set; }
     public decimal? DistanceToGapBelowPercent { get; set; }
     public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
+    public string TouchDetailsJson { get; set; } = "[]";
 }
 
 public class ScannerResponse

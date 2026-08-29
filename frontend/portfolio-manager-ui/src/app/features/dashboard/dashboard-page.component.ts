@@ -8,7 +8,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { DashboardAllocation } from '../../core/models/portfolio.models';
+import { DashboardAllocation, DashboardRsiSection } from '../../core/models/portfolio.models';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
@@ -56,6 +56,9 @@ export interface SvgChart {
   ],
 })
 export class DashboardPageComponent {
+  protected readonly marketSignalFilter = signal<
+    'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
+  >('ALL');
   protected readonly dashboard = inject(DashboardStateService);
   private readonly demoMode = inject(DemoModeService);
   protected readonly appRefresh = inject(AppRefreshService);
@@ -68,6 +71,37 @@ export class DashboardPageComponent {
   protected readonly moversOptions = [3, 5, 7, 10];
   /** Whether the RSI signals detail table is expanded. */
   protected readonly rsiExpanded = signal(true);
+  protected readonly filteredRsiSection = computed<DashboardRsiSection | null>(() => {
+    const section = this.snapshot()?.rsiSection;
+    if (!section) return null;
+    const filter = this.marketSignalFilter();
+    const include = (
+      row: DashboardRsiSection['oversoldSignals'][number],
+      type: 'OVERSOLD' | 'OVERBOUGHT',
+    ) =>
+      filter === 'ALL' ||
+      filter === type ||
+      (filter === 'NEW_TODAY' && row.isNewToday) ||
+      (filter === 'ACTION_REQUIRED' && row.isActionRequired);
+    return {
+      ...section,
+      oversoldSignals: section.oversoldSignals.filter((row) => include(row, 'OVERSOLD')),
+      overboughtSignals: section.overboughtSignals.filter((row) => include(row, 'OVERBOUGHT')),
+    };
+  });
+
+  protected toggleMarketSignalFilter(
+    filter: 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED',
+  ): void {
+    this.marketSignalFilter.update((current) => (current === filter ? 'ALL' : filter));
+  }
+
+  protected marketSignalFooter(type: 'OVERSOLD' | 'OVERBOUGHT', count: number): string {
+    const filter = this.marketSignalFilter();
+    return filter === 'ALL' || filter === type
+      ? `View all ${count} ${type.toLowerCase()} →`
+      : 'Open in EOD Signals →';
+  }
   /** Whether the Market Leadership section is expanded. */
   protected readonly leadershipExpanded = signal(false);
   /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */

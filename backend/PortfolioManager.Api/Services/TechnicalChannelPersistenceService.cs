@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
@@ -46,6 +47,7 @@ public sealed class TechnicalChannelPersistenceService(AppDbContext db) : ITechn
             row.NearestOpenGapBelow = result.NearestOpenGapBelow;
             row.DistanceToGapAbovePercent = result.DistanceToGapAbovePercent;
             row.DistanceToGapBelowPercent = result.DistanceToGapBelowPercent;
+            row.TouchDetailsJson = JsonSerializer.Serialize(result.ChannelTouchDetails);
             row.CalculatedAt = DateTime.UtcNow;
         }
 

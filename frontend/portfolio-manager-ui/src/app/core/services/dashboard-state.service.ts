@@ -30,6 +30,7 @@ export class DashboardStateService {
   private readonly _actionScoresLoading = signal(false);
   private readonly _performanceSummary = signal<PerformanceSummaryResponse | null>(null);
   private readonly _performanceSummaryLoading = signal(false);
+  private signalMetadataRefreshRequested = false;
 
   readonly data = this._data.asReadonly();
   readonly loading = this._loading.asReadonly();
@@ -66,12 +67,35 @@ export class DashboardStateService {
         next: (data) => {
           this._data.set(data);
           this._loading.set(false);
+          if (
+            data?.rsiSection &&
+            !this.signalMetadataRefreshRequested &&
+            this.needsSignalMetadataRefresh(data.rsiSection)
+          ) {
+            this.signalMetadataRefreshRequested = true;
+            this.refresh();
+          }
         },
         error: () => {
           this._error.set('Dashboard snapshot unavailable');
           this._loading.set(false);
         },
       });
+  }
+
+  private needsSignalMetadataRefresh(section: DashboardResponse['rsiSection']): boolean {
+    if (!section) return false;
+    const rows = [...section.oversoldSignals, ...section.overboughtSignals];
+    const rowNewCount = rows.filter((row) => row.isNewToday === true).length;
+    const rowRequiredCount = rows.filter((row) => row.isActionRequired === true).length;
+    return (
+      rows.length > 0 &&
+      (rows.some(
+        (row) => typeof row.isNewToday !== 'boolean' || typeof row.isActionRequired !== 'boolean',
+      ) ||
+        rowNewCount !== section.newTodayCount ||
+        rowRequiredCount !== section.actionRequiredCount)
+    );
   }
 
   refresh(): void {

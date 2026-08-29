@@ -8,6 +8,34 @@
   padding: 20px clamp(12px, 2.5vw, 36px) 52px;
 }
 
+.db-sig {
+  border: 0;
+  cursor: pointer;
+  &.active {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+.db-row-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  vertical-align: middle;
+}
+.db-new {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+.db-req {
+  color: #b71c1c;
+  background: #ffebee;
+}
+
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .db-header {
   display: flex;

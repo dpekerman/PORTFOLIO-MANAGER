@@ -466,22 +466,36 @@ export class PortfolioPageComponent {
   protected channelLabel(symbol: string): string {
     const state = this.channelForSymbol(symbol)?.channelState;
     return state === 'THIRD_TOUCH_APPROACHING'
-      ? '3rd Touch Approaching'
+      ? '3rd Rail Approaching'
       : state === 'THIRD_TOUCH_TEST'
-        ? '3rd Touch'
-        : state === 'REVERSAL_DEVELOPING'
-          ? 'Reversal Developing'
-          : state === 'BOUNCE_CONFIRMED'
-            ? 'Bounce Confirmed'
-            : state === 'CHANNEL_BROKEN'
-              ? 'Channel Broken'
-              : '';
+        ? '3rd Rail Test'
+        : state === 'LOWER_RAIL_APPROACHING'
+          ? 'Lower Rail Approaching'
+          : state === 'LOWER_RAIL_RETEST'
+            ? 'Lower Rail Retest'
+            : state === 'REVERSAL_DEVELOPING'
+              ? 'Reversal Developing'
+              : state === 'BOUNCE_CONFIRMED'
+                ? 'Bounce Confirmed'
+                : state === 'CHANNEL_BROKEN'
+                  ? 'Channel Broken'
+                  : '';
   }
 
   protected channelTooltip(symbol: string): string {
     const channel = this.channelForSymbol(symbol);
     if (!channel || !this.channelLabel(symbol)) return '';
-    return `Direction: ${channel.channelDirection} | Quality: ${channel.channelQuality}\nTouches: ${channel.priorConfirmedLowerTouches}\nLower rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}% / ${channel.distanceToLowerRailATR.toFixed(2)} ATR\nLast touch: ${channel.lastLowerTouchDate ?? '—'}\nOpen gap above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+    const touches = channel.channelTouchDetails
+      .map(
+        (touch) =>
+          `#${touch.touchNumber}  ${touch.touchDate.slice(0, 10)}\nRail: ${touch.railPrice.toFixed(2)}\nLow: ${touch.actualLow.toFixed(2)}\nBounce: +${touch.bounceATR.toFixed(2)} ATR`,
+      )
+      .join('\n\n');
+    const interaction =
+      channel.priorConfirmedLowerTouches === 2
+        ? '3rd Touch'
+        : `${channel.priorConfirmedLowerTouches + 1}th Touch`;
+    return `RISING CHANNEL\n\nCURRENT STRUCTURE\nState: ${this.channelLabel(symbol)}\nInteraction: ${interaction}\nQuality: ${channel.channelQuality}/100\nEOD Close: ${channel.currentPrice.toFixed(2)}\nLower Rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}%\nDistance ATR: ${channel.distanceToLowerRailATR.toFixed(2)}\n\nTOUCH HISTORY\nConfirmed Touches: ${channel.priorConfirmedLowerTouches}\n${touches}\n\nGAP\nNearest Open Gap Above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
   }
 
   protected channelSortValue(symbol: string): number {
@@ -492,6 +506,8 @@ export class PortfolioPageComponent {
         CHANNEL_ACTIVE: 0,
         THIRD_TOUCH_APPROACHING: 1,
         THIRD_TOUCH_TEST: 2,
+        LOWER_RAIL_APPROACHING: 1,
+        LOWER_RAIL_RETEST: 2,
         REVERSAL_DEVELOPING: 3,
         BOUNCE_CONFIRMED: 4,
         CHANNEL_BROKEN: 5,

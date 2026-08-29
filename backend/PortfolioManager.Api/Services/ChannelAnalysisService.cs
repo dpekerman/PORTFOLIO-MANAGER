@@ -40,13 +40,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         var upperToday = best.UpperSlope * (candles.Count - 1) + best.UpperIntercept;
         var distance = currentPrice - lowerToday;
         var distanceAtr = distance / atr;
-        var state = distance < -0.5m * atr
-            ? ChannelState.CHANNEL_BROKEN
-            : best.ConfirmedTouches.Count >= 2 && Math.Abs(distanceAtr) <= 0.35m
-                ? ChannelState.THIRD_TOUCH_TEST
-                : best.ConfirmedTouches.Count >= 2 && distanceAtr > 0.35m && distanceAtr <= 1m
-                    ? ChannelState.THIRD_TOUCH_APPROACHING
-                    : ChannelState.CHANNEL_ACTIVE;
+        var state = ResolveState(best.ConfirmedTouches.Count, distanceAtr);
 
         var gaps = FindOpenGaps(candles, currentPrice);
         return new ChannelAnalysisResult(
@@ -63,7 +57,18 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
             gaps.Above,
             gaps.Below,
             gaps.Above.HasValue ? Math.Round((gaps.Above.Value - currentPrice) / currentPrice * 100m, 2) : null,
-            gaps.Below.HasValue ? Math.Round((currentPrice - gaps.Below.Value) / currentPrice * 100m, 2) : null);
+            gaps.Below.HasValue ? Math.Round((currentPrice - gaps.Below.Value) / currentPrice * 100m, 2) : null,
+            best.TouchDetails);
+    }
+
+    public static ChannelState ResolveState(int confirmedTouchCount, decimal distanceAtr)
+    {
+        if (distanceAtr < -0.5m) return ChannelState.CHANNEL_BROKEN;
+        if (Math.Abs(distanceAtr) <= 0.35m)
+            return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_RETEST : ChannelState.THIRD_TOUCH_TEST;
+        if (distanceAtr > 0.35m && distanceAtr <= 1m)
+            return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_APPROACHING : ChannelState.THIRD_TOUCH_APPROACHING;
+        return ChannelState.CHANNEL_ACTIVE;
     }
 
     private static ChannelCandidate? BuildCandidate(
@@ -86,6 +91,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         if (slopeRatio < 0.5m || slopeRatio > 2m) return null;
 
         var confirmed = new List<int>();
+        var touchDetails = new List<ChannelTouchDetail>();
         var lastTouch = -10000;
         var lastBounce = -10000;
         foreach (var index in lows)
@@ -104,6 +110,13 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
             lastTouch = index;
             lastBounce = Enumerable.Range(bounceStart, bounceEnd - bounceStart + 1)
                 .First(i => candles[i].High >= rail + 1.5m * atr);
+            touchDetails.Add(new ChannelTouchDetail(
+                confirmed.Count,
+                candles[index].Date,
+                Math.Round(rail, 4),
+                Math.Round(candles[index].Low, 4),
+                Math.Round((candles[lastBounce].High - rail) / atr, 2),
+                true));
         }
 
         if (confirmed.Count < 2) return null;
@@ -118,7 +131,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         var quality = (int)Math.Round(confirmed.Count >= 3
             ? parallelScore * 0.35m + spacingScore * 0.2m + 100m * 0.45m
             : parallelScore * 0.4m + spacingScore * 0.2m + 80m * 0.4m);
-        return new ChannelCandidate(lower.Slope, lower.Intercept, upper.Slope, upper.Intercept, Math.Clamp(quality, 0, 100), confirmed);
+        return new ChannelCandidate(lower.Slope, lower.Intercept, upper.Slope, upper.Intercept, Math.Clamp(quality, 0, 100), confirmed, touchDetails);
     }
 
     private static (decimal Slope, decimal Intercept) FitRail(
@@ -163,10 +176,11 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         => Enumerable.Range(start + 1, candles.Count - start - 1)
             .Any(i => gapUp ? candles[i].Low <= boundary : candles[i].High >= boundary);
 
-    private sealed record ChannelCandidate(decimal LowerSlope, decimal LowerIntercept, decimal UpperSlope, decimal UpperIntercept, int Quality, List<int> ConfirmedTouches);
+    private sealed record ChannelCandidate(decimal LowerSlope, decimal LowerIntercept, decimal UpperSlope, decimal UpperIntercept, int Quality, List<int> ConfirmedTouches, List<ChannelTouchDetail> TouchDetails);
 }
 
 public sealed record ChannelCandle(DateTime Date, decimal Open, decimal High, decimal Low, decimal Close);
+public sealed record ChannelTouchDetail(int TouchNumber, DateTime TouchDate, decimal RailPrice, decimal ActualLow, decimal BounceATR, bool ConfirmedBounce);
 
 public sealed record ChannelAnalysisResult(
     ChannelDirection Direction,
@@ -182,10 +196,11 @@ public sealed record ChannelAnalysisResult(
     decimal? NearestOpenGapAbove,
     decimal? NearestOpenGapBelow,
     decimal? DistanceToGapAbovePercent,
-    decimal? DistanceToGapBelowPercent)
+    decimal? DistanceToGapBelowPercent,
+    IReadOnlyList<ChannelTouchDetail> TouchDetails)
 {
     public static ChannelAnalysisResult None { get; } = new(
-            ChannelDirection.NONE, 0, 0, 0, 0, 0, null, 0, 0, ChannelState.NONE, null, null, null, null);
+            ChannelDirection.NONE, 0, 0, 0, 0, 0, null, 0, 0, ChannelState.NONE, null, null, null, null, []);
 }
 
 internal static class EnumerableExtensions

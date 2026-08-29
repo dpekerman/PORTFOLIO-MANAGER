@@ -35,13 +35,14 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var portfolio = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
         var watchlist = Deserialize<List<WatchlistSummaryDto>>(watchlistSnap?.SnapshotJson ?? "[]") ?? [];
         var scanner   = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
+        var channels = await db.TechnicalChannels.AsNoTracking()
+            .Where(c => c.Timeframe == "1D")
+            .ToDictionaryAsync(c => c.Ticker, StringComparer.OrdinalIgnoreCase, ct);
 
         var signals = scanner.OversoldChain
             .Concat(scanner.OverboughtChain)
             .GroupBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        if (signals.Count == 0) return [];
 
         var totalValue = portfolio
             .Where(p => !IsClose(p.Item.TransactionType))
@@ -58,23 +59,65 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             .GroupBy(p => p.Item.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
+        var activeWatchlist = watchlist
+            .Where(w => string.Equals(w.Item.WatchlistTier, "Active", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var universe = portfolioBySymbol.Keys
+            .Concat(activeWatchlist.Select(w => w.Item.Symbol))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         var results = new List<PortfolioActionDto>();
 
-        foreach (var (symbol, scan) in signals)
+        foreach (var symbol in universe)
         {
+            signals.TryGetValue(symbol, out var scan);
+            channels.TryGetValue(symbol, out var channel);
             portfolioBySymbol.TryGetValue(symbol, out var pos);
-            var wlItem = watchlist.FirstOrDefault(w =>
+            var wlItem = activeWatchlist.FirstOrDefault(w =>
                 string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
 
             if (pos is null && wlItem is null) continue;
+            scan ??= new RsiScanResult
+            {
+                Symbol = symbol,
+                CompanyName = pos?.Item.CompanyName ?? wlItem?.Item.Symbol ?? symbol,
+                ScanType = ScanType.Neutral,
+                Status = SignalStatus.Neutral,
+                TrendShift = "Waiting",
+                ChannelDirection = channel?.Direction ?? "NONE",
+                ChannelState = channel?.ChannelState ?? "NONE",
+                ChannelQuality = channel?.ChannelQuality ?? 0,
+                PriorConfirmedLowerTouches = channel?.LowerTouchCount ?? 0,
+                LowerRailToday = channel?.LowerRailCurrent ?? 0,
+                DistanceToLowerRailPercent = channel?.DistanceToLowerRailPercent ?? 0,
+                DistanceToLowerRailATR = channel?.DistanceToLowerRailATR ?? 0,
+                LastLowerTouchDate = channel?.LastLowerTouchDate,
+                NearestOpenGapAbove = channel?.NearestOpenGapAbove,
+            };
+            if (channel is not null && scan.ChannelState == "NONE")
+            {
+                scan.ChannelDirection = channel.Direction;
+                scan.ChannelState = channel.ChannelState;
+                scan.ChannelQuality = channel.ChannelQuality;
+                scan.PriorConfirmedLowerTouches = channel.LowerTouchCount;
+                scan.LowerRailToday = channel.LowerRailCurrent;
+                scan.DistanceToLowerRailPercent = channel.DistanceToLowerRailPercent;
+                scan.DistanceToLowerRailATR = channel.DistanceToLowerRailATR;
+                scan.LastLowerTouchDate = channel.LastLowerTouchDate;
+                scan.NearestOpenGapAbove = channel.NearestOpenGapAbove;
+            }
 
             var holdingRole      = pos?.Item.HoldingRole ?? wlItem?.Item.Role ?? "Strategic";
             var sector           = pos?.Item.Sector ?? scan.Sector ?? "";
             var allocationStatus = ComputeAllocationStatus(sector, sectorActuals, sectorTargets);
             var isHolding        = pos is not null;
 
+            if (channel is null && scan.Status == SignalStatus.Neutral && allocationStatus != "over") continue;
+
             var (actionLabel, severity, priority) =
                 DeriveAction(scan, holdingRole, allocationStatus, isHolding);
+            severity = ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
 
             results.Add(new PortfolioActionDto(
                 Symbol:           symbol,
@@ -96,10 +139,12 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 ChannelQuality:   scan.ChannelQuality,
                 PriorConfirmedLowerTouches: scan.PriorConfirmedLowerTouches,
                 LowerRailToday:   scan.LowerRailToday,
+                EodClose:         scan.CurrentPrice,
                 DistanceToLowerRailPercent: scan.DistanceToLowerRailPercent,
                 DistanceToLowerRailATR: scan.DistanceToLowerRailATR,
                 LastLowerTouchDate: scan.LastLowerTouchDate,
-                NearestOpenGapAbove: scan.NearestOpenGapAbove));
+                NearestOpenGapAbove: scan.NearestOpenGapAbove,
+                ChannelTouchDetails: scan.ChannelTouchDetails));
         }
 
         return results
@@ -129,9 +174,10 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var channelState  = scan.ChannelState ?? "NONE";
 
         if (channelState is "THIRD_TOUCH_APPROACHING" or "THIRD_TOUCH_TEST"
+            or "LOWER_RAIL_APPROACHING" or "LOWER_RAIL_RETEST"
             or "REVERSAL_DEVELOPING" or "BOUNCE_CONFIRMED" or "CHANNEL_BROKEN")
         {
-            var channelAction = DeriveChannelAction(channelState, scan.TrendShift ?? "", r, isHolding);
+            var channelAction = DeriveChannelAction(channelState, scan.TrendShift ?? "", r, isHolding, scan.ScanType);
             if (channelAction.HasValue)
             {
                 var (label, severity, priority) = channelAction.Value;
@@ -214,7 +260,7 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
     }
 
     private static (string label, string severity, string priority)? DeriveChannelAction(
-        string channelState, string trendShift, string role, bool isHolding)
+        string channelState, string trendShift, string role, bool isHolding, ScanType scanType)
     {
         var isBullTurn = string.Equals(trendShift, "🟢 Bull Turn", StringComparison.OrdinalIgnoreCase);
         var isStabilizing = trendShift.Contains("Stabilizing", StringComparison.OrdinalIgnoreCase);
@@ -223,15 +269,17 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var isStrategic = string.Equals(role, "Strategic", StringComparison.OrdinalIgnoreCase);
         var isSwing = string.Equals(role, "Swing", StringComparison.OrdinalIgnoreCase);
 
+        if (scanType == ScanType.Overbought) return null;
+
         if (channelState == "CHANNEL_BROKEN")
             return isHolding
                 ? isSwing ? ("EXIT REVIEW", "review", "REQUIRED") : ("TECHNICAL REVIEW", "review", "REQUIRED")
                 : ("AVOID", "danger", "REQUIRED");
 
-        if (!isHolding && channelState == "THIRD_TOUCH_APPROACHING")
+        if (!isHolding && (channelState == "THIRD_TOUCH_APPROACHING" || channelState == "LOWER_RAIL_APPROACHING"))
             return ("WATCH CHANNEL", "wait", "DEVELOPING");
 
-        if (channelState == "THIRD_TOUCH_TEST")
+        if (channelState is "THIRD_TOUCH_TEST" or "LOWER_RAIL_RETEST")
         {
             if (isStillFalling) return ("WAIT FOR REVERSAL", "wait", "DEVELOPING");
             if (isStabilizing) return ("REVERSAL WATCH", "wait", "DEVELOPING");

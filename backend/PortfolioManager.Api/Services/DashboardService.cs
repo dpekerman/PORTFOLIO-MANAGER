@@ -47,6 +47,12 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var watchlist = DeserializeList<WatchlistSummaryDto>(watchlistSnapshot?.SnapshotJson ?? "[]");
         var scanner = Deserialize<ScannerResponse>(rsiSnapshot?.SnapshotJson ?? "{}")
             ?? new ScannerResponse();
+        var stagedSignals = await db.StagedSignals.AsNoTracking()
+            .Where(s => s.IsActiveWatch)
+            .ToListAsync(ct);
+        var stagedBySymbol = stagedSignals
+            .GroupBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.UpdatedAt).First(), StringComparer.OrdinalIgnoreCase);
         var indexQuotes = await marketData.GetBatchQuotesAsync(IndexSymbols.Select(i => i.Symbol), ct);
         // Skip earnings fetch during batch refresh to avoid ~9s delay (300ms/symbol)
         Dictionary<string, DateTime> providerEarnings = includeEarnings
@@ -219,9 +225,8 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             }
         }
         var roleAllocation = stockRoleGroups.OrderByDescending(a => a.Value).ToList();
-        var newToday   = await db.DailySignals.CountAsync(s => s.SignalDate == etTodayStr, ct);
-        var actionReq  = scanner.OversoldChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm)
-                       + scanner.OverboughtChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm);
+        var newToday = 0;
+        var actionReq = 0;
 
         static string RsiAction(RsiScanResult r)
         {
@@ -235,13 +240,24 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                  : "MONITOR";
         }
 
+        var BuildSignal = (RsiScanResult r) =>
+        {
+            var action = RsiAction(r);
+            var severity = ActionSeverityMapper.Get(action);
+            var isNew = stagedBySymbol.TryGetValue(r.Symbol, out var staged)
+                && staged.StagedDate == DateOnly.FromDateTime(todayEt);
+            if (isNew) newToday++;
+            if (severity == "REQUIRED") actionReq++;
+            return new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
+                r.TrendShift, r.VolumeSignal, r.ChangePercent, action, r.Status.ToString(),
+                isNew, severity == "REQUIRED", severity, r.ChannelState);
+        };
+
         var oversoldSignals   = scanner.OversoldChain
-            .Select(r => new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
-                r.TrendShift, r.VolumeSignal, r.ChangePercent, RsiAction(r), r.Status.ToString()))
+            .Select(BuildSignal)
             .ToList();
         var overboughtSignals = scanner.OverboughtChain
-            .Select(r => new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
-                r.TrendShift, r.VolumeSignal, r.ChangePercent, RsiAction(r), r.Status.ToString()))
+            .Select(BuildSignal)
             .ToList();
 
         var rsiSection = new DashboardRsiSection(

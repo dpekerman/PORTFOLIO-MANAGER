@@ -154,6 +154,8 @@ export type ChannelState =
   | 'CHANNEL_ACTIVE'
   | 'THIRD_TOUCH_APPROACHING'
   | 'THIRD_TOUCH_TEST'
+  | 'LOWER_RAIL_APPROACHING'
+  | 'LOWER_RAIL_RETEST'
   | 'REVERSAL_DEVELOPING'
   | 'BOUNCE_CONFIRMED'
   | 'CHANNEL_BROKEN';
@@ -281,6 +283,14 @@ export interface RsiScanResult {
   nearestOpenGapBelow: number | null;
   distanceToGapAbovePercent: number | null;
   distanceToGapBelowPercent: number | null;
+  channelTouchDetails: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
 }
 
 export interface ScannerResponse {
@@ -705,6 +715,10 @@ export interface DashboardRsiSignal {
   returnPct: number;
   action: string;
   signalStatus: string;
+  isNewToday: boolean;
+  isActionRequired: boolean;
+  severity: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
+  channelState?: ChannelState;
 }
 
 export interface DashboardRsiSection {
@@ -801,10 +815,19 @@ export interface PortfolioActionDto {
   channelQuality: number;
   priorConfirmedLowerTouches: number;
   lowerRailToday: number;
+  eodClose: number;
   distanceToLowerRailPercent: number;
   distanceToLowerRailATR: number;
   lastLowerTouchDate: string | null;
   nearestOpenGapAbove: number | null;
+  channelTouchDetails?: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
 }
 
 export interface StateChangeDto {
