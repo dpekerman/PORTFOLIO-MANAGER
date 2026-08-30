@@ -307,3 +307,30 @@
     }
   }
 }
+
+// -- Offline / retry badge (next to global refresh button) --------------------
+.offline-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  background: rgba(255, 152, 0, 0.15);
+  color: #ff9800;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  .offline-badge-text {
+    white-space: nowrap;
+
+    @media (max-width: 900px) {
+      display: none;
+    }
+  }
+}

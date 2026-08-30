@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -14,7 +15,8 @@ public sealed class DataRefreshService(
     IMarketDataProvider marketData,
     IPortfolioSnapshotService portfolioSnapshot,
     IWatchlistSnapshotService watchlistSnapshot,
-    IDashboardService dashboard) : IDataRefreshService
+    IDashboardService dashboard,
+    AppDbContext db) : IDataRefreshService
 {
     public async Task<DataRefreshResultDto> RefreshAllAsync(string userId, CancellationToken ct = default)
     {
@@ -75,14 +77,29 @@ public sealed class DataRefreshService(
             return new WatchlistSummaryDto(item, quote);
         }).ToList();
 
-        // Persist snapshots (no dashboard rebuild yet — done once below)
-        await portfolioSnapshot.SaveAsync(userId, sortedPortfolio.AsReadOnly(), ct);
-        await watchlistSnapshot.SaveAsync(userId, watchlistSummaries.AsReadOnly(), ct);
+        // Persist snapshots atomically — both must succeed or neither is committed.
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        try
+        {
+            await portfolioSnapshot.SaveAsync(userId, sortedPortfolio.AsReadOnly(), ct);
+            await watchlistSnapshot.SaveAsync(userId, watchlistSummaries.AsReadOnly(), ct);
+            await transaction.CommitAsync(ct);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(ct);
+            throw;
+        }
 
         // Rebuild dashboard once from the fresh snapshots, skipping slow earnings fetch
         await dashboard.RebuildAsync(userId, ct, includeEarnings: false);
 
         sw.Stop();
+        
+        // Extract symbol lists for progress tracking on frontend
+        var portfolioSymbols = sortedPortfolio.Select(p => p.Item.Symbol).ToList().AsReadOnly();
+        var watchlistSymbols = watchlistSummaries.Select(w => w.Item.Symbol).ToList().AsReadOnly();
+        
         return new DataRefreshResultDto(
             PortfolioSymbolCount: sortedPortfolio.Count,
             WatchlistSymbolCount: watchlistSummaries.Count,
@@ -90,6 +107,8 @@ public sealed class DataRefreshService(
             RefreshedAt: DateTime.UtcNow,
             DurationMs: sw.ElapsedMilliseconds,
             PortfolioSummaries: sortedPortfolio.AsReadOnly(),
-            WatchlistSummaries: watchlistSummaries.AsReadOnly());
+            WatchlistSummaries: watchlistSummaries.AsReadOnly(),
+            PortfolioSymbols: portfolioSymbols,
+            WatchlistSymbols: watchlistSymbols);
     }
 }

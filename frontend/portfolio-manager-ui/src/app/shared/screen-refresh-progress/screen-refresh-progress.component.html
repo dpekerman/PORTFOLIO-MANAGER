@@ -1,0 +1,25 @@
+@if (refreshService().isRefreshing()) {
+  <div class="screen-refresh-popup" role="status" aria-live="polite">
+    <div class="popup-content">
+      <mat-progress-spinner mode="indeterminate" diameter="20" class="popup-spinner" />
+      <div class="popup-info">
+        <span class="popup-title">{{ refreshService().screenName() }}</span>
+        <span class="popup-progress">
+          {{ refreshService().currentItem() ?? 'Refreshing...' }}
+          @if (refreshService().progress().total > 0) {
+            ({{ refreshService().progress().current }}/{{ refreshService().progress().total }})
+          }
+        </span>
+      </div>
+      <button
+        mat-icon-button
+        class="popup-cancel"
+        (click)="cancel()"
+        matTooltip="Cancel"
+        aria-label="Cancel refresh"
+      >
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  </div>
+}

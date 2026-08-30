@@ -1,5 +1,12 @@
 ﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -30,10 +37,12 @@ import {
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
 import {
   TransactionNotesDialogComponent,
@@ -99,6 +108,7 @@ type SortDir = 'asc' | 'desc';
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
     GridColumnButtonComponent,
+    ScreenRefreshProgressComponent,
   ],
 })
 export class WatchlistPageComponent {
@@ -109,6 +119,9 @@ export class WatchlistPageComponent {
   private readonly watchlistRsi = inject(WatchlistRsiStateService);
   protected readonly authState = inject(AuthStateService);
   protected readonly appRefresh = inject(AppRefreshService);
+
+  /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */
+  protected readonly screenRefresh = new ScreenRefreshService('watchlist');
 
   protected readonly trackById = (_: number, w: WatchlistSummary): number => w.item.id;
 
@@ -148,6 +161,20 @@ export class WatchlistPageComponent {
       },
       error: () => {}, // Non-critical
     });
+
+    // Bridge the RSI enrichment loading state into the mini-popup (indeterminate — no ticker count).
+    effect(() => {
+      if (this.rsiLoading()) {
+        this.screenRefresh.startRefresh(0);
+      } else {
+        this.screenRefresh.completeRefresh();
+      }
+    });
+  }
+
+  /** Actually stops the in-flight RSI scan, rather than just hiding the mini-popup. */
+  protected onScreenRefreshCancelled(): void {
+    this.watchlistRsi.cancelRefresh();
   }
 
   protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {

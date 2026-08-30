@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { EMPTY, filter, interval, switchMap } from 'rxjs';
+import { EMPTY, Subscription, filter, interval, switchMap } from 'rxjs';
 import {
   LogicMode,
   MarketIndexDto,
@@ -221,7 +221,7 @@ export class ScannerStateService {
     this._loading.set(true);
     this._error.set(null);
     const cfg = this.configService.config();
-    this.api
+    this.refreshSub = this.api
       .getRsiScan(force, cfg.rsiOversoldThreshold, cfg.rsiOverboughtThreshold, this._logicMode())
       .subscribe({
         next: (r) => {
@@ -236,5 +236,13 @@ export class ScannerStateService {
           this._loading.set(false);
         },
       });
+  }
+
+  /** Cancel an in-flight scan — stops listening for the response and re-enables the UI. */
+  private refreshSub: Subscription | null = null;
+  cancelRefresh(): void {
+    this.refreshSub?.unsubscribe();
+    this.refreshSub = null;
+    this._loading.set(false);
   }
 }

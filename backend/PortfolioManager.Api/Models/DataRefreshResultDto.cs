@@ -7,4 +7,6 @@ public record DataRefreshResultDto(
     DateTime RefreshedAt,
     long DurationMs,
     IReadOnlyList<PortfolioSummaryDto> PortfolioSummaries,
-    IReadOnlyList<WatchlistSummaryDto> WatchlistSummaries);
+    IReadOnlyList<WatchlistSummaryDto> WatchlistSummaries,
+    IReadOnlyList<string> PortfolioSymbols,
+    IReadOnlyList<string> WatchlistSymbols);

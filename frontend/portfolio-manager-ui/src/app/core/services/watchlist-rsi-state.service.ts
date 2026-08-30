@@ -9,6 +9,7 @@ import {
   map,
   of,
   switchMap,
+  takeUntil,
   tap,
 } from 'rxjs';
 import { RsiScanResult } from '../models/portfolio.models';
@@ -28,6 +29,7 @@ export class WatchlistRsiStateService {
   readonly rsiLoading = this._loading.asReadonly();
 
   private readonly rsiTrigger$ = new Subject<string[]>();
+  private readonly cancel$ = new Subject<void>();
 
   /** Sorted symbol key — changes only when symbols are added or removed. */
   private readonly _symbolKey = computed(() =>
@@ -37,6 +39,12 @@ export class WatchlistRsiStateService {
   /** Force a fresh RSI scan (e.g., when the user clicks manual refresh). */
   triggerRefresh(symbols: string[]): void {
     if (symbols.length > 0) this.rsiTrigger$.next(symbols);
+  }
+
+  /** Cancel an in-flight RSI scan — stops listening for the response and re-enables the UI. */
+  cancelRefresh(): void {
+    this.cancel$.next();
+    this._loading.set(false);
   }
 
   constructor() {
@@ -64,7 +72,10 @@ export class WatchlistRsiStateService {
                 }),
               ),
             ),
-          ).pipe(map((batchResults) => batchResults.flat()));
+          ).pipe(
+            map((batchResults) => batchResults.flat()),
+            takeUntil(this.cancel$),
+          );
         }),
       )
       .subscribe({

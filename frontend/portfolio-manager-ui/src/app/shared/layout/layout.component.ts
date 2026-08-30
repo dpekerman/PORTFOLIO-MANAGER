@@ -4,7 +4,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSidenav, MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -14,10 +13,8 @@ import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
 import { AppRefreshProgressComponent } from '../app-refresh-progress/app-refresh-progress.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
 
@@ -32,7 +29,6 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
     RouterLinkActive,
     MatButtonModule,
     MatIconModule,
-    MatProgressBarModule,
     MatSidenavModule,
     MatToolbarModule,
     MatListModule,
@@ -43,10 +39,8 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
   ],
 })
 export class LayoutComponent {
-  protected readonly portfolio = inject(PortfolioStateService);
   protected readonly scanner = inject(ScannerStateService);
   protected readonly theme = inject(ThemeService);
-  protected readonly watchlist = inject(WatchlistStateService);
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
   // Instantiate to activate auto-refresh timer
@@ -56,9 +50,20 @@ export class LayoutComponent {
 
   protected readonly sidenav = viewChild.required<MatSidenav>('sidenav');
 
-  protected readonly isLoading = computed(
-    () => this.portfolio.loading() || this.scanner.loading() || this.watchlist.loading(),
-  );
+  protected readonly isRefreshDisabled = computed(() => this.appRefresh.isRefreshing());
+
+  protected readonly offlineBadgeTooltip = computed(() => {
+    switch (this.appRefresh.offlineReason()) {
+      case 'network':
+        return 'No internet connection — will retry automatically';
+      case 'timeout':
+        return 'Request timed out — will retry automatically';
+      case 'server':
+        return 'Server unavailable — click refresh to retry manually';
+      default:
+        return 'Offline';
+    }
+  });
 
   /** Show RSI market header only on the RSI Scanner page. */
   private readonly currentUrl = toSignal(
@@ -84,9 +89,7 @@ export class LayoutComponent {
   ] as const;
 
   refreshAll(): void {
-    this.portfolio.refresh();
-    this.scanner.refresh(true);
-    this.watchlist.refresh();
+    this.appRefresh.refreshAll('user-click');
   }
 
   logout(): void {

@@ -84,6 +84,8 @@ export interface DataRefreshResultDto {
   durationMs: number;
   portfolioSummaries: PortfolioSummary[];
   watchlistSummaries: WatchlistSummary[];
+  portfolioSymbols: string[];
+  watchlistSymbols: string[];
 }
 
 export interface AddPortfolioItemRequest {

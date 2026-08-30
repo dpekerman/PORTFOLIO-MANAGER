@@ -103,15 +103,32 @@
         </button>
       }
 
+      <!-- Offline / retry indicator -->
+      @if (appRefresh.isOffline()) {
+        <div
+          class="offline-badge"
+          [matTooltip]="offlineBadgeTooltip()"
+          role="status"
+          aria-live="polite"
+        >
+          <mat-icon>cloud_off</mat-icon>
+          @if (appRefresh.nextRetryIn(); as secs) {
+            <span class="offline-badge-text">Retrying in {{ secs }}s</span>
+          } @else {
+            <span class="offline-badge-text">Offline</span>
+          }
+        </div>
+      }
+
       <!-- Global refresh -->
       <button
         mat-icon-button
         matTooltip="Refresh all data (bypasses 4-min cache)"
         (click)="refreshAll()"
-        [disabled]="isLoading()"
+        [disabled]="isRefreshDisabled()"
         aria-label="Refresh all data"
       >
-        <mat-icon [class.spinning]="isLoading()">refresh</mat-icon>
+        <mat-icon>refresh</mat-icon>
       </button>
     </mat-toolbar>
 
@@ -125,10 +142,6 @@
       </div>
     }
     -->
-    <!-- Global progress bar -->
-    @if (isLoading()) {
-      <mat-progress-bar mode="indeterminate" class="global-loader" aria-label="Loading" />
-    }
 
     <!-- Executive market header (RSI Scanner page only) -->
     @if (showMarketHeader()) {

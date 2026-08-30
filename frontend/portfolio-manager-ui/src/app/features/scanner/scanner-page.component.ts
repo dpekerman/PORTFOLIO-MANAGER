@@ -13,7 +13,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { ScannerRowSkeletonComponent } from '../../shared/skeleton/scanner-row-skeleton.component';
 import { AdhocAnalyzerComponent } from './adhoc-analyzer/adhoc-analyzer.component';
 import { RsiScannerTableComponent } from './rsi-scanner-table.component';
@@ -35,6 +37,7 @@ const MORNING_AUTO_OPENED_KEY = 'morning-check-auto-opened';
     MatTooltipModule,
     RsiScannerTableComponent,
     ScannerRowSkeletonComponent,
+    ScreenRefreshProgressComponent,
     AdhocAnalyzerComponent,
   ],
 })
@@ -42,6 +45,9 @@ export class ScannerPageComponent implements OnInit {
   protected readonly scanner = inject(ScannerStateService);
   private readonly portfolio = inject(PortfolioStateService);
   private readonly watchlist = inject(WatchlistStateService);
+
+  /** Mini refresh popup for this screen's independent live scan (not part of the unified app refresh). */
+  protected readonly screenRefresh = new ScreenRefreshService('scanner');
 
   /** Lowercase symbol set for O(1) lookup in the table.
    * Only includes OPEN positions — closed (transactionType === 'CLOSE') are excluded
@@ -114,6 +120,20 @@ export class ScannerPageComponent implements OnInit {
         this.markAutoOpenedToday();
       }
     });
+
+    // Bridge the scanner's own loading state into the mini-popup (indeterminate — no ticker count).
+    effect(() => {
+      if (this.scanner.loading()) {
+        this.screenRefresh.startRefresh(0);
+      } else {
+        this.screenRefresh.completeRefresh();
+      }
+    });
+  }
+
+  /** Actually stops the in-flight scan, rather than just hiding the mini-popup. */
+  protected onScreenRefreshCancelled(): void {
+    this.scanner.cancelRefresh();
   }
 
   private wasAutoOpenedToday(): boolean {
