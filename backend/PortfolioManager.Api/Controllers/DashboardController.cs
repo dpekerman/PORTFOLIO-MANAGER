@@ -59,6 +59,51 @@ public sealed class DashboardController(
     public async Task<ActionResult<MarketLeadershipResponse>> GetMarketLeadership(CancellationToken ct)
         => Ok(await marketLeadership.GetLeadershipAsync(CurrentUserId(), ct));
 
+    [HttpPost("market-leadership/trackers")]
+    public async Task<ActionResult<MarketLeadershipTrackerDto>> AddMarketLeadershipTracker(
+        CreateMarketLeadershipTrackerRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var tracker = await marketLeadership.AddTrackerAsync(CurrentUserId(), request, ct);
+            return CreatedAtAction(nameof(GetMarketLeadership), tracker);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
+    }
+
+    [HttpDelete("market-leadership/trackers/{trackerId:int}")]
+    public async Task<IActionResult> RemoveMarketLeadershipTracker(int trackerId, CancellationToken ct)
+        => await marketLeadership.RemoveTrackerAsync(CurrentUserId(), trackerId, ct) ? NoContent() : NotFound();
+
+    [HttpPut("market-leadership/trackers/{trackerId:int}")]
+    public async Task<ActionResult<MarketLeadershipTrackerDto>> UpdateMarketLeadershipTracker(
+        int trackerId,
+        CreateMarketLeadershipTrackerRequest request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var tracker = await marketLeadership.UpdateTrackerAsync(CurrentUserId(), trackerId, request, ct);
+            return tracker is null ? NotFound() : Ok(tracker);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(new { message = exception.Message });
+        }
+        catch (InvalidOperationException exception)
+        {
+            return Conflict(new { message = exception.Message });
+        }
+    }
+
     private string CurrentUserId()
         => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 }

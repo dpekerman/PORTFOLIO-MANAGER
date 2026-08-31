@@ -14,6 +14,98 @@ public interface IChannelAnalysisService
 public sealed class ChannelAnalysisService : IChannelAnalysisService
 {
     private static readonly int[] Windows = [63, 126, 252, 504];
+    public const decimal DefaultWedgeContractionThreshold = 0.30m;
+
+    public static bool IsValidFallingWedge(decimal upperSlope, decimal lowerSlope, decimal startWidth, decimal currentWidth, decimal threshold = DefaultWedgeContractionThreshold) =>
+        upperSlope < 0m && lowerSlope < 0m && Math.Abs(upperSlope) > Math.Abs(lowerSlope)
+        && MeetsWedgeContraction(startWidth, currentWidth, threshold);
+
+    public static bool IsValidRisingWedge(decimal upperSlope, decimal lowerSlope, decimal startWidth, decimal currentWidth, decimal threshold = DefaultWedgeContractionThreshold) =>
+        upperSlope > 0m && lowerSlope > 0m && lowerSlope > upperSlope
+        && MeetsWedgeContraction(startWidth, currentWidth, threshold);
+
+    public static bool MeetsWedgeContraction(decimal startWidth, decimal currentWidth, decimal threshold = DefaultWedgeContractionThreshold) =>
+        startWidth > 0m && currentWidth > 0m && 1m - currentWidth / startWidth >= threshold;
+
+    public static bool IsFallingWedgeBreakout(decimal close, decimal upperTrendline, decimal atr) =>
+        close > upperTrendline + 0.25m * atr;
+
+    public static bool IsRisingWedgeBreakdown(decimal close, decimal lowerTrendline, decimal atr) =>
+        close < lowerTrendline - 0.25m * atr;
+
+    public static PriceStructureResult AnalyzePriceStructure(
+        IReadOnlyList<ChannelCandle> candles,
+        decimal atr,
+        decimal ema9,
+        string momentum,
+        decimal volumeRatio20,
+        decimal contractionThreshold = DefaultWedgeContractionThreshold)
+    {
+        if (candles.Count < 30 || atr <= 0m) return PriceStructureResult.None;
+        var start = Math.Max(0, candles.Count - 126);
+        var highs = Enumerable.Range(start + 2, candles.Count - start - 4).Where(i => IsPivotHigh(candles, i)).ToList();
+        var lows = Enumerable.Range(start + 2, candles.Count - start - 4).Where(i => IsPivotLow(candles, i)).ToList();
+        if (highs.Count < 2 || lows.Count < 2) return PriceStructureResult.None;
+
+        var upper = FitRail(highs, i => candles[i].High);
+        var lower = FitRail(lows, i => candles[i].Low);
+        var currentIndex = candles.Count - 1;
+        var startWidth = (upper.Slope * start + upper.Intercept) - (lower.Slope * start + lower.Intercept);
+        var currentUpper = upper.Slope * currentIndex + upper.Intercept;
+        var currentLower = lower.Slope * currentIndex + lower.Intercept;
+        var currentWidth = currentUpper - currentLower;
+        if (startWidth <= 0m || currentWidth <= 0m) return PriceStructureResult.None;
+        var contraction = 1m - currentWidth / startWidth;
+        var falling = IsValidFallingWedge(upper.Slope, lower.Slope, startWidth, currentWidth, contractionThreshold);
+        var rising = IsValidRisingWedge(upper.Slope, lower.Slope, startWidth, currentWidth, contractionThreshold);
+        if ((!falling && !rising) || contraction < contractionThreshold) return PriceStructureResult.None;
+
+        var slopeDifference = upper.Slope - lower.Slope;
+        if (slopeDifference == 0m) return PriceStructureResult.None;
+        var apexIndex = (lower.Intercept - upper.Intercept) / slopeDifference;
+        var daysToApex = (int)Math.Round(apexIndex - currentIndex);
+        if (daysToApex < 0) return PriceStructureResult.None;
+
+        var quality = Math.Clamp((int)Math.Round(45m + Math.Min(25m, contraction * 50m) + Math.Min(20m, (highs.Count + lows.Count) * 3m) + Math.Min(10m, Math.Min(daysToApex, 10))), 0, 100);
+        if (quality < 70) return PriceStructureResult.None;
+
+        var close = candles[^1].Close;
+        var state = falling && IsFallingWedgeBreakout(close, currentUpper, atr) && close > ema9 && momentum is "Accelerating" or "Positive" ? "Falling Wedge Breakout"
+            : rising && IsRisingWedgeBreakdown(close, currentLower, atr) ? "Rising Wedge Breakdown"
+            : falling ? daysToApex <= 15 ? "Falling Wedge Near Apex" : "Falling Wedge"
+            : daysToApex <= 15 ? "Rising Wedge Near Apex" : "Rising Wedge";
+        var projectedApexDate = AddTradingDays(candles[^1].Date, daysToApex);
+        return new PriceStructureResult(state, quality, candles[start].Date, currentUpper, currentLower,
+            Math.Round(startWidth, 2), Math.Round(currentWidth, 2), Math.Round(contraction * 100m, 1),
+            projectedApexDate, daysToApex, highs.Count, lows.Count, atr, ema9, volumeRatio20);
+    }
+
+    public static PriceStructureResult FromChannel(ChannelAnalysisResult channel, decimal atr, decimal ema9, decimal volumeRatio20)
+    {
+        var label = channel.State switch
+        {
+            ChannelState.THIRD_TOUCH_APPROACHING => "3rd Rail Approaching",
+            ChannelState.THIRD_TOUCH_TEST => "3rd Rail Test",
+            ChannelState.LOWER_RAIL_APPROACHING => "Lower Rail Retest",
+            ChannelState.LOWER_RAIL_RETEST => "Lower Rail Retest",
+            ChannelState.BOUNCE_CONFIRMED => "Bounce Confirmed",
+            ChannelState.CHANNEL_BROKEN => "Channel Broken",
+            _ => "—",
+        };
+        return label == "—" ? PriceStructureResult.None : new PriceStructureResult(
+            label, channel.Quality, null, channel.UpperRailCurrent, channel.LowerRailCurrent,
+            0m, 0m, 0m, null, null, channel.ConfirmedLowerTouches, 0, atr, ema9, volumeRatio20);
+    }
+
+    private static DateTime AddTradingDays(DateTime date, int tradingDays)
+    {
+        while (tradingDays > 0)
+        {
+            date = date.AddDays(1);
+            if (date.DayOfWeek is not DayOfWeek.Saturday and not DayOfWeek.Sunday) tradingDays--;
+        }
+        return date;
+    }
 
     public ChannelAnalysisResult Analyze(
         IReadOnlyList<ChannelCandle> candles,
@@ -210,4 +302,24 @@ internal static class EnumerableExtensions
         using var iterator = values.GetEnumerator();
         return iterator.MoveNext() ? iterator.Current : null;
     }
+}
+
+public sealed record PriceStructureResult(
+    string Label,
+    int Quality,
+    DateTime? PatternStart,
+    decimal UpperTrendline,
+    decimal LowerTrendline,
+    decimal StartWidth,
+    decimal CurrentWidth,
+    decimal ContractionPercent,
+    DateTime? ProjectedApexDate,
+    int? TradingDaysToApex,
+    int PivotHighs,
+    int PivotLows,
+    decimal Atr,
+    decimal Ema9,
+    decimal VolumeRatio20)
+{
+    public static PriceStructureResult None { get; } = new("—", 0, null, 0m, 0m, 0m, 0m, 0m, null, null, 0, 0, 0m, 0m, 0m);
 }

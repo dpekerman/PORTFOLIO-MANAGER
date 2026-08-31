@@ -1,0 +1,51 @@
+<h2 mat-dialog-title>Add Market Tracker</h2>
+<h2 mat-dialog-title>{{ data.tracker ? 'Edit Market Tracker' : 'Add Market Tracker' }}</h2>
+<mat-dialog-content [formGroup]="form">
+  <mat-form-field appearance="outline">
+    <mat-label>Yahoo Symbol</mat-label>
+    <input
+      matInput
+      formControlName="symbol"
+      autocomplete="off"
+      (input)="onSymbolInput($event)"
+      [matAutocomplete]="symbolSuggestions"
+    />
+    @if (searching()) {
+      <mat-progress-spinner matSuffix mode="indeterminate" diameter="20" />
+    } @else {
+      <mat-icon matSuffix>search</mat-icon>
+    }
+    <mat-autocomplete
+      #symbolSuggestions="matAutocomplete"
+      (optionSelected)="selectResult($event.option.value)"
+    >
+      @for (result of searchResults(); track result.symbol) {
+        <mat-option [value]="result"
+          ><span class="autocomplete-symbol">{{ result.symbol }}</span
+          ><span class="autocomplete-exch">{{ result.exchange }}</span
+          ><span class="autocomplete-desc">{{ result.description }}</span></mat-option
+        >
+      }
+    </mat-autocomplete>
+  </mat-form-field>
+  <mat-form-field appearance="outline"
+    ><mat-label>Display Name</mat-label><input matInput formControlName="displayName"
+  /></mat-form-field>
+  <mat-form-field appearance="outline"
+    ><mat-label>Type</mat-label
+    ><mat-select formControlName="trackerType">
+      @for (type of trackerTypes; track type) {
+        <mat-option [value]="type">{{ type }}</mat-option>
+      }
+    </mat-select></mat-form-field
+  >
+  @if (state.error(); as error) {
+    <p class="error">{{ error }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Cancel</button>
+  <button mat-flat-button (click)="save()" [disabled]="form.invalid || submitted()">
+    {{ data.tracker ? 'Save' : 'Add' }}
+  </button>
+</mat-dialog-actions>

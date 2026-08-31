@@ -28,6 +28,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
     public DbSet<TransactionContextSnapshot> TransactionContextSnapshots => Set<TransactionContextSnapshot>();
     public DbSet<TechnicalChannel> TechnicalChannels => Set<TechnicalChannel>();
+    public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -264,6 +265,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.PreferenceKey).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PreferenceValue).IsRequired().HasDefaultValue("");
             entity.HasIndex(e => new { e.UserId, e.PreferenceKey }).IsUnique();
+        });
+
+        modelBuilder.Entity<MarketLeadershipTracker>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.TrackerType).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => new { e.UserId, e.Symbol, e.IsActive }).IsUnique();
         });
 
         modelBuilder.Entity<PortfolioSnapshot>(entity =>

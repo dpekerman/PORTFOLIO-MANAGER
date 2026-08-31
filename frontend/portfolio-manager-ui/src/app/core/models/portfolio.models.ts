@@ -896,18 +896,83 @@ export interface ActionScoreDto {
 }
 
 // ── Market Leadership ────────────────────────────────────────────────────────────
+export type MarketLeadershipTrackerType =
+  | 'ETF'
+  | 'Theme'
+  | 'Future'
+  | 'Commodity'
+  | 'SectorProxy'
+  | 'Other';
+
+export interface CreateMarketLeadershipTrackerRequest {
+  symbol: string;
+  displayName: string | null;
+  trackerType: MarketLeadershipTrackerType;
+}
+
+export interface MarketLeadershipTrackerDto {
+  id: number;
+  symbol: string;
+  displayName: string;
+  trackerType: MarketLeadershipTrackerType;
+}
+
 export interface MarketLeadershipRow {
-  sector: string;
-  symbolCount: number;
-  avgRsi: number;
-  avg1MReturnPct: number;
-  pctAboveEma20: number;
-  leadership: string; // Strong | Improving | Neutral | Weakening | Declining
-  leadershipEmoji: string;
+  id: number;
+  symbol: string;
+  displayName: string;
+  trackerType: MarketLeadershipTrackerType;
+  hasTechnicalData: boolean;
+  dataError: string | null;
+  currentPrice: number;
+  dayReturnPct: number;
+  fiveDayReturnPct: number;
+  previousFiveDayReturnPct: number;
+  twentyDayReturnPct: number;
+  previousTwentyDayReturnPct: number;
+  sma50: number;
+  sma200: number;
+  priceVsSma50Pct: number;
+  priceVsSma200Pct: number;
+  sma50VsSma200Pct: number;
+  trendState: string;
+  momentumState: string;
+  maStructure: string;
+  maBadge: string;
+  lastCross: string | null;
+  lastCrossDate: string | null;
+  lastCrossTradingDaysAgo: number | null;
+  momentumReason: string;
+  priceStructure: PriceStructureResult;
+  leadershipSignal: 'Emerging' | 'Leading' | 'Neutral' | 'Cooling' | 'Weak';
+  leadershipReason: string;
+}
+
+export interface PriceStructureResult {
+  label: string;
+  quality: number;
+  patternStart: string | null;
+  upperTrendline: number;
+  lowerTrendline: number;
+  startWidth: number;
+  currentWidth: number;
+  contractionPercent: number;
+  projectedApexDate: string | null;
+  tradingDaysToApex: number | null;
+  pivotHighs: number;
+  pivotLows: number;
+  atr: number;
+  ema9: number;
+  volumeRatio20: number;
 }
 
 export interface MarketLeadershipResponse {
   rows: MarketLeadershipRow[];
+  emergingCount: number;
+  leadingCount: number;
+  coolingCount: number;
+  neutralCount: number;
+  weakCount: number;
   computedAt: string;
 }
 

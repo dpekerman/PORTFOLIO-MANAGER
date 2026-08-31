@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
@@ -6,129 +5,220 @@ using PortfolioManager.Api.Models;
 namespace PortfolioManager.Api.Services;
 
 public sealed record MarketLeadershipRow(
-    string Sector,
-    int SymbolCount,
-    decimal AvgRsi,
-    decimal Avg1MReturnPct,
-    int PctAboveEma20,          // % of symbols whose price > EMA20
-    string Leadership,          // Strong | Improving | Neutral | Weakening | Declining
-    string LeadershipEmoji);
+    int Id,
+    string Symbol,
+    string DisplayName,
+    MarketLeadershipTrackerType TrackerType,
+    bool HasTechnicalData,
+    string? DataError,
+    decimal CurrentPrice,
+    decimal DayReturnPct,
+    decimal FiveDayReturnPct,
+    decimal PreviousFiveDayReturnPct,
+    decimal TwentyDayReturnPct,
+    decimal PreviousTwentyDayReturnPct,
+    decimal Sma50,
+    decimal Sma200,
+    decimal PriceVsSma50Pct,
+    decimal PriceVsSma200Pct,
+    decimal Sma50VsSma200Pct,
+    string TrendState,
+    string MomentumState,
+    string MaStructure,
+    string MaBadge,
+    string? LastCross,
+    DateOnly? LastCrossDate,
+    int? LastCrossTradingDaysAgo,
+    string MomentumReason,
+    PriceStructureResult PriceStructure,
+    string LeadershipSignal,
+    string LeadershipReason);
 
 public sealed record MarketLeadershipResponse(
     IReadOnlyList<MarketLeadershipRow> Rows,
+    int EmergingCount,
+    int LeadingCount,
+    int CoolingCount,
+    int NeutralCount,
+    int WeakCount,
     DateTime ComputedAt);
+
+public sealed record CreateMarketLeadershipTrackerRequest(
+    string Symbol,
+    string? DisplayName,
+    MarketLeadershipTrackerType TrackerType);
+
+public sealed record MarketLeadershipTrackerDto(
+    int Id,
+    string Symbol,
+    string DisplayName,
+    MarketLeadershipTrackerType TrackerType);
 
 public interface IMarketLeadershipService
 {
     Task<MarketLeadershipResponse> GetLeadershipAsync(string userId, CancellationToken ct = default);
+    Task<MarketLeadershipTrackerDto> AddTrackerAsync(string userId, CreateMarketLeadershipTrackerRequest request, CancellationToken ct = default);
+    Task<MarketLeadershipTrackerDto?> UpdateTrackerAsync(string userId, int trackerId, CreateMarketLeadershipTrackerRequest request, CancellationToken ct = default);
+    Task<bool> RemoveTrackerAsync(string userId, int trackerId, CancellationToken ct = default);
 }
 
-public sealed class MarketLeadershipService(AppDbContext db) : IMarketLeadershipService
+public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider marketData) : IMarketLeadershipService
 {
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     public async Task<MarketLeadershipResponse> GetLeadershipAsync(string userId, CancellationToken ct = default)
     {
-        var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        var watchlistSnap = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        var rsiSnap = await db.RsiScanSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == 1, ct);
+        var trackers = await db.MarketLeadershipTrackers.AsNoTracking()
+            .Where(tracker => tracker.UserId == userId && tracker.IsActive)
+            .OrderBy(tracker => tracker.SortOrder)
+            .ThenBy(tracker => tracker.Symbol)
+            .ToListAsync(ct);
+        var rows = new List<MarketLeadershipRow>(trackers.Count);
 
-        var portfolio = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
-        var watchlist = Deserialize<List<WatchlistSummaryDto>>(watchlistSnap?.SnapshotJson ?? "[]") ?? [];
-        var scanner = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
+        foreach (var tracker in trackers)
+        {
+            var closes = await marketData.GetDailyClosesAsync(tracker.Symbol, ct);
+            var analysis = closes is null ? null : MarketLeadershipCalculator.Analyze(closes);
+            rows.Add(ToRow(tracker, analysis, closes));
+        }
 
-        // Build signal map for RSI + trend context
-        var signalMap = scanner.OversoldChain.Concat(scanner.OverboughtChain)
-            .GroupBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-        // Collect all symbols with their sector + quote data
-        var allItems = portfolio
-            .Where(p => !IsClose(p.Item.TransactionType) && !string.IsNullOrEmpty(p.Item.Sector))
-            .Select(p => new
-            {
-                Symbol = p.Item.Symbol,
-                Sector = p.Item.Sector ?? "",
-                Price = p.Quote?.CurrentPrice ?? 0m,
-                ChangePercent1D = p.Quote?.ChangePercent ?? 0m,
-                // Approximate 1M return from EMA deviation if no direct 1M data
-                Ema20 = signalMap.TryGetValue(p.Item.Symbol, out var s) ? s.Ema20Price : 0m,
-                Rsi = signalMap.TryGetValue(p.Item.Symbol, out var rs) ? rs.Rsi : 0m,
-            })
-            .Concat(
-                watchlist.Select(w => new
-                {
-                    Symbol = w.Item.Symbol,
-                    Sector = w.Quote?.Sector ?? "",
-                    Price = w.Quote?.CurrentPrice ?? 0m,
-                    ChangePercent1D = w.Quote?.ChangePercent ?? 0m,
-                    Ema20 = signalMap.TryGetValue(w.Item.Symbol, out var s) ? s.Ema20Price : 0m,
-                    Rsi = signalMap.TryGetValue(w.Item.Symbol, out var rs) ? rs.Rsi : 0m,
-                }).Where(w => !string.IsNullOrEmpty(w.Sector))
-            )
-            .GroupBy(x => x.Symbol, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First()) // deduplicate
+        var sorted = rows.OrderBy(row => SignalOrder(row.LeadershipSignal))
+            .ThenByDescending(row => row.TwentyDayReturnPct)
+            .ThenBy(row => row.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        if (allItems.Count == 0)
-            return new MarketLeadershipResponse([], DateTime.UtcNow);
-
-        var rows = allItems
-            .GroupBy(x => x.Sector, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() >= 2) // sectors with at least 2 symbols
-            .Select(g =>
-            {
-                var items = g.ToList();
-                var avgRsi = items.Where(x => x.Rsi > 0).Select(x => x.Rsi).DefaultIfEmpty(50m).Average();
-                var avg1M = items.Select(x => x.ChangePercent1D).Average(); // using 1D as proxy
-                var aboveEma20Count = items.Count(x => x.Price > 0 && x.Ema20 > 0 && x.Price > x.Ema20);
-                var pctAbove = items.Count > 0 ? (int)((double)aboveEma20Count / items.Count * 100) : 0;
-
-                var (label, emoji) = ClassifyLeadership(avgRsi, pctAbove, avg1M);
-
-                return new MarketLeadershipRow(
-                    Sector: g.Key,
-                    SymbolCount: items.Count,
-                    AvgRsi: Math.Round(avgRsi, 1),
-                    Avg1MReturnPct: Math.Round(avg1M, 2),
-                    PctAboveEma20: pctAbove,
-                    Leadership: label,
-                    LeadershipEmoji: emoji);
-            })
-            .OrderBy(r => LeadershipOrder(r.Leadership))
-            .ThenByDescending(r => r.PctAboveEma20)
-            .ToList();
-
-        return new MarketLeadershipResponse(rows.AsReadOnly(), DateTime.UtcNow);
+        return new MarketLeadershipResponse(
+            sorted,
+            rows.Count(row => row.LeadershipSignal == "Emerging"),
+            rows.Count(row => row.LeadershipSignal == "Leading"),
+            rows.Count(row => row.LeadershipSignal == "Cooling"),
+            rows.Count(row => row.LeadershipSignal == "Neutral"),
+            rows.Count(row => row.LeadershipSignal == "Weak"),
+            DateTime.UtcNow);
     }
 
-    private static (string label, string emoji) ClassifyLeadership(decimal avgRsi, int pctAboveEma20, decimal avg1M)
+    public async Task<MarketLeadershipTrackerDto> AddTrackerAsync(string userId, CreateMarketLeadershipTrackerRequest request, CancellationToken ct = default)
     {
-        // Overbought territory with high breadth = Strong
-        if (avgRsi > 65 && pctAboveEma20 >= 70) return ("Strong", "🔥");
-        if (avgRsi > 55 && pctAboveEma20 >= 55) return ("Improving", "↑");
-        if (avgRsi < 35 && pctAboveEma20 < 30) return ("Declining", "↓↓");
-        if (avgRsi < 45 && pctAboveEma20 < 45) return ("Weakening", "↓");
-        return ("Neutral", "→");
+        var symbol = request.Symbol.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(symbol) || symbol.Length > 20)
+            throw new ArgumentException("Enter a valid Yahoo Finance symbol.", nameof(request));
+        if (await db.MarketLeadershipTrackers.AnyAsync(item => item.UserId == userId && item.Symbol == symbol && item.IsActive, ct))
+            throw new InvalidOperationException($"{symbol} is already being tracked.");
+
+        var quote = await marketData.GetQuoteAsync(symbol, ct);
+        if (quote is null || quote.CurrentPrice <= 0m)
+            throw new ArgumentException($"Yahoo Finance could not load {symbol}.", nameof(request));
+
+        var nextSortOrder = (await db.MarketLeadershipTrackers.Where(item => item.UserId == userId)
+            .Select(item => (int?)item.SortOrder).MaxAsync(ct) ?? -1) + 1;
+        var tracker = new MarketLeadershipTracker
+        {
+            UserId = userId,
+            Symbol = symbol,
+            DisplayName = string.IsNullOrWhiteSpace(request.DisplayName) ? quote.CompanyName : request.DisplayName.Trim(),
+            TrackerType = request.TrackerType,
+            SortOrder = nextSortOrder,
+        };
+        db.MarketLeadershipTrackers.Add(tracker);
+        await db.SaveChangesAsync(ct);
+        return new MarketLeadershipTrackerDto(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType);
     }
 
-    private static int LeadershipOrder(string leadership) => leadership switch
+    public async Task<bool> RemoveTrackerAsync(string userId, int trackerId, CancellationToken ct = default)
     {
-        "Strong"    => 0,
-        "Improving" => 1,
-        "Neutral"   => 2,
-        "Weakening" => 3,
-        "Declining" => 4,
-        _           => 5,
+        var tracker = await db.MarketLeadershipTrackers.SingleOrDefaultAsync(
+            item => item.Id == trackerId && item.UserId == userId && item.IsActive, ct);
+        if (tracker is null) return false;
+        tracker.IsActive = false;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<MarketLeadershipTrackerDto?> UpdateTrackerAsync(
+        string userId,
+        int trackerId,
+        CreateMarketLeadershipTrackerRequest request,
+        CancellationToken ct = default)
+    {
+        var tracker = await db.MarketLeadershipTrackers.SingleOrDefaultAsync(
+            item => item.Id == trackerId && item.UserId == userId && item.IsActive, ct);
+        if (tracker is null) return null;
+
+        var symbol = request.Symbol.Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(symbol) || symbol.Length > 20)
+            throw new ArgumentException("Enter a valid Yahoo Finance symbol.", nameof(request));
+
+        if (!string.Equals(symbol, tracker.Symbol, StringComparison.OrdinalIgnoreCase))
+        {
+            if (await db.MarketLeadershipTrackers.AnyAsync(
+                    item => item.UserId == userId && item.Id != trackerId && item.Symbol == symbol && item.IsActive, ct))
+                throw new InvalidOperationException($"{symbol} is already being tracked.");
+
+            var quote = await marketData.GetQuoteAsync(symbol, ct);
+            if (quote is null || quote.CurrentPrice <= 0m)
+                throw new ArgumentException($"Yahoo Finance could not load {symbol}.", nameof(request));
+            tracker.Symbol = symbol;
+            if (string.IsNullOrWhiteSpace(request.DisplayName)) tracker.DisplayName = quote.CompanyName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.DisplayName)) tracker.DisplayName = request.DisplayName.Trim();
+        tracker.TrackerType = request.TrackerType;
+        await db.SaveChangesAsync(ct);
+        return new MarketLeadershipTrackerDto(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType);
+    }
+
+    private static MarketLeadershipRow ToRow(
+        MarketLeadershipTracker tracker,
+        MarketLeadershipAnalysis? analysis,
+        IReadOnlyList<MarketDailyClose>? history)
+    {
+        if (analysis is null || !analysis.HasTechnicalData)
+            return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
+                false, "At least 200 daily closes are required.", analysis?.CurrentPrice ?? 0m,
+                0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, "Unavailable", "Unavailable", "Unavailable", "Unavailable",
+                null, null, null, "Technical history is unavailable.", PriceStructureResult.None, "Neutral", "Technical history is unavailable.");
+
+        var validHistory = history ?? [];
+        var candles = validHistory.Select(item => new ChannelCandle(
+            item.Date.ToDateTime(TimeOnly.MinValue), item.Open, item.High, item.Low, item.Close)).ToList();
+        var atr = CalculateAtr(candles);
+        var ema9 = validHistory.TakeLast(9).Average(item => item.Close);
+        var volumeRatio20 = validHistory.TakeLast(21).SkipLast(1).Select(item => item.Volume).DefaultIfEmpty().Average() is var averageVolume && averageVolume > 0
+            ? Math.Round(validHistory[^1].Volume / (decimal)averageVolume, 2) : 0m;
+        var wedge = ChannelAnalysisService.AnalyzePriceStructure(candles, atr, ema9, analysis.MomentumState, volumeRatio20);
+        var channel = new ChannelAnalysisService().Analyze(candles, atr, analysis.CurrentPrice);
+        var structure = wedge.Label == "—"
+            ? ChannelAnalysisService.FromChannel(channel, atr, ema9, volumeRatio20)
+            : wedge;
+
+        return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
+            true, null, analysis.CurrentPrice, analysis.DayReturnPct, analysis.FiveDayReturnPct, analysis.PreviousFiveDayReturnPct,
+            analysis.TwentyDayReturnPct, analysis.PreviousTwentyDayReturnPct,
+            analysis.Sma50, analysis.Sma200, PercentDifference(analysis.CurrentPrice, analysis.Sma50),
+            PercentDifference(analysis.CurrentPrice, analysis.Sma200), PercentDifference(analysis.Sma50, analysis.Sma200),
+            analysis.TrendState, analysis.MomentumState, analysis.MaStructure, analysis.MaBadge,
+            analysis.LastCross, analysis.LastCrossDate, analysis.LastCrossTradingDaysAgo, analysis.MomentumReason,
+            structure, analysis.LeadershipSignal, analysis.LeadershipReason);
+    }
+
+    private static decimal CalculateAtr(IReadOnlyList<ChannelCandle> candles)
+    {
+        if (candles.Count < 15) return 0m;
+        return candles.TakeLast(14).Select((candle, index) =>
+        {
+            var previous = candles[candles.Count - 15 + index].Close;
+            return Math.Max(candle.High - candle.Low, Math.Max(Math.Abs(candle.High - previous), Math.Abs(candle.Low - previous)));
+        }).Average();
+    }
+
+    private static decimal PercentDifference(decimal value, decimal baseValue) =>
+        baseValue == 0m ? 0m : Math.Round(((value / baseValue) - 1m) * 100m, 2);
+
+    private static int SignalOrder(string signal) => signal switch
+    {
+        "Emerging" => 0,
+        "Leading" => 1,
+        "Cooling" => 2,
+        "Neutral" => 3,
+        "Weak" => 4,
+        _ => 5,
     };
-
-    private static bool IsClose(string? txType)
-        => string.Equals(txType, "CLOSE", StringComparison.OrdinalIgnoreCase);
-
-    private static T? Deserialize<T>(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return default;
-        try { return JsonSerializer.Deserialize<T>(json, JsonOpts); }
-        catch { return default; }
-    }
 }

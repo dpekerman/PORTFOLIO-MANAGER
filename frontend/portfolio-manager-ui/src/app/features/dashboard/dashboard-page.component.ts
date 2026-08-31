@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
@@ -12,6 +13,7 @@ import { DashboardAllocation, DashboardRsiSection } from '../../core/models/port
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
 import { PortfolioActionsWidgetComponent } from './portfolio-actions-widget/portfolio-actions-widget.component';
@@ -60,6 +62,7 @@ export class DashboardPageComponent {
     'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
   >('ALL');
   protected readonly dashboard = inject(DashboardStateService);
+  private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeService);
   protected readonly appRefresh = inject(AppRefreshService);
 
@@ -104,6 +107,10 @@ export class DashboardPageComponent {
   }
   /** Whether the Market Leadership section is expanded. */
   protected readonly leadershipExpanded = signal(false);
+
+  protected addMarketTracker(): void {
+    this.dialog.open(AddMarketTrackerDialogComponent, { autoFocus: 'first-tabbable' });
+  }
   /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
   protected readonly allocTab = signal<'sector' | 'role'>('sector');
   /** Sector table sort column and direction. Default: percent desc (highest actual first). */

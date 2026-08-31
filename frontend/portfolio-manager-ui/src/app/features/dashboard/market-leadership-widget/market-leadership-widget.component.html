@@ -2,28 +2,147 @@
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" class="ml-progress" />
   }
+  @let data = leadership();
+  <div class="ml-toolbar">
+    <div class="ml-list-header">
+      <span class="ml-list-title">Market Trackers</span>
+      <span class="ml-list-badge">{{ data?.rows?.length ?? 0 }}</span>
+      <button
+        mat-icon-button
+        class="ml-add-button"
+        (click)="addTracker()"
+        matTooltip="Add market tracker"
+        aria-label="Add market tracker"
+      >
+        <mat-icon>add</mat-icon>
+      </button>
+    </div>
+    <div class="ml-counters" aria-label="Filter market leadership signals">
+      @for (
+        counter of [
+          { label: 'Emerging', count: data?.emergingCount ?? 0 },
+          { label: 'Leading', count: data?.leadingCount ?? 0 },
+          { label: 'Cooling', count: data?.coolingCount ?? 0 },
+          { label: 'Neutral', count: data?.neutralCount ?? 0 },
+          { label: 'Weak', count: data?.weakCount ?? 0 },
+        ];
+        track counter.label
+      ) {
+        <button
+          mat-button
+          class="ml-counter"
+          [class.active]="selectedSignal() === counter.label"
+          (click)="setSignalFilter(counter.label)"
+        >
+          {{ counter.count }} {{ counter.label }}
+        </button>
+      }
+    </div>
+  </div>
+  @if (trackerState.error(); as error) {
+    <p class="ml-error">{{ error }}</p>
+  }
   @if (leadership(); as ml) {
     @if (ml.rows.length === 0) {
       <div class="ml-empty">
-        <mat-icon>donut_large</mat-icon>
-        <span>Refresh portfolio and watchlist data to compute sector leadership</span>
+        <mat-icon>add_chart</mat-icon>
+        <span>Add a Yahoo Finance symbol to begin tracking market momentum.</span>
       </div>
     } @else {
       <div class="ml-grid">
-        @for (row of ml.rows; track row.sector) {
-          <div class="ml-row" [class]="leadershipCls(row.leadership)">
-            <span class="ml-emoji" [matTooltip]="row.leadership">{{ row.leadershipEmoji }}</span>
-            <span class="ml-sector">{{ row.sector }}</span>
-            <span class="ml-breadth" [matTooltip]="row.pctAboveEma20 + '% above EMA20'"
-              >{{ row.pctAboveEma20 }}%</span
+        <div class="ml-head">
+          <button (click)="toggleSort('name')">Name / Symbol{{ sortIndicator('name') }}</button
+          ><button (click)="toggleSort('price')">Price{{ sortIndicator('price') }}</button
+          ><button (click)="toggleSort('day')">Day{{ sortIndicator('day') }}</button
+          ><button (click)="toggleSort('fiveDay')">5D{{ sortIndicator('fiveDay') }}</button
+          ><button (click)="toggleSort('twentyDay')">20D{{ sortIndicator('twentyDay') }}</button
+          ><button (click)="toggleSort('ma')">MA Structure{{ sortIndicator('ma') }}</button
+          ><button (click)="toggleSort('momentum')">Momentum{{ sortIndicator('momentum') }}</button
+          ><button (click)="toggleSort('structure')">
+            Price Structure{{ sortIndicator('structure') }}</button
+          ><button (click)="toggleSort('signal')">Signal{{ sortIndicator('signal') }}</button>
+          <span class="ml-action-head" aria-hidden="true"></span>
+        </div>
+        @for (row of rows(); track row.id) {
+          <div class="ml-row" [class]="signalClass(row.leadershipSignal)">
+            <span class="ml-name"
+              ><strong>{{ row.displayName }}</strong
+              ><small>{{ row.symbol }}</small></span
             >
-            <span class="ml-rsi" [matTooltip]="'Avg RSI: ' + (row.avgRsi | number: '1.1-1')"
-              >RSI {{ row.avgRsi | number: '1.0-0' }}</span
+            <span>{{ row.currentPrice | currency }}</span>
+            <span [class]="returnClass(row.dayReturnPct)"
+              >{{ row.dayReturnPct | number: '1.1-1' }}%</span
             >
-            <span class="ml-label" [class]="leadershipCls(row.leadership)">{{
-              row.leadership
+            <span [class]="returnClass(row.fiveDayReturnPct)"
+              >{{ row.fiveDayReturnPct | number: '1.1-1' }}%</span
+            >
+            <span [class]="returnClass(row.twentyDayReturnPct)"
+              >{{ row.twentyDayReturnPct | number: '1.1-1' }}%</span
+            >
+            <span
+              class="ml-badge"
+              [class]="signalClass(row.maBadge)"
+              [matTooltip]="maTooltip(row)"
+              >{{ row.maBadge }}</span
+            >
+            <span
+              class="ml-badge"
+              [class]="signalClass(row.momentumState)"
+              [matTooltip]="momentumTooltip(row)"
+              >{{ row.momentumState }}</span
+            >
+            <span class="ml-badge" [matTooltip]="structureTooltip(row)">{{
+              row.priceStructure.label
             }}</span>
-            <span class="ml-count">{{ row.symbolCount }}sym</span>
+            <span
+              class="ml-badge"
+              [class]="signalClass(row.leadershipSignal)"
+              [matTooltip]="signalTooltip(row)"
+              >{{ row.leadershipSignal }}</span
+            >
+            <span class="ml-actions">
+              <button
+                mat-icon-button
+                class="ml-details"
+                (click)="toggleDetails(row.id)"
+                [attr.aria-expanded]="expandedRowId() === row.id"
+                [attr.aria-label]="'Toggle details for ' + row.symbol"
+              >
+                <mat-icon>{{
+                  expandedRowId() === row.id ? 'expand_less' : 'expand_more'
+                }}</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                class="ml-edit"
+                (click)="editTracker(row)"
+                [matTooltip]="'Edit ' + row.symbol"
+                [attr.aria-label]="'Edit ' + row.symbol"
+              >
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button
+                mat-icon-button
+                class="ml-remove"
+                (click)="confirmRemove(row)"
+                [matTooltip]="'Remove ' + row.symbol"
+                [attr.aria-label]="'Remove ' + row.symbol"
+              >
+                <mat-icon>delete_outline</mat-icon>
+              </button>
+            </span>
+          </div>
+          @if (expandedRowId() === row.id) {
+            <div class="ml-details-content">
+              Price {{ row.currentPrice | currency }} · Day
+              {{ row.dayReturnPct | number: '1.1-1' }}% · 5D
+              {{ row.fiveDayReturnPct | number: '1.1-1' }}% · Momentum {{ row.momentumState }}
+            </div>
+          }
+        } @empty {
+          <div class="ml-filter-empty">
+            No {{ selectedSignal() }} trackers match the current filter.
+            <button mat-button (click)="clearSignalFilter()">Clear filter</button>
           </div>
         }
       </div>

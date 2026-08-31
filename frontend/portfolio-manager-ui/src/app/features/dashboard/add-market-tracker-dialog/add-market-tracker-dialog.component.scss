@@ -1,0 +1,26 @@
+mat-dialog-content {
+  display: grid;
+  min-width: min(360px, 80vw);
+  padding-top: 8px;
+}
+mat-form-field {
+  width: 100%;
+}
+.error {
+  color: #b3261e;
+  font-size: 0.82rem;
+  margin: 0 0 8px;
+}
+.autocomplete-symbol {
+  font-weight: 700;
+  margin-right: 8px;
+}
+.autocomplete-exch {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.75rem;
+  margin-right: 8px;
+}
+.autocomplete-desc {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.8rem;
+}
