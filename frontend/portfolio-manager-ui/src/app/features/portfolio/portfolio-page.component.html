@@ -934,6 +934,30 @@
                       }
                     </td>
                   </ng-container>
+                  <ng-container matColumnDef="priceStructure">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      matTooltip="Shared Price Structure: primary pattern plus current key decision level"
+                    >
+                      PRICE STRUCTURE
+                    </th>
+                    <td mat-cell *matCellDef="let row">
+                      @let psSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (priceStructureLabel(psSym); as label) {
+                        <span
+                          class="pg-channel-label"
+                          [matTooltip]="priceStructureTooltip(psSym)"
+                          >{{ label }}</span
+                        >
+                      } @else {
+                        <span class="pg-dim">—</span>
+                      }
+                    </td>
+                  </ng-container>
                   <!-- Gap Status -->
                   <ng-container matColumnDef="gapStatus">
                     <th

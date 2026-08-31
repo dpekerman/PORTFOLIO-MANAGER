@@ -1,3 +1,5 @@
+using PortfolioManager.Api.Services;
+
 namespace PortfolioManager.Api.Models;
 
 // DTOs for API request/response
@@ -66,7 +68,8 @@ public record PortfolioItemDto(
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
-    StockQuote? Quote);
+    StockQuote? Quote,
+    PriceStructureResult? PriceStructure = null);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic", string WatchlistTier = "Strategic");
@@ -78,7 +81,7 @@ public record UpdatePortfolioNotesRequest(string? Notes);
 
 public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null, string WatchlistTier = "Strategic");
 
-public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
+public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote, PriceStructureResult? PriceStructure = null);
 
 public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);

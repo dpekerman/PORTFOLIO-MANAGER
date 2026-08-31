@@ -70,7 +70,7 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
             if (items is null) return;
             var idx = items.FindIndex(s => s.Item.Id == itemId);
             if (idx < 0) return;
-            items[idx] = new PortfolioSummaryDto(items[idx].Item with { HoldingRole = holdingRole }, items[idx].Quote);
+            items[idx] = new PortfolioSummaryDto(items[idx].Item with { HoldingRole = holdingRole }, items[idx].Quote, items[idx].PriceStructure);
             row.SnapshotJson = JsonSerializer.Serialize(items, _json);
             row.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);

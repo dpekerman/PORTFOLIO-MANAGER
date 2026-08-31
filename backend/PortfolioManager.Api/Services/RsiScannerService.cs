@@ -489,6 +489,8 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── Fibonacci Retracement V1 ─────────────────────────────────────────
             var fib = CalculateFibonacci(closes, highs, lows, todayClose, prevClose);
+            var technicalAnalysis = MarketLeadershipCalculator.Analyze(closes);
+            var priceStructure = ChannelAnalysisService.AnalyzePriceStructure(candles, dailyAtr, ema9Price, technicalAnalysis.MomentumState, volRatio);
 
             return new RsiScanResult
             {
@@ -562,6 +564,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 DistanceToGapAbovePercent = channel.DistanceToGapAbovePercent,
                 DistanceToGapBelowPercent = channel.DistanceToGapBelowPercent,
                 ChannelTouchDetails = channel.TouchDetails.ToList(),
+                PriceStructure = priceStructure,
             };
         }
         catch (Exception ex)

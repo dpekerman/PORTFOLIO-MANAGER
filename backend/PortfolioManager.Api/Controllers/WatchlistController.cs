@@ -12,6 +12,7 @@ namespace PortfolioManager.Api.Controllers;
 public class WatchlistController(
     IWatchlistService watchlistService,
     IMarketDataProvider marketData,
+    ITechnicalSnapshotService technicalSnapshots,
     IWatchlistSnapshotService watchlistSnapshot,
     IDashboardService dashboard) : ControllerBase
 {
@@ -37,11 +38,13 @@ public class WatchlistController(
 
         var quotes = await marketData.GetBatchQuotesAsync(items.Select(i => i.Symbol), ct);
 
-        var results = items.Select(item =>
+        var results = new List<WatchlistSummaryDto>();
+        foreach (var item in items)
         {
             quotes.TryGetValue(item.Symbol, out var quote);
-            return new WatchlistSummaryDto(item, quote);
-        }).ToList();
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            results.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure));
+        }
 
         // Persist snapshot so the frontend loads instantly on next page open
         var uid = CurrentUserId();

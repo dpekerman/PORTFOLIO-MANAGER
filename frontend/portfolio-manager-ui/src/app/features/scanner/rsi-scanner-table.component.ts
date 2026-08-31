@@ -9,7 +9,12 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
-import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
+import {
+  LogicMode,
+  PriceStructureResult,
+  RsiScanResult,
+  ScanType,
+} from '../../core/models/portfolio.models';
 import {
   DecisionEngineService,
   GapStatus,
@@ -93,6 +98,10 @@ export class RsiScannerTableComponent {
         case 'analystUpside':
           av = a.analystTargetUpside ?? 0;
           bv = b.analystTargetUpside ?? 0;
+          break;
+        case 'priceStructure':
+          av = this.priceStructureSortValue(a.priceStructure);
+          bv = this.priceStructureSortValue(b.priceStructure);
           break;
         default:
           return 0;
@@ -221,6 +230,48 @@ export class RsiScannerTableComponent {
     const d200 = row.dma200Deviation.toFixed(1);
     const s200 = row.dma200Deviation >= 0 ? '+' : '';
     return `50 DMA: ${sign}${d50}%  |  200 DMA: ${s200}${d200}%`;
+  }
+
+  protected priceStructureLabel(structure: PriceStructureResult | null | undefined): string {
+    if (!structure || structure.label === '—') return '';
+    if (structure.keyLevelPrice && structure.primaryPatternType === 'NONE') {
+      return `${this.formatPriceStructureState(structure.keyLevelState)} @ ${structure.keyLevelPrice.toFixed(2)}`;
+    }
+    return structure.label;
+  }
+
+  protected priceStructureTooltip(structure: PriceStructureResult | null | undefined): string {
+    if (!structure || structure.label === '—') return '';
+    const keyLevel = structure.keyLevelPrice
+      ? `\n\nKEY TECHNICAL LEVEL\nState: ${structure.keyLevelState}\nRole: ${structure.keyLevelRole}\nPrimary Level: ${structure.keyLevelType}\nLevel: $${structure.keyLevelPrice.toFixed(2)}\nDistance: ${structure.keyLevelDistancePercent ?? '—'}%\nDistance ATR: ${structure.keyLevelDistanceAtr ?? '—'}\nBreakout Trigger: ${structure.breakoutTriggerPrice?.toFixed(2) ?? '—'}\nBreakdown Trigger: ${structure.breakdownTriggerPrice?.toFixed(2) ?? '—'}\nSources: ${(structure.keyLevelSources ?? []).join(', ') || '—'}\nConfluence: ${structure.keyLevelConfluenceCount}`
+      : '';
+    return `PRICE STRUCTURE\n\nPRIMARY PATTERN\nPattern: ${structure.primaryPatternType}\nState: ${structure.primaryPatternState}\nQuality: ${structure.primaryPatternQuality}/100\nHorizon: ${structure.primaryPatternHorizon ?? '—'} trading days\nPattern Start: ${structure.patternStart ?? '—'}\nContraction: ${structure.contractionPercent}%\nIndependent Upper Touches: ${structure.independentUpperTouchCount}\nIndependent Lower Touches: ${structure.independentLowerTouchCount}${keyLevel}`;
+  }
+
+  protected priceStructureSortValue(structure: PriceStructureResult | null | undefined): number {
+    if (!structure) return 0;
+    const stateRanks: Record<string, number> = {
+      BREAKOUT_CONFIRMED: 16,
+      SUPPORT_RECLAIM: 15,
+      BREAKOUT: 14,
+      NEAR_APEX: 12,
+      RESISTANCE_TEST: 10,
+      SUPPORT_TEST: 9,
+      APPROACHING_RESISTANCE: 8,
+      APPROACHING_SUPPORT: 7,
+      DEVELOPING: 5,
+      BREAKDOWN: 3,
+      BREAKDOWN_CONFIRMED: 2,
+      FAILED_BREAKOUT: 1,
+    };
+    return stateRanks[structure.keyLevelState] ?? stateRanks[structure.primaryPatternState] ?? 0;
+  }
+
+  private formatPriceStructureState(state: string): string {
+    return state
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   // ── Trend Shift (day-over-day RSI momentum) ────────────────────────────────

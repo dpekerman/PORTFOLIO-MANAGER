@@ -22,6 +22,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import * as XLSX from 'xlsx';
 import {
+  PriceStructureResult,
   RsiScanResult,
   ValueScreenerResult,
   WatchlistSummary,
@@ -70,6 +71,7 @@ type SortColumn =
   | 'trendSetup'
   | 'momentumShift'
   | 'channel'
+  | 'priceStructure'
   | 'finalAction'
   | 'technical'
   | 'valueScore'
@@ -242,6 +244,65 @@ export class WatchlistPageComponent {
         CHANNEL_BROKEN: 5,
       }[state ?? 'NONE'] ?? 0
     );
+  }
+
+  protected priceStructureForSymbol(
+    symbol: string,
+    summary?: WatchlistSummary,
+  ): PriceStructureResult | null {
+    const key = symbol.toUpperCase();
+    return (
+      summary?.priceStructure ??
+      this.watchlist.items().find((item) => item.item.symbol.toUpperCase() === key)
+        ?.priceStructure ??
+      this.rsiMap().get(key)?.priceStructure ??
+      null
+    );
+  }
+
+  protected priceStructureLabel(symbol: string, summary?: WatchlistSummary): string {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    if (!structure || structure.label === '—') return '';
+    if (structure.keyLevelPrice && structure.primaryPatternType === 'NONE') {
+      return `${this.formatPriceStructureState(structure.keyLevelState)} @ ${structure.keyLevelPrice.toFixed(2)}`;
+    }
+    return structure.label;
+  }
+
+  protected priceStructureTooltip(symbol: string, summary?: WatchlistSummary): string {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    if (!structure || structure.label === '—') return '';
+    const keyLevel = structure.keyLevelPrice
+      ? `\n\nKEY TECHNICAL LEVEL\nState: ${structure.keyLevelState}\nRole: ${structure.keyLevelRole}\nPrimary Level: ${structure.keyLevelType}\nLevel: $${structure.keyLevelPrice.toFixed(2)}\nDistance: ${structure.keyLevelDistancePercent ?? '—'}%\nDistance ATR: ${structure.keyLevelDistanceAtr ?? '—'}\nBreakout Trigger: ${structure.breakoutTriggerPrice?.toFixed(2) ?? '—'}\nBreakdown Trigger: ${structure.breakdownTriggerPrice?.toFixed(2) ?? '—'}\nSources: ${(structure.keyLevelSources ?? []).join(', ') || '—'}\nConfluence: ${structure.keyLevelConfluenceCount}`
+      : '';
+    return `PRICE STRUCTURE\n\nPRIMARY PATTERN\nPattern: ${structure.primaryPatternType}\nState: ${structure.primaryPatternState}\nQuality: ${structure.primaryPatternQuality}/100\nHorizon: ${structure.primaryPatternHorizon ?? '—'} trading days\nPattern Start: ${structure.patternStart ?? '—'}\nContraction: ${structure.contractionPercent}%\nIndependent Upper Touches: ${structure.independentUpperTouchCount}\nIndependent Lower Touches: ${structure.independentLowerTouchCount}${keyLevel}`;
+  }
+
+  protected priceStructureSortValue(symbol: string, summary?: WatchlistSummary): number {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    if (!structure) return 0;
+    const stateRanks: Record<string, number> = {
+      BREAKOUT_CONFIRMED: 16,
+      SUPPORT_RECLAIM: 15,
+      BREAKOUT: 14,
+      NEAR_APEX: 12,
+      RESISTANCE_TEST: 10,
+      SUPPORT_TEST: 9,
+      APPROACHING_RESISTANCE: 8,
+      APPROACHING_SUPPORT: 7,
+      DEVELOPING: 5,
+      BREAKDOWN: 3,
+      BREAKDOWN_CONFIRMED: 2,
+      FAILED_BREAKOUT: 1,
+    };
+    return stateRanks[structure.keyLevelState] ?? stateRanks[structure.primaryPatternState] ?? 0;
+  }
+
+  private formatPriceStructureState(state: string): string {
+    return state
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
@@ -597,6 +658,10 @@ export class WatchlistPageComponent {
         case 'channel':
           av = this.channelSortValue(a.item.symbol);
           bv = this.channelSortValue(b.item.symbol);
+          break;
+        case 'priceStructure':
+          av = this.priceStructureSortValue(a.item.symbol, a);
+          bv = this.priceStructureSortValue(b.item.symbol, b);
           break;
         case 'finalAction':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.finalAction ?? '';

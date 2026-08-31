@@ -109,21 +109,21 @@
       </div>
     </div>
     <!-- ── Chart ─────────────────────────────────────────────────────────── -->
-    <mat-card class="db-chart-card"
-      ><mat-card-content>
-        <div class="db-chart-header">
-          <div class="db-chart-header-left">
-            <button
-              mat-icon-button
-              routerLink="/portfolio"
-              matTooltip="Go to Portfolio"
-              class="panel-nav-btn"
-              aria-label="Portfolio"
-            >
-              <mat-icon>show_chart</mat-icon>
-            </button>
-            <span class="db-chart-title">Portfolio value history</span>
-          </div>
+    <mat-card class="db-chart-card">
+      <div class="db-card-header">
+        <div class="db-panel-hd-left">
+          <button
+            mat-icon-button
+            routerLink="/portfolio"
+            matTooltip="Go to Portfolio"
+            class="panel-nav-btn"
+            aria-label="Portfolio"
+          >
+            <mat-icon>show_chart</mat-icon>
+          </button>
+          <span class="db-chart-title">Portfolio value history</span>
+        </div>
+        <div class="db-panel-hd-right">
           <mat-button-toggle-group
             [value]="selectedRange()"
             (change)="selectedRange.set($event.value)"
@@ -134,68 +134,90 @@
               <mat-button-toggle [value]="r">{{ r }}</mat-button-toggle>
             }
           </mat-button-toggle-group>
-        </div>
-        @if (svgChart(); as chart) {
-          <svg
-            class="db-svg"
-            [attr.viewBox]="chart.viewBox"
-            preserveAspectRatio="none"
-            role="img"
-            aria-label="Portfolio value chart"
+          <button
+            mat-icon-button
+            (click)="toggleExpanded('portfolio-value-history')"
+            [matTooltip]="isExpanded('portfolio-value-history') ? 'Collapse' : 'Expand chart'"
+            aria-label="Toggle chart"
           >
-            <defs>
-              <linearGradient id="gradUp" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#1a9e7a" stop-opacity="0.28" />
-                <stop offset="100%" stop-color="#1a9e7a" stop-opacity="0" />
-              </linearGradient>
-              <linearGradient id="gradDown" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#e53e3e" stop-opacity="0.28" />
-                <stop offset="100%" stop-color="#e53e3e" stop-opacity="0" />
-              </linearGradient>
-            </defs>
-            @for (yl of chart.yLabels; track yl.label) {
+            <mat-icon>{{
+              isExpanded('portfolio-value-history') ? 'expand_less' : 'expand_more'
+            }}</mat-icon>
+          </button>
+        </div>
+      </div>
+      <mat-card-content>
+        @if (isExpanded('portfolio-value-history')) {
+          @if (svgChart(); as chart) {
+            <svg
+              class="db-svg"
+              [attr.viewBox]="chart.viewBox"
+              preserveAspectRatio="none"
+              role="img"
+              aria-label="Portfolio value chart"
+            >
+              <defs>
+                <linearGradient id="gradUp" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#1a9e7a" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#1a9e7a" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="gradDown" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#e53e3e" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#e53e3e" stop-opacity="0" />
+                </linearGradient>
+              </defs>
+              @for (yl of chart.yLabels; track yl.label) {
+                <line
+                  [attr.x1]="chart.padL"
+                  [attr.y1]="yl.gridY"
+                  x2="960"
+                  [attr.y2]="yl.gridY"
+                  class="db-grid-line"
+                />
+                <text
+                  [attr.x]="chart.padL - 5"
+                  [attr.y]="yl.y + 4"
+                  class="db-y-label"
+                  text-anchor="end"
+                >
+                  {{ yl.label }}
+                </text>
+              }
               <line
-                [attr.x1]="chart.padL"
-                [attr.y1]="yl.gridY"
+                x1="0"
+                [attr.y1]="chart.baselineY"
                 x2="960"
-                [attr.y2]="yl.gridY"
-                class="db-grid-line"
+                [attr.y2]="chart.baselineY"
+                class="db-baseline"
               />
-              <text
-                [attr.x]="chart.padL - 5"
-                [attr.y]="yl.y + 4"
-                class="db-y-label"
-                text-anchor="end"
-              >
-                {{ yl.label }}
-              </text>
-            }
-            <line
-              x1="0"
-              [attr.y1]="chart.baselineY"
-              x2="960"
-              [attr.y2]="chart.baselineY"
-              class="db-baseline"
-            />
-            <path
-              [attr.d]="chart.areaPath"
-              [attr.fill]="chart.isUp ? 'url(#gradUp)' : 'url(#gradDown)'"
-            />
-            <path [attr.d]="chart.linePath" [class]="chart.isUp ? 'db-line up' : 'db-line down'" />
-            @for (lbl of chart.xLabels; track lbl.label) {
-              <text [attr.x]="lbl.x" y="206" class="db-x-label" text-anchor="middle">
-                {{ lbl.label }}
-              </text>
-            }
-          </svg>
+              <path
+                [attr.d]="chart.areaPath"
+                [attr.fill]="chart.isUp ? 'url(#gradUp)' : 'url(#gradDown)'"
+              />
+              <path
+                [attr.d]="chart.linePath"
+                [class]="chart.isUp ? 'db-line up' : 'db-line down'"
+              />
+              @for (lbl of chart.xLabels; track lbl.label) {
+                <text [attr.x]="lbl.x" y="206" class="db-x-label" text-anchor="middle">
+                  {{ lbl.label }}
+                </text>
+              }
+            </svg>
+          } @else {
+            <div class="db-chart-empty">
+              <mat-icon>show_chart</mat-icon>
+              <p>Value history appears after the next portfolio close is recorded.</p>
+            </div>
+          }
         } @else {
-          <div class="db-chart-empty">
-            <mat-icon>show_chart</mat-icon>
-            <p>Value history appears after the next portfolio close is recorded.</p>
-          </div>
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view portfolio value
+            chart.
+          </p>
         }
-      </mat-card-content></mat-card
-    >
+      </mat-card-content>
+    </mat-card>
     <!-- ── Main 2-col grid ───────────────────────────────────────────────── -->
     <div class="db-grid">
       <!-- Top movers -->
@@ -213,78 +235,102 @@
             </button>
             <span class="db-panel-title">Top movers</span>
           </div>
-          <mat-select
-            [value]="moversCount()"
-            (selectionChange)="moversCount.set($event.value)"
-            class="movers-count-sel"
-            aria-label="Number of movers"
-          >
-            @for (n of moversOptions; track n) {
-              <mat-option [value]="n">{{ n }}</mat-option>
-            }
-          </mat-select>
-        </div>
-        <!-- Side-by-side: Portfolio | Watchlist -->
-        <div class="db-movers-cols">
-          <!-- Portfolio movers -->
-          <div class="db-movers-col">
-            <div class="db-movers-col-hd">
-              <mat-icon class="db-movers-col-ico">account_balance_wallet</mat-icon> Portfolio
-            </div>
-            <div class="db-mover-list">
-              @for (m of portfolioTopMovers(); track m.symbol) {
-                <div class="db-mover-row">
-                  <span class="mover-sym">{{ m.symbol }}</span>
-                  <span class="mover-name">{{ m.companyName }}</span>
-                  <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
-                </div>
-              } @empty {
-                <p class="db-muted">—</p>
+          <div class="db-panel-hd-right">
+            <mat-select
+              [value]="moversCount()"
+              (selectionChange)="moversCount.set($event.value)"
+              class="movers-count-sel"
+              aria-label="Number of movers"
+            >
+              @for (n of moversOptions; track n) {
+                <mat-option [value]="n">{{ n }}</mat-option>
               }
-            </div>
-            <div class="db-sub-hd">Losers</div>
-            <div class="db-mover-list">
-              @for (m of portfolioBottomMovers(); track m.symbol) {
-                <div class="db-mover-row">
-                  <span class="mover-sym">{{ m.symbol }}</span>
-                  <span class="mover-name">{{ m.companyName }}</span>
-                  <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
-                </div>
-              } @empty {
-                <p class="db-muted">—</p>
-              }
-            </div>
-          </div>
-          <!-- Watchlist movers -->
-          <div class="db-movers-col">
-            <div class="db-movers-col-hd">
-              <mat-icon class="db-movers-col-ico">visibility</mat-icon> Watchlist
-            </div>
-            <div class="db-mover-list">
-              @for (m of watchlistTopMovers(); track m.symbol) {
-                <div class="db-mover-row">
-                  <span class="mover-sym">{{ m.symbol }}</span>
-                  <span class="mover-name">{{ m.companyName }}</span>
-                  <span class="mover-badge positive">{{ m.changePercent | number: '1.2-2' }}%</span>
-                </div>
-              } @empty {
-                <p class="db-muted">—</p>
-              }
-            </div>
-            <div class="db-sub-hd">Losers</div>
-            <div class="db-mover-list">
-              @for (m of watchlistBottomMovers(); track m.symbol) {
-                <div class="db-mover-row">
-                  <span class="mover-sym">{{ m.symbol }}</span>
-                  <span class="mover-name">{{ m.companyName }}</span>
-                  <span class="mover-badge negative">{{ m.changePercent | number: '1.2-2' }}%</span>
-                </div>
-              } @empty {
-                <p class="db-muted">—</p>
-              }
-            </div>
+            </mat-select>
+            <button
+              mat-icon-button
+              (click)="toggleExpanded('top-movers')"
+              [matTooltip]="isExpanded('top-movers') ? 'Collapse' : 'Expand movers'"
+              aria-label="Toggle movers"
+            >
+              <mat-icon>{{ isExpanded('top-movers') ? 'expand_less' : 'expand_more' }}</mat-icon>
+            </button>
           </div>
         </div>
+        @if (isExpanded('top-movers')) {
+          <!-- Side-by-side: Portfolio | Watchlist -->
+          <div class="db-movers-cols">
+            <!-- Portfolio movers -->
+            <div class="db-movers-col">
+              <div class="db-movers-col-hd">
+                <mat-icon class="db-movers-col-ico">account_balance_wallet</mat-icon> Portfolio
+              </div>
+              <div class="db-mover-list">
+                @for (m of portfolioTopMovers(); track m.symbol) {
+                  <div class="db-mover-row">
+                    <span class="mover-sym">{{ m.symbol }}</span>
+                    <span class="mover-name">{{ m.companyName }}</span>
+                    <span class="mover-badge positive"
+                      >{{ m.changePercent | number: '1.2-2' }}%</span
+                    >
+                  </div>
+                } @empty {
+                  <p class="db-muted">—</p>
+                }
+              </div>
+              <div class="db-sub-hd">Losers</div>
+              <div class="db-mover-list">
+                @for (m of portfolioBottomMovers(); track m.symbol) {
+                  <div class="db-mover-row">
+                    <span class="mover-sym">{{ m.symbol }}</span>
+                    <span class="mover-name">{{ m.companyName }}</span>
+                    <span class="mover-badge negative"
+                      >{{ m.changePercent | number: '1.2-2' }}%</span
+                    >
+                  </div>
+                } @empty {
+                  <p class="db-muted">—</p>
+                }
+              </div>
+            </div>
+            <!-- Watchlist movers -->
+            <div class="db-movers-col">
+              <div class="db-movers-col-hd">
+                <mat-icon class="db-movers-col-ico">visibility</mat-icon> Watchlist
+              </div>
+              <div class="db-mover-list">
+                @for (m of watchlistTopMovers(); track m.symbol) {
+                  <div class="db-mover-row">
+                    <span class="mover-sym">{{ m.symbol }}</span>
+                    <span class="mover-name">{{ m.companyName }}</span>
+                    <span class="mover-badge positive"
+                      >{{ m.changePercent | number: '1.2-2' }}%</span
+                    >
+                  </div>
+                } @empty {
+                  <p class="db-muted">—</p>
+                }
+              </div>
+              <div class="db-sub-hd">Losers</div>
+              <div class="db-mover-list">
+                @for (m of watchlistBottomMovers(); track m.symbol) {
+                  <div class="db-mover-row">
+                    <span class="mover-sym">{{ m.symbol }}</span>
+                    <span class="mover-name">{{ m.companyName }}</span>
+                    <span class="mover-badge negative"
+                      >{{ m.changePercent | number: '1.2-2' }}%</span
+                    >
+                  </div>
+                } @empty {
+                  <p class="db-muted">—</p>
+                }
+              </div>
+            </div>
+          </div>
+        } @else {
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view top/bottom movers.
+          </p>
+        }
       </mat-card>
       <!-- Market indices -->
       <mat-card class="db-panel">
@@ -301,24 +347,38 @@
             </button>
             <span class="db-panel-title">Market indices</span>
           </div>
+          <button
+            mat-icon-button
+            (click)="toggleExpanded('market-indices')"
+            [matTooltip]="isExpanded('market-indices') ? 'Collapse' : 'Expand indices'"
+            aria-label="Toggle indices"
+          >
+            <mat-icon>{{ isExpanded('market-indices') ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
         </div>
-        <div class="db-index-list">
-          @for (idx of data.marketIndices; track idx.symbol) {
-            <div class="db-index-row">
-              <span class="idx-name">{{ idx.name }}</span>
-              <span class="idx-price">{{ fmtIdx(idx.price) }}</span>
-              <span class="idx-chg" [class]="signCls(idx.change)"
-                >{{ idx.change >= 0 ? '+' : '-' }}{{ fmtChg(idx.change) }}</span
-              >
-              <span class="idx-pct" [class]="signCls(idx.changePercent)"
-                >{{ idx.changePercent >= 0 ? '+' : ''
-                }}{{ idx.changePercent | number: '1.2-2' }}%</span
-              >
-            </div>
-          } @empty {
-            <p class="db-muted">Index data appears on next refresh.</p>
-          }
-        </div>
+        @if (isExpanded('market-indices')) {
+          <div class="db-index-list">
+            @for (idx of data.marketIndices; track idx.symbol) {
+              <div class="db-index-row">
+                <span class="idx-name">{{ idx.name }}</span>
+                <span class="idx-price">{{ fmtIdx(idx.price) }}</span>
+                <span class="idx-chg" [class]="signCls(idx.change)"
+                  >{{ idx.change >= 0 ? '+' : '-' }}{{ fmtChg(idx.change) }}</span
+                >
+                <span class="idx-pct" [class]="signCls(idx.changePercent)"
+                  >{{ idx.changePercent >= 0 ? '+' : ''
+                  }}{{ idx.changePercent | number: '1.2-2' }}%</span
+                >
+              </div>
+            } @empty {
+              <p class="db-muted">Index data appears on next refresh.</p>
+            }
+          </div>
+        } @else {
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view market indices.
+          </p>
+        }
       </mat-card>
       <!-- Market Leadership — collapsible, spans both grid columns -->
       <mat-card class="db-panel db-span-2">
@@ -332,14 +392,16 @@
           </div>
           <button
             mat-icon-button
-            (click)="leadershipExpanded.set(!leadershipExpanded())"
-            [matTooltip]="leadershipExpanded() ? 'Collapse' : 'Expand market leadership'"
+            (click)="toggleExpanded('market-leadership')"
+            [matTooltip]="isExpanded('market-leadership') ? 'Collapse' : 'Expand market leadership'"
             aria-label="Toggle market leadership"
           >
-            <mat-icon>{{ leadershipExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+            <mat-icon>{{
+              isExpanded('market-leadership') ? 'expand_less' : 'expand_more'
+            }}</mat-icon>
           </button>
         </div>
-        @if (leadershipExpanded()) {
+        @if (isExpanded('market-leadership')) {
           <app-market-leadership-widget />
         } @else {
           <p class="db-collapsed-hint">
@@ -365,8 +427,8 @@
           </div>
           <button
             mat-icon-button
-            (click)="rsiExpanded.set(!rsiExpanded())"
-            [matTooltip]="rsiExpanded() ? 'Collapse' : 'Expand signals'"
+            (click)="toggleExpanded('market-signals')"
+            [matTooltip]="isExpanded('market-signals') ? 'Collapse' : 'Expand signals'"
             aria-label="Toggle signal details"
             [style.display]="
               data.rsiSection &&
@@ -376,7 +438,7 @@
                 : 'none'
             "
           >
-            <mat-icon>{{ rsiExpanded() ? 'expand_less' : 'expand_more' }}</mat-icon>
+            <mat-icon>{{ isExpanded('market-signals') ? 'expand_less' : 'expand_more' }}</mat-icon>
           </button>
         </div>
         @if (filteredRsiSection(); as rsi) {
@@ -421,7 +483,7 @@
               ><span>Action req.</span>
             </button>
           </div>
-          @if (rsiExpanded()) {
+          @if (isExpanded('market-signals')) {
             @if (rsi.oversoldSignals.length === 0 && rsi.overboughtSignals.length === 0) {
               <div class="db-sig-no-data">
                 <mat-icon>radar</mat-icon>
@@ -451,6 +513,11 @@
                     <tr>
                       <td class="st-sym">
                         {{ s.symbol }}
+                        @if (s.isInPortfolio) {
+                          <span class="db-owner-badge portfolio">P</span>
+                        } @else if (s.isInWatchlist) {
+                          <span class="db-owner-badge watchlist">W</span>
+                        }
                         @if (s.isNewToday) {
                           <span class="db-row-badge db-new">NEW</span>
                         }
@@ -520,6 +587,11 @@
                     <tr>
                       <td class="st-sym">
                         {{ s.symbol }}
+                        @if (s.isInPortfolio) {
+                          <span class="db-owner-badge portfolio">P</span>
+                        } @else if (s.isInWatchlist) {
+                          <span class="db-owner-badge watchlist">W</span>
+                        }
                         @if (s.isNewToday) {
                           <span class="db-row-badge db-new">NEW</span>
                         }
@@ -603,204 +675,222 @@
             <span class="db-panel-title">Allocation vs targets</span>
           </div>
           <!-- Tab toggles -->
-          <div class="db-alloc-tabs">
+          <div class="db-panel-hd-right">
+            <div class="db-alloc-tabs">
+              <button
+                class="db-alloc-tab"
+                [class.active]="allocTab() === 'sector'"
+                (click)="allocTab.set('sector')"
+                type="button"
+              >
+                Sector
+              </button>
+              <button
+                class="db-alloc-tab"
+                [class.active]="allocTab() === 'role'"
+                (click)="allocTab.set('role')"
+                type="button"
+              >
+                By Role
+              </button>
+            </div>
             <button
-              class="db-alloc-tab"
-              [class.active]="allocTab() === 'sector'"
-              (click)="allocTab.set('sector')"
-              type="button"
+              mat-icon-button
+              (click)="toggleExpanded('allocation')"
+              [matTooltip]="isExpanded('allocation') ? 'Collapse' : 'Expand allocation'"
+              aria-label="Toggle allocation"
             >
-              Sector
-            </button>
-            <button
-              class="db-alloc-tab"
-              [class.active]="allocTab() === 'role'"
-              (click)="allocTab.set('role')"
-              type="button"
-            >
-              By Role
+              <mat-icon>{{ isExpanded('allocation') ? 'expand_less' : 'expand_more' }}</mat-icon>
             </button>
           </div>
         </div>
 
-        <!-- SECTOR view -->
-        @if (allocTab() === 'sector') {
-          <div class="db-alloc-table-wrap">
-            <table class="db-alloc-table" aria-label="Sector allocation vs targets">
-              <thead>
-                <tr>
-                  <th class="sortable" (click)="toggleSectorSort('label')">
-                    Sector
-                    @if (sectorSortCol() === 'label') {
-                      <mat-icon class="sort-icon">{{
-                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
-                      }}</mat-icon>
-                    }
-                  </th>
-                  <th class="sortable alloc-num" (click)="toggleSectorSort('percent')">
-                    Actual
-                    @if (sectorSortCol() === 'percent') {
-                      <mat-icon class="sort-icon">{{
-                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
-                      }}</mat-icon>
-                    }
-                  </th>
-                  <th class="sortable alloc-num" (click)="toggleSectorSort('targetPercent')">
-                    Target
-                    @if (sectorSortCol() === 'targetPercent') {
-                      <mat-icon class="sort-icon">{{
-                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
-                      }}</mat-icon>
-                    }
-                  </th>
-                  <th class="sortable alloc-num" (click)="toggleSectorSort('delta')">
-                    Delta
-                    @if (sectorSortCol() === 'delta') {
-                      <mat-icon class="sort-icon">{{
-                        sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
-                      }}</mat-icon>
-                    }
-                  </th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (s of sortedSectorAllocation(); track s.label) {
+        @if (isExpanded('allocation')) {
+          <!-- SECTOR view -->
+          @if (allocTab() === 'sector') {
+            <div class="db-alloc-table-wrap">
+              <table class="db-alloc-table" aria-label="Sector allocation vs targets">
+                <thead>
                   <tr>
-                    <td class="alloc-sector">{{ s.label }}</td>
-                    <td class="alloc-num">
-                      {{ s.percent | number: '1.1-1' }}%
-                      <div class="alloc-bar-mini">
-                        <span
-                          [style.width.%]="s.percent"
-                          [class]="allocStatusClass(s.status)"
-                        ></span>
-                      </div>
-                    </td>
-                    <td class="alloc-num">
-                      {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
-                    </td>
-                    <td class="alloc-num" [class]="signCls(s.delta)">
-                      {{
-                        s.targetPercent > 0
-                          ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
-                          : '—'
-                      }}
-                    </td>
-                    <td>
-                      <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
-                        s.status === 'good'
-                          ? 'On target'
-                          : s.status === 'watch-over'
-                            ? 'Slight over'
-                            : s.status === 'watch-under'
-                              ? 'Slight under'
-                              : s.status === 'over'
-                                ? 'Over'
-                                : s.status === 'under'
-                                  ? 'Under'
-                                  : 'No target'
-                      }}</span>
-                    </td>
+                    <th class="sortable" (click)="toggleSectorSort('label')">
+                      Sector
+                      @if (sectorSortCol() === 'label') {
+                        <mat-icon class="sort-icon">{{
+                          sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                        }}</mat-icon>
+                      }
+                    </th>
+                    <th class="sortable alloc-num" (click)="toggleSectorSort('percent')">
+                      Actual
+                      @if (sectorSortCol() === 'percent') {
+                        <mat-icon class="sort-icon">{{
+                          sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                        }}</mat-icon>
+                      }
+                    </th>
+                    <th class="sortable alloc-num" (click)="toggleSectorSort('targetPercent')">
+                      Target
+                      @if (sectorSortCol() === 'targetPercent') {
+                        <mat-icon class="sort-icon">{{
+                          sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                        }}</mat-icon>
+                      }
+                    </th>
+                    <th class="sortable alloc-num" (click)="toggleSectorSort('delta')">
+                      Delta
+                      @if (sectorSortCol() === 'delta') {
+                        <mat-icon class="sort-icon">{{
+                          sectorSortDir() === 1 ? 'arrow_upward' : 'arrow_downward'
+                        }}</mat-icon>
+                      }
+                    </th>
+                    <th>Status</th>
                   </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="5" class="db-muted">
-                      Allocation appears when portfolio quotes are loaded.
+                </thead>
+                <tbody>
+                  @for (s of sortedSectorAllocation(); track s.label) {
+                    <tr>
+                      <td class="alloc-sector">{{ s.label }}</td>
+                      <td class="alloc-num">
+                        {{ s.percent | number: '1.1-1' }}%
+                        <div class="alloc-bar-mini">
+                          <span
+                            [style.width.%]="s.percent"
+                            [class]="allocStatusClass(s.status)"
+                          ></span>
+                        </div>
+                      </td>
+                      <td class="alloc-num">
+                        {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
+                      </td>
+                      <td class="alloc-num" [class]="signCls(s.delta)">
+                        {{
+                          s.targetPercent > 0
+                            ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
+                            : '—'
+                        }}
+                      </td>
+                      <td>
+                        <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
+                          s.status === 'good'
+                            ? 'On target'
+                            : s.status === 'watch-over'
+                              ? 'Slight over'
+                              : s.status === 'watch-under'
+                                ? 'Slight under'
+                                : s.status === 'over'
+                                  ? 'Over'
+                                  : s.status === 'under'
+                                    ? 'Under'
+                                    : 'No target'
+                        }}</span>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="db-muted">
+                        Allocation appears when portfolio quotes are loaded.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="alloc-total-row">
+                    <td><strong>Total</strong></td>
+                    <td class="alloc-num"><strong>100%</strong></td>
+                    <td class="alloc-num">
+                      <strong>{{ sumTargets(data.allocation) | number: '1.1-1' }}%</strong>
                     </td>
+                    <td></td>
+                    <td></td>
                   </tr>
-                }
-              </tbody>
-              <tfoot>
-                <tr class="alloc-total-row">
-                  <td><strong>Total</strong></td>
-                  <td class="alloc-num"><strong>100%</strong></td>
-                  <td class="alloc-num">
-                    <strong>{{ sumTargets(data.allocation) | number: '1.1-1' }}%</strong>
-                  </td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        }
+                </tfoot>
+              </table>
+            </div>
+          }
 
-        <!-- BY ROLE view -->
-        @if (allocTab() === 'role') {
-          <div class="db-alloc-table-wrap">
-            <table class="db-alloc-table" aria-label="Role allocation vs targets">
-              <thead>
-                <tr>
-                  <th>Role</th>
-                  <th>Actual</th>
-                  <th>Target</th>
-                  <th>Delta</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (r of data.roleAllocation ?? []; track r.label) {
+          <!-- BY ROLE view -->
+          @if (allocTab() === 'role') {
+            <div class="db-alloc-table-wrap">
+              <table class="db-alloc-table" aria-label="Role allocation vs targets">
+                <thead>
                   <tr>
-                    <td class="alloc-sector">{{ r.label }}</td>
-                    <td class="alloc-num">
-                      {{ r.percent | number: '1.1-1' }}%
-                      <div class="alloc-bar-mini">
-                        <span
-                          [style.width.%]="r.percent"
-                          [class]="allocStatusClass(r.status)"
-                        ></span>
-                      </div>
-                    </td>
-                    <td class="alloc-num">
-                      {{ r.targetPercent > 0 ? (r.targetPercent | number: '1.1-1') + '%' : '—' }}
-                    </td>
-                    <td class="alloc-num" [class]="signCls(r.delta)">
-                      {{
-                        r.targetPercent > 0
-                          ? (r.delta >= 0 ? '+' : '') + (r.delta | number: '1.1-1') + '%'
-                          : '—'
-                      }}
-                    </td>
-                    <td>
-                      <span class="alloc-status-badge" [class]="allocStatusClass(r.status)">{{
-                        r.status === 'good'
-                          ? 'On target'
-                          : r.status === 'watch-over'
-                            ? 'Slight over'
-                            : r.status === 'watch-under'
-                              ? 'Slight under'
-                              : r.status === 'over'
-                                ? 'Over'
-                                : r.status === 'under'
-                                  ? 'Under'
-                                  : 'No target'
-                      }}</span>
-                    </td>
+                    <th>Role</th>
+                    <th>Actual</th>
+                    <th>Target</th>
+                    <th>Delta</th>
+                    <th>Status</th>
                   </tr>
-                } @empty {
-                  <tr>
-                    <td colspan="5" class="db-muted">
-                      Role allocation appears after next dashboard refresh.
+                </thead>
+                <tbody>
+                  @for (r of data.roleAllocation ?? []; track r.label) {
+                    <tr>
+                      <td class="alloc-sector">{{ r.label }}</td>
+                      <td class="alloc-num">
+                        {{ r.percent | number: '1.1-1' }}%
+                        <div class="alloc-bar-mini">
+                          <span
+                            [style.width.%]="r.percent"
+                            [class]="allocStatusClass(r.status)"
+                          ></span>
+                        </div>
+                      </td>
+                      <td class="alloc-num">
+                        {{ r.targetPercent > 0 ? (r.targetPercent | number: '1.1-1') + '%' : '—' }}
+                      </td>
+                      <td class="alloc-num" [class]="signCls(r.delta)">
+                        {{
+                          r.targetPercent > 0
+                            ? (r.delta >= 0 ? '+' : '') + (r.delta | number: '1.1-1') + '%'
+                            : '—'
+                        }}
+                      </td>
+                      <td>
+                        <span class="alloc-status-badge" [class]="allocStatusClass(r.status)">{{
+                          r.status === 'good'
+                            ? 'On target'
+                            : r.status === 'watch-over'
+                              ? 'Slight over'
+                              : r.status === 'watch-under'
+                                ? 'Slight under'
+                                : r.status === 'over'
+                                  ? 'Over'
+                                  : r.status === 'under'
+                                    ? 'Under'
+                                    : 'No target'
+                        }}</span>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5" class="db-muted">
+                        Role allocation appears after next dashboard refresh.
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="alloc-total-row">
+                    <td><strong>Total</strong></td>
+                    <td class="alloc-num">
+                      <strong>{{ sumActual(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong>
                     </td>
+                    <td class="alloc-num">
+                      <strong
+                        >{{ sumTargets(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong
+                      >
+                    </td>
+                    <td></td>
+                    <td></td>
                   </tr>
-                }
-              </tbody>
-              <tfoot>
-                <tr class="alloc-total-row">
-                  <td><strong>Total</strong></td>
-                  <td class="alloc-num">
-                    <strong>{{ sumActual(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong>
-                  </td>
-                  <td class="alloc-num">
-                    <strong>{{ sumTargets(data.roleAllocation ?? []) | number: '1.1-1' }}%</strong>
-                  </td>
-                  <td></td>
-                  <td></td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                </tfoot>
+              </table>
+            </div>
+          }
+        } @else {
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view allocation.
+          </p>
         }
       </mat-card>
     </div>
@@ -820,19 +910,35 @@
             </button>
             <span class="db-panel-title">Upcoming earnings (next 7 days)</span>
           </div>
+          <button
+            mat-icon-button
+            (click)="toggleExpanded('upcoming-earnings')"
+            [matTooltip]="isExpanded('upcoming-earnings') ? 'Collapse' : 'Expand upcoming earnings'"
+            aria-label="Toggle upcoming earnings"
+          >
+            <mat-icon>{{
+              isExpanded('upcoming-earnings') ? 'expand_less' : 'expand_more'
+            }}</mat-icon>
+          </button>
         </div>
-        <div class="db-earnings-list">
-          @for (e of data.nextSevenDayEarnings; track e.symbol) {
-            <div class="db-earn-chip">
-              <span class="earn-sym">{{ e.symbol }}</span
-              ><span class="earn-name">{{ e.companyName }}</span
-              ><span class="earn-date">{{ e.earningsDate | date: 'MMM d' }}</span
-              ><span class="earn-src" [class.earn-src-manual]="e.source === 'Manual'">{{
-                e.source
-              }}</span>
-            </div>
-          }
-        </div>
+        @if (isExpanded('upcoming-earnings')) {
+          <div class="db-earnings-list">
+            @for (e of data.nextSevenDayEarnings; track e.symbol) {
+              <div class="db-earn-chip">
+                <span class="earn-sym">{{ e.symbol }}</span
+                ><span class="earn-name">{{ e.companyName }}</span
+                ><span class="earn-date">{{ e.earningsDate | date: 'MMM d' }}</span
+                ><span class="earn-src" [class.earn-src-manual]="e.source === 'Manual'">{{
+                  e.source
+                }}</span>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="db-collapsed-hint">
+            Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view upcoming earnings.
+          </p>
+        }
       </mat-card>
     }
     <!-- Scan now nav hidden — available via RSI Scanner page in nav -->
@@ -846,17 +952,31 @@
             <span class="db-panel-badge">{{ actionsCount() }}</span>
           }
         </div>
-      </div>
-      <div class="db-how-to">
-        <mat-icon class="db-how-to-ico">info_outline</mat-icon>
-        <span
-          >Shows Portfolio and Active Watchlist securities with a meaningful technical, structural,
-          allocation, or risk condition. Holdings and watchlist items are evaluated separately:
-          REQUIRED = act now · DEVELOPING = monitor closely · INFORMATIONAL = no immediate
-          action.</span
+        <button
+          mat-icon-button
+          (click)="toggleExpanded('action-center')"
+          [matTooltip]="isExpanded('action-center') ? 'Collapse' : 'Expand action center'"
+          aria-label="Toggle action center"
         >
+          <mat-icon>{{ isExpanded('action-center') ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
-      <app-portfolio-actions-widget />
+      @if (isExpanded('action-center')) {
+        <div class="db-how-to">
+          <mat-icon class="db-how-to-ico">info_outline</mat-icon>
+          <span
+            >Shows Portfolio and Active Watchlist securities with a meaningful technical,
+            structural, allocation, or risk condition. Holdings and watchlist items are evaluated
+            separately: REQUIRED = act now · DEVELOPING = monitor closely · INFORMATIONAL = no
+            immediate action.</span
+          >
+        </div>
+        <app-portfolio-actions-widget />
+      } @else {
+        <p class="db-collapsed-hint">
+          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view action center.
+        </p>
+      }
     </mat-card>
     <!-- ── Changed Today ──────────────────────────────────────────────── -->
     <mat-card class="db-panel db-full-width-panel">
@@ -868,8 +988,22 @@
             <span class="db-panel-badge">{{ stateChangesCount() }}</span>
           }
         </div>
+        <button
+          mat-icon-button
+          (click)="toggleExpanded('signal-changes')"
+          [matTooltip]="isExpanded('signal-changes') ? 'Collapse' : 'Expand signal changes'"
+          aria-label="Toggle signal changes"
+        >
+          <mat-icon>{{ isExpanded('signal-changes') ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
-      <app-state-changes-widget />
+      @if (isExpanded('signal-changes')) {
+        <app-state-changes-widget />
+      } @else {
+        <p class="db-collapsed-hint">
+          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view signal changes.
+        </p>
+      }
     </mat-card>
     <!-- ── Priority Candidates ────────────────────────────────────────── -->
     <mat-card class="db-panel db-full-width-panel">
@@ -878,8 +1012,26 @@
           <mat-icon class="db-panel-ico">star_rate</mat-icon>
           <span class="db-panel-title">Priority candidates</span>
         </div>
+        <button
+          mat-icon-button
+          (click)="toggleExpanded('priority-candidates')"
+          [matTooltip]="
+            isExpanded('priority-candidates') ? 'Collapse' : 'Expand priority candidates'
+          "
+          aria-label="Toggle priority candidates"
+        >
+          <mat-icon>{{
+            isExpanded('priority-candidates') ? 'expand_less' : 'expand_more'
+          }}</mat-icon>
+        </button>
       </div>
-      <app-priority-candidates-widget />
+      @if (isExpanded('priority-candidates')) {
+        <app-priority-candidates-widget />
+      } @else {
+        <p class="db-collapsed-hint">
+          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view priority candidates.
+        </p>
+      }
     </mat-card>
     <!-- ── Performance Summary ────────────────────────────────────────── -->
     <mat-card class="db-panel db-full-width-panel">
@@ -888,8 +1040,22 @@
           <mat-icon class="db-panel-ico">show_chart</mat-icon>
           <span class="db-panel-title">YTD performance</span>
         </div>
+        <button
+          mat-icon-button
+          (click)="toggleExpanded('ytd-performance')"
+          [matTooltip]="isExpanded('ytd-performance') ? 'Collapse' : 'Expand YTD performance'"
+          aria-label="Toggle YTD performance"
+        >
+          <mat-icon>{{ isExpanded('ytd-performance') ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
       </div>
-      <app-performance-summary-widget />
+      @if (isExpanded('ytd-performance')) {
+        <app-performance-summary-widget />
+      } @else {
+        <p class="db-collapsed-hint">
+          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view YTD performance.
+        </p>
+      }
     </mat-card>
   }
 </section>

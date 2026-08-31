@@ -55,6 +55,7 @@ export interface StockQuote {
 export interface PortfolioSummary {
   item: PortfolioItem;
   quote: StockQuote | null;
+  priceStructure?: PriceStructureResult | null;
 }
 
 export interface WatchlistItem {
@@ -74,6 +75,7 @@ export interface WatchlistItem {
 export interface WatchlistSummary {
   item: WatchlistItem;
   quote: StockQuote | null;
+  priceStructure?: PriceStructureResult | null;
 }
 
 export interface DataRefreshResultDto {
@@ -293,6 +295,7 @@ export interface RsiScanResult {
     bounceATR: number;
     confirmedBounce: boolean;
   }>;
+  priceStructure: PriceStructureResult;
 }
 
 export interface ScannerResponse {
@@ -717,6 +720,8 @@ export interface DashboardRsiSignal {
   returnPct: number;
   action: string;
   signalStatus: string;
+  isInPortfolio: boolean;
+  isInWatchlist: boolean;
   isNewToday: boolean;
   isActionRequired: boolean;
   severity: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
@@ -964,6 +969,28 @@ export interface PriceStructureResult {
   atr: number;
   ema9: number;
   volumeRatio20: number;
+  rawPivotHighCount: number;
+  rawPivotLowCount: number;
+  independentUpperTouchCount: number;
+  independentLowerTouchCount: number;
+  upperFitQuality: number;
+  lowerFitQuality: number;
+  primaryPatternType: string;
+  primaryPatternState: string;
+  primaryPatternQuality: number;
+  primaryPatternHorizon: number | null;
+  keyLevelPrice: number | null;
+  keyLevelType: string;
+  keyLevelRole: string;
+  keyLevelState: string;
+  keyLevelDistancePercent: number | null;
+  keyLevelDistanceAtr: number | null;
+  keyLevelQuality: number;
+  keyLevelSources: string[];
+  keyLevelConfluenceCount: number;
+  breakoutTriggerPrice: number | null;
+  breakdownTriggerPrice: number | null;
+  calculatedAt: string;
 }
 
 export interface MarketLeadershipResponse {

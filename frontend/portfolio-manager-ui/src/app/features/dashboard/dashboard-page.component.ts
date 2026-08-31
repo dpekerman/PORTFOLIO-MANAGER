@@ -11,6 +11,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { DashboardAllocation, DashboardRsiSection } from '../../core/models/portfolio.models';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
@@ -62,6 +63,7 @@ export class DashboardPageComponent {
     'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
   >('ALL');
   protected readonly dashboard = inject(DashboardStateService);
+  protected readonly collapseState = inject(DashboardCollapseStateService);
   private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeService);
   protected readonly appRefresh = inject(AppRefreshService);
@@ -72,8 +74,6 @@ export class DashboardPageComponent {
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
-  /** Whether the RSI signals detail table is expanded. */
-  protected readonly rsiExpanded = signal(true);
   protected readonly filteredRsiSection = computed<DashboardRsiSection | null>(() => {
     const section = this.snapshot()?.rsiSection;
     if (!section) return null;
@@ -105,8 +105,16 @@ export class DashboardPageComponent {
       ? `View all ${count} ${type.toLowerCase()} →`
       : 'Open in EOD Signals →';
   }
-  /** Whether the Market Leadership section is expanded. */
-  protected readonly leadershipExpanded = signal(false);
+
+  /** Check if a section is expanded (uses DashboardCollapseStateService). */
+  protected isExpanded(sectionId: string): boolean {
+    return this.collapseState.isExpanded(sectionId);
+  }
+
+  /** Toggle collapse state for a section (uses DashboardCollapseStateService). */
+  protected toggleExpanded(sectionId: string): void {
+    this.collapseState.toggleCollapsed(sectionId);
+  }
 
   protected addMarketTracker(): void {
     this.dialog.open(AddMarketTrackerDialogComponent, { autoFocus: 'first-tabbable' });

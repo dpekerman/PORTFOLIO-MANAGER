@@ -160,6 +160,7 @@ public class RsiScanResult
     public decimal? DistanceToGapAbovePercent { get; set; }
     public decimal? DistanceToGapBelowPercent { get; set; }
     public List<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails { get; set; } = [];
+    public PortfolioManager.Api.Services.PriceStructureResult PriceStructure { get; set; } = PortfolioManager.Api.Services.PriceStructureResult.None;
     public decimal VolumeProjection { get; set; }
     public decimal PositionSizingShares { get; set; }
     public decimal PositionSizingRiskAmount { get; set; }

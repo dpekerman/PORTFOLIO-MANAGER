@@ -96,6 +96,21 @@
   }
 }
 
+.structure-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 180px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(26, 158, 122, 0.12);
+  color: #1a9e7a;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 // RSI cell
 .rsi-cell {
   display: flex;

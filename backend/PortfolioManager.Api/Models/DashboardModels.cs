@@ -63,6 +63,8 @@ public sealed record DashboardRsiSignal(
     decimal ReturnPct,
     string Action,
     string SignalStatus,
+    bool IsInPortfolio,
+    bool IsInWatchlist,
     bool IsNewToday,
     bool IsActionRequired,
     string Severity,

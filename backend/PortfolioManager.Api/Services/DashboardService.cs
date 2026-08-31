@@ -45,6 +45,13 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
 
         var portfolio = DeserializeList<PortfolioSummaryDto>(portfolioSnapshot?.SnapshotJson ?? "[]");
         var watchlist = DeserializeList<WatchlistSummaryDto>(watchlistSnapshot?.SnapshotJson ?? "[]");
+        var activePortfolioSymbols = portfolio
+            .Where(s => !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .Select(s => s.Item.Symbol)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var watchlistSymbols = watchlist
+            .Select(s => s.Item.Symbol)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var scanner = Deserialize<ScannerResponse>(rsiSnapshot?.SnapshotJson ?? "{}")
             ?? new ScannerResponse();
         var stagedSignals = await db.StagedSignals.AsNoTracking()
@@ -109,7 +116,7 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             .Where(s => !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
             .Select(s => (Summary: s, IsPortfolio: true, IsWatchlist: false))
             .Concat(watchlist.Select(s => (Summary: new PortfolioSummaryDto(
-                new PortfolioItemDto(s.Item.Id, s.Item.Symbol, s.Item.Symbol, 0, 0, "", "", false, false, null, s.Item.AddedAt), s.Quote),
+                new PortfolioItemDto(s.Item.Id, s.Item.Symbol, s.Item.Symbol, 0, 0, "", "", false, false, null, s.Item.AddedAt), s.Quote, s.PriceStructure),
                 IsPortfolio: false, IsWatchlist: true)));
         var movers = moverSources
             .Where(s => s.Summary.Quote is not null)
@@ -228,21 +235,11 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var newToday = 0;
         var actionReq = 0;
 
-        static string RsiAction(RsiScanResult r)
-        {
-            if (r.ScanType == ScanType.Oversold)
-                return r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm ? "BUY WATCH"
-                     : r.TrendShift.Contains("Bull Turn")   ? "WATCH"
-                     : r.TrendShift.Contains("Stabilizing") ? "MONITOR"
-                     : "WAIT";
-            return r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm ? "TRIM WATCH"
-                 : r.TrendShift.Contains("Bear Turn")   ? "REVIEW"
-                 : "MONITOR";
-        }
-
         var BuildSignal = (RsiScanResult r) =>
         {
-            var action = RsiAction(r);
+            var isInPortfolio = activePortfolioSymbols.Contains(r.Symbol);
+            var isInWatchlist = watchlistSymbols.Contains(r.Symbol);
+            var action = DashboardSignalActionInterpreter.Resolve(r, isInPortfolio, isInWatchlist);
             var severity = ActionSeverityMapper.Get(action);
             var isNew = stagedBySymbol.TryGetValue(r.Symbol, out var staged)
                 && staged.StagedDate == DateOnly.FromDateTime(todayEt);
@@ -250,7 +247,7 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             if (severity == "REQUIRED") actionReq++;
             return new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
                 r.TrendShift, r.VolumeSignal, r.ChangePercent, action, r.Status.ToString(),
-                isNew, severity == "REQUIRED", severity, r.ChannelState);
+                isInPortfolio, isInWatchlist, isNew, severity == "REQUIRED", severity, r.ChannelState);
         };
 
         var oversoldSignals   = scanner.OversoldChain

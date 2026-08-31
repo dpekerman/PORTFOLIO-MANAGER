@@ -145,7 +145,10 @@ export class MarketLeadershipWidgetComponent {
     const structure = row.priceStructure;
     if (structure.label === '—')
       return 'Price Structure\nNo meaningful channel or wedge structure is currently detected.';
-    return `Price Structure\nPattern: ${structure.label}\nQuality: ${structure.quality} / 100\nPattern Start: ${structure.patternStart}\nUpper Trendline: ${structure.upperTrendline}\nLower Trendline: ${structure.lowerTrendline}\nWidth at Start: ${structure.startWidth}\nCurrent Width: ${structure.currentWidth}\nContraction: ${structure.contractionPercent}%\nProjected Apex: ${structure.projectedApexDate}\nTrading Days to Apex: ${structure.tradingDaysToApex}\nPivot Highs: ${structure.pivotHighs}\nPivot Lows: ${structure.pivotLows}\nATR: ${structure.atr}\nMomentum: ${row.momentumState}\nVolume Ratio 20: ${structure.volumeRatio20}x`;
+    const keyLevel = structure.keyLevelPrice
+      ? `\n\nKey Technical Level\nState: ${structure.keyLevelState}\nRole: ${structure.keyLevelRole}\nPrimary Level: ${structure.keyLevelType}\nLevel: ${structure.keyLevelPrice}\nDistance: ${structure.keyLevelDistancePercent}%\nDistance ATR: ${structure.keyLevelDistanceAtr}\nBreakout Trigger: ${structure.breakoutTriggerPrice ?? '—'}\nBreakdown Trigger: ${structure.breakdownTriggerPrice ?? '—'}\nSources: ${(structure.keyLevelSources ?? []).join(', ') || '—'}\nConfluence: ${structure.keyLevelConfluenceCount}`
+      : '';
+    return `Price Structure\n\nPrimary Pattern\nPattern: ${structure.primaryPatternType}\nState: ${structure.primaryPatternState}\nHorizon: ${structure.primaryPatternHorizon ?? '—'} trading days\nQuality: ${structure.primaryPatternQuality} / 100\nPattern Start: ${structure.patternStart ?? '—'}\nUpper Trendline: ${structure.upperTrendline}\nLower Trendline: ${structure.lowerTrendline}\nIndependent Upper Touches: ${structure.independentUpperTouchCount}\nIndependent Lower Touches: ${structure.independentLowerTouchCount}\nContraction: ${structure.contractionPercent}%\nProjected Apex: ${structure.projectedApexDate ?? '—'}\nTrading Days to Apex: ${structure.tradingDaysToApex ?? '—'}\nATR: ${structure.atr}\nMomentum: ${row.momentumState}\nVolume Ratio 20: ${structure.volumeRatio20}x${keyLevel}`;
   }
 
   private compareRows(
@@ -169,12 +172,22 @@ export class MarketLeadershipWidgetComponent {
       Declining: 1,
     };
     const structureRanks: Record<string, number> = {
+      'Tight Falling Wedge Breakout': 10,
+      'Tight Falling Wedge Near Apex': 9,
       'Falling Wedge Breakout': 8,
       'Falling Wedge Near Apex': 7,
       'Falling Wedge': 6,
+      'Tight Falling Wedge': 6,
+      'Confluence Resistance': 5,
+      'Confluence Support': 5,
+      'Resistance Test': 5,
+      'Support Test': 5,
       'Rising Wedge': 3,
+      'Tight Rising Wedge': 3,
       'Rising Wedge Near Apex': 2,
+      'Tight Rising Wedge Near Apex': 2,
       'Rising Wedge Breakdown': 1,
+      'Tight Rising Wedge Breakdown': 1,
       '—': 4,
     };
     const signalRanks: Record<string, number> = {

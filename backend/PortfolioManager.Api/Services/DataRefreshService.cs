@@ -13,6 +13,7 @@ public sealed class DataRefreshService(
     IPortfolioService portfolioService,
     IWatchlistService watchlistService,
     IMarketDataProvider marketData,
+    ITechnicalSnapshotService technicalSnapshots,
     IPortfolioSnapshotService portfolioSnapshot,
     IWatchlistSnapshotService watchlistSnapshot,
     IDashboardService dashboard,
@@ -50,7 +51,8 @@ public sealed class DataRefreshService(
         {
             portfolioQuotes.TryGetValue(item.Symbol, out var quote);
             if (quote is not null) quote.CompanyName = item.CompanyName;
-            portfolioSummaries.Add(new PortfolioSummaryDto(item, quote));
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            portfolioSummaries.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure));
         }
         foreach (var item in manualItems)
         {
@@ -66,16 +68,18 @@ public sealed class DataRefreshService(
                 Industry      = item.Industry,
                 MarketState   = "MANUAL",
                 Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-            }));
+            }, PriceStructureResult.None));
         }
         var sortedPortfolio = portfolioSummaries.OrderBy(r => r.Item.Symbol).ToList();
 
         // Build watchlist summary list
-        var watchlistSummaries = watchlistItems.Select(item =>
+        var watchlistSummaries = new List<WatchlistSummaryDto>();
+        foreach (var item in watchlistItems)
         {
             watchlistQuotes.TryGetValue(item.Symbol, out var quote);
-            return new WatchlistSummaryDto(item, quote);
-        }).ToList();
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            watchlistSummaries.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure));
+        }
 
         // Persist snapshots atomically — both must succeed or neither is committed.
         await using var transaction = await db.Database.BeginTransactionAsync(ct);

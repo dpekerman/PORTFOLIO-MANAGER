@@ -62,7 +62,7 @@ public interface IMarketLeadershipService
     Task<bool> RemoveTrackerAsync(string userId, int trackerId, CancellationToken ct = default);
 }
 
-public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider marketData) : IMarketLeadershipService
+public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider marketData, ITechnicalSnapshotService technicalSnapshots) : IMarketLeadershipService
 {
     public async Task<MarketLeadershipResponse> GetLeadershipAsync(string userId, CancellationToken ct = default)
     {
@@ -75,9 +75,8 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
 
         foreach (var tracker in trackers)
         {
-            var closes = await marketData.GetDailyClosesAsync(tracker.Symbol, ct);
-            var analysis = closes is null ? null : MarketLeadershipCalculator.Analyze(closes);
-            rows.Add(ToRow(tracker, analysis, closes));
+            var snapshot = await technicalSnapshots.GetSnapshotAsync(tracker.Symbol, ct);
+            rows.Add(ToRow(tracker, snapshot));
         }
 
         var sorted = rows.OrderBy(row => SignalOrder(row.LeadershipSignal))
@@ -167,27 +166,14 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
 
     private static MarketLeadershipRow ToRow(
         MarketLeadershipTracker tracker,
-        MarketLeadershipAnalysis? analysis,
-        IReadOnlyList<MarketDailyClose>? history)
+        TechnicalSnapshot snapshot)
     {
+        var analysis = snapshot.Analysis;
         if (analysis is null || !analysis.HasTechnicalData)
             return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
-                false, "At least 200 daily closes are required.", analysis?.CurrentPrice ?? 0m,
+                false, snapshot.DataError ?? "Technical history is unavailable.", analysis?.CurrentPrice ?? 0m,
                 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, "Unavailable", "Unavailable", "Unavailable", "Unavailable",
                 null, null, null, "Technical history is unavailable.", PriceStructureResult.None, "Neutral", "Technical history is unavailable.");
-
-        var validHistory = history ?? [];
-        var candles = validHistory.Select(item => new ChannelCandle(
-            item.Date.ToDateTime(TimeOnly.MinValue), item.Open, item.High, item.Low, item.Close)).ToList();
-        var atr = CalculateAtr(candles);
-        var ema9 = validHistory.TakeLast(9).Average(item => item.Close);
-        var volumeRatio20 = validHistory.TakeLast(21).SkipLast(1).Select(item => item.Volume).DefaultIfEmpty().Average() is var averageVolume && averageVolume > 0
-            ? Math.Round(validHistory[^1].Volume / (decimal)averageVolume, 2) : 0m;
-        var wedge = ChannelAnalysisService.AnalyzePriceStructure(candles, atr, ema9, analysis.MomentumState, volumeRatio20);
-        var channel = new ChannelAnalysisService().Analyze(candles, atr, analysis.CurrentPrice);
-        var structure = wedge.Label == "—"
-            ? ChannelAnalysisService.FromChannel(channel, atr, ema9, volumeRatio20)
-            : wedge;
 
         return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
             true, null, analysis.CurrentPrice, analysis.DayReturnPct, analysis.FiveDayReturnPct, analysis.PreviousFiveDayReturnPct,
@@ -196,17 +182,7 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
             PercentDifference(analysis.CurrentPrice, analysis.Sma200), PercentDifference(analysis.Sma50, analysis.Sma200),
             analysis.TrendState, analysis.MomentumState, analysis.MaStructure, analysis.MaBadge,
             analysis.LastCross, analysis.LastCrossDate, analysis.LastCrossTradingDaysAgo, analysis.MomentumReason,
-            structure, analysis.LeadershipSignal, analysis.LeadershipReason);
-    }
-
-    private static decimal CalculateAtr(IReadOnlyList<ChannelCandle> candles)
-    {
-        if (candles.Count < 15) return 0m;
-        return candles.TakeLast(14).Select((candle, index) =>
-        {
-            var previous = candles[candles.Count - 15 + index].Close;
-            return Math.Max(candle.High - candle.Low, Math.Max(Math.Abs(candle.High - previous), Math.Abs(candle.Low - previous)));
-        }).Average();
+            snapshot.PriceStructure, analysis.LeadershipSignal, analysis.LeadershipReason);
     }
 
     private static decimal PercentDifference(decimal value, decimal baseValue) =>

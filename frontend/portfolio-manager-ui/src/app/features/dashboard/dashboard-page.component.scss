@@ -35,6 +35,28 @@
   color: #b71c1c;
   background: #ffebee;
 }
+.db-owner-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  border-radius: 50%;
+  font-size: 0.58rem;
+  font-weight: 800;
+  vertical-align: middle;
+
+  &.portfolio {
+    color: #0f5132;
+    background: #d1e7dd;
+  }
+
+  &.watchlist {
+    color: #664d03;
+    background: #fff3cd;
+  }
+}
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
 .db-header {
@@ -186,6 +208,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  .db-panel-hd-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
   line-height: 1;
 }
 .db-chart-title {

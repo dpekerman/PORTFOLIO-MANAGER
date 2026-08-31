@@ -11,6 +11,7 @@ namespace PortfolioManager.Api.Controllers;
 [Route("api/[controller]")]
 public class StocksController(
     IMarketDataProvider marketData,
+    ITechnicalSnapshotService technicalSnapshots,
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
     IDashboardService dashboard) : ControllerBase
@@ -50,7 +51,8 @@ public class StocksController(
         {
             quotes.TryGetValue(item.Symbol, out var quote);
             if (quote is not null) quote.CompanyName = item.CompanyName;
-            results.Add(new PortfolioSummaryDto(item, quote));
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            results.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure));
         }
 
         // For manual positions, synthesize a StockQuote from stored values (no Yahoo call)
@@ -69,7 +71,7 @@ public class StocksController(
                 MarketState   = "MANUAL",
                 Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
             };
-            results.Add(new PortfolioSummaryDto(item, syntheticQuote));
+            results.Add(new PortfolioSummaryDto(item, syntheticQuote, PriceStructureResult.None));
         }
 
         // Return in original sort order (by symbol)

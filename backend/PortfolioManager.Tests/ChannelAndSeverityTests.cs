@@ -1,5 +1,6 @@
 using PortfolioManager.Api.Services;
 using Xunit;
+using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Tests;
 
@@ -17,6 +18,30 @@ public class ChannelAndSeverityTests
     public void ActionSeverity_UsesSharedVocabulary(string action, string expected)
     {
         Assert.Equal(expected, ActionSeverityMapper.Get(action));
+    }
+
+    [Theory]
+    [InlineData(ScanType.Oversold, SignalStatus.Confirmed, "Waiting", true, false, "ADD CANDIDATE")]
+    [InlineData(ScanType.Oversold, SignalStatus.Confirmed, "Waiting", false, true, "ENTRY CANDIDATE")]
+    [InlineData(ScanType.Overbought, SignalStatus.Confirmed, "Waiting", true, false, "TRIM WATCH")]
+    [InlineData(ScanType.Overbought, SignalStatus.Confirmed, "Waiting", false, true, "AVOID")]
+    [InlineData(ScanType.Overbought, SignalStatus.EarlyWarning, "Bear Turn", false, false, "TECHNICAL CAUTION")]
+    public void DashboardSignalAction_DependsOnOwnership(
+        ScanType scanType,
+        SignalStatus status,
+        string trendShift,
+        bool isInPortfolio,
+        bool isInWatchlist,
+        string expected)
+    {
+        var signal = new RsiScanResult
+        {
+            ScanType = scanType,
+            Status = status,
+            TrendShift = trendShift,
+        };
+
+        Assert.Equal(expected, DashboardSignalActionInterpreter.Resolve(signal, isInPortfolio, isInWatchlist));
     }
 
     [Fact]

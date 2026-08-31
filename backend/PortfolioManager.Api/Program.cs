@@ -216,6 +216,7 @@ builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ITransactionContextCaptureService, TransactionContextCaptureService>();
 builder.Services.AddScoped<IPortfolioActionScoreService, PortfolioActionScoreService>();
+builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
 

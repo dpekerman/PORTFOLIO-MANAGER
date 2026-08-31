@@ -649,6 +649,26 @@
       </td>
     </ng-container>
 
+    <ng-container matColumnDef="priceStructure">
+      <th
+        mat-header-cell
+        *matHeaderCellDef
+        mat-sort-header
+        matTooltip="Shared Price Structure: primary pattern plus current key decision level"
+      >
+        Price Structure
+      </th>
+      <td mat-cell *matCellDef="let row">
+        @if (priceStructureLabel(row.priceStructure); as label) {
+          <span class="structure-badge" [matTooltip]="priceStructureTooltip(row.priceStructure)">{{
+            label
+          }}</span>
+        } @else {
+          <span class="no-data">—</span>
+        }
+      </td>
+    </ng-container>
+
     <!-- Fibonacci 61.8 Column -->
     <ng-container matColumnDef="fib61_8">
       <th
