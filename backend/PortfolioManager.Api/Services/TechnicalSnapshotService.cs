@@ -45,7 +45,8 @@ public sealed class TechnicalSnapshotService(IMarketDataProvider marketData) : I
             ? ChannelAnalysisService.FromChannel(channel, atr, ema9, volumeRatio20)
             : wedge;
 
-        return new TechnicalSnapshot(symbol, true, null, analysis, structure, Math.Round(atr, 4), Math.Round(ema9, 4), volumeRatio20, DateTime.UtcNow);
+        structure = structure with { Symbol = symbol };
+        return new TechnicalSnapshot(symbol, true, null, analysis, structure, Math.Round(atr, 4), Math.Round(ema9, 4), volumeRatio20, structure.CalculatedAt);
     }
 
     private static decimal CalculateAtr(IReadOnlyList<ChannelCandle> candles)

@@ -52,7 +52,7 @@ public sealed class DataRefreshService(
             portfolioQuotes.TryGetValue(item.Symbol, out var quote);
             if (quote is not null) quote.CompanyName = item.CompanyName;
             var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
-            portfolioSummaries.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure));
+            portfolioSummaries.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure, ToSharedFacts(technical)));
         }
         foreach (var item in manualItems)
         {
@@ -78,7 +78,7 @@ public sealed class DataRefreshService(
         {
             watchlistQuotes.TryGetValue(item.Symbol, out var quote);
             var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
-            watchlistSummaries.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure));
+            watchlistSummaries.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure, ToSharedFacts(technical)));
         }
 
         // Persist snapshots atomically — both must succeed or neither is committed.
@@ -115,4 +115,15 @@ public sealed class DataRefreshService(
             PortfolioSymbols: portfolioSymbols,
             WatchlistSymbols: watchlistSymbols);
     }
+
+    private static SharedTechnicalFacts? ToSharedFacts(TechnicalSnapshot snapshot) =>
+        !snapshot.HasTechnicalData ? null : new SharedTechnicalFacts(
+            snapshot.Symbol,
+            null,
+            snapshot.Analysis.MaStructure,
+            snapshot.Analysis.LastCross,
+            snapshot.Analysis.MomentumState,
+            snapshot.PriceStructure,
+            null,
+            snapshot.ComputedAt);
 }

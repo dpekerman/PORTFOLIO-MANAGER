@@ -74,4 +74,60 @@ public class ChannelAndSeverityTests
     {
         Assert.Equal(expected, ChannelAnalysisService.ResolveState(confirmedTouches, distanceAtr).ToString());
     }
+
+    [Fact]
+    public void PriorityTechnicalScore_AddsBoundedConstructiveStructureContext()
+    {
+        var baseline = new RsiScanResult { ScanType = ScanType.Oversold, Rsi = 30m };
+        var constructive = new RsiScanResult
+        {
+            ScanType = ScanType.Oversold,
+            Rsi = 30m,
+            MomentumState = "Positive",
+            PriceStructure = PriceStructureResult.None with { KeyLevelState = "SUPPORT_TEST" },
+        };
+
+        Assert.Equal(14m, PortfolioActionScoreService.ComputeTechnicalScore(baseline));
+        Assert.Equal(20m, PortfolioActionScoreService.ComputeTechnicalScore(constructive));
+    }
+
+    [Fact]
+    public void PriorityTechnicalScore_HardStructureNegativeOverridesConstructiveInputs()
+    {
+        var scan = new RsiScanResult
+        {
+            ScanType = ScanType.Oversold,
+            Rsi = 20m,
+            TrendShift = "🟢 Bull Turn",
+            MomentumState = "Accelerating",
+            PriceStructure = PriceStructureResult.None with { KeyLevelState = "FAILED_BREAKOUT" },
+        };
+
+        Assert.Equal(0m, PortfolioActionScoreService.ComputeTechnicalScore(scan));
+    }
+
+    [Fact]
+    public void MrvlRegression_WedgeBreakdownRemainsHardNegativeBesideSupportTest()
+    {
+        var structure = PriceStructureResult.None with
+        {
+            PrimaryPatternType = "TIGHT_RISING_WEDGE",
+            PrimaryPatternState = "BREAKDOWN",
+            KeyLevelType = "CHANNEL_RAIL",
+            KeyLevelRole = "SUPPORT",
+            KeyLevelState = "SUPPORT_TEST",
+            KeyLevelPrice = 208.07m,
+        };
+        var scan = new RsiScanResult
+        {
+            ScanType = ScanType.Oversold,
+            Rsi = 30m,
+            MomentumState = "Positive",
+            PriceStructure = structure,
+        };
+
+        Assert.True(structure.HasHardStructuralNegative);
+        Assert.Equal("SUPPORT_TEST", structure.KeyLevelState);
+        Assert.Equal(0m, PortfolioActionScoreService.ComputeTechnicalScore(scan));
+    }
 }

@@ -69,7 +69,18 @@ public record PortfolioItemDto(
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
     StockQuote? Quote,
-    PriceStructureResult? PriceStructure = null);
+    PriceStructureResult? PriceStructure = null,
+    SharedTechnicalFacts? TechnicalFacts = null);
+
+public sealed record SharedTechnicalFacts(
+    string Symbol,
+    decimal? Rsi,
+    string? MaStructure,
+    string? MaCrossState,
+    string? MomentumState,
+    PriceStructureResult PriceStructure,
+    int? BuyScore,
+    DateTime CalculatedAt);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic", string WatchlistTier = "Strategic");
@@ -81,7 +92,11 @@ public record UpdatePortfolioNotesRequest(string? Notes);
 
 public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null, string WatchlistTier = "Strategic");
 
-public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote, PriceStructureResult? PriceStructure = null);
+public record WatchlistSummaryDto(
+    WatchlistItemDto Item,
+    StockQuote? Quote,
+    PriceStructureResult? PriceStructure = null,
+    SharedTechnicalFacts? TechnicalFacts = null);
 
 public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);

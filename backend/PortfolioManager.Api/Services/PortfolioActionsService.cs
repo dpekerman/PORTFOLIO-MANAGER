@@ -78,13 +78,16 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
 
             if (pos is null && wlItem is null) continue;
+            var persistedFacts = pos?.TechnicalFacts ?? wlItem?.TechnicalFacts;
+            var persistedStructure = persistedFacts?.PriceStructure ?? pos?.PriceStructure ?? wlItem?.PriceStructure;
+            var hasScannerData = scan is not null;
             scan ??= new RsiScanResult
             {
                 Symbol = symbol,
                 CompanyName = pos?.Item.CompanyName ?? wlItem?.Item.Symbol ?? symbol,
                 ScanType = ScanType.Neutral,
                 Status = SignalStatus.Neutral,
-                TrendShift = "Waiting",
+                TrendShift = string.Empty,
                 ChannelDirection = channel?.Direction ?? "NONE",
                 ChannelState = channel?.ChannelState ?? "NONE",
                 ChannelQuality = channel?.ChannelQuality ?? 0,
@@ -112,19 +115,22 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             var sector           = pos?.Item.Sector ?? scan.Sector ?? "";
             var allocationStatus = ComputeAllocationStatus(sector, sectorActuals, sectorTargets);
             var isHolding        = pos is not null;
+            var priceStructure = HasPriceStructure(scan.PriceStructure) ? scan.PriceStructure : persistedStructure;
+            var hasPriceStructure = HasPriceStructure(priceStructure);
 
-            if (channel is null && scan.Status == SignalStatus.Neutral && allocationStatus != "over") continue;
+            if (!isHolding && scan.Status == SignalStatus.Neutral && !hasPriceStructure) continue;
 
             var (actionLabel, severity, priority) =
-                DeriveAction(scan, holdingRole, allocationStatus, isHolding);
+                DeriveAction(scan, holdingRole, allocationStatus, isHolding, priceStructure);
             severity = ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
+            var inclusionReason = InclusionReason(scan, priceStructure, hasScannerData);
 
             results.Add(new PortfolioActionDto(
                 Symbol:           symbol,
                 CompanyName:      scan.CompanyName,
                 HoldingRole:      holdingRole,
                 ScanType:         scan.ScanType.ToString(),
-                Rsi:              scan.Rsi,
+                Rsi:              hasScannerData ? scan.Rsi : persistedFacts?.Rsi,
                 TrendShift:       scan.TrendShift ?? "",
                 FibZone:          scan.FibZone ?? "",
                 ChaseRisk:        scan.ChaseRisk ?? "",
@@ -144,20 +150,25 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 DistanceToLowerRailATR: scan.DistanceToLowerRailATR,
                 LastLowerTouchDate: scan.LastLowerTouchDate,
                 NearestOpenGapAbove: scan.NearestOpenGapAbove,
-                ChannelTouchDetails: scan.ChannelTouchDetails));
+                ChannelTouchDetails: scan.ChannelTouchDetails,
+                MaStructure: scan.MaStructure ?? persistedFacts?.MaStructure,
+                MomentumState: scan.MomentumState ?? persistedFacts?.MomentumState,
+                PriceStructure: priceStructure,
+                InclusionReason: inclusionReason,
+                TechnicalCalculatedAt: priceStructure?.CalculatedAt ?? persistedFacts?.CalculatedAt));
         }
 
         return results
             .OrderBy(r => PriorityOrder(r.ActionPriority))
             .ThenByDescending(r => r.IsInPortfolio)
             .ThenBy(r => SeverityOrder(r.ActionSeverity))
-            .ThenBy(r => r.ScanType == "Oversold" ? r.Rsi : 100 - r.Rsi)
+            .ThenBy(r => r.Rsi.HasValue ? r.ScanType == "Oversold" ? r.Rsi.Value : 100 - r.Rsi.Value : decimal.MaxValue)
             .ToList()
             .AsReadOnly();
     }
 
     private static (string label, string severity, string priority)
-        DeriveAction(RsiScanResult scan, string role, string allocationStatus, bool isHolding)
+        DeriveAction(RsiScanResult scan, string role, string allocationStatus, bool isHolding, PriceStructureResult? priceStructure)
     {
         if (!string.IsNullOrEmpty(scan.ChaseRisk))
             return ("DO NOT CHASE", "danger", "REQUIRED");
@@ -172,6 +183,18 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var isSwing       = string.Equals(r, "Swing",       StringComparison.OrdinalIgnoreCase);
         var isSpec        = string.Equals(r, "Speculative", StringComparison.OrdinalIgnoreCase);
         var channelState  = scan.ChannelState ?? "NONE";
+        var levelState = priceStructure?.KeyLevelState ?? "NONE";
+
+        if (priceStructure?.HasHardStructuralNegative == true)
+            return isHolding
+                ? (isSwing || isSpec ? "EXIT REVIEW" : "TECHNICAL REVIEW", "review", "REQUIRED")
+                : ("AVOID", "danger", "REQUIRED");
+
+        if (scan.Status == SignalStatus.Neutral && levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM"
+            or "APPROACHING_SUPPORT" or "RESISTANCE_TEST" or "APPROACHING_RESISTANCE" or "BREAKOUT_CONFIRMED")
+            return isHolding
+                ? ("ADD WATCH", "buy", "DEVELOPING")
+                : (levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM" ? "REVERSAL WATCH" : "BUY WATCH", "wait", "DEVELOPING");
 
         if (channelState is "THIRD_TOUCH_APPROACHING" or "THIRD_TOUCH_TEST"
             or "LOWER_RAIL_APPROACHING" or "LOWER_RAIL_RETEST"
@@ -346,6 +369,19 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         "wait"   => 4,
         _        => 5,
     };
+
+    private static bool HasPriceStructure(PriceStructureResult? structure) =>
+        structure is not null && (structure.PrimaryPatternType != "NONE" || structure.KeyLevelState != "NONE");
+
+    private static string InclusionReason(RsiScanResult scan, PriceStructureResult? structure, bool hasScannerData)
+    {
+        var state = structure?.KeyLevelState ?? "NONE";
+        if (state == "SUPPORT_TEST") return "PRICE_STRUCTURE_SUPPORT_TEST";
+        if (state is "RESISTANCE_TEST" or "APPROACHING_RESISTANCE") return "PRICE_STRUCTURE_BREAKOUT_WATCH";
+        if (structure?.HasHardStructuralNegative == true) return "HARD_STRUCTURE_NEGATIVE";
+        if (HasPriceStructure(structure)) return "PRIORITY_TECHNICAL_SETUP";
+        return hasScannerData && scan.Status != SignalStatus.Neutral ? "RSI_SIGNAL" : "NO_CURRENT_DECISION_LEVEL";
+    }
 
     private static T? Deserialize<T>(string json)
     {

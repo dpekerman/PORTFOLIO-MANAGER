@@ -1,4 +1,5 @@
 using FluentAssertions;
+using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Tests;
@@ -123,6 +124,19 @@ public class ChannelWedgeTests
             .Should().Be("SUPPORT_RECLAIM");
 
     [Fact]
+    public void SupportReclaim_ExposesSupportAsCurrentRole() =>
+        ChannelAnalysisService.ResolveCurrentRole("RESISTANCE", "SUPPORT_RECLAIM")
+            .Should().Be("SUPPORT");
+
+    [Theory]
+    [InlineData("BREAKDOWN_CONFIRMED")]
+    [InlineData("SUPPORT_BROKEN")]
+    [InlineData("FAILED_BREAKOUT")]
+    public void ConfirmedSupportFailure_ExposesResistanceAsCurrentRole(string state) =>
+        ChannelAnalysisService.ResolveCurrentRole("SUPPORT", state)
+            .Should().Be("RESISTANCE");
+
+    [Fact]
     public void KeyLevel_ConfluenceZone_UsesHalfAtrLevelCluster() =>
         ChannelAnalysisService.IsConfluenceZone([100m, 101m, 102m], 10m).Should().BeTrue();
 
@@ -132,4 +146,78 @@ public class ChannelWedgeTests
         ChannelAnalysisService.IsValidTightFallingWedge(-0.50m, -0.20m, 10m, 4.5m).Should().BeTrue();
         ChannelAnalysisService.IsValidTightFallingWedge(-0.50m, -0.20m, 10m, 6.5m).Should().BeFalse();
     }
+
+    [Fact]
+    public void KeyLevel_MoreThanOneAtrAway_IsNotCurrentDecisionLevel() =>
+        ChannelAnalysisService.ResolveKeyLevelState(100m, 10m, 116m, 117m, 115m, 116m, 114m, "SUPPORT")
+            .Should().Be("NONE");
+
+    [Fact]
+    public void ResistanceRole_FlipsOnlyAfterPriorCompletedCloseConfirmsBreakout()
+    {
+        var candles = new[]
+        {
+            Candle(0, 98m), Candle(1, 99m), Candle(2, 103m), Candle(3, 104m),
+        };
+
+        ChannelAnalysisService.ReplayRole(candles, 100m, 4m, 0, "RESISTANCE")
+            .Should().Be("SUPPORT");
+    }
+
+    [Fact]
+    public void CurrentBreakout_DoesNotPrematurelyFlipResistanceRole()
+    {
+        var candles = new[]
+        {
+            Candle(0, 98m), Candle(1, 99m), Candle(2, 100m), Candle(3, 103m),
+        };
+
+        ChannelAnalysisService.ReplayRole(candles, 100m, 4m, 0, "RESISTANCE")
+            .Should().Be("RESISTANCE");
+        ChannelAnalysisService.ResolveKeyLevelState(100m, 4m, 103m, 104m, 99m, 103m, 100m, "RESISTANCE")
+            .Should().Be("BREAKOUT_CONFIRMED");
+    }
+
+    private static ChannelCandle Candle(int day, decimal close) =>
+        new(new DateTime(2026, 1, 2).AddDays(day), close, close + 1m, close - 1m, close);
+
+    [Fact]
+    public void TslaRegression_NearFibWinsBecauseDistantConfluenceFailsRelevanceGate()
+    {
+        ChannelAnalysisService.ResolveKeyLevelState(345.83m, 13.49m, 367.95m, 369m, 366m, 367.95m, 368m, "SUPPORT")
+            .Should().Be("NONE");
+        ChannelAnalysisService.ResolveKeyLevelState(365.59m, 13.49m, 367.95m, 369m, 365.2m, 367.95m, 368m, "SUPPORT")
+            .Should().Be("SUPPORT_TEST");
+    }
+
+    [Fact]
+    public void TtdRegression_TightWedgeRequiresQualifiedGeometryAndFortyPercentContraction()
+    {
+        ChannelAnalysisService.IsValidTightFallingWedge(-0.50m, -0.20m, 10m, 5.5m).Should().BeTrue();
+        ChannelAnalysisService.IsValidTightFallingWedge(-0.20m, -0.50m, 10m, 5.5m).Should().BeFalse();
+    }
+
+    [Fact]
+    public void MrvlRegression_RisingWedgeBreakdownRequiresEodCloseBeyondTrigger()
+    {
+        ChannelAnalysisService.IsRisingWedgeBreakdown(98.9m, 100m, 4m).Should().BeTrue();
+        ChannelAnalysisService.IsRisingWedgeBreakdown(100.2m, 100m, 4m).Should().BeFalse();
+    }
+
+    [Fact]
+    public void GdxRegression_ChannelUsesLowForTestAndCloseForBreak()
+    {
+        ChannelAnalysisService.ResolveChannelState(2, 0.20m, 0.10m).Should().Be(ChannelState.THIRD_TOUCH_TEST);
+        ChannelAnalysisService.ResolveChannelState(3, -0.60m, -0.80m).Should().Be(ChannelState.CHANNEL_BROKEN);
+    }
+
+    [Fact]
+    public void UraRegression_GenericLevelMayCorrectlyReturnNoneWhenNotRelevant() =>
+        ChannelAnalysisService.ResolveKeyLevelState(80m, 5m, 90m, 91m, 89m, 90m, 89m, "SUPPORT")
+            .Should().Be("NONE");
+
+    [Fact]
+    public void FalsePositiveControl_DoesNotInventCurrentStateBeyondOneAtr() =>
+        ChannelAnalysisService.ResolveKeyLevelState(50m, 2m, 53m, 53.5m, 52.5m, 53m, 52.8m, "SUPPORT")
+            .Should().Be("NONE");
 }

@@ -71,9 +71,9 @@
               <th>Symbol</th>
               <th>Role</th>
               <th>RSI</th>
-              <th>Trend</th>
-              <th>Fib Zone</th>
-              <th>Channel</th>
+              <th>MA Structure</th>
+              <th>Momentum</th>
+              <th>Price Structure</th>
               <th>Allocation</th>
               <th class="pa-action-col">Position Action</th>
             </tr>
@@ -94,27 +94,11 @@
                 <td>
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
                 </td>
-                <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
-                <td class="pa-trend">{{ a.trendShift }}</td>
-                <td class="pa-fib">{{ a.fibZone || '—' }}</td>
-                <td class="pa-channel" [matTooltip]="channelTooltip(a)">
-                  {{
-                    a.channelState === 'THIRD_TOUCH_APPROACHING'
-                      ? '3rd Rail Approaching'
-                      : a.channelState === 'THIRD_TOUCH_TEST'
-                        ? '3rd Rail Test'
-                        : a.channelState === 'LOWER_RAIL_APPROACHING'
-                          ? 'Lower Rail Approaching'
-                          : a.channelState === 'LOWER_RAIL_RETEST'
-                            ? 'Lower Rail Retest'
-                            : a.channelState === 'REVERSAL_DEVELOPING'
-                              ? 'Reversal Developing'
-                              : a.channelState === 'BOUNCE_CONFIRMED'
-                                ? 'Bounce Confirmed'
-                                : a.channelState === 'CHANNEL_BROKEN'
-                                  ? 'Channel Broken'
-                                  : '—'
-                  }}
+                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
+                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
+                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                  {{ structureLabel(a) }}
                 </td>
                 <td class="pa-alloc">
                   @if (a.allocationStatus === 'over') {
@@ -160,9 +144,9 @@
               <th>Symbol</th>
               <th>Role</th>
               <th>RSI</th>
-              <th>Trend</th>
-              <th>Fib Zone</th>
-              <th>Channel</th>
+              <th>MA Structure</th>
+              <th>Momentum</th>
+              <th>Price Structure</th>
               <th class="pa-action-col">Entry Status</th>
             </tr>
           </thead>
@@ -179,27 +163,11 @@
                 <td>
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
                 </td>
-                <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
-                <td class="pa-trend">{{ a.trendShift }}</td>
-                <td class="pa-fib">{{ a.fibZone || '—' }}</td>
-                <td class="pa-channel" [matTooltip]="channelTooltip(a)">
-                  {{
-                    a.channelState === 'THIRD_TOUCH_APPROACHING'
-                      ? '3rd Rail Approaching'
-                      : a.channelState === 'THIRD_TOUCH_TEST'
-                        ? '3rd Rail Test'
-                        : a.channelState === 'LOWER_RAIL_APPROACHING'
-                          ? 'Lower Rail Approaching'
-                          : a.channelState === 'LOWER_RAIL_RETEST'
-                            ? 'Lower Rail Retest'
-                            : a.channelState === 'REVERSAL_DEVELOPING'
-                              ? 'Reversal Developing'
-                              : a.channelState === 'BOUNCE_CONFIRMED'
-                                ? 'Bounce Confirmed'
-                                : a.channelState === 'CHANNEL_BROKEN'
-                                  ? 'Channel Broken'
-                                  : '—'
-                  }}
+                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
+                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
+                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                  {{ structureLabel(a) }}
                 </td>
                 <td class="pa-action-col">
                   <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">{{

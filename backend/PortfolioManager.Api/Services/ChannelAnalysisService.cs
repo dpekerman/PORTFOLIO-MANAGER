@@ -44,11 +44,42 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         if (candles.Count < 30 || atr <= 0m) return PriceStructureResult.None;
         var currentIndex = candles.Count - 1;
         var bestWedge = BuildBestWedgeCandidate(candles, atr, ema9, momentum, volumeRatio20, contractionThreshold);
-        var keyLevel = SelectKeyLevel(candles, atr, bestWedge);
+        var channel = new ChannelAnalysisService().Analyze(candles, atr, candles[^1].Close);
+        var keyLevel = SelectKeyLevel(candles, atr, bestWedge, channel);
+        PriceStructureResult result;
         if (bestWedge is null)
-            return keyLevel is null ? PriceStructureResult.None : BuildKeyLevelOnlyResult(candles, atr, ema9, volumeRatio20, keyLevel);
+        {
+            if (channel.Direction != ChannelDirection.NONE)
+                result = BuildChannelResult(channel, atr, ema9, volumeRatio20, keyLevel);
+            else
+                result = keyLevel is null ? PriceStructureResult.None : BuildKeyLevelOnlyResult(candles, atr, ema9, volumeRatio20, keyLevel);
+        }
+        else
+            result = BuildWedgeResult(candles, atr, ema9, volumeRatio20, bestWedge, keyLevel, currentIndex);
 
-        return BuildWedgeResult(candles, atr, ema9, volumeRatio20, bestWedge, keyLevel, currentIndex);
+        return WithMarketContext(result, candles, bestWedge, channel);
+    }
+
+    private static PriceStructureResult WithMarketContext(
+        PriceStructureResult result,
+        IReadOnlyList<ChannelCandle> candles,
+        WedgeCandidate? wedge,
+        ChannelAnalysisResult channel)
+    {
+        var current = candles[^1];
+        var zoneHalfWidth = result.KeyLevelPrice.HasValue && result.KeyLevelConfluenceCount > 1 ? result.Atr * 0.25m : 0m;
+        return result with
+        {
+            PatternHorizon = wedge is null ? result.PrimaryPatternType == "RISING_CHANNEL" ? "STRUCTURAL" : "NONE" : wedge.Tight ? "TIGHT" : "STRUCTURAL",
+            PatternLookbackSessions = result.PrimaryPatternHorizon,
+            KeyLevelLow = result.KeyLevelLow ?? result.KeyLevelPrice - zoneHalfWidth,
+            KeyLevelHigh = result.KeyLevelHigh ?? result.KeyLevelPrice + zoneHalfWidth,
+            DailyHigh = current.High,
+            DailyLow = current.Low,
+            EodClose = current.Close,
+            ChannelTouchDetails = channel.TouchDetails,
+            CalculatedAt = current.Date
+        };
     }
 
     private static WedgeCandidate? BuildBestWedgeCandidate(
@@ -60,7 +91,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         decimal structuralContractionThreshold)
     {
         var candidates = new List<WedgeCandidate>();
-        foreach (var window in new[] { 20, 30, 40 })
+        foreach (var window in new[] { 15, 20, 30, 40 })
         {
             var candidate = BuildWedgeCandidate(candles, atr, ema9, momentum, volumeRatio20, window, true, 4, 1.0m, 0.40m, 10);
             if (candidate is not null) candidates.Add(candidate);
@@ -94,7 +125,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         decimal minimumContraction,
         int nearApexDays)
     {
-        if (candles.Count < window || window < 20) return null;
+        if (candles.Count < window || window < 10) return null;
         var start = Math.Max(0, candles.Count - window);
         var rangeCount = candles.Count - start - 4;
         if (rangeCount <= 0) return null;
@@ -137,7 +168,9 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         var close = candles[^1].Close;
         var state = falling && IsFallingWedgeBreakout(close, currentUpper, atr) && close > ema9 && momentum is "Accelerating" or "Positive" ? "BREAKOUT"
             : rising && IsRisingWedgeBreakdown(close, currentLower, atr) ? "BREAKDOWN"
-            : daysToApex <= nearApexDays ? "NEAR_APEX" : "DEVELOPING";
+            : daysToApex <= nearApexDays ? "NEAR_APEX"
+            : daysToApex <= nearApexDays * 3 ? "TIGHTENING"
+            : "DEVELOPING";
         var type = tight
             ? falling ? "TIGHT_FALLING_WEDGE" : "TIGHT_RISING_WEDGE"
             : falling ? "FALLING_WEDGE" : "RISING_WEDGE";
@@ -152,21 +185,31 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
 
     public static string ResolveKeyLevelState(decimal levelPrice, decimal atr, decimal currentPrice, decimal dailyHigh, decimal dailyLow, decimal close, decimal previousClose)
     {
+        var role = previousClose < levelPrice ? "RESISTANCE" : previousClose > levelPrice ? "SUPPORT" : "TRANSITION";
+        return ResolveKeyLevelState(levelPrice, atr, currentPrice, dailyHigh, dailyLow, close, previousClose, role);
+    }
+
+    public static string ResolveKeyLevelState(decimal levelPrice, decimal atr, decimal currentPrice, decimal dailyHigh, decimal dailyLow, decimal close, decimal previousClose, string role)
+    {
         if (atr <= 0m || levelPrice <= 0m) return "NONE";
         var distanceAtr = (currentPrice - levelPrice) / atr;
+        if (Math.Abs(distanceAtr) > 1.0m) return "NONE";
         var resistanceTest = Math.Abs(dailyHigh - levelPrice) <= 0.35m * atr || Math.Abs(close - levelPrice) <= 0.35m * atr;
         var supportTest = Math.Abs(dailyLow - levelPrice) <= 0.35m * atr || Math.Abs(close - levelPrice) <= 0.35m * atr;
-        if (previousClose > levelPrice + 0.25m * atr && close < levelPrice) return "FAILED_BREAKOUT";
-        if (previousClose < levelPrice - 0.25m * atr && close > levelPrice) return "SUPPORT_RECLAIM";
-        if (previousClose < levelPrice && close > levelPrice + 0.25m * atr) return "BREAKOUT_CONFIRMED";
-        if (previousClose > levelPrice && close < levelPrice - 0.25m * atr) return "BREAKDOWN_CONFIRMED";
-        if (currentPrice < levelPrice)
+        var breakoutTrigger = levelPrice + 0.25m * atr;
+        var breakdownTrigger = levelPrice - 0.25m * atr;
+
+        if (role == "SUPPORT" && previousClose > breakoutTrigger && close < levelPrice) return "FAILED_BREAKOUT";
+        if (role == "RESISTANCE" && previousClose < breakdownTrigger && close > levelPrice) return "SUPPORT_RECLAIM";
+        if (role == "RESISTANCE")
         {
+            if (previousClose <= breakoutTrigger && close > breakoutTrigger) return "BREAKOUT_CONFIRMED";
             if (resistanceTest) return "RESISTANCE_TEST";
             if (currentPrice > previousClose && Math.Abs(distanceAtr) <= 1.0m && Math.Abs(distanceAtr) >= 0.35m) return "APPROACHING_RESISTANCE";
         }
-        else if (currentPrice > levelPrice)
+        else if (role == "SUPPORT")
         {
+            if (previousClose >= breakdownTrigger && close < breakdownTrigger) return "BREAKDOWN_CONFIRMED";
             if (supportTest) return "SUPPORT_TEST";
             if (currentPrice < previousClose && distanceAtr <= 1.0m && distanceAtr >= 0.35m) return "APPROACHING_SUPPORT";
         }
@@ -209,7 +252,12 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
             wedge.RawPivotHighCount, wedge.RawPivotLowCount, wedge.IndependentUpperTouchCount, wedge.IndependentLowerTouchCount,
             wedge.UpperFitQuality, wedge.LowerFitQuality, wedge.Type, wedge.State, wedge.Quality, wedge.Horizon,
             level.Price, level.Type, level.Role, level.State, level.DistancePercent, level.DistanceAtr,
-            level.Quality, level.Sources, level.ConfluenceCount, level.BreakoutTriggerPrice, level.BreakdownTriggerPrice, DateTime.UtcNow);
+            level.Quality, level.Sources, level.ConfluenceCount, level.BreakoutTriggerPrice, level.BreakdownTriggerPrice, DateTime.UtcNow)
+        {
+            KeyLevelLow = level.ZoneLow,
+            KeyLevelHigh = level.ZoneHigh,
+            KeyLevelOriginalRole = level.OriginalRole
+        };
     }
 
     private static PriceStructureResult BuildKeyLevelOnlyResult(
@@ -221,42 +269,94 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         new(CompactLevelLabel(level), level.Quality, null, 0m, 0m, 0m, 0m, 0m, null, null, 0, 0, atr, ema9, volumeRatio20,
             0, 0, 0, 0, 0m, 0m, "NONE", "NONE", 0, null,
             level.Price, level.Type, level.Role, level.State, level.DistancePercent, level.DistanceAtr,
-            level.Quality, level.Sources, level.ConfluenceCount, level.BreakoutTriggerPrice, level.BreakdownTriggerPrice, DateTime.UtcNow);
+            level.Quality, level.Sources, level.ConfluenceCount, level.BreakoutTriggerPrice, level.BreakdownTriggerPrice, DateTime.UtcNow)
+        {
+            KeyLevelLow = level.ZoneLow,
+            KeyLevelHigh = level.ZoneHigh,
+            KeyLevelOriginalRole = level.OriginalRole
+        };
 
-    private static KeyLevelCandidate? SelectKeyLevel(IReadOnlyList<ChannelCandle> candles, decimal atr, WedgeCandidate? wedge)
+    private static PriceStructureResult BuildChannelResult(
+        ChannelAnalysisResult channel,
+        decimal atr,
+        decimal ema9,
+        decimal volumeRatio20,
+        KeyLevelCandidate? keyLevel)
+    {
+        var result = FromChannel(channel, atr, ema9, volumeRatio20);
+        if (keyLevel is null) return result;
+        return result with
+        {
+            KeyLevelPrice = keyLevel.Price,
+            KeyLevelType = keyLevel.Type,
+            KeyLevelRole = keyLevel.Role,
+            KeyLevelState = keyLevel.State,
+            KeyLevelDistancePercent = keyLevel.DistancePercent,
+            KeyLevelDistanceAtr = keyLevel.DistanceAtr,
+            KeyLevelQuality = keyLevel.Quality,
+            KeyLevelSources = keyLevel.Sources,
+            KeyLevelConfluenceCount = keyLevel.ConfluenceCount,
+            BreakoutTriggerPrice = keyLevel.BreakoutTriggerPrice,
+            BreakdownTriggerPrice = keyLevel.BreakdownTriggerPrice,
+            KeyLevelLow = keyLevel.ZoneLow,
+            KeyLevelHigh = keyLevel.ZoneHigh,
+            KeyLevelOriginalRole = keyLevel.OriginalRole
+        };
+    }
+
+    private static KeyLevelCandidate? SelectKeyLevel(
+        IReadOnlyList<ChannelCandle> candles,
+        decimal atr,
+        WedgeCandidate? wedge,
+        ChannelAnalysisResult channel)
     {
         var current = candles[^1];
         var previousClose = candles.Count >= 2 ? candles[^2].Close : current.Close;
-        var candidates = BuildLevelCandidates(candles, atr, wedge)
-            .Where(level => Math.Abs(level.DistanceAtr ?? 999m) <= 1.25m || level.State is "BREAKOUT_CONFIRMED" or "BREAKDOWN_CONFIRMED" or "RESISTANCE_TEST" or "SUPPORT_TEST")
+        var candidates = BuildLevelCandidates(candles, atr, wedge, channel)
+            .Where(level => Math.Abs(level.DistanceAtr ?? decimal.MaxValue) <= 1.0m)
             .ToList();
         if (candidates.Count == 0) return null;
 
         var best = candidates
-            .OrderByDescending(level => StateRank(level.State))
+            .OrderBy(level => Math.Abs(level.DistanceAtr ?? decimal.MaxValue))
+            .ThenByDescending(level => StateRank(level.State))
             .ThenByDescending(level => level.Quality)
-            .ThenBy(level => Math.Abs(level.DistanceAtr ?? 999m))
+            .ThenBy(level => level.Type, StringComparer.Ordinal)
             .First();
         var confluence = candidates
             .Where(level => Math.Abs(level.Price - best.Price) <= 0.5m * atr)
             .ToList();
-        if (confluence.Count < 2) return best;
+        var independentSourceCount = confluence.Select(level => SourceFamily(level.Type)).Distinct(StringComparer.Ordinal).Count();
+        if (independentSourceCount < 2) return best;
 
         var price = confluence.Average(level => level.Price);
+        var originalRole = confluence.Select(level => level.OriginalRole).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
+            ? confluence[0].OriginalRole
+            : "TRANSITION";
         var role = confluence.Select(level => level.Role).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1
             ? confluence[0].Role
             : "TRANSITION";
-        var state = ResolveKeyLevelState(price, atr, current.Close, current.High, current.Low, current.Close, previousClose);
+        var state = ResolveKeyLevelState(price, atr, current.Close, current.High, current.Low, current.Close, previousClose, role);
+        role = ResolveCurrentRole(role, state);
         var distancePercent = PercentDifference(current.Close, price);
         var distanceAtr = (current.Close - price) / atr;
-        var quality = Math.Clamp(confluence.Max(level => level.Quality) + Math.Min(20, confluence.Count * 5), 0, 100);
+        var quality = Math.Clamp(confluence.Max(level => level.Quality) + Math.Min(20, independentSourceCount * 5), 0, 100);
         var roleSuffix = role == "SUPPORT" ? "SUPPORT" : role == "RESISTANCE" ? "RESISTANCE" : "ZONE";
         return new KeyLevelCandidate(price, "CONFLUENCE_ZONE", role, state, Math.Round(distancePercent, 2), Math.Round(distanceAtr, 2), quality,
-            confluence.SelectMany(level => level.Sources).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), confluence.Count,
-            price + 0.25m * atr, price - 0.25m * atr, $"CONFLUENCE_{roleSuffix}");
+            confluence.SelectMany(level => level.Sources).Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), independentSourceCount,
+            price + 0.25m * atr, price - 0.25m * atr, $"CONFLUENCE_{roleSuffix}")
+        {
+            ZoneLow = confluence.Min(level => level.Price),
+            ZoneHigh = confluence.Max(level => level.Price),
+            OriginalRole = originalRole
+        };
     }
 
-    private static List<KeyLevelCandidate> BuildLevelCandidates(IReadOnlyList<ChannelCandle> candles, decimal atr, WedgeCandidate? wedge)
+    private static List<KeyLevelCandidate> BuildLevelCandidates(
+        IReadOnlyList<ChannelCandle> candles,
+        decimal atr,
+        WedgeCandidate? wedge,
+        ChannelAnalysisResult channel)
     {
         var current = candles[^1];
         var previousClose = candles.Count >= 2 ? candles[^2].Close : current.Close;
@@ -264,30 +364,41 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
 
         if (wedge is not null)
         {
-            candidates.Add(CreateLevelCandidate("WEDGE_RESISTANCE", "Upper Wedge Resistance", wedge.CurrentUpper, 90, current, previousClose, atr));
-            candidates.Add(CreateLevelCandidate("WEDGE_SUPPORT", "Lower Wedge Support", wedge.CurrentLower, 90, current, previousClose, atr));
+            candidates.Add(CreateLevelCandidate("WEDGE_RESISTANCE", "Upper Wedge Resistance", wedge.CurrentUpper, 90, candles, wedge.StartIndex, "RESISTANCE", atr));
+            candidates.Add(CreateLevelCandidate("WEDGE_SUPPORT", "Lower Wedge Support", wedge.CurrentLower, 90, candles, wedge.StartIndex, "SUPPORT", atr));
+        }
+
+        if (channel.Direction != ChannelDirection.NONE)
+        {
+            candidates.Add(CreateLevelCandidate("CHANNEL_RAIL", "Upper Channel Rail", channel.UpperRailCurrent, channel.Quality, candles, 0, "RESISTANCE", atr));
+            candidates.Add(CreateLevelCandidate("CHANNEL_RAIL", "Lower Channel Rail", channel.LowerRailCurrent, channel.Quality, candles, 0, "SUPPORT", atr));
         }
 
         var start = Math.Max(0, candles.Count - 60);
         var rangeCount = candles.Count - start - 4;
         if (rangeCount > 0)
         {
-            var recentHigh = Enumerable.Range(start + 2, rangeCount).Where(i => IsPivotHigh(candles, i)).OrderByDescending(i => i).FirstOrDefault(-1);
-            var recentLow = Enumerable.Range(start + 2, rangeCount).Where(i => IsPivotLow(candles, i)).OrderByDescending(i => i).FirstOrDefault(-1);
-            if (recentHigh >= 0) candidates.Add(CreateLevelCandidate("SWING_HIGH", "Swing High", candles[recentHigh].High, 75, current, previousClose, atr));
-            if (recentLow >= 0) candidates.Add(CreateLevelCandidate("SWING_LOW", "Swing Low", candles[recentLow].Low, 75, current, previousClose, atr));
+            var recentHigh = Enumerable.Range(start + 2, rangeCount)
+                .Where(i => IsPivotHigh(candles, i) && IsMeaningfulSwing(candles, i, atr, TouchSide.Upper))
+                .OrderByDescending(i => i).FirstOrDefault(-1);
+            var recentLow = Enumerable.Range(start + 2, rangeCount)
+                .Where(i => IsPivotLow(candles, i) && IsMeaningfulSwing(candles, i, atr, TouchSide.Lower))
+                .OrderByDescending(i => i).FirstOrDefault(-1);
+            if (recentHigh >= 0) candidates.Add(CreateLevelCandidate("SWING_HIGH", "Swing High", candles[recentHigh].High, 75, candles, recentHigh, "RESISTANCE", atr));
+            if (recentLow >= 0) candidates.Add(CreateLevelCandidate("SWING_LOW", "Swing Low", candles[recentLow].Low, 75, candles, recentLow, "SUPPORT", atr));
         }
 
         var closes = candles.Select(candle => candle.Close).ToList();
-        if (closes.Count >= 50) candidates.Add(CreateLevelCandidate("SMA50", "SMA50", closes.TakeLast(50).Average(), 70, current, previousClose, atr));
-        if (closes.Count >= 200) candidates.Add(CreateLevelCandidate("SMA200", "SMA200", closes.TakeLast(200).Average(), 80, current, previousClose, atr));
+        if (closes.Count >= 20) candidates.Add(CreateContextualLevelCandidate("EMA_20", "EMA20", CalculateEma(closes, 20), 68, candles, candles.Count - 20, atr));
+        if (closes.Count >= 50) candidates.Add(CreateContextualLevelCandidate("SMA50", "SMA50", closes.TakeLast(50).Average(), 70, candles, candles.Count - 50, atr));
+        if (closes.Count >= 200) candidates.Add(CreateContextualLevelCandidate("SMA200", "SMA200", closes.TakeLast(200).Average(), 80, candles, candles.Count - 200, atr));
 
         foreach (var fib in CalculateFibLevels(candles))
-            candidates.Add(CreateLevelCandidate(fib.Type, fib.Source, fib.Price, 72, current, previousClose, atr));
+            candidates.Add(CreateContextualLevelCandidate(fib.Type, fib.Source, fib.Price, 72, candles, Math.Max(0, candles.Count - 60), atr));
 
         var gaps = FindOpenGaps(candles, current.Close);
-        if (gaps.Above.HasValue) candidates.Add(CreateLevelCandidate("GAP", "Open Gap Above", gaps.Above.Value, 68, current, previousClose, atr));
-        if (gaps.Below.HasValue) candidates.Add(CreateLevelCandidate("GAP", "Open Gap Below", gaps.Below.Value, 68, current, previousClose, atr));
+        if (gaps.Above.HasValue) candidates.Add(CreateLevelCandidate("OPEN_GAP", "Open Gap Above", gaps.Above.Value, 68, candles, 0, "RESISTANCE", atr));
+        if (gaps.Below.HasValue) candidates.Add(CreateLevelCandidate("OPEN_GAP", "Open Gap Below", gaps.Below.Value, 68, candles, 0, "SUPPORT", atr));
 
         return candidates.Where(level => level.Price > 0m).ToList();
     }
@@ -300,18 +411,78 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
             wedge.Falling ? "Upper Wedge Resistance" : "Lower Wedge Support",
             wedge.Falling ? wedge.CurrentUpper : wedge.CurrentLower,
             wedge.Quality,
-            current,
-            previousClose,
+            candles,
+            wedge.StartIndex,
+            wedge.Falling ? "RESISTANCE" : "SUPPORT",
             atr);
     }
 
-    private static KeyLevelCandidate CreateLevelCandidate(string type, string source, decimal price, int quality, ChannelCandle current, decimal previousClose, decimal atr)
+    private static KeyLevelCandidate CreateContextualLevelCandidate(
+        string type,
+        string source,
+        decimal price,
+        int quality,
+        IReadOnlyList<ChannelCandle> candles,
+        int originIndex,
+        decimal atr)
     {
-        var role = current.Close < price ? "RESISTANCE" : current.Close > price ? "SUPPORT" : "TRANSITION";
-        var state = ResolveKeyLevelState(price, atr, current.Close, current.High, current.Low, current.Close, previousClose);
+        var referenceIndex = Math.Clamp(originIndex, 0, candles.Count - 2);
+        var originatingRole = candles[referenceIndex].Close <= price ? "RESISTANCE" : "SUPPORT";
+        return CreateLevelCandidate(type, source, price, quality, candles, referenceIndex, originatingRole, atr);
+    }
+
+    private static KeyLevelCandidate CreateLevelCandidate(
+        string type,
+        string source,
+        decimal price,
+        int quality,
+        IReadOnlyList<ChannelCandle> candles,
+        int originIndex,
+        string originatingRole,
+        decimal atr)
+    {
+        var current = candles[^1];
+        var previousClose = candles.Count >= 2 ? candles[^2].Close : current.Close;
+        var role = ReplayRole(candles, price, atr, originIndex, originatingRole);
+        var state = ResolveKeyLevelState(price, atr, current.Close, current.High, current.Low, current.Close, previousClose, role);
+        role = ResolveCurrentRole(role, state);
         return new KeyLevelCandidate(Math.Round(price, 4), type, role, state, Math.Round(PercentDifference(current.Close, price), 2),
             Math.Round((current.Close - price) / atr, 2), Math.Clamp(quality + StateRank(state) * 4, 0, 100), [source], 1,
-            Math.Round(price + 0.25m * atr, 4), Math.Round(price - 0.25m * atr, 4), source);
+            Math.Round(price + 0.25m * atr, 4), Math.Round(price - 0.25m * atr, 4), source)
+        {
+            ZoneLow = Math.Round(price, 4),
+            ZoneHigh = Math.Round(price, 4),
+            OriginalRole = originatingRole
+        };
+    }
+
+    public static string ResolveCurrentRole(string roleBeforeCurrentBar, string state) => state switch
+    {
+        "SUPPORT_RECLAIM" or "BREAKOUT_CONFIRMED" => "SUPPORT",
+        "BREAKDOWN_CONFIRMED" or "SUPPORT_BROKEN" or "FAILED_BREAKOUT" => "RESISTANCE",
+        _ => roleBeforeCurrentBar,
+    };
+
+    public static string ReplayRole(
+        IReadOnlyList<ChannelCandle> candles,
+        decimal levelPrice,
+        decimal atr,
+        int originIndex,
+        string originatingRole)
+    {
+        var role = originatingRole;
+        var breakoutTrigger = levelPrice + 0.25m * atr;
+        var breakdownTrigger = levelPrice - 0.25m * atr;
+        for (var index = Math.Max(0, originIndex + 1); index < candles.Count - 1; index++)
+        {
+            var close = candles[index].Close;
+            if (role == "RESISTANCE" && close > breakoutTrigger)
+                role = "SUPPORT";
+            else if (role == "SUPPORT" && close < breakdownTrigger)
+                role = "RESISTANCE";
+        }
+
+        return role;
     }
 
     private static IEnumerable<(string Type, string Source, decimal Price)> CalculateFibLevels(IReadOnlyList<ChannelCandle> candles)
@@ -327,6 +498,25 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         yield return ("FIB_50", "Fib 50", Math.Round(high - range * 0.50m, 4));
         yield return ("FIB_61_8", "Fib 61.8", Math.Round(high - range * 0.618m, 4));
     }
+
+    private static decimal CalculateEma(IReadOnlyList<decimal> values, int period)
+    {
+        var ema = values.Take(period).Average();
+        var multiplier = 2m / (period + 1m);
+        foreach (var value in values.Skip(period)) ema += (value - ema) * multiplier;
+        return ema;
+    }
+
+    private static string SourceFamily(string type) => type switch
+    {
+        "FIB_38_2" or "FIB_50" or "FIB_61_8" => "FIB",
+        "SMA50" or "SMA200" or "EMA_20" => "MA",
+        "SWING_HIGH" or "SWING_LOW" => "SWING",
+        "WEDGE_RESISTANCE" or "WEDGE_SUPPORT" => "WEDGE",
+        "CHANNEL_RAIL" => "CHANNEL",
+        "OPEN_GAP" => "GAP",
+        _ => type,
+    };
 
     private static string CompactLevelLabel(KeyLevelCandidate level)
     {
@@ -358,6 +548,7 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
             "BREAKOUT" => $"{prefix} Breakout",
             "BREAKDOWN" => $"{prefix} Breakdown",
             "NEAR_APEX" => $"{prefix} Near Apex",
+            "TIGHTENING" => $"{prefix} Tightening",
             "FAILED" => $"{prefix} Failed",
             _ => prefix
         };
@@ -437,7 +628,8 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         var upperToday = best.UpperSlope * (candles.Count - 1) + best.UpperIntercept;
         var distance = currentPrice - lowerToday;
         var distanceAtr = distance / atr;
-        var state = ResolveState(best.ConfirmedTouches.Count, distanceAtr);
+        var lowDistanceAtr = (candles[^1].Low - lowerToday) / atr;
+        var state = ResolveChannelState(best.ConfirmedTouches.Count, distanceAtr, lowDistanceAtr);
 
         var gaps = FindOpenGaps(candles, currentPrice);
         return new ChannelAnalysisResult(
@@ -464,6 +656,16 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         if (Math.Abs(distanceAtr) <= 0.35m)
             return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_RETEST : ChannelState.THIRD_TOUCH_TEST;
         if (distanceAtr > 0.35m && distanceAtr <= 1m)
+            return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_APPROACHING : ChannelState.THIRD_TOUCH_APPROACHING;
+        return ChannelState.CHANNEL_ACTIVE;
+    }
+
+    public static ChannelState ResolveChannelState(int confirmedTouchCount, decimal closeDistanceAtr, decimal lowDistanceAtr)
+    {
+        if (closeDistanceAtr < -0.5m) return ChannelState.CHANNEL_BROKEN;
+        if (Math.Abs(lowDistanceAtr) <= 0.35m)
+            return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_RETEST : ChannelState.THIRD_TOUCH_TEST;
+        if (lowDistanceAtr > 0.35m && lowDistanceAtr <= 1m)
             return confirmedTouchCount >= 3 ? ChannelState.LOWER_RAIL_APPROACHING : ChannelState.THIRD_TOUCH_APPROACHING;
         return ChannelState.CHANNEL_ACTIVE;
     }
@@ -722,6 +924,21 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         => candles[i].High > candles[i - 1].High && candles[i].High > candles[i - 2].High
         && candles[i].High > candles[i + 1].High && candles[i].High > candles[i + 2].High;
 
+    private static bool IsMeaningfulSwing(
+        IReadOnlyList<ChannelCandle> candles,
+        int pivotIndex,
+        decimal atr,
+        TouchSide side)
+    {
+        var end = Math.Min(candles.Count - 1, pivotIndex + 15);
+        if (end <= pivotIndex) return false;
+        var pivotPrice = side == TouchSide.Upper ? candles[pivotIndex].High : candles[pivotIndex].Low;
+        return Enumerable.Range(pivotIndex + 1, end - pivotIndex).Any(index =>
+            side == TouchSide.Upper
+                ? pivotPrice - candles[index].Low >= atr
+                : candles[index].High - pivotPrice >= atr);
+    }
+
     private static (decimal? Above, decimal? Below) FindOpenGaps(
         IReadOnlyList<ChannelCandle> candles,
         decimal currentPrice)
@@ -785,7 +1002,12 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         int ConfluenceCount,
         decimal? BreakoutTriggerPrice,
         decimal? BreakdownTriggerPrice,
-        string SourceLabel);
+        string SourceLabel)
+    {
+        public decimal ZoneLow { get; init; } = Price;
+        public decimal ZoneHigh { get; init; } = Price;
+        public string OriginalRole { get; init; } = Role;
+    }
 
     private enum TouchSide { Upper, Lower }
 }
@@ -862,6 +1084,20 @@ public sealed record PriceStructureResult(
     decimal? BreakdownTriggerPrice,
     DateTime CalculatedAt)
 {
+    public string Symbol { get; init; } = string.Empty;
+    public string PatternHorizon { get; init; } = "NONE";
+    public int? PatternLookbackSessions { get; init; }
+    public decimal? KeyLevelLow { get; init; }
+    public decimal? KeyLevelHigh { get; init; }
+    public decimal DailyHigh { get; init; }
+    public decimal DailyLow { get; init; }
+    public decimal EodClose { get; init; }
+    public IReadOnlyList<ChannelTouchDetail> ChannelTouchDetails { get; init; } = [];
+    public string KeyLevelOriginalRole { get; init; } = KeyLevelRole;
+    public bool HasHardStructuralNegative =>
+        PrimaryPatternState is "BREAKDOWN" or "CHANNEL_BROKEN"
+        || KeyLevelState is "SUPPORT_BROKEN" or "BREAKDOWN_CONFIRMED" or "FAILED_BREAKOUT";
+
     public static PriceStructureResult None { get; } = new("—", 0, null, 0m, 0m, 0m, 0m, 0m, null, null, 0, 0, 0m, 0m, 0m, 0, 0, 0, 0, 0m, 0m,
         "NONE", "NONE", 0, null, null, "NONE", "TRANSITION", "NONE", null, null, 0, [], 0, null, null, DateTime.UtcNow);
 }

@@ -28,6 +28,11 @@ import {
   TechnicalState,
   ValueScreenerResult,
 } from '../../core/models/portfolio.models';
+import {
+  priceStructureLabel as formatPriceStructureLabel,
+  priceStructureTooltip as formatPriceStructureTooltip,
+  priceStructureSortRank,
+} from '../../core/price-structure-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
@@ -533,40 +538,20 @@ export class PortfolioPageComponent {
 
   protected priceStructureLabel(symbol: string, summary?: PortfolioSummary): string {
     const structure = this.priceStructureForSymbol(symbol, summary);
-    if (!structure || structure.label === '—') return '';
-    if (structure.keyLevelPrice && structure.primaryPatternType === 'NONE') {
-      return `${this.formatPriceStructureState(structure.keyLevelState)} @ ${structure.keyLevelPrice.toFixed(2)}`;
-    }
-    return structure.label;
+    return formatPriceStructureLabel(this.priceStructureForSymbol(symbol, summary), (value) =>
+      this.demoMode.maskValue(value),
+    );
   }
 
   protected priceStructureTooltip(symbol: string, summary?: PortfolioSummary): string {
-    const structure = this.priceStructureForSymbol(symbol, summary);
-    if (!structure || structure.label === '—') return '';
-    const keyLevel = structure.keyLevelPrice
-      ? `\n\nKEY TECHNICAL LEVEL\nState: ${structure.keyLevelState}\nRole: ${structure.keyLevelRole}\nPrimary Level: ${structure.keyLevelType}\nLevel: $${structure.keyLevelPrice.toFixed(2)}\nDistance: ${structure.keyLevelDistancePercent ?? '—'}%\nDistance ATR: ${structure.keyLevelDistanceAtr ?? '—'}\nBreakout Trigger: ${structure.breakoutTriggerPrice?.toFixed(2) ?? '—'}\nBreakdown Trigger: ${structure.breakdownTriggerPrice?.toFixed(2) ?? '—'}\nSources: ${(structure.keyLevelSources ?? []).join(', ') || '—'}\nConfluence: ${structure.keyLevelConfluenceCount}`
-      : '';
-    return `PRICE STRUCTURE\n\nPRIMARY PATTERN\nPattern: ${structure.primaryPatternType}\nState: ${structure.primaryPatternState}\nQuality: ${structure.primaryPatternQuality}/100\nHorizon: ${structure.primaryPatternHorizon ?? '—'} trading days\nPattern Start: ${structure.patternStart ?? '—'}\nContraction: ${structure.contractionPercent}%\nIndependent Upper Touches: ${structure.independentUpperTouchCount}\nIndependent Lower Touches: ${structure.independentLowerTouchCount}${keyLevel}`;
+    return formatPriceStructureTooltip(this.priceStructureForSymbol(symbol, summary), (value) =>
+      this.demoMode.maskValue(value),
+    );
   }
 
   protected priceStructureSortValue(symbol: string, summary?: PortfolioSummary): number {
     const structure = this.priceStructureForSymbol(symbol, summary);
-    if (!structure) return 0;
-    const stateRanks: Record<string, number> = {
-      BREAKOUT_CONFIRMED: 16,
-      SUPPORT_RECLAIM: 15,
-      BREAKOUT: 14,
-      NEAR_APEX: 12,
-      RESISTANCE_TEST: 10,
-      SUPPORT_TEST: 9,
-      APPROACHING_RESISTANCE: 8,
-      APPROACHING_SUPPORT: 7,
-      DEVELOPING: 5,
-      BREAKDOWN: 3,
-      BREAKDOWN_CONFIRMED: 2,
-      FAILED_BREAKOUT: 1,
-    };
-    return stateRanks[structure.keyLevelState] ?? stateRanks[structure.primaryPatternState] ?? 0;
+    return priceStructureSortRank(this.priceStructureForSymbol(symbol, summary));
   }
 
   private formatPriceStructureState(state: string): string {

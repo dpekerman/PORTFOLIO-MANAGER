@@ -489,8 +489,16 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── Fibonacci Retracement V1 ─────────────────────────────────────────
             var fib = CalculateFibonacci(closes, highs, lows, todayClose, prevClose);
-            var technicalAnalysis = MarketLeadershipCalculator.Analyze(closes);
-            var priceStructure = ChannelAnalysisService.AnalyzePriceStructure(candles, dailyAtr, ema9Price, technicalAnalysis.MomentumState, volRatio);
+            var sharedHistory = candles.Select((candle, index) => new MarketDailyClose(
+                DateOnly.FromDateTime(candle.Date),
+                candle.Close,
+                candle.Open,
+                candle.High,
+                candle.Low,
+                index < volumes.Count ? volumes[index] : 0L)).ToList();
+            var technicalSnapshot = TechnicalSnapshotService.FromHistory(symbol, sharedHistory);
+            var technicalAnalysis = technicalSnapshot.Analysis;
+            var priceStructure = technicalSnapshot.PriceStructure;
 
             return new RsiScanResult
             {
@@ -564,7 +572,10 @@ public sealed class RsiScannerService : IRsiScannerService
                 DistanceToGapAbovePercent = channel.DistanceToGapAbovePercent,
                 DistanceToGapBelowPercent = channel.DistanceToGapBelowPercent,
                 ChannelTouchDetails = channel.TouchDetails.ToList(),
-                PriceStructure = priceStructure,
+                PriceStructure = priceStructure with { Symbol = symbol },
+                MaStructure = technicalAnalysis.MaStructure,
+                MaCrossState = technicalAnalysis.LastCross,
+                MomentumState = technicalAnalysis.MomentumState,
             };
         }
         catch (Exception ex)

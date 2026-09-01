@@ -4,7 +4,9 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioActionDto } from '../../../core/models/portfolio.models';
+import { priceStructureLabel, priceStructureTooltip } from '../../../core/price-structure-display';
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DemoModeService } from '../../../core/services/demo-mode.service';
 
 @Component({
   selector: 'app-portfolio-actions-widget',
@@ -14,6 +16,7 @@ import { DashboardStateService } from '../../../core/services/dashboard-state.se
   imports: [DecimalPipe, MatIconModule, MatProgressBarModule, MatTooltipModule],
 })
 export class PortfolioActionsWidgetComponent {
+  private readonly demoMode = inject(DemoModeService);
   private readonly filter = signal<'ALL' | 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL'>('ALL');
   protected readonly dashboard = inject(DashboardStateService);
   protected readonly actions = this.dashboard.portfolioActions;
@@ -58,18 +61,11 @@ export class PortfolioActionsWidgetComponent {
     return scanType === 'Oversold' ? 'trending_down' : 'trending_up';
   }
 
-  protected channelTooltip(action: PortfolioActionDto): string {
-    if (action.channelState === 'NONE' || action.channelState === 'CHANNEL_ACTIVE') return '';
-    const touches = (action.channelTouchDetails ?? [])
-      .map(
-        (touch) =>
-          `#${touch.touchNumber}  ${touch.touchDate.slice(0, 10)}\nRail: ${touch.railPrice.toFixed(2)}\nLow: ${touch.actualLow.toFixed(2)}\nBounce: +${touch.bounceATR.toFixed(2)} ATR`,
-      )
-      .join('\n\n');
-    const interaction =
-      action.priorConfirmedLowerTouches === 2
-        ? '3rd Touch'
-        : `${action.priorConfirmedLowerTouches + 1}th Touch`;
-    return `RISING CHANNEL\n\nCURRENT STRUCTURE\nState: ${action.channelState}\nInteraction: ${interaction}\nQuality: ${action.channelQuality}/100\nEOD Close: ${action.eodClose.toFixed(2)}\nLower Rail: ${action.lowerRailToday.toFixed(2)}\nDistance: ${action.distanceToLowerRailPercent.toFixed(2)}%\nDistance ATR: ${action.distanceToLowerRailATR.toFixed(2)}\n\nTOUCH HISTORY\nConfirmed Touches: ${action.priorConfirmedLowerTouches}\n${touches}\n\nGAP\nNearest Open Gap Above: ${action.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+  protected structureLabel(action: PortfolioActionDto): string {
+    return priceStructureLabel(action.priceStructure, (value) => this.demoMode.maskValue(value));
+  }
+
+  protected structureTooltip(action: PortfolioActionDto): string {
+    return priceStructureTooltip(action.priceStructure, (value) => this.demoMode.maskValue(value));
   }
 }

@@ -161,6 +161,9 @@ public class RsiScanResult
     public decimal? DistanceToGapBelowPercent { get; set; }
     public List<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails { get; set; } = [];
     public PortfolioManager.Api.Services.PriceStructureResult PriceStructure { get; set; } = PortfolioManager.Api.Services.PriceStructureResult.None;
+    public string? MaStructure { get; set; }
+    public string? MaCrossState { get; set; }
+    public string? MomentumState { get; set; }
     public decimal VolumeProjection { get; set; }
     public decimal PositionSizingShares { get; set; }
     public decimal PositionSizingRiskAmount { get; set; }

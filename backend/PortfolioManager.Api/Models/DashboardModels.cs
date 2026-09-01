@@ -85,7 +85,7 @@ public sealed record PortfolioActionDto(
     string CompanyName,
     string HoldingRole,
     string ScanType,
-    decimal Rsi,
+    decimal? Rsi,
     string TrendShift,
     string FibZone,
     string ChaseRisk,
@@ -105,7 +105,13 @@ public sealed record PortfolioActionDto(
     decimal DistanceToLowerRailATR,
     DateTime? LastLowerTouchDate,
     decimal? NearestOpenGapAbove,
-    IReadOnlyList<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails);
+    IReadOnlyList<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails,
+    string? MaStructure = null,
+    string? MomentumState = null,
+    PortfolioManager.Api.Services.PriceStructureResult? PriceStructure = null,
+    string? InclusionReason = null,
+    string? ReasonExcludedFromActionCenter = null,
+    DateTime? TechnicalCalculatedAt = null);
 
 /// <summary>An EOD signal whose lifecycle state changed today.</summary>
 public sealed record StateChangeDto(

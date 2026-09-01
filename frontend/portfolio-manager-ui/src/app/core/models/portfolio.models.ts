@@ -56,6 +56,18 @@ export interface PortfolioSummary {
   item: PortfolioItem;
   quote: StockQuote | null;
   priceStructure?: PriceStructureResult | null;
+  technicalFacts?: SharedTechnicalFacts | null;
+}
+
+export interface SharedTechnicalFacts {
+  symbol: string;
+  rsi: number | null;
+  maStructure: string | null;
+  maCrossState: string | null;
+  momentumState: string | null;
+  priceStructure: PriceStructureResult;
+  buyScore: number | null;
+  calculatedAt: string;
 }
 
 export interface WatchlistItem {
@@ -76,6 +88,7 @@ export interface WatchlistSummary {
   item: WatchlistItem;
   quote: StockQuote | null;
   priceStructure?: PriceStructureResult | null;
+  technicalFacts?: SharedTechnicalFacts | null;
 }
 
 export interface DataRefreshResultDto {
@@ -807,7 +820,7 @@ export interface PortfolioActionDto {
   companyName: string;
   holdingRole: string;
   scanType: string;
-  rsi: number;
+  rsi: number | null;
   trendShift: string;
   fibZone: string;
   chaseRisk: string;
@@ -835,6 +848,12 @@ export interface PortfolioActionDto {
     bounceATR: number;
     confirmedBounce: boolean;
   }>;
+  maStructure: string | null;
+  momentumState: string | null;
+  priceStructure: PriceStructureResult | null;
+  inclusionReason: string | null;
+  reasonExcludedFromActionCenter: string | null;
+  technicalCalculatedAt: string | null;
 }
 
 export interface StateChangeDto {
@@ -954,6 +973,7 @@ export interface MarketLeadershipRow {
 }
 
 export interface PriceStructureResult {
+  symbol: string;
   label: string;
   quality: number;
   patternStart: string | null;
@@ -981,6 +1001,7 @@ export interface PriceStructureResult {
   primaryPatternHorizon: number | null;
   keyLevelPrice: number | null;
   keyLevelType: string;
+  keyLevelOriginalRole?: string;
   keyLevelRole: string;
   keyLevelState: string;
   keyLevelDistancePercent: number | null;
@@ -991,6 +1012,22 @@ export interface PriceStructureResult {
   breakoutTriggerPrice: number | null;
   breakdownTriggerPrice: number | null;
   calculatedAt: string;
+  patternHorizon: 'NONE' | 'STRUCTURAL' | 'TIGHT';
+  patternLookbackSessions: number | null;
+  keyLevelLow: number | null;
+  keyLevelHigh: number | null;
+  dailyHigh: number;
+  dailyLow: number;
+  eodClose: number;
+  channelTouchDetails: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
+  hasHardStructuralNegative?: boolean;
 }
 
 export interface MarketLeadershipResponse {

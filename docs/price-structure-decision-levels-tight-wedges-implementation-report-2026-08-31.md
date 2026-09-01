@@ -1,387 +1,176 @@
-# Price Structure Decision Levels and Tight Wedges Implementation Report
+# Shared Price Structure Decision Levels Implementation Report
 
 Date: 2026-08-31
 
 ## Summary
 
-Implemented the shared Price Structure extension so the existing engine can surface both:
-
-- a primary pattern, including structural wedges, tight swing wedges, and channels;
-- a current key technical decision level, including support/resistance tests, breakouts, breakdowns, confluence zones, SMA levels, Fib levels, swing levels, and gap boundaries.
-
-This work extends the existing shared Price Structure / TechnicalSnapshot path. It does not create a new scanner, does not create per-screen calculation logic, and does not change RSI, Momentum, MA, Channel, or Final Action calculations except to consume the shared Price Structure context.
-
-## Completed TODO List
-
-- [x] Added Upcoming Earnings dashboard expand/collapse behavior.
-- [x] Persisted Upcoming Earnings collapse state with the existing dashboard localStorage service.
-- [x] Extended backend `PriceStructureResult` with primary pattern fields.
-- [x] Extended backend `PriceStructureResult` with key technical level fields.
-- [x] Extended backend `PriceStructureResult` with breakout/breakdown trigger fields.
-- [x] Mirrored the expanded `PriceStructureResult` in TypeScript.
-- [x] Added multi-horizon wedge search inside the existing shared engine.
-- [x] Preserved structural wedge rules for longer horizons.
-- [x] Added tight swing wedge mode for 20D, 30D, and 40D horizons.
-- [x] Required tighter contraction for tight wedges.
-- [x] Kept tight wedge detection inside the existing Price Structure engine, not a separate scanner/service.
-- [x] Added generic key-level candidate selection even when no wedge/channel exists.
-- [x] Added candidate sources for wedge rails, swing highs/lows, Fib 38.2/50/61.8, SMA50, SMA200, and open gaps.
-- [x] Added support/resistance role resolution based on current price location.
-- [x] Used daily high for resistance tests.
-- [x] Used daily low for support tests.
-- [x] Used EOD close for breakout/breakdown confirmation.
-- [x] Added failed breakout role-reversal state.
-- [x] Added support reclaim role-reversal state.
-- [x] Added confluence-zone detection for clustered important levels.
-- [x] Added key-level quality and confluence source reporting.
-- [x] Kept `TechnicalSnapshotService` as the shared backend source for MA/momentum/price-structure facts.
-- [x] Populated shared `PriceStructureResult` on Market Leadership rows.
-- [x] Populated shared `PriceStructureResult` on Portfolio summary DTOs.
-- [x] Populated shared `PriceStructureResult` on Watchlist summary DTOs.
-- [x] Populated shared `PriceStructureResult` on RSI scanner rows.
-- [x] Added compact Price Structure display to Market Leadership tooltip.
-- [x] Added compact Price Structure column to Portfolio stock grid.
-- [x] Added compact Price Structure column to Watchlist grid.
-- [x] Added compact Price Structure column to RSI Scanner grid.
-- [x] Added Price Structure column registration to grid column preferences.
-- [x] Added deterministic backend tests for key-level state behavior.
-- [x] Added deterministic backend tests for confluence and tight wedge contraction.
-- [x] Re-ran focused and full backend test suites.
-- [x] Re-ran Angular development build.
-- [x] Checked editor diagnostics.
-
-## Backend Changes
-
-### Shared Price Structure Result
-
-`PriceStructureResult` now includes the old display fields plus the new shared contract:
-
-- `PrimaryPatternType`
-- `PrimaryPatternState`
-- `PrimaryPatternQuality`
-- `PrimaryPatternHorizon`
-- `KeyLevelPrice`
-- `KeyLevelType`
-- `KeyLevelRole`
-- `KeyLevelState`
-- `KeyLevelDistancePercent`
-- `KeyLevelDistanceAtr`
-- `KeyLevelQuality`
-- `KeyLevelSources`
-- `KeyLevelConfluenceCount`
-- `BreakoutTriggerPrice`
-- `BreakdownTriggerPrice`
-- `CalculatedAt`
-
-`PriceStructureResult.None` now returns explicit `NONE` / neutral values for the expanded fields.
-
-### Multi-Horizon Wedge Search
-
-The existing `ChannelAnalysisService.AnalyzePriceStructure(...)` now evaluates multiple windows:
-
-- Tight wedge windows: 20, 30, 40 trading days.
-- Structural wedge windows: 60, 126, 250 trading days.
-
-Structural wedge rules remain strict:
-
-- same geometry as before;
-- approximately 10 trading days same-side touch spacing;
-- approximately 1.5 ATR move-away;
-- contraction threshold remains at 30%;
-- quality threshold remains at 70;
-- breakout/breakdown thresholds remain 0.25 ATR.
-
-Tight wedge mode uses shorter-horizon parameters:
-
-- same wedge geometry;
-- same-side touch spacing around 4 trading days;
-- move-away around 1 ATR;
-- minimum 2 independent touches per side;
-- contraction threshold is 40%;
-- quality threshold remains 70.
-
-### Key Technical Level / Decision Zone
-
-The shared engine now selects a key decision level even when no pattern exists. Candidate sources include:
-
-- wedge resistance/support rails;
-- recent swing high;
-- recent swing low;
-- Fib 38.2;
-- Fib 50;
-- Fib 61.8;
-- SMA50;
-- SMA200;
-- open-gap boundaries already available in the channel logic.
+The shared Price Structure engine now represents two independent facts: the primary structural pattern and the technical decision level affecting the ticker now. It reuses the existing two-year OHLCV history and `TechnicalSnapshotService`; it adds no scanner, Yahoo request path, database table, persisted role-transition state, or ticker-specific production logic.
 
-Each candidate calculates:
+## 1. Shared Price Structure Fields
 
-- distance percent;
-- distance ATR;
-- support/resistance/transition role;
-- state;
-- quality;
-- breakout and breakdown trigger prices.
+`PriceStructureResult` retains pattern and level diagnostics and adds `Symbol`, `PatternHorizon`, `PatternLookbackSessions`, `KeyLevelLow`, `KeyLevelHigh`, `DailyHigh`, `DailyLow`, `EodClose`, and `ChannelTouchDetails`.
 
-If multiple meaningful levels are within 0.5 ATR, the engine returns a `CONFLUENCE_ZONE` with merged sources and a confluence count.
+`SharedTechnicalFacts` was added to portfolio/watchlist snapshot DTOs with nullable RSI, MA Structure, MA cross, Momentum, Price Structure, nullable Buy Score, and a shared calculation timestamp. Pattern and key level remain separate concepts.
 
-### Key-Level States
+## 2. Candidate-Level Logic
 
-Implemented shared state resolution for:
+The common candidate builder evaluates meaningful swing highs/lows, Fib 38.2/50/61.8, EMA20, SMA50, SMA200, wedge rails, validated channel rails, nearest unfilled gap boundaries, and independent-source confluence. Swing candidates require a pivot followed by at least a one-ATR move away within 15 sessions. MA Structure remains a separate fact.
 
-- `APPROACHING_RESISTANCE`
-- `RESISTANCE_TEST`
-- `BREAKOUT_CONFIRMED`
-- `FAILED_BREAKOUT`
-- `APPROACHING_SUPPORT`
-- `SUPPORT_TEST`
-- `BREAKDOWN_CONFIRMED`
-- `SUPPORT_RECLAIM`
-- `NONE`
+## 3. Proximity Thresholds
 
-Daily high/low are used for tests. EOD close is used for confirmation.
+- Relevance: absolute distance at most `1.0 ATR`.
+- Testing: Daily High/Low or close within `0.35 ATR`.
+- Approaching: directional movement between `0.35` and `1.0 ATR`.
 
-### Shared Screen Integration
+Relevance is applied before confluence and ranking. Ranking prioritizes ATR proximity, then state, quality, and a deterministic type tie-breaker. A farther confluence cannot replace a nearer active level.
 
-The same `PriceStructureResult` is now available through:
+## 4. Support and Resistance Roles
 
-- Market Leadership via `TechnicalSnapshotService`.
-- Portfolio summaries via live quotes and data refresh snapshots.
-- Watchlist summaries via live quotes and data refresh snapshots.
-- RSI scanner rows via the same shared engine using the scanner's already-built OHLC candles.
+Roles are not assigned from current close versus level. Swing highs, upper rails, and gaps above originate as resistance; swing lows, lower rails, and gaps below originate as support. Fib and MA context derives from historical price location.
 
-## Frontend Changes
+The engine replays completed EOD closes from formation through the penultimate bar. Resistance changes to support only after a close above `level + 0.25 ATR`; support changes to resistance only after a close below `level - 0.25 ATR`. The current bar uses the role in force before that bar, preventing premature same-bar role flips. No transition state is persisted.
 
-### Dashboard
+## 5. Breakout and Breakdown Logic
 
-Upcoming Earnings now behaves like the other dashboard panels:
+- Breakout trigger: `resistance + 0.25 * ATR`.
+- Breakdown trigger: `support - 0.25 * ATR`.
+- Daily Low controls support interaction.
+- Daily High controls resistance interaction.
+- EOD Close confirms breaks; intraday pierces do not.
 
-- expand/collapse button in the header;
-- `upcoming-earnings` section id;
-- localStorage key: `dashboard_collapse_upcoming-earnings`;
-- default expanded.
+Hard negatives include `BREAKDOWN_CONFIRMED`, `SUPPORT_BROKEN`, `FAILED_BREAKOUT`, wedge `BREAKDOWN`, and `CHANNEL_BROKEN`.
 
-### Shared Models
+## 6. Confluence
 
-Updated `portfolio.models.ts`:
+Confluence runs after relevance filtering and requires at least two independent source families. Multiple Fib levels count as one family, as do multiple moving averages. Sources and independent confluence count are returned. Confluence raises quality but cannot override proximity.
 
-- `PortfolioSummary.priceStructure?: PriceStructureResult | null`
-- `WatchlistSummary.priceStructure?: PriceStructureResult | null`
-- `RsiScanResult.priceStructure: PriceStructureResult`
-- expanded `PriceStructureResult` fields matching the backend record.
+## 7. Tight Wedges
 
-### Grid Displays
+Tight windows of 15, 20, 30, and 40 sessions are evaluated independently from structural windows of 60, 126, and 250 sessions. Tight wedges require converging geometry, at least two independent touches per rail, spacing, one-ATR move-away, 40% contraction, quality of at least 70, and current price inside/interacting with the structure.
 
-Added compact `PRICE STRUCTURE` / `Price Structure` columns to:
+Maturity distinguishes `DEVELOPING`, `TIGHTENING`, and `NEAR_APEX`. EOD Close plus the quarter-ATR trigger confirms breakout/breakdown. Near apex alone is not a trade signal.
 
-- Portfolio stocks grid;
-- Watchlist grid;
-- RSI Scanner grid.
+## 8. Channel/Wedge Regression Impact
 
-Market Leadership tooltip now shows both:
+The validated rising-channel algorithm and touch-quality rules remain. Exactly two prior confirmed lower touches retain third-touch terminology; 3+ use lower-rail retest terminology. Daily Low now controls approach/test while EOD Close controls `CHANNEL_BROKEN`.
 
-- Primary Pattern;
-- Key Technical Level.
+Channel and key-level results are composed rather than mutually exclusive, so a valid channel can coexist with a nearer Fib, MA, swing, gap, or confluence decision level.
 
-Portfolio and Watchlist prefer the DTO-level shared `priceStructure` and fall back to scanner-enriched rows if old snapshots do not yet include the new field.
+## 9. Action Center UI
 
-## Important Non-Goals Preserved
+Primary columns are now `RSI`, `MA Structure`, `Momentum`, and `Price Structure`. Holdings retain Allocation and Position Action; Watchlist retains Entry Status. Trend, Fib Zone, and Channel were removed as primary columns. Their details remain in the Price Structure tooltip.
 
-- No new scanner was created.
-- No ticker-specific behavior was hardcoded.
-- No separate per-screen Price Structure logic was added.
-- Structural wedge rules were not loosened globally.
-- RSI calculations were not changed.
-- Momentum calculations were not changed.
-- MA calculations were not changed.
-- Existing final-action hierarchy was not replaced.
-- Key levels and tight wedges provide context; they do not independently create buy/sell recommendations.
+Unavailable RSI and Momentum display `—`, not `0.0` or a synthetic `Waiting` state.
 
-## Automated Validation
+## 10. Action Center Shared Integration
 
-### Focused Price Structure Tests
+Action Center merges real scanner facts with persisted portfolio/watchlist `SharedTechnicalFacts`. Holdings remain separate from Active Watchlist entries, and unowned securities cannot receive HOLD/TRIM/EXIT actions. Active watchlist securities with meaningful current structure can enter as developing setups even with neutral RSI status.
 
-Command:
+Inclusion diagnostics include `PRICE_STRUCTURE_SUPPORT_TEST`, `PRICE_STRUCTURE_BREAKOUT_WATCH`, `PRIORITY_TECHNICAL_SETUP`, `HARD_STRUCTURE_NEGATIVE`, `RSI_SIGNAL`, and `NO_CURRENT_DECISION_LEVEL`. Price Structure adjusts narrowly scoped inclusion/severity behavior; the global role-adjusted Final Action engine was not rewritten.
 
-```powershell
-cd d:\PORTFOLIO-MANAGER\backend
-dotnet test PortfolioManager.Tests\PortfolioManager.Tests.csproj --filter ChannelWedgeTests
-```
+## 11. Priority Candidate Integration
 
-Result:
+The existing 30-point technical component receives bounded modifiers:
 
-```text
-Test summary: total: 31, failed: 0, succeeded: 31, skipped: 0
-```
+- support reclaim or confirmed breakout: `+6`;
+- support/resistance test: `+4`;
+- approaching support/resistance: `+2`;
+- tight falling wedge near apex: `+2`;
+- positive/accelerating Momentum: `+2`;
+- declining Momentum: `-4`;
+- hard structural negative: technical score becomes `0`.
 
-### Full Backend Test Suite
+The score remains capped at 30. `HIGH_PRIORITY` requires a technical score of at least 10, so Price Structure alone cannot promote a candidate. Buy Score remains nullable because no backend Buy Score source exists; no synthetic value was introduced.
 
-Command:
+## 12. Database/Schema Changes
 
-```powershell
-cd d:\PORTFOLIO-MANAGER\backend
-dotnet test PortfolioManager.Tests\PortfolioManager.Tests.csproj
-```
+None. Snapshot JSON gains additive fields, but there is no EF migration, relational change, or transition-state table.
 
-Result:
+## 13. API/DTO Changes
 
-```text
-Test summary: total: 148, failed: 0, succeeded: 148, skipped: 0
-```
+- Portfolio/Watchlist summaries add optional `TechnicalFacts`.
+- Scanner rows add nullable `MaStructure`, `MaCrossState`, and `MomentumState`.
+- Action Center RSI is nullable and adds MA Structure, Momentum, Price Structure, reasons, and technical timestamp.
+- TypeScript interfaces mirror the backend.
 
-### Frontend Build
+RSI Scanner now routes its already-fetched OHLCV candles through `TechnicalSnapshotService.FromHistory`, removing its direct Price Structure calculation without another Yahoo call.
 
-Command:
+## 14. Shared Frontend Presentation
 
-```powershell
-cd d:\PORTFOLIO-MANAGER\frontend\portfolio-manager-ui
-npx ng build --configuration development
-```
+`price-structure-display.ts` is the common source for labels, diagnostic tooltips, monetary masking, and sorting. Portfolio, Watchlist, RSI Scanner, Market Leadership, and Action Center use it.
 
-Result:
+Tooltips cover pattern/horizon/quality, rails, contraction/apex/touches, key-level type/role/state/zone, distances, Daily High/Low, EOD Close, ATR, triggers, sources, confluence, and channel touch history.
 
-```text
-Application bundle generation complete.
-```
+## 15. Tests and Validation
 
-### Editor Diagnostics
-
-Result:
-
-```text
-No errors found.
-```
-
-## Manual Test Steps
-
-### 1. Start Application
-
-```powershell
-cd d:\PORTFOLIO-MANAGER
-start-all.bat
-```
-
-Open:
-
-```text
-http://localhost:4200
-```
-
-### 2. Dashboard Upcoming Earnings Collapse
-
-1. Open Dashboard.
-2. Find `Upcoming earnings (next 7 days)`.
-3. Click the expand/collapse icon.
-4. Confirm the earnings list hides and a collapsed hint appears.
-5. Refresh the page.
-6. Confirm the collapsed/expanded state persists.
-7. In browser DevTools, confirm localStorage contains `dashboard_collapse_upcoming-earnings`.
-
-### 3. Market Leadership Price Structure
-
-1. Open Dashboard -> Market Leadership.
-2. Hover a Price Structure badge.
-3. Confirm the tooltip includes:
-   - Primary Pattern;
-   - Pattern state;
-   - Horizon;
-   - Quality;
-   - Independent upper/lower touches;
-   - Key Technical Level;
-   - Role;
-   - State;
-   - Distance ATR;
-   - Breakout/Breakdown triggers;
-   - Sources and confluence count.
-
-### 4. Portfolio Price Structure Consistency
-
-1. Open Portfolio.
-2. Use the column configuration button if `PRICE STRUCTURE` is hidden.
-3. Show the `PRICE STRUCTURE` column.
-4. Confirm each active stock can show the same compact Price Structure result as Market Leadership for the same ticker after refresh.
-5. Hover the badge and compare the key fields with Market Leadership:
-   - `PrimaryPatternType`
-   - `PrimaryPatternState`
-   - `PrimaryPatternQuality`
-   - `KeyLevelPrice`
-   - `KeyLevelType`
-   - `KeyLevelRole`
-   - `KeyLevelState`
-
-### 5. Watchlist Price Structure Consistency
-
-1. Open Watchlist.
-2. Show the `PRICE STRUCTURE` column if hidden.
-3. Confirm watchlist rows display compact shared Price Structure context.
-4. Compare the same ticker against Portfolio, Market Leadership, or RSI Scanner after refresh.
-
-### 6. RSI Scanner Price Structure Consistency
-
-1. Open RSI Scanner.
-2. Show the `Price Structure` column if hidden.
-3. Run or refresh scanner data.
-4. Confirm scanner rows display the shared Price Structure result.
-5. Confirm Price Structure is contextual only and does not replace the existing RSI/Final Action logic.
-
-### 7. TSLA-Like Key-Level Validation
-
-Use TSLA only as a validation case, not as hardcoded behavior.
-
-1. Ensure TSLA is available in a refreshed scanner/watchlist/portfolio path.
-2. Inspect the `priceStructure` result in browser Network response or tooltip.
-3. If price is near Fib 50 / swing high / SMA confluence, expect:
-   - `KeyLevelType = CONFLUENCE_ZONE` when levels cluster within 0.5 ATR;
-   - `KeyLevelRole = RESISTANCE` when price approaches from below;
-   - `KeyLevelState = RESISTANCE_TEST` when daily high tests the level but close does not confirm breakout;
-   - `KeyLevelState = BREAKOUT_CONFIRMED` only when close exceeds `KeyLevelPrice + 0.25 ATR`.
-
-### 8. TTD-Like Tight Wedge Validation
-
-Use TTD only as a validation case, not as hardcoded behavior.
-
-1. Ensure TTD has refreshed daily OHLC history.
-2. Inspect 20D, 30D, and 40D behavior via the returned Price Structure tooltip/API response.
-3. If valid short compression exists, expect:
-   - `PrimaryPatternType = TIGHT_FALLING_WEDGE` or `TIGHT_RISING_WEDGE` depending on actual geometry;
-   - minimum 2 independent touches per side;
-   - contraction at or above 40%;
-   - quality at or above 70.
-4. Confirm MA structure remains visible independently, for example `200 > 50 > P`.
-5. Confirm a tight wedge alone does not create an automatic bullish trade action.
-
-## Files Changed
+Deterministic tests cover the one-ATR gate, Daily High/Low interaction, EOD confirmation, historical role transitions, no same-bar flip, TSLA-like near-Fib selection, TTD-like tight-wedge geometry, MRVL-like EOD breakdown, GDX-like channels, URA-like `NONE`, ordinary false-positive control, bounded scoring, and hard negatives. Ticker names are test context only; production has no ticker branches and tests do not call Yahoo.
 
 ### Backend
 
-- `backend/PortfolioManager.Api/Services/ChannelAnalysisService.cs`
-- `backend/PortfolioManager.Api/Services/TechnicalSnapshotService.cs`
-- `backend/PortfolioManager.Api/Services/MarketLeadershipService.cs`
-- `backend/PortfolioManager.Api/Services/RsiScannerService.cs`
-- `backend/PortfolioManager.Api/Services/DataRefreshService.cs`
-- `backend/PortfolioManager.Api/Controllers/StocksController.cs`
-- `backend/PortfolioManager.Api/Controllers/WatchlistController.cs`
-- `backend/PortfolioManager.Api/Models/Dtos.cs`
-- `backend/PortfolioManager.Api/Models/ScannerModels.cs`
-- `backend/PortfolioManager.Tests/ChannelWedgeTests.cs`
+```text
+dotnet test backend\PortfolioManager.Tests\PortfolioManager.Tests.csproj -c Release --nologo
+Total: 164, Passed: 164, Failed: 0, Skipped: 0
+```
 
-### Frontend
+Release was used because the running development backend held the Debug executable.
 
-- `frontend/portfolio-manager-ui/src/app/core/models/portfolio.models.ts`
-- `frontend/portfolio-manager-ui/src/app/core/services/dashboard-collapse-state.service.ts`
-- `frontend/portfolio-manager-ui/src/app/core/services/grid-column.service.ts`
-- `frontend/portfolio-manager-ui/src/app/features/dashboard/dashboard-page.component.html`
-- `frontend/portfolio-manager-ui/src/app/features/dashboard/market-leadership-widget/market-leadership-widget.component.ts`
-- `frontend/portfolio-manager-ui/src/app/features/portfolio/portfolio-page.component.ts`
-- `frontend/portfolio-manager-ui/src/app/features/portfolio/portfolio-page.component.html`
-- `frontend/portfolio-manager-ui/src/app/features/watchlist-page/watchlist-page.component.ts`
-- `frontend/portfolio-manager-ui/src/app/features/watchlist-page/watchlist-page.component.html`
-- `frontend/portfolio-manager-ui/src/app/features/scanner/rsi-scanner-table.component.ts`
-- `frontend/portfolio-manager-ui/src/app/features/scanner/rsi-scanner-table.component.html`
-- `frontend/portfolio-manager-ui/src/app/features/scanner/rsi-scanner-table.component.scss`
+### Frontend Build
 
-## Notes
+```text
+npx ng build --configuration development
+Application bundle generation complete.
+```
 
-Old persisted portfolio/watchlist snapshots may not contain `priceStructure` until the next refresh. The frontend handles this by treating the field as optional and falling back to scanner-enriched data where possible.
+### Frontend Tests
 
-No EF migration is required.
+```text
+npm run test -- --watch=false
+Tests: 1 passed, 1 failed
+```
+
+The failure is the pre-existing scaffold assertion in `app.spec.ts` expecting an `h1` containing `Hello, portfolio-manager-ui`; the routed application does not render that scaffold heading. The implementation build and compiler checks pass.
+
+### Diagnostics
+
+VS Code reports no errors across backend, tests, or frontend source.
+
+## Assumptions
+
+- The latest supplied candle is the completed EOD candle used for confirmation.
+- Additive JSON fields are backward compatible and populate on normal refresh.
+- Existing legacy Fib fields remain unchanged; Price Structure consumes equivalent levels without replacing the Fib feature.
+- Existing RSI, Momentum, MA Structure, Buy Score, Value, EOD Signals, Allocation, and global role-adjusted Final Action formulas remain unchanged except for the shared context described above.
+
+## Focused Regression Fixes
+
+### 1. Display Priority
+
+Compact Price Structure display now ranks the strongest event across the independent pattern and key-level facts. Hard structural negatives rank first, confirmed constructive events second, active level interactions third, and approaching/developing events fourth. Candidate-level ATR proximity ranking remains unchanged.
+
+### 2. MRVL
+
+An MRVL-style `TIGHT_RISING_WEDGE / BREAKDOWN` plus `CHANNEL_RAIL / SUPPORT_TEST` result displays `Tight Rising Wedge Breakdown`. The tooltip retains `Testing Channel Support @ 208.07`. The explicit hard-negative flag remains true and Priority technical scoring remains zero despite the constructive nearby support test.
+
+### 3. Support Reclaim Role
+
+Price Structure now exposes `KeyLevelOriginalRole` and derives the current `KeyLevelRole` after the current completed EOD transition. `SUPPORT_RECLAIM` and confirmed breakout expose current role `SUPPORT`; confirmed support failure exposes current role `RESISTANCE`. No transition state is persisted.
+
+### 4. TSLA
+
+The existing `<= 1.0 ATR` relevance gate, `<= 0.35 ATR` test interaction, proximity-first current-level selection, and confluence behavior are unchanged. The distant support regression remains covered. A reclaim from original resistance now reports current support without discarding the original role.
+
+### 5. Channel Tooltip and GDX
+
+Channel tooltips show confirmed lower-rail touch count and channel touch history. Wedge-only independent upper/lower touch counters are omitted for channels. Existing rising-channel, third-touch, and ATR approach semantics are unchanged.
+
+### 6. Trigger Labels and URA
+
+Support-oriented details label the numeric thresholds `Hold / Confirmation Trigger` and `Breakdown Trigger`. Resistance-oriented details use `Breakout Trigger` and `Failure / Rejection Trigger`. Underlying formulas and URA EMA20/Fib confluence selection are unchanged.
+
+### 7. Action Center and DTO Impact
+
+Action Center receives the corrected display automatically through the shared formatter. `HasHardStructuralNegative` is derived on `PriceStructureResult` and is consumed by Action Center severity and Priority scoring even when the current key level is constructive. TypeScript mirrors `hasHardStructuralNegative` and `keyLevelOriginalRole`. Final Action rules were not globally changed.
+
+### 8. Database
+
+No database migration or schema change was required.

@@ -102,7 +102,7 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
             var risk = ComputeRiskScore(item.Role ?? "Strategic", roleActuals, roleTargets, positionLimits, totalValue);
 
             var total = Math.Round(portfolioNeed + technical + fundamental + risk, 1);
-            var badge = total >= 75 ? "HIGH_PRIORITY" : total >= 50 ? "WATCH" : "NO_ADD";
+            var badge = total >= 75 && technical >= 10m ? "HIGH_PRIORITY" : total >= 50 ? "WATCH" : "NO_ADD";
 
             // Determine allocation status for display
             var sectorForItem = scan?.Sector ?? "";
@@ -157,7 +157,7 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
         return 0m;
     }
 
-    private static decimal ComputeTechnicalScore(RsiScanResult? scan)
+    public static decimal ComputeTechnicalScore(RsiScanResult? scan)
     {
         if (scan is null) return 0m;
 
@@ -177,6 +177,23 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
 
         // Volume confirmation bonus
         if (scan.VolumeSignal == "Validated") baseScore += 2m;
+
+        var levelState = scan.PriceStructure.KeyLevelState;
+        var patternState = scan.PriceStructure.PrimaryPatternState;
+        if (scan.PriceStructure.HasHardStructuralNegative || scan.ChannelState == "CHANNEL_BROKEN")
+            return 0m;
+
+        baseScore += levelState switch
+        {
+            "SUPPORT_RECLAIM" or "BREAKOUT_CONFIRMED" => 6m,
+            "SUPPORT_TEST" or "RESISTANCE_TEST" => 4m,
+            "APPROACHING_SUPPORT" or "APPROACHING_RESISTANCE" => 2m,
+            _ => 0m,
+        };
+        if (patternState == "NEAR_APEX" && scan.PriceStructure.PrimaryPatternType == "TIGHT_FALLING_WEDGE")
+            baseScore += 2m;
+        if (scan.MomentumState is "Accelerating" or "Positive") baseScore += 2m;
+        else if (scan.MomentumState == "Declining") baseScore = Math.Max(0m, baseScore - 4m);
 
         return Math.Min(30m, Math.Round(baseScore, 1));
     }

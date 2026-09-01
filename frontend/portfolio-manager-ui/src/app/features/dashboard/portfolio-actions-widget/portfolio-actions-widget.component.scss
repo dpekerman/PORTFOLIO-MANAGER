@@ -173,10 +173,11 @@
 .pa-rsi {
   font-variant-numeric: tabular-nums;
 }
-.pa-trend {
+.pa-technical,
+.pa-structure {
   white-space: nowrap;
 }
-.pa-fib {
+.pa-structure {
   font-size: 0.78rem;
   color: var(--mat-sys-on-surface-variant);
 }
