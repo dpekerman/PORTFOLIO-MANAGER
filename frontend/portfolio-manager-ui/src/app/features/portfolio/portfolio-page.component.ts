@@ -1203,6 +1203,7 @@ export class PortfolioPageComponent {
         'Role',
         'Trend Setup',
         'Momentum Shift',
+        'Price Structure',
         'Action',
       ],
     ];
@@ -1240,6 +1241,7 @@ export class PortfolioPageComponent {
         s.item.holdingRole ?? 'Strategic',
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? '',
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
+        this.priceStructureLabel(s.item.symbol, s),
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
       ]);
     }
@@ -1272,6 +1274,8 @@ export class PortfolioPageComponent {
         '',
         '',
         '',
+        '',
+        '',
       ]);
     }
 
@@ -1298,7 +1302,9 @@ export class PortfolioPageComponent {
         '0.00',
         '0.00',
         '',
+        '',
         'Options',
+        '',
         '',
         '',
         '',

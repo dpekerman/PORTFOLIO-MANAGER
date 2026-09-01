@@ -84,6 +84,26 @@
     white-space: nowrap;
   }
 
+  .pa-sort {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      color: var(--mat-sys-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+  }
+
   td {
     padding: 6px 8px;
     border-bottom: 1px solid var(--mat-sys-outline-variant);

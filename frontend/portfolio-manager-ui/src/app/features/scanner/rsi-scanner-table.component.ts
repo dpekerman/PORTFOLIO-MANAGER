@@ -430,6 +430,7 @@ export class RsiScannerTableComponent {
                 : 'None',
         SMA200: r.sma200 ?? '',
         TrendSetup: dec.trendSetup,
+        'Price Structure': this.priceStructureLabel(r.priceStructure),
         StopLoss: r.dynamicStopLoss ?? '',
         StagedDate: '',
         LastEvaluatedDate: '',

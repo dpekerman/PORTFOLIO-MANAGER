@@ -863,6 +863,7 @@ export class WatchlistPageComponent {
         'RSI (14)': this.rsiForSymbol(w.item.symbol) ?? '',
         'Trend Setup': dec?.trendSetup ?? '',
         'Momentum Shift': dec?.momentumShift ?? '',
+        'Price Structure': this.priceStructureLabel(w.item.symbol, w),
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
         'Hover Note': dec?.hoverDescription ?? '',

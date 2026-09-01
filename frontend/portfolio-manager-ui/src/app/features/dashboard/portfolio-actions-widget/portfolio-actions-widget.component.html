@@ -13,49 +13,42 @@
   @if (actions().length > 0) {
     <!-- Priority summary counts -->
     <div class="pa-counts">
-      @if (activeFilter() !== 'ALL') {
-        <button
-          type="button"
-          class="pa-count pa-count-reset"
-          (click)="resetFilter()"
-          aria-label="Show all Action Center rows"
-        >
-          All
-        </button>
-      }
-      @if (requiredCount() > 0) {
-        <button
-          type="button"
-          class="pa-count pa-count-required"
-          [class.active]="activeFilter() === 'REQUIRED'"
-          (click)="toggleFilter('REQUIRED')"
-        >
-          <mat-icon>error_outline</mat-icon>
-          {{ requiredCount() }} Action Required
-        </button>
-      }
-      @if (developingCount() > 0) {
-        <button
-          type="button"
-          class="pa-count pa-count-developing"
-          [class.active]="activeFilter() === 'DEVELOPING'"
-          (click)="toggleFilter('DEVELOPING')"
-        >
-          <mat-icon>schedule</mat-icon>
-          {{ developingCount() }} Developing
-        </button>
-      }
-      @if (informationalCount() > 0) {
-        <button
-          type="button"
-          class="pa-count pa-count-info"
-          [class.active]="activeFilter() === 'INFORMATIONAL'"
-          (click)="toggleFilter('INFORMATIONAL')"
-        >
-          <mat-icon>info_outline</mat-icon>
-          {{ informationalCount() }} Informational
-        </button>
-      }
+      <button
+        type="button"
+        class="pa-count pa-count-reset"
+        [class.active]="activeFilter() === 'ALL'"
+        (click)="resetFilter()"
+        aria-label="Show all Action Center rows"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-required"
+        [class.active]="activeFilter() === 'REQUIRED'"
+        (click)="toggleFilter('REQUIRED')"
+      >
+        <mat-icon>error_outline</mat-icon>
+        {{ requiredCount() }} Action Required
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-developing"
+        [class.active]="activeFilter() === 'DEVELOPING'"
+        (click)="toggleFilter('DEVELOPING')"
+      >
+        <mat-icon>schedule</mat-icon>
+        {{ developingCount() }} Developing
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-info"
+        [class.active]="activeFilter() === 'INFORMATIONAL'"
+        (click)="toggleFilter('INFORMATIONAL')"
+      >
+        <mat-icon>info_outline</mat-icon>
+        {{ informationalCount() }} Informational
+      </button>
     </div>
 
     <!-- ── HOLDINGS ─────────────────────────────────────────────────── -->
@@ -68,14 +61,50 @@
         <table class="pa-table" role="table" aria-label="Holdings actions">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Role</th>
-              <th>RSI</th>
-              <th>MA Structure</th>
-              <th>Momentum</th>
-              <th>Price Structure</th>
-              <th>Allocation</th>
-              <th class="pa-action-col">Position Action</th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('symbol')">
+                  Symbol{{ holdingsSortIndicator('symbol') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('role')">
+                  Role{{ holdingsSortIndicator('role') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('rsi')">
+                  RSI{{ holdingsSortIndicator('rsi') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('maStructure')">
+                  MA Structure{{ holdingsSortIndicator('maStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('momentum')">
+                  Momentum{{ holdingsSortIndicator('momentum') }}
+                </button>
+              </th>
+              <th>
+                <button
+                  class="pa-sort"
+                  type="button"
+                  (click)="toggleHoldingsSort('priceStructure')"
+                >
+                  Price Structure{{ holdingsSortIndicator('priceStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('allocation')">
+                  Allocation{{ holdingsSortIndicator('allocation') }}
+                </button>
+              </th>
+              <th class="pa-action-col">
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('action')">
+                  Position Action{{ holdingsSortIndicator('action') }}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -141,13 +170,45 @@
         <table class="pa-table" role="table" aria-label="Watchlist entry status">
           <thead>
             <tr>
-              <th>Symbol</th>
-              <th>Role</th>
-              <th>RSI</th>
-              <th>MA Structure</th>
-              <th>Momentum</th>
-              <th>Price Structure</th>
-              <th class="pa-action-col">Entry Status</th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('symbol')">
+                  Symbol{{ watchlistSortIndicator('symbol') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('role')">
+                  Role{{ watchlistSortIndicator('role') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('rsi')">
+                  RSI{{ watchlistSortIndicator('rsi') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('maStructure')">
+                  MA Structure{{ watchlistSortIndicator('maStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('momentum')">
+                  Momentum{{ watchlistSortIndicator('momentum') }}
+                </button>
+              </th>
+              <th>
+                <button
+                  class="pa-sort"
+                  type="button"
+                  (click)="toggleWatchlistSort('priceStructure')"
+                >
+                  Price Structure{{ watchlistSortIndicator('priceStructure') }}
+                </button>
+              </th>
+              <th class="pa-action-col">
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('action')">
+                  Entry Status{{ watchlistSortIndicator('action') }}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -170,9 +231,12 @@
                   {{ structureLabel(a) }}
                 </td>
                 <td class="pa-action-col">
-                  <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">{{
-                    a.actionLabel
-                  }}</span>
+                  <span
+                    class="pa-action-label"
+                    [class]="'pa-action-' + a.actionSeverity"
+                    [matTooltip]="entryStatusTooltip(a)"
+                    >{{ entryStatus(a) }}</span
+                  >
                   @if (a.chaseRisk) {
                     <mat-icon
                       class="pa-chase-ico"

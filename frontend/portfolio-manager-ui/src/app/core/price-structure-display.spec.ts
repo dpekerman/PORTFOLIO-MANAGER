@@ -19,9 +19,9 @@ describe('Price Structure display', () => {
       hasHardStructuralNegative: true,
     });
 
-    expect(priceStructureLabel(result)).toBe('Tight Rising Wedge Breakdown');
+    expect(priceStructureLabel(result)).toBe('TIGHT WEDGE BREAKDOWN');
     expect(priceStructureTooltip(result)).toContain('CURRENT DECISION LEVEL');
-    expect(priceStructureTooltip(result)).toContain('Testing Channel Support @ 208.07');
+    expect(priceStructureTooltip(result)).toContain('Testing Channel Support @ $208.07');
   });
 
   it('uses channel touch diagnostics without wedge-specific counters', () => {
@@ -51,8 +51,8 @@ describe('Price Structure display', () => {
     });
     const tooltip = priceStructureTooltip(result);
 
-    expect(tooltip).toContain('Hold / Confirmation Trigger: 46.00');
-    expect(tooltip).toContain('Breakdown Trigger: 44.00');
+    expect(tooltip).toContain('Hold / Confirmation Trigger: $46.00');
+    expect(tooltip).toContain('Breakdown Trigger: $44.00');
     expect(tooltip).not.toContain('\nBreakout Trigger:');
   });
 
@@ -61,6 +61,116 @@ describe('Price Structure display', () => {
     const supportTest = structure({ keyLevelState: 'SUPPORT_TEST' });
 
     expect(priceStructureSortRank(breakdown)).toBeGreaterThan(priceStructureSortRank(supportTest));
+  });
+
+  it.each([
+    [
+      { keyLevelType: 'CONFLUENCE_ZONE', keyLevelRole: 'SUPPORT', keyLevelState: 'SUPPORT_TEST' },
+      'STRONG SUPPORT ZONE',
+    ],
+    [
+      {
+        keyLevelType: 'CONFLUENCE_ZONE',
+        keyLevelRole: 'RESISTANCE',
+        keyLevelState: 'RESISTANCE_TEST',
+      },
+      'STRONG RESISTANCE ZONE',
+    ],
+    [{ keyLevelState: 'CONFLUENCE_SUPPORT' }, 'STRONG SUPPORT ZONE'],
+    [
+      { keyLevelRole: 'RESISTANCE', keyLevelState: 'CONFLUENCE_RESISTANCE' },
+      'STRONG RESISTANCE ZONE',
+    ],
+    [{ keyLevelState: 'SUPPORT_TEST' }, 'TESTING SUPPORT'],
+    [{ keyLevelRole: 'RESISTANCE', keyLevelState: 'RESISTANCE_TEST' }, 'TESTING RESISTANCE'],
+    [{ keyLevelState: 'APPROACHING_SUPPORT' }, 'NEAR SUPPORT'],
+    [{ keyLevelRole: 'RESISTANCE', keyLevelState: 'APPROACHING_RESISTANCE' }, 'NEAR RESISTANCE'],
+    [{ keyLevelState: 'SUPPORT_RECLAIM' }, 'SUPPORT RECOVERED'],
+    [{ keyLevelState: 'BREAKOUT_WATCH' }, 'BREAKOUT WATCH'],
+    [{ keyLevelState: 'BREAKOUT_CONFIRMED' }, 'BREAKOUT CONFIRMED'],
+    [{ keyLevelState: 'BREAKDOWN_WATCH' }, 'SUPPORT AT RISK'],
+    [{ keyLevelState: 'BREAKDOWN_CONFIRMED' }, 'SUPPORT BROKEN'],
+    [{ keyLevelState: 'FAILED_BREAKOUT' }, 'BREAKOUT FAILED'],
+    [
+      { keyLevelType: 'SWING_HIGH', keyLevelRole: 'RESISTANCE', keyLevelState: 'RESISTANCE_TEST' },
+      'TESTING RECENT HIGH',
+    ],
+    [
+      {
+        keyLevelType: 'SWING_HIGH',
+        keyLevelRole: 'RESISTANCE',
+        keyLevelState: 'APPROACHING_RESISTANCE',
+      },
+      'NEAR RECENT HIGH',
+    ],
+    [{ keyLevelType: 'SWING_LOW', keyLevelState: 'SUPPORT_TEST' }, 'TESTING RECENT LOW'],
+    [{ keyLevelType: 'SWING_LOW', keyLevelState: 'APPROACHING_SUPPORT' }, 'NEAR RECENT LOW'],
+    [{ keyLevelType: 'FIB_38_2', keyLevelState: 'SUPPORT_TEST' }, 'TESTING FIB 38.2'],
+    [
+      { keyLevelType: 'FIB_50', keyLevelRole: 'RESISTANCE', keyLevelState: 'RESISTANCE_TEST' },
+      'TESTING FIB 50',
+    ],
+    [{ keyLevelType: 'FIB_61_8', keyLevelState: 'SUPPORT_TEST' }, 'TESTING FIB 61.8'],
+    [{ keyLevelState: 'THIRD_RAIL_APPROACHING' }, 'NEAR CHANNEL SUPPORT'],
+    [{ keyLevelState: 'THIRD_RAIL_TEST' }, 'TESTING CHANNEL SUPPORT'],
+    [{ keyLevelState: 'LOWER_RAIL_RETEST' }, 'RETESTING CHANNEL SUPPORT'],
+    [{ keyLevelState: 'CHANNEL_BROKEN' }, 'CHANNEL SUPPORT BROKEN'],
+  ])('maps level state %j to %s', (overrides, expected) => {
+    const result = structure({ keyLevelPrice: 100, ...overrides });
+    const originalState = result.keyLevelState;
+
+    expect(priceStructureLabel(result)).toBe(expected);
+    expect(result.keyLevelState).toBe(originalState);
+  });
+
+  it.each([
+    ['RISING_CHANNEL', 'THIRD_TOUCH_APPROACHING', 'NEAR CHANNEL SUPPORT'],
+    ['RISING_CHANNEL', 'THIRD_RAIL_TEST', 'TESTING CHANNEL SUPPORT'],
+    ['RISING_CHANNEL', 'LOWER_RAIL_RETEST', 'RETESTING CHANNEL SUPPORT'],
+    ['RISING_CHANNEL', 'CHANNEL_BROKEN', 'CHANNEL SUPPORT BROKEN'],
+    ['FALLING_WEDGE', 'DEVELOPING', 'FALLING WEDGE'],
+    ['FALLING_WEDGE', 'NEAR_APEX', 'WEDGE TIGHTENING'],
+    ['TIGHT_FALLING_WEDGE', 'DEVELOPING', 'TIGHT FALLING WEDGE'],
+    ['TIGHT_FALLING_WEDGE', 'NEAR_APEX', 'TIGHT WEDGE — NEAR BREAKOUT'],
+    ['FALLING_WEDGE', 'BREAKOUT', 'WEDGE BREAKOUT'],
+    ['TIGHT_FALLING_WEDGE', 'BREAKOUT', 'TIGHT WEDGE BREAKOUT'],
+    ['RISING_WEDGE', 'DEVELOPING', 'RISING WEDGE'],
+    ['RISING_WEDGE', 'NEAR_APEX', 'RISING WEDGE — CAUTION'],
+    ['RISING_WEDGE', 'BREAKDOWN', 'WEDGE BREAKDOWN'],
+    ['TIGHT_RISING_WEDGE', 'BREAKDOWN', 'TIGHT WEDGE BREAKDOWN'],
+  ])('maps pattern %s/%s to %s', (primaryPatternType, primaryPatternState, expected) => {
+    const result = structure({ primaryPatternType, primaryPatternState });
+    const originalState = result.primaryPatternState;
+
+    expect(priceStructureLabel(result)).toBe(expected);
+    expect(result.primaryPatternState).toBe(originalState);
+  });
+
+  it('leads tooltip with investor questions before technical details', () => {
+    const tooltip = priceStructureTooltip(
+      structure({ keyLevelPrice: 100, keyLevelState: 'SUPPORT_TEST' }),
+    );
+
+    expect(tooltip.indexOf('WHAT IS HAPPENING?')).toBeLessThan(
+      tooltip.indexOf('TECHNICAL DETAILS'),
+    );
+    expect(tooltip).toContain('WHY DOES IT MATTER?');
+    expect(tooltip).toContain('WHAT TO WATCH NEXT?');
+    expect(tooltip).toContain('Internal State: SUPPORT_TEST');
+  });
+
+  it('describes a transitioned wedge level using its current role', () => {
+    const tooltip = priceStructureTooltip(
+      structure({
+        keyLevelPrice: 100,
+        keyLevelState: 'SUPPORT_TEST',
+        keyLevelOriginalRole: 'RESISTANCE',
+        keyLevelRole: 'SUPPORT',
+        keyLevelSources: ['Upper Wedge Resistance'],
+      }),
+    );
+
+    expect(tooltip).toContain('Testing Former Wedge Resistance — Now Support');
   });
 });
 

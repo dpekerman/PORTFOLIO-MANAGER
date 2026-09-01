@@ -11,7 +11,220 @@
  */
 
 import { Injectable } from '@angular/core';
-import { RsiScanResult } from '../models/portfolio.models';
+import { PriceStructureResult, RsiScanResult } from '../models/portfolio.models';
+
+export type WatchlistEntryStatus =
+  | 'ENTRY CANDIDATE'
+  | 'STARTER ENTRY'
+  | 'BUY WATCH'
+  | 'REVERSAL WATCH'
+  | 'WATCH / NO CHASE'
+  | 'WAIT FOR PULLBACK'
+  | 'WAIT FOR REVERSAL'
+  | 'WAIT FOR RECLAIM'
+  | 'AVOID'
+  | 'WATCH';
+
+export interface WatchlistEntryContext {
+  role: string | null;
+  rsi: number | null;
+  buyScore: number | null;
+  trendSetup: string | null;
+  momentumShift: string | null;
+  momentumState: string | null;
+  maStructure: string | null;
+  priceStructure: PriceStructureResult | null;
+  chaseRisk?: boolean;
+  trendDamage?: boolean;
+  valueTrap?: boolean;
+}
+
+export interface WatchlistEntryDecision {
+  finalAction: WatchlistEntryStatus;
+  finalActionReason: string;
+  hasHardStructuralNegative: boolean;
+  hardNegativeReason: string | null;
+  priceStructureState: string;
+  momentumState: string;
+  maStructure: string;
+  buyScore: number | null;
+  role: string;
+  entryBlockedByResistance: boolean;
+  entryBlockedByHardNegative: boolean;
+  entryBlockedByMomentum: boolean;
+  entryBlockedByRoleConfirmation: boolean;
+}
+
+export function evaluateWatchlistEntry(context: WatchlistEntryContext): WatchlistEntryDecision {
+  const structure = context.priceStructure;
+  const levelState = structure?.keyLevelState ?? 'NONE';
+  const patternState = structure?.primaryPatternState ?? 'NONE';
+  const patternType = structure?.primaryPatternType ?? 'NONE';
+  const role = context.role ?? 'Strategic';
+  const momentum = context.momentumState ?? context.momentumShift ?? 'Neutral';
+  const buyScore = context.buyScore;
+  const hardLevelStates = [
+    'FAILED_BREAKOUT',
+    'BREAKOUT_FAILED',
+    'SUPPORT_BROKEN',
+    'BREAKDOWN_CONFIRMED',
+    'CHANNEL_BROKEN',
+    'CHANNEL_SUPPORT_BROKEN',
+    'WEDGE_BREAKDOWN',
+    'TIGHT_WEDGE_BREAKDOWN',
+    'RISING_WEDGE_BREAKDOWN',
+    'TIGHT_RISING_WEDGE_BREAKDOWN',
+  ];
+  const hardNegative =
+    structure?.hasHardStructuralNegative === true ||
+    hardLevelStates.includes(levelState) ||
+    patternState === 'CHANNEL_BROKEN' ||
+    (patternState === 'BREAKDOWN' && patternType.includes('WEDGE'));
+  const hardNegativeReason = hardNegative
+    ? levelState !== 'NONE' && hardLevelStates.includes(levelState)
+      ? levelState
+      : `${patternType}_${patternState}`
+    : null;
+  const declining = [
+    'Declining',
+    'Warning',
+    'Breakdown',
+    'Active Sell Trigger',
+    'Bearish Shift',
+  ].some((state) => momentum.includes(state));
+  const accelerating = momentum.includes('Accelerating') || momentum === 'Active Buy Trigger';
+  const positive =
+    accelerating ||
+    momentum.includes('Positive') ||
+    momentum.includes('Bullish Shift') ||
+    momentum === 'Uptrend';
+  const resistance =
+    structure?.keyLevelRole === 'RESISTANCE' &&
+    ['RESISTANCE_TEST', 'APPROACHING_RESISTANCE', 'BREAKOUT_WATCH'].includes(levelState);
+  const confirmedConstructive =
+    ['BREAKOUT_CONFIRMED', 'SUPPORT_RECLAIM', 'BOUNCE_CONFIRMED'].includes(levelState) ||
+    patternState === 'BREAKOUT';
+  const supportConstructive =
+    structure?.keyLevelRole === 'SUPPORT' &&
+    ['SUPPORT_TEST', 'SUPPORT_RECLAIM', 'BOUNCE_CONFIRMED', 'APPROACHING_SUPPORT'].includes(
+      levelState,
+    );
+  const compression =
+    patternType.includes('FALLING_WEDGE') &&
+    ['DEVELOPING', 'TIGHTENING', 'NEAR_APEX'].includes(patternState);
+  const extended =
+    context.chaseRisk === true ||
+    context.trendSetup === 'Constructive Extended' ||
+    context.momentumShift === 'Warning — Overbought Run';
+  const acceptableMa =
+    !context.maStructure ||
+    context.maStructure.startsWith('P >') ||
+    context.maStructure === '50 > P > 200';
+  const severelyBearishMa = context.maStructure === '200 > 50 > P';
+  const oversold = context.rsi !== null && context.rsi <= 35;
+  const earlyReversal =
+    oversold &&
+    (positive ||
+      context.trendSetup === 'Oversold Reversal Watch' ||
+      context.trendSetup === 'Early Reversal');
+  const roleAllowsStarter = ['Core', 'Strategic', 'Strategic-Income'].includes(role);
+  const roleNeedsMoreConfirmation =
+    role === 'Swing' || role === 'Speculative' || role === 'Options';
+
+  let finalAction: WatchlistEntryStatus;
+  let finalActionReason: string;
+  if (hardNegative) {
+    finalAction =
+      declining || severelyBearishMa || (buyScore !== null && buyScore <= 2)
+        ? 'AVOID'
+        : 'WAIT FOR RECLAIM';
+    finalActionReason = `${hardNegativeReason} remains active; constructive indicators cannot override confirmed structural damage.`;
+  } else if (resistance) {
+    finalAction = 'WATCH / NO CHASE';
+    finalActionReason = 'Price is at active resistance without a confirmed breakout.';
+  } else if (extended) {
+    finalAction = resistance ? 'WATCH / NO CHASE' : 'WAIT FOR PULLBACK';
+    finalActionReason =
+      'Trend may be healthy, but current price location is extended for a new entry.';
+  } else if (declining) {
+    finalAction = context.trendDamage ? 'WAIT FOR RECLAIM' : 'WAIT FOR REVERSAL';
+    finalActionReason = 'Momentum is declining and reversal confirmation is not complete.';
+  } else if (
+    confirmedConstructive &&
+    accelerating &&
+    (buyScore ?? 0) >= 4 &&
+    acceptableMa &&
+    !context.trendDamage &&
+    !context.valueTrap
+  ) {
+    finalAction =
+      role === 'Speculative' && !structure?.keyLevelState.includes('BREAKOUT')
+        ? 'BUY WATCH'
+        : 'ENTRY CANDIDATE';
+    finalActionReason =
+      'Structure and momentum are confirmed with a strong Buy Score and acceptable MA structure.';
+  } else if (
+    roleAllowsStarter &&
+    (buyScore ?? 0) >= 4 &&
+    (confirmedConstructive || supportConstructive) &&
+    positive &&
+    acceptableMa
+  ) {
+    finalAction = 'STARTER ENTRY';
+    finalActionReason =
+      'Constructive support and momentum allow a staged initial position for this role.';
+  } else if (
+    (buyScore ?? 0) >= 4 &&
+    (supportConstructive || compression || confirmedConstructive) &&
+    !context.trendDamage
+  ) {
+    finalAction = 'BUY WATCH';
+    finalActionReason =
+      'The setup is promising, but one or more entry confirmations are still missing.';
+  } else if (earlyReversal) {
+    finalAction = 'REVERSAL WATCH';
+    finalActionReason =
+      'Oversold conditions are improving, but bullish structure is not yet confirmed.';
+  } else if (context.trendDamage || severelyBearishMa) {
+    finalAction = buyScore !== null && buyScore <= 2 ? 'AVOID' : 'WAIT FOR RECLAIM';
+    finalActionReason = 'Damaged trend or MA structure requires a confirmed recovery before entry.';
+  } else if (positive && acceptableMa) {
+    finalAction = 'WAIT FOR PULLBACK';
+    finalActionReason =
+      'The trend is constructive but there is no attractive current decision level.';
+  } else {
+    finalAction = 'WATCH';
+    finalActionReason = 'No meaningful confirmed entry setup is active.';
+  }
+
+  return {
+    finalAction,
+    finalActionReason,
+    hasHardStructuralNegative: hardNegative,
+    hardNegativeReason,
+    priceStructureState: levelState !== 'NONE' ? levelState : `${patternType}_${patternState}`,
+    momentumState: momentum,
+    maStructure: context.maStructure ?? 'Unavailable',
+    buyScore,
+    role,
+    entryBlockedByResistance: resistance,
+    entryBlockedByHardNegative: hardNegative,
+    entryBlockedByMomentum: declining,
+    entryBlockedByRoleConfirmation: roleNeedsMoreConfirmation && finalAction === 'BUY WATCH',
+  };
+}
+
+function deriveMaStructure(result: RsiScanResult): string | null {
+  const price = result.currentPrice;
+  const sma50 = result.sma50Price ?? 0;
+  const sma200 = result.sma200 ?? 0;
+  if (price <= 0 || sma50 <= 0 || sma200 <= 0) return null;
+  if (price > sma50 && sma50 > sma200) return 'P > 50 > 200';
+  if (price > sma200 && sma200 > sma50) return 'P > 200 > 50';
+  if (sma200 > price && price > sma50) return '200 > P > 50';
+  if (sma50 > price && price > sma200) return '50 > P > 200';
+  return sma50 > sma200 ? '50 > 200 > P' : '200 > 50 > P';
+}
 
 export type TrendSetup =
   | 'Waterfall / Falling Knife'
@@ -134,6 +347,8 @@ export interface PageDecision extends DecisionResult {
   gapStatus: GapStatus;
   gapScore: number;
   gapPct: number;
+  finalActionReason?: string;
+  watchlistDiagnostics?: WatchlistEntryDecision;
 }
 
 const ROLE_VALUES = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'] as const;
@@ -267,73 +482,11 @@ export class DecisionEngineService {
   ): PageDecision {
     const dec = this.calculateDecision(r, role, 'Watchlist');
     const effectiveRole = (role ?? 'Strategic') as InvestmentRole;
-    const rawAction = this.watchlistFinalAction(dec, effectiveRole, r);
-
-    // Compute buy score from RSI result if not provided
     const buyScore = valueCtx?.buyScore ?? this.calcBuyScore(r);
     const valueTrapWarning = valueCtx?.valueTrapWarning ?? false;
     const valueScore = valueCtx?.valueScore ?? null;
 
-    let finalAction = this.accumulateStarterGuard(
-      rawAction,
-      dec.trendSetup,
-      dec.momentumShift,
-      r.changePercent ?? 0,
-    );
-
-    // Rule: 'Accumulate Starter' requires BuyScore >= 4 (strong confirmation)
-    if (finalAction === 'Accumulate Starter' && buyScore !== null && buyScore < 4) {
-      finalAction = 'Watch / Starter OK';
-    }
-
-    // ── New FINAL ACTION overrides ────────────────────────────────────────────
-
-    // Rule: TrendSetup = 'Quality Trend Entry' AND MomentumShift = 'Uptrend' AND BuyScore <= 2
-    if (
-      dec.trendSetup === 'Quality Trend Entry' &&
-      dec.momentumShift === 'Uptrend' &&
-      buyScore !== null &&
-      buyScore <= 2
-    ) {
-      finalAction = 'Stand By / No Add';
-    }
-
-    // Rule: MomentumShift = 'Active Sell Trigger' → always force avoiding action
-    if (dec.momentumShift === 'Active Sell Trigger') {
-      if (
-        !['Avoid / Short Watch', 'Avoid New Buy / Review', 'Avoid / Wait'].includes(finalAction)
-      ) {
-        finalAction = 'Avoid New Buy / Review';
-      }
-    }
-
-    // Rule: MomentumShift = 'Warning' or TrendSetup has bearish signals AND BuyScore <= 2
-    if (dec.momentumShift === 'Warning' && buyScore !== null && buyScore <= 2) {
-      finalAction = 'Stand By';
-    }
-
-    // Rule: BuyScore <= 2 on key sell signals
-    if (buyScore !== null && buyScore <= 2) {
-      const sellSignals: string[] = ['Overbought Pullback', 'Active Sell Trigger', 'Breakdown'];
-      if (sellSignals.includes(dec.momentumShift) || sellSignals.includes(dec.trendSetup)) {
-        finalAction = 'Stand By';
-      }
-    }
-
-    // Rule: ValueTrapWarning = true AND ValueScore < 5 → 'Accumulate Starter' not allowed
     const isValueTrap = valueTrapWarning || (valueScore !== null && valueScore < 5);
-    if (isValueTrap && finalAction === 'Accumulate Starter') {
-      // Downgrade to safer action
-      finalAction = 'Watch Only';
-    }
-    if (
-      isValueTrap &&
-      ['Accumulate Starter', 'Buy / Accumulate', 'Confirmed Buy Signal'].includes(finalAction)
-    ) {
-      finalAction = 'Review Fundamentals';
-    }
-
-    // ── Gap Rules ─────────────────────────────────────────────────────────────
     const gap = calcGapStatus(
       r.openPrice ?? 0,
       r.previousClose ?? 0,
@@ -341,19 +494,34 @@ export class DecisionEngineService {
       r.dayHigh ?? 0,
       r.dayLow ?? 0,
     );
-    finalAction = this.applyGapRules(finalAction, gap, buyScore, valueScore);
-    finalAction = this.applyFibonacciModifier(finalAction, r, role);
+    const maStructure = deriveMaStructure(r);
+    const watchlistDecision = evaluateWatchlistEntry({
+      role: effectiveRole,
+      rsi: r.rsi,
+      buyScore,
+      trendSetup: dec.trendSetup,
+      momentumShift: dec.momentumShift,
+      momentumState: dec.momentumShift,
+      maStructure,
+      priceStructure: r.priceStructure,
+      chaseRisk: !!r.chaseRisk || gap.status !== 'No Gap',
+      trendDamage: r.fibZone === 'Trend Damage',
+      valueTrap: isValueTrap,
+    });
+    const finalAction = watchlistDecision.finalAction;
 
     return {
       ...dec,
       finalAction,
-      hoverDescription: this.watchlistHover(dec, effectiveRole),
+      hoverDescription: watchlistDecision.finalActionReason,
       finalActionClass: this.finalActionClass(finalAction),
       trendSetupClass: this.trendSetupClass(dec.trendSetup),
       momentumShiftClass: this.momentumShiftClass(dec.momentumShift),
       gapStatus: gap.status,
       gapScore: gap.score,
       gapPct: gap.gapPct,
+      finalActionReason: watchlistDecision.finalActionReason,
+      watchlistDiagnostics: watchlistDecision,
     };
   }
 
