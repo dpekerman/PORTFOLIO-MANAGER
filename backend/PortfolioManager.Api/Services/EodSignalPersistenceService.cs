@@ -23,17 +23,12 @@ public class EodSignalPersistenceService
     // ── Write ─────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Persists the supplied EOD CONFIRM signals to disk, tagged with today's ET date.
+    /// Persists the supplied EOD CONFIRM signals using the completed OHLCV bar date.
     /// Overwrites any previously saved signals (only the latest EOD window is kept).
     /// Also appends to the DailySignals database table for full history tracking.
     /// </summary>
     public async Task<List<RsiScanResult>> SaveAsync(IEnumerable<RsiScanResult> eodResults, CancellationToken ct = default)
     {
-        var tz = GetEasternTz();
-        var etToday = tz is not null
-            ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).ToString("yyyy-MM-dd")
-            : DateTime.UtcNow.ToString("yyyy-MM-dd");
-
         var resultList = eodResults.ToList();
 
         // Stage-2 promotion gate: Bull/Bear Turn + Price confirmation + Volume >= 1.5x.
@@ -75,16 +70,41 @@ public class EodSignalPersistenceService
                     .Select(h => h.TotalValue)
                     .FirstOrDefaultAsync(ct);
 
-                // Avoid duplicates: skip symbols already recorded for this date
-                var existingSymbols = await db.DailySignals
-                    .Where(s => s.SignalDate == etToday)
-                    .Select(s => s.Symbol)
+                var sessionDates = resultList
+                    .Select(r => r.TradingDate.ToString("yyyy-MM-dd"))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+                var existingRecords = await db.DailySignals
+                    .Where(s => sessionDates.Contains(s.TradingDate ?? s.SignalDate))
                     .ToListAsync(ct);
+                var existingByKey = existingRecords
+                    .GroupBy(s => $"{s.Symbol}|{s.ScanType}|{s.SignalType}|{s.TradingDate ?? s.SignalDate}", StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.ScannedAt ?? s.RecordedAt).First(), StringComparer.OrdinalIgnoreCase);
 
-                var existingSet = new HashSet<string>(existingSymbols, StringComparer.OrdinalIgnoreCase);
+                foreach (var result in resultList)
+                {
+                    var key = $"{result.Symbol}|{result.ScanType}|{result.Status}|{result.TradingDate:yyyy-MM-dd}";
+                    if (!existingByKey.TryGetValue(key, out var existing)) continue;
+
+                    existing.CompanyName = result.CompanyName ?? string.Empty;
+                    existing.Rsi = Math.Round(result.Rsi, 2);
+                    existing.Price = result.CurrentPrice;
+                    existing.TriggerDetails = result.TriggerDetails ?? string.Empty;
+                    existing.RecordedAt = result.ScannedAt;
+                    existing.TradingDate = result.TradingDate.ToString("yyyy-MM-dd");
+                    existing.ScannedAt = result.ScannedAt;
+                    existing.RuleVersion = result.LogicMode ?? "Legacy";
+                    existing.Sector = result.Sector ?? string.Empty;
+                    existing.ReversalProbability = result.ReversalProbability ?? string.Empty;
+                    existing.VolumeSignal = result.VolumeSignal ?? string.Empty;
+                    existing.TrendShift = result.TrendShift;
+                    existing.RsiDelta1D = result.RsiDelta1D;
+                }
+
+                var existingSet = existingByKey.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 var newRecords = resultList
-                    .Where(r => !existingSet.Contains(r.Symbol))
+                    .Where(r => !existingSet.Contains($"{r.Symbol}|{r.ScanType}|{r.Status}|{r.TradingDate:yyyy-MM-dd}"))
                     .Select(r =>
                     {
                         decimal? stopLoss = r.DynamicStopLoss > 0 ? r.DynamicStopLoss : null;
@@ -110,8 +130,10 @@ public class EodSignalPersistenceService
                             Rsi                = Math.Round(r.Rsi, 2),
                             Price              = r.CurrentPrice,
                             TriggerDetails     = r.TriggerDetails ?? string.Empty,
-                            SignalDate         = etToday,
+                            SignalDate         = r.TradingDate.ToString("yyyy-MM-dd"),
                             RecordedAt         = r.ScannedAt,
+                            TradingDate        = r.TradingDate.ToString("yyyy-MM-dd"),
+                            ScannedAt          = r.ScannedAt,
                             RuleVersion        = r.LogicMode ?? "Legacy",
                             SignalState        = "Active",
                             Sector             = r.Sector ?? string.Empty,
@@ -139,15 +161,30 @@ public class EodSignalPersistenceService
                 if (newRecords.Count > 0)
                 {
                     db.DailySignals.AddRange(newRecords);
-                    await db.SaveChangesAsync(ct);
-                    _logger.LogInformation("Appended {Count} new EOD signal(s) to DailySignals table for {Date}",
-                        newRecords.Count, etToday);
+                }
 
-                    // Deactivate staged signals for all confirmed records
-                    var stagedService = scope.ServiceProvider.GetRequiredService<IStagedSignalService>();
-                    foreach (var r in newRecords)
+                if (newRecords.Count > 0 || existingRecords.Count > 0)
+                {
+                    try
                     {
-                        try { await stagedService.DeactivateAsync(r.Symbol, r.ScanType, ct); }
+                        await db.SaveChangesAsync(ct);
+                    }
+                    catch (DbUpdateException exception)
+                    {
+                        _logger.LogWarning(exception,
+                            "Concurrent EOD persistence detected for completed market sessions {Dates}; retaining the existing semantic record.",
+                            string.Join(", ", sessionDates));
+                        db.ChangeTracker.Clear();
+                    }
+                    _logger.LogInformation(
+                        "Persisted {NewCount} new and refreshed {ExistingCount} equivalent EOD signal(s) for completed market sessions {Dates}",
+                        newRecords.Count, resultList.Count - newRecords.Count, string.Join(", ", sessionDates));
+
+                    // Deactivate staged signals only after the matching lifecycle record has been saved.
+                    var stagedService = scope.ServiceProvider.GetRequiredService<IStagedSignalService>();
+                    foreach (var r in resultList)
+                    {
+                        try { await stagedService.DeactivateAsync(r.Symbol, r.ScanType.ToString(), ct); }
                         catch (Exception deactivateEx)
                         {
                             _logger.LogWarning(deactivateEx, "Failed to deactivate staged signal for {Symbol}", r.Symbol);
@@ -207,15 +244,15 @@ public class EodSignalPersistenceService
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
             var latestDate = await db.DailySignals
-                .OrderByDescending(s => s.SignalDate)
-                .Select(s => s.SignalDate)
+                .Select(s => s.TradingDate ?? s.SignalDate)
+                .OrderByDescending(s => s)
                 .FirstOrDefaultAsync(ct);
 
             if (latestDate is null)
                 return new YesterdayEodResponse { HasData = false, IsMorningWindow = isMorning };
 
             var signals = await db.DailySignals
-                .Where(s => s.SignalDate == latestDate)
+                .Where(s => (s.TradingDate ?? s.SignalDate) == latestDate)
                 .Select(s => new EodSignalRecord
                 {
                     Symbol         = s.Symbol,
@@ -224,7 +261,8 @@ public class EodSignalPersistenceService
                     Rsi            = s.Rsi,
                     Price          = s.Price,
                     TriggerDetails = s.TriggerDetails,
-                    ScannedAt      = s.RecordedAt,
+                    TradingDate    = s.TradingDate ?? s.SignalDate,
+                    ScannedAt      = s.ScannedAt ?? s.RecordedAt,
                 })
                 .ToListAsync(ct);
 

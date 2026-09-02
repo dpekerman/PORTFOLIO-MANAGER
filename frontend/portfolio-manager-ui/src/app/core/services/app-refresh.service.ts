@@ -137,7 +137,7 @@ export class AppRefreshService {
 
           // Force-reload action scores and performance summary after snapshot rebuild
           this.dashboardState.loadPortfolioActions();
-          this.dashboardState.loadStateChanges();
+          this.dashboardState.loadEodSummary();
           this.dashboardState.loadMarketLeadership();
           this.dashboardState.loadPerformanceSummary();
 

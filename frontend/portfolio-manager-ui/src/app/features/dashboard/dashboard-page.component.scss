@@ -56,6 +56,17 @@
     color: #664d03;
     background: #fff3cd;
   }
+
+  &.universe {
+    color: #475569;
+    background: #e2e8f0;
+  }
+}
+.eod-ownership-legend {
+  color: #687481;
+  font-size: 0.68rem;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -965,11 +976,83 @@ mat-card.db-panel {
     padding-bottom: 8px;
   }
 
-  app-portfolio-actions-widget,
-  app-state-changes-widget {
+  app-portfolio-actions-widget {
     display: block;
     padding: 0 16px 12px;
   }
+}
+
+.db-eod-table-wrap {
+  padding: 0 16px 8px;
+  overflow-x: auto;
+}
+.db-eod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  th {
+    padding: 5px 8px;
+    background: #f8fafb;
+    color: #687481;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    border-bottom: 1px solid #e6ecee;
+  }
+  td {
+    padding: 6px 8px;
+    color: #3a5060;
+    border-bottom: 1px solid #f2f5f6;
+    vertical-align: middle;
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+.eod-symbol {
+  font-weight: 700;
+  color: #1a2e35 !important;
+}
+.eod-rsi,
+.eod-status {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.eod-why {
+  min-width: 220px;
+}
+.eod-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.64rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.eod-confirmed {
+  background: #e8f7f2;
+  color: #0f766e;
+}
+.eod-new {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+.eod-developing {
+  background: #fff3cd;
+  color: #8a5a00;
+}
+.eod-invalidated {
+  background: #ffebee;
+  color: #b71c1c;
+}
+.db-eod-empty {
+  padding: 0 16px 14px;
+  margin: 0;
 }
 
 .db-panel-badge {

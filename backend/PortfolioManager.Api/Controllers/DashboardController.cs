@@ -1,8 +1,6 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 
@@ -14,8 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public sealed class DashboardController(
     IDashboardService dashboard,
     IPortfolioActionsService portfolioActions,
-    IMarketLeadershipService marketLeadership,
-    AppDbContext db) : ControllerBase
+    IDashboardEodSummaryService eodSummary,
+    IMarketLeadershipService marketLeadership) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<DashboardResponse>> Get(CancellationToken ct)
@@ -32,28 +30,9 @@ public sealed class DashboardController(
     public async Task<ActionResult<IReadOnlyList<PortfolioActionDto>>> GetPortfolioActions(CancellationToken ct)
         => Ok(await portfolioActions.GetActionsAsync(CurrentUserId(), ct));
 
-    [HttpGet("state-changes-today")]
-    public async Task<ActionResult<IReadOnlyList<StateChangeDto>>> GetStateChangesToday(CancellationToken ct)
-    {
-        var todayUtcStart = DateTime.UtcNow.Date;
-        var changes = await db.DailySignals
-            .Where(s => s.UpdatedAt >= todayUtcStart
-                && s.PreviousSignalState != null
-                && s.PreviousSignalState != s.SignalState)
-            .OrderByDescending(s => s.UpdatedAt)
-            .Select(s => new StateChangeDto(
-                s.Id,
-                s.Symbol,
-                s.CompanyName,
-                s.ScanType,
-                s.PreviousSignalState!,
-                s.SignalState,
-                s.Rsi,
-                s.TrendShift ?? "",
-                s.UpdatedAt!.Value))
-            .ToListAsync(ct);
-        return Ok(changes);
-    }
+    [HttpGet("eod-summary")]
+    public async Task<ActionResult<DashboardEodSummary>> GetEodSummary(CancellationToken ct)
+        => Ok(await eodSummary.GetLatestAsync(CurrentUserId(), ct));
 
     [HttpGet("market-leadership")]
     public async Task<ActionResult<MarketLeadershipResponse>> GetMarketLeadership(CancellationToken ct)

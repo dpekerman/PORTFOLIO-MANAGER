@@ -25,8 +25,10 @@ import {
   PortfolioSummary,
   PortfolioValueHistoryDto,
   RsiScanResult,
+  SaveSecurityAnalysisMappingRequest,
   ScannerResponse,
   SectorIndustryLists,
+  SecurityAnalysisMapping,
   SinglePositionLimit,
   StockQuote,
   SymbolSearchResult,
@@ -125,6 +127,39 @@ export class PortfolioApiService {
 
   updateWatchlistEarningsDate(id: number, earningsDate: string | null): Observable<void> {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/earnings-date`, { earningsDate });
+  }
+
+  // ── Security analysis mappings ───────────────────────────────────────────
+  getSecurityAnalysisMapping(tradingTicker: string): Observable<SecurityAnalysisMapping> {
+    return this.http.get<SecurityAnalysisMapping>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+    );
+  }
+
+  validateUnderlyingTicker(
+    tradingTicker: string,
+    request: SaveSecurityAnalysisMappingRequest,
+  ): Observable<void> {
+    return this.http.post<void>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}/validate`,
+      request,
+    );
+  }
+
+  saveSecurityAnalysisMapping(
+    tradingTicker: string,
+    request: SaveSecurityAnalysisMappingRequest,
+  ): Observable<SecurityAnalysisMapping> {
+    return this.http.put<SecurityAnalysisMapping>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+      request,
+    );
+  }
+
+  removeSecurityAnalysisMapping(tradingTicker: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+    );
   }
 
   refreshWatchlistEarnings(): Observable<{ refreshed: number; total: number }> {

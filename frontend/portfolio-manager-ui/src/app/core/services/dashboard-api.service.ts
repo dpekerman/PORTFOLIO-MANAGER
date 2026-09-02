@@ -4,11 +4,11 @@ import { Observable } from 'rxjs';
 import {
   ActionScoreDto,
   AnalyticsDecisionPerformanceResponse,
+  DashboardEodSummary,
   DashboardResponse,
   MarketLeadershipResponse,
   PerformanceSummaryResponse,
   PortfolioActionDto,
-  StateChangeDto,
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -29,8 +29,8 @@ export class DashboardApiService {
     return this.http.get<PortfolioActionDto[]>('/api/dashboard/portfolio-actions');
   }
 
-  getStateChangesToday(): Observable<StateChangeDto[]> {
-    return this.http.get<StateChangeDto[]>('/api/dashboard/state-changes-today');
+  getEodSummary(): Observable<DashboardEodSummary> {
+    return this.http.get<DashboardEodSummary>('/api/dashboard/eod-summary');
   }
 
   getMarketLeadership(): Observable<MarketLeadershipResponse> {

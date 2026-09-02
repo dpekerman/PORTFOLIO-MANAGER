@@ -9,7 +9,11 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { DashboardAllocation, DashboardRsiSection } from '../../core/models/portfolio.models';
+import {
+  DashboardAllocation,
+  DashboardEodSummaryRow,
+  DashboardRsiSection,
+} from '../../core/models/portfolio.models';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
@@ -19,7 +23,6 @@ import { MarketLeadershipWidgetComponent } from './market-leadership-widget/mark
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
 import { PortfolioActionsWidgetComponent } from './portfolio-actions-widget/portfolio-actions-widget.component';
 import { PriorityCandidatesWidgetComponent } from './priority-candidates-widget/priority-candidates-widget.component';
-import { StateChangesWidgetComponent } from './state-changes-widget/state-changes-widget.component';
 
 export type ChartRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 
@@ -52,7 +55,6 @@ export interface SvgChart {
     MatTooltipModule,
     RouterLink,
     PortfolioActionsWidgetComponent,
-    StateChangesWidgetComponent,
     MarketLeadershipWidgetComponent,
     PriorityCandidatesWidgetComponent,
     PerformanceSummaryWidgetComponent,
@@ -69,6 +71,7 @@ export class DashboardPageComponent {
   protected readonly appRefresh = inject(AppRefreshService);
 
   protected readonly snapshot = this.dashboard.data;
+  protected readonly eodSummary = this.dashboard.eodSummary;
   protected readonly chartRanges: ChartRange[] = ['1M', '3M', '6M', 'YTD', '1Y', 'ALL'];
   protected readonly selectedRange = signal<ChartRange>('3M');
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
@@ -167,9 +170,8 @@ export class DashboardPageComponent {
       .slice(0, this.moversCount()),
   );
 
-  // ── Portfolio Actions & State Changes counts ──────────────────────────────
+  // ── Portfolio Action count ───────────────────────────────────────────────
   protected readonly actionsCount = computed(() => this.dashboard.portfolioActions().length);
-  protected readonly stateChangesCount = computed(() => this.dashboard.stateChanges().length);
 
   protected readonly filteredChartPoints = computed(() => {
     const all = this.snapshot()?.valueHistory ?? [];
@@ -325,6 +327,20 @@ export class DashboardPageComponent {
 
   protected sumActual(items: DashboardAllocation[]): number {
     return items.reduce((acc, a) => acc + a.percent, 0);
+  }
+
+  protected eodSessionLabel(tradingDate: string): string {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+      .format(new Date(`${tradingDate}T12:00:00`))
+      .toUpperCase();
+  }
+
+  protected ownershipBadge(ownership: DashboardEodSummaryRow['ownership']): string {
+    return ownership === 'Portfolio' ? 'P' : ownership === 'Watchlist' ? 'W' : 'U';
+  }
+
+  protected actionTooltip(row: DashboardEodSummaryRow): string {
+    return row.actionResolutionStatus === 'Resolved' ? '' : row.actionResolutionReason;
   }
 
   protected refresh(): void {

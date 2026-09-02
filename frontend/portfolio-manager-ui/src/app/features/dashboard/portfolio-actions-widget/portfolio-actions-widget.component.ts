@@ -13,6 +13,7 @@ import {
 } from '../../../core/services/decision-engine.service';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { formatTrendShift } from '../../../core/technical-display';
 
 export const ACTION_CENTER_FILTER_STORAGE_KEY = 'dashboard_action_center_filter';
 export type ActionCenterFilter = 'ALL' | 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
@@ -129,6 +130,20 @@ export class PortfolioActionsWidgetComponent {
   protected entryStatusTooltip(action: PortfolioActionDto): string {
     const decision = this.watchlistEntryDecision(action);
     return `${decision.finalAction}\n\n${decision.finalActionReason}\n\nStructure: ${decision.priceStructureState}\nMomentum: ${decision.momentumState}\nMA Structure: ${decision.maStructure}\nBuy Score: ${decision.buyScore ?? '—'}\nRole: ${decision.role}`;
+  }
+
+  protected hasEodSignal(action: PortfolioActionDto): boolean {
+    return !!action.latestEodSignalState;
+  }
+
+  protected eodBadgeLabel(action: PortfolioActionDto): string {
+    if (action.latestEodIsInvalidated) return 'EOD X';
+    if (action.latestEodSignalState === 'Active') return action.latestEodIsNew ? 'EOD NEW' : 'EOD';
+    return 'EOD DEV';
+  }
+
+  protected eodTooltip(action: PortfolioActionDto): string {
+    return `Latest EOD signal\nState: ${action.latestEodSignalState ?? 'n/a'}\nScan: ${action.latestEodScanType ?? 'n/a'}\nTrend: ${formatTrendShift(action.latestEodTrendShift, 'n/a')}`;
   }
 
   private setFilter(filter: ActionCenterFilter): void {

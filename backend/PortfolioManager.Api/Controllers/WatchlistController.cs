@@ -42,7 +42,7 @@ public class WatchlistController(
         foreach (var item in items)
         {
             quotes.TryGetValue(item.Symbol, out var quote);
-            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, CurrentUserId(), ct);
             results.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure));
         }
 

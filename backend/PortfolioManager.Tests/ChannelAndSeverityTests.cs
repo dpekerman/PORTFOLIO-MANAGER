@@ -1,6 +1,7 @@
 using PortfolioManager.Api.Services;
 using Xunit;
 using PortfolioManager.Api.Models;
+using System.Reflection;
 
 namespace PortfolioManager.Tests;
 
@@ -22,7 +23,7 @@ public class ChannelAndSeverityTests
 
     [Theory]
     [InlineData(ScanType.Oversold, SignalStatus.Confirmed, "Waiting", true, false, "ADD CANDIDATE")]
-    [InlineData(ScanType.Oversold, SignalStatus.Confirmed, "Waiting", false, true, "ENTRY CANDIDATE")]
+    [InlineData(ScanType.Oversold, SignalStatus.Confirmed, "Waiting", false, true, "REVERSAL WATCH")]
     [InlineData(ScanType.Overbought, SignalStatus.Confirmed, "Waiting", true, false, "TRIM WATCH")]
     [InlineData(ScanType.Overbought, SignalStatus.Confirmed, "Waiting", false, true, "AVOID")]
     [InlineData(ScanType.Overbought, SignalStatus.EarlyWarning, "Bear Turn", false, false, "TECHNICAL CAUTION")]
@@ -42,6 +43,20 @@ public class ChannelAndSeverityTests
         };
 
         Assert.Equal(expected, DashboardSignalActionInterpreter.Resolve(signal, isInPortfolio, isInWatchlist));
+    }
+
+    [Fact]
+    public void DashboardSignalAction_AllowsWatchlistEntryCandidateWhenStructureSupportsEntry()
+    {
+        var signal = new RsiScanResult
+        {
+            ScanType = ScanType.Oversold,
+            Status = SignalStatus.Confirmed,
+            TrendShift = "Bull Turn",
+            PriceStructure = PriceStructureResult.None with { KeyLevelState = "SUPPORT_RECLAIM" },
+        };
+
+        Assert.Equal("ENTRY CANDIDATE", DashboardSignalActionInterpreter.Resolve(signal, false, true));
     }
 
     [Fact]
@@ -129,5 +144,74 @@ public class ChannelAndSeverityTests
         Assert.True(structure.HasHardStructuralNegative);
         Assert.Equal("SUPPORT_TEST", structure.KeyLevelState);
         Assert.Equal(0m, PortfolioActionScoreService.ComputeTechnicalScore(scan));
+    }
+
+    [Fact]
+    public void AtdRegression_HardStructuralNegativeProducesAvoidDespiteBullTurn()
+    {
+        var structure = PriceStructureResult.None with
+        {
+            PrimaryPatternType = "TIGHT_RISING_WEDGE",
+            PrimaryPatternState = "BREAKDOWN",
+        };
+        var scan = new RsiScanResult
+        {
+            ScanType = ScanType.Oversold,
+            Status = SignalStatus.EodConfirm,
+            Rsi = 29.2m,
+            TrendShift = "🟢 Bull Turn",
+            PriceStructure = structure,
+        };
+        var deriveAction = typeof(PortfolioActionsService).GetMethod(
+            "DeriveAction", BindingFlags.Static | BindingFlags.NonPublic)!;
+
+        var result = ((string label, string severity, string priority))deriveAction.Invoke(
+            null, [scan, "Strategic", "under", true, structure])!;
+
+        Assert.Equal(("AVOID", "danger", "REQUIRED"), result);
+    }
+
+    [Fact]
+    public void AtdRegression_PersistedHardNegativeTakesPrecedenceOverScannerLevel()
+    {
+        var scannerStructure = PriceStructureResult.None with
+        {
+            KeyLevelType = "EMA20",
+            KeyLevelState = "SUPPORT_TEST",
+        };
+        var persistedStructure = PriceStructureResult.None with
+        {
+            PrimaryPatternType = "TIGHT_RISING_WEDGE",
+            PrimaryPatternState = "BREAKDOWN",
+        };
+
+        var selected = scannerStructure.HasHardStructuralNegative
+            ? scannerStructure
+            : persistedStructure.HasHardStructuralNegative
+                ? persistedStructure
+                : scannerStructure;
+
+        Assert.True(selected.HasHardStructuralNegative);
+        Assert.Equal("BREAKDOWN", selected.PrimaryPatternState);
+    }
+
+    [Fact]
+    public void AtdRegression_EodContextCannotDowngradeHardNegativeAvoid()
+    {
+        var structure = PriceStructureResult.None with
+        {
+            PrimaryPatternType = "TIGHT_RISING_WEDGE",
+            PrimaryPatternState = "BREAKDOWN",
+        };
+        var facts = new SharedTechnicalFacts(
+            "ATD.TO", 29.2m, null, null, "Accelerating", structure, null, DateTime.UtcNow,
+            LatestEodSignalState: "Active");
+        var applyEodContext = typeof(PortfolioActionsService).GetMethod(
+            "ApplyEodContext", BindingFlags.Static | BindingFlags.NonPublic)!;
+
+        var result = ((string label, string severity, string priority))applyEodContext.Invoke(
+            null, ["AVOID", "danger", "REQUIRED", facts, structure])!;
+
+        Assert.Equal(("AVOID", "danger", "REQUIRED"), result);
     }
 }

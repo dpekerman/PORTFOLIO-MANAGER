@@ -78,11 +78,27 @@ export class WatchlistStateService {
   addItem(symbol: string, role = 'Strategic'): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addWatchlistItem(symbol.toUpperCase(), '', role).subscribe({
-        next: () => {
+        next: (response) => {
+          // Append immediately — quote and technical data populate on next refresh cycle
+          const newItem: WatchlistSummary = {
+            item: {
+              id: response.id,
+              symbol: response.symbol,
+              notes: response.notes,
+              addedAt: response.addedAt,
+              role: response.role,
+              isFavorite: false,
+              watchlistTier: 'Strategic',
+              earningsDate: null,
+            },
+            quote: null,
+            priceStructure: null,
+            technicalFacts: null,
+          };
+          this._items.update((items) => [...items, newItem]);
           this.snackBar.open(`${symbol.toUpperCase()} added to watchlist`, 'Close', {
             duration: 3000,
           });
-          this.refresh();
           resolve();
         },
         error: (err) => {

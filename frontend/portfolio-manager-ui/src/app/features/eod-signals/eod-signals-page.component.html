@@ -255,19 +255,19 @@
       >
         <!-- Date -->
         <ng-container matColumnDef="signalDate">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header="signalDate">DATE</th>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="signalDate">TRADING DATE</th>
           <td mat-cell *matCellDef="let row">
-            <span class="mono">{{ row.signalDate }}</span>
+            <span class="mono">{{ tradingDate(row) }}</span>
           </td>
         </ng-container>
 
-        <!-- Days Passed -->
+        <!-- Trading Sessions Passed -->
         <ng-container matColumnDef="daysPassed">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="daysPassed" class="num-col">
-            DAYS PASSED
+            TRADING SESSIONS PASSED
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
-            <span class="mono">{{ daysPassed(row) }}</span>
+            <span class="mono">{{ tradingSessionsPassed(row) ?? '—' }}</span>
           </td>
         </ng-container>
 
@@ -308,7 +308,7 @@
             @if (row.trendShift) {
               <div class="eod-trend-shift-cell">
                 <span class="trend-shift-tag" [class]="trendShiftClass(row.trendShift)">
-                  {{ row.trendShift
+                  {{ trendShiftLabel(row.trendShift)
                   }}{{
                     turnStrength(row) && turnStrength(row) !== 'Normal'
                       ? ' — ' + turnStrength(row)

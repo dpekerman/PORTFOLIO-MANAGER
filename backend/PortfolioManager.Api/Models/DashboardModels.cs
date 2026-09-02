@@ -111,17 +111,33 @@ public sealed record PortfolioActionDto(
     PortfolioManager.Api.Services.PriceStructureResult? PriceStructure = null,
     string? InclusionReason = null,
     string? ReasonExcludedFromActionCenter = null,
-    DateTime? TechnicalCalculatedAt = null);
+    DateTime? TechnicalCalculatedAt = null,
+    string? LatestEodSignalState = null,
+    string? LatestEodScanType = null,
+    string? LatestEodTrendShift = null,
+    bool LatestEodIsNew = false,
+    bool LatestEodIsInvalidated = false);
 
-/// <summary>An EOD signal whose lifecycle state changed today.</summary>
-public sealed record StateChangeDto(
-    int SignalId,
+/// <summary>Latest completed EOD scanner session, reduced to one row per canonical ticker.</summary>
+public sealed record DashboardEodSummary(
+    string? TradingDate,
+    int RawRecordCount,
+    int UniqueTickerCount,
+    IReadOnlyList<DashboardEodSummaryRow> Rows);
+
+/// <summary>One canonical ticker result from the latest completed EOD scanner session.</summary>
+public sealed record DashboardEodSummaryRow(
     string Symbol,
     string CompanyName,
-    string ScanType,
-    string PreviousState,
-    string NewState,
+    string Signal,
     decimal Rsi,
-    string TrendShift,
-    DateTime ChangedAt);
+    string SignalState,
+    string? TrendShift,
+    string Structure,
+    string Why,
+    string Ownership,
+    string Action,
+    string ActionPriority,
+    string ActionResolutionStatus,
+    string ActionResolutionReason);
 

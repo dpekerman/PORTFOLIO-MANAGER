@@ -1,4 +1,5 @@
 using PortfolioManager.Api.Models;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace PortfolioManager.Api.Services;
 
@@ -11,20 +12,57 @@ public sealed record TechnicalSnapshot(
     decimal Atr,
     decimal Ema9,
     decimal VolumeRatio20,
-    DateTime ComputedAt);
+    DateTime ComputedAt,
+    string? AnalysisTicker = null,
+    string? AnalysisMarket = null,
+    string? AnalysisCurrency = null,
+    bool UsesUnderlyingSecurity = false);
 
 public interface ITechnicalSnapshotService
 {
-    Task<TechnicalSnapshot> GetSnapshotAsync(string symbol, CancellationToken ct = default);
+    Task<TechnicalSnapshot> GetSnapshotAsync(string tradingTicker, string? userId = null, CancellationToken ct = default);
 }
 
-public sealed class TechnicalSnapshotService(IMarketDataProvider marketData) : ITechnicalSnapshotService
+public sealed class TechnicalSnapshotService(
+    IMarketDataProvider marketData,
+    ISecurityAnalysisResolver analysisResolver,
+    IMemoryCache cache) : ITechnicalSnapshotService
 {
-    public async Task<TechnicalSnapshot> GetSnapshotAsync(string symbol, CancellationToken ct = default)
+    public async Task<TechnicalSnapshot> GetSnapshotAsync(
+        string tradingTicker,
+        string? userId = null,
+        CancellationToken ct = default)
     {
-        var normalizedSymbol = symbol.Trim().ToUpperInvariant();
-        var history = await marketData.GetDailyClosesAsync(normalizedSymbol, ct);
-        return FromHistory(normalizedSymbol, history);
+        var resolved = await analysisResolver.ResolveAsync(tradingTicker, userId, ct);
+        if (resolved.ResolutionStatus == UnderlyingResolutionStatus.NeedsUserInput)
+        {
+            var unavailable = FromHistory(resolved.TradingTicker, null);
+            return unavailable with
+            {
+                DataError = resolved.DataError,
+                AnalysisTicker = resolved.AnalysisTicker,
+                AnalysisMarket = resolved.AnalysisMarket,
+                AnalysisCurrency = resolved.AnalysisCurrency,
+                UsesUnderlyingSecurity = false,
+            };
+        }
+
+        var cacheKey = $"technical-snapshot:{resolved.AnalysisTicker}";
+        var snapshot = await cache.GetOrCreateAsync(cacheKey, async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(4);
+            var history = await marketData.GetDailyClosesAsync(resolved.AnalysisTicker, ct);
+            return FromHistory(resolved.AnalysisTicker, history);
+        }) ?? FromHistory(resolved.AnalysisTicker, null);
+        return snapshot with
+        {
+            Symbol = resolved.TradingTicker,
+            PriceStructure = snapshot.PriceStructure with { Symbol = resolved.TradingTicker },
+            AnalysisTicker = resolved.AnalysisTicker,
+            AnalysisMarket = resolved.AnalysisMarket,
+            AnalysisCurrency = resolved.AnalysisCurrency,
+            UsesUnderlyingSecurity = resolved.UsesUnderlyingSecurity,
+        };
     }
 
     public static TechnicalSnapshot FromHistory(string symbol, IReadOnlyList<MarketDailyClose>? history)

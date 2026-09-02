@@ -37,6 +37,7 @@ import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { formatTrendShift } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
@@ -160,12 +161,12 @@ export class EodSignalsPageComponent implements OnInit {
       let bv: string | number;
       switch (col) {
         case 'signalDate':
-          av = a.signalDate;
-          bv = b.signalDate;
+          av = this.tradingDate(a);
+          bv = this.tradingDate(b);
           break;
         case 'daysPassed':
-          av = this.daysPassed(a);
-          bv = this.daysPassed(b);
+          av = this.tradingSessionsPassed(a) ?? -1;
+          bv = this.tradingSessionsPassed(b) ?? -1;
           break;
         case 'symbol':
           av = a.symbol;
@@ -180,8 +181,8 @@ export class EodSignalsPageComponent implements OnInit {
           bv = b.signalType;
           break;
         case 'trendShift':
-          av = a.trendShift ?? '';
-          bv = b.trendShift ?? '';
+          av = formatTrendShift(a.trendShift, '');
+          bv = formatTrendShift(b.trendShift, '');
           break;
         case 'rsi':
           av = a.rsi;
@@ -248,18 +249,22 @@ export class EodSignalsPageComponent implements OnInit {
           bv = b.signalState;
           break;
         default:
-          av = a.signalDate;
-          bv = b.signalDate;
+          av = this.tradingDate(a);
+          bv = this.tradingDate(b);
       }
       if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
       return String(av).localeCompare(String(bv)) * dir;
     });
   });
 
-  /** Days from signal date to today */
-  protected daysPassed(row: DailySignal): number {
-    const signalMs = new Date(row.signalDate).getTime();
-    return Math.floor((Date.now() - signalMs) / (1000 * 60 * 60 * 24));
+  /** Completed market session date, with a legacy fallback during data repair. */
+  protected tradingDate(row: DailySignal): string {
+    return row.tradingDate ?? row.signalDate;
+  }
+
+  /** Server-calculated completed market sessions since the signal's TradingDate. */
+  protected tradingSessionsPassed(row: DailySignal): number | null {
+    return row.tradingSessionsPassed;
   }
 
   /** Current price from the fetched price map */
@@ -646,12 +651,15 @@ export class EodSignalsPageComponent implements OnInit {
   }
 
   protected trendShiftClass(trendShift: string): string {
-    if (trendShift.includes('Bull Turn') || trendShift.includes('Bear Turn'))
-      return 'tag-trend-bull';
-    if (trendShift.includes('Still Falling') || trendShift.includes('Still Rising'))
-      return 'tag-trend-bear';
-    if (trendShift.includes('Stabilizing')) return 'tag-trend-neutral';
+    const label = formatTrendShift(trendShift, '');
+    if (label.includes('Bull Turn') || label.includes('Bear Turn')) return 'tag-trend-bull';
+    if (label.includes('Still Falling') || label.includes('Still Rising')) return 'tag-trend-bear';
+    if (label.includes('Stabilizing')) return 'tag-trend-neutral';
     return '';
+  }
+
+  protected trendShiftLabel(trendShift: string | null | undefined): string {
+    return formatTrendShift(trendShift, '');
   }
 
   /** Risk % = RiskPerShare / EntryPrice × 100. Null when either value is missing. */
@@ -684,7 +692,8 @@ export class EodSignalsPageComponent implements OnInit {
   protected exportToExcel(): void {
     const today = new Date().toISOString().slice(0, 10);
     const data = this.sortedSignals().map((r) => ({
-      Date: r.signalDate,
+      'Trading Date': this.tradingDate(r),
+      'Scanned At': r.scannedAt ?? r.recordedAt,
       Ticker: r.symbol,
       'Scan Type': r.scanType,
       'Signal Type': r.signalType,
@@ -706,7 +715,7 @@ export class EodSignalsPageComponent implements OnInit {
       'Reversal P.': r.reversalProbability,
       Mode: r.ruleVersion,
       State: r.signalState,
-      'Days Passed': this.daysPassed(r),
+      'Trading Sessions Passed': this.tradingSessionsPassed(r) ?? '',
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();

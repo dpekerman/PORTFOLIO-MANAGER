@@ -32,7 +32,11 @@ public sealed record MarketLeadershipRow(
     string MomentumReason,
     PriceStructureResult PriceStructure,
     string LeadershipSignal,
-    string LeadershipReason);
+    string LeadershipReason,
+    string? AnalysisTicker = null,
+    string? AnalysisMarket = null,
+    string? AnalysisCurrency = null,
+    bool UsesUnderlyingSecurity = false);
 
 public sealed record MarketLeadershipResponse(
     IReadOnlyList<MarketLeadershipRow> Rows,
@@ -75,7 +79,7 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
 
         foreach (var tracker in trackers)
         {
-            var snapshot = await technicalSnapshots.GetSnapshotAsync(tracker.Symbol, ct);
+            var snapshot = await technicalSnapshots.GetSnapshotAsync(tracker.Symbol, userId, ct);
             rows.Add(ToRow(tracker, snapshot));
         }
 
@@ -173,7 +177,8 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
             return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
                 false, snapshot.DataError ?? "Technical history is unavailable.", analysis?.CurrentPrice ?? 0m,
                 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, 0m, "Unavailable", "Unavailable", "Unavailable", "Unavailable",
-                null, null, null, "Technical history is unavailable.", PriceStructureResult.None, "Neutral", "Technical history is unavailable.");
+                null, null, null, "Technical history is unavailable.", PriceStructureResult.None, "Neutral", "Technical history is unavailable.",
+                snapshot.AnalysisTicker, snapshot.AnalysisMarket, snapshot.AnalysisCurrency, snapshot.UsesUnderlyingSecurity);
 
         return new MarketLeadershipRow(tracker.Id, tracker.Symbol, tracker.DisplayName, tracker.TrackerType,
             true, null, analysis.CurrentPrice, analysis.DayReturnPct, analysis.FiveDayReturnPct, analysis.PreviousFiveDayReturnPct,
@@ -182,7 +187,8 @@ public sealed class MarketLeadershipService(AppDbContext db, IMarketDataProvider
             PercentDifference(analysis.CurrentPrice, analysis.Sma200), PercentDifference(analysis.Sma50, analysis.Sma200),
             analysis.TrendState, analysis.MomentumState, analysis.MaStructure, analysis.MaBadge,
             analysis.LastCross, analysis.LastCrossDate, analysis.LastCrossTradingDaysAgo, analysis.MomentumReason,
-            snapshot.PriceStructure, analysis.LeadershipSignal, analysis.LeadershipReason);
+            snapshot.PriceStructure, analysis.LeadershipSignal, analysis.LeadershipReason,
+            snapshot.AnalysisTicker, snapshot.AnalysisMarket, snapshot.AnalysisCurrency, snapshot.UsesUnderlyingSecurity);
     }
 
     private static decimal PercentDifference(decimal value, decimal baseValue) =>

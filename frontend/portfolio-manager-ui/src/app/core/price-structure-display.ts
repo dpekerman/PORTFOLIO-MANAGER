@@ -15,10 +15,21 @@ export function priceStructureLabel(
 export function priceStructureTooltip(
   structure: PriceStructureResult | null | undefined,
   maskValue: (value: number) => number = (value) => value,
+  analysisSource?: {
+    ticker?: string | null;
+    market?: string | null;
+    currency?: string | null;
+    usesUnderlying?: boolean;
+  },
 ): string {
   if (!hasPriceStructure(structure)) return '';
+  const currencySuffix = analysisSource?.usesUnderlying
+    ? ` ${analysisSource.currency ?? 'USD'}`
+    : '';
   const money = (value: number | null | undefined) =>
-    value === null || value === undefined || value === 0 ? '—' : `$${maskValue(value).toFixed(2)}`;
+    value === null || value === undefined || value === 0
+      ? '—'
+      : `$${maskValue(value).toFixed(2)}${currencySuffix}`;
   const optional = (value: number | null | undefined, suffix = '') =>
     value === null || value === undefined ? '—' : `${value}${suffix}`;
 
@@ -48,7 +59,10 @@ export function priceStructureTooltip(
     : '';
   const explanation = `${displayLabel}\n\nWHAT IS HAPPENING?\n${narrative.what}\n\nWHY DOES IT MATTER?\n${narrative.why}\n\nWHAT TO WATCH NEXT?\n${narrative.watch}`;
   const technical = [pattern, level, touches].filter(Boolean).join('\n\n');
-  return `${explanation}\n\nTECHNICAL DETAILS\n\n${technical}`;
+  const source = analysisSource?.usesUnderlying
+    ? `TECHNICAL ANALYSIS SOURCE\nUnderlying: ${analysisSource.ticker ?? '—'} (${analysisSource.market ?? 'US'})\nTechnical levels are in ${analysisSource.currency ?? 'USD'}.`
+    : '';
+  return [explanation, source, `TECHNICAL DETAILS\n\n${technical}`].filter(Boolean).join('\n\n');
 }
 
 export function priceStructureSortRank(structure: PriceStructureResult | null | undefined): number {
@@ -151,6 +165,15 @@ function friendlyLevelLabel(structure: PriceStructureResult): string {
   if (state === 'SUPPORT_RECLAIM') return 'SUPPORT RECOVERED';
   if (state === 'BREAKOUT_WATCH') return 'BREAKOUT WATCH';
   if (state === 'BREAKDOWN_WATCH') return 'SUPPORT AT RISK';
+  const roleChanged =
+    structure.keyLevelOriginalRole !== undefined &&
+    structure.keyLevelOriginalRole !== structure.keyLevelRole;
+  if (roleChanged && (state === 'SUPPORT_TEST' || state === 'RESISTANCE_TEST')) {
+    return `TESTING ${currentLevelSource(structure).toUpperCase()}`;
+  }
+  if (roleChanged && (state === 'APPROACHING_SUPPORT' || state === 'APPROACHING_RESISTANCE')) {
+    return `NEAR ${currentLevelSource(structure).toUpperCase()}`;
+  }
   if (structure.keyLevelType === 'CONFLUENCE_ZONE') {
     if (structure.keyLevelRole === 'SUPPORT') return 'STRONG SUPPORT ZONE';
     if (structure.keyLevelRole === 'RESISTANCE') return 'STRONG RESISTANCE ZONE';
@@ -213,12 +236,16 @@ function currentDecisionLabel(
       ? structure.keyLevelRole === 'SUPPORT'
         ? 'Channel Support'
         : 'Channel Resistance'
-      : lifecycleAwareSource(
-          structure.keyLevelSources[0] ?? humanize(structure.keyLevelType),
-          structure.keyLevelOriginalRole ?? structure.keyLevelRole,
-          structure.keyLevelRole,
-        );
+      : currentLevelSource(structure);
   return `${interaction} ${source} @ ${money(structure.keyLevelPrice)}`;
+}
+
+function currentLevelSource(structure: PriceStructureResult): string {
+  return lifecycleAwareSource(
+    structure.keyLevelSources[0] ?? humanize(structure.keyLevelType),
+    structure.keyLevelOriginalRole ?? structure.keyLevelRole,
+    structure.keyLevelRole,
+  );
 }
 
 function lifecycleAwareSource(source: string, originalRole: string, currentRole: string): string {
@@ -243,6 +270,24 @@ function friendlyNarrative(structure: PriceStructureResult): {
   const support = structure.keyLevelRole === 'SUPPORT';
   const resistance = structure.keyLevelRole === 'RESISTANCE';
   const wedge = structure.primaryPatternType.includes('WEDGE');
+
+  if (structure.hasHardStructuralNegative) {
+    return {
+      what: 'A broader structural breakdown remains active despite any local improvement at the current decision level.',
+      why: 'A hard structural negative blocks new entry permission until the damaged pattern or level is repaired.',
+      watch:
+        'Treat any local support reclaim as monitoring context. Wait for the structural failure to clear before considering a new entry.',
+    };
+  }
+
+  if (label === 'NEAR RECENT HIGH' || label === 'TESTING RECENT HIGH') {
+    return {
+      what: 'Price is approaching or testing an important recent high or resistance area.',
+      why: 'Recent highs are resistance-oriented until price closes decisively above them.',
+      watch:
+        'A confirmed EOD close above the level may indicate breakout. Rejection below it keeps resistance active.',
+    };
+  }
 
   if (
     label === 'SUPPORT BROKEN' ||

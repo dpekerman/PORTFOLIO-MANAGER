@@ -213,10 +213,12 @@ builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>(
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDataRefreshService, DataRefreshService>();
 builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
+builder.Services.AddScoped<IDashboardEodSummaryService, DashboardEodSummaryService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ITransactionContextCaptureService, TransactionContextCaptureService>();
 builder.Services.AddScoped<IPortfolioActionScoreService, PortfolioActionScoreService>();
 builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>();
+builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
 

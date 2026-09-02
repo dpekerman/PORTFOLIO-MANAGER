@@ -57,14 +57,14 @@ public class ScannerController(
             .Distinct()
             .ToList();
 
-        var result = await scanner.ScanAsync(extraSymbols, oversold, overbought, logicMode, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await scanner.ScanAsync(extraSymbols, oversold, overbought, logicMode, userId, ct);
 
         // Persist snapshot so the frontend loads instantly without hitting Yahoo Finance ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â demo data has no TTL value
         if (!result.IsDemo)
         {
             await snapshotService.SaveAsync(result, ct);
-            var uid = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (!string.IsNullOrEmpty(uid)) await dashboard.RebuildAsync(uid, ct);
+            if (!string.IsNullOrEmpty(userId)) await dashboard.RebuildAsync(userId, ct);
         }
 
         return Ok(result);
@@ -125,7 +125,7 @@ public class ScannerController(
     /// Ad-hoc analysis: accepts up to 20 user-supplied symbols and returns RSI scan results for each.
     /// Not cached ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â always fetches live data.
     /// </summary>
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Trader")]
     [HttpPost("analyze")]
     public async Task<ActionResult<List<RsiScanResult>>> AnalyzeSymbols(
         [FromBody] AnalyzeRequest request,
@@ -139,7 +139,14 @@ public class ScannerController(
 
         logger.LogInformation("Ad-hoc analysis requested for {Count} symbols. Oversold<{OS} Overbought>{OB} Mode={Mode}",
             request.Symbols.Count, request.OversoldThreshold, request.OverboughtThreshold, request.LogicMode);
-        var results = await scanner.AnalyzeSymbolsAsync(request.Symbols, request.OversoldThreshold, request.OverboughtThreshold, request.LogicMode, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var results = await scanner.AnalyzeSymbolsAsync(
+            request.Symbols,
+            request.OversoldThreshold,
+            request.OverboughtThreshold,
+            request.LogicMode,
+            userId,
+            ct);
         return Ok(results);
     }
 

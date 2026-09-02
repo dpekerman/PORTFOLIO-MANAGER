@@ -115,13 +115,21 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             var sector           = pos?.Item.Sector ?? scan.Sector ?? "";
             var allocationStatus = ComputeAllocationStatus(sector, sectorActuals, sectorTargets);
             var isHolding        = pos is not null;
-            var priceStructure = HasPriceStructure(scan.PriceStructure) ? scan.PriceStructure : persistedStructure;
+            var priceStructure = scan.PriceStructure?.HasHardStructuralNegative == true
+                ? scan.PriceStructure
+                : persistedStructure?.HasHardStructuralNegative == true
+                    ? persistedStructure
+                    : HasPriceStructure(scan.PriceStructure)
+                        ? scan.PriceStructure
+                        : persistedStructure;
             var hasPriceStructure = HasPriceStructure(priceStructure);
+            var hasActiveEod = IsActiveEod(persistedFacts);
 
-            if (!isHolding && scan.Status == SignalStatus.Neutral && !hasPriceStructure) continue;
+            if (!isHolding && scan.Status == SignalStatus.Neutral && !hasPriceStructure && !hasActiveEod) continue;
 
             var (actionLabel, severity, priority) =
                 DeriveAction(scan, holdingRole, allocationStatus, isHolding, priceStructure);
+            (actionLabel, severity, priority) = ApplyEodContext(actionLabel, severity, priority, persistedFacts, priceStructure);
             severity = ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
             var inclusionReason = InclusionReason(scan, priceStructure, hasScannerData);
 
@@ -155,7 +163,12 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 MomentumState: scan.MomentumState ?? persistedFacts?.MomentumState,
                 PriceStructure: priceStructure,
                 InclusionReason: inclusionReason,
-                TechnicalCalculatedAt: priceStructure?.CalculatedAt ?? persistedFacts?.CalculatedAt));
+                TechnicalCalculatedAt: priceStructure?.CalculatedAt ?? persistedFacts?.CalculatedAt,
+                LatestEodSignalState: persistedFacts?.LatestEodSignalState,
+                LatestEodScanType: persistedFacts?.LatestEodScanType,
+                LatestEodTrendShift: persistedFacts?.LatestEodTrendShift,
+                LatestEodIsNew: persistedFacts?.LatestEodIsNew ?? false,
+                LatestEodIsInvalidated: persistedFacts?.LatestEodIsInvalidated ?? false));
         }
 
         return results
@@ -186,9 +199,7 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         var levelState = priceStructure?.KeyLevelState ?? "NONE";
 
         if (priceStructure?.HasHardStructuralNegative == true)
-            return isHolding
-                ? (isSwing || isSpec ? "EXIT REVIEW" : "TECHNICAL REVIEW", "review", "REQUIRED")
-                : ("AVOID", "danger", "REQUIRED");
+            return ("AVOID", "danger", "REQUIRED");
 
         if (scan.Status == SignalStatus.Neutral && levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM"
             or "APPROACHING_SUPPORT" or "RESISTANCE_TEST" or "APPROACHING_RESISTANCE" or "BREAKOUT_CONFIRMED")
@@ -282,6 +293,38 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             : ("HOLD — WEAKNESS",     "hold",   "INFORMATIONAL");
     }
 
+    private static (string label, string severity, string priority) ApplyEodContext(
+        string label,
+        string severity,
+        string priority,
+        SharedTechnicalFacts? facts,
+        PriceStructureResult? priceStructure)
+    {
+        if (facts is null || !IsActiveEod(facts) || facts.LatestEodIsInvalidated)
+            return (label, severity, priority);
+
+        var hasStructuralDamage = priceStructure?.HasHardStructuralNegative == true;
+        var hasEntryStructure = !hasStructuralDamage && HasPriceStructure(priceStructure) && (facts.BuyScore ?? 0) >= 65;
+
+        if (hasStructuralDamage)
+            return (label, severity, priority);
+
+        if (label == "ENTRY CANDIDATE" && !hasEntryStructure)
+            return ("REVERSAL WATCH", "wait", "DEVELOPING");
+
+        if (priority == "INFORMATIONAL")
+        {
+            var eodLabel = label.StartsWith("WAIT", StringComparison.OrdinalIgnoreCase)
+                || label.StartsWith("HOLD", StringComparison.OrdinalIgnoreCase)
+                ? "REVERSAL WATCH"
+                : label;
+            var eodSeverity = severity == "hold" ? "wait" : severity;
+            return (eodLabel, eodSeverity, "DEVELOPING");
+        }
+
+        return (label, severity, priority);
+    }
+
     private static (string label, string severity, string priority)? DeriveChannelAction(
         string channelState, string trendShift, string role, bool isHolding, ScanType scanType)
     {
@@ -372,6 +415,9 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 
     private static bool HasPriceStructure(PriceStructureResult? structure) =>
         structure is not null && (structure.PrimaryPatternType != "NONE" || structure.KeyLevelState != "NONE");
+
+    private static bool IsActiveEod(SharedTechnicalFacts? facts) =>
+        string.Equals(facts?.LatestEodSignalState, "Active", StringComparison.OrdinalIgnoreCase);
 
     private static string InclusionReason(RsiScanResult scan, PriceStructureResult? structure, bool hasScannerData)
     {

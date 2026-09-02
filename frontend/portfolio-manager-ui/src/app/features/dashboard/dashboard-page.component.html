@@ -978,30 +978,89 @@
         </p>
       }
     </mat-card>
-    <!-- ── Changed Today ──────────────────────────────────────────────── -->
-    <mat-card class="db-panel db-full-width-panel">
+    <!-- ── EOD Summary ───────────────────────────────────────────────── -->
+    <mat-card class="db-panel db-full-width-panel db-eod-panel">
+      @let summary = eodSummary();
       <div class="db-panel-hd">
         <div class="db-panel-hd-left">
-          <mat-icon class="db-panel-ico">update</mat-icon>
-          <span class="db-panel-title">Signal changes today</span>
-          @if (stateChangesCount() > 0) {
-            <span class="db-panel-badge">{{ stateChangesCount() }}</span>
+          <mat-icon class="db-panel-ico">sensors</mat-icon>
+          <span class="db-panel-title">
+            EOD Summary
+            @if (summary?.tradingDate; as tradingDate) {
+              — {{ eodSessionLabel(tradingDate) }}
+            }
+          </span>
+          @if (summary && summary.uniqueTickerCount > 0) {
+            <span class="db-panel-badge">{{ summary.uniqueTickerCount }}</span>
           }
+          <span
+            class="eod-ownership-legend"
+            aria-label="Ownership badges: P is Portfolio, W is Watchlist, U is Universe"
+          >
+            P Portfolio · W Watchlist · U Universe
+          </span>
         </div>
         <button
           mat-icon-button
-          (click)="toggleExpanded('signal-changes')"
-          [matTooltip]="isExpanded('signal-changes') ? 'Collapse' : 'Expand signal changes'"
-          aria-label="Toggle signal changes"
+          (click)="toggleExpanded('latest-eod-signals')"
+          [matTooltip]="isExpanded('latest-eod-signals') ? 'Collapse' : 'Expand EOD summary'"
+          aria-label="Toggle EOD summary"
         >
-          <mat-icon>{{ isExpanded('signal-changes') ? 'expand_less' : 'expand_more' }}</mat-icon>
+          <mat-icon>{{
+            isExpanded('latest-eod-signals') ? 'expand_less' : 'expand_more'
+          }}</mat-icon>
         </button>
       </div>
-      @if (isExpanded('signal-changes')) {
-        <app-state-changes-widget />
+      @if (isExpanded('latest-eod-signals')) {
+        @if (dashboard.eodSummaryLoading()) {
+          <mat-progress-bar mode="indeterminate" />
+        } @else if (summary && summary.rows.length > 0) {
+          <div class="db-eod-table-wrap">
+            <table class="db-eod-table" aria-label="Latest completed EOD session summary">
+              <thead>
+                <tr>
+                  <th>Ticker</th>
+                  <th>Signal</th>
+                  <th>RSI</th>
+                  <th>Structure</th>
+                  <th>Action</th>
+                  <th>Why</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (eod of summary.rows; track eod.symbol) {
+                  <tr>
+                    <td class="eod-symbol">
+                      {{ eod.symbol }}
+                      <span
+                        class="db-owner-badge"
+                        [class.portfolio]="eod.ownership === 'Portfolio'"
+                        [class.watchlist]="eod.ownership === 'Watchlist'"
+                        [class.universe]="eod.ownership === 'Universe'"
+                        [matTooltip]="eod.ownership"
+                        >{{ ownershipBadge(eod.ownership) }}</span
+                      >
+                    </td>
+                    <td>{{ eod.signal }}</td>
+                    <td class="eod-rsi">{{ eod.rsi | number: '1.1-1' }}</td>
+                    <td>{{ eod.structure }}</td>
+                    <td class="eod-status" [matTooltip]="actionTooltip(eod)">{{ eod.action }}</td>
+                    <td class="eod-why">{{ eod.why }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          @if (summary.uniqueTickerCount > summary.rows.length) {
+            <a routerLink="/eod-signals" class="db-view-all">View all EOD Signals &rarr;</a>
+          }
+        } @else {
+          <p class="db-muted db-eod-empty">No completed EOD session is available.</p>
+        }
       } @else {
         <p class="db-collapsed-hint">
-          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view signal changes.
+          Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view the latest EOD
+          summary.
         </p>
       }
     </mat-card>

@@ -12,7 +12,10 @@ public interface IDashboardService
     Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true);
 }
 
-public sealed class DashboardService(AppDbContext db, IMarketDataProvider marketData) : IDashboardService
+public sealed class DashboardService(
+    AppDbContext db,
+    IMarketDataProvider marketData,
+    IPortfolioActionsService portfolioActions) : IDashboardService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly (string Symbol, string Name)[] IndexSymbols =
@@ -54,6 +57,10 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var scanner = Deserialize<ScannerResponse>(rsiSnapshot?.SnapshotJson ?? "{}")
             ?? new ScannerResponse();
+        var canonicalActions = await portfolioActions.GetActionsAsync(userId, ct);
+        var actionsBySymbol = canonicalActions
+            .GroupBy(action => action.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
         var stagedSignals = await db.StagedSignals.AsNoTracking()
             .Where(s => s.IsActiveWatch)
             .ToListAsync(ct);
@@ -239,15 +246,22 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         {
             var isInPortfolio = activePortfolioSymbols.Contains(r.Symbol);
             var isInWatchlist = watchlistSymbols.Contains(r.Symbol);
-            var action = DashboardSignalActionInterpreter.Resolve(r, isInPortfolio, isInWatchlist);
-            var severity = ActionSeverityMapper.Get(action);
+            actionsBySymbol.TryGetValue(r.Symbol, out var canonicalAction);
+            var hasCanonicalScope = isInPortfolio || isInWatchlist;
+            var action = canonicalAction?.ActionLabel
+                ?? (hasCanonicalScope
+                    ? "—"
+                    : DashboardSignalActionInterpreter.Resolve(r, false, false));
+            var severity = canonicalAction?.ActionSeverity
+                ?? (hasCanonicalScope ? "review" : ActionSeverityMapper.Get(action));
+            var actionRequired = canonicalAction?.ActionPriority == "REQUIRED";
             var isNew = stagedBySymbol.TryGetValue(r.Symbol, out var staged)
                 && staged.StagedDate == DateOnly.FromDateTime(todayEt);
             if (isNew) newToday++;
-            if (severity == "REQUIRED") actionReq++;
+            if (actionRequired) actionReq++;
             return new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
                 r.TrendShift, r.VolumeSignal, r.ChangePercent, action, r.Status.ToString(),
-                isInPortfolio, isInWatchlist, isNew, severity == "REQUIRED", severity, r.ChannelState);
+                isInPortfolio, isInWatchlist, isNew, actionRequired, severity, r.ChannelState);
         };
 
         var oversoldSignals   = scanner.OversoldChain

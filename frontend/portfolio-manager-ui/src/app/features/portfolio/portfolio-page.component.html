@@ -1094,7 +1094,10 @@
                         isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let fib382R = fibForSymbol(fib382Sym);
                       @if (fib382R && fib382R.fib38_2 > 0) {
-                        <span class="fib-level">${{ fib382R.fib38_2 | number: '1.2-2' }}</span>
+                        <span class="fib-level"
+                          >${{ fib382R.fib38_2 | number: '1.2-2'
+                          }}{{ technicalCurrencySuffix(fib382R) }}</span
+                        >
                       } @else {
                         <span class="pg-dim">—</span>
                       }
@@ -1115,7 +1118,10 @@
                         isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let fib50R = fibForSymbol(fib50Sym);
                       @if (fib50R && fib50R.fib50 > 0) {
-                        <span class="fib-level">${{ fib50R.fib50 | number: '1.2-2' }}</span>
+                        <span class="fib-level"
+                          >${{ fib50R.fib50 | number: '1.2-2'
+                          }}{{ technicalCurrencySuffix(fib50R) }}</span
+                        >
                       } @else {
                         <span class="pg-dim">—</span>
                       }
@@ -1144,7 +1150,8 @@
                           "
                           [matTooltip]="fib618R.fibStatus"
                         >
-                          ${{ fib618R.fib61_8 | number: '1.2-2' }}
+                          ${{ fib618R.fib61_8 | number: '1.2-2'
+                          }}{{ technicalCurrencySuffix(fib618R) }}
                         </span>
                       } @else {
                         <span class="pg-dim">—</span>
@@ -1166,7 +1173,10 @@
                         isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
                       @let fib786R = fibForSymbol(fib786Sym);
                       @if (fib786R && fib786R.fib78_6 > 0) {
-                        <span class="fib-level">${{ fib786R.fib78_6 | number: '1.2-2' }}</span>
+                        <span class="fib-level"
+                          >${{ fib786R.fib78_6 | number: '1.2-2'
+                          }}{{ technicalCurrencySuffix(fib786R) }}</span
+                        >
                       } @else {
                         <span class="pg-dim">—</span>
                       }
@@ -1261,6 +1271,17 @@
                           class="pg-action-btn"
                         >
                           <mat-icon>edit</mat-icon>
+                        </button>
+                        <button
+                          mat-icon-button
+                          matTooltip="Configure underlying analysis ticker"
+                          (click)="
+                            openSecurityAnalysisMapping(asItem(row)); $event.stopPropagation()
+                          "
+                          [style.display]="authState.canWrite() ? null : 'none'"
+                          class="pg-action-btn"
+                        >
+                          <mat-icon>account_tree</mat-icon>
                         </button>
                         <button
                           mat-icon-button

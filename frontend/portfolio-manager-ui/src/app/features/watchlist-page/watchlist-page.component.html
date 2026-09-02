@@ -276,6 +276,20 @@
                     {{ w.item.symbol.substring(0, 2) }}
                   </div>
                   <span class="grid-symbol">{{ w.item.symbol }}</span>
+                  @if (w.technicalFacts?.usesUnderlyingSecurity) {
+                    <span
+                      class="underlying-indicator"
+                      [matTooltip]="
+                        'Underlying: ' +
+                        w.technicalFacts!.analysisTicker +
+                        ' (' +
+                        w.technicalFacts!.analysisMarket +
+                        '). Technical analysis uses underlying U.S. security.'
+                      "
+                    >
+                      US: {{ w.technicalFacts!.analysisTicker }}
+                    </span>
+                  }
                 </div>
               </td>
             </ng-container>
@@ -1163,6 +1177,15 @@
                   class="wl-action-btn"
                 >
                   <mat-icon>{{ w.item.notes ? 'sticky_note_2' : 'note_add' }}</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  (click)="openSecurityAnalysisMapping(w); $event.stopPropagation()"
+                  [style.display]="authState.canWrite() ? null : 'none'"
+                  matTooltip="Configure underlying analysis ticker"
+                  class="wl-action-btn"
+                >
+                  <mat-icon>account_tree</mat-icon>
                 </button>
                 <button
                   mat-icon-button

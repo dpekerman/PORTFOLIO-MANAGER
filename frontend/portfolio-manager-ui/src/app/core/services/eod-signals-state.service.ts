@@ -30,8 +30,14 @@ export class EodSignalsStateService {
 
   readonly newSignalCount = computed(() => {
     const signals = this._signals();
-    const today = new Date().toISOString().split('T')[0];
-    return signals.filter((s) => s.signalDate.startsWith(today)).length;
+    const latestTradingDate = signals.reduce<string | null>((latest, signal) => {
+      const tradingDate = signal.tradingDate ?? signal.signalDate;
+      return latest === null || tradingDate > latest ? tradingDate : latest;
+    }, null);
+    return latestTradingDate === null
+      ? 0
+      : signals.filter((signal) => (signal.tradingDate ?? signal.signalDate) === latestTradingDate)
+          .length;
   });
 
   constructor() {

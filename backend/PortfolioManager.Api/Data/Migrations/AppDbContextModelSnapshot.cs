@@ -455,6 +455,9 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<DateTime?>("ScannedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Sector")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -490,6 +493,10 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("TradingDate")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<string>("TrendShift")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -518,6 +525,10 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasIndex("Symbol");
 
                     b.HasIndex("Symbol", "SignalDate");
+
+                    b.HasIndex("Symbol", "ScanType", "SignalType", "TradingDate")
+                        .IsUnique()
+                        .HasFilter("[TradingDate] IS NOT NULL");
 
                     b.ToTable("DailySignals");
                 });
@@ -581,8 +592,9 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "Symbol", "IsActive")
-                        .IsUnique();
+                    b.HasIndex("UserId", "Symbol")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
 
                     b.ToTable("MarketLeadershipTrackers");
                 });
@@ -905,6 +917,100 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SectorIndustryConfigs");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.SecurityAnalysisMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DetectionDetail")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("MappingSource")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ResolutionStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TradingTicker")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UnderlyingMarket")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("UnderlyingTicker")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("UseUnderlyingForAnalysis")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnderlyingTicker");
+
+                    b.HasIndex("TradingTicker", "UserId");
+
+                    b.ToTable("SecurityAnalysisMappings");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = -1,
+                            CreatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DetectionDetail = "Managed CDR reference data",
+                            MappingSource = 0,
+                            ResolutionStatus = 1,
+                            TradingTicker = "SPGI.TO",
+                            UnderlyingMarket = "US",
+                            UnderlyingTicker = "SPGI",
+                            UpdatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UseUnderlyingForAnalysis = true
+                        },
+                        new
+                        {
+                            Id = -2,
+                            CreatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DetectionDetail = "Managed CDR reference data",
+                            MappingSource = 0,
+                            ResolutionStatus = 1,
+                            TradingTicker = "DIS.TO",
+                            UnderlyingMarket = "US",
+                            UnderlyingTicker = "DIS",
+                            UpdatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UseUnderlyingForAnalysis = true
+                        },
+                        new
+                        {
+                            Id = -3,
+                            CreatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            DetectionDetail = "Managed CDR reference data",
+                            MappingSource = 0,
+                            ResolutionStatus = 1,
+                            TradingTicker = "MU.TO",
+                            UnderlyingMarket = "US",
+                            UnderlyingTicker = "MU",
+                            UpdatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
+                            UseUnderlyingForAnalysis = true
+                        });
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.SinglePositionLimit", b =>

@@ -27,6 +27,7 @@ import {
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
+import { formatTrendShift } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 @Component({
@@ -243,8 +244,25 @@ export class RsiScannerTableComponent {
     return formatPriceStructureLabel(structure, (value) => this.demoMode.maskValue(value));
   }
 
-  protected priceStructureTooltip(structure: PriceStructureResult | null | undefined): string {
-    return formatPriceStructureTooltip(structure, (value) => this.demoMode.maskValue(value));
+  protected priceStructureTooltip(row: RsiScanResult): string {
+    return formatPriceStructureTooltip(
+      row.priceStructure,
+      (value) => this.demoMode.maskValue(value),
+      {
+        ticker: row.analysisTicker,
+        market: row.analysisMarket,
+        currency: row.analysisCurrency,
+        usesUnderlying: row.usesUnderlyingSecurity,
+      },
+    );
+  }
+
+  protected fibonacciTooltip(row: RsiScanResult): string {
+    const currency = row.usesUnderlyingSecurity ? ` ${row.analysisCurrency ?? 'USD'}` : '';
+    const source = row.usesUnderlyingSecurity
+      ? `\nUnderlying analysis: ${row.analysisTicker} (${row.analysisMarket ?? 'US'})`
+      : '';
+    return `38.2: $${row.fib38_2.toFixed(2)}${currency} · 50: $${row.fib50.toFixed(2)}${currency} · 61.8: $${row.fib61_8.toFixed(2)}${currency} · 78.6: $${row.fib78_6.toFixed(2)}${currency}${source}`;
   }
 
   protected priceStructureSortValue(structure: PriceStructureResult | null | undefined): number {
@@ -260,16 +278,16 @@ export class RsiScannerTableComponent {
 
   // ── Trend Shift (day-over-day RSI momentum) ────────────────────────────────
   protected trendShiftClass(trendShift: string): string {
-    if (trendShift.includes('Bull Turn') || trendShift.includes('Bear Turn')) return 'trend-bull';
-    if (trendShift.includes('Still Falling') || trendShift.includes('Still Rising'))
-      return 'trend-bear';
-    if (trendShift.includes('Stabilizing')) return 'trend-neutral';
+    const label = formatTrendShift(trendShift, '');
+    if (label.includes('Bull Turn') || label.includes('Bear Turn')) return 'trend-bull';
+    if (label.includes('Still Falling') || label.includes('Still Rising')) return 'trend-bear';
+    if (label.includes('Stabilizing')) return 'trend-neutral';
     return 'trend-waiting';
   }
 
   /** Display label combining TrendShift with Turn Strength suffix. */
   protected trendShiftDisplay(row: RsiScanResult): string {
-    const shift = row.trendShift;
+    const shift = formatTrendShift(row.trendShift, 'Waiting');
     const strength = row.turnStrength;
     if (!shift || shift === 'Waiting') return shift || 'Waiting';
     if (!strength || strength === 'Normal') return shift;

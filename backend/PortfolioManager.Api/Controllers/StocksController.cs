@@ -51,7 +51,7 @@ public class StocksController(
         {
             quotes.TryGetValue(item.Symbol, out var quote);
             if (quote is not null) quote.CompanyName = item.CompanyName;
-            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, ct);
+            var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, CurrentUserId(), ct);
             results.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure));
         }
 

@@ -80,7 +80,25 @@ public sealed record SharedTechnicalFacts(
     string? MomentumState,
     PriceStructureResult PriceStructure,
     int? BuyScore,
-    DateTime CalculatedAt);
+    DateTime CalculatedAt,
+    // ── Latest EOD Signal (populated from DailySignals table) ────────────────
+    string? LatestEodTradingDate = null,
+    DateTime? LatestEodSignalDate = null,
+    string? LatestEodSignalState = null,        // "Active" | "Invalidated" | "FollowThrough" | etc.
+    string? LatestEodScanType = null,           // "Oversold" | "Overbought"
+    decimal? LatestEodRsi = null,
+    string? LatestEodTrendShift = null,         // "Bull Turn" | "Bear Turn" | "Stabilizing" | "Bull Turn — Early"
+    decimal? LatestEodEntryPrice = null,
+    decimal? LatestEodStopLoss = null,
+    decimal? LatestEodRiskPercent = null,
+    string? LatestEodReversalStrength = null,   // "Low" | "Medium" | "Strong"
+    string? LatestEodVolumeState = null,        // "Validated" | "Neutral" | "Low"
+    bool LatestEodIsNew = false,                // true if signal created in latest trading session
+    bool LatestEodIsInvalidated = false,
+    string? AnalysisTicker = null,
+    string? AnalysisMarket = null,
+    string? AnalysisCurrency = null,
+    bool UsesUnderlyingSecurity = false);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic", string WatchlistTier = "Strategic");
@@ -101,6 +119,19 @@ public record WatchlistSummaryDto(
 public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);
 public record UpdateWatchlistEarningsDateRequest(DateTime? EarningsDate);
+
+// ── Security analysis mappings ───────────────────────────────────────────────
+public record SecurityAnalysisMappingDto(
+    string TradingTicker,
+    string AnalysisTicker,
+    string AnalysisMarket,
+    string AnalysisCurrency,
+    bool UsesUnderlyingSecurity,
+    UnderlyingResolutionStatus ResolutionStatus,
+    SecurityAnalysisMappingSource? MappingSource,
+    string? DataError = null);
+
+public record SaveSecurityAnalysisMappingRequest(string UnderlyingTicker, bool UseUnderlyingForAnalysis = true);
 
 // ── Sector / Industry Lists ─────────────────────────────────────────────────────
 public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries, List<string>? DecisionSources = null);

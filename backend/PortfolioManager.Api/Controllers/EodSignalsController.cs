@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using System.Security.Claims;
 
 namespace PortfolioManager.Api.Controllers;
 
@@ -14,6 +15,7 @@ public class EodSignalsController(
     AppDbContext db,
     IRsiScannerService scanner,
     EodSignalPersistenceService eodPersistence,
+    IMarketDataProvider marketData,
     ILogger<EodSignalsController> logger) : ControllerBase
 {
     // -- Query ---------------------------------------------------------------
@@ -50,17 +52,18 @@ public class EodSignalsController(
         if (!string.IsNullOrWhiteSpace(volumeSignal))
             query = query.Where(s => s.VolumeSignal == volumeSignal);
         if (!string.IsNullOrWhiteSpace(dateFrom))
-            query = query.Where(s => string.Compare(s.SignalDate, dateFrom, StringComparison.Ordinal) >= 0);
+            query = query.Where(s => string.Compare(s.TradingDate ?? s.SignalDate, dateFrom, StringComparison.Ordinal) >= 0);
         if (!string.IsNullOrWhiteSpace(dateTo))
-            query = query.Where(s => string.Compare(s.SignalDate, dateTo, StringComparison.Ordinal) <= 0);
+            query = query.Where(s => string.Compare(s.TradingDate ?? s.SignalDate, dateTo, StringComparison.Ordinal) <= 0);
 
         var totalCount = await query.CountAsync(ct);
         var items = await query
-            .OrderByDescending(s => s.SignalDate)
-            .ThenByDescending(s => s.RecordedAt)
+            .OrderByDescending(s => s.TradingDate ?? s.SignalDate)
+            .ThenByDescending(s => s.ScannedAt ?? s.RecordedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(ct);
+        await PopulateTradingSessionsPassedAsync(items, ct);
 
         return Ok(new DailySignalPagedResponse { Items = items, TotalCount = totalCount, Page = page, PageSize = pageSize });
     }
@@ -116,8 +119,8 @@ public class EodSignalsController(
         var signalTypes  = await db.DailySignals.Select(s => s.SignalType).Distinct().OrderBy(s => s).ToListAsync(ct);
         var signalStates = await db.DailySignals.Select(s => s.SignalState).Distinct().OrderBy(s => s).ToListAsync(ct);
         var ruleVersions = await db.DailySignals.Select(s => s.RuleVersion).Distinct().OrderBy(s => s).ToListAsync(ct);
-        var minDate      = await db.DailySignals.MinAsync(s => (string?)s.SignalDate, ct);
-        var maxDate      = await db.DailySignals.MaxAsync(s => (string?)s.SignalDate, ct);
+        var minDate      = await db.DailySignals.MinAsync(s => s.TradingDate ?? s.SignalDate, ct);
+        var maxDate      = await db.DailySignals.MaxAsync(s => s.TradingDate ?? s.SignalDate, ct);
         var totalCount   = await db.DailySignals.CountAsync(ct);
         return Ok(new { tickers, scanTypes, signalTypes, signalStates, ruleVersions, minDate, maxDate, totalCount });
     }
@@ -151,15 +154,85 @@ public class EodSignalsController(
         if (!string.IsNullOrWhiteSpace(ticker))
             query = query.Where(s => s.Symbol == ticker.Trim().ToUpperInvariant());
         if (!string.IsNullOrWhiteSpace(dateFrom))
-            query = query.Where(s => string.Compare(s.SignalDate, dateFrom, StringComparison.Ordinal) >= 0);
+            query = query.Where(s => string.Compare(s.TradingDate ?? s.SignalDate, dateFrom, StringComparison.Ordinal) >= 0);
         if (!string.IsNullOrWhiteSpace(dateTo))
-            query = query.Where(s => string.Compare(s.SignalDate, dateTo, StringComparison.Ordinal) <= 0);
+            query = query.Where(s => string.Compare(s.TradingDate ?? s.SignalDate, dateTo, StringComparison.Ordinal) <= 0);
 
         var count = await query.CountAsync(ct);
         db.DailySignals.RemoveRange(query);
         await db.SaveChangesAsync(ct);
         logger.LogWarning("Bulk deleted {Count} DailySignal record(s).", count);
         return Ok(new { deleted = count });
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("repair-trading-dates")]
+    public async Task<ActionResult<object>> RepairTradingDates(CancellationToken ct)
+    {
+        var legacySignals = await db.DailySignals
+            .Where(signal => signal.TradingDate == null)
+            .ToListAsync(ct);
+        var repairs = new List<(DailySignal Signal, string TradingDate)>();
+        var unresolved = new List<string>();
+
+        foreach (var group in legacySignals.GroupBy(signal => signal.Symbol, StringComparer.OrdinalIgnoreCase))
+        {
+            var history = await marketData.GetDailyClosesAsync(group.Key, ct);
+            if (history is null || history.Count == 0)
+            {
+                unresolved.Add(group.Key);
+                continue;
+            }
+
+            foreach (var signal in group)
+            {
+                var scannedDate = DateOnly.FromDateTime((signal.ScannedAt ?? signal.RecordedAt).ToUniversalTime());
+                var completedBar = history
+                    .Where(bar => bar.Date <= scannedDate)
+                    .MaxBy(bar => bar.Date);
+                if (completedBar is null)
+                {
+                    unresolved.Add($"{group.Key}:{signal.Id}");
+                    continue;
+                }
+                repairs.Add((signal, completedBar.Date.ToString("yyyy-MM-dd")));
+            }
+        }
+
+        var merged = 0;
+        foreach (var repairGroup in repairs.GroupBy(
+            repair => new { repair.Signal.Symbol, repair.Signal.ScanType, repair.Signal.SignalType, repair.TradingDate }))
+        {
+            var key = repairGroup.Key;
+            var existing = await db.DailySignals
+                .Where(signal => signal.TradingDate == key.TradingDate
+                    && signal.Symbol == key.Symbol
+                    && signal.ScanType == key.ScanType
+                    && signal.SignalType == key.SignalType)
+                .ToListAsync(ct);
+            var candidates = repairGroup.Select(repair => repair.Signal)
+                .Concat(existing)
+                .GroupBy(signal => signal.Id)
+                .Select(group => group.First())
+                .OrderByDescending(signal => signal.UpdatedAt ?? signal.ScannedAt ?? signal.RecordedAt)
+                .ToList();
+            var keeper = candidates[0];
+            var duplicates = candidates.Skip(1).ToList();
+            if (duplicates.Count > 0)
+            {
+                db.DailySignals.RemoveRange(duplicates);
+                await db.SaveChangesAsync(ct);
+                merged += duplicates.Count;
+            }
+
+            keeper.TradingDate = key.TradingDate;
+            keeper.ScannedAt ??= keeper.RecordedAt;
+        }
+
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation("Repaired {Count} legacy EOD trading dates; merged {Merged} duplicate lifecycle records; {Unresolved} symbol(s) unresolved.",
+            repairs.Count, merged, unresolved.Count);
+        return Ok(new { repaired = repairs.Count, merged, unresolved });
     }
 
     // -- Manual Persist-Now (for testing / ad-hoc persistence) ---------------
@@ -187,7 +260,14 @@ public class EodSignalsController(
             .ToList();
 
         // Use Enhanced mode + default thresholds (matches background service + typical UI state)
-        var result = await scanner.ScanAsync(extraSymbols, oversoldThreshold: 30m, overboughtThreshold: 75m, logicMode: "Enhanced", ct: ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await scanner.ScanAsync(
+            extraSymbols,
+            oversoldThreshold: 30m,
+            overboughtThreshold: 75m,
+            logicMode: "Enhanced",
+            userId: userId,
+            ct: ct);
 
         // Stage-2 gate: pass all Bull/Bear Turn candidates to SaveAsync — legacy Status is ignored.
         var allWithTurn = (result.OversoldChain ?? [])
@@ -259,5 +339,20 @@ public class EodSignalsController(
         logger.LogInformation("Seeded {Count} test DailySignal record(s) ({Skipped} duplicates skipped).",
             toInsert.Count, seed.Length - toInsert.Count);
         return Ok(new { seeded = toInsert.Count, skipped = seed.Length - toInsert.Count });
+    }
+
+    private async Task PopulateTradingSessionsPassedAsync(IEnumerable<DailySignal> signals, CancellationToken ct)
+    {
+        foreach (var group in signals.GroupBy(signal => signal.Symbol, StringComparer.OrdinalIgnoreCase))
+        {
+            var history = await marketData.GetDailyClosesAsync(group.Key, ct);
+            if (history is null) continue;
+
+            foreach (var signal in group)
+            {
+                if (!DateOnly.TryParse(signal.TradingDate ?? signal.SignalDate, out var tradingDate)) continue;
+                signal.TradingSessionsPassed = history.Count(bar => bar.Date > tradingDate);
+            }
+        }
     }
 }

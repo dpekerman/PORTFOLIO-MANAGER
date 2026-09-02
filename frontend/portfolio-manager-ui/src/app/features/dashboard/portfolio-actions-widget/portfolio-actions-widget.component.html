@@ -119,6 +119,14 @@
                   @if (a.isInWatchlist) {
                     <span class="pa-badge pa-watchlist" matTooltip="Also on Watchlist">W</span>
                   }
+                  @if (hasEodSignal(a)) {
+                    <span
+                      class="pa-eod-badge"
+                      [class.pa-eod-invalidated]="a.latestEodIsInvalidated"
+                      [matTooltip]="eodTooltip(a)"
+                      >{{ eodBadgeLabel(a) }}</span
+                    >
+                  }
                 </td>
                 <td>
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
@@ -220,6 +228,14 @@
                   }}</mat-icon>
                   <strong>{{ a.symbol }}</strong>
                   <span class="pa-badge pa-watchlist" matTooltip="On Watchlist">W</span>
+                  @if (hasEodSignal(a)) {
+                    <span
+                      class="pa-eod-badge"
+                      [class.pa-eod-invalidated]="a.latestEodIsInvalidated"
+                      [matTooltip]="eodTooltip(a)"
+                      >{{ eodBadgeLabel(a) }}</span
+                    >
+                  }
                 </td>
                 <td>
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>

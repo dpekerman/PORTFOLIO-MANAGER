@@ -31,7 +31,8 @@ public static class DashboardSignalActionInterpreter
     private static string ResolveWatchlistAction(RsiScanResult signal)
     {
         if (signal.ScanType == ScanType.Oversold)
-            return signal.Status == SignalStatus.Confirmed || signal.Status == SignalStatus.EodConfirm ? "ENTRY CANDIDATE"
+            return signal.Status == SignalStatus.Confirmed || signal.Status == SignalStatus.EodConfirm
+                    ? HasEntryStructure(signal) ? "ENTRY CANDIDATE" : "REVERSAL WATCH"
                  : signal.TrendShift.Contains("Bull Turn", StringComparison.OrdinalIgnoreCase) ? "BUY WATCH"
                  : signal.TrendShift.Contains("Stabilizing", StringComparison.OrdinalIgnoreCase) ? "REVERSAL WATCH"
                  : "WAIT FOR REVERSAL";
@@ -39,6 +40,13 @@ public static class DashboardSignalActionInterpreter
         return signal.Status == SignalStatus.Confirmed || signal.Status == SignalStatus.EodConfirm ? "AVOID"
              : signal.TrendShift.Contains("Bear Turn", StringComparison.OrdinalIgnoreCase) ? "WAIT FOR PULLBACK"
              : "WAIT";
+    }
+
+    private static bool HasEntryStructure(RsiScanResult signal)
+    {
+        var structure = signal.PriceStructure;
+        if (structure.HasHardStructuralNegative) return false;
+        return structure.PrimaryPatternType != "NONE" || structure.KeyLevelState is "SUPPORT_RECLAIM" or "BREAKOUT_CONFIRMED" or "SUPPORT_TEST";
     }
 
     private static string ResolveScannerAction(RsiScanResult signal)

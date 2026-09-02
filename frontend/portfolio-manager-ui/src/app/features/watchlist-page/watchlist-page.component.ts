@@ -60,6 +60,7 @@ import {
   AddWatchlistDialogComponent,
   AddWatchlistDialogResult,
 } from './add-watchlist-dialog.component';
+import { SecurityAnalysisMappingDialogComponent } from './security-analysis-mapping-dialog.component';
 import { WatchlistCardComponent } from './watchlist-card.component';
 
 type ViewMode = 'card' | 'grid';
@@ -275,8 +276,19 @@ export class WatchlistPageComponent {
   }
 
   protected priceStructureTooltip(symbol: string, summary?: WatchlistSummary): string {
-    return formatPriceStructureTooltip(this.priceStructureForSymbol(symbol, summary), (value) =>
-      this.demoMode.maskValue(value),
+    const facts =
+      summary?.technicalFacts ??
+      this.watchlist.items().find((item) => item.item.symbol.toUpperCase() === symbol.toUpperCase())
+        ?.technicalFacts;
+    return formatPriceStructureTooltip(
+      this.priceStructureForSymbol(symbol, summary),
+      (value) => this.demoMode.maskValue(value),
+      {
+        ticker: facts?.analysisTicker,
+        market: facts?.analysisMarket,
+        currency: facts?.analysisCurrency,
+        usesUnderlying: facts?.usesUnderlyingSecurity,
+      },
     );
   }
 
@@ -774,6 +786,14 @@ export class WatchlistPageComponent {
       .subscribe((result: AddWatchlistDialogResult | null) => {
         if (result) this.watchlist.addItem(result.symbol, result.role);
       });
+  }
+
+  openSecurityAnalysisMapping(w: WatchlistSummary): void {
+    this.dialog.open(SecurityAnalysisMappingDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      data: { tradingTicker: w.item.symbol },
+    });
   }
 
   refresh(): void {

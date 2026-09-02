@@ -212,8 +212,8 @@ export const GRID_REGISTRY: GridDef[] = [
     page: 'EOD Signals',
     pageIcon: 'timeline',
     columns: [
-      { key: 'signalDate', label: 'Date' },
-      { key: 'daysPassed', label: 'Days Passed' },
+      { key: 'signalDate', label: 'Trading Date' },
+      { key: 'daysPassed', label: 'Trading Sessions Passed' },
       { key: 'symbol', label: 'Ticker' },
       { key: 'scanType', label: 'Scan' },
       { key: 'signalType', label: 'Signal' },

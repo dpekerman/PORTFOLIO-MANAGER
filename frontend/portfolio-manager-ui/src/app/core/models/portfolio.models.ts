@@ -68,6 +68,42 @@ export interface SharedTechnicalFacts {
   priceStructure: PriceStructureResult;
   buyScore: number | null;
   calculatedAt: string;
+  latestEodTradingDate?: string | null;
+  latestEodSignalDate?: string | null;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodRsi?: number | null;
+  latestEodTrendShift?: string | null;
+  latestEodEntryPrice?: number | null;
+  latestEodStopLoss?: number | null;
+  latestEodRiskPercent?: number | null;
+  latestEodReversalStrength?: string | null;
+  latestEodVolumeState?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
+  analysisTicker?: string | null;
+  analysisMarket?: string | null;
+  analysisCurrency?: string | null;
+  usesUnderlyingSecurity?: boolean;
+}
+
+export type SecurityAnalysisMappingSource = 'AUTO' | 'USER';
+export type UnderlyingResolutionStatus = 'NotApplicable' | 'Resolved' | 'NeedsUserInput';
+
+export interface SecurityAnalysisMapping {
+  tradingTicker: string;
+  analysisTicker: string;
+  analysisMarket: string;
+  analysisCurrency: string;
+  usesUnderlyingSecurity: boolean;
+  resolutionStatus: UnderlyingResolutionStatus;
+  mappingSource: SecurityAnalysisMappingSource | null;
+  dataError?: string | null;
+}
+
+export interface SaveSecurityAnalysisMappingRequest {
+  underlyingTicker: string;
+  useUnderlyingForAnalysis: boolean;
 }
 
 export interface WatchlistItem {
@@ -179,6 +215,10 @@ export type ChannelState =
 
 export interface RsiScanResult {
   symbol: string;
+  analysisTicker?: string;
+  analysisMarket?: string;
+  analysisCurrency?: string;
+  usesUnderlyingSecurity?: boolean;
   companyName: string;
   rsi: number;
   currentPrice: number;
@@ -561,6 +601,12 @@ export interface DailySignal {
   /** yyyy-MM-dd (ET) */
   signalDate: string;
   recordedAt: string;
+  /** yyyy-MM-dd of the completed market session that produced this signal. */
+  tradingDate: string | null;
+  /** UTC timestamp when the scanner evaluated the market session. */
+  scannedAt: string | null;
+  /** Completed market sessions since tradingDate, calculated by the API. */
+  tradingSessionsPassed: number | null;
   /** Legacy | Enhanced */
   ruleVersion: string;
   signalState: SignalState;
@@ -854,18 +900,39 @@ export interface PortfolioActionDto {
   inclusionReason: string | null;
   reasonExcludedFromActionCenter: string | null;
   technicalCalculatedAt: string | null;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodTrendShift?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
 }
 
-export interface StateChangeDto {
-  signalId: number;
+export type ActionResolutionStatus =
+  | 'Resolved'
+  | 'OwnershipActionNotCalculated'
+  | 'OwnershipActionNotApplicable';
+
+export interface DashboardEodSummaryRow {
   symbol: string;
   companyName: string;
-  scanType: string;
-  previousState: string;
-  newState: string;
+  signal: string;
   rsi: number;
   trendShift: string;
-  changedAt: string;
+  signalState: string;
+  structure: string;
+  why: string;
+  ownership: 'Portfolio' | 'Watchlist' | 'Universe';
+  action: string;
+  actionPriority: string;
+  actionResolutionStatus: ActionResolutionStatus;
+  actionResolutionReason: string;
+}
+
+export interface DashboardEodSummary {
+  tradingDate: string | null;
+  rawRecordCount: number;
+  uniqueTickerCount: number;
+  rows: DashboardEodSummaryRow[];
 }
 
 // ── Decision Analytics ──────────────────────────────────────────────────────────
@@ -917,6 +984,10 @@ export interface ActionScoreDto {
   rsi: number;
   allocationStatus: string;
   currentPrice: number;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
 }
 
 // ── Market Leadership ────────────────────────────────────────────────────────────
@@ -970,6 +1041,10 @@ export interface MarketLeadershipRow {
   priceStructure: PriceStructureResult;
   leadershipSignal: 'Emerging' | 'Leading' | 'Neutral' | 'Cooling' | 'Weak';
   leadershipReason: string;
+  analysisTicker?: string | null;
+  analysisMarket?: string | null;
+  analysisCurrency?: string | null;
+  usesUnderlyingSecurity?: boolean;
 }
 
 export interface PriceStructureResult {

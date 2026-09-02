@@ -4,6 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { formatTrendShift } from '../../../core/technical-display';
 
 @Component({
   selector: 'app-priority-candidates-widget',
@@ -33,9 +34,26 @@ export class PriorityCandidatesWidgetComponent implements OnInit {
     return 'NO ADD';
   }
 
+  protected eodBadgeLabel(score: {
+    latestEodSignalState?: string | null;
+    latestEodIsNew?: boolean;
+    latestEodIsInvalidated?: boolean;
+  }): string {
+    if (score.latestEodIsInvalidated) return 'EOD X';
+    if (score.latestEodSignalState === 'Active') return score.latestEodIsNew ? 'EOD NEW' : 'EOD';
+    return 'EOD DEV';
+  }
+
+  protected eodTooltip(score: {
+    latestEodSignalState?: string | null;
+    latestEodScanType?: string | null;
+  }): string {
+    return `Latest EOD signal\nState: ${score.latestEodSignalState ?? 'n/a'}\nScan: ${score.latestEodScanType ?? 'n/a'}\nScore boost: +2 technical points`;
+  }
+
   /** Strip leading emoji + space from trend shift string. */
   protected trendLabel(raw: string): string {
-    return raw.replace(/^[\p{Emoji}\s]+/u, '').trim();
+    return formatTrendShift(raw, '');
   }
 
   /** CSS modifier class derived from the leading emoji. */

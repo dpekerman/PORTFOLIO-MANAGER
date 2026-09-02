@@ -51,6 +51,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
+import { SecurityAnalysisMappingDialogComponent } from '../watchlist-page/security-analysis-mapping-dialog.component';
 import { AddCashDialogComponent } from './add-cash-dialog/add-cash-dialog.component';
 import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.component';
 import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
@@ -464,6 +465,10 @@ export class PortfolioPageComponent {
 
   protected fibForSymbol(symbol: string) {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected technicalCurrencySuffix(result: RsiScanResult): string {
+    return result.usesUnderlyingSecurity ? ` ${result.analysisCurrency ?? 'USD'}` : '';
   }
 
   protected channelForSymbol(symbol: string): RsiScanResult | null {
@@ -1353,6 +1358,14 @@ export class PortfolioPageComponent {
           holdingRole: result.holdingRole,
         });
       });
+  }
+
+  openSecurityAnalysisMapping(s: PortfolioSummary): void {
+    this.dialog.open(SecurityAnalysisMappingDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      data: { tradingTicker: s.item.symbol },
+    });
   }
 
   confirmDeleteGridRow(s: PortfolioSummary): void {

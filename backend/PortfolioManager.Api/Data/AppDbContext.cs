@@ -29,6 +29,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TransactionContextSnapshot> TransactionContextSnapshots => Set<TransactionContextSnapshot>();
     public DbSet<TechnicalChannel> TechnicalChannels => Set<TechnicalChannel>();
     public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
+    public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +80,58 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
         });
 
+        modelBuilder.Entity<SecurityAnalysisMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TradingTicker).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.UnderlyingTicker).HasMaxLength(20);
+            entity.Property(e => e.UnderlyingMarket).HasMaxLength(10);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.DetectionDetail).HasMaxLength(500);
+            entity.HasIndex(e => new { e.TradingTicker, e.UserId });
+            entity.HasIndex(e => e.UnderlyingTicker);
+            entity.HasData(
+                new SecurityAnalysisMapping
+                {
+                    Id = -1,
+                    TradingTicker = "SPGI.TO",
+                    UnderlyingTicker = "SPGI",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                },
+                new SecurityAnalysisMapping
+                {
+                    Id = -2,
+                    TradingTicker = "DIS.TO",
+                    UnderlyingTicker = "DIS",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                },
+                new SecurityAnalysisMapping
+                {
+                    Id = -3,
+                    TradingTicker = "MU.TO",
+                    UnderlyingTicker = "MU",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                });
+        });
+
         modelBuilder.Entity<AdhocAnalysisSession>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -117,6 +170,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Price).HasColumnType("decimal(18,4)");
             entity.Property(e => e.TriggerDetails).HasMaxLength(1000).HasDefaultValue("");
             entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TradingDate).HasMaxLength(10);
+            entity.Property(e => e.ScannedAt);
             entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
             entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
             entity.Property(e => e.PreviousSignalState).HasMaxLength(30).IsRequired(false);
@@ -140,6 +195,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+            entity.HasIndex(e => new { e.Symbol, e.ScanType, e.SignalType, e.TradingDate })
+                .IsUnique()
+                .HasFilter("[TradingDate] IS NOT NULL");
         });
 
         modelBuilder.Entity<StagedSignal>(entity =>
@@ -274,7 +332,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
             entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.TrackerType).HasConversion<string>().HasMaxLength(20);
-            entity.HasIndex(e => new { e.UserId, e.Symbol, e.IsActive }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Symbol }).IsUnique().HasFilter("[IsActive] = 1");
         });
 
         modelBuilder.Entity<PortfolioSnapshot>(entity =>

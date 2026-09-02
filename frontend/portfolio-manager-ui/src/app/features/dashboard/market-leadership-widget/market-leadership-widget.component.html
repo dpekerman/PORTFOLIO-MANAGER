@@ -58,8 +58,11 @@
           ><button (click)="toggleSort('twentyDay')">20D{{ sortIndicator('twentyDay') }}</button
           ><button (click)="toggleSort('ma')">MA Structure{{ sortIndicator('ma') }}</button
           ><button (click)="toggleSort('momentum')">Momentum{{ sortIndicator('momentum') }}</button
-          ><button (click)="toggleSort('structure')">
-            Price Structure{{ sortIndicator('structure') }}</button
+          ><button
+            (click)="toggleSort('structure')"
+            matTooltip="What broader technical pattern exists"
+          >
+            Pattern{{ sortIndicator('structure') }}</button
           ><button (click)="toggleSort('signal')">Signal{{ sortIndicator('signal') }}</button>
           <span class="ml-action-head" aria-hidden="true"></span>
         </div>

@@ -169,6 +169,25 @@
   background: #6a1b9a;
   color: white;
 }
+.pa-eod-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e8f7f2;
+  color: #0f766e;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  white-space: nowrap;
+
+  &.pa-eod-invalidated {
+    background: #ffebee;
+    color: #b71c1c;
+  }
+}
 
 .pa-role {
   font-size: 0.75rem;

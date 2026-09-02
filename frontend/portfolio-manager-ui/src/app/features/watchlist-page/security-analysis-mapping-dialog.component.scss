@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+
+mat-form-field {
+  display: block;
+  width: 100%;
+}
+
+.trading-symbol,
+.status-message,
+.validation-message,
+.error-message {
+  font-size: 0.85rem;
+}
+
+.status-message {
+  color: var(--text-secondary);
+}
+
+.validation-message {
+  color: #2e7d32;
+}
+
+.error-message {
+  color: #c62828;
+}

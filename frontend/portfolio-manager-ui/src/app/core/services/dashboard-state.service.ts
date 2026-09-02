@@ -3,11 +3,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   ActionScoreDto,
   AnalyticsDecisionPerformanceResponse,
+  DashboardEodSummary,
   DashboardResponse,
   MarketLeadershipResponse,
   PerformanceSummaryResponse,
   PortfolioActionDto,
-  StateChangeDto,
 } from '../models/portfolio.models';
 import { DashboardApiService } from './dashboard-api.service';
 
@@ -20,8 +20,8 @@ export class DashboardStateService {
   private readonly _error = signal<string | null>(null);
   private readonly _portfolioActions = signal<PortfolioActionDto[]>([]);
   private readonly _actionsLoading = signal(false);
-  private readonly _stateChanges = signal<StateChangeDto[]>([]);
-  private readonly _stateChangesLoading = signal(false);
+  private readonly _eodSummary = signal<DashboardEodSummary | null>(null);
+  private readonly _eodSummaryLoading = signal(false);
   private readonly _decisionPerformance = signal<AnalyticsDecisionPerformanceResponse | null>(null);
   private readonly _performanceLoading = signal(false);
   private readonly _marketLeadership = signal<MarketLeadershipResponse | null>(null);
@@ -38,8 +38,8 @@ export class DashboardStateService {
   readonly hasData = this._data.asReadonly();
   readonly portfolioActions = this._portfolioActions.asReadonly();
   readonly actionsLoading = this._actionsLoading.asReadonly();
-  readonly stateChanges = this._stateChanges.asReadonly();
-  readonly stateChangesLoading = this._stateChangesLoading.asReadonly();
+  readonly eodSummary = this._eodSummary.asReadonly();
+  readonly eodSummaryLoading = this._eodSummaryLoading.asReadonly();
   readonly decisionPerformance = this._decisionPerformance.asReadonly();
   readonly performanceLoading = this._performanceLoading.asReadonly();
   readonly marketLeadership = this._marketLeadership.asReadonly();
@@ -52,7 +52,7 @@ export class DashboardStateService {
   constructor() {
     this.load();
     this.loadPortfolioActions();
-    this.loadStateChanges();
+    this.loadEodSummary();
     this.loadMarketLeadership();
     this.loadPerformanceSummary();
   }
@@ -109,7 +109,7 @@ export class DashboardStateService {
           this._data.set(data);
           this._loading.set(false);
           this.loadPortfolioActions();
-          this.loadStateChanges();
+          this.loadEodSummary();
           this.loadMarketLeadership();
           this._actionScores.set([]);
           this.loadActionScores();
@@ -136,17 +136,17 @@ export class DashboardStateService {
       });
   }
 
-  loadStateChanges(): void {
-    this._stateChangesLoading.set(true);
+  loadEodSummary(): void {
+    this._eodSummaryLoading.set(true);
     this.api
-      .getStateChangesToday()
+      .getEodSummary()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (c) => {
-          this._stateChanges.set(c);
-          this._stateChangesLoading.set(false);
+        next: (summary) => {
+          this._eodSummary.set(summary);
+          this._eodSummaryLoading.set(false);
         },
-        error: () => this._stateChangesLoading.set(false),
+        error: () => this._eodSummaryLoading.set(false),
       });
   }
 

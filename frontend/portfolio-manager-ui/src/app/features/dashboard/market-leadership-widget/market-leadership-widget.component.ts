@@ -148,7 +148,12 @@ export class MarketLeadershipWidgetComponent {
   }
 
   protected structureTooltip(row: MarketLeadershipRow): string {
-    return priceStructureTooltip(row.priceStructure, (value) => this.demoMode.maskValue(value));
+    return priceStructureTooltip(row.priceStructure, (value) => this.demoMode.maskValue(value), {
+      ticker: row.analysisTicker,
+      market: row.analysisMarket,
+      currency: row.analysisCurrency,
+      usesUnderlying: row.usesUnderlyingSecurity,
+    });
   }
 
   private compareRows(
