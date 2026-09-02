@@ -12,6 +12,8 @@ whenever a live data source is refreshed (portfolio quotes, watchlist quotes, RS
 or when the user clicks **Refresh** on the Dashboard page.
 All on-screen values come from the stored snapshot — navigating to the Dashboard
 **never** triggers a Yahoo Finance call.
+Portfolio-value history is account-owned; legacy rows without an owner are retained
+for auditability and excluded from every account calculation.
 
 ---
 
@@ -19,10 +21,10 @@ All on-screen values come from the stored snapshot — navigating to the Dashboa
 
 **Card: "Portfolio value"**
 
-| Field        | Formula                                                                          | Source                          |
-| ------------ | -------------------------------------------------------------------------------- | ------------------------------- |
-| `totalValue` | Sum of all open-position market values in the latest `PortfolioValueHistory` row | `PortfolioValueHistories` table |
-| `updatedAt`  | UTC timestamp of when the snapshot was rebuilt                                   | `DashboardSnapshots.UpdatedAt`  |
+| Field        | Formula                                                          | Source                                |
+| ------------ | ---------------------------------------------------------------- | ------------------------------------- |
+| `totalValue` | Sum of the account's live open-position, cash, and option values | Portfolio, cash, and option snapshots |
+| `updatedAt`  | UTC timestamp of when the snapshot was rebuilt                   | `DashboardSnapshots.UpdatedAt`        |
 
 `PortfolioValueHistories` is populated by the EOD background service
 (`PortfolioValueEodBackgroundService`) every trading day at 4:30 PM ET, and also
@@ -34,16 +36,18 @@ by the manual `POST /api/portfoliovaluehistory/record-now` endpoint.
 
 **Cards: "Today", "This week", "This month"**
 
-All three cards show `change ($)` and `change (%)` relative to a baseline row
+All three cards show `change ($)` and `change (%)` relative to an account-owned baseline row
 from `PortfolioValueHistories` (ordered ascending by `RecordedDate`).
 
 | Card       | Baseline row                                              | Formula                             |
 | ---------- | --------------------------------------------------------- | ----------------------------------- |
-| Today      | Second-to-last row in the table                           | `latestValue − prev1Value`          |
+| Today      | Most recent prior account snapshot                        | `liveValue − priorCloseValue`       |
 | This week  | Last row recorded **before** Monday 00:00 ET              | `latestValue − mondayCloseValue`    |
 | This month | Last row recorded **before** the 1st of the current month | `latestValue − prevMonthCloseValue` |
 
-If there is no prior-month record the next available row is used as fallback.
+Week and month values display `N/A` until an account snapshot exists before the
+relevant period boundary. The dashboard never substitutes an in-period row as a
+period baseline, so a displayed zero always means a genuine zero change.
 
 **Why the baseline is "before" the period start, not "on" it:**
 EOD records represent end-of-day closing values.
@@ -60,7 +64,7 @@ Returns `0` when the baseline value is zero or missing.
 
 **Panel: "Portfolio value history"**
 
-Raw data: all rows from `PortfolioValueHistories`, ordered ascending by `RecordedDate`,
+Raw data: the current account's rows from `PortfolioValueHistories`, ordered ascending by `RecordedDate`,
 limited to the last 365 rows per rebuild.
 
 The frontend filters this list by the selected time range (`1M`, `3M`, `6M`, `YTD`, `1Y`, `ALL`).

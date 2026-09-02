@@ -1,6 +1,6 @@
 # Portfolio Manager - Full Local Database Backup
 # Backs up the entire local PortfolioManagerDb (all tables) to a .bak file
-# under D:\PORTFOLIO-MANAGER-SQL-BACKUP, plus a human-readable data export
+# under D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL, plus a human-readable data export
 # (.sql) of the business/settings tables for quick inspection or restore.
 # Run via:  .\scripts\backup-local-db.ps1
 
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 
 $LocalServer   = "localhost"
 $LocalDatabase = "PortfolioManagerLocal"
-$BackupRoot    = "D:\PORTFOLIO-MANAGER-SQL-BACKUP"
+$BackupRoot    = "D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL"
 $stamp         = Get-Date -Format 'yyyyMMdd-HHmmss'
 $bakFile       = Join-Path $BackupRoot ($LocalDatabase + "_" + $stamp + ".bak")
 $sqlFile       = Join-Path $BackupRoot ($LocalDatabase + "_DataExport_" + $stamp + ".sql")
