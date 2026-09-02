@@ -21,6 +21,7 @@ public class RsiSnapshotService(AppDbContext db, ILogger<RsiSnapshotService> log
 
     public async Task SaveAsync(ScannerResponse response, CancellationToken ct = default)
     {
+        response = Normalize(response);
         var json = JsonSerializer.Serialize(response, _json);
         var existing = await db.RsiScanSnapshots.FindAsync([1], ct);
         if (existing is null)
@@ -56,7 +57,8 @@ public class RsiSnapshotService(AppDbContext db, ILogger<RsiSnapshotService> log
 
         try
         {
-            return JsonSerializer.Deserialize<ScannerResponse>(row.SnapshotJson, _json);
+            var response = JsonSerializer.Deserialize<ScannerResponse>(row.SnapshotJson, _json);
+            return response is null ? null : Normalize(response);
         }
         catch (Exception ex)
         {
@@ -64,4 +66,18 @@ public class RsiSnapshotService(AppDbContext db, ILogger<RsiSnapshotService> log
             return null;
         }
     }
+
+    private static ScannerResponse Normalize(ScannerResponse response)
+        => new()
+        {
+            OversoldChain = response.OversoldChain
+                .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            OverboughtChain = response.OverboughtChain
+                .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                .ToList(),
+            ScannedAt = response.ScannedAt,
+            IsDemo = response.IsDemo,
+            Market = response.Market,
+        };
 }

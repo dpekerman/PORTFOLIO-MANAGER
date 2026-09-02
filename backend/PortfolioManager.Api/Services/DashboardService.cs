@@ -33,7 +33,8 @@ public sealed class DashboardService(
     public async Task<DashboardResponse?> GetLatestAsync(string userId, CancellationToken ct)
     {
         var snapshot = await db.DashboardSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        return snapshot is null ? null : Deserialize<DashboardResponse>(snapshot.SnapshotJson);
+        var response = snapshot is null ? null : Deserialize<DashboardResponse>(snapshot.SnapshotJson);
+        return response is null ? null : NormalizeSignalSection(response);
     }
 
     public async Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true)
@@ -265,9 +266,11 @@ public sealed class DashboardService(
         };
 
         var oversoldSignals   = scanner.OversoldChain
+            .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
             .Select(BuildSignal)
             .ToList();
         var overboughtSignals = scanner.OverboughtChain
+            .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
             .Select(BuildSignal)
             .ToList();
 
@@ -302,8 +305,12 @@ public sealed class DashboardService(
                 Percent(weekChange, weekBase?.TotalValue),
                 monthChange,
                 Percent(monthChange, monthBase?.TotalValue),
-                scanner.OversoldChain.Count(r => r.Status != SignalStatus.Neutral),
-                scanner.OverboughtChain.Count(r => r.Status != SignalStatus.Neutral)),
+                scanner.OversoldChain
+                    .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                    .Count(r => r.Status != SignalStatus.Neutral),
+                scanner.OverboughtChain
+                    .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                    .Count(r => r.Status != SignalStatus.Neutral)),
             movers.Take(50).ToList(),
             movers.OrderBy(m => m.ChangePercent).Take(50).ToList(),
             values.Select(h => new DashboardChartPoint(h.RecordedDate, h.TotalValue)).ToList(),
@@ -334,6 +341,37 @@ public sealed class DashboardService(
 
     private static decimal Percent(decimal change, decimal? baseValue)
         => baseValue is > 0m ? Math.Round(change / baseValue.Value * 100m, 2) : 0m;
+
+    private static DashboardResponse NormalizeSignalSection(DashboardResponse response)
+    {
+        if (response.RsiSection is not { } section) return response;
+
+        var oversold = section.OversoldSignals
+            .DistinctBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var overbought = section.OverboughtSignals
+            .DistinctBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var allSignals = oversold.Concat(overbought).ToList();
+
+        return response with
+        {
+            Summary = response.Summary with
+            {
+                OversoldCount = oversold.Count,
+                OverboughtCount = overbought.Count,
+            },
+            RsiSection = section with
+            {
+                OversoldCount = oversold.Count,
+                OverboughtCount = overbought.Count,
+                NewTodayCount = allSignals.Count(s => s.IsNewToday),
+                ActionRequiredCount = allSignals.Count(s => s.IsActionRequired),
+                OversoldSignals = oversold,
+                OverboughtSignals = overbought,
+            },
+        };
+    }
 
     private static DateTime EasternToday()
     {

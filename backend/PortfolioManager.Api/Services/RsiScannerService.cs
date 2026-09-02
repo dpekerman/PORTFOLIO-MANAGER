@@ -178,7 +178,10 @@ public sealed class RsiScannerService : IRsiScannerService
         var stagedSymbols = await ResolveSymbolsAsync(activeStagedMap.Keys, null, ct);
         var allSymbols = resolvedSymbols.Concat(stagedSymbols)
             .GroupBy(symbol => symbol.AnalysisTicker, StringComparer.OrdinalIgnoreCase)
-            .Select(group => group.ToList())
+            .Select(group => group
+                .GroupBy(symbol => symbol.TradingTicker, StringComparer.OrdinalIgnoreCase)
+                .Select(symbols => symbols.First())
+                .ToList())
             .ToList();
 
         var oversold  = new List<RsiScanResult>();
