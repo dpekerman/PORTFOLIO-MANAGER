@@ -15,7 +15,8 @@ public interface IDashboardService
 public sealed class DashboardService(
     AppDbContext db,
     IMarketDataProvider marketData,
-    IPortfolioActionsService portfolioActions) : IDashboardService
+    IPortfolioActionsService portfolioActions,
+    ILogger<DashboardService> logger) : IDashboardService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly (string Symbol, string Name)[] IndexSymbols =
@@ -105,17 +106,25 @@ public sealed class DashboardService(
         var todayCashChange    = yesterdayEntry is not null ? liveCashValue     - yesterdayEntry.CashValue    : 0m;
         var todayOptionsChange = yesterdayEntry is not null ? liveOptionsValue  - yesterdayEntry.OptionsValue : 0m;
 
+        // VALIDATION: Component changes should sum to total change (within rounding tolerance)
+        var componentSum = todayStocksChange + todayCashChange + todayOptionsChange;
+        var calculationTolerance = 0.01m;  // Allow $0.01 rounding error
+        if (yesterdayEntry is not null && Math.Abs(componentSum - todayChange) > calculationTolerance)
+        {
+            logger.LogWarning(
+                "[Dashboard] Component breakdown mismatch for user {UserId}: " +
+                "stocks={Stocks:C2} + cash={Cash:C2} + options={Options:C2} = {Sum:C2}, " +
+                "but total change is {Total:C2} (diff={Diff:C2})",
+                userId,
+                todayStocksChange, todayCashChange, todayOptionsChange,
+                componentSum, todayChange, Math.Abs(componentSum - todayChange));
+        }
+
         var daysSinceMonday = ((int)todayEt.DayOfWeek + 6) % 7;
         var weekStart = todayEt.AddDays(-daysSinceMonday);
         var weekStartDate = DateOnly.FromDateTime(weekStart);
-        // Week baseline: last close before the week started (e.g. Friday for Monday)
-        var weekBase = values.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < weekStartDate)
-            ?? values.FirstOrDefault(h => DateOnly.Parse(h.RecordedDate) >= weekStartDate);
-        // Month baseline: last EOD record on or before the 1st of the current month (= prior-month close)
         var monthFirstDay = new DateOnly(todayEt.Year, todayEt.Month, 1);
-        var monthBase = values.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < monthFirstDay)
-            ?? values.FirstOrDefault(h => DateOnly.Parse(h.RecordedDate).Month == todayEt.Month
-                && DateOnly.Parse(h.RecordedDate).Year == todayEt.Year);
+        var (weekBase, monthBase) = ResolvePeriodBaselines(values, weekStartDate, monthFirstDay);
         var weekChange = weekBase is not null ? summaryTotal - weekBase.TotalValue : 0m;
         var monthChange = monthBase is not null ? summaryTotal - monthBase.TotalValue : 0m;
 
@@ -378,6 +387,19 @@ public sealed class DashboardService(
         var zone = TimeZoneInfo.FindSystemTimeZoneById(
             OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
         return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
+    }
+
+    /// <summary>
+    /// Resolves the week/month baseline rows as the last snapshot strictly BEFORE each period start.
+    /// Never falls back to a snapshot on/after the period start — a missing baseline means the
+    /// period change is unknown (caller treats it as $0), not that it should borrow an in-period row.
+    /// </summary>
+    internal static (PortfolioValueHistory? WeekBase, PortfolioValueHistory? MonthBase) ResolvePeriodBaselines(
+        IReadOnlyList<PortfolioValueHistory> valuesAscendingByDate, DateOnly weekStartDate, DateOnly monthFirstDay)
+    {
+        var weekBase = valuesAscendingByDate.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < weekStartDate);
+        var monthBase = valuesAscendingByDate.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < monthFirstDay);
+        return (weekBase, monthBase);
     }
 
     private static T? Deserialize<T>(string json)

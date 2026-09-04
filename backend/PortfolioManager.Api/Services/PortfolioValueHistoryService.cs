@@ -82,7 +82,13 @@ public sealed class PortfolioValueHistoryService(
             }
         }
         foreach (var item in portfolioItems.Where(p => p.IsManual))
+        {
+            if (item.ManualMarketValue == null)
+                logger.LogWarning(
+                    "[PortfolioValueHistory] Manual position {Symbol} missing ManualMarketValue in RecordCurrentValueAsync; using stale cost basis as fallback.",
+                    item.Symbol);
             stocksValue += item.ManualMarketValue ?? item.AverageCostBasis;
+        }
 
         // ── Cash ────────────────────────────────────────────────────────────
         var cashValue = await db.CashItems.SumAsync(c => c.Amount, ct);
@@ -188,12 +194,33 @@ public sealed class PortfolioValueHistoryService(
             }
         }
         foreach (var item in portfolioItems.Where(p => p.IsManual))
+        {
+            if (item.ManualMarketValue == null)
+                logger.LogWarning(
+                    "[PortfolioValueHistory] Manual position {Symbol} missing ManualMarketValue in BackfillDateAsync for {Date}; using stale cost basis as fallback.",
+                    item.Symbol, dateStr);
             stocksValue += item.ManualMarketValue ?? item.AverageCostBasis;
+        }
 
-        var cashValue    = await db.CashItems.SumAsync(c => c.Amount, ct);
-        var optionsValue = await db.OptionItems
-            .Where(o => o.TransactionType != "CLOSE")
-            .SumAsync(o => o.MarketPrice * o.NumberOfContracts * 100, ct);
+        // Cash has no per-item OpenDate/CloseDate to reconstruct point-in-time composition,
+        // so a deleted/added CashItem leaves no trace — using today's current total would
+        // wrongly apply today's cash to a past date. Cash only moves via real transactions
+        // (not market prices), so the nearest existing snapshot's CashValue is a far better
+        // proxy for that date than "whatever cash happens to exist right now."
+        var cashValue = await GetNearestKnownCashValueAsync(date, ct)
+            ?? await db.CashItems.SumAsync(c => c.Amount, ct);
+
+        // Options open on the target date: currently-open ones opened on/before it, plus
+        // since-closed ones that were still open on it (mirrors the stocks filter above).
+        // Without historical options pricing, MarketPrice (last known) approximates an
+        // open position's value and ClosingPrice approximates one closed after the date.
+        var allOptions = await db.OptionItems.ToListAsync(ct);
+        var optionsValue = allOptions
+            .Where(o => o.OpenDate == null || o.OpenDate.Value.Date <= date.Date)
+            .Where(o => o.TransactionType != "CLOSE"
+                     || (o.CloseDate.HasValue && o.CloseDate.Value.Date > date.Date))
+            .Sum(o => (o.TransactionType == "CLOSE" ? o.ClosingPrice ?? o.MarketPrice : o.MarketPrice)
+                      * o.NumberOfContracts * 100);
 
         var total = stocksValue + cashValue + optionsValue;
         if (total == 0) return null;
@@ -214,6 +241,23 @@ public sealed class PortfolioValueHistoryService(
 
         return new PortfolioValueHistoryDto(entity.Id, entity.RecordedAt, entity.RecordedDate,
             entity.TotalValue, entity.StocksValue, entity.CashValue, entity.OptionsValue);
+    }
+
+    /// <summary>Cash value from whichever existing snapshot is closest in calendar time to the
+    /// target date (ties broken toward the earlier row) — cash carries forward/backward between
+    /// real transactions, so this is a far better proxy than today's current total.</summary>
+    private async Task<decimal?> GetNearestKnownCashValueAsync(DateTime date, CancellationToken ct)
+    {
+        var rows = await db.PortfolioValueHistories
+            .Where(h => h.RecordedDate != date.ToString("yyyy-MM-dd"))
+            .Select(h => new { h.RecordedDate, h.CashValue })
+            .ToListAsync(ct);
+
+        return rows
+            .Select(h => new { h.CashValue, Diff = Math.Abs((DateOnly.Parse(h.RecordedDate).ToDateTime(TimeOnly.MinValue) - date.Date).Days) })
+            .OrderBy(h => h.Diff)
+            .Select(h => (decimal?)h.CashValue)
+            .FirstOrDefault();
     }
 
     private static TimeZoneInfo? TryGetEasternTz()

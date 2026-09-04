@@ -45,12 +45,13 @@ public sealed class PerformanceSummaryService(AppDbContext db, IMarketDataProvid
         var today = DateTime.UtcNow;
         var janFirst = $"{today.Year}-01-01";
 
-        // Find last value on or before Jan 1 (prior year-end close)
-        var ytdBase = history.LastOrDefault(h => string.Compare(h.RecordedDate, janFirst, StringComparison.Ordinal) <= 0)
-            ?? history.First();
+        // Find last value on or before Jan 1 (prior year-end close). Do NOT fall back to the
+        // earliest available row — that would silently mislabel a partial-year return as YTD
+        // (e.g. history starting in July would show "Start of year" as July).
+        var ytdBase = history.LastOrDefault(h => string.Compare(h.RecordedDate, janFirst, StringComparison.Ordinal) <= 0);
         var latest = history.Last();
 
-        if (ytdBase.TotalValue <= 0) return null;
+        if (ytdBase is null || ytdBase.TotalValue <= 0) return null;
 
         // ── Live current value from portfolio snapshot (matches the portfolio hero) ──
         var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking()

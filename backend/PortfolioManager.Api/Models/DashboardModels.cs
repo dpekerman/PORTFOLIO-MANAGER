@@ -10,8 +10,8 @@ public sealed class DashboardSnapshot
 public sealed record DashboardResponse(
     DateTime UpdatedAt,
     DashboardSummary Summary,
-    IReadOnlyList<DashboardMover> TopMovers,   // top 10
-    IReadOnlyList<DashboardMover> BottomMovers, // bottom 10
+    IReadOnlyList<DashboardMover> TopMovers,    // top 50 gainers (frontend may limit display to 3-10)
+    IReadOnlyList<DashboardMover> BottomMovers, // bottom 50 losers
     IReadOnlyList<DashboardChartPoint> ValueHistory,
     IReadOnlyList<MarketIndexDto> MarketIndices,
     IReadOnlyList<DashboardAllocation> Allocation,
