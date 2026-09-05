@@ -7,16 +7,16 @@ using PortfolioManager.Api.Services;
 namespace PortfolioManager.Tests;
 
 /// <summary>
-/// Regression tests guarding against the same "fallback to the wrong baseline" bug class
-/// already fixed in DashboardService: GetSummaryAsync used to fall back to the earliest
-/// available history row when nothing existed on/before Jan 1, silently mislabeling a
-/// partial-year return as "Portfolio YTD" (found live in production — history only went
-/// back to July 2026, so "Start of year" was showing July instead of no data at all).
+/// Regression tests guarding the "wrong baseline" bug class: GetSummaryAsync must never label
+/// a partial-year return as "Portfolio YTD" when nothing exists on/before Jan 1 (found live in
+/// production — history only went back to July 2026). Instead of hiding the data entirely, it
+/// falls back to the earliest available row and flags the result via IsFullYear = false so the
+/// frontend can relabel it "Since inception".
 /// </summary>
 public sealed class PerformanceSummaryServiceTests
 {
     [Fact]
-    public async Task GetSummaryAsync_ReturnsNull_WhenNoSnapshotExistsAtOrBeforeJanFirst()
+    public async Task GetSummaryAsync_FallsBackToInceptionBaseline_WhenNoSnapshotExistsAtOrBeforeJanFirst()
     {
         // History exists (>= 2 rows) but none of it reaches back to Jan 1 of the current year —
         // this is exactly the production scenario that produced a bogus YTD baseline.
@@ -31,7 +31,10 @@ public sealed class PerformanceSummaryServiceTests
 
         var result = await service.GetSummaryAsync("user");
 
-        Assert.Null(result);
+        Assert.NotNull(result);
+        Assert.False(result!.IsFullYear);
+        Assert.Equal($"{year}-07-06", result.PortfolioStartDate);
+        Assert.Equal(805803.5387m, result.PortfolioStartValue);
     }
 
     [Fact]
@@ -55,7 +58,8 @@ public sealed class PerformanceSummaryServiceTests
         var result = await service.GetSummaryAsync("user");
 
         Assert.NotNull(result);
-        Assert.Equal($"{year - 1}-12-31", result!.PortfolioStartDate);
+        Assert.True(result!.IsFullYear);
+        Assert.Equal($"{year - 1}-12-31", result.PortfolioStartDate);
         Assert.Equal(700000m, result.PortfolioStartValue);
     }
 

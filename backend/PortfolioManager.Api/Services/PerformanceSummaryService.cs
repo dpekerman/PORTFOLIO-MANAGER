@@ -16,7 +16,11 @@ public sealed record PerformanceSummaryResponse(
     string  PortfolioCurrentDate,
     IReadOnlyList<BenchmarkReturn> Benchmarks,
     decimal AlphaVsPrimaryBenchmarkPct,
-    string PrimaryBenchmarkName);
+    string PrimaryBenchmarkName,
+    // False when no snapshot exists on/before Jan 1 of the current year (e.g. tracking started
+    // mid-year) — the baseline is the earliest available snapshot instead, so this is really an
+    // "since inception" return, not a true year-to-date return. The frontend must relabel accordingly.
+    bool IsFullYear);
 
 public interface IPerformanceSummaryService
 {
@@ -45,13 +49,15 @@ public sealed class PerformanceSummaryService(AppDbContext db, IMarketDataProvid
         var today = DateTime.UtcNow;
         var janFirst = $"{today.Year}-01-01";
 
-        // Find last value on or before Jan 1 (prior year-end close). Do NOT fall back to the
-        // earliest available row — that would silently mislabel a partial-year return as YTD
-        // (e.g. history starting in July would show "Start of year" as July).
+        // Find last value on or before Jan 1 (prior year-end close). If tracking only started
+        // mid-year there is no such row — fall back to the earliest available snapshot and flag
+        // the result as "since inception" instead of silently mislabeling it as YTD.
         var ytdBase = history.LastOrDefault(h => string.Compare(h.RecordedDate, janFirst, StringComparison.Ordinal) <= 0);
+        var isFullYear = ytdBase is not null;
+        ytdBase ??= history.First();
         var latest = history.Last();
 
-        if (ytdBase is null || ytdBase.TotalValue <= 0) return null;
+        if (ytdBase.TotalValue <= 0) return null;
 
         // ── Live current value from portfolio snapshot (matches the portfolio hero) ──
         var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking()
@@ -119,7 +125,8 @@ public sealed class PerformanceSummaryService(AppDbContext db, IMarketDataProvid
             PortfolioCurrentDate:          latest.RecordedDate,
             Benchmarks:                    benchmarkReturns.AsReadOnly(),
             AlphaVsPrimaryBenchmarkPct:    alpha,
-            PrimaryBenchmarkName:          primaryBenchmark?.Name ?? "TSX Composite");
+            PrimaryBenchmarkName:          primaryBenchmark?.Name ?? "TSX Composite",
+            IsFullYear:                    isFullYear);
     }
 
     /// <summary>

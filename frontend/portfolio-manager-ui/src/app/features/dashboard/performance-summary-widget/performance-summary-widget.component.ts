@@ -45,6 +45,17 @@ export class PerformanceSummaryWidgetComponent {
     day: 'numeric',
   });
 
+  /** "Portfolio YTD" once a genuine Jan-1 baseline exists, "Since inception" until then. */
+  protected readonly ytdLabel = computed(() =>
+    this.summary()?.isFullYear === false ? 'Portfolio Return' : 'Portfolio YTD',
+  );
+  protected readonly ytdDollarLabel = computed(() =>
+    this.summary()?.isFullYear === false ? 'Return $' : 'Portfolio $ YTD',
+  );
+  protected readonly startLabel = computed(() =>
+    this.summary()?.isFullYear === false ? 'Since inception' : 'Start of year',
+  );
+
   protected signCls(v: number): string {
     return v >= 0 ? 'pos' : 'neg';
   }

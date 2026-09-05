@@ -6,14 +6,14 @@
     <div class="ps-stats">
       <!-- Portfolio YTD % -->
       <div class="ps-stat ps-stat-main">
-        <span class="ps-label">Portfolio YTD</span>
+        <span class="ps-label">{{ ytdLabel() }}</span>
         <strong [class]="signCls(ytdPct())" class="ps-big">
           {{ sign(ytdPct()) }}{{ ytdPct() | number: '1.2-2' }}%
         </strong>
       </div>
       <!-- Portfolio $ YTD -->
       <div class="ps-stat">
-        <span class="ps-label">Portfolio $ YTD</span>
+        <span class="ps-label">{{ ytdDollarLabel() }}</span>
         <strong [class]="signCls(ytdDollar())">
           {{ sign(ytdDollar())
           }}{{ maskVal(ytdDollar()) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
@@ -37,7 +37,7 @@
       <div class="ps-divider"></div>
       <!-- Start of Year -->
       <div class="ps-stat ps-stat-date-block">
-        <span class="ps-label">Start of year</span>
+        <span class="ps-label">{{ startLabel() }}</span>
         <strong class="ps-value-num">{{
           maskVal(s.portfolioStartValue) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
         }}</strong>

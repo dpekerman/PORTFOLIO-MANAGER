@@ -1132,4 +1132,7 @@ export interface PerformanceSummaryResponse {
   benchmarks: BenchmarkReturn[];
   alphaVsPrimaryBenchmarkPct: number;
   primaryBenchmarkName: string;
+  /** False when no snapshot exists before Jan 1 of the current year — the figures are a
+   *  "since inception" return using the earliest available snapshot, not a true YTD return. */
+  isFullYear: boolean;
 }
