@@ -1,6 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { AddCashItemRequest, CashItem, UpdateCashItemRequest } from '../models/portfolio.models';
+import {
+  AddCashItemRequest,
+  AdjustCashBalanceRequest,
+  CashItem,
+  UpdateCashItemRequest,
+} from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
@@ -10,11 +15,25 @@ export class CashStateService {
 
   private readonly _items = signal<CashItem[]>([]);
   private readonly _loading = signal(false);
+  private readonly _ledgerStartDate = signal<string | null>(null);
 
   readonly items = this._items.asReadonly();
   readonly loading = this._loading.asReadonly();
+  readonly ledgerStartDate = this._ledgerStartDate.asReadonly();
 
   readonly totalCash = computed(() => this._items().reduce((acc, item) => acc + item.amount, 0));
+
+  /** Running total per AccountType, sorted for stable display. */
+  readonly totalsByAccount = computed(() => {
+    const totals = new Map<string, number>();
+    for (const item of this._items()) {
+      const key = item.accountType ?? '—';
+      totals.set(key, (totals.get(key) ?? 0) + item.amount);
+    }
+    return Array.from(totals.entries())
+      .map(([accountType, total]) => ({ accountType, total }))
+      .sort((a, b) => a.accountType.localeCompare(b.accountType));
+  });
 
   constructor() {
     this.refresh();
@@ -66,6 +85,25 @@ export class CashStateService {
     });
   }
 
+  /** "Adjust Balance": types the desired new total; backend computes the delta and returns the new
+   * ledger row. Refreshes the full list afterward since the account's running total changed. */
+  adjustBalance(request: AdjustCashBalanceRequest): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.api.adjustCashBalance(request).subscribe({
+        next: (item) => {
+          this._items.update((list) => [...list, item]);
+          this.snackBar.open('Cash balance adjusted', 'Dismiss', { duration: 3000 });
+          resolve();
+        },
+        error: (err) => {
+          const message = err?.error ?? 'Failed to adjust cash balance';
+          this.snackBar.open(message, 'Dismiss', { duration: 5000 });
+          reject(err);
+        },
+      });
+    });
+  }
+
   deleteItem(id: number): void {
     this.api.deleteCashItem(id).subscribe({
       next: () => {
@@ -75,6 +113,13 @@ export class CashStateService {
       error: () => {
         this.snackBar.open('Failed to remove cash position', 'Dismiss', { duration: 4000 });
       },
+    });
+  }
+
+  loadLedgerStartDate(): void {
+    this.api.getCashLedgerStartDate().subscribe({
+      next: (res) => this._ledgerStartDate.set(res.ledgerStartDate),
+      error: (err) => console.error('Failed to load ledger start date', err),
     });
   }
 }

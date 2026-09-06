@@ -8,6 +8,7 @@ import {
   AddPortfolioItemRequest,
   AdhocSessionPayload,
   AdhocSessionResponse,
+  AdjustCashBalanceRequest,
   AllocationRiskConfig,
   AllocationRiskTarget,
   AllocationSectorTarget,
@@ -412,8 +413,18 @@ export class PortfolioApiService {
     return this.http.put<CashItem>(`${this.base}/cash/${id}`, request);
   }
 
+  adjustCashBalance(request: AdjustCashBalanceRequest): Observable<CashItem> {
+    return this.http.post<CashItem>(`${this.base}/cash/adjust-balance`, request);
+  }
+
   deleteCashItem(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/cash/${id}`);
+  }
+
+  /** The accounting boundary: dates before this use frozen legacy history; dates on/after it are
+   * reconstructed authoritatively from the cash ledger. */
+  getCashLedgerStartDate(): Observable<{ ledgerStartDate: string }> {
+    return this.http.get<{ ledgerStartDate: string }>(`${this.base}/cash/ledger-start-date`);
   }
 
   // ── Options CRUD ────────────────────────────────────────────────────────────
@@ -555,6 +566,38 @@ export class PortfolioApiService {
   getMissingHistoryDays(lookbackDays = 30): Observable<string[]> {
     return this.http.get<string[]>(
       `${this.base}/portfoliovaluehistory/missing-days?lookbackDays=${lookbackDays}`,
+    );
+  }
+
+  /** Snapshots within [fromDate..toDate] (most-recent-first), enriched with ExternalCashFlow/
+   * SnapshotStatus/HasMismatch. Omit either bound to default to the last 90 days. */
+  getPortfolioValueHistoryRange(
+    fromDate?: string,
+    toDate?: string,
+  ): Observable<PortfolioValueHistoryDto[]> {
+    let params = new HttpParams();
+    if (fromDate) params = params.set('fromDate', fromDate);
+    if (toDate) params = params.set('toDate', toDate);
+    return this.http.get<PortfolioValueHistoryDto[]>(`${this.base}/portfoliovaluehistory/range`, {
+      params,
+    });
+  }
+
+  /** Admin/debug: cash-only recalculation of today's already-recorded snapshot (Stocks/Options preserved).
+   * Rejects with a 400 if no snapshot exists yet for today. */
+  reconcileCashToday(): Observable<PortfolioValueHistoryDto> {
+    return this.http.post<PortfolioValueHistoryDto>(
+      `${this.base}/portfoliovaluehistory/reconcile-today`,
+      {},
+    );
+  }
+
+  /** Admin/debug: cash-only recalculation of every snapshot from fromDate through today (Stocks/Options
+   * preserved on every affected row). */
+  recalculateCashFromDate(fromDate: string): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.post<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/recalculate-cash?fromDate=${fromDate}`,
+      {},
     );
   }
 

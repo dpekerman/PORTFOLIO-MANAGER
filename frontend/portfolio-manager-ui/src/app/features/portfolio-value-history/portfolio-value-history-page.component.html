@@ -1,0 +1,23 @@
+<div class="history-page">
+  <header class="page-header">
+    <h1 class="page-title">Portfolio Value History</h1>
+  </header>
+
+  <app-history-summary-cards
+    [latestSnapshot]="historyState.latestSnapshot()"
+    [loading]="historyState.loading()"
+  />
+
+  <app-history-filter-bar />
+
+  <mat-tab-group class="history-tabs" animationDuration="150ms">
+    <mat-tab label="Snapshots">
+      <app-snapshots-table />
+    </mat-tab>
+    <mat-tab label="Cash Ledger">
+      <app-cash-ledger-table />
+    </mat-tab>
+  </mat-tab-group>
+
+  <app-admin-actions />
+</div>

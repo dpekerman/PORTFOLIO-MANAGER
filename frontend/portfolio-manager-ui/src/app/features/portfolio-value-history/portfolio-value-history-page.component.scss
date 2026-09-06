@@ -1,0 +1,25 @@
+.history-page {
+  padding: 0 0 48px;
+}
+
+.page-header {
+  padding: 20px 24px 16px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.history-tabs {
+  margin: 16px 24px 0;
+
+  @media (max-width: 600px) {
+    margin: 12px 8px 0;
+  }
+}

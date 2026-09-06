@@ -457,6 +457,37 @@ export interface ValueScreenerRequest {
 }
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
+// CashFlowType classifies WHY cash moved — required on every new ledger entry. OpeningBalance is
+// migration/admin-only (never user-selectable). IsExternalFlow distinguishes real contributions/
+// withdrawals (Deposit/Withdrawal) from internal portfolio movements (everything else) for future
+// performance calculations.
+export type CashFlowType =
+  | 'OpeningBalance'
+  | 'Deposit'
+  | 'Withdrawal'
+  | 'TradeProceeds'
+  | 'TradePurchase'
+  | 'Dividend'
+  | 'Interest'
+  | 'Fee'
+  | 'Tax'
+  | 'AdjustmentIncrease'
+  | 'AdjustmentDecrease';
+
+/** User-selectable types for Add/Edit/Adjust dialogs — OpeningBalance excluded (migration-only). */
+export const SELECTABLE_CASH_FLOW_TYPES: CashFlowType[] = [
+  'Deposit',
+  'Withdrawal',
+  'TradeProceeds',
+  'TradePurchase',
+  'Dividend',
+  'Interest',
+  'Fee',
+  'Tax',
+  'AdjustmentIncrease',
+  'AdjustmentDecrease',
+];
+
 export interface CashItem {
   id: number;
   description: string;
@@ -464,11 +495,16 @@ export interface CashItem {
   addedAt: string;
   accountType?: string | null;
   transactionDate?: string | null;
+  cashFlowType?: CashFlowType | null;
+  isExternalFlow: boolean;
+  /** Set when an existing row was edited after creation; null if never edited. */
+  modifiedAt?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
+  cashFlowType: CashFlowType;
   accountType?: string | null;
   transactionDate?: string | null;
 }
@@ -476,7 +512,18 @@ export interface AddCashItemRequest {
 export interface UpdateCashItemRequest {
   description: string;
   amount: number;
+  cashFlowType: CashFlowType;
   accountType?: string | null;
+  transactionDate?: string | null;
+}
+
+/** "Adjust Balance": user types the desired new total; backend computes the delta and inserts one new
+ * ledger row. cashFlowType direction must match whether the total is increasing or decreasing. */
+export interface AdjustCashBalanceRequest {
+  accountType: string;
+  desiredNewTotal: number;
+  cashFlowType: CashFlowType;
+  transactionDate?: string | null;
 }
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -653,6 +700,18 @@ export interface EodSignalsMeta {
 }
 
 // ── Portfolio Value History ────────────────────────────────────────────────────
+/** What last wrote/recomputed a snapshot row. Mirrors backend PortfolioValueSource. */
+export type PortfolioValueSource =
+  | 'EodAuto'
+  | 'ManualRecordNow'
+  | 'SameDayReseal'
+  | 'CashRecalculation'
+  | 'Migration';
+
+/** Derived display status — Original/Resealed/CashRecalculated come from persisted audit fields;
+ * PendingReseal is the one transient state computed from live backend state (today's row only). */
+export type SnapshotStatus = 'Original' | 'Resealed' | 'CashRecalculated' | 'PendingReseal';
+
 export interface PortfolioValueHistoryDto {
   id: number;
   recordedAt: string;
@@ -661,6 +720,13 @@ export interface PortfolioValueHistoryDto {
   stocksValue: number;
   cashValue: number;
   optionsValue: number;
+  source: PortfolioValueSource;
+  lastRecalculatedAt: string | null;
+  /** Sum of CashItems on recordedDate with isExternalFlow===true. Never inferred from CashValue deltas. */
+  externalCashFlow: number;
+  snapshotStatus: SnapshotStatus;
+  /** Simple arithmetic check: true if totalValue !== stocksValue+optionsValue+cashValue. */
+  hasMismatch: boolean;
 }
 
 // ── Portfolio Beta ─────────────────────────────────────────────────────────────

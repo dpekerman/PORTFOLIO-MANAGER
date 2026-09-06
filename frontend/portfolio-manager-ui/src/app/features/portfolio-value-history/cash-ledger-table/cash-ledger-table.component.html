@@ -1,0 +1,122 @@
+<div class="cash-ledger-wrapper">
+  <div class="account-subtotals">
+    @for (t of cashState.totalsByAccount(); track t.accountType) {
+      <div class="subtotal-row">
+        <span>{{ t.accountType }}</span>
+        <span>{{ dv(t.total) | currency: 'CAD' }}</span>
+      </div>
+    }
+    <div class="subtotal-row grand-total">
+      <span>Total Cash</span>
+      <span>{{ dv(cashState.totalCash()) | currency: 'CAD' }}</span>
+    </div>
+  </div>
+
+  @if (cashState.loading()) {
+    <div class="loading-row">Loading…</div>
+  } @else if (sortedItems().length === 0) {
+    <div class="empty-row">No cash ledger entries yet.</div>
+  } @else {
+    <table mat-table [dataSource]="sortedItems()" class="desktop-only ledger-table">
+      <ng-container matColumnDef="effectiveDate">
+        <th mat-header-cell *matHeaderCellDef>Effective Date</th>
+        <td mat-cell *matCellDef="let item">{{ effectiveDate(item) | date: 'MMM d, yyyy' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="accountType">
+        <th mat-header-cell *matHeaderCellDef>Account</th>
+        <td mat-cell *matCellDef="let item">{{ item.accountType ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="cashFlowType">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let item">{{ item.cashFlowType ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="amount">
+        <th mat-header-cell *matHeaderCellDef>Amount</th>
+        <td mat-cell *matCellDef="let item" [class.negative]="item.amount < 0">
+          {{ item.amount >= 0 ? '+' : '' }}{{ dv(item.amount) | currency: 'CAD' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="isExternalFlow">
+        <th mat-header-cell *matHeaderCellDef>External?</th>
+        <td mat-cell *matCellDef="let item">{{ item.isExternalFlow ? 'Yes' : 'No' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="runningBalance">
+        <th mat-header-cell *matHeaderCellDef>Running Balance</th>
+        <td mat-cell *matCellDef="let item">{{ dv(runningBalanceFor(item)) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="addedAt">
+        <th mat-header-cell *matHeaderCellDef>Created</th>
+        <td mat-cell *matCellDef="let item">{{ item.addedAt | date: 'MMM d, h:mm a' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="modifiedAt">
+        <th mat-header-cell *matHeaderCellDef>Modified</th>
+        <td mat-cell *matCellDef="let item">
+          @if (item.modifiedAt) {
+            {{ item.modifiedAt | date: 'MMM d, h:mm a' }}
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef></th>
+        <td mat-cell *matCellDef="let item">
+          <button
+            mat-icon-button
+            [disabled]="isOpeningBalance(item)"
+            [matTooltip]="
+              isOpeningBalance(item) ? 'OpeningBalance rows are migration/admin-only' : 'Edit'
+            "
+            (click)="editItem(item)"
+          >
+            <mat-icon>edit</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+    </table>
+
+    <div class="mobile-only mobile-cards">
+      @for (item of sortedItems(); track item.id) {
+        <div class="ledger-card">
+          <div class="card-top">
+            <span class="card-type">{{ item.cashFlowType ?? '—' }}</span>
+            <button
+              mat-icon-button
+              [disabled]="isOpeningBalance(item)"
+              [matTooltip]="
+                isOpeningBalance(item) ? 'OpeningBalance rows are migration/admin-only' : 'Edit'
+              "
+              (click)="editItem(item)"
+            >
+              <mat-icon>edit</mat-icon>
+            </button>
+          </div>
+          <div class="card-amount" [class.negative]="item.amount < 0">
+            {{ item.amount >= 0 ? '+' : '' }}{{ dv(item.amount) | currency: 'CAD' }}
+          </div>
+          <div class="card-meta">
+            <span>{{ item.accountType ?? '—' }}</span>
+            <span>{{ effectiveDate(item) | date: 'MMM d, yyyy' }}</span>
+          </div>
+          <div class="card-meta">
+            <span>Running balance: {{ dv(runningBalanceFor(item)) | currency: 'CAD' }}</span>
+          </div>
+          <div class="card-meta">
+            <span>External flow: {{ item.isExternalFlow ? 'Yes' : 'No' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

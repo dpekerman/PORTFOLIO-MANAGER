@@ -1,0 +1,51 @@
+@if (authState.isAdmin()) {
+  <div class="admin-actions">
+    <div class="admin-header">
+      <mat-icon>build</mat-icon>
+      <span>Admin / Debug Actions</span>
+    </div>
+
+    @if (historyState.actionError(); as err) {
+      <div class="admin-error">{{ err }}</div>
+    }
+
+    <div class="admin-buttons">
+      <button mat-stroked-button type="button" (click)="recordTodayNow()">
+        <mat-icon>bolt</mat-icon>
+        Record Today Now
+      </button>
+      <button mat-stroked-button type="button" (click)="reconcileToday()">
+        <mat-icon>sync</mat-icon>
+        Reconcile Today
+      </button>
+    </div>
+
+    <div class="admin-row">
+      <mat-form-field appearance="outline" class="date-field">
+        <mat-label>Recalculate cash from</mat-label>
+        <input matInput [matDatepicker]="recalcPicker" [formControl]="recalcFromDate" />
+        <mat-datepicker-toggle matIconSuffix [for]="recalcPicker"></mat-datepicker-toggle>
+        <mat-datepicker #recalcPicker></mat-datepicker>
+      </mat-form-field>
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="!recalcFromDate.value"
+        (click)="recalculateCashFromDate()"
+      >
+        <mat-icon>history</mat-icon>
+        Recalculate Cash From Date
+      </button>
+    </div>
+
+    <div class="admin-row">
+      <button mat-button type="button" (click)="cashState.loadLedgerStartDate()">
+        <mat-icon>info</mat-icon>
+        View Ledger Start Date
+      </button>
+      @if (cashState.ledgerStartDate(); as d) {
+        <span class="ledger-start-value">{{ d }}</span>
+      }
+    </div>
+  </div>
+}

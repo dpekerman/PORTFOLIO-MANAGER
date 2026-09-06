@@ -1,0 +1,20 @@
+.filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 24px 0;
+
+  @media (max-width: 600px) {
+    padding: 12px 8px 0;
+  }
+}
+
+.filter-field {
+  width: 160px;
+
+  @media (max-width: 600px) {
+    flex: 1 1 45%;
+    width: auto;
+  }
+}

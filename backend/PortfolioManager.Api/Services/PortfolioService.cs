@@ -25,6 +25,7 @@ public interface IPortfolioService
 public sealed class PortfolioService(
     AppDbContext db,
     IMarketDataProvider marketData,
+    IMutationClock mutationClock,
     IHttpContextAccessor httpCtx) : IPortfolioService
 {
     private string? CurrentUserId() => httpCtx.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -77,6 +78,8 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -102,6 +105,8 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -138,6 +143,8 @@ public sealed class PortfolioService(
         item.DecisionSourceClosed  = request.DecisionSourceClosed;
 
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -166,6 +173,8 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return true;
     }
 

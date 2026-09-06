@@ -1,0 +1,170 @@
+<div class="snapshots-table-wrapper">
+  @if (historyState.loading()) {
+    <div class="loading-row">Loading…</div>
+  } @else if (historyState.filteredSnapshots().length === 0) {
+    <div class="empty-row">No snapshots match the current filters.</div>
+  } @else {
+    <table
+      mat-table
+      [dataSource]="historyState.filteredSnapshots()"
+      multiTemplateDataRows
+      class="desktop-only snapshots-table"
+    >
+      <ng-container matColumnDef="recordedDate">
+        <th mat-header-cell *matHeaderCellDef>Date</th>
+        <td mat-cell *matCellDef="let row">{{ row.recordedDate | date: 'MMM d, yyyy' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="totalValue">
+        <th mat-header-cell *matHeaderCellDef>Total Value</th>
+        <td mat-cell *matCellDef="let row">{{ dv(row.totalValue) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="stocksValue">
+        <th mat-header-cell *matHeaderCellDef>Stocks</th>
+        <td mat-cell *matCellDef="let row">{{ dv(row.stocksValue) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="optionsValue">
+        <th mat-header-cell *matHeaderCellDef>Options</th>
+        <td mat-cell *matCellDef="let row">{{ dv(row.optionsValue) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="cashValue">
+        <th mat-header-cell *matHeaderCellDef>Cash</th>
+        <td mat-cell *matCellDef="let row">{{ dv(row.cashValue) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="externalCashFlow">
+        <th mat-header-cell *matHeaderCellDef>External Flow</th>
+        <td mat-cell *matCellDef="let row">{{ dv(row.externalCashFlow) | currency: 'CAD' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="dailyChange">
+        <th mat-header-cell *matHeaderCellDef>Daily $</th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.negative]="(dailyChangeFor(row).changeAmount ?? 0) < 0"
+        >
+          @if (dailyChangeFor(row).changeAmount; as amt) {
+            {{ dv(amt) | currency: 'CAD' }}
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="dailyPct">
+        <th mat-header-cell *matHeaderCellDef>Daily %</th>
+        <td
+          mat-cell
+          *matCellDef="let row"
+          [class.negative]="(dailyChangeFor(row).changePct ?? 0) < 0"
+        >
+          @if (dailyChangeFor(row).changePct; as pct) {
+            {{ demoMode.maskPercent(pct) | number: '1.2-2' }}%
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let row">
+          <span class="status-chip" [class]="'status-' + row.snapshotStatus.toLowerCase()">{{
+            statusLabel(row.snapshotStatus)
+          }}</span>
+          <mat-icon
+            class="reconciliation-icon"
+            [class]="reconciliationIcon(row).cssClass"
+            [matTooltip]="reconciliationIcon(row).tooltip"
+            >{{ reconciliationIcon(row).icon }}</mat-icon
+          >
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="recordedAt">
+        <th mat-header-cell *matHeaderCellDef>Recorded</th>
+        <td mat-cell *matCellDef="let row">{{ row.recordedAt | date: 'MMM d, h:mm a' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="lastRecalculatedAt">
+        <th mat-header-cell *matHeaderCellDef>Recalculated</th>
+        <td mat-cell *matCellDef="let row">
+          @if (row.lastRecalculatedAt) {
+            {{ row.lastRecalculatedAt | date: 'MMM d, h:mm a' }}
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="expand">
+        <th mat-header-cell *matHeaderCellDef aria-label="expand row"></th>
+        <td mat-cell *matCellDef="let row">
+          <button mat-icon-button (click)="toggleRow(row); $event.stopPropagation()">
+            <mat-icon>{{ expandedId() === row.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+          </button>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="expandedDetail">
+        <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length">
+          @if (expandedId() === row.id) {
+            <app-snapshot-detail [snapshot]="row" [cashActivity]="cashActivityFor(row)" />
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: displayedColumns"
+        class="snapshot-row"
+        (click)="toggleRow(row)"
+      ></tr>
+      <tr
+        mat-row
+        *matRowDef="let row; columns: ['expandedDetail']"
+        class="detail-row-container"
+        [class.expanded]="expandedId() === row.id"
+      ></tr>
+    </table>
+
+    <div class="mobile-only mobile-cards">
+      @for (row of historyState.filteredSnapshots(); track row.id) {
+        <div class="snapshot-card" (click)="toggleRow(row)">
+          <div class="card-top">
+            <span class="card-date">{{ row.recordedDate | date: 'MMM d, yyyy' }}</span>
+            <mat-icon
+              class="reconciliation-icon"
+              [class]="reconciliationIcon(row).cssClass"
+              [matTooltip]="reconciliationIcon(row).tooltip"
+              >{{ reconciliationIcon(row).icon }}</mat-icon
+            >
+          </div>
+          <div class="card-total">{{ dv(row.totalValue) | currency: 'CAD' }}</div>
+          @if (dailyChangeFor(row).changePct; as pct) {
+            <div class="card-pct" [class.negative]="pct < 0">
+              {{ demoMode.maskPercent(pct) | number: '1.2-2' }}%
+            </div>
+          }
+          <div class="card-breakdown">
+            <span>Stocks {{ dv(row.stocksValue) | currency: 'CAD' }}</span>
+            <span>Options {{ dv(row.optionsValue) | currency: 'CAD' }}</span>
+            <span>Cash {{ dv(row.cashValue) | currency: 'CAD' }}</span>
+          </div>
+          <span class="status-chip" [class]="'status-' + row.snapshotStatus.toLowerCase()">
+            {{ statusLabel(row.snapshotStatus) }}
+          </span>
+
+          @if (expandedId() === row.id) {
+            <app-snapshot-detail [snapshot]="row" [cashActivity]="cashActivityFor(row)" />
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

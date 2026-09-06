@@ -848,6 +848,32 @@
 }
 
 // ============================================================
+// Cash per-account subtotals
+// ============================================================
+.cash-account-subtotals {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+.cash-account-subtotal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+.cash-account-subtotal-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-faint);
+}
+.cash-account-subtotal-value {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+// ============================================================
 // Cash card grid
 // ============================================================
 .cash-card-grid {

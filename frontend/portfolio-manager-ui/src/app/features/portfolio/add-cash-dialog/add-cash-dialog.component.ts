@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { CashFlowType, SELECTABLE_CASH_FLOW_TYPES } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
@@ -37,10 +38,12 @@ export class AddCashDialogComponent {
 
   protected readonly saving = signal(false);
   protected readonly accountTypes = ACCOUNT_TYPES;
+  protected readonly cashFlowTypes = SELECTABLE_CASH_FLOW_TYPES;
 
   readonly form = this.fb.group({
     description: ['CASH', [Validators.required, Validators.maxLength(200)]],
     amount: [null as number | null, [Validators.required, Validators.min(0.01)]],
+    cashFlowType: [null as CashFlowType | null, [Validators.required]],
     accountType: [null as string | null],
     transactionDate: [null as Date | null],
   });
@@ -57,6 +60,7 @@ export class AddCashDialogComponent {
       await this.cashState.addItem({
         description: this.form.value.description ?? 'CASH',
         amount: this.form.value.amount!,
+        cashFlowType: this.form.value.cashFlowType!,
         accountType: this.form.value.accountType ?? null,
         transactionDate: this.formatDate(this.form.value.transactionDate),
       });

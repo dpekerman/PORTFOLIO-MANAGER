@@ -1486,6 +1486,28 @@
         </div>
 
         @if (cashExpanded()) {
+          @if (cashState.totalsByAccount().length > 0) {
+            <div class="cash-account-subtotals">
+              @for (acct of cashState.totalsByAccount(); track acct.accountType) {
+                <div class="cash-account-subtotal-row">
+                  <span class="cash-account-subtotal-name">{{ acct.accountType }}</span>
+                  <span
+                    class="cash-account-subtotal-value"
+                    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                    >{{ dv(acct.total) | currency }}</span
+                  >
+                  <button
+                    mat-icon-button
+                    matTooltip="Adjust Balance"
+                    (click)="openAdjustCashBalanceDialog(acct.accountType, acct.total)"
+                    [style.display]="authState.canWrite() ? null : 'none'"
+                  >
+                    <mat-icon>tune</mat-icon>
+                  </button>
+                </div>
+              }
+            </div>
+          }
           @if (cashState.items().length === 0) {
             <div class="subsection-empty">
               <mat-icon>payments</mat-icon>

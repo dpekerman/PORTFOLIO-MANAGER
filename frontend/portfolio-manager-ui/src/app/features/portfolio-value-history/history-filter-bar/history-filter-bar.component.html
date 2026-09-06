@@ -1,0 +1,43 @@
+<div class="filter-bar">
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>From</mat-label>
+    <input
+      matInput
+      [matDatepicker]="fromPicker"
+      [formControl]="fromControl"
+      (dateChange)="onFromChange($event.value)"
+    />
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
+    <mat-datepicker #fromPicker></mat-datepicker>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>To</mat-label>
+    <input
+      matInput
+      [matDatepicker]="toPicker"
+      [formControl]="toControl"
+      (dateChange)="onToChange($event.value)"
+    />
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
+    <mat-datepicker #toPicker></mat-datepicker>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" class="filter-field">
+    <mat-label>Snapshot Status</mat-label>
+    <mat-select
+      [value]="historyState.statusFilter()"
+      (selectionChange)="onStatusChange($event.value)"
+    >
+      <mat-option [value]="null">All</mat-option>
+      @for (opt of statusOptions; track opt.value) {
+        <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <button mat-stroked-button type="button" (click)="reset()">
+    <mat-icon>filter_alt_off</mat-icon>
+    Reset Filters
+  </button>
+</div>

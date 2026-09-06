@@ -33,6 +33,18 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="cashFlowType">
+        @for (type of cashFlowTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+      @if (form.controls.cashFlowType.hasError('required')) {
+        <mat-error>Type is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
       <mat-label>Account Type</mat-label>
       <mat-select formControlName="accountType">
         <mat-option [value]="null">— None —</mat-option>

@@ -14,11 +14,13 @@ namespace PortfolioManager.Api.Services;
 /// </summary>
 public sealed class PortfolioValueEodBackgroundService(
     IServiceScopeFactory scopeFactory,
+    IMutationClock mutationClock,
     ILogger<PortfolioValueEodBackgroundService> logger) : BackgroundService
 {
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
     private static readonly TimeSpan EodWindowStart = new(16, 30, 0);
     private static readonly TimeSpan EodWindowEnd = new(23, 59, 59);
+    private const double QuietPeriodSeconds = MutationClock.QuietPeriodSeconds;
     private static TimeZoneInfo? _easternTz;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,12 +30,53 @@ public sealed class PortfolioValueEodBackgroundService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await RunCheckAsync(stoppingToken); }
+            try
+            {
+                await RunCheckAsync(stoppingToken);
+                await RunDebouncedReselAsync(stoppingToken);
+            }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { logger.LogError(ex, "[PortfolioValueEod] Check failed."); }
 
-            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+            // Short interval so the debounced same-day reseal (item below) reacts promptly;
+            // the once-daily EOD write is still guarded by ExistsForDateAsync regardless of cadence.
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
+    }
+
+    /// <summary>
+    /// Same-day-only responsibility, independent of the 4:30pm–midnight window: if a Cash/Portfolio/
+    /// Option mutation marked today dirty and at least <see cref="QuietPeriodSeconds"/> have passed since
+    /// the last mutation, reseal today's row. This is purely a race-smoothing optimization — historical
+    /// correctness never depends on it (that's guaranteed transactionally in CashService).
+    /// </summary>
+    private async Task RunDebouncedReselAsync(CancellationToken ct)
+    {
+        if (!mutationClock.TryTakeTodayDirty()) return;
+
+        if (mutationClock.SecondsSinceLastMutation() < QuietPeriodSeconds)
+        {
+            // Not quiet yet — put the flag back and re-check on the next poll.
+            mutationClock.MarkTodayDirty();
+            return;
+        }
+
+        var tz = GetEasternTz();
+        if (tz is null) return;
+        var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var recordedDate = nowEt.ToString("yyyy-MM-dd");
+
+        using var scope = scopeFactory.CreateScope();
+        var history = scope.ServiceProvider.GetRequiredService<IPortfolioValueHistoryService>();
+        if (!await history.ExistsForDateAsync(recordedDate, ct))
+        {
+            // No snapshot yet today — the once-daily EOD writer below will pick up the settled
+            // state once its own window opens; nothing to reseal yet.
+            return;
+        }
+
+        logger.LogInformation("[PortfolioValueEod] Resealing today's ({Date}) snapshot after a quiet period.", recordedDate);
+        await history.RecordCurrentValueAsync(ct, PortfolioValueSource.SameDayReseal);
     }
 
     private async Task RunCheckAsync(CancellationToken ct)
@@ -58,6 +101,7 @@ public sealed class PortfolioValueEodBackgroundService(
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var history = scope.ServiceProvider.GetRequiredService<IPortfolioValueHistoryService>();
         var marketData = scope.ServiceProvider.GetRequiredService<IMarketDataProvider>();
+        var cashLedger = scope.ServiceProvider.GetRequiredService<ICashLedgerQueryService>();
 
         if (await history.ExistsForDateAsync(recordedDate, ct))
         {
@@ -100,7 +144,7 @@ public sealed class PortfolioValueEodBackgroundService(
         }
 
         // ── Cash ──────────────────────────────────────────────────────────────
-        var cashValue = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var cashValue = await cashLedger.GetTotalAsOfAsync(DateOnly.Parse(recordedDate), null, ct);
 
         // ── Options ───────────────────────────────────────────────────────────
         var optionsValue = await db.OptionItems

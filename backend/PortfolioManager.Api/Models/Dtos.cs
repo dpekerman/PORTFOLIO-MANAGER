@@ -142,9 +142,14 @@ public record DecisionSourcesDto(List<string> Items);
 public record UpdateDecisionSourcesRequest(List<string> Items);
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
-public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
-public record UpdateCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
-public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null);
+// CashFlowType is required (no default) — see Services.CashFlowTypeRules for the allowed values,
+// sign direction, and IsExternalFlow classification.
+public record AddCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
+public record UpdateCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null, string? CashFlowType = null, bool IsExternalFlow = false, DateTime? ModifiedAt = null);
+/// <summary>"Adjust Balance" — user types the desired new total; backend computes the delta and inserts
+/// one new ledger row. cashFlowType is required and validated against the delta's sign direction.</summary>
+public record AdjustCashBalanceRequest(string AccountType, decimal DesiredNewTotal, string CashFlowType, DateTime? TransactionDate = null);
 
 // ── Options ───────────────────────────────────────────────────────────────────
 public record AddOptionItemRequest(

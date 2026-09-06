@@ -85,6 +85,7 @@ export class LayoutComponent {
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/allocation', label: 'Allocation', icon: 'donut_large' },
     { path: '/value-screener', label: 'Value Screener', icon: 'analytics' },
+    { path: '/portfolio-value-history', label: 'Value History', icon: 'history' },
     { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;
 

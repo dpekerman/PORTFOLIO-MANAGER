@@ -30,6 +30,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<TechnicalChannel> TechnicalChannels => Set<TechnicalChannel>();
     public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
     public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
+    public DbSet<CashLedgerSettings> CashLedgerSettings => Set<CashLedgerSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -64,6 +65,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.TransactionDate).IsRequired(false);
+            entity.Property(e => e.CashFlowType).HasMaxLength(30);
+            // At most one OpeningBalance per account+date — prevents accidental double-counted cash
+            // (same filtered-unique-index pattern already used for DailySignals below).
+            entity.HasIndex(e => new { e.AccountType, e.TransactionDate })
+                .IsUnique()
+                .HasFilter("[CashFlowType] = 'OpeningBalance'")
+                .HasDatabaseName("IX_CashItems_Account_OpeningBalance");
+        });
+
+        modelBuilder.Entity<CashLedgerSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>

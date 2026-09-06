@@ -1,9 +1,12 @@
 <h2 mat-dialog-title>
   <mat-icon>edit</mat-icon>
-  Edit Cash Position
+  Edit Cash Entry
 </h2>
 
 <mat-dialog-content>
+  <p class="hint">
+    Corrects this one ledger entry only \u2014 it does not adjust the account's total balance.
+  </p>
   <form [formGroup]="form" class="cash-form">
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Description</mat-label>
@@ -26,6 +29,18 @@
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="cashFlowType">
+        @for (type of cashFlowTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+      @if (isOpeningBalance) {
+        <mat-hint>OpeningBalance entries cannot be reclassified.</mat-hint>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
       <mat-label>Account Type</mat-label>
       <mat-select formControlName="accountType">
         <mat-option [value]="null">— None —</mat-option>
@@ -33,6 +48,13 @@
           <mat-option [value]="acct">{{ acct }}</mat-option>
         }
       </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Transaction Date</mat-label>
+      <input matInput [matDatepicker]="editTxDatePicker" formControlName="transactionDate" />
+      <mat-datepicker-toggle matSuffix [for]="editTxDatePicker" />
+      <mat-datepicker #editTxDatePicker />
     </mat-form-field>
   </form>
 </mat-dialog-content>

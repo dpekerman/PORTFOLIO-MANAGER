@@ -9,8 +9,9 @@ public interface IPortfolioValueHistoryService
     Task<IReadOnlyList<PortfolioValueHistoryDto>> GetLatestAsync(int count, CancellationToken ct);
     Task SaveAsync(decimal totalValue, decimal stocksValue, decimal cashValue, decimal optionsValue, string recordedDate, CancellationToken ct);
     Task<bool> ExistsForDateAsync(string recordedDate, CancellationToken ct);
-    /// <summary>Calculates and persists the current portfolio value. If a record for today already exists it is overwritten.</summary>
-    Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct);
+    /// <summary>Calculates and persists the current portfolio value. If a record for today already exists it is overwritten
+    /// and LastRecalculatedAt is stamped (this is a genuine recompute, not a first insert).</summary>
+    Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source);
     /// <summary>
     /// Scans the past <paramref name="lookbackDays"/> weekdays and fills any date that has no snapshot
     /// by fetching historical closing prices from Yahoo Finance. Returns the newly created records.
@@ -19,20 +20,107 @@ public interface IPortfolioValueHistoryService
 
     /// <summary>Returns the list of weekday dates in the past lookbackDays that have no snapshot.</summary>
     Task<IReadOnlyList<string>> GetMissingDatesAsync(int lookbackDays, CancellationToken ct);
+
+    /// <summary>Patches ONLY CashValue/TotalValue on existing PortfolioValueHistories rows in
+    /// [max(fromDate, LedgerStartDate) .. todayEt] using the cash ledger. Never touches StocksValue or
+    /// OptionsValue on an existing row (that would corrupt historically-recorded stock/options data with
+    /// today's stale approximations). Stamps Source=CashRecalculation and LastRecalculatedAt=now on every
+    /// row it touches. Must be called within the caller's own transaction when the caller needs atomicity
+    /// with a ledger write — this method does not open its own transaction.</summary>
+    Task RecalculateCashRangeAsync(DateOnly fromDate, CancellationToken ct);
+
+    /// <summary>Returns snapshots in [fromDate..toDate] (most-recent-first), enriched with
+    /// ExternalCashFlow/SnapshotStatus/HasMismatch. Defaults to the last 90 days ending today (ET) when
+    /// either bound is omitted.</summary>
+    Task<IReadOnlyList<PortfolioValueHistoryDto>> GetRangeAsync(DateOnly? fromDate, DateOnly? toDate, CancellationToken ct);
 }
 
 public sealed class PortfolioValueHistoryService(
     AppDbContext db,
     IMarketDataProvider marketData,
+    ICashLedgerQueryService cashLedger,
+    IMutationClock mutationClock,
     ILogger<PortfolioValueHistoryService> logger) : IPortfolioValueHistoryService
 {
     public async Task<IReadOnlyList<PortfolioValueHistoryDto>> GetLatestAsync(int count, CancellationToken ct)
     {
-        return await db.PortfolioValueHistories
+        var rows = await db.PortfolioValueHistories
             .OrderByDescending(h => h.RecordedAt)
             .Take(count)
-            .Select(h => new PortfolioValueHistoryDto(h.Id, h.RecordedAt, h.RecordedDate, h.TotalValue, h.StocksValue, h.CashValue, h.OptionsValue))
             .ToListAsync(ct);
+        return await ToDtosAsync(rows, ct);
+    }
+
+    public async Task<IReadOnlyList<PortfolioValueHistoryDto>> GetRangeAsync(DateOnly? fromDate, DateOnly? toDate, CancellationToken ct)
+    {
+        var todayEt = DateOnly.FromDateTime(NowEt());
+        var to = toDate ?? todayEt;
+        var from = fromDate ?? to.AddDays(-90);
+        var fromStr = from.ToString("yyyy-MM-dd");
+        var toStr = to.ToString("yyyy-MM-dd");
+
+        var rows = (await db.PortfolioValueHistories.ToListAsync(ct))
+            .Where(h => string.CompareOrdinal(h.RecordedDate, fromStr) >= 0
+                     && string.CompareOrdinal(h.RecordedDate, toStr) <= 0)
+            .OrderByDescending(h => h.RecordedDate)
+            .ToList();
+        return await ToDtosAsync(rows, ct);
+    }
+
+    /// <summary>Enriches raw rows with ExternalCashFlow (from dated external ledger entries only),
+    /// SnapshotStatus (derived from persisted Source/LastRecalculatedAt/RecordedDate, except today's row
+    /// which may show live PendingReseal), and HasMismatch (arithmetic consistency check).</summary>
+    private async Task<IReadOnlyList<PortfolioValueHistoryDto>> ToDtosAsync(List<PortfolioValueHistory> rows, CancellationToken ct)
+    {
+        if (rows.Count == 0) return Array.Empty<PortfolioValueHistoryDto>();
+
+        var minDate = DateOnly.Parse(rows.Min(r => r.RecordedDate)!).ToDateTime(TimeOnly.MinValue);
+        var maxDate = DateOnly.Parse(rows.Max(r => r.RecordedDate)!).ToDateTime(TimeOnly.MaxValue);
+
+        var externalItems = await db.CashItems
+            .Where(c => c.CashFlowType == CashFlowTypeRules.Deposit || c.CashFlowType == CashFlowTypeRules.Withdrawal)
+            .Where(c => (c.TransactionDate ?? c.AddedAt) >= minDate && (c.TransactionDate ?? c.AddedAt) <= maxDate)
+            .Select(c => new { EffectiveDate = c.TransactionDate ?? c.AddedAt, c.Amount })
+            .ToListAsync(ct);
+
+        var externalFlowByDate = externalItems
+            .GroupBy(x => x.EffectiveDate.ToString("yyyy-MM-dd"))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Amount));
+
+        var todayEtStr = NowEt().ToString("yyyy-MM-dd");
+
+        var result = new List<PortfolioValueHistoryDto>(rows.Count);
+        foreach (var h in rows)
+        {
+            var externalFlow = externalFlowByDate.GetValueOrDefault(h.RecordedDate, 0m);
+            var isTodayRow = h.RecordedDate == todayEtStr;
+            var status = DeriveSnapshotStatus(h, isTodayRow);
+            var hasMismatch = h.TotalValue != h.StocksValue + h.CashValue + h.OptionsValue;
+            result.Add(new PortfolioValueHistoryDto(h.Id, h.RecordedAt, h.RecordedDate, h.TotalValue, h.StocksValue,
+                h.CashValue, h.OptionsValue, h.Source, h.LastRecalculatedAt, externalFlow, status, hasMismatch));
+        }
+        return result;
+    }
+
+    /// <summary>Historical rows derive their status purely from persisted fields. Only today's row may
+    /// show the live, transient "PendingReseal" state (never persisted).</summary>
+    private string DeriveSnapshotStatus(PortfolioValueHistory h, bool isTodayRow)
+    {
+        if (isTodayRow && mutationClock.IsTodayDirty && mutationClock.SecondsSinceLastMutation() < MutationClock.QuietPeriodSeconds)
+            return "PendingReseal";
+        if (h.LastRecalculatedAt is null) return "Original";
+
+        var tz = TryGetEasternTz();
+        var recalcEtDate = tz is not null
+            ? TimeZoneInfo.ConvertTimeFromUtc(h.LastRecalculatedAt.Value, tz)
+            : h.LastRecalculatedAt.Value;
+        return recalcEtDate.ToString("yyyy-MM-dd") == h.RecordedDate ? "Resealed" : "CashRecalculated";
+    }
+
+    private static DateTime NowEt()
+    {
+        var tz = TryGetEasternTz();
+        return tz is not null ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz) : DateTime.UtcNow;
     }
 
     public async Task SaveAsync(decimal totalValue, decimal stocksValue, decimal cashValue, decimal optionsValue, string recordedDate, CancellationToken ct)
@@ -52,7 +140,7 @@ public sealed class PortfolioValueHistoryService(
     public async Task<bool> ExistsForDateAsync(string recordedDate, CancellationToken ct)
         => await db.PortfolioValueHistories.AnyAsync(h => h.RecordedDate == recordedDate, ct);
 
-    public async Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct)
+    public async Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source)
     {
         // Use ET date to match the EOD background service and dashboard logic
         var tz = TryGetEasternTz();
@@ -91,7 +179,7 @@ public sealed class PortfolioValueHistoryService(
         }
 
         // ── Cash ────────────────────────────────────────────────────────────
-        var cashValue = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var cashValue = await cashLedger.GetTotalAsOfAsync(DateOnly.Parse(recordedDate), null, ct);
 
         // ── Options ─────────────────────────────────────────────────────────
         var optionsValue = await db.OptionItems
@@ -104,7 +192,8 @@ public sealed class PortfolioValueHistoryService(
         var existing = await db.PortfolioValueHistories
             .Where(h => h.RecordedDate == recordedDate)
             .ToListAsync(ct);
-        if (existing.Count > 0)
+        var alreadyExisted = existing.Count > 0;
+        if (alreadyExisted)
             db.PortfolioValueHistories.RemoveRange(existing);
 
         var entity = new PortfolioValueHistory
@@ -114,13 +203,16 @@ public sealed class PortfolioValueHistoryService(
             TotalValue = total,
             StocksValue = stocksValue,
             CashValue = cashValue,
-            OptionsValue = optionsValue
+            OptionsValue = optionsValue,
+            Source = source,
+            // Only a genuine recompute of an already-sealed day counts as "recalculated" — the very
+            // first insert for a date must stay Original regardless of which Source triggered it.
+            LastRecalculatedAt = alreadyExisted ? DateTime.UtcNow : null
         };
         db.PortfolioValueHistories.Add(entity);
         await db.SaveChangesAsync(ct);
 
-        return new PortfolioValueHistoryDto(entity.Id, entity.RecordedAt, entity.RecordedDate,
-            entity.TotalValue, entity.StocksValue, entity.CashValue, entity.OptionsValue);
+        return (await ToDtosAsync([entity], ct))[0];
     }
 
     public async Task<IReadOnlyList<PortfolioValueHistoryDto>> BackfillMissingAsync(int lookbackDays, CancellationToken ct)
@@ -202,13 +294,13 @@ public sealed class PortfolioValueHistoryService(
             stocksValue += item.ManualMarketValue ?? item.AverageCostBasis;
         }
 
-        // Cash has no per-item OpenDate/CloseDate to reconstruct point-in-time composition,
-        // so a deleted/added CashItem leaves no trace — using today's current total would
-        // wrongly apply today's cash to a past date. Cash only moves via real transactions
-        // (not market prices), so the nearest existing snapshot's CashValue is a far better
-        // proxy for that date than "whatever cash happens to exist right now."
-        var cashValue = await GetNearestKnownCashValueAsync(date, ct)
-            ?? await db.CashItems.SumAsync(c => c.Amount, ct);
+        // Cash: dates on/after LedgerStartDate are reconstructed exactly from the dated cash ledger.
+        // Earlier dates predate the ledger — cash only moves via real transactions (not market prices),
+        // so the nearest existing snapshot's CashValue is a far better proxy than today's current total.
+        var ledgerStartDate = await cashLedger.GetLedgerStartDateAsync(ct);
+        var cashValue = DateOnly.FromDateTime(date) >= ledgerStartDate
+            ? await cashLedger.GetTotalAsOfAsync(DateOnly.FromDateTime(date), null, ct)
+            : await GetNearestKnownCashValueAsync(date, ct) ?? await db.CashItems.SumAsync(c => c.Amount, ct);
 
         // Options open on the target date: currently-open ones opened on/before it, plus
         // since-closed ones that were still open on it (mirrors the stocks filter above).
@@ -239,8 +331,7 @@ public sealed class PortfolioValueHistoryService(
         db.PortfolioValueHistories.Add(entity);
         await db.SaveChangesAsync(ct);
 
-        return new PortfolioValueHistoryDto(entity.Id, entity.RecordedAt, entity.RecordedDate,
-            entity.TotalValue, entity.StocksValue, entity.CashValue, entity.OptionsValue);
+        return (await ToDtosAsync([entity], ct))[0];
     }
 
     /// <summary>Cash value from whichever existing snapshot is closest in calendar time to the
@@ -268,6 +359,40 @@ public sealed class PortfolioValueHistoryService(
             catch { /* ignored */ }
         }
         return null;
+    }
+
+    public async Task RecalculateCashRangeAsync(DateOnly fromDate, CancellationToken ct)
+    {
+        var ledgerStartDate = await cashLedger.GetLedgerStartDateAsync(ct);
+        var effectiveFrom = fromDate > ledgerStartDate ? fromDate : ledgerStartDate;
+
+        var tz = TryGetEasternTz();
+        var todayEt = DateOnly.FromDateTime(tz is not null
+            ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
+            : DateTime.UtcNow);
+
+        var fromStr = effectiveFrom.ToString("yyyy-MM-dd");
+        var toStr = todayEt.ToString("yyyy-MM-dd");
+        // EF Core's SQL Server provider can't translate string.Compare(a,b,StringComparison) — filter
+        // client-side instead (this table holds at most one row/day, so it's always small).
+        var rows = (await db.PortfolioValueHistories.ToListAsync(ct))
+            .Where(h => string.CompareOrdinal(h.RecordedDate, fromStr) >= 0
+                     && string.CompareOrdinal(h.RecordedDate, toStr) <= 0)
+            .ToList();
+
+        foreach (var row in rows)
+        {
+            if (!DateOnly.TryParse(row.RecordedDate, out var rowDate)) continue;
+            var newCashValue = await cashLedger.GetTotalAsOfAsync(rowDate, null, ct);
+            row.CashValue = newCashValue;
+            row.TotalValue = row.StocksValue + newCashValue + row.OptionsValue;
+            row.Source = PortfolioValueSource.CashRecalculation;
+            row.LastRecalculatedAt = DateTime.UtcNow;
+        }
+        await db.SaveChangesAsync(ct);
+        logger.LogInformation(
+            "[PortfolioValueHistory] RecalculateCashRangeAsync patched {Count} row(s) from {From} to {To} (StocksValue/OptionsValue untouched).",
+            rows.Count, fromStr, toStr);
     }
 
     public async Task<IReadOnlyList<string>> GetMissingDatesAsync(int lookbackDays, CancellationToken ct)

@@ -1,0 +1,155 @@
+.snapshots-table-wrapper {
+  padding: 12px 24px 24px;
+
+  @media (max-width: 600px) {
+    padding: 12px 8px 24px;
+  }
+}
+
+.loading-row,
+.empty-row {
+  padding: 24px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+}
+
+.snapshots-table {
+  width: 100%;
+}
+
+.snapshot-row {
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+}
+
+.detail-row-container {
+  height: 0;
+
+  td {
+    padding: 0 !important;
+    border-bottom: none;
+  }
+
+  &.expanded td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  }
+}
+
+.negative {
+  color: #c62828;
+}
+
+.status-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.status-original {
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  &.status-resealed {
+    background: #e3f2fd;
+    color: #1565c0;
+  }
+
+  &.status-cashrecalculated {
+    background: #fff3e0;
+    color: #ef6c00;
+  }
+
+  &.status-pendingreseal {
+    background: #f3e5f5;
+    color: #7b1fa2;
+  }
+}
+
+.reconciliation-icon {
+  vertical-align: middle;
+  margin-left: 6px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+
+  &.icon-ok {
+    color: #2e7d32;
+  }
+
+  &.icon-warning {
+    color: #c62828;
+  }
+
+  &.icon-pending {
+    color: #7b1fa2;
+  }
+}
+
+.desktop-only {
+  display: table;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+}
+
+.mobile-cards {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.snapshot-card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-date {
+  font-weight: 600;
+}
+
+.card-total {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.card-pct {
+  font-size: 0.85rem;
+  color: #2e7d32;
+
+  &.negative {
+    color: #c62828;
+  }
+}
+
+.card-breakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  margin: 8px 0;
+}

@@ -1,0 +1,61 @@
+<h2 mat-dialog-title>
+  <mat-icon>account_balance_wallet</mat-icon>
+  Adjust Cash Balance — {{ data.accountType }}
+</h2>
+
+<mat-dialog-content>
+  <p class="hint">
+    Type the account's new total below. The difference from the current total ({{
+      data.currentTotal | currency
+    }}) is recorded as one new dated ledger entry — nothing else is overwritten.
+  </p>
+  <form [formGroup]="form" class="cash-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Desired New Total</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput type="number" formControlName="desiredNewTotal" step="0.01" />
+      @if (form.controls.desiredNewTotal.hasError('required')) {
+        <mat-error>Desired total is required</mat-error>
+      }
+    </mat-form-field>
+
+    <p class="delta-preview" [class.positive]="delta() > 0" [class.negative]="delta() < 0">
+      Change: {{ delta() > 0 ? '+' : '' }}{{ delta() | currency }}
+    </p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Type</mat-label>
+      <mat-select formControlName="cashFlowType">
+        @for (type of cashFlowTypes; track type) {
+          <mat-option [value]="type">{{ type }}</mat-option>
+        }
+      </mat-select>
+      @if (form.controls.cashFlowType.hasError('required')) {
+        <mat-error>Type is required</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Date (optional, defaults to today)</mat-label>
+      <input matInput [matDatepicker]="adjustDatePicker" formControlName="transactionDate" />
+      <mat-datepicker-toggle matSuffix [for]="adjustDatePicker" />
+      <mat-datepicker #adjustDatePicker />
+    </mat-form-field>
+
+    @if (errorMessage()) {
+      <p class="error-banner">{{ errorMessage() }}</p>
+    }
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" [disabled]="saving()">Cancel</button>
+  <button mat-flat-button color="primary" (click)="submit()" [disabled]="form.invalid || saving()">
+    @if (saving()) {
+      <mat-spinner diameter="18" />
+    } @else {
+      <mat-icon>save</mat-icon>
+    }
+    Save Adjustment
+  </button>
+</mat-dialog-actions>

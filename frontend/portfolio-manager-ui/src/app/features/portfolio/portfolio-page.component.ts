@@ -57,6 +57,10 @@ import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.
 import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
 import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
 import {
+  AdjustCashBalanceDialogComponent,
+  AdjustCashBalanceDialogData,
+} from './adjust-cash-balance-dialog/adjust-cash-balance-dialog.component';
+import {
   EditCashDialogComponent,
   EditCashDialogData,
 } from './edit-cash-dialog/edit-cash-dialog.component';
@@ -1412,6 +1416,14 @@ export class PortfolioPageComponent {
   openEditCashDialog(item: CashItem): void {
     this.dialog.open(EditCashDialogComponent, {
       data: { item } satisfies EditCashDialogData,
+      width: '420px',
+      maxWidth: '95vw',
+    });
+  }
+
+  openAdjustCashBalanceDialog(accountType: string, currentTotal: number): void {
+    this.dialog.open(AdjustCashBalanceDialogComponent, {
+      data: { accountType, currentTotal } satisfies AdjustCashBalanceDialogData,
       width: '420px',
       maxWidth: '95vw',
     });

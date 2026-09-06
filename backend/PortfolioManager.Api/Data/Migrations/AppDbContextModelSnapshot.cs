@@ -347,12 +347,19 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<decimal>("Amount")
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<string>("CashFlowType")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)")
                         .HasDefaultValue("CASH");
+
+                    b.Property<DateTime?>("ModifiedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("TransactionDate")
                         .HasColumnType("datetime2");
@@ -363,7 +370,28 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AccountType", "TransactionDate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CashItems_Account_OpeningBalance")
+                        .HasFilter("[CashFlowType] = 'OpeningBalance'");
+
                     b.ToTable("CashItems");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.CashLedgerSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("LedgerStartDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CashLedgerSettings");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.DailySignal", b =>
@@ -803,6 +831,9 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<decimal>("CashValue")
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<DateTime?>("LastRecalculatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("OptionsValue")
                         .HasColumnType("decimal(18,4)");
 
@@ -813,6 +844,9 @@ namespace PortfolioManager.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("int");
 
                     b.Property<decimal>("StocksValue")
                         .HasColumnType("decimal(18,4)");

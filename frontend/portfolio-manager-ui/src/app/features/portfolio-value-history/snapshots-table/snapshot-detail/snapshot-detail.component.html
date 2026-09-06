@@ -1,0 +1,71 @@
+<div class="snapshot-detail">
+  <div class="detail-date">{{ snapshot().recordedDate | date: 'MMMM d, yyyy' }}</div>
+
+  <div class="detail-section">
+    <div class="section-title">Portfolio Components</div>
+    <div class="component-row">
+      <span>Stocks</span><span>{{ dv(snapshot().stocksValue) | currency: 'CAD' }}</span>
+    </div>
+    <div class="component-row">
+      <span>Options</span><span>{{ dv(snapshot().optionsValue) | currency: 'CAD' }}</span>
+    </div>
+    <div class="component-row">
+      <span>Cash</span><span>{{ dv(snapshot().cashValue) | currency: 'CAD' }}</span>
+    </div>
+    <div class="component-row total-row">
+      <span>Total</span><span>{{ dv(snapshot().totalValue) | currency: 'CAD' }}</span>
+    </div>
+  </div>
+
+  <div class="detail-section">
+    <div class="section-title">External flows</div>
+    @if (snapshot().externalCashFlow !== 0) {
+      <div class="component-row">
+        <span>Net external flow</span
+        ><span>{{ dv(snapshot().externalCashFlow) | currency: 'CAD' }}</span>
+      </div>
+    } @else {
+      <div class="muted-row">None</div>
+    }
+  </div>
+
+  <div class="detail-section">
+    <div class="section-title">Cash ledger events</div>
+    @if (cashActivity().length > 0) {
+      @for (c of cashActivity(); track c.id) {
+        <div class="ledger-row">
+          <span class="ledger-sign" [class.negative]="c.amount < 0">
+            {{ c.amount >= 0 ? '+' : '' }}{{ dv(c.amount) | currency: 'CAD' }}
+          </span>
+          <span>{{ c.cashFlowType }}</span>
+          <span class="ledger-account">{{ c.accountType ?? '—' }}</span>
+        </div>
+      }
+    } @else {
+      <div class="muted-row">None</div>
+    }
+  </div>
+
+  <div class="detail-section">
+    <div class="section-title">Snapshot audit</div>
+    <div class="audit-row">
+      <span>Original snapshot</span><span>{{ snapshot().recordedAt | date: 'MMM d, h:mm a' }}</span>
+    </div>
+    @if (snapshot().lastRecalculatedAt) {
+      <div class="audit-row">
+        <span>{{
+          snapshot().snapshotStatus === 'Resealed' ? 'Last resealed' : 'Last recalculated'
+        }}</span>
+        <span>{{ snapshot().lastRecalculatedAt | date: 'MMM d, h:mm a' }}</span>
+      </div>
+    }
+    <div class="audit-row">
+      <span>Reason</span><span>{{ reasonText() }}</span>
+    </div>
+    <div class="audit-row">
+      <span>Cash recalculated</span><span>{{ snapshot().lastRecalculatedAt ? 'Yes' : 'No' }}</span>
+    </div>
+    <div class="audit-row"><span>Stocks recalculated</span><span>No</span></div>
+    <div class="audit-row"><span>Options recalculated</span><span>No</span></div>
+  </div>
+</div>

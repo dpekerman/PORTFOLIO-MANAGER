@@ -110,6 +110,8 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
+builder.Services.AddSingleton<IMutationClock, MutationClock>();
 builder.Services.AddScoped<IAllocationRiskService, AllocationRiskService>();
 builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
 {
