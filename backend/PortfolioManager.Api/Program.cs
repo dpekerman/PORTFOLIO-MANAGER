@@ -12,6 +12,17 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
+// Single-instance guard: if the trigger script's health-check briefly reports the backend as down
+// (slow startup) and starts a redundant process, that second instance must fail fast rather than
+// running two Portfolio Manager backends side by side. Named Mutex is belt-and-suspenders with
+// Kestrel's own port-bind exclusivity. Only ever exits the process — never blocks or throws.
+var singleInstanceMutex = new Mutex(true, "Global\\PortfolioManagerApi_SingleInstance", out var isFirstInstance);
+if (!isFirstInstance)
+{
+    Console.WriteLine("Another PortfolioManager.Api instance is already running — exiting.");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Controllers + Swagger ────────────────────────────────────────────────────
@@ -224,6 +235,25 @@ builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>(
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
 
+// ── EOD Automation Pipeline ──────────────────────────────────────────────────
+// Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window
+// and ValueScreenerScheduleConfig's schedule (business-time rules); this is machine availability only.
+builder.Services.AddSingleton<AutomationRuntimeConfig>(_ =>
+{
+    var cfg = new AutomationRuntimeConfig();
+    cfg.LoadFromFile();
+    return cfg;
+});
+builder.Services.AddSingleton<ISystemAwakeService, SystemAwakeService>();
+#pragma warning disable CA1416 // DPAPI/AutomationSecretStore is Windows-only by design (this app runs on Windows only)
+builder.Services.AddSingleton<IAutomationSecretStore, AutomationSecretStore>();
+#pragma warning restore CA1416
+builder.Services.AddScoped<ITradingSessionGuard, TradingSessionGuard>();
+builder.Services.AddScoped<IEodAutomationOrchestratorService, EodAutomationOrchestratorService>();
+// Singleton: enforces single-flight execution + runs the orchestrator in its own DI scope,
+// decoupled from any HTTP request's lifetime.
+builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinator>();
+
 var app = builder.Build();
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
@@ -268,6 +298,10 @@ app.UseCors("AngularDevPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Trivial, unauthenticated liveness probe — used only by the local automation trigger script to
+// know when it's safe to POST /api/automation/trigger after starting a detached backend process.
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
 
