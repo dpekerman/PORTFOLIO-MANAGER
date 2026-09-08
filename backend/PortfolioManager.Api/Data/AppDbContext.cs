@@ -31,6 +31,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
     public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
     public DbSet<CashLedgerSettings> CashLedgerSettings => Set<CashLedgerSettings>();
+    public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -382,6 +383,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.RsiAtEntry).HasColumnType("decimal(7,4)");
             entity.Property(e => e.ValueScoreAtEntry).HasColumnType("decimal(7,2)");
             entity.HasIndex(e => e.TransactionId);
+        });
+
+        modelBuilder.Entity<AutomationRunLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TradingDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TriggerType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.OverallStatus).IsRequired().HasMaxLength(30).HasDefaultValue("Running");
+            entity.Property(e => e.OwnerUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.RefreshStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.RsiStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.SnapshotStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.SnapshotSource).HasMaxLength(30);
+            entity.Property(e => e.ValueScreenerStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.ErrorStep).HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
+            entity.Property(e => e.MachineName).HasMaxLength(100).HasDefaultValue("");
+            entity.HasIndex(e => e.RunId).IsUnique();
+            entity.HasIndex(e => e.TradingDate);
         });
     }
 }

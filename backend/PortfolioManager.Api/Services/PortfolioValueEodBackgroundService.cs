@@ -103,6 +103,16 @@ public sealed class PortfolioValueEodBackgroundService(
         var marketData = scope.ServiceProvider.GetRequiredService<IMarketDataProvider>();
         var cashLedger = scope.ServiceProvider.GetRequiredService<ICashLedgerQueryService>();
 
+        // Market holiday guard: a weekday with no actual trading session (e.g. Thanksgiving,
+        // Christmas) would otherwise pass the DayOfWeek check above and record a snapshot
+        // mislabeled with today's date using stale last-traded quotes.
+        var tradingSessionGuard = scope.ServiceProvider.GetRequiredService<ITradingSessionGuard>();
+        if (!await tradingSessionGuard.IsTodayATradingDayAsync(ct))
+        {
+            logger.LogInformation("[PortfolioValueEod] Skipping {Date} — not a trading day (market holiday).", recordedDate);
+            return;
+        }
+
         if (await history.ExistsForDateAsync(recordedDate, ct))
         {
             logger.LogDebug("[PortfolioValueEod] Already persisted for {Date}.", recordedDate);

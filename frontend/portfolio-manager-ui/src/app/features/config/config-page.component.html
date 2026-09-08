@@ -123,6 +123,15 @@
       <button
         class="cfg-tab-btn"
         role="tab"
+        [attr.aria-selected]="activeSection() === 'automation'"
+        [class.cfg-tab-btn--active]="activeSection() === 'automation'"
+        (click)="setSection('automation')"
+      >
+        <mat-icon>bolt</mat-icon><span class="cfg-tab-label">Automation</span>
+      </button>
+      <button
+        class="cfg-tab-btn"
+        role="tab"
         [attr.aria-selected]="activeSection() === 'users'"
         [class.cfg-tab-btn--active]="activeSection() === 'users'"
         (click)="setSection('users')"
@@ -594,6 +603,621 @@
     </div>
   </div>
   <!-- /cfg-panel screener -->
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SECTION 3B — AUTOMATION (machine wake/keep-awake availability window)
+       ════════════════════════════════════════════════════════════════════ -->
+  <div class="cfg-panel" [class.cfg-panel--active]="activeSection() === 'automation'">
+    <div class="config-section">
+      <div class="section-header">
+        <mat-icon>bolt</mat-icon>
+        <div class="section-header-text">
+          <h2 class="section-title">EOD Automation</h2>
+          <p class="section-subtitle">
+            Wakes this computer and refreshes market data so the existing RSI/EOD Signal and
+            Portfolio Snapshot pipelines can run unattended · Separate from the EOD Window / Value
+            Screener business-time rules below (informational, read-only here)
+          </p>
+        </div>
+      </div>
+
+      <div class="section-body">
+        @if (automationState.runInFlight()) {
+          <div class="automation-running-banner">
+            <mat-icon class="automation-running-icon">autorenew</mat-icon>
+            <div class="automation-running-text">
+              <span class="automation-running-title">
+                Automation is running{{
+                  automationState.lastRun()?.triggerType
+                    ? ' — ' + automationState.lastRun()?.triggerType
+                    : ''
+                }}…
+              </span>
+              <span class="automation-running-detail">
+                Refresh: {{ automationState.lastRun()?.refreshStatus || 'pending' }} · RSI:
+                {{ automationState.lastRun()?.rsiStatus || 'pending' }} · Snapshot:
+                {{ automationState.lastRun()?.snapshotStatus || 'pending' }} · Value Screener:
+                {{ automationState.lastRun()?.valueScreenerStatus || 'pending' }}
+              </span>
+            </div>
+            <button
+              mat-stroked-button
+              type="button"
+              color="warn"
+              (click)="cancelAutomationRun()"
+              [disabled]="automationState.cancelling()"
+              matTooltip="Stops the in-progress run; steps already completed are not undone"
+            >
+              <mat-icon [class.spinning]="automationState.cancelling()">{{
+                automationState.cancelling() ? 'sync' : 'stop_circle'
+              }}</mat-icon>
+              {{ automationState.cancelling() ? 'Stopping…' : 'Stop' }}
+            </button>
+          </div>
+        }
+
+        <div class="eod-info-banner">
+          <mat-icon class="eod-info-icon">info_outline</mat-icon>
+          <span>
+            Automation does not re-implement RSI scanning, signal persistence, or snapshot recording
+            — it only ensures the app is awake and running, refreshes live market data once, then
+            observes the existing background services and records the outcome here. Cash,
+            transactions, holdings and roles are never touched.
+          </span>
+        </div>
+
+        <!-- Windows Scheduled Task status -->
+        <div class="eod-toggle-row">
+          @if (automationState.loadingTaskStatus()) {
+            <span class="section-footer-hint">Checking Windows Scheduled Task…</span>
+          } @else if (automationState.taskStatus()?.exists) {
+            <span class="section-header-badge">
+              <mat-icon class="eod-active-icon-sm">fiber_manual_record</mat-icon>
+              Task installed — {{ automationState.taskStatus()?.state }}
+            </span>
+            <span class="eod-toggle-hint">
+              Next run:
+              {{
+                automationState.taskStatus()?.nextRunTime
+                  ? (automationState.taskStatus()?.nextRunTime | date: 'EEE MMM d, h:mm a')
+                  : 'unknown'
+              }}
+            </span>
+          } @else {
+            <span class="eod-toggle-hint">Windows Scheduled Task not installed yet.</span>
+          }
+          <button
+            mat-stroked-button
+            type="button"
+            (click)="enableAutomation()"
+            [disabled]="automationState.settingUp()"
+            matTooltip="Registers/updates the Wake-enabled Scheduled Task — triggers one Windows UAC prompt"
+          >
+            <mat-icon [class.spinning]="automationState.settingUp()">{{
+              automationState.settingUp() ? 'sync' : 'security'
+            }}</mat-icon>
+            {{
+              automationState.taskStatus()?.exists
+                ? automationState.settingUp()
+                  ? 'Repairing…'
+                  : 'Repair Automation'
+                : automationState.settingUp()
+                  ? 'Enabling…'
+                  : 'Enable Automation'
+            }}
+          </button>
+        </div>
+
+        <!-- Timezone diagnostics — display-only, but also verifies the underlying Scheduled Task
+             trigger itself (not just the UI) still matches Eastern Time, wherever Windows currently
+             thinks its local timezone is. Check this before relying on an unattended wake test. -->
+        @if (automationState.timezoneDiagnostics(); as tz) {
+          <div class="automation-tz-panel">
+            <div class="sub-card-header">
+              <mat-icon>public</mat-icon>
+              <span class="sub-card-title">Timezone Diagnostics</span>
+              <button
+                mat-icon-button
+                type="button"
+                (click)="automationState.loadTimezoneDiagnostics()"
+                [disabled]="automationState.loadingTimezoneDiagnostics()"
+                matTooltip="Refresh"
+                style="margin-left: auto"
+              >
+                <mat-icon [class.spinning]="automationState.loadingTimezoneDiagnostics()"
+                  >refresh</mat-icon
+                >
+              </button>
+            </div>
+            <div class="automation-tz-rows">
+              <div class="automation-tz-row">
+                <span class="automation-tz-label">Business timezone</span>
+                <span class="automation-tz-value">{{ tz.businessTimeZoneLabel }}</span>
+              </div>
+              <div class="automation-tz-row">
+                <span class="automation-tz-label">Windows local timezone</span>
+                <span class="automation-tz-value">{{ tz.windowsLocalTimeZoneLabel }}</span>
+              </div>
+              <div class="automation-tz-row">
+                <span class="automation-tz-label">Wake / start time</span>
+                <span class="automation-tz-value"
+                  >{{ tz.wakeTimeEtDisplay }} ({{ tz.wakeTimeLocalDisplay }})</span
+                >
+              </div>
+              <div class="automation-tz-row">
+                <span class="automation-tz-label">Next scheduled run (Task Scheduler)</span>
+                <span class="automation-tz-value">
+                  @if (tz.taskExists && tz.taskNextRunEtDisplay) {
+                    {{ tz.taskNextRunEtDisplay }} ({{ tz.taskNextRunLocalDisplay }})
+                  } @else {
+                    — (task not installed)
+                  }
+                </span>
+              </div>
+              <div class="automation-tz-row">
+                <span class="automation-tz-label"
+                  >Expected next run (from Eastern Time config)</span
+                >
+                <span class="automation-tz-value">{{ tz.expectedNextRunEtDisplay }}</span>
+              </div>
+              <div class="automation-tz-row">
+                <span class="automation-tz-label">Underlying task verified correct</span>
+                <span class="automation-tz-value">
+                  @if (tz.taskMatchesExpected === true) {
+                    <span class="status-badge--success section-header-badge">
+                      <mat-icon class="eod-active-icon-sm">check_circle</mat-icon> Matches — the
+                      Scheduled Task itself is anchored to Eastern Time
+                    </span>
+                  } @else if (tz.taskMatchesExpected === false) {
+                    <span class="status-badge--failed section-header-badge">
+                      <mat-icon class="eod-active-icon-sm">error</mat-icon> Drift detected (~{{
+                        tz.driftMinutes | number: '1.0-0'
+                      }}
+                      min)
+                    </span>
+                  } @else {
+                    — (task not installed, nothing to verify yet)
+                  }
+                </span>
+              </div>
+            </div>
+            @if (tz.warning) {
+              <div class="eod-info-banner" style="margin: 0 16px 14px">
+                <mat-icon class="eod-info-icon">warning</mat-icon>
+                <span>{{ tz.warning }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <form
+          [formGroup]="automationForm"
+          (ngSubmit)="saveAutomationSettings()"
+          id="automation-form"
+        >
+          <div class="eod-toggle-row">
+            <mat-slide-toggle formControlName="enabled" color="accent">
+              Automation enabled
+            </mat-slide-toggle>
+            <span class="eod-toggle-hint">
+              Controls whether /api/automation/trigger will actually run automation when the
+              Scheduled Task fires (the task itself is managed separately above).
+            </span>
+          </div>
+
+          <div class="eod-info-banner">
+            <mat-icon class="eod-info-icon">schedule</mat-icon>
+            <span>
+              Active window: the machine wakes and stays awake from
+              <strong>{{ automationForm.value.wakeTimeEt | date: 'h:mm a' }}</strong> until
+              <strong>{{
+                automationForm.value.keepAwakeUntilEtOverride
+                  ? (automationForm.value.keepAwakeUntilEtOverride | date: 'h:mm a')
+                  : automationState.settings()?.computedKeepAwakeUntilEt
+              }}</strong>
+              ET, capped at
+              <strong>{{ automationForm.value.maxPollMinutes }} minutes</strong> after wake —
+              whichever comes first.
+            </span>
+          </div>
+
+          <div class="eod-time-row">
+            <mat-timepicker #wakePicker interval="15m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Wake / start time (ET)</mat-label>
+              <input matInput [matTimepicker]="wakePicker" formControlName="wakeTimeEt" />
+              <mat-timepicker-toggle matSuffix [for]="wakePicker"></mat-timepicker-toggle>
+              <mat-hint>Eastern Time · 15-min steps · when the Scheduled Task fires</mat-hint>
+              @if (automationForm.controls.wakeTimeEt?.errors?.['required']) {
+                <mat-error>Required</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-timepicker #keepAwakePicker interval="15m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Keep-awake-until override (ET, optional)</mat-label>
+              <input
+                matInput
+                [matTimepicker]="keepAwakePicker"
+                formControlName="keepAwakeUntilEtOverride"
+              />
+              @if (automationForm.value.keepAwakeUntilEtOverride) {
+                <button
+                  matSuffix
+                  mat-icon-button
+                  type="button"
+                  (click)="clearKeepAwakeOverride()"
+                  matTooltip="Clear override"
+                >
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+              <mat-timepicker-toggle matSuffix [for]="keepAwakePicker"></mat-timepicker-toggle>
+              <mat-hint>
+                Eastern Time · 15-min steps · leave blank to use the computed default:
+                {{ automationState.settings()?.computedKeepAwakeUntilEt }}
+              </mat-hint>
+            </mat-form-field>
+          </div>
+
+          <div class="eod-time-row">
+            <mat-form-field appearance="outline">
+              <mat-label>Completion grace (minutes)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="completionGraceMinutes"
+                min="0"
+                max="120"
+              />
+              <mat-hint>Added after max(EOD Window End, Value Screener time). Default: 15</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Max poll minutes</mat-label>
+              <input matInput type="number" formControlName="maxPollMinutes" min="5" max="360" />
+              <mat-hint
+                >Safety cap so a manual run fired hours early finalizes quickly. Default:
+                90</mat-hint
+              >
+            </mat-form-field>
+          </div>
+        </form>
+
+        <!-- Read-only business-time rules (managed on their own tabs) -->
+        <div class="eod-info-banner">
+          <mat-icon class="eod-info-icon">schedule</mat-icon>
+          <span>
+            <strong>RSI EOD Window:</strong>
+            {{ automationState.settings()?.eodWindowStartEt }}–{{
+              automationState.settings()?.eodWindowEndEt
+            }}
+            ET ({{ automationState.settings()?.eodWindowEnabled ? 'enabled' : 'disabled' }}) —
+            managed on the EOD Window tab ·
+            <strong>Value Screener:</strong>
+            {{ automationState.settings()?.valueScreenerScheduledTimeEt }} ET ({{
+              automationState.settings()?.valueScreenerEnabled ? 'enabled' : 'disabled'
+            }}) — managed on the Value Screener tab
+          </span>
+        </div>
+
+        <!-- Plain-English step-by-step of exactly what the engine does, in order -->
+        <div class="eod-info-banner">
+          <mat-icon class="eod-info-icon">list_alt</mat-icon>
+          <div>
+            <strong>What happens automatically, in order:</strong>
+            <ol class="automation-steps-list">
+              <li>
+                Windows wakes the machine (or the task fires immediately if already awake) at the
+                <strong>Wake / start time</strong> above.
+              </li>
+              <li>
+                The Scheduled Task starts the backend if it isn't already running, then triggers
+                automation.
+              </li>
+              <li>
+                Automation confirms today is a real trading day — weekends/market holidays are
+                skipped automatically (<span class="eod-inline-badge">SkippedNonTradingDay</span>).
+              </li>
+              <li>It acquires a keep-awake lock so the machine cannot fall back asleep mid-run.</li>
+              <li>
+                It refreshes live market data once (prices for your portfolio + watchlist symbols).
+              </li>
+              <li>
+                It watches — without duplicating — the existing RSI/EOD Signal scan, Portfolio
+                Snapshot job, and Value Screener, recording each one's real outcome below as they
+                happen (checked every 60s).
+              </li>
+              <li>
+                It stops watching at <strong>Keep-awake-until</strong> (or
+                <strong>Max poll minutes</strong> after wake, whichever comes first) and releases
+                the keep-awake lock so the machine can sleep again.
+              </li>
+            </ol>
+          </div>
+        </div>
+
+        <!-- Last run: detailed step timeline -->
+        @if (automationState.lastRun(); as run) {
+          <div class="automation-run-detail">
+            <div class="eod-toggle-row">
+              <span [class]="'section-header-badge ' + automationStatusClass(run.overallStatus)">
+                Last run: {{ run.overallStatus }}
+              </span>
+              <span class="eod-toggle-hint">
+                {{ run.tradingDate }} · {{ run.triggerType }} · {{ run.machineName }}
+              </span>
+            </div>
+
+            <div class="automation-steps">
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">power</mat-icon>
+                <span>
+                  Keep-awake lock acquired:
+                  {{
+                    run.powerRequestAcquiredAtUtc
+                      ? (run.powerRequestAcquiredAtUtc | date: 'h:mm:ss a')
+                      : 'pending'
+                  }}
+                </span>
+              </div>
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">sync</mat-icon>
+                <span>
+                  Market data refresh: <strong>{{ run.refreshStatus || 'pending' }}</strong>
+                  @if (run.refreshCompletedAtUtc) {
+                    ({{ run.refreshStartedAtUtc | date: 'h:mm a' }} –
+                    {{ run.refreshCompletedAtUtc | date: 'h:mm a' }} ·
+                    {{ run.portfolioSymbolCount }} portfolio + {{ run.watchlistSymbolCount }}
+                    watchlist symbols)
+                  }
+                </span>
+              </div>
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">query_stats</mat-icon>
+                <span>
+                  RSI / EOD Signals: <strong>{{ run.rsiStatus || 'pending' }}</strong>
+                  @if (run.rsiCompletedAtUtc) {
+                    (observed {{ run.rsiCompletedAtUtc | date: 'h:mm a' }} ·
+                    {{ run.eodSignalsPersistedCount }} signals persisted today)
+                  }
+                </span>
+              </div>
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">photo_camera</mat-icon>
+                <span>
+                  Portfolio Snapshot: <strong>{{ run.snapshotStatus || 'pending' }}</strong>
+                  @if (run.snapshotCompletedAtUtc) {
+                    (observed {{ run.snapshotCompletedAtUtc | date: 'h:mm a' }}
+                    {{ run.snapshotSource ? '· source: ' + run.snapshotSource : '' }})
+                  }
+                </span>
+              </div>
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">insights</mat-icon>
+                <span>
+                  Value Screener (informational):
+                  <strong>{{ run.valueScreenerStatus || 'pending' }}</strong>
+                  @if (run.valueScreenerLastRunAtUtc) {
+                    (last run {{ run.valueScreenerLastRunAtUtc | date: 'h:mm a' }})
+                  }
+                </span>
+              </div>
+              <div class="automation-step">
+                <mat-icon class="automation-step-icon">bedtime</mat-icon>
+                <span>
+                  Keep-awake lock released:
+                  {{
+                    run.powerRequestReleasedAtUtc
+                      ? (run.powerRequestReleasedAtUtc | date: 'h:mm:ss a')
+                      : 'pending'
+                  }}
+                  @if (run.completedAtUtc) {
+                    · Completed {{ run.completedAtUtc | date: 'h:mm:ss a' }}
+                  }
+                </span>
+              </div>
+              @if (run.errorMessage) {
+                <div class="automation-step automation-step--error">
+                  <mat-icon class="automation-step-icon">error_outline</mat-icon>
+                  <span>Error @ {{ run.errorStep }}: {{ run.errorMessage }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Recent runs history — so past days can be reviewed after being away -->
+        @if (automationState.history().length > 0) {
+          <div class="automation-history">
+            <div class="sub-card-header">
+              <mat-icon>history</mat-icon>
+              <span class="sub-card-title"
+                >Recent runs ({{ filteredSortedAutomationHistory().length }} of
+                {{ automationState.history().length }})</span
+              >
+              <mat-form-field
+                appearance="outline"
+                subscriptSizing="dynamic"
+                class="automation-history-filter"
+              >
+                <mat-icon matPrefix>search</mat-icon>
+                <input
+                  matInput
+                  placeholder="Filter by status, date, trigger or error…"
+                  [ngModel]="automationHistoryFilter()"
+                  (ngModelChange)="automationHistoryFilter.set($event)"
+                  autocomplete="off"
+                />
+                @if (automationHistoryFilter()) {
+                  <button
+                    matSuffix
+                    mat-icon-button
+                    type="button"
+                    (click)="automationHistoryFilter.set('')"
+                    matTooltip="Clear filter"
+                  >
+                    <mat-icon>close</mat-icon>
+                  </button>
+                }
+              </mat-form-field>
+              <button
+                mat-stroked-button
+                type="button"
+                color="warn"
+                (click)="clearAutomationHistory()"
+                [disabled]="automationState.clearingHistory()"
+                matTooltip="Permanently deletes all recorded run history (this audit log only — never portfolio/cash data)"
+              >
+                <mat-icon [class.spinning]="automationState.clearingHistory()">{{
+                  automationState.clearingHistory() ? 'sync' : 'delete_sweep'
+                }}</mat-icon>
+                {{ automationState.clearingHistory() ? 'Clearing…' : 'Clear History' }}
+              </button>
+            </div>
+
+            <table
+              mat-table
+              [dataSource]="filteredSortedAutomationHistory()"
+              matSort
+              [matSortActive]="automationHistorySortCol()"
+              [matSortDirection]="automationHistorySortDir()"
+              (matSortChange)="onAutomationHistorySortChange($event)"
+              class="automation-history-table"
+            >
+              <ng-container matColumnDef="overallStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+                <td mat-cell *matCellDef="let run">
+                  <span
+                    [class]="'section-header-badge ' + automationStatusClass(run.overallStatus)"
+                  >
+                    {{ run.overallStatus }}
+                  </span>
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="tradingDate">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Trading Date</th>
+                <td mat-cell *matCellDef="let run">{{ run.tradingDate }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="triggerType">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Trigger</th>
+                <td mat-cell *matCellDef="let run">{{ run.triggerType }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="refreshStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Refresh</th>
+                <td mat-cell *matCellDef="let run">{{ run.refreshStatus || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="rsiStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>RSI</th>
+                <td mat-cell *matCellDef="let run">{{ run.rsiStatus || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="snapshotStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Snapshot</th>
+                <td mat-cell *matCellDef="let run">{{ run.snapshotStatus || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="valueScreenerStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Value Screener</th>
+                <td mat-cell *matCellDef="let run">{{ run.valueScreenerStatus || '—' }}</td>
+              </ng-container>
+
+              <ng-container matColumnDef="actualStartUtc">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Started</th>
+                <td mat-cell *matCellDef="let run">
+                  {{ run.actualStartUtc | date: 'MMM d, h:mm a' }}
+                </td>
+              </ng-container>
+
+              <ng-container matColumnDef="errorMessage">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header>Error</th>
+                <td mat-cell *matCellDef="let run">
+                  @if (run.errorMessage) {
+                    <span class="automation-history-error"
+                      >{{ run.errorStep }}: {{ run.errorMessage }}</span
+                    >
+                  } @else {
+                    —
+                  }
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="automationHistoryColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: automationHistoryColumns"></tr>
+            </table>
+
+            @if (filteredSortedAutomationHistory().length === 0) {
+              <p class="section-footer-hint" style="padding: 12px 16px">
+                No runs match "{{ automationHistoryFilter() }}".
+              </p>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="section-footer">
+        <span class="section-footer-hint">
+          Secret configured: {{ automationState.settings()?.secretConfigured ? 'yes' : 'no' }}
+        </span>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="rotateAutomationSecret()"
+          [disabled]="automationState.rotatingSecret()"
+          matTooltip="Regenerates the local DPAPI-protected trigger secret — never leaves this machine"
+        >
+          <mat-icon [class.spinning]="automationState.rotatingSecret()">{{
+            automationState.rotatingSecret() ? 'sync' : 'key'
+          }}</mat-icon>
+          {{ automationState.rotatingSecret() ? 'Rotating…' : 'Rotate Secret' }}
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="testAutomationWake()"
+          [disabled]="automationState.runInFlight()"
+          matTooltip="Infra-only check: keep-awake, DB connectivity, network — never persists RSI/signals/snapshot/cash/transactions"
+        >
+          <mat-icon [class.spinning]="automationState.runInFlight()">{{
+            automationState.runInFlight() ? 'sync' : 'health_and_safety'
+          }}</mat-icon>
+          Test Wake
+        </button>
+        <button
+          mat-flat-button
+          type="submit"
+          form="automation-form"
+          color="accent"
+          [disabled]="
+            automationForm.invalid || automationForm.pristine || automationState.savingSettings()
+          "
+        >
+          <mat-icon [class.spinning]="automationState.savingSettings()">{{
+            automationState.savingSettings() ? 'sync' : 'save'
+          }}</mat-icon>
+          {{ automationState.savingSettings() ? 'Saving…' : 'Save Automation Settings' }}
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          color="warn"
+          (click)="runAutomationNow()"
+          [disabled]="automationState.runInFlight()"
+          matTooltip="Runs the production automation pipeline now — respects all existing business-time gates, does not bypass RSI/EOD/snapshot timing"
+        >
+          <mat-icon [class.spinning]="automationState.runInFlight()">{{
+            automationState.runInFlight() ? 'sync' : 'play_arrow'
+          }}</mat-icon>
+          {{ automationState.runInFlight() ? 'Running…' : 'Run Automation Now' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- /cfg-panel automation -->
 
   <!-- ════════════════════════════════════════════════════════════════════
        SECTION 4 — RSI SIGNAL ALERT RECIPIENTS
