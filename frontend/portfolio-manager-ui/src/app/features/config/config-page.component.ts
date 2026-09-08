@@ -4,6 +4,7 @@ import {
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -38,6 +39,7 @@ import {
   UserInfo,
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
+import { AutomationStateService } from '../../core/services/automation-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import { DemoModeService, DemoStyle } from '../../core/services/demo-mode.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
@@ -74,6 +76,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
   private readonly scannerState = inject(ScannerStateService);
+  protected readonly automationState = inject(AutomationStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -184,6 +187,45 @@ export class ConfigPageComponent implements OnInit {
     if (section === 'demo') {
       this.initPendingDemo();
     }
+    if (section === 'automation') {
+      this.loadAutomationTab();
+    }
+  }
+
+  private loadAutomationTab(): void {
+    this.automationState.loadSettings();
+    this.automationState.loadLastRun();
+    this.automationState.loadHistory();
+    this.automationState.loadTaskStatus();
+  }
+
+  saveAutomationSettings(): void {
+    if (this.automationForm.invalid) return;
+    const v = this.automationForm.value;
+    this.automationState.saveSettings({
+      enabled: v.enabled ?? false,
+      wakeTimeEt: v.wakeTimeEt ?? '15:15',
+      keepAwakeUntilEtOverride: v.keepAwakeUntilEtOverride?.trim() ? v.keepAwakeUntilEtOverride : null,
+      completionGraceMinutes: v.completionGraceMinutes ?? 15,
+      maxPollMinutes: v.maxPollMinutes ?? 90,
+    });
+    this.automationForm.markAsPristine();
+  }
+
+  runAutomationNow(): void {
+    this.automationState.runNow();
+  }
+
+  testAutomationWake(): void {
+    this.automationState.testWake();
+  }
+
+  enableAutomation(): void {
+    this.automationState.setup();
+  }
+
+  rotateAutomationSecret(): void {
+    this.automationState.rotateSecret();
   }
 
   // ── Value Screener Schedule form ─────────────────────────────────────────
@@ -193,6 +235,17 @@ export class ConfigPageComponent implements OnInit {
     vsScheduleEnabled: [true],
   });
   protected readonly savingVsSchedule = signal(false);
+
+  // ── Automation (machine wake/keep-awake) form ────────────────────────────
+  // Deliberately separate from eodForm/vsForm — wake/keep-awake times are machine-availability
+  // settings, not business-time rules; EOD Window/Value Screener config is echoed read-only.
+  protected readonly automationForm = this.fb.group({
+    enabled: [false],
+    wakeTimeEt: ['15:15', [Validators.required, Validators.pattern(/^([01]\d|2[0-3]):[0-5]\d$/)]],
+    keepAwakeUntilEtOverride: [''],
+    completionGraceMinutes: [15, [Validators.required, Validators.min(0), Validators.max(120)]],
+    maxPollMinutes: [90, [Validators.required, Validators.min(5), Validators.max(360)]],
+  });
 
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
@@ -465,6 +518,21 @@ export class ConfigPageComponent implements OnInit {
         this.savingAllocation.set(false);
         this.snackBar.open('Failed to save allocation settings.', 'Dismiss', { duration: 4000 });
       },
+    });
+  }
+
+  constructor() {
+    effect(() => {
+      const s = this.automationState.settings();
+      if (s && this.automationForm.pristine) {
+        this.automationForm.setValue({
+          enabled: s.enabled,
+          wakeTimeEt: s.wakeTimeEt,
+          keepAwakeUntilEtOverride: s.keepAwakeUntilEtOverride ?? '',
+          completionGraceMinutes: s.completionGraceMinutes,
+          maxPollMinutes: s.maxPollMinutes,
+        });
+      }
     });
   }
 

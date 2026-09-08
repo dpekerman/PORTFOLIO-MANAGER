@@ -794,6 +794,79 @@ export interface SetupRequiredResponse {
   required: boolean;
 }
 
+// ── EOD Automation Pipeline ──────────────────────────────────────────────────
+export type AutomationOverallStatus =
+  | 'Running'
+  | 'Success'
+  | 'PartialSuccess'
+  | 'Failed'
+  | 'SkippedNonTradingDay';
+export type AutomationStepStatus = '' | 'Succeeded' | 'Failed' | 'NotEligible' | 'NotScheduled' | 'NotObserved';
+export type AutomationTriggerType = 'Scheduled' | 'ManualRunNow' | 'TestWake';
+
+export interface AutomationRunLogDto {
+  runId: string;
+  tradingDate: string;
+  triggerType: AutomationTriggerType | string;
+  scheduledStartUtc: string | null;
+  actualStartUtc: string;
+  completedAtUtc: string | null;
+  overallStatus: AutomationOverallStatus | string;
+  refreshStatus: AutomationStepStatus | string;
+  refreshStartedAtUtc: string | null;
+  refreshCompletedAtUtc: string | null;
+  portfolioSymbolCount: number;
+  watchlistSymbolCount: number;
+  rsiStatus: AutomationStepStatus | string;
+  rsiCompletedAtUtc: string | null;
+  eodSignalsPersistedCount: number;
+  snapshotStatus: AutomationStepStatus | string;
+  snapshotCompletedAtUtc: string | null;
+  snapshotSource: string | null;
+  valueScreenerStatus: AutomationStepStatus | string;
+  valueScreenerLastRunAtUtc: string | null;
+  powerRequestAcquiredAtUtc: string | null;
+  powerRequestReleasedAtUtc: string | null;
+  errorStep: string | null;
+  errorMessage: string | null;
+  machineName: string;
+}
+
+export interface AutomationSettingsDto {
+  enabled: boolean;
+  wakeTimeEt: string;
+  keepAwakeUntilEtOverride: string | null;
+  computedKeepAwakeUntilEt: string;
+  completionGraceMinutes: number;
+  maxPollMinutes: number;
+  eodWindowStartEt: string;
+  eodWindowEndEt: string;
+  eodWindowEnabled: boolean;
+  valueScreenerScheduledTimeEt: string;
+  valueScreenerEnabled: boolean;
+  secretConfigured: boolean;
+}
+
+export interface UpdateAutomationSettingsRequest {
+  enabled: boolean;
+  wakeTimeEt: string;
+  keepAwakeUntilEtOverride: string | null;
+  completionGraceMinutes: number;
+  maxPollMinutes: number;
+}
+
+export interface AutomationTaskStatusDto {
+  exists: boolean;
+  state: string | null;
+  nextRunTime: string | null;
+  lastRunTime: string | null;
+  lastTaskResult: number | null;
+}
+
+export interface AutomationTriggerResponseDto {
+  runId: string;
+}
+
 export interface MarketIndicesResponse {
   indices: MarketIndexDto[];
   fetchedAt: string;
