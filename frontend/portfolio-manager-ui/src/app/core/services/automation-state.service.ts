@@ -6,6 +6,8 @@ import {
   AutomationSettingsDto,
   AutomationTaskStatusDto,
   AutomationTimezoneDiagnosticsDto,
+  DatabaseBackupResultDto,
+  MissedDataRecoveryResultDto,
   UpdateAutomationSettingsRequest,
 } from '../models/portfolio.models';
 import { AutomationApiService } from './automation-api.service';
@@ -33,6 +35,10 @@ export class AutomationStateService {
   readonly rotatingSecret = signal(false);
   readonly cancelling = signal(false);
   readonly clearingHistory = signal(false);
+  readonly recovering = signal(false);
+  readonly recoveryResult = signal<MissedDataRecoveryResultDto | null>(null);
+  readonly backingUp = signal(false);
+  readonly backupResult = signal<DatabaseBackupResultDto | null>(null);
   readonly error = signal<string | null>(null);
 
   private pollSub: Subscription | null = null;
@@ -201,6 +207,40 @@ export class AutomationStateService {
       error: () => {
         this.error.set('Setup failed — UAC prompt may have been declined');
         this.settingUp.set(false);
+      },
+    });
+  }
+
+  /** "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today. Safe to
+   * click any number of times: every underlying write is upsert/dedupe-by-day. */
+  recoverMissedData(): void {
+    this.recovering.set(true);
+    this.recoveryResult.set(null);
+    this.api.recoverMissedData().subscribe({
+      next: (r) => {
+        this.recoveryResult.set(r);
+        this.recovering.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Failed to fix missing data');
+        this.recovering.set(false);
+      },
+    });
+  }
+
+  /** On-demand full database backup. If today's scheduled backup already ran, a new timestamped
+   * file is added alongside it rather than being skipped. */
+  backupNow(): void {
+    this.backingUp.set(true);
+    this.backupResult.set(null);
+    this.api.backupNow().subscribe({
+      next: (r) => {
+        this.backupResult.set(r);
+        this.backingUp.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.error?.message ?? 'Failed to back up the database');
+        this.backingUp.set(false);
       },
     });
   }

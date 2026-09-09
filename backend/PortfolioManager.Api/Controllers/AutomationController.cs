@@ -19,6 +19,8 @@ public class AutomationController(
     AutomationRuntimeConfig automationConfig,
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
+    IMissedDataRecoveryService missedDataRecovery,
+    IDatabaseBackupService databaseBackup,
     IConfiguration configuration,
     ILogger<AutomationController> logger) : ControllerBase
 {
@@ -81,6 +83,29 @@ public class AutomationController(
         // Never calls RefreshAllAsync, never touches RSI/signals/snapshot/cash/transactions.
         var runId = coordinator.StartTestWake();
         return Accepted(new AutomationTriggerResponseDto(runId));
+    }
+
+    // "Fix Missing Data" — one-click recovery for a day the scheduled automation failed to run.
+    // Runs synchronously (not via the run-coordinator/AutomationRunLog poll pattern above): each
+    // step is already a fast, existing, individually-idempotent write (see
+    // MissedDataRecoveryService), so a single request/response round-trip is sufficient.
+    [Authorize(Roles = "Admin")]
+    [HttpPost("recover-missed-data")]
+    public async Task<ActionResult<MissedDataRecoveryResult>> RecoverMissedData(CancellationToken ct)
+    {
+        var result = await missedDataRecovery.RecoverTodayAsync(ct);
+        return result.Status == "AlreadyRunning" ? Conflict(result) : Ok(result);
+    }
+
+    // On-demand "Backup Now" — unlike the scheduled background timer, this always produces a new
+    // backup: if today's default file already exists, a new timestamped file is added alongside it
+    // instead of being skipped, so every manual click is preserved.
+    [Authorize(Roles = "Admin")]
+    [HttpPost("backup-now")]
+    public async Task<ActionResult<DatabaseBackupResult>> BackupNow(CancellationToken ct)
+    {
+        var result = await databaseBackup.RunManualBackupAsync(ct);
+        return Ok(result);
     }
 
     [Authorize(Roles = "Admin")]

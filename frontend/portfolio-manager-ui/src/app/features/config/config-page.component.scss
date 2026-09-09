@@ -476,6 +476,21 @@
   color: var(--text-secondary);
 }
 
+// "Fix Missing Data" result banner — reuses .automation-running-banner's layout but with a static
+// (non-spinning) icon, and a warn-colored variant when the recovery run itself reported a problem.
+.automation-recovery-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.automation-recovery-banner--failed {
+  background: rgba(255, 82, 82, 0.1);
+  border-color: rgba(255, 82, 82, 0.35);
+  color: #ff6e6e;
+}
+
 // Status-aware overrides for .section-header-badge, used on the Automation "Last run" chip.
 .status-badge--running {
   background: rgba(41, 121, 255, 0.15);

@@ -240,6 +240,13 @@ builder.Services.AddHostedService<RsiAlertBackgroundService>();
 builder.Services.AddScoped<IPortfolioValueHistoryService, PortfolioValueHistoryService>();
 builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
 
+// One-click "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today
+builder.Services.AddScoped<IMissedDataRecoveryService, MissedDataRecoveryService>();
+
+// Daily full SQL backup at 15:00 ET (default) into D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\DAYLY_BACKUP
+builder.Services.AddSingleton<IDatabaseBackupService, DatabaseBackupService>();
+builder.Services.AddHostedService<DatabaseBackupBackgroundService>();
+
 // Portfolio beta calculation
 builder.Services.AddScoped<IPortfolioBetaService, PortfolioBetaService>();
 

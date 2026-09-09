@@ -229,6 +229,14 @@ export class ConfigPageComponent implements OnInit {
     this.automationState.runNow();
   }
 
+  fixMissingData(): void {
+    this.automationState.recoverMissedData();
+  }
+
+  backupNow(): void {
+    this.automationState.backupNow();
+  }
+
   testAutomationWake(): void {
     this.automationState.testWake();
   }

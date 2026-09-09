@@ -7,6 +7,8 @@ import {
   AutomationTaskStatusDto,
   AutomationTimezoneDiagnosticsDto,
   AutomationTriggerResponseDto,
+  DatabaseBackupResultDto,
+  MissedDataRecoveryResultDto,
   UpdateAutomationSettingsRequest,
 } from '../models/portfolio.models';
 
@@ -74,5 +76,17 @@ export class AutomationApiService {
 
   setup(): Observable<{ started: boolean; elevated: boolean }> {
     return this.http.post<{ started: boolean; elevated: boolean }>(`${this.base}/setup`, {});
+  }
+
+  /** "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today. Safe to call
+   * any number of times; every underlying write is upsert/dedupe-by-day. */
+  recoverMissedData(): Observable<MissedDataRecoveryResultDto> {
+    return this.http.post<MissedDataRecoveryResultDto>(`${this.base}/recover-missed-data`, {});
+  }
+
+  /** On-demand full database backup. If today's scheduled backup already ran, a new timestamped
+   * file is created alongside it rather than being skipped. */
+  backupNow(): Observable<DatabaseBackupResultDto> {
+    return this.http.post<DatabaseBackupResultDto>(`${this.base}/backup-now`, {});
   }
 }

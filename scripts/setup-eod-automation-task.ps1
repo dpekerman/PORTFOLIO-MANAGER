@@ -96,8 +96,13 @@ $trigger.StartBoundary = $startBoundary
 
 # WakeToRun: allows Task Scheduler to wake a sleeping machine to run this task.
 # StartWhenAvailable: if the machine was off/asleep past the trigger time, run as soon as possible.
+# RestartCount/RestartInterval: if the trigger script exits non-zero (e.g. backend didn't become
+# healthy in time right after a sleep/wake cycle), Task Scheduler retries up to 3 more times, 5
+# minutes apart, before giving up for the day — this is what actually failed on 2026-09-08 (a
+# single failed health-check silently ended the whole day's automation with no retry).
 $settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable `
-    -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+    -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
+    -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)
 
 # "Run only when user is logged on" (round-4 decision - simplest, no stored credentials; accepted
 # tradeoff that automation won't fire if fully logged out). Uses the currently logged-in user.

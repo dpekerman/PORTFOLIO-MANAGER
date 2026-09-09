@@ -890,6 +890,27 @@ export interface AutomationTimezoneDiagnosticsDto {
   warning: string | null;
 }
 
+/** Result of a "Fix Missing Data" recovery run — see MissedDataRecoveryService (backend). */
+export interface RecoveryStepResultDto {
+  success: boolean;
+  message: string;
+}
+
+export interface MissedDataRecoveryResultDto {
+  started: boolean;
+  status: 'Completed' | 'AlreadyRunning' | string;
+  eodSignals: RecoveryStepResultDto | null;
+  snapshot: RecoveryStepResultDto | null;
+  valueScreener: RecoveryStepResultDto | null;
+}
+
+/** Result of "Backup Now" (see DatabaseBackupService — backend). */
+export interface DatabaseBackupResultDto {
+  ran: boolean;
+  filePath: string | null;
+  message: string;
+}
+
 export interface MarketIndicesResponse {
   indices: MarketIndexDto[];
   fetchedAt: string;

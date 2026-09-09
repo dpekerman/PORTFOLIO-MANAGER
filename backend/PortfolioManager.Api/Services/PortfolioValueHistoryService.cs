@@ -10,8 +10,11 @@ public interface IPortfolioValueHistoryService
     Task SaveAsync(decimal totalValue, decimal stocksValue, decimal cashValue, decimal optionsValue, string recordedDate, CancellationToken ct);
     Task<bool> ExistsForDateAsync(string recordedDate, CancellationToken ct);
     /// <summary>Calculates and persists the current portfolio value. If a record for today already exists it is overwritten
-    /// and LastRecalculatedAt is stamped (this is a genuine recompute, not a first insert).</summary>
-    Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source);
+    /// and LastRecalculatedAt is stamped (this is a genuine recompute, not a first insert).
+    /// <paramref name="tradingDateOverride"/> stamps the snapshot against an explicit trading day instead of
+    /// today's ET calendar date — required when recovering a missed day after that day has already rolled over
+    /// (e.g. clicking "Fix Missing Data" the next morning from a timezone ahead of Eastern Time).</summary>
+    Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source, DateOnly? tradingDateOverride = null);
     /// <summary>
     /// Scans the past <paramref name="lookbackDays"/> weekdays and fills any date that has no snapshot
     /// by fetching historical closing prices from Yahoo Finance. Returns the newly created records.
@@ -140,11 +143,12 @@ public sealed class PortfolioValueHistoryService(
     public async Task<bool> ExistsForDateAsync(string recordedDate, CancellationToken ct)
         => await db.PortfolioValueHistories.AnyAsync(h => h.RecordedDate == recordedDate, ct);
 
-    public async Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source)
+    public async Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source, DateOnly? tradingDateOverride = null)
     {
-        // Use ET date to match the EOD background service and dashboard logic
+        // Use ET date to match the EOD background service and dashboard logic, unless an explicit
+        // trading day was supplied (missed-day recovery).
         var tz = TryGetEasternTz();
-        var recordedDate = (tz is not null
+        var recordedDate = tradingDateOverride?.ToString("yyyy-MM-dd") ?? (tz is not null
             ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz)
             : DateTime.UtcNow).ToString("yyyy-MM-dd");
 

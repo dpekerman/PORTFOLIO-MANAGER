@@ -11,6 +11,10 @@ namespace PortfolioManager.Api.Services;
 public interface ITradingSessionGuard
 {
     Task<bool> IsTodayATradingDayAsync(CancellationToken ct = default);
+
+    /// <summary>Returns the actual date of the latest completed daily bar (Eastern Time), regardless
+    /// of what "today" currently is — safe to call from any timezone/time-of-day.</summary>
+    Task<DateOnly?> GetLatestTradingDateAsync(CancellationToken ct = default);
 }
 
 public sealed class TradingSessionGuard(
@@ -31,14 +35,18 @@ public sealed class TradingSessionGuard(
         }
         var todayEt = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz));
 
+        var latestBarDate = await GetLatestTradingDateAsync(ct);
+        return latestBarDate is null || latestBarDate == todayEt;
+    }
+
+    public async Task<DateOnly?> GetLatestTradingDateAsync(CancellationToken ct = default)
+    {
         var closes = await marketData.GetDailyClosesAsync(ReferenceSymbol, ct);
         if (closes is null || closes.Count == 0)
         {
-            logger.LogWarning("[TradingSessionGuard] No daily closes returned for {Symbol}; failing open.", ReferenceSymbol);
-            return true;
+            logger.LogWarning("[TradingSessionGuard] No daily closes returned for {Symbol}; cannot determine latest trading date.", ReferenceSymbol);
+            return null;
         }
-
-        var latestBarDate = closes[^1].Date;
-        return latestBarDate == todayEt;
+        return closes[^1].Date;
     }
 }

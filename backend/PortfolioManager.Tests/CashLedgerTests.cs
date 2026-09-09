@@ -632,7 +632,7 @@ public sealed class CashLedgerTests
         public Task<IReadOnlyList<PortfolioValueHistoryDto>> GetLatestAsync(int count, CancellationToken ct) => throw new NotImplementedException();
         public Task SaveAsync(decimal totalValue, decimal stocksValue, decimal cashValue, decimal optionsValue, string recordedDate, CancellationToken ct) => throw new NotImplementedException();
         public Task<bool> ExistsForDateAsync(string recordedDate, CancellationToken ct) => Task.FromResult(false);
-        public Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source) => throw new NotImplementedException();
+        public Task<PortfolioValueHistoryDto> RecordCurrentValueAsync(CancellationToken ct, PortfolioValueSource source, DateOnly? tradingDateOverride = null) => throw new NotImplementedException();
         public Task<IReadOnlyList<PortfolioValueHistoryDto>> BackfillMissingAsync(int lookbackDays, CancellationToken ct) => throw new NotImplementedException();
         public Task<IReadOnlyList<string>> GetMissingDatesAsync(int lookbackDays, CancellationToken ct) => throw new NotImplementedException();
         public Task RecalculateCashRangeAsync(DateOnly fromDate, CancellationToken ct) =>

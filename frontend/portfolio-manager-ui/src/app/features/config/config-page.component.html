@@ -656,6 +656,48 @@
           </div>
         }
 
+        @if (automationState.recoveryResult(); as recovery) {
+          <div
+            class="automation-running-banner automation-recovery-banner"
+            [class.automation-recovery-banner--failed]="recovery.status !== 'Completed'"
+          >
+            <mat-icon class="automation-recovery-icon">{{
+              recovery.status === 'Completed' ? 'task_alt' : 'error_outline'
+            }}</mat-icon>
+            <div class="automation-running-text">
+              <span class="automation-running-title">
+                {{
+                  recovery.status === 'AlreadyRunning'
+                    ? 'A recovery run is already in progress — try again shortly.'
+                    : 'Fix Missing Data — done'
+                }}
+              </span>
+              @if (recovery.status === 'Completed') {
+                <span class="automation-running-detail">
+                  EOD Signals: {{ recovery.eodSignals?.message }} · Snapshot:
+                  {{ recovery.snapshot?.message }} · Value Screener:
+                  {{ recovery.valueScreener?.message }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+
+        @if (automationState.backupResult(); as backup) {
+          <div
+            class="automation-running-banner automation-recovery-banner"
+            [class.automation-recovery-banner--failed]="!backup.ran"
+          >
+            <mat-icon class="automation-recovery-icon">{{
+              backup.ran ? 'task_alt' : 'info_outline'
+            }}</mat-icon>
+            <div class="automation-running-text">
+              <span class="automation-running-title">Backup Now</span>
+              <span class="automation-running-detail">{{ backup.message }}</span>
+            </div>
+          </div>
+        }
+
         <div class="eod-info-banner">
           <mat-icon class="eod-info-icon">info_outline</mat-icon>
           <span>
@@ -1213,6 +1255,32 @@
             automationState.runInFlight() ? 'sync' : 'play_arrow'
           }}</mat-icon>
           {{ automationState.runInFlight() ? 'Running…' : 'Run Automation Now' }}
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          color="primary"
+          (click)="fixMissingData()"
+          [disabled]="automationState.recovering()"
+          matTooltip="Use if today's automation failed to run (e.g. machine was asleep) — persists today's EOD Signals, Portfolio Snapshot and Value Screener in one click. Safe to click more than once; nothing is ever duplicated."
+        >
+          <mat-icon [class.spinning]="automationState.recovering()">{{
+            automationState.recovering() ? 'sync' : 'build'
+          }}</mat-icon>
+          {{ automationState.recovering() ? 'Fixing…' : 'Fix Missing Data' }}
+        </button>
+        <button
+          mat-flat-button
+          type="button"
+          color="primary"
+          (click)="backupNow()"
+          [disabled]="automationState.backingUp()"
+          matTooltip="Full on-demand SQL Server backup + a snapshot of the latest SQL scripts (create/seed), saved under a dated folder. Safe to click more than once per day — additional clicks add a new timestamped file instead of overwriting."
+        >
+          <mat-icon [class.spinning]="automationState.backingUp()">{{
+            automationState.backingUp() ? 'sync' : 'backup'
+          }}</mat-icon>
+          {{ automationState.backingUp() ? 'Backing up…' : 'Backup Now' }}
         </button>
       </div>
     </div>
