@@ -282,6 +282,7 @@ builder.Services.AddSingleton<IAutomationSecretStore, AutomationSecretStore>();
 #pragma warning restore CA1416
 builder.Services.AddScoped<ITradingSessionGuard, TradingSessionGuard>();
 builder.Services.AddScoped<IEodAutomationOrchestratorService, EodAutomationOrchestratorService>();
+builder.Services.AddScoped<IAutomationRunNotificationService, AutomationRunNotificationService>();
 // Singleton: enforces single-flight execution + runs the orchestrator in its own DI scope,
 // decoupled from any HTTP request's lifetime.
 builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinator>();

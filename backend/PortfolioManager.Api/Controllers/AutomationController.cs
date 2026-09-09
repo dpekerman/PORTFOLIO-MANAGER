@@ -20,6 +20,7 @@ public class AutomationController(
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
     IMissedDataRecoveryService missedDataRecovery,
+    IAutomationRunNotificationService automationNotifications,
     IDatabaseBackupService databaseBackup,
     IConfiguration configuration,
     ILogger<AutomationController> logger) : ControllerBase
@@ -91,10 +92,28 @@ public class AutomationController(
     // MissedDataRecoveryService), so a single request/response round-trip is sufficient.
     [Authorize(Roles = "Admin")]
     [HttpPost("recover-missed-data")]
-    public async Task<ActionResult<MissedDataRecoveryResult>> RecoverMissedData(CancellationToken ct)
+    public async Task<ActionResult<object>> RecoverMissedData(CancellationToken ct)
     {
         var result = await missedDataRecovery.RecoverTodayAsync(ct);
-        return result.Status == "AlreadyRunning" ? Conflict(result) : Ok(result);
+        var operationId = Guid.NewGuid();
+        await TrySendOperationEmailAsync(
+            operationId,
+            "Fix Missing Data",
+            result.Status,
+            $"<p><strong>EOD Signals:</strong> {Html(result.EodSignals?.Message)}</p>" +
+            $"<p><strong>Portfolio Snapshot:</strong> {Html(result.Snapshot?.Message)}</p>" +
+            $"<p><strong>Value Screener:</strong> {Html(result.ValueScreener?.Message)}</p>",
+            ct);
+        var response = new
+        {
+            operationId,
+            result.Started,
+            result.Status,
+            result.EodSignals,
+            result.Snapshot,
+            result.ValueScreener,
+        };
+        return result.Status == "AlreadyRunning" ? Conflict(response) : Ok(response);
     }
 
     // On-demand "Backup Now" — unlike the scheduled background timer, this always produces a new
@@ -102,11 +121,39 @@ public class AutomationController(
     // instead of being skipped, so every manual click is preserved.
     [Authorize(Roles = "Admin")]
     [HttpPost("backup-now")]
-    public async Task<ActionResult<DatabaseBackupResult>> BackupNow(CancellationToken ct)
+    public async Task<ActionResult<object>> BackupNow(CancellationToken ct)
     {
         var result = await databaseBackup.RunManualBackupAsync(ct);
-        return Ok(result);
+        var operationId = Guid.NewGuid();
+        await TrySendOperationEmailAsync(
+            operationId,
+            "Backup Now",
+            result.Ran ? "Completed" : "Skipped",
+            $"<p><strong>Backup created:</strong> {result.Ran}</p><p><strong>File:</strong> {Html(result.FilePath)}</p><p>{Html(result.Message)}</p>",
+            ct);
+        return Ok(new { operationId, result.Ran, result.FilePath, result.Message });
     }
+
+    private async Task TrySendOperationEmailAsync(
+        Guid operationId,
+        string action,
+        string status,
+        string detailsHtml,
+        CancellationToken ct)
+    {
+        try
+        {
+            var subject = $"Portfolio Manager - {action}: {status}";
+            var html = $"<!DOCTYPE html><html><body style=\"font-family:Segoe UI,Arial,sans-serif;color:#263238\"><h2>{Html(action)} Summary</h2><p><strong>Status:</strong> {Html(status)}<br><strong>Operation ID:</strong> {operationId}<br><strong>Time (UTC):</strong> {DateTime.UtcNow:u}</p>{detailsHtml}<p style=\"color:#607d8b\">This message reports the observed result of the operation. Email delivery does not control data processing.</p></body></html>";
+            await automationNotifications.SendOperationSummaryAsync($"operation:{operationId:N}", action, subject, html, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[AutomationController] Operation summary email failed for {OperationId}.", operationId);
+        }
+    }
+
+    private static string Html(string? value) => WebUtility.HtmlEncode(value ?? "not completed");
 
     [Authorize(Roles = "Admin")]
     [HttpPost("cancel")]

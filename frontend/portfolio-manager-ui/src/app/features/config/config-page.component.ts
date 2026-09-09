@@ -373,6 +373,7 @@ export class ConfigPageComponent implements OnInit {
   protected readonly savingEmails = signal(false);
   protected readonly loadingEmails = signal(true);
   protected readonly sendingTestEmail = signal(false);
+  protected readonly sendingAutomationTestEmail = signal(false);
   protected readonly scanningNow = signal(false);
 
   // ── Sector / Industry Lists ──────────────────────────────────────────────
@@ -914,6 +915,26 @@ ${overboughtRsi}.`,
         this.sendingTestEmail.set(false);
         const msg = err?.error?.error ?? err?.message ?? 'Unknown error';
         this.snackBar.open(`❌ SMTP error: ${msg}`, 'Dismiss', { duration: 10000 });
+      },
+    });
+  }
+
+  sendAutomationTestEmail(): void {
+    this.sendingAutomationTestEmail.set(true);
+    this.notificationApi.sendAutomationTestEmail().subscribe({
+      next: (result) => {
+        this.sendingAutomationTestEmail.set(false);
+        const message = result.success
+          ? `${result.message ?? 'Automation test email sent.'} Check the registered inboxes.`
+          : (result.error ?? 'Automation test email failed.');
+        this.snackBar.open(message, result.success ? 'OK' : 'Dismiss', {
+          duration: result.success ? 6000 : 9000,
+        });
+      },
+      error: (err) => {
+        this.sendingAutomationTestEmail.set(false);
+        const message = err?.error?.error ?? err?.message ?? 'Automation test email failed.';
+        this.snackBar.open(message, 'Dismiss', { duration: 9000 });
       },
     });
   }

@@ -69,6 +69,17 @@ public class NotificationController(
         return UnprocessableEntity(new { success = false, error });
     }
 
+    /// <summary>Sends a representative Automation summary to registered recipients without running automation.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("send-automation-test")]
+    public async Task<ActionResult<object>> SendAutomationTestEmail()
+    {
+        var result = await emailNotifier.SendAutomationTestEmailAsync();
+        return result.Success
+            ? Ok(new { success = true, message = result.Message, recipientCount = result.RecipientCount })
+            : UnprocessableEntity(new { success = false, error = result.Message, recipientCount = result.RecipientCount });
+    }
+
     /// <summary>
     /// Force an immediate RSI scan + notification check (bypasses the background service schedule).
     /// Useful to manually trigger emails for currently CONFIRMED signals.

@@ -1295,6 +1295,18 @@
           }}</mat-icon>
           {{ automationState.backingUp() ? 'Backing up…' : 'Backup Now' }}
         </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="sendAutomationTestEmail()"
+          [disabled]="sendingAutomationTestEmail()"
+          matTooltip="Send an Automation summary test to all registered recipients without running automation or changing data"
+        >
+          <mat-icon>{{
+            sendingAutomationTestEmail() ? 'hourglass_empty' : 'mail_outline'
+          }}</mat-icon>
+          {{ sendingAutomationTestEmail() ? 'Sending…' : 'Test Automation Email' }}
+        </button>
       </div>
     </div>
   </div>

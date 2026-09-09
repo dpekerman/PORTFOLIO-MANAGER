@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace PortfolioManager.Api.Services;
 
 /// <summary>
@@ -88,11 +90,23 @@ public sealed class AutomationRunCoordinator(
                 await orchestrator.RunTestWakeAsync(runId, ct);
             else
                 await orchestrator.RunAsync(runId, triggerType, ct);
+
+            // The orchestrator has returned only after its keep-awake lease was disposed. Email
+            // delivery is deliberately outside that lifecycle so SMTP delays cannot hold the PC awake.
+            var db = scope.ServiceProvider.GetRequiredService<Data.AppDbContext>();
+            var run = await db.AutomationRunLogs.FirstOrDefaultAsync(x => x.RunId == runId, CancellationToken.None);
+            if (run is not null)
+            {
+                var notifications = scope.ServiceProvider.GetRequiredService<IAutomationRunNotificationService>();
+                await notifications.SendRunSummaryAsync(run, CancellationToken.None);
+            }
         }
         catch (Exception ex)
         {
-            // Last-resort safety net — the orchestrator itself is responsible for writing a Failed
-            // AutomationRunLog row on error; this only fires if even that couldn't happen (e.g. DB down).
+            // Last-resort safety net. Normally the orchestrator writes its own terminal
+            // AutomationRunLog row and this block is never reached; it also catches the rare case
+            // where the post-run notification lookup/send itself throws unexpectedly (e.g. DB down),
+            // so a notification failure can never crash the coordinator or leak an unobserved run.
             logger.LogError(ex, "[AutomationRunCoordinator] Run {RunId} ({TriggerType}) threw unhandled exception.", runId, triggerType);
         }
         finally

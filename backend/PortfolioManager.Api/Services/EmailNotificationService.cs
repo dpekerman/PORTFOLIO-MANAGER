@@ -118,6 +118,91 @@ public class EmailNotificationService(
         }
     }
 
+    /// <summary>Sends a representative Automation summary without running automation or changing data.</summary>
+    public async Task<(bool Success, string Message, int RecipientCount)> SendAutomationTestEmailAsync()
+    {
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0)
+            return (false, "No registered notification recipients are configured.", 0);
+        if (!_settings.Enabled)
+            return (false, "Email is disabled in settings (EmailNotification.Enabled = false).", recipientList.Count);
+        if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password)
+            || _settings.Password == "REPLACE_WITH_GMAIL_APP_PASSWORD")
+            return (false, "SMTP credentials are not configured.", recipientList.Count);
+
+        try
+        {
+            var from = !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username;
+            using var message = new MailMessage
+            {
+                From = new MailAddress(from, _settings.FromName),
+                Subject = "Portfolio Manager - Automation Summary Test",
+                Body = $"""
+                    <!DOCTYPE html>
+                    <html><body style="font-family:Segoe UI,Arial,sans-serif;color:#263238">
+                    <h2>Automation Summary Test</h2>
+                    <p>This is an on-demand email test. No automation or database operation was executed.</p>
+                    <p><strong>Operation:</strong> Automation Test Email<br>
+                    <strong>Status:</strong> Success<br>
+                    <strong>Tested at (UTC):</strong> {DateTime.UtcNow:u}</p>
+                    <p><strong>Observed steps:</strong> Refresh: not run; RSI/EOD: not run; Snapshot: not run; Value Screener: not run</p>
+                    <p>Gmail/MailKit transport and the registered recipient list are working for this test.</p>
+                    </body></html>
+                    """,
+                IsBodyHtml = true,
+                Priority = MailPriority.Normal,
+            };
+            foreach (var email in recipientList)
+                message.To.Add(email);
+
+            await SendViaMailKitAsync(message);
+            logger.LogInformation("Automation test email sent to {RecipientCount} registered recipient(s).", recipientList.Count);
+            return (true, $"Automation test email sent to {recipientList.Count} registered recipient(s).", recipientList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Automation test email failed.");
+            return (false, "Automation test email could not be sent. Check backend email logs.", recipientList.Count);
+        }
+    }
+
+    /// <summary>Sends an already-rendered Automation summary through the same Gmail/MailKit path
+    /// used by the existing EOD signal notifications.</summary>
+    public async Task<(bool Success, string Message, int RecipientCount)> SendAutomationSummaryAsync(
+        string subject, string htmlBody, CancellationToken ct = default)
+    {
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0)
+            return (false, "No registered notification recipients are configured.", 0);
+        if (!_settings.Enabled)
+            return (false, "Email is disabled in settings (EmailNotification.Enabled = false).", recipientList.Count);
+        if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password)
+            || _settings.Password == "REPLACE_WITH_GMAIL_APP_PASSWORD")
+            return (false, "SMTP credentials are not configured.", recipientList.Count);
+
+        try
+        {
+            var from = !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username;
+            using var message = new MailMessage
+            {
+                From = new MailAddress(from, _settings.FromName),
+                Subject = subject,
+                Body = htmlBody,
+                IsBodyHtml = true,
+                Priority = MailPriority.Normal,
+            };
+            foreach (var email in recipientList)
+                message.To.Add(email);
+            await SendViaMailKitAsync(message, ct);
+            return (true, $"Automation summary sent to {recipientList.Count} registered recipient(s).", recipientList.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Automation summary email failed.");
+            return (false, "Automation summary could not be sent. Check backend email logs.", recipientList.Count);
+        }
+    }
+
     private async Task SendAlertEmailAsync(
         List<RsiScanResult> signals,
         List<string> recipientEmails,

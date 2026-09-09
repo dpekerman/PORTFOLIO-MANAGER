@@ -32,6 +32,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
     public DbSet<CashLedgerSettings> CashLedgerSettings => Set<CashLedgerSettings>();
     public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
+    public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -402,6 +403,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.MachineName).HasMaxLength(100).HasDefaultValue("");
             entity.HasIndex(e => e.RunId).IsUnique();
             entity.HasIndex(e => e.TradingDate);
+        });
+
+        modelBuilder.Entity<AutomationNotificationRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OperationKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(40);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+            entity.HasIndex(e => e.OperationKey).IsUnique();
         });
     }
 }
