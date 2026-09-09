@@ -4,7 +4,7 @@
     "**/bin/**",
     "**/obj/**",
     "**/dist/**",
-     "**/docs/**"
+    "**/docs/**"
   ],
   "todo-tree.general.rootFolder": "${workspaceFolder}",
   "search.exclude": {
@@ -12,5 +12,6 @@
     "**/bin": true,
     "**/obj": true,
     "**/dist": true
-  }
+  },
+  "chat.agent.maxRequests": 25
 }

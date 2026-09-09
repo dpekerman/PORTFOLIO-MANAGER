@@ -25,6 +25,7 @@ public sealed class MissedDataRecoveryService(
     ITradingSessionGuard tradingSessionGuard,
     ValueScreenerService valueScreener,
     ValueScreenerPersistenceService valueScreenerPersistence,
+    IConfiguration configuration,
     ILogger<MissedDataRecoveryService> logger) : IMissedDataRecoveryService
 {
     // Process-wide single-flight guard: a second concurrent click while a recovery is already
@@ -41,14 +42,28 @@ public sealed class MissedDataRecoveryService(
             return new MissedDataRecoveryResult(false, "AlreadyRunning", null, null, null);
         }
 
+        var timeoutMinutes = configuration.GetValue("Automation:MissedDataRecoveryTimeoutMinutes", 15);
+        timeoutMinutes = Math.Clamp(timeoutMinutes, 1, 60);
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(TimeSpan.FromMinutes(timeoutMinutes));
+        var runCt = timeoutCts.Token;
+        RecoveryStepResult? eodStep = null;
+        RecoveryStepResult? snapshotStep = null;
+        RecoveryStepResult? screenerStep = null;
+
         try
         {
-            logger.LogInformation("[MissedDataRecovery] Starting recovery run.");
-            var eodStep = await RunEodSignalsStepAsync(ct);
-            var snapshotStep = await RunSnapshotStepAsync(ct);
-            var screenerStep = await RunValueScreenerStepAsync(ct);
+            logger.LogInformation("[MissedDataRecovery] Starting recovery run with {TimeoutMinutes}-minute deadline.", timeoutMinutes);
+            eodStep = await RunEodSignalsStepAsync(runCt);
+            snapshotStep = await RunSnapshotStepAsync(runCt);
+            screenerStep = await RunValueScreenerStepAsync(runCt);
             logger.LogInformation("[MissedDataRecovery] Recovery run finished.");
             return new MissedDataRecoveryResult(true, "Completed", eodStep, snapshotStep, screenerStep);
+        }
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        {
+            logger.LogWarning("[MissedDataRecovery] Recovery exceeded its {TimeoutMinutes}-minute deadline.", timeoutMinutes);
+            return new MissedDataRecoveryResult(false, "TimedOut", eodStep, snapshotStep, screenerStep);
         }
         finally
         {
@@ -80,6 +95,10 @@ public sealed class MissedDataRecoveryService(
             return RecoveryStepResult.Ok(
                 $"{promoted.Count} signal(s) persisted ({candidates.Count} candidate(s) scanned)");
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "[MissedDataRecovery] EOD signals step failed.");
@@ -98,6 +117,10 @@ public sealed class MissedDataRecoveryService(
             var tradingDate = await tradingSessionGuard.GetLatestTradingDateAsync(ct);
             var dto = await historyService.RecordCurrentValueAsync(ct, PortfolioValueSource.ManualRecordNow, tradingDate);
             return RecoveryStepResult.Ok($"Recorded {dto.RecordedDate}: ${dto.TotalValue:N2}");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -120,6 +143,10 @@ public sealed class MissedDataRecoveryService(
 
             return RecoveryStepResult.Ok(
                 $"{portfolioResults.Count} portfolio + {watchlistResults.Count} watchlist result(s) persisted");
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

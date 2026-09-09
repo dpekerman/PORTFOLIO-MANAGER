@@ -669,16 +669,16 @@
                 {{
                   recovery.status === 'AlreadyRunning'
                     ? 'A recovery run is already in progress — try again shortly.'
-                    : 'Fix Missing Data — done'
+                    : recovery.status === 'TimedOut'
+                      ? 'Fix Missing Data — timed out safely'
+                      : 'Fix Missing Data — done'
                 }}
               </span>
-              @if (recovery.status === 'Completed') {
-                <span class="automation-running-detail">
-                  EOD Signals: {{ recovery.eodSignals?.message }} · Snapshot:
-                  {{ recovery.snapshot?.message }} · Value Screener:
-                  {{ recovery.valueScreener?.message }}
-                </span>
-              }
+              <span class="automation-running-detail">
+                EOD Signals: {{ recovery.eodSignals?.message || 'not completed' }} · Snapshot:
+                {{ recovery.snapshot?.message || 'not completed' }} · Value Screener:
+                {{ recovery.valueScreener?.message || 'not completed' }}
+              </span>
             </div>
           </div>
         }
@@ -694,6 +694,19 @@
             <div class="automation-running-text">
               <span class="automation-running-title">Backup Now</span>
               <span class="automation-running-detail">{{ backup.message }}</span>
+            </div>
+          </div>
+        }
+
+        @if (automationState.activeOperation(); as operation) {
+          <div class="automation-running-banner automation-recovery-banner">
+            <mat-icon class="automation-recovery-icon">hourglass_top</mat-icon>
+            <div class="automation-running-text">
+              <span class="automation-running-title">{{ operation }}</span>
+              <span class="automation-running-detail">
+                The operation has a bounded request deadline. Existing completed database writes are
+                preserved if a later step times out.
+              </span>
             </div>
           </div>
         }

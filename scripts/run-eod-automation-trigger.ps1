@@ -34,6 +34,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $logPrefix = "[EodAutomationTrigger]"
+$repoDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$backendProjectDir = Join-Path $repoDir "backend\PortfolioManager.Api"
 
 function Write-Log($message) {
     Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $logPrefix $message"
@@ -46,6 +48,47 @@ function Test-Healthy {
     } catch {
         return $false
     }
+}
+
+function Get-BackendSourceLastWriteTimeUtc {
+    $files = @(
+        Get-ChildItem -Path $backendProjectDir -Recurse -File -ErrorAction Stop |
+            Where-Object {
+                $_.FullName -notmatch "\\(bin|obj|publish)(\\|$)" -and
+                ($_.Extension -eq ".cs" -or $_.Name -eq "PortfolioManager.Api.csproj" -or $_.Name -like "appsettings*.json")
+            }
+    )
+    if ($files.Count -eq 0) { return [DateTime]::MinValue.ToUniversalTime() }
+    return ($files | Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1).LastWriteTimeUtc
+}
+
+function Ensure-PublishedBuildCurrent {
+    param([string]$DllPath)
+
+    $sourceTime = Get-BackendSourceLastWriteTimeUtc
+    $publishedTime = if (Test-Path -LiteralPath $DllPath) {
+        (Get-Item -LiteralPath $DllPath).LastWriteTimeUtc
+    } else {
+        [DateTime]::MinValue.ToUniversalTime()
+    }
+
+    if ($publishedTime -ge $sourceTime) {
+        Write-Log "Published backend is current ($publishedTime UTC)."
+        return $false
+    }
+
+    Write-Log "Published backend is stale ($publishedTime UTC; source $sourceTime UTC). Publishing latest Release build."
+    Push-Location $backendProjectDir
+    try {
+        & dotnet publish -c Release -o $PublishDir --nologo
+        if ($LASTEXITCODE -ne 0) {
+            throw "dotnet publish failed with exit code $LASTEXITCODE."
+        }
+    } finally {
+        Pop-Location
+    }
+    Write-Log "Latest backend published successfully."
+    return $true
 }
 
 # Detects a process already bound to the backend's port that is NOT answering /api/health (e.g. a
@@ -136,16 +179,40 @@ per calendar day even if the Scheduled Task retries.)
     }
 }
 
-# ── Step 1: health-check ──────────────────────────────────────────────────────
-if (Test-Healthy) {
+# ── Step 1: refresh published build, then health-check ─────────────────────────
+$dllPath = Join-Path $PublishDir "PortfolioManager.Api.dll"
+$publishedWasRefreshed = $false
+try {
+    $publishedWasRefreshed = Ensure-PublishedBuildCurrent -DllPath $dllPath
+} catch {
+    $reason = "Latest backend publish failed: $($_.Exception.Message)"
+    Write-Log "ERROR: $reason Aborting trigger."
+    Send-FailureAlert -Reason $reason
+    exit 1
+}
+
+if (Test-Healthy -and -not $publishedWasRefreshed) {
     Write-Log "Backend already healthy at $BaseUrl."
 } else {
-    Write-Log "Backend not reachable - checking for a hung process before starting the published build."
+    if ($publishedWasRefreshed -and (Test-Healthy)) {
+        $uri = [Uri]$BaseUrl
+        $healthyOwner = Get-NetTCPConnection -LocalPort $uri.Port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($healthyOwner) {
+            $healthyProcess = Get-Process -Id $healthyOwner.OwningProcess -ErrorAction SilentlyContinue
+            if ($healthyProcess -and $healthyProcess.ProcessName -like "PortfolioManager.Api*") {
+                Write-Log "Published build changed; restarting the healthy backend so the scheduled run uses the latest code."
+                Stop-Process -Id $healthyProcess.Id -Force -ErrorAction Stop
+                Start-Sleep -Seconds 2
+            }
+        }
+    }
+
+    Write-Log "Backend not reachable or was refreshed - checking for a hung process before starting the published build."
 
     $uri = [Uri]$BaseUrl
     Clear-HungPortOwner -Port $uri.Port
 
-    $dllPath = Join-Path $PublishDir "PortfolioManager.Api.dll"
     if (-not (Test-Path $dllPath)) {
         $reason = "Published build not found at $dllPath. Run 'dotnet publish -c Release -o `"$PublishDir`"' first."
         Write-Log "ERROR: $reason Aborting."
