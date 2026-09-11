@@ -245,12 +245,28 @@
     min-width: 36px;
   }
 }
+.db-chart-interactive {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 960/210;
+}
+.db-chart-plot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .db-svg {
   width: 100%;
+  height: 100%;
   display: block;
   overflow: visible;
-  height: auto;
-  aspect-ratio: 960/210;
+  cursor: crosshair;
+  touch-action: pan-y;
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+  }
 }
 .db-line {
   fill: none;
@@ -283,6 +299,67 @@
   font-size: 9px;
   fill: #9eadb4;
   font-family: inherit;
+}
+.db-mobile-x-axis,
+.db-mobile-y-axis {
+  display: none;
+}
+.db-inspection-line {
+  stroke: #60727b;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+.db-inspection-point {
+  stroke-width: 2.5;
+  fill: #fff;
+  pointer-events: none;
+
+  &.up {
+    stroke: #1a9e7a;
+  }
+  &.down {
+    stroke: #e53e3e;
+  }
+}
+.db-chart-tooltip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 2px;
+  min-width: 126px;
+  padding: 7px 9px;
+  border: 1px solid #d4dcdf;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.97);
+  color: #53636b;
+  box-shadow: 0 3px 10px rgba(32, 46, 52, 0.16);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 10px));
+
+  strong {
+    color: #213138;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+}
+.db-chart-tooltip-below {
+  transform: translate(-50%, 10px);
+}
+.db-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .db-chart-empty {
   display: flex;
@@ -1145,6 +1222,55 @@ mat-card.db-panel {
   .db-metric {
     min-width: 80px;
   }
+  .db-chart-interactive {
+    height: 180px;
+    aspect-ratio: auto;
+  }
+  .db-chart-plot {
+    width: calc(100% - 34px);
+    margin-left: 34px;
+  }
+  .db-x-label,
+  .db-y-label {
+    display: none;
+  }
+  .db-mobile-y-axis {
+    position: absolute;
+    inset: 7px auto 24px 0;
+    display: flex;
+    width: 31px;
+    flex-direction: column-reverse;
+    justify-content: space-between;
+    color: #7f919a;
+    font-size: 0.62rem;
+    line-height: 1;
+    text-align: right;
+    pointer-events: none;
+  }
+  .db-mobile-x-axis {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 39px;
+    display: flex;
+    justify-content: space-between;
+    color: #7f919a;
+    font-size: 0.6rem;
+    line-height: 1;
+    pointer-events: none;
+
+    span:first-child {
+      text-align: left;
+    }
+    span:last-child {
+      text-align: right;
+    }
+  }
+  .db-chart-tooltip {
+    min-width: 112px;
+    padding: 6px 8px;
+    font-size: 0.65rem;
+  }
 }
 
 /* ── Dark mode overrides ─────────────────────────────────────────────────── */
@@ -1158,6 +1284,20 @@ mat-card.db-panel {
   }
   .db-hero-total {
     color: var(--text-primary);
+  }
+
+  .db-chart-tooltip {
+    border-color: #53636b;
+    background: rgba(31, 42, 47, 0.97);
+    color: #bdc9ce;
+
+    strong {
+      color: #f2f6f7;
+    }
+  }
+
+  .db-inspection-point {
+    fill: #1f2a2f;
   }
   .db-hero-ts {
     color: var(--text-faint);
@@ -1178,6 +1318,10 @@ mat-card.db-panel {
   }
   .db-grid-line {
     stroke: #252525;
+  }
+  .db-mobile-x-axis,
+  .db-mobile-y-axis {
+    color: var(--text-muted);
   }
 
   .db-panel-title {

@@ -26,15 +26,65 @@ import { PriorityCandidatesWidgetComponent } from './priority-candidates-widget/
 
 export type ChartRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
 
+export interface SvgChartPoint {
+  date: string;
+  value: number;
+  x: number;
+  y: number;
+  tooltipLeftPercent: number;
+  tooltipTopPercent: number;
+  tooltipBelow: boolean;
+}
+
 export interface SvgChart {
   linePath: string;
   areaPath: string;
   isUp: boolean;
   baselineY: number;
+  points: SvgChartPoint[];
   xLabels: { x: number; label: string }[];
   yLabels: { y: number; label: string; gridY: number }[];
   viewBox: string;
   padL: number;
+}
+
+export function nearestChartPointIndex(
+  clientX: number,
+  boundsLeft: number,
+  boundsWidth: number,
+  pointCount: number,
+): number | null {
+  if (!Number.isFinite(clientX) || boundsWidth <= 0 || pointCount <= 0) return null;
+  if (pointCount === 1) return 0;
+
+  const viewBoxWidth = 960;
+  const plotLeft = 66;
+  const plotWidth = viewBoxWidth - plotLeft - 4;
+  const svgX = ((clientX - boundsLeft) / boundsWidth) * viewBoxWidth;
+  const plotFraction = Math.min(1, Math.max(0, (svgX - plotLeft) / plotWidth));
+  return Math.round(plotFraction * (pointCount - 1));
+}
+
+export function chartIndexForKey(
+  key: string,
+  currentIndex: number | null,
+  pointCount: number,
+): number | null {
+  if (pointCount <= 0 || key === 'Escape') return null;
+  const lastIndex = pointCount - 1;
+
+  switch (key) {
+    case 'ArrowLeft':
+      return currentIndex === null ? lastIndex : Math.max(0, currentIndex - 1);
+    case 'ArrowRight':
+      return currentIndex === null ? 0 : Math.min(lastIndex, currentIndex + 1);
+    case 'Home':
+      return 0;
+    case 'End':
+      return lastIndex;
+    default:
+      return currentIndex;
+  }
 }
 
 @Component({
@@ -74,6 +124,7 @@ export class DashboardPageComponent {
   protected readonly eodSummary = this.dashboard.eodSummary;
   protected readonly chartRanges: ChartRange[] = ['1M', '3M', '6M', 'YTD', '1Y', 'ALL'];
   protected readonly selectedRange = signal<ChartRange>('3M');
+  private readonly inspectedChartIndex = signal<number | null>(null);
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
@@ -116,6 +167,7 @@ export class DashboardPageComponent {
 
   /** Toggle collapse state for a section (uses DashboardCollapseStateService). */
   protected toggleExpanded(sectionId: string): void {
+    if (sectionId === 'portfolio-value-history') this.inspectedChartIndex.set(null);
     this.collapseState.toggleCollapsed(sectionId);
   }
 
@@ -223,10 +275,17 @@ export class DashboardPageComponent {
     const toX = (i: number) => padL + (i / (pts.length - 1)) * iW;
     const toY = (v: number) => padT + iH - ((v - lo) / yRange) * iH;
 
-    const coords = pts.map((p, i) => ({
-      x: toX(i),
-      y: toY(this.demoMode.maskValue(p.totalValue)),
-    }));
+    const coords = pts.map(
+      (p, i): SvgChartPoint => ({
+        date: p.date,
+        value: vals[i],
+        x: toX(i),
+        y: toY(vals[i]),
+        tooltipLeftPercent: Math.min(92, Math.max(8, toX(i) / 9.6)),
+        tooltipTopPercent: (toY(vals[i]) / H) * 100,
+        tooltipBelow: toY(vals[i]) < 58,
+      }),
+    );
 
     let line = `M${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
     for (let i = 1; i < coords.length; i++) {
@@ -270,12 +329,48 @@ export class DashboardPageComponent {
       areaPath: area,
       isUp: vals[vals.length - 1] >= vals[0],
       baselineY: toY(vals[0]),
+      points: coords,
       xLabels,
       yLabels,
       viewBox: `0 0 ${W} ${H}`,
       padL,
     };
   });
+
+  protected readonly inspectedChartPoint = computed(() => {
+    const chart = this.svgChart();
+    const index = this.inspectedChartIndex();
+    return chart && index !== null ? (chart.points[index] ?? null) : null;
+  });
+
+  protected selectChartRange(range: ChartRange): void {
+    this.inspectedChartIndex.set(null);
+    this.selectedRange.set(range);
+  }
+
+  protected inspectChartPointer(event: PointerEvent): void {
+    const svg = event.currentTarget as SVGSVGElement;
+    const bounds = svg.getBoundingClientRect();
+    const index = nearestChartPointIndex(
+      event.clientX,
+      bounds.left,
+      bounds.width,
+      this.svgChart()?.points.length ?? 0,
+    );
+    this.inspectedChartIndex.set(index);
+  }
+
+  protected leaveChartPointer(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') this.inspectedChartIndex.set(null);
+  }
+
+  protected navigateChart(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(event.key)) return;
+    event.preventDefault();
+    this.inspectedChartIndex.set(
+      chartIndexForKey(event.key, this.inspectedChartIndex(), this.svgChart()?.points.length ?? 0),
+    );
+  }
 
   protected value(v: number): number {
     return this.demoMode.maskValue(v);

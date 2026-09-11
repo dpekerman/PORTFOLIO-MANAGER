@@ -126,7 +126,7 @@
         <div class="db-panel-hd-right">
           <mat-button-toggle-group
             [value]="selectedRange()"
-            (change)="selectedRange.set($event.value)"
+            (change)="selectChartRange($event.value)"
             class="db-range-group"
             aria-label="Chart range"
           >
@@ -149,61 +149,113 @@
       <mat-card-content>
         @if (isExpanded('portfolio-value-history')) {
           @if (svgChart(); as chart) {
-            <svg
-              class="db-svg"
-              [attr.viewBox]="chart.viewBox"
-              preserveAspectRatio="none"
-              role="img"
-              aria-label="Portfolio value chart"
-            >
-              <defs>
-                <linearGradient id="gradUp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#1a9e7a" stop-opacity="0.28" />
-                  <stop offset="100%" stop-color="#1a9e7a" stop-opacity="0" />
-                </linearGradient>
-                <linearGradient id="gradDown" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#e53e3e" stop-opacity="0.28" />
-                  <stop offset="100%" stop-color="#e53e3e" stop-opacity="0" />
-                </linearGradient>
-              </defs>
-              @for (yl of chart.yLabels; track yl.label) {
-                <line
-                  [attr.x1]="chart.padL"
-                  [attr.y1]="yl.gridY"
-                  x2="960"
-                  [attr.y2]="yl.gridY"
-                  class="db-grid-line"
-                />
-                <text
-                  [attr.x]="chart.padL - 5"
-                  [attr.y]="yl.y + 4"
-                  class="db-y-label"
-                  text-anchor="end"
+            <div class="db-chart-interactive">
+              <div class="db-chart-plot">
+                <svg
+                  class="db-svg"
+                  [attr.viewBox]="chart.viewBox"
+                  preserveAspectRatio="none"
+                  role="img"
+                  tabindex="0"
+                  aria-label="Portfolio value history. Use the left and right arrow keys to inspect values."
+                  aria-describedby="portfolio-chart-status"
+                  (pointerdown)="inspectChartPointer($event)"
+                  (pointermove)="inspectChartPointer($event)"
+                  (pointerleave)="leaveChartPointer($event)"
+                  (keydown)="navigateChart($event)"
                 >
-                  {{ yl.label }}
-                </text>
-              }
-              <line
-                x1="0"
-                [attr.y1]="chart.baselineY"
-                x2="960"
-                [attr.y2]="chart.baselineY"
-                class="db-baseline"
-              />
-              <path
-                [attr.d]="chart.areaPath"
-                [attr.fill]="chart.isUp ? 'url(#gradUp)' : 'url(#gradDown)'"
-              />
-              <path
-                [attr.d]="chart.linePath"
-                [class]="chart.isUp ? 'db-line up' : 'db-line down'"
-              />
-              @for (lbl of chart.xLabels; track lbl.label) {
-                <text [attr.x]="lbl.x" y="206" class="db-x-label" text-anchor="middle">
-                  {{ lbl.label }}
-                </text>
-              }
-            </svg>
+                  <defs>
+                    <linearGradient id="gradUp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#1a9e7a" stop-opacity="0.28" />
+                      <stop offset="100%" stop-color="#1a9e7a" stop-opacity="0" />
+                    </linearGradient>
+                    <linearGradient id="gradDown" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#e53e3e" stop-opacity="0.28" />
+                      <stop offset="100%" stop-color="#e53e3e" stop-opacity="0" />
+                    </linearGradient>
+                  </defs>
+                  @for (yl of chart.yLabels; track yl.label) {
+                    <line
+                      [attr.x1]="chart.padL"
+                      [attr.y1]="yl.gridY"
+                      x2="960"
+                      [attr.y2]="yl.gridY"
+                      class="db-grid-line"
+                    />
+                    <text
+                      [attr.x]="chart.padL - 5"
+                      [attr.y]="yl.y + 4"
+                      class="db-y-label"
+                      text-anchor="end"
+                    >
+                      {{ yl.label }}
+                    </text>
+                  }
+                  <line
+                    x1="0"
+                    [attr.y1]="chart.baselineY"
+                    x2="960"
+                    [attr.y2]="chart.baselineY"
+                    class="db-baseline"
+                  />
+                  <path
+                    [attr.d]="chart.areaPath"
+                    [attr.fill]="chart.isUp ? 'url(#gradUp)' : 'url(#gradDown)'"
+                  />
+                  <path
+                    [attr.d]="chart.linePath"
+                    [class]="chart.isUp ? 'db-line up' : 'db-line down'"
+                  />
+                  @for (lbl of chart.xLabels; track lbl.label) {
+                    <text [attr.x]="lbl.x" y="206" class="db-x-label" text-anchor="middle">
+                      {{ lbl.label }}
+                    </text>
+                  }
+                  @if (inspectedChartPoint(); as point) {
+                    <line
+                      [attr.x1]="point.x"
+                      y1="8"
+                      [attr.x2]="point.x"
+                      y2="182"
+                      class="db-inspection-line"
+                    />
+                    <circle
+                      [attr.cx]="point.x"
+                      [attr.cy]="point.y"
+                      r="4.5"
+                      [class]="chart.isUp ? 'db-inspection-point up' : 'db-inspection-point down'"
+                    />
+                  }
+                </svg>
+                @if (inspectedChartPoint(); as point) {
+                  <div
+                    class="db-chart-tooltip"
+                    [class.db-chart-tooltip-below]="point.tooltipBelow"
+                    [style.left.%]="point.tooltipLeftPercent"
+                    [style.top.%]="point.tooltipTopPercent"
+                  >
+                    <span>{{ point.date + 'T00:00:00' | date: 'MMM d, y' }}</span>
+                    <strong>{{ point.value | currency: 'USD' : 'symbol' : '1.2-2' }}</strong>
+                  </div>
+                }
+                <span id="portfolio-chart-status" class="db-visually-hidden" aria-live="polite">
+                  @if (inspectedChartPoint(); as point) {
+                    {{ point.date + 'T00:00:00' | date: 'MMMM d, y' }}, portfolio value
+                    {{ point.value | currency: 'USD' : 'symbol' : '1.2-2' }}
+                  }
+                </span>
+              </div>
+              <div class="db-mobile-y-axis" aria-hidden="true">
+                @for (label of chart.yLabels; track label.label) {
+                  <span>{{ label.label }}</span>
+                }
+              </div>
+              <div class="db-mobile-x-axis" aria-hidden="true">
+                @for (label of chart.xLabels; track label.label) {
+                  <span>{{ label.label }}</span>
+                }
+              </div>
+            </div>
           } @else {
             <div class="db-chart-empty">
               <mat-icon>show_chart</mat-icon>
