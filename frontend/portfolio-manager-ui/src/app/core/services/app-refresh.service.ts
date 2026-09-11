@@ -130,7 +130,8 @@ export class AppRefreshService {
           // Push fresh data directly — no loading state, no extra HTTP round-trips
           this.portfolioState.setFromRefresh(result.portfolioSummaries);
           this.watchlistState.setFromRefresh(result.watchlistSummaries);
-          this.dashboardState.load();
+          // Rebuild (not just re-fetch cached) so the dashboard total reflects the quotes just refreshed above
+          this.dashboardState.refresh();
 
           this.setStepStatus('dashboard', 'done');
           this.setStepStatus('actions', 'loading');

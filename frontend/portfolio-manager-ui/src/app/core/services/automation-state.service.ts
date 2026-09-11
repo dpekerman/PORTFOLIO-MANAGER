@@ -43,7 +43,6 @@ export class AutomationStateService {
   readonly error = signal<string | null>(null);
 
   private pollSub: Subscription | null = null;
-
   loadSettings(): void {
     this.loadingSettings.set(true);
     this.api.getSettings().subscribe({

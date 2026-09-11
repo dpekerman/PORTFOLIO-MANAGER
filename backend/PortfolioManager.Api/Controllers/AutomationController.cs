@@ -60,7 +60,20 @@ public class AutomationController(
             return Ok(new { started = false, reason = "disabled" });
         }
 
-        var runId = coordinator.StartRun("Scheduled");
+        var runId = coordinator.StartRun("Scheduled", ReadCorrelationId());
+        return Accepted(new AutomationTriggerResponseDto(runId));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("trigger-test")]
+    public async Task<ActionResult<AutomationTriggerResponseDto>> TriggerTest(CancellationToken ct)
+    {
+        if (!IsLoopbackRequest()) return Forbid();
+
+        var header = Request.Headers["X-Automation-Key"].FirstOrDefault();
+        if (!await secretStore.ValidateAsync(header, ct)) return Forbid();
+
+        var runId = coordinator.StartTestWake(ReadCorrelationId());
         return Accepted(new AutomationTriggerResponseDto(runId));
     }
 
@@ -179,6 +192,35 @@ public class AutomationController(
             .OrderByDescending(r => r.ActualStartUtc)
             .FirstOrDefaultAsync(ct);
         return log is null ? NotFound() : Ok(ToDto(log));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("trigger-diagnostics/{correlationId}")]
+    public async Task<ActionResult<AutomationTriggerDiagnosticDto>> GetTriggerDiagnostics(
+        string correlationId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(correlationId, out var parsedCorrelationId))
+            return BadRequest(new { message = "Correlation ID must be a GUID." });
+
+        var normalizedCorrelationId = parsedCorrelationId.ToString("N");
+        var logDirectory = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PortfolioManager", "logs");
+        var entries = new List<string>();
+
+        if (Directory.Exists(logDirectory))
+        {
+            foreach (var file in Directory.EnumerateFiles(logDirectory, "eod-automation-trigger-*.log")
+                         .OrderByDescending(System.IO.File.GetLastWriteTimeUtc).Take(7))
+            {
+                entries.AddRange((await System.IO.File.ReadAllLinesAsync(file, ct))
+                    .Where(line => line.Contains($"[{normalizedCorrelationId}]", StringComparison.Ordinal)));
+            }
+        }
+
+        var run = await db.AutomationRunLogs.AsNoTracking()
+            .FirstOrDefaultAsync(r => r.TriggerCorrelationId == normalizedCorrelationId, ct);
+        return Ok(new AutomationTriggerDiagnosticDto(entries.TakeLast(100).ToArray(), run is null ? null : ToDto(run)));
     }
 
     [Authorize(Roles = "Admin")]
@@ -441,11 +483,22 @@ public class AutomationController(
         return IPAddress.IsLoopback(remoteIp) || remoteIp.Equals(IPAddress.IPv6Loopback);
     }
 
+    private string? ReadCorrelationId()
+    {
+        var header = Request.Headers["X-Automation-Correlation-Id"].FirstOrDefault();
+        var correlationId = Guid.TryParse(header, out var parsedCorrelationId)
+            ? parsedCorrelationId.ToString("N")
+            : null;
+        if (header is not null && correlationId is null)
+            logger.LogWarning("[AutomationController] Received invalid automation correlation ID.");
+        return correlationId;
+    }
+
     private static AutomationRunLogDto ToDto(AutomationRunLog r) => new(
-        r.RunId, r.TradingDate, r.TriggerType, r.ScheduledStartUtc, r.ActualStartUtc, r.CompletedAtUtc,
+        r.RunId, r.TradingDate, r.TriggerType, r.TriggerCorrelationId, r.ScheduledStartUtc, r.ActualStartUtc, r.CompletedAtUtc,
         r.OverallStatus, r.RefreshStatus, r.RefreshStartedAtUtc, r.RefreshCompletedAtUtc,
         r.PortfolioSymbolCount, r.WatchlistSymbolCount, r.RsiStatus, r.RsiCompletedAtUtc,
         r.EodSignalsPersistedCount, r.SnapshotStatus, r.SnapshotCompletedAtUtc, r.SnapshotSource,
         r.ValueScreenerStatus, r.ValueScreenerLastRunAtUtc, r.PowerRequestAcquiredAtUtc,
-        r.PowerRequestReleasedAtUtc, r.ErrorStep, r.ErrorMessage, r.MachineName);
+        r.PowerRequestReleasedAtUtc, r.LastHeartbeatAtUtc, r.LastHeartbeatStep, r.ErrorStep, r.ErrorMessage, r.MachineName);
 }

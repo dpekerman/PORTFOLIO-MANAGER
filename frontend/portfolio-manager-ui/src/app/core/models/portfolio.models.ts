@@ -815,6 +815,7 @@ export interface AutomationRunLogDto {
   runId: string;
   tradingDate: string;
   triggerType: AutomationTriggerType | string;
+  triggerCorrelationId: string | null;
   scheduledStartUtc: string | null;
   actualStartUtc: string;
   completedAtUtc: string | null;
@@ -834,6 +835,8 @@ export interface AutomationRunLogDto {
   valueScreenerLastRunAtUtc: string | null;
   powerRequestAcquiredAtUtc: string | null;
   powerRequestReleasedAtUtc: string | null;
+  lastHeartbeatAtUtc: string | null;
+  lastHeartbeatStep: string | null;
   errorStep: string | null;
   errorMessage: string | null;
   machineName: string;

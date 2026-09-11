@@ -391,6 +391,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TradingDate).IsRequired().HasMaxLength(10);
             entity.Property(e => e.TriggerType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.TriggerCorrelationId).HasMaxLength(32);
             entity.Property(e => e.OverallStatus).IsRequired().HasMaxLength(30).HasDefaultValue("Running");
             entity.Property(e => e.OwnerUserId).IsRequired().HasMaxLength(450);
             entity.Property(e => e.RefreshStatus).HasMaxLength(20).HasDefaultValue("");
@@ -398,11 +399,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.SnapshotStatus).HasMaxLength(20).HasDefaultValue("");
             entity.Property(e => e.SnapshotSource).HasMaxLength(30);
             entity.Property(e => e.ValueScreenerStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.LastHeartbeatStep).HasMaxLength(100);
             entity.Property(e => e.ErrorStep).HasMaxLength(100);
             entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
             entity.Property(e => e.MachineName).HasMaxLength(100).HasDefaultValue("");
             entity.HasIndex(e => e.RunId).IsUnique();
             entity.HasIndex(e => e.TradingDate);
+            entity.HasIndex(e => e.TriggerCorrelationId);
         });
 
         modelBuilder.Entity<AutomationNotificationRecord>(entity =>
@@ -414,5 +417,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
             entity.HasIndex(e => e.OperationKey).IsUnique();
         });
+
+        // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
+        // with DateTime.UtcNow; stamp Kind=Utc on read so JSON emits a trailing "Z" for Angular.
+        var utcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+            v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        var nullableUtcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+            v => v, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (!property.Name.EndsWith("Utc", StringComparison.Ordinal) &&
+                    !property.Name.EndsWith("At", StringComparison.Ordinal)) continue;
+                if (property.ClrType == typeof(DateTime)) property.SetValueConverter(utcConverter);
+                else if (property.ClrType == typeof(DateTime?)) property.SetValueConverter(nullableUtcConverter);
+            }
+        }
     }
 }

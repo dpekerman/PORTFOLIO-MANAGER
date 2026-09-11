@@ -17,6 +17,9 @@ public class AutomationRunLog
     /// <summary>"Scheduled" | "ManualRunNow" | "TestWake".</summary>
     public string TriggerType { get; set; } = "";
 
+    /// <summary>Opaque identifier from the local trigger script; links its durable log to this run.</summary>
+    public string? TriggerCorrelationId { get; set; }
+
     public DateTime? ScheduledStartUtc { get; set; }
     public DateTime ActualStartUtc { get; set; }
     public DateTime? CompletedAtUtc { get; set; }
@@ -56,6 +59,9 @@ public class AutomationRunLog
     public DateTime? PowerRequestAcquiredAtUtc { get; set; }
     public DateTime? PowerRequestReleasedAtUtc { get; set; }
 
+    public DateTime? LastHeartbeatAtUtc { get; set; }
+    public string? LastHeartbeatStep { get; set; }
+
     public string? ErrorStep { get; set; }
     public string? ErrorMessage { get; set; }
 
@@ -67,6 +73,7 @@ public record AutomationRunLogDto(
     Guid RunId,
     string TradingDate,
     string TriggerType,
+    string? TriggerCorrelationId,
     DateTime? ScheduledStartUtc,
     DateTime ActualStartUtc,
     DateTime? CompletedAtUtc,
@@ -86,6 +93,8 @@ public record AutomationRunLogDto(
     DateTime? ValueScreenerLastRunAtUtc,
     DateTime? PowerRequestAcquiredAtUtc,
     DateTime? PowerRequestReleasedAtUtc,
+    DateTime? LastHeartbeatAtUtc,
+    string? LastHeartbeatStep,
     string? ErrorStep,
     string? ErrorMessage,
     string MachineName);

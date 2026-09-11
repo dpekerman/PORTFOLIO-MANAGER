@@ -88,9 +88,12 @@ public sealed class DashboardService(
             .Sum(s => s.Item.IsManual
                 ? (s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares)
                 : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares);
-        var liveCashValue    = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var liveCashValue = await db.CashItems
+            .Where(c => c.UserId == userId || c.UserId == null)
+            .SumAsync(c => c.Amount, ct);
         var liveOptionsValue = await db.OptionItems
-            .Where(o => o.TransactionType != "CLOSE")
+            .Where(o => (o.UserId == userId || o.UserId == null)
+                && o.TransactionType != "CLOSE")
             .SumAsync(o => o.MarketPrice * o.NumberOfContracts * 100, ct);
         var liveTotal = liveStocksValue + liveCashValue + liveOptionsValue;
 

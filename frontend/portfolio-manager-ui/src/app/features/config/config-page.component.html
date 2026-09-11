@@ -1052,7 +1052,10 @@
                 <mat-icon class="automation-step-icon">insights</mat-icon>
                 <span>
                   Value Screener (informational):
-                  <strong>{{ run.valueScreenerStatus || 'pending' }}</strong>
+                  <strong>{{ valueScreenerStatusLabel(run.valueScreenerStatus) }}</strong>
+                  @if (run.valueScreenerStatus === 'NotObserved') {
+                    (runs independently at 5:00 PM ET)
+                  }
                   @if (run.valueScreenerLastRunAtUtc) {
                     (last run {{ run.valueScreenerLastRunAtUtc | date: 'h:mm a' }})
                   }
@@ -1178,7 +1181,13 @@
 
               <ng-container matColumnDef="valueScreenerStatus">
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>Value Screener</th>
-                <td mat-cell *matCellDef="let run">{{ run.valueScreenerStatus || '—' }}</td>
+                <td mat-cell *matCellDef="let run">
+                  {{
+                    run.valueScreenerStatus
+                      ? valueScreenerStatusLabel(run.valueScreenerStatus)
+                      : '—'
+                  }}
+                </td>
               </ng-container>
 
               <ng-container matColumnDef="actualStartUtc">

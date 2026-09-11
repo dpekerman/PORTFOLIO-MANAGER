@@ -13,10 +13,10 @@ namespace PortfolioManager.Api.Services;
 public interface IAutomationRunCoordinator
 {
     /// <summary>Starts a new run (or returns the id of one already in flight). Returns immediately.</summary>
-    Guid StartRun(string triggerType);
+    Guid StartRun(string triggerType, string? triggerCorrelationId = null);
 
     /// <summary>Starts the non-destructive Test Wake path (or returns the id of one already in flight).</summary>
-    Guid StartTestWake();
+    Guid StartTestWake(string? triggerCorrelationId = null);
 
     /// <summary>Requests cancellation of the in-flight run, if any. Returns false if nothing is running.</summary>
     bool CancelCurrent();
@@ -40,9 +40,11 @@ public sealed class AutomationRunCoordinator(
         get { lock (_lock) { return _inFlightTask is { IsCompleted: false }; } }
     }
 
-    public Guid StartRun(string triggerType) => Start(triggerType, isTestWake: false);
+    public Guid StartRun(string triggerType, string? triggerCorrelationId = null) =>
+        Start(triggerType, isTestWake: false, triggerCorrelationId);
 
-    public Guid StartTestWake() => Start("TestWake", isTestWake: true);
+    public Guid StartTestWake(string? triggerCorrelationId = null) =>
+        Start("TestWake", isTestWake: true, triggerCorrelationId);
 
     public bool CancelCurrent()
     {
@@ -57,7 +59,7 @@ public sealed class AutomationRunCoordinator(
         }
     }
 
-    private Guid Start(string triggerType, bool isTestWake)
+    private Guid Start(string triggerType, bool isTestWake, string? triggerCorrelationId)
     {
         lock (_lock)
         {
@@ -75,21 +77,22 @@ public sealed class AutomationRunCoordinator(
             var cts = CancellationTokenSource.CreateLinkedTokenSource(appLifetime.ApplicationStopping);
             _inFlightRunId = runId;
             _inFlightCts = cts;
-            _inFlightTask = Task.Run(() => ExecuteInNewScopeAsync(runId, triggerType, isTestWake, cts.Token));
+            _inFlightTask = Task.Run(() => ExecuteInNewScopeAsync(runId, triggerType, isTestWake, triggerCorrelationId, cts.Token));
             return runId;
         }
     }
 
-    private async Task ExecuteInNewScopeAsync(Guid runId, string triggerType, bool isTestWake, CancellationToken ct)
+    private async Task ExecuteInNewScopeAsync(
+        Guid runId, string triggerType, bool isTestWake, string? triggerCorrelationId, CancellationToken ct)
     {
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var orchestrator = scope.ServiceProvider.GetRequiredService<IEodAutomationOrchestratorService>();
             if (isTestWake)
-                await orchestrator.RunTestWakeAsync(runId, ct);
+                await orchestrator.RunTestWakeAsync(runId, triggerCorrelationId, ct);
             else
-                await orchestrator.RunAsync(runId, triggerType, ct);
+                await orchestrator.RunAsync(runId, triggerType, triggerCorrelationId, ct);
 
             // The orchestrator has returned only after its keep-awake lease was disposed. Email
             // delivery is deliberately outside that lifecycle so SMTP delays cannot hold the PC awake.

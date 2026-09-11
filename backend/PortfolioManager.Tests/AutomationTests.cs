@@ -234,14 +234,14 @@ public sealed class AutomationRunCoordinatorTests
         public int CallCount;
         public CancellationToken LastToken;
 
-        public Task RunAsync(Guid runId, string triggerType, CancellationToken ct)
+        public Task RunAsync(Guid runId, string triggerType, string? triggerCorrelationId, CancellationToken ct)
         {
             Interlocked.Increment(ref CallCount);
             LastToken = ct;
             return _gate.Task;
         }
 
-        public Task RunTestWakeAsync(Guid runId, CancellationToken ct)
+        public Task RunTestWakeAsync(Guid runId, string? triggerCorrelationId, CancellationToken ct)
         {
             LastToken = ct;
             return _gate.Task;

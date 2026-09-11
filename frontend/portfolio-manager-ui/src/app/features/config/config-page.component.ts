@@ -300,6 +300,10 @@ export class ConfigPageComponent implements OnInit {
     'errorMessage',
   ];
 
+  protected valueScreenerStatusLabel(status: string | null | undefined): string {
+    return status === 'NotObserved' ? 'Scheduled separately' : status || 'pending';
+  }
+
   protected onAutomationHistorySortChange(sort: Sort): void {
     this.automationHistorySortCol.set(sort.active || 'actualStartUtc');
     this.automationHistorySortDir.set((sort.direction as 'asc' | 'desc') || 'desc');

@@ -29,17 +29,27 @@
 #>
 param(
     [string]$PublishDir = (Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) "backend\PortfolioManager.Api\publish"),
-    [string]$BaseUrl = "http://localhost:5000"
+    [string]$BaseUrl = "http://localhost:5000",
+    [switch]$TestWake
 )
 
 $ErrorActionPreference = "Stop"
 $logPrefix = "[EodAutomationTrigger]"
 $repoDir = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $backendProjectDir = Join-Path $repoDir "backend\PortfolioManager.Api"
+$correlationId = [Guid]::NewGuid().ToString("N")
+$logDirectory = Join-Path $env:LOCALAPPDATA "PortfolioManager\logs"
+$logFile = Join-Path $logDirectory "eod-automation-trigger-$(Get-Date -Format 'yyyy-MM-dd').log"
+
+New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 
 function Write-Log($message) {
-    Write-Host "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $logPrefix $message"
+    $entry = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff') $logPrefix [$correlationId] $message"
+    Write-Host $entry
+    Add-Content -LiteralPath $logFile -Value $entry -Encoding utf8
 }
+
+Write-Log "Trigger script started (test wake: $TestWake)."
 
 function Test-Healthy {
     try {
@@ -269,8 +279,10 @@ $secretBytes = [System.Security.Cryptography.ProtectedData]::Unprotect(
 $secretBase64 = [Convert]::ToBase64String($secretBytes)
 
 try {
-    $resp = Invoke-WebRequest -Uri "$BaseUrl/api/automation/trigger" -Method Post `
-        -Headers @{ "X-Automation-Key" = $secretBase64 } -UseBasicParsing -TimeoutSec 15
+    $triggerEndpoint = if ($TestWake) { "trigger-test" } else { "trigger" }
+    $resp = Invoke-WebRequest -Uri "$BaseUrl/api/automation/$triggerEndpoint" -Method Post `
+        -Headers @{ "X-Automation-Key" = $secretBase64; "X-Automation-Correlation-Id" = $correlationId } `
+        -UseBasicParsing -TimeoutSec 15
     Write-Log "Trigger POST returned $($resp.StatusCode): $($resp.Content)"
 } catch {
     $reason = "Trigger POST failed: $($_.Exception.Message)"

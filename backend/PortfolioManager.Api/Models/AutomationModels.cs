@@ -33,6 +33,10 @@ public record AutomationTaskStatusDto(
     DateTime? LastRunTime,
     int? LastTaskResult);
 
+public record AutomationTriggerDiagnosticDto(
+    string[] Entries,
+    AutomationRunLogDto? MatchingRun);
+
 /// <summary>Diagnostic/display-only comparison of the business timezone (Eastern, fixed) against the
 /// Windows local timezone the machine currently happens to be set to — plus a live check of whether
 /// the Scheduled Task's actual next-run instant still matches what Eastern Time business config

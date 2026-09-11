@@ -17,11 +17,11 @@ namespace PortfolioManager.Api.Services;
 /// </summary>
 public interface IEodAutomationOrchestratorService
 {
-    Task RunAsync(Guid runId, string triggerType, CancellationToken ct);
+    Task RunAsync(Guid runId, string triggerType, string? triggerCorrelationId, CancellationToken ct);
 
     /// <summary>Non-destructive infra check: keep-awake + DB connectivity + one cheap read-only quote
     /// call. Never calls RefreshAllAsync, never touches RSI/signals/snapshot/cash/transactions.</summary>
-    Task RunTestWakeAsync(Guid runId, CancellationToken ct);
+    Task RunTestWakeAsync(Guid runId, string? triggerCorrelationId, CancellationToken ct);
 }
 
 public sealed class EodAutomationOrchestratorService(
@@ -39,7 +39,7 @@ public sealed class EodAutomationOrchestratorService(
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan SnapshotWindowStart = new(16, 30, 0); // matches PortfolioValueEodBackgroundService
 
-    public async Task RunAsync(Guid runId, string triggerType, CancellationToken ct)
+    public async Task RunAsync(Guid runId, string triggerType, string? triggerCorrelationId, CancellationToken ct)
     {
         var tz = MarketHoursGate.GetEasternTimeZone();
         var startUtc = DateTime.UtcNow;
@@ -50,6 +50,7 @@ public sealed class EodAutomationOrchestratorService(
             RunId = runId,
             TradingDate = nowEt.ToString("yyyy-MM-dd"),
             TriggerType = triggerType,
+            TriggerCorrelationId = triggerCorrelationId,
             ActualStartUtc = startUtc,
             OverallStatus = AutomationStatuses.Running,
             RefreshStatus = "",
@@ -60,10 +61,12 @@ public sealed class EodAutomationOrchestratorService(
         };
         db.AutomationRunLogs.Add(log);
         await db.SaveChangesAsync(ct);
+        await RecordHeartbeatAsync(log, "RunLogPersisted", ct);
 
         await using var lease = await systemAwake.AcquireAsync(CancellationToken.None);
         log.PowerRequestAcquiredAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await RecordHeartbeatAsync(log, "PowerRequestAcquired", ct);
 
         try
         {
@@ -81,6 +84,7 @@ public sealed class EodAutomationOrchestratorService(
                 logger.LogInformation("[EodAutomation] Run {RunId} skipped — not a trading day ({Date}).", runId, log.TradingDate);
                 return;
             }
+            await RecordHeartbeatAsync(log, "TradingDayValidated", ct);
 
             var admins = await userManager.GetUsersInRoleAsync("Admin");
             var owner = admins.FirstOrDefault();
@@ -95,11 +99,15 @@ public sealed class EodAutomationOrchestratorService(
                     admins.Count, owner.Id);
             log.OwnerUserId = owner.Id;
             await db.SaveChangesAsync(ct);
+            await RecordHeartbeatAsync(log, "OwnerResolved", ct);
 
+            await RecordHeartbeatAsync(log, "RefreshStarting", ct);
             await RunRefreshAsync(log, owner.Id, ct);
+            await RecordHeartbeatAsync(log, "RefreshCompleted", ct);
 
             var pollDeadlineUtc = ComputePollDeadlineUtc(startUtc, tz);
             await PollForCompletionAsync(log, tz, pollDeadlineUtc, ct);
+            await RecordHeartbeatAsync(log, "CompletionObserved", ct);
 
             log.CompletedAtUtc = DateTime.UtcNow;
             log.OverallStatus = DeriveOverallStatus(log);
@@ -121,7 +129,7 @@ public sealed class EodAutomationOrchestratorService(
         }
     }
 
-    public async Task RunTestWakeAsync(Guid runId, CancellationToken ct)
+    public async Task RunTestWakeAsync(Guid runId, string? triggerCorrelationId, CancellationToken ct)
     {
         var tz = MarketHoursGate.GetEasternTimeZone();
         var startUtc = DateTime.UtcNow;
@@ -132,6 +140,7 @@ public sealed class EodAutomationOrchestratorService(
             RunId = runId,
             TradingDate = nowEt.ToString("yyyy-MM-dd"),
             TriggerType = "TestWake",
+            TriggerCorrelationId = triggerCorrelationId,
             ActualStartUtc = startUtc,
             OverallStatus = AutomationStatuses.Running,
             RefreshStatus = "",
@@ -142,10 +151,12 @@ public sealed class EodAutomationOrchestratorService(
         };
         db.AutomationRunLogs.Add(log);
         await db.SaveChangesAsync(ct);
+        await RecordHeartbeatAsync(log, "RunLogPersisted", ct);
 
         await using var lease = await systemAwake.AcquireAsync(CancellationToken.None);
         log.PowerRequestAcquiredAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+        await RecordHeartbeatAsync(log, "PowerRequestAcquired", ct);
 
         try
         {
@@ -158,6 +169,7 @@ public sealed class EodAutomationOrchestratorService(
                 await FailAsync(log, "DbConnectivity", "db.Database.CanConnectAsync() returned false.", ct);
                 return;
             }
+            await RecordHeartbeatAsync(log, "DatabaseConnected", ct);
 
             // Cheap, read-only reachability check — reuses the same reference symbol as the
             // trading-day guard; never writes anything market-data-related.
@@ -167,6 +179,7 @@ public sealed class EodAutomationOrchestratorService(
                 await FailAsync(log, "MarketDataConnectivity", "GetQuoteAsync(^GSPC) returned null.", ct);
                 return;
             }
+            await RecordHeartbeatAsync(log, "MarketDataConnected", ct);
 
             log.RefreshStatus = AutomationStatuses.Succeeded; // repurposed here as "infra checks passed"
             log.OverallStatus = AutomationStatuses.Success;
@@ -215,6 +228,13 @@ public sealed class EodAutomationOrchestratorService(
         await db.SaveChangesAsync(ct);
     }
 
+    private async Task RecordHeartbeatAsync(AutomationRunLog log, string step, CancellationToken ct)
+    {
+        log.LastHeartbeatAtUtc = DateTime.UtcNow;
+        log.LastHeartbeatStep = step;
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Bounded by both AutomationKeepAwakeUntil (business-time driven) and MaxPollMinutes
     /// (safety cap) so a manual run fired hours before the business windows finalizes quickly with
     /// NotEligible rather than blocking for the rest of the trading day.</summary>
@@ -251,6 +271,7 @@ public sealed class EodAutomationOrchestratorService(
             await EvaluateSnapshotAsync(log, nowEt, ct);
             await EvaluateValueScreenerAsync(log, nowEt, tz, ct);
             await db.SaveChangesAsync(ct);
+            await RecordHeartbeatAsync(log, "CompletionPolling", ct);
 
             if (log.SnapshotStatus == AutomationStatuses.Succeeded && log.RsiStatus == AutomationStatuses.Succeeded)
                 break; // both fully observed as good outcomes — release the awake lease early
