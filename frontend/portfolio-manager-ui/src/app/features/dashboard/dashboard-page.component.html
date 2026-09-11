@@ -563,7 +563,7 @@
                 <tbody>
                   @for (s of rsi.oversoldSignals.slice(0, 8); track s.symbol) {
                     <tr>
-                      <td class="st-sym">
+                      <td class="st-sym" data-label="Ticker">
                         {{ s.symbol }}
                         @if (s.isInPortfolio) {
                           <span class="db-owner-badge portfolio">P</span>
@@ -574,9 +574,13 @@
                           <span class="db-row-badge db-new">NEW</span>
                         }
                       </td>
-                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
-                      <td class="st-ms">{{ s.momentumShift }}</td>
-                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
+                      <td class="st-rsi" data-label="RSI">{{ s.rsi | number: '1.1-1' }}</td>
+                      <td class="st-ms" data-label="Momentum">{{ s.momentumShift }}</td>
+                      <td
+                        class="st-vol"
+                        data-label="Volume"
+                        [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'"
+                      >
                         {{
                           s.volumeSignal === 'Validated'
                             ? '✓ Valid'
@@ -585,11 +589,12 @@
                               : s.volumeSignal
                         }}
                       </td>
-                      <td class="st-ret" [class]="signCls(s.returnPct)">
+                      <td class="st-ret" data-label="Change" [class]="signCls(s.returnPct)">
                         {{ s.returnPct | number: '1.2-2' }}%
                       </td>
                       <td
                         class="st-act"
+                        data-label="Action"
                         [class]="
                           s.action === 'BUY WATCH'
                             ? 'act-buy'
@@ -637,7 +642,7 @@
                 <tbody>
                   @for (s of rsi.overboughtSignals.slice(0, 8); track s.symbol) {
                     <tr>
-                      <td class="st-sym">
+                      <td class="st-sym" data-label="Ticker">
                         {{ s.symbol }}
                         @if (s.isInPortfolio) {
                           <span class="db-owner-badge portfolio">P</span>
@@ -648,9 +653,13 @@
                           <span class="db-row-badge db-new">NEW</span>
                         }
                       </td>
-                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
-                      <td class="st-ms">{{ s.momentumShift }}</td>
-                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
+                      <td class="st-rsi" data-label="RSI">{{ s.rsi | number: '1.1-1' }}</td>
+                      <td class="st-ms" data-label="Momentum">{{ s.momentumShift }}</td>
+                      <td
+                        class="st-vol"
+                        data-label="Volume"
+                        [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'"
+                      >
                         {{
                           s.volumeSignal === 'Validated'
                             ? '✓ Valid'
@@ -659,11 +668,12 @@
                               : s.volumeSignal
                         }}
                       </td>
-                      <td class="st-ret" [class]="signCls(s.returnPct)">
+                      <td class="st-ret" data-label="Change" [class]="signCls(s.returnPct)">
                         {{ s.returnPct | number: '1.2-2' }}%
                       </td>
                       <td
                         class="st-act"
+                        data-label="Action"
                         [class]="s.action === 'TRIM WATCH' ? 'act-trim' : 'act-watch'"
                       >
                         {{ s.action }}
@@ -761,6 +771,29 @@
           <!-- SECTOR view -->
           @if (allocTab() === 'sector') {
             <div class="db-alloc-table-wrap">
+              <div class="db-mobile-sort" aria-label="Sort sector allocation">
+                <span>Sort</span>
+                <button type="button" (click)="toggleSectorSort('label')">
+                  Sector{{
+                    sectorSortCol() === 'label' ? (sectorSortDir() === 1 ? ' ↑' : ' ↓') : ''
+                  }}
+                </button>
+                <button type="button" (click)="toggleSectorSort('percent')">
+                  Actual{{
+                    sectorSortCol() === 'percent' ? (sectorSortDir() === 1 ? ' ↑' : ' ↓') : ''
+                  }}
+                </button>
+                <button type="button" (click)="toggleSectorSort('targetPercent')">
+                  Target{{
+                    sectorSortCol() === 'targetPercent' ? (sectorSortDir() === 1 ? ' ↑' : ' ↓') : ''
+                  }}
+                </button>
+                <button type="button" (click)="toggleSectorSort('delta')">
+                  Delta{{
+                    sectorSortCol() === 'delta' ? (sectorSortDir() === 1 ? ' ↑' : ' ↓') : ''
+                  }}
+                </button>
+              </div>
               <table class="db-alloc-table" aria-label="Sector allocation vs targets">
                 <thead>
                   <tr>
@@ -802,8 +835,8 @@
                 <tbody>
                   @for (s of sortedSectorAllocation(); track s.label) {
                     <tr>
-                      <td class="alloc-sector">{{ s.label }}</td>
-                      <td class="alloc-num">
+                      <td class="alloc-sector" data-label="Sector">{{ s.label }}</td>
+                      <td class="alloc-num" data-label="Actual">
                         {{ s.percent | number: '1.1-1' }}%
                         <div class="alloc-bar-mini">
                           <span
@@ -812,17 +845,17 @@
                           ></span>
                         </div>
                       </td>
-                      <td class="alloc-num">
+                      <td class="alloc-num" data-label="Target">
                         {{ s.targetPercent > 0 ? (s.targetPercent | number: '1.1-1') + '%' : '—' }}
                       </td>
-                      <td class="alloc-num" [class]="signCls(s.delta)">
+                      <td class="alloc-num" data-label="Delta" [class]="signCls(s.delta)">
                         {{
                           s.targetPercent > 0
                             ? (s.delta >= 0 ? '+' : '') + (s.delta | number: '1.1-1') + '%'
                             : '—'
                         }}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span class="alloc-status-badge" [class]="allocStatusClass(s.status)">{{
                           s.status === 'good'
                             ? 'On target'
@@ -877,8 +910,8 @@
                 <tbody>
                   @for (r of data.roleAllocation ?? []; track r.label) {
                     <tr>
-                      <td class="alloc-sector">{{ r.label }}</td>
-                      <td class="alloc-num">
+                      <td class="alloc-sector" data-label="Role">{{ r.label }}</td>
+                      <td class="alloc-num" data-label="Actual">
                         {{ r.percent | number: '1.1-1' }}%
                         <div class="alloc-bar-mini">
                           <span
@@ -887,17 +920,17 @@
                           ></span>
                         </div>
                       </td>
-                      <td class="alloc-num">
+                      <td class="alloc-num" data-label="Target">
                         {{ r.targetPercent > 0 ? (r.targetPercent | number: '1.1-1') + '%' : '—' }}
                       </td>
-                      <td class="alloc-num" [class]="signCls(r.delta)">
+                      <td class="alloc-num" data-label="Delta" [class]="signCls(r.delta)">
                         {{
                           r.targetPercent > 0
                             ? (r.delta >= 0 ? '+' : '') + (r.delta | number: '1.1-1') + '%'
                             : '—'
                         }}
                       </td>
-                      <td>
+                      <td data-label="Status">
                         <span class="alloc-status-badge" [class]="allocStatusClass(r.status)">{{
                           r.status === 'good'
                             ? 'On target'
@@ -1082,7 +1115,7 @@
               <tbody>
                 @for (eod of summary.rows; track eod.symbol) {
                   <tr>
-                    <td class="eod-symbol">
+                    <td class="eod-symbol" data-label="Ticker">
                       {{ eod.symbol }}
                       <span
                         class="db-owner-badge"
@@ -1093,11 +1126,13 @@
                         >{{ ownershipBadge(eod.ownership) }}</span
                       >
                     </td>
-                    <td>{{ eod.signal }}</td>
-                    <td class="eod-rsi">{{ eod.rsi | number: '1.1-1' }}</td>
-                    <td>{{ eod.structure }}</td>
-                    <td class="eod-status" [matTooltip]="actionTooltip(eod)">{{ eod.action }}</td>
-                    <td class="eod-why">{{ eod.why }}</td>
+                    <td data-label="Signal">{{ eod.signal }}</td>
+                    <td class="eod-rsi" data-label="RSI">{{ eod.rsi | number: '1.1-1' }}</td>
+                    <td data-label="Structure">{{ eod.structure }}</td>
+                    <td class="eod-status" data-label="Action" [matTooltip]="actionTooltip(eod)">
+                      {{ eod.action }}
+                    </td>
+                    <td class="eod-why" data-label="Why">{{ eod.why }}</td>
                   </tr>
                 }
               </tbody>

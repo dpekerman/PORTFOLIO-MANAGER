@@ -68,42 +68,45 @@
         </div>
         @for (row of rows(); track row.id) {
           <div class="ml-row" [class]="signalClass(row.leadershipSignal)">
-            <span class="ml-name"
+            <span class="ml-name" data-label="Tracker"
               ><strong>{{ row.displayName }}</strong
               ><small>{{ row.symbol }}</small></span
             >
-            <span>{{ row.currentPrice | currency }}</span>
-            <span [class]="returnClass(row.dayReturnPct)"
+            <span data-label="Price">{{ row.currentPrice | currency }}</span>
+            <span data-label="Day" [class]="returnClass(row.dayReturnPct)"
               >{{ row.dayReturnPct | number: '1.1-1' }}%</span
             >
-            <span [class]="returnClass(row.fiveDayReturnPct)"
+            <span data-label="5D" [class]="returnClass(row.fiveDayReturnPct)"
               >{{ row.fiveDayReturnPct | number: '1.1-1' }}%</span
             >
-            <span [class]="returnClass(row.twentyDayReturnPct)"
+            <span data-label="20D" [class]="returnClass(row.twentyDayReturnPct)"
               >{{ row.twentyDayReturnPct | number: '1.1-1' }}%</span
             >
             <span
               class="ml-badge"
+              data-label="MA Structure"
               [class]="signalClass(row.maBadge)"
               [matTooltip]="maTooltip(row)"
               >{{ row.maBadge }}</span
             >
             <span
               class="ml-badge"
+              data-label="Momentum"
               [class]="signalClass(row.momentumState)"
               [matTooltip]="momentumTooltip(row)"
               >{{ row.momentumState }}</span
             >
-            <span class="ml-badge" [matTooltip]="structureTooltip(row)">{{
+            <span class="ml-badge" data-label="Pattern" [matTooltip]="structureTooltip(row)">{{
               row.priceStructure.label
             }}</span>
             <span
               class="ml-badge"
+              data-label="Signal"
               [class]="signalClass(row.leadershipSignal)"
               [matTooltip]="signalTooltip(row)"
               >{{ row.leadershipSignal }}</span
             >
-            <span class="ml-actions">
+            <span class="ml-actions" data-label="Actions">
               <button
                 mat-icon-button
                 class="ml-details"
@@ -139,7 +142,10 @@
             <div class="ml-details-content">
               Price {{ row.currentPrice | currency }} · Day
               {{ row.dayReturnPct | number: '1.1-1' }}% · 5D
-              {{ row.fiveDayReturnPct | number: '1.1-1' }}% · Momentum {{ row.momentumState }}
+              {{ row.fiveDayReturnPct | number: '1.1-1' }}% · 20D
+              {{ row.twentyDayReturnPct | number: '1.1-1' }}% · MA {{ row.maBadge }} · Momentum
+              {{ row.momentumState }} · Pattern {{ row.priceStructure.label }} · Signal
+              {{ row.leadershipSignal }}
             </div>
           }
         } @empty {

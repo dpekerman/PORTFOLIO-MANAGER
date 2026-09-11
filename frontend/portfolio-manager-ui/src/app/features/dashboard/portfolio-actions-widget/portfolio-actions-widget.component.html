@@ -58,6 +58,21 @@
         Holdings — Position Action
       </div>
       <div class="pa-table-wrap">
+        <div class="pa-mobile-sort" aria-label="Sort holdings actions">
+          <span>Sort</span>
+          <button type="button" (click)="toggleHoldingsSort('symbol')">
+            Symbol{{ holdingsSortIndicator('symbol') }}
+          </button>
+          <button type="button" (click)="toggleHoldingsSort('rsi')">
+            RSI{{ holdingsSortIndicator('rsi') }}
+          </button>
+          <button type="button" (click)="toggleHoldingsSort('momentum')">
+            Momentum{{ holdingsSortIndicator('momentum') }}
+          </button>
+          <button type="button" (click)="toggleHoldingsSort('action')">
+            Action{{ holdingsSortIndicator('action') }}
+          </button>
+        </div>
         <table class="pa-table" role="table" aria-label="Holdings actions">
           <thead>
             <tr>
@@ -110,7 +125,7 @@
           <tbody>
             @for (a of holdingActions(); track a.symbol) {
               <tr [class]="severityCls(a)">
-                <td class="pa-symbol">
+                <td class="pa-symbol" data-label="Symbol">
                   <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
                     scanIcon(a.scanType)
                   }}</mat-icon>
@@ -128,16 +143,22 @@
                     >
                   }
                 </td>
-                <td>
+                <td data-label="Role">
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
                 </td>
-                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
-                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
-                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
-                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                <td class="pa-rsi" data-label="RSI">
+                  {{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}
+                </td>
+                <td class="pa-technical" data-label="MA Structure">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical" data-label="Momentum">{{ a.momentumState || '—' }}</td>
+                <td
+                  class="pa-structure"
+                  data-label="Price Structure"
+                  [matTooltip]="structureTooltip(a)"
+                >
                   {{ structureLabel(a) }}
                 </td>
-                <td class="pa-alloc">
+                <td class="pa-alloc" data-label="Allocation">
                   @if (a.allocationStatus === 'over') {
                     <span class="pa-alloc-over" matTooltip="Sector overweight">↑ Over</span>
                   } @else if (a.allocationStatus === 'under') {
@@ -148,7 +169,7 @@
                     <span class="pa-alloc-none">—</span>
                   }
                 </td>
-                <td class="pa-action-col">
+                <td class="pa-action-col" data-label="Position Action">
                   <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">{{
                     a.actionLabel
                   }}</span>
@@ -175,6 +196,21 @@
         Watchlist — Entry Status
       </div>
       <div class="pa-table-wrap">
+        <div class="pa-mobile-sort" aria-label="Sort watchlist actions">
+          <span>Sort</span>
+          <button type="button" (click)="toggleWatchlistSort('symbol')">
+            Symbol{{ watchlistSortIndicator('symbol') }}
+          </button>
+          <button type="button" (click)="toggleWatchlistSort('rsi')">
+            RSI{{ watchlistSortIndicator('rsi') }}
+          </button>
+          <button type="button" (click)="toggleWatchlistSort('momentum')">
+            Momentum{{ watchlistSortIndicator('momentum') }}
+          </button>
+          <button type="button" (click)="toggleWatchlistSort('action')">
+            Entry{{ watchlistSortIndicator('action') }}
+          </button>
+        </div>
         <table class="pa-table" role="table" aria-label="Watchlist entry status">
           <thead>
             <tr>
@@ -222,7 +258,7 @@
           <tbody>
             @for (a of watchlistActions(); track a.symbol) {
               <tr [class]="severityCls(a)">
-                <td class="pa-symbol">
+                <td class="pa-symbol" data-label="Symbol">
                   <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
                     scanIcon(a.scanType)
                   }}</mat-icon>
@@ -237,16 +273,22 @@
                     >
                   }
                 </td>
-                <td>
+                <td data-label="Role">
                   <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
                 </td>
-                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
-                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
-                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
-                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                <td class="pa-rsi" data-label="RSI">
+                  {{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}
+                </td>
+                <td class="pa-technical" data-label="MA Structure">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical" data-label="Momentum">{{ a.momentumState || '—' }}</td>
+                <td
+                  class="pa-structure"
+                  data-label="Price Structure"
+                  [matTooltip]="structureTooltip(a)"
+                >
                   {{ structureLabel(a) }}
                 </td>
-                <td class="pa-action-col">
+                <td class="pa-action-col" data-label="Entry Status">
                   <span
                     class="pa-action-label"
                     [class]="'pa-action-' + a.actionSeverity"

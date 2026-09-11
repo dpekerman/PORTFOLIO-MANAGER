@@ -24,3 +24,23 @@ mat-form-field {
   color: var(--mat-sys-on-surface-variant);
   font-size: 0.8rem;
 }
+
+@media (max-width: 520px) {
+  mat-dialog-content {
+    min-width: 0;
+    width: 100%;
+    padding-inline: 16px;
+  }
+  mat-dialog-actions {
+    padding-inline: 16px;
+  }
+  mat-dialog-actions button {
+    min-height: 44px;
+  }
+  .autocomplete-desc {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

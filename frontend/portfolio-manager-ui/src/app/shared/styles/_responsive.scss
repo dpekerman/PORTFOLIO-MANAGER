@@ -1,0 +1,27 @@
+$dashboard-stack: 900px;
+$compact: 640px;
+$phone: 520px;
+$touch-target: 44px;
+
+@mixin dashboard-stack {
+  @media (max-width: $dashboard-stack) {
+    @content;
+  }
+}
+
+@mixin compact {
+  @media (max-width: $compact) {
+    @content;
+  }
+}
+
+@mixin phone {
+  @media (max-width: $phone) {
+    @content;
+  }
+}
+
+@mixin touch-target {
+  min-width: $touch-target;
+  min-height: $touch-target;
+}

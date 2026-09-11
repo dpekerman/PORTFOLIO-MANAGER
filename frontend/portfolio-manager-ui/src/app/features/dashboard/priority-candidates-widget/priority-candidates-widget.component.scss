@@ -222,3 +222,48 @@
   text-align: right;
   margin-top: 4px;
 }
+
+@media (max-width: 640px) {
+  .pc-how-to {
+    line-height: 1.4;
+  }
+  .pc-list {
+    gap: 8px;
+  }
+  .pc-row {
+    grid-template-areas:
+      'score info badges'
+      'score price badges'
+      'meta meta meta';
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 6px 10px;
+    padding: 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 6px;
+  }
+  .pc-score-ring {
+    grid-area: score;
+  }
+  .pc-info {
+    grid-area: info;
+  }
+  .pc-company {
+    white-space: normal;
+  }
+  .pc-price-col {
+    grid-area: price;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+  }
+  .pc-meta {
+    grid-area: meta;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 6px;
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+  .pc-badges {
+    grid-area: badges;
+  }
+}

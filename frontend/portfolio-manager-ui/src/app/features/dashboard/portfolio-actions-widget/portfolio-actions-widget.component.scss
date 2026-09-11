@@ -28,6 +28,9 @@
 .pa-table-wrap {
   overflow-x: auto;
 }
+.pa-mobile-sort {
+  display: none;
+}
 
 .pa-table {
   width: 100%;
@@ -132,6 +135,95 @@
   }
   tr.action-hold td:first-child {
     border-left: 3px solid transparent;
+  }
+}
+
+@media (max-width: 640px) {
+  .pa-counts {
+    gap: 6px;
+    padding-bottom: 8px;
+  }
+  .pa-count {
+    min-height: 40px;
+    padding: 3px 8px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 4px;
+  }
+  .pa-count.active {
+    padding: 3px 8px;
+  }
+  .pa-table-wrap {
+    overflow: visible;
+  }
+  .pa-mobile-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0 8px;
+    overflow-x: auto;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .pa-mobile-sort button {
+    min-height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 4px;
+    background: var(--mat-sys-surface);
+    color: var(--mat-sys-on-surface-variant);
+    white-space: nowrap;
+  }
+  .pa-table,
+  .pa-table tbody,
+  .pa-table tr,
+  .pa-table td {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  .pa-table {
+    table-layout: auto;
+  }
+  .pa-table thead {
+    display: none;
+  }
+  .pa-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+  .pa-table tbody tr {
+    padding: 7px 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 6px;
+  }
+  .pa-table tbody td {
+    display: grid;
+    grid-template-columns: 96px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: right;
+    white-space: normal;
+  }
+  .pa-table tbody td:last-child {
+    border-bottom: 0;
+  }
+  .pa-table tbody td::before {
+    content: attr(data-label);
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  .pa-symbol {
+    justify-content: end;
+  }
+  .pa-table tr.priority-informational {
+    opacity: 0.8;
   }
 }
 

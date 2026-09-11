@@ -1,0 +1,329 @@
+@use '../app/shared/styles/responsive' as responsive;
+
+app-dashboard-page {
+  @include responsive.dashboard-stack {
+    .db-grid {
+      grid-template-columns: 1fr;
+    }
+    .db-hero {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .db-metric-strip {
+      margin-left: 0;
+    }
+  }
+
+  @include responsive.compact {
+    .db-movers-cols {
+      grid-template-columns: 1fr;
+    }
+    .db-movers-col:first-child {
+      border-right: 0;
+      border-bottom: 1px solid #f2f5f6;
+    }
+    .db-mover-row {
+      display: grid;
+      grid-template-columns: minmax(62px, auto) minmax(0, 1fr) auto;
+    }
+    .mover-sym {
+      min-width: 0;
+    }
+    .db-signal-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    .db-sig {
+      min-height: 72px;
+      justify-content: center;
+      border-radius: 6px;
+      background: var(--mat-sys-surface-container-low);
+    }
+    .db-sig-divider {
+      display: none;
+    }
+    .db-sig-table,
+    .db-sig-table tbody,
+    .db-sig-table tr,
+    .db-sig-table td,
+    .db-alloc-table,
+    .db-alloc-table tbody,
+    .db-alloc-table tr,
+    .db-alloc-table td,
+    .db-eod-table,
+    .db-eod-table tbody,
+    .db-eod-table tr,
+    .db-eod-table td {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .db-sig-table thead,
+    .db-alloc-table thead,
+    .db-eod-table thead {
+      display: none;
+    }
+    .db-sig-table tbody,
+    .db-alloc-table tbody,
+    .db-eod-table tbody {
+      display: grid;
+      gap: 8px;
+      padding: 0 12px 8px;
+    }
+    .db-sig-table tr,
+    .db-alloc-table tbody tr,
+    .db-eod-table tr {
+      padding: 7px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-surface);
+    }
+    .db-sig-table td,
+    .db-alloc-table tbody td,
+    .db-eod-table td {
+      display: grid;
+      grid-template-columns: 82px minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-color);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+    .db-sig-table td:last-child,
+    .db-alloc-table tbody td:last-child,
+    .db-eod-table td:last-child {
+      border-bottom: 0;
+    }
+    .db-sig-table td::before,
+    .db-alloc-table tbody td::before,
+    .db-eod-table td::before {
+      content: attr(data-label);
+      color: var(--text-muted);
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-align: left;
+      text-transform: uppercase;
+    }
+    .db-sig-table .st-sym,
+    .db-alloc-table .alloc-sector,
+    .db-eod-table .eod-symbol {
+      min-width: 0;
+      text-align: right;
+    }
+    .db-sig-table .st-ms {
+      max-width: none;
+      white-space: normal;
+    }
+    .db-alloc-table-wrap,
+    .db-eod-table-wrap {
+      padding: 0 0 8px;
+      overflow: visible;
+    }
+    .db-alloc-table .alloc-bar-mini {
+      margin-left: auto;
+    }
+    .db-alloc-table tfoot {
+      display: table;
+      width: calc(100% - 24px);
+      margin: 0 12px;
+    }
+    .db-mobile-sort {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px 8px;
+      overflow-x: auto;
+      color: var(--text-muted);
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .db-mobile-sort button {
+      min-height: 36px;
+      padding: 0 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--bg-surface);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    .eod-why {
+      min-width: 0;
+      text-align: left !important;
+    }
+    .eod-ownership-legend {
+      flex-basis: 100%;
+      white-space: normal;
+    }
+    .db-earnings-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 4px 12px 12px;
+    }
+    .db-earn-chip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 3px 8px;
+      min-width: 0;
+      padding: 9px 10px;
+      border-radius: 6px;
+    }
+    .earn-name {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      max-width: none;
+    }
+    .earn-date {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .earn-src {
+      grid-column: 1 / -1;
+      grid-row: 3;
+    }
+  }
+
+  @include responsive.phone {
+    .db-page {
+      padding: 14px 10px 36px;
+    }
+    .db-header {
+      margin-bottom: 16px;
+    }
+    .db-hero {
+      gap: 14px;
+    }
+    .db-hero-total {
+      font-size: 1.9rem;
+    }
+    .db-metric-strip {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      gap: 14px 12px;
+    }
+    .db-metric {
+      min-width: 0;
+    }
+    .db-metric--today {
+      grid-row: span 2;
+      min-width: 0;
+      padding-left: 10px;
+    }
+    .db-panel-hd {
+      padding: 8px 10px 4px;
+    }
+    .db-panel-hd-left {
+      flex-wrap: wrap;
+    }
+    .db-panel-subtitle {
+      display: none;
+    }
+    .db-panel-hd > button[mat-icon-button],
+    .db-panel-hd-right > button[mat-icon-button] {
+      @include responsive.touch-target;
+    }
+    .panel-nav-btn {
+      width: 36px !important;
+      height: 36px !important;
+    }
+    .db-index-list {
+      padding: 2px 12px 12px;
+    }
+    .db-index-row {
+      grid-template-areas:
+        'name percent'
+        'price change';
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 3px 12px;
+      padding: 9px 0;
+    }
+    .idx-name {
+      grid-area: name;
+    }
+    .idx-price {
+      grid-area: price;
+      min-width: 0;
+      text-align: left;
+    }
+    .idx-chg {
+      grid-area: change;
+      min-width: 0;
+    }
+    .idx-pct {
+      grid-area: percent;
+      min-width: 0;
+    }
+    .db-chart-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .db-chart-interactive {
+      height: 180px;
+      aspect-ratio: auto;
+    }
+    .db-chart-plot {
+      width: calc(100% - 34px);
+      margin-left: 34px;
+    }
+    .db-x-label,
+    .db-y-label {
+      display: none;
+    }
+    .db-mobile-y-axis {
+      position: absolute;
+      inset: 7px auto 24px 0;
+      display: flex;
+      width: 31px;
+      flex-direction: column-reverse;
+      justify-content: space-between;
+      color: #7f919a;
+      font-size: 0.62rem;
+      line-height: 1;
+      text-align: right;
+      pointer-events: none;
+    }
+    .db-mobile-x-axis {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 39px;
+      display: flex;
+      justify-content: space-between;
+      color: #7f919a;
+      font-size: 0.6rem;
+      line-height: 1;
+      pointer-events: none;
+
+      span:first-child {
+        text-align: left;
+      }
+      span:last-child {
+        text-align: right;
+      }
+    }
+    .db-chart-tooltip {
+      min-width: 112px;
+      padding: 6px 8px;
+      font-size: 0.65rem;
+    }
+    .db-earnings-list {
+      grid-template-columns: 1fr;
+    }
+    .db-actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    .db-actions a {
+      min-height: 44px;
+    }
+  }
+}

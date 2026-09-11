@@ -301,30 +301,92 @@
   }
 }
 @media (max-width: 640px) {
-  .ml-head,
-  .ml-row {
-    grid-template-columns:
-      minmax(110px, 1fr) minmax(52px, 0.55fr) minmax(100px, 0.9fr) minmax(65px, 0.65fr)
-      90px;
+  .ml-toolbar,
+  .ml-list-header {
+    align-items: flex-start;
   }
-  .ml-head button:nth-child(2),
-  .ml-head button:nth-child(3),
-  .ml-head button:nth-child(4),
-  .ml-head button:nth-child(7),
-  .ml-head button:nth-child(8),
-  .ml-row > span:nth-child(2),
-  .ml-row > span:nth-child(3),
-  .ml-row > span:nth-child(4),
-  .ml-row > span:nth-child(7) {
-    display: none;
+  .ml-list-header {
+    min-width: 100%;
+  }
+  .ml-add-button.mat-mdc-icon-button {
+    width: 44px;
+    height: 44px;
+    margin-top: -8px;
+  }
+  .ml-counters {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .ml-counter {
+    min-height: 40px;
+    white-space: nowrap;
   }
   .ml-head {
-    font-size: 0.58rem;
+    display: none;
+  }
+  .ml-grid {
+    gap: 8px;
+  }
+  .ml-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0 14px;
+    padding: 9px 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-left-width: 3px;
+  }
+  .ml-row > span {
+    display: grid;
+    grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 32px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    text-align: right;
+    justify-items: end;
+  }
+  .ml-row > span::before {
+    content: attr(data-label);
+    justify-self: start;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .ml-row .ml-name,
+  .ml-row .ml-actions {
+    grid-column: 1 / -1;
+  }
+  .ml-row .ml-name {
+    grid-template-columns: 72px minmax(0, 1fr);
+    justify-items: start;
+  }
+  .ml-row .ml-badge {
+    justify-self: stretch;
+    white-space: normal;
+  }
+  .ml-row .ml-actions {
+    border-bottom: 0;
   }
   .ml-details {
     display: inline-flex;
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+  .ml-edit,
+  .ml-remove {
+    width: 44px;
+    height: 44px;
+    opacity: 1;
   }
   .ml-details-content {
     display: block;
+    padding: 8px 10px 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-top: 0;
+    border-radius: 0 0 5px 5px;
+    line-height: 1.5;
   }
 }
