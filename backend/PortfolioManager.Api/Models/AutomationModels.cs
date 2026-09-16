@@ -17,14 +17,16 @@ public record AutomationSettingsDto(
     bool EodWindowEnabled,
     string ValueScreenerScheduledTimeEt,
     bool ValueScreenerEnabled,
-    bool SecretConfigured);
+    bool SecretConfigured,
+    string MissedRunAlertTimeEt);
 
 public record UpdateAutomationSettingsRequest(
     bool Enabled,
     string WakeTimeEt,
     string? KeepAwakeUntilEtOverride,
     int CompletionGraceMinutes,
-    int MaxPollMinutes);
+    int MaxPollMinutes,
+    string? MissedRunAlertTimeEt = null);
 
 public record AutomationTaskStatusDto(
     bool Exists,

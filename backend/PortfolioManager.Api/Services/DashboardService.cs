@@ -15,8 +15,7 @@ public interface IDashboardService
 public sealed class DashboardService(
     AppDbContext db,
     IMarketDataProvider marketData,
-    IPortfolioActionsService portfolioActions,
-    ILogger<DashboardService> logger) : IDashboardService
+    IPortfolioActionsService portfolioActions) : IDashboardService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly (string Symbol, string Name)[] IndexSymbols =
@@ -102,26 +101,16 @@ public sealed class DashboardService(
         var hasTodayEntry = latest?.RecordedDate == etTodayStr;
         var summaryTotal = liveTotal;
         var yesterdayEntry = hasTodayEntry ? previous : latest;
-        var todayChange = yesterdayEntry is not null ? liveTotal - yesterdayEntry.TotalValue : 0m;
-        var todayPercent = Percent(todayChange, yesterdayEntry?.TotalValue);
-        // Per-component breakdown: shows exactly what drove the 1-day change
-        var todayStocksChange  = yesterdayEntry is not null ? liveStocksValue  - yesterdayEntry.StocksValue  : 0m;
+        // Matches the Portfolio Stocks header and the sum of its grid Day $ values.
+        var todayStocksChange = portfolio
+            .Where(s => !s.Item.IsManual
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .Sum(s => s.Item.Shares * (s.Quote?.Change ?? 0m));
         var todayCashChange    = yesterdayEntry is not null ? liveCashValue     - yesterdayEntry.CashValue    : 0m;
         var todayOptionsChange = yesterdayEntry is not null ? liveOptionsValue  - yesterdayEntry.OptionsValue : 0m;
-
-        // VALIDATION: Component changes should sum to total change (within rounding tolerance)
-        var componentSum = todayStocksChange + todayCashChange + todayOptionsChange;
-        var calculationTolerance = 0.01m;  // Allow $0.01 rounding error
-        if (yesterdayEntry is not null && Math.Abs(componentSum - todayChange) > calculationTolerance)
-        {
-            logger.LogWarning(
-                "[Dashboard] Component breakdown mismatch for user {UserId}: " +
-                "stocks={Stocks:C2} + cash={Cash:C2} + options={Options:C2} = {Sum:C2}, " +
-                "but total change is {Total:C2} (diff={Diff:C2})",
-                userId,
-                todayStocksChange, todayCashChange, todayOptionsChange,
-                componentSum, todayChange, Math.Abs(componentSum - todayChange));
-        }
+        // The headline is deliberately the sum of the displayed component movements.
+        var todayChange = todayStocksChange + todayCashChange + todayOptionsChange;
+        var todayPercent = Percent(todayChange, yesterdayEntry?.TotalValue);
 
         var daysSinceMonday = ((int)todayEt.DayOfWeek + 6) % 7;
         var weekStart = todayEt.AddDays(-daysSinceMonday);

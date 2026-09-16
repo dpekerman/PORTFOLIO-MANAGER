@@ -130,7 +130,27 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
             var (actionLabel, severity, priority) =
                 DeriveAction(scan, holdingRole, allocationStatus, isHolding, priceStructure);
             (actionLabel, severity, priority) = ApplyEodContext(actionLabel, severity, priority, persistedFacts, priceStructure);
-            severity = ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
+
+            // Prefer the Portfolio grid's own computed Final Action for holdings — it already runs
+            // the momentum/trend/profit-taking rules this service doesn't replicate. Only trusted
+            // for the current ET trading day; a fresh structural-negative signal always wins since
+            // a synced value can't know about damage discovered after it was pushed.
+            var usedSyncedFinalAction = false;
+            if (isHolding && pos is not null
+                && !string.IsNullOrEmpty(pos.Item.FinalAction)
+                && pos.Item.FinalActionUpdatedAt is not null
+                && IsCurrentEasternTradingDay(pos.Item.FinalActionUpdatedAt.Value)
+                && priceStructure?.HasHardStructuralNegative != true)
+            {
+                actionLabel = pos.Item.FinalAction;
+                severity = pos.Item.FinalActionSeverity ?? severity;
+                priority = pos.Item.FinalActionPriority ?? priority;
+                usedSyncedFinalAction = true;
+            }
+
+            severity = usedSyncedFinalAction
+                ? severity
+                : ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
             var inclusionReason = InclusionReason(scan, priceStructure, hasScannerData);
 
             results.Add(new PortfolioActionDto(
@@ -418,6 +438,17 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 
     private static bool IsActiveEod(SharedTechnicalFacts? facts) =>
         string.Equals(facts?.LatestEodSignalState, "Active", StringComparison.OrdinalIgnoreCase);
+
+    // Mirrors the ET-day helper used elsewhere (DashboardService, etc.) — kept local since each
+    // service in this codebase owns its own small timezone helper rather than a shared utility.
+    private static bool IsCurrentEasternTradingDay(DateTime utcTimestamp)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
+        var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
+        var stampedDay = TimeZoneInfo.ConvertTimeFromUtc(utcTimestamp, zone).Date;
+        return stampedDay == today;
+    }
 
     private static string InclusionReason(RsiScanResult scan, PriceStructureResult? structure, bool hasScannerData)
     {

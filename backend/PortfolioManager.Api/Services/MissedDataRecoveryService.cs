@@ -50,20 +50,22 @@ public sealed class MissedDataRecoveryService(
         RecoveryStepResult? eodStep = null;
         RecoveryStepResult? snapshotStep = null;
         RecoveryStepResult? screenerStep = null;
+        DateOnly? tradingDate = null;
 
         try
         {
             logger.LogInformation("[MissedDataRecovery] Starting recovery run with {TimeoutMinutes}-minute deadline.", timeoutMinutes);
+            tradingDate = await tradingSessionGuard.GetLatestTradingDateAsync(runCt);
             eodStep = await RunEodSignalsStepAsync(runCt);
-            snapshotStep = await RunSnapshotStepAsync(runCt);
+            snapshotStep = await RunSnapshotStepAsync(tradingDate.Value, runCt);
             screenerStep = await RunValueScreenerStepAsync(runCt);
             logger.LogInformation("[MissedDataRecovery] Recovery run finished.");
-            return new MissedDataRecoveryResult(true, "Completed", eodStep, snapshotStep, screenerStep);
+            return new MissedDataRecoveryResult(true, "Completed", eodStep, snapshotStep, screenerStep, tradingDate);
         }
         catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
             logger.LogWarning("[MissedDataRecovery] Recovery exceeded its {TimeoutMinutes}-minute deadline.", timeoutMinutes);
-            return new MissedDataRecoveryResult(false, "TimedOut", eodStep, snapshotStep, screenerStep);
+            return new MissedDataRecoveryResult(false, "TimedOut", eodStep, snapshotStep, screenerStep, tradingDate);
         }
         finally
         {
@@ -106,7 +108,7 @@ public sealed class MissedDataRecoveryService(
         }
     }
 
-    private async Task<RecoveryStepResult> RunSnapshotStepAsync(CancellationToken ct)
+    private async Task<RecoveryStepResult> RunSnapshotStepAsync(DateOnly tradingDate, CancellationToken ct)
     {
         try
         {
@@ -114,7 +116,6 @@ public sealed class MissedDataRecoveryService(
             // clicked after that day has already rolled over (e.g. the next morning from a timezone
             // ahead of Eastern Time), "today" would be wrong and the missed day would never get a
             // snapshot at all (it would silently insert under the wrong date instead).
-            var tradingDate = await tradingSessionGuard.GetLatestTradingDateAsync(ct);
             var dto = await historyService.RecordCurrentValueAsync(ct, PortfolioValueSource.ManualRecordNow, tradingDate);
             return RecoveryStepResult.Ok($"Recorded {dto.RecordedDate}: ${dto.TotalValue:N2}");
         }
@@ -167,4 +168,8 @@ public record MissedDataRecoveryResult(
     string Status, // "Completed" | "AlreadyRunning"
     RecoveryStepResult? EodSignals,
     RecoveryStepResult? Snapshot,
-    RecoveryStepResult? ValueScreener);
+    RecoveryStepResult? ValueScreener,
+    /// <summary>The actual last-completed trading day this run recovered — null only when the run
+    /// never started (AlreadyRunning). Used to label the FixMissingData AutomationRunLog row with
+    /// the day that was recovered instead of the day the button happened to be clicked.</summary>
+    DateOnly? RecoveredTradingDate = null);

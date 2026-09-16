@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -107,7 +108,55 @@ public class AutomationController(
     [HttpPost("recover-missed-data")]
     public async Task<ActionResult<object>> RecoverMissedData(CancellationToken ct)
     {
+        var startUtc = DateTime.UtcNow;
         var result = await missedDataRecovery.RecoverTodayAsync(ct);
+
+        // Recorded into the same AutomationRunLog table as Scheduled/ManualRunNow/TestWake runs
+        // (TriggerType "FixMissingData") so a manual recovery shows up in Recent Runs instead of
+        // leaving today with no visible entry at all.
+        if (result.Status != "AlreadyRunning")
+        {
+            var tz = MarketHoursGate.GetEasternTimeZone();
+            var nowEt = tz is null ? DateTime.UtcNow : TimeZoneInfo.ConvertTimeFromUtc(startUtc, tz);
+            // Label the run with the day actually recovered, not the day the button was clicked —
+            // these differ whenever Fix Missing Data is used the morning after (see RecoveredTradingDate).
+            var tradingDate = result.RecoveredTradingDate?.ToString("yyyy-MM-dd") ?? nowEt.ToString("yyyy-MM-dd");
+            var rsiOk = result.EodSignals?.Success ?? false;
+            var snapshotOk = result.Snapshot?.Success ?? false;
+            var screenerOk = result.ValueScreener?.Success ?? false;
+            var overall = rsiOk && snapshotOk && screenerOk
+                ? AutomationStatuses.Success
+                : !rsiOk && !snapshotOk && !screenerOk
+                    ? AutomationStatuses.Failed
+                    : AutomationStatuses.PartialSuccess;
+            var failures = new[]
+                {
+                    ("RSI", result.EodSignals), ("Snapshot", result.Snapshot), ("ValueScreener", result.ValueScreener),
+                }
+                .Where(x => x.Item2 is { Success: false })
+                .Select(x => $"{x.Item1}: {x.Item2!.Message}")
+                .ToList();
+
+            db.AutomationRunLogs.Add(new AutomationRunLog
+            {
+                RunId = Guid.NewGuid(),
+                TradingDate = tradingDate,
+                TriggerType = "FixMissingData",
+                ActualStartUtc = startUtc,
+                CompletedAtUtc = DateTime.UtcNow,
+                OverallStatus = overall,
+                RefreshStatus = "",
+                RsiStatus = rsiOk ? AutomationStatuses.Succeeded : AutomationStatuses.Failed,
+                SnapshotStatus = snapshotOk ? AutomationStatuses.Succeeded : AutomationStatuses.Failed,
+                SnapshotSource = snapshotOk ? "ManualRecordNow" : null,
+                ValueScreenerStatus = screenerOk ? AutomationStatuses.Succeeded : AutomationStatuses.Failed,
+                ErrorMessage = failures.Count > 0 ? string.Join(" | ", failures) : null,
+                OwnerUserId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "",
+                MachineName = Environment.MachineName,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+
         var operationId = Guid.NewGuid();
         await TrySendOperationEmailAsync(
             operationId,
@@ -280,6 +329,7 @@ public class AutomationController(
             ? null : request.KeepAwakeUntilEtOverride;
         if (request.CompletionGraceMinutes > 0) automationConfig.CompletionGraceMinutes = request.CompletionGraceMinutes;
         if (request.MaxPollMinutes > 0) automationConfig.MaxPollMinutes = request.MaxPollMinutes;
+        if (!string.IsNullOrWhiteSpace(request.MissedRunAlertTimeEt)) automationConfig.MissedRunAlertTimeEt = request.MissedRunAlertTimeEt;
         automationConfig.SaveToFile();
 
         return Ok(BuildSettingsDto());
@@ -300,7 +350,8 @@ public class AutomationController(
             scannerConfig.EodWindowEnabled,
             vsCfg.ScheduledTimeEt,
             vsCfg.Enabled,
-            secretStore.Exists());
+            secretStore.Exists(),
+            automationConfig.MissedRunAlertTimeEt);
     }
 
     // ── Windows Scheduled Task management ─────────────────────────────────────

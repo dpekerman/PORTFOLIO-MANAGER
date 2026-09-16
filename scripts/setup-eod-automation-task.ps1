@@ -23,11 +23,20 @@
     default WakeTimeEt). Pass the current value from GET /api/automation/settings if it has been
     changed from the default.
 
+.PARAMETER SafetyNetTimeEt
+    HH:mm in Eastern Time for a second daily trigger - defaults to 16:45 (after both the RSI EOD
+    window and Snapshot window have opened, matching EodAutomationOrchestratorService's own 16:45
+    fallback). Added 2026-09-16 after the primary WakeTimeEt trigger silently failed to fire on
+    2026-09-15 with zero Task Scheduler trace. A second independent trigger re-POSTs to the same
+    /api/automation/trigger endpoint; every underlying write it observes/persists is idempotent, so
+    this is safe even on a day the primary trigger already succeeded.
+
 .PARAMETER TaskName
     Scheduled Task name. Must match what GET /api/automation/task-status queries.
 #>
 param(
     [string]$WakeTimeEt = "15:15",
+    [string]$SafetyNetTimeEt = "16:45",
     [string]$TaskName = "PortfolioManagerEodAutomation"
 )
 
@@ -79,20 +88,32 @@ try {
 try { $easternTz = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time") }
 catch { $easternTz = [System.TimeZoneInfo]::FindSystemTimeZoneById("America/New_York") }
 
-$wakeTimeOfDay = [DateTime]::ParseExact($WakeTimeEt, "HH:mm", $null).TimeOfDay
-$nowEt = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $easternTz)
-$todayWakeEt = $nowEt.Date.Add($wakeTimeOfDay)
-$etOffset = $easternTz.GetUtcOffset($todayWakeEt)
-$offsetStr = "{0}{1:hh\:mm}" -f $(if ($etOffset -ge [TimeSpan]::Zero) { "+" } else { "-" }), $etOffset.Duration()
-$startBoundary = "{0:yyyy-MM-ddTHH:mm:ss}{1}" -f $todayWakeEt, $offsetStr
-
-Write-Host "Anchoring trigger to Eastern Time: $startBoundary (synchronized across time zones)."
+function New-AnchoredDailyTrigger {
+    param([string]$TimeEt)
+    $timeOfDay = [DateTime]::ParseExact($TimeEt, "HH:mm", $null).TimeOfDay
+    $nowEt = [System.TimeZoneInfo]::ConvertTimeFromUtc([DateTime]::UtcNow, $easternTz)
+    $todayEt = $nowEt.Date.Add($timeOfDay)
+    $offset = $easternTz.GetUtcOffset($todayEt)
+    $offsetStr = "{0}{1:hh\:mm}" -f $(if ($offset -ge [TimeSpan]::Zero) { "+" } else { "-" }), $offset.Duration()
+    $boundary = "{0:yyyy-MM-ddTHH:mm:ss}{1}" -f $todayEt, $offsetStr
+    Write-Host "Anchoring trigger to Eastern Time: $boundary (synchronized across time zones)."
+    $t = New-ScheduledTaskTrigger -Daily -At $todayEt
+    $t.StartBoundary = $boundary
+    return $t
+}
 
 $action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$triggerScript`""
 
-$trigger = New-ScheduledTaskTrigger -Daily -At $todayWakeEt
-$trigger.StartBoundary = $startBoundary
+# Two independent daily triggers - WakeTimeEt (primary) and SafetyNetTimeEt (backup). Added after
+# the primary trigger silently failed to fire on 2026-09-15 with no Task Scheduler diagnostic trace
+# at all. The safety-net run is harmless on a day the primary already succeeded: RefreshAllAsync is
+# just an extra quote refresh, and RSI/Snapshot/ValueScreener are only ever observed here, not
+# written - their actual persistence is upsert-by-day regardless of how many times it's checked.
+$trigger = @(
+    (New-AnchoredDailyTrigger -TimeEt $WakeTimeEt),
+    (New-AnchoredDailyTrigger -TimeEt $SafetyNetTimeEt)
+)
 
 # WakeToRun: allows Task Scheduler to wake a sleeping machine to run this task.
 # StartWhenAvailable: if the machine was off/asleep past the trigger time, run as soon as possible.
@@ -104,9 +125,13 @@ $settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable `
     -DontStopOnIdleEnd -ExecutionTimeLimit (New-TimeSpan -Hours 2) `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 5)
 
-# "Run only when user is logged on" (round-4 decision - simplest, no stored credentials; accepted
-# tradeoff that automation won't fire if fully logged out). Uses the currently logged-in user.
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+# "Run whether user is logged on or not" via S4U (Service-for-User) - no stored password required
+# and no interactive desktop session needed, unlike the earlier "Interactive" logon type. This
+# fixes the failure mode where the daily run is silently missed whenever the machine is off or
+# nobody is logged in at the wake time (e.g. while traveling) - S4U still works as long as the
+# machine is powered on. Trade-off: no access to network resources that need the user's own
+# credentials - not a problem here since the task only calls the backend over localhost.
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType S4U -RunLevel Limited
 
 $task = New-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal
 
@@ -114,7 +139,7 @@ if (Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue) {
     Write-Host "Task '$TaskName' already exists - updating in place."
     Set-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal | Out-Null
 } else {
-    Write-Host "Registering new task '$TaskName' at $WakeTimeEt ET daily."
+    Write-Host "Registering new task '$TaskName' at $WakeTimeEt ET and $SafetyNetTimeEt ET daily."
     Register-ScheduledTask -TaskName $TaskName -InputObject $task | Out-Null
 }
 

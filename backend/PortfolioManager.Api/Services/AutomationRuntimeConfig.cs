@@ -16,8 +16,15 @@ public sealed class AutomationRuntimeConfig
     private string? _keepAwakeUntilEtOverride;
     private int _completionGraceMinutes = 15;
     private int _maxPollMinutes = 90;
+    private string _missedRunAlertTimeEt = "17:30";
 
     public bool Enabled { get => _enabled; set => _enabled = value; }
+
+    /// <summary>HH:mm ET — if no Scheduled/FixMissingData run has succeeded for today's trading date
+    /// by this time, AutomationMissedRunWatchdogService sends one alert email. Deliberately later than
+    /// every other business-time window (EOD Window End 16:30, Value Screener 17:00) so it only fires
+    /// on a genuine miss, never a healthy run still in progress.</summary>
+    public string MissedRunAlertTimeEt { get => _missedRunAlertTimeEt; set => _missedRunAlertTimeEt = value; }
 
     /// <summary>HH:mm ET — when the Scheduled Task wakes/starts the backend and fires the trigger.</summary>
     public string WakeTimeEt { get => _wakeTimeEt; set => _wakeTimeEt = value; }
@@ -57,6 +64,7 @@ public sealed class AutomationRuntimeConfig
             _keepAwakeUntilEtOverride = string.IsNullOrWhiteSpace(dto.KeepAwakeUntilEtOverride) ? null : dto.KeepAwakeUntilEtOverride;
             if (dto.CompletionGraceMinutes > 0) _completionGraceMinutes = dto.CompletionGraceMinutes;
             if (dto.MaxPollMinutes > 0) _maxPollMinutes = dto.MaxPollMinutes;
+            if (!string.IsNullOrWhiteSpace(dto.MissedRunAlertTimeEt)) _missedRunAlertTimeEt = dto.MissedRunAlertTimeEt;
         }
         catch { /* ignore corrupt file */ }
     }
@@ -72,6 +80,7 @@ public sealed class AutomationRuntimeConfig
                 KeepAwakeUntilEtOverride = _keepAwakeUntilEtOverride,
                 CompletionGraceMinutes = _completionGraceMinutes,
                 MaxPollMinutes = _maxPollMinutes,
+                MissedRunAlertTimeEt = _missedRunAlertTimeEt,
             };
             File.WriteAllText(ConfigFilePath, JsonSerializer.Serialize(dto, JsonOpts));
         }
@@ -98,5 +107,6 @@ public sealed class AutomationRuntimeConfig
         public string? KeepAwakeUntilEtOverride { get; set; }
         public int CompletionGraceMinutes { get; set; } = 15;
         public int MaxPollMinutes { get; set; } = 90;
+        public string MissedRunAlertTimeEt { get; set; } = "17:30";
     }
 }

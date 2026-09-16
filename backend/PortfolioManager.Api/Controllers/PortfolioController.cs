@@ -94,6 +94,18 @@ public class PortfolioController(
         return updated ? NoContent() : NotFound();
     }
 
+    /// <summary>Pushes the Portfolio grid's computed Final Action per holding into the snapshot,
+    /// so Dashboard Action Center can reuse it instead of re-deriving one.</summary>
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPatch("final-actions")]
+    public async Task<IActionResult> SyncFinalActions([FromBody] SyncFinalActionsRequest request, CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        if (string.IsNullOrEmpty(uid)) return Unauthorized();
+        await portfolioSnapshot.PatchFinalActionsAsync(uid, request.Items, ct);
+        return NoContent();
+    }
+
     [Authorize(Roles = "Admin,Trader")]
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)

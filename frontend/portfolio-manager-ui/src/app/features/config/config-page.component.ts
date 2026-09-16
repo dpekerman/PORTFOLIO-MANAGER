@@ -216,6 +216,7 @@ export class ConfigPageComponent implements OnInit {
         : null,
       completionGraceMinutes: v.completionGraceMinutes ?? 15,
       maxPollMinutes: v.maxPollMinutes ?? 90,
+      missedRunAlertTimeEt: this.dateToTimeString(v.missedRunAlertTimeEt) || '17:30',
     });
     this.automationForm.markAsPristine();
   }
@@ -369,6 +370,7 @@ export class ConfigPageComponent implements OnInit {
     keepAwakeUntilEtOverride: [null as Date | null],
     completionGraceMinutes: [15, [Validators.required, Validators.min(0), Validators.max(120)]],
     maxPollMinutes: [90, [Validators.required, Validators.min(5), Validators.max(360)]],
+    missedRunAlertTimeEt: [ConfigPageComponent.timeStrToDate('17:30'), [Validators.required]],
   });
 
   // ── Email recipients ─────────────────────────────────────────────────────
@@ -658,6 +660,7 @@ export class ConfigPageComponent implements OnInit {
             : null,
           completionGraceMinutes: s.completionGraceMinutes,
           maxPollMinutes: s.maxPollMinutes,
+          missedRunAlertTimeEt: ConfigPageComponent.timeStrToDate(s.missedRunAlertTimeEt),
         });
       }
     });

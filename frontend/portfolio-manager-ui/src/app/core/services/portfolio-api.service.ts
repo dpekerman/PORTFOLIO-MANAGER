@@ -18,6 +18,7 @@ import {
   DataRefreshResultDto,
   EodSignalFilters,
   EodSignalsMeta,
+  FinalActionSyncItem,
   MarketIndicesResponse,
   OptionItem,
   OptionTechnicalData,
@@ -176,6 +177,11 @@ export class PortfolioApiService {
 
   updatePortfolioNotes(id: number, notes: string | null): Observable<void> {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/notes`, { notes });
+  }
+
+  /** Pushes the Portfolio grid's computed Final Action per holding so Dashboard Action Center matches it. */
+  syncFinalActions(items: FinalActionSyncItem[]): Observable<void> {
+    return this.http.patch<void>(`${this.base}/portfolio/final-actions`, { items });
   }
 
   /** Returns the latest persisted portfolio snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */

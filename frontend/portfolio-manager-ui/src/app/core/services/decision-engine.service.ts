@@ -1670,4 +1670,26 @@ export class DecisionEngineService {
     if (a.includes('reduce') || a.includes('trail') || a.includes('protect')) return 'ma-reduce';
     return 'ma-standby';
   }
+
+  /**
+   * Maps a Portfolio finalActionClass bucket to Action Center's severity/priority vocabulary,
+   * so a synced Final Action renders with the same badge styling and urgency as backend rows.
+   */
+  actionCenterClassification(finalActionClass: string): {
+    severity: 'buy' | 'trim' | 'hold' | 'wait';
+    priority: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
+  } {
+    switch (finalActionClass) {
+      case 'ma-tfsa-profit':
+      case 'ma-reduce':
+      case 'ma-confirmed-sell':
+        return { severity: 'trim', priority: 'REQUIRED' };
+      case 'ma-avoid':
+        return { severity: 'wait', priority: 'DEVELOPING' };
+      case 'ma-confirmed-buy':
+        return { severity: 'buy', priority: 'DEVELOPING' };
+      default:
+        return { severity: 'hold', priority: 'INFORMATIONAL' };
+    }
+  }
 }

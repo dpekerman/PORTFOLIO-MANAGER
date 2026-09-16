@@ -937,6 +937,26 @@
               >
             </mat-form-field>
           </div>
+
+          <div class="eod-time-row">
+            <mat-timepicker #missedRunAlertPicker interval="15m"></mat-timepicker>
+            <mat-form-field appearance="outline">
+              <mat-label>Missed-run alert time (ET)</mat-label>
+              <input
+                matInput
+                [matTimepicker]="missedRunAlertPicker"
+                formControlName="missedRunAlertTimeEt"
+              />
+              <mat-timepicker-toggle matSuffix [for]="missedRunAlertPicker"></mat-timepicker-toggle>
+              <mat-hint
+                >If no Scheduled/Fix Missing Data run has succeeded for today by this time, one
+                alert email is sent. Default: 17:30</mat-hint
+              >
+              @if (automationForm.controls.missedRunAlertTimeEt?.errors?.['required']) {
+                <mat-error>Required</mat-error>
+              }
+            </mat-form-field>
+          </div>
         </form>
 
         <!-- Read-only business-time rules (managed on their own tabs) -->

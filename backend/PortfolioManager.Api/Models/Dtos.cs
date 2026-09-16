@@ -64,13 +64,22 @@ public record PortfolioItemDto(
     string? HoldingRole = null,
     string? Notes = null,
     string? DecisionSource = null,
-    string? DecisionSourceClosed = null);
+    string? DecisionSourceClosed = null,
+    string? FinalAction = null,
+    string? FinalActionSeverity = null,
+    string? FinalActionPriority = null,
+    DateTime? FinalActionUpdatedAt = null);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
     StockQuote? Quote,
     PriceStructureResult? PriceStructure = null,
     SharedTechnicalFacts? TechnicalFacts = null);
+
+/// <summary>One Portfolio holding's Final Action, computed client-side and pushed after every recompute.</summary>
+public record FinalActionSyncItem(int ItemId, string FinalAction, string Severity, string Priority);
+
+public record SyncFinalActionsRequest(IReadOnlyList<FinalActionSyncItem> Items);
 
 public sealed record SharedTechnicalFacts(
     string Symbol,

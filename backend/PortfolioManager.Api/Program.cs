@@ -286,6 +286,9 @@ builder.Services.AddScoped<IAutomationRunNotificationService, AutomationRunNotif
 // Singleton: enforces single-flight execution + runs the orchestrator in its own DI scope,
 // decoupled from any HTTP request's lifetime.
 builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinator>();
+// Watchdog: emails an alert if no Scheduled/FixMissingData run has succeeded for today by
+// MissedRunAlertTimeEt (default 17:30 ET) — catches a fully silent trigger miss (see 2026-09-15).
+builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
 

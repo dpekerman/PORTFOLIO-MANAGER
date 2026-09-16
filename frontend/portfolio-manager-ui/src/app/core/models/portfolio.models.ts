@@ -24,6 +24,20 @@ export interface PortfolioItem {
   decisionSource?: string | null;
   /** @optional Decision source recorded at close */
   decisionSourceClosed?: string | null;
+  /** @optional Final Action synced from the Portfolio grid, consumed by Dashboard Action Center */
+  finalAction?: string | null;
+  finalActionSeverity?: string | null;
+  finalActionPriority?: string | null;
+  finalActionUpdatedAt?: string | null;
+}
+
+/** One Portfolio holding's computed Final Action, pushed to the backend after every recompute. */
+export interface FinalActionSyncItem {
+  itemId: number;
+  symbol: string;
+  finalAction: string;
+  severity: string;
+  priority: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
 }
 
 export interface StockQuote {
@@ -855,6 +869,7 @@ export interface AutomationSettingsDto {
   valueScreenerScheduledTimeEt: string;
   valueScreenerEnabled: boolean;
   secretConfigured: boolean;
+  missedRunAlertTimeEt: string;
 }
 
 export interface UpdateAutomationSettingsRequest {
@@ -863,6 +878,7 @@ export interface UpdateAutomationSettingsRequest {
   keepAwakeUntilEtOverride: string | null;
   completionGraceMinutes: number;
   maxPollMinutes: number;
+  missedRunAlertTimeEt?: string | null;
 }
 
 export interface AutomationTaskStatusDto {

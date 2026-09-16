@@ -5,6 +5,7 @@ import { ConfigService } from './config.service';
 import { DashboardStateService } from './dashboard-state.service';
 import { EodSignalsStateService } from './eod-signals-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
+import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
 import { PortfolioStateService } from './portfolio-state.service';
 import { WatchlistStateService } from './watchlist-state.service';
 
@@ -27,6 +28,10 @@ export class AppRefreshService {
   private readonly watchlistState = inject(WatchlistStateService);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly eodSignalsState = inject(EodSignalsStateService);
+  // Referenced only to force this root singleton to instantiate at app boot (this service is
+  // itself created early via the layout shell) so RSI analysis + Action Center sync run without
+  // requiring the Portfolio page to ever be opened.
+  private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 
   private readonly _isRefreshing = signal(false);
   private readonly _steps = signal<RefreshStep[]>(this.buildSteps());

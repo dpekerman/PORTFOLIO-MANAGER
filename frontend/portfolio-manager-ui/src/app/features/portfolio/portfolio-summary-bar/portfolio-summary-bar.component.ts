@@ -59,18 +59,13 @@ export class PortfolioSummaryBarComponent {
   protected readonly previousDayEntry = signal<PortfolioValueHistoryDto | null>(null);
   protected readonly oneDayChangeLoading = signal(true);
 
-  /** 1 Day Change = current value − previous day stored value */
-  protected readonly oneDayChange = computed<number | null>(() => {
-    const prev = this.previousDayEntry();
-    if (prev === null) return null;
-    return this.totalValue() - prev.totalValue;
-  });
-
-  protected readonly todayStocksChange = computed<number | null>(() => {
-    const prev = this.previousDayEntry();
-    if (prev === null) return null;
-    return this.stockState.totalValue() - prev.stocksValue;
-  });
+  /** Matches the Stocks header and the sum of the grid's Day $ values. */
+  protected readonly todayStocksChange = computed<number>(() =>
+    this.stockState.summaries().reduce((sum, summary) => {
+      if (summary.item.isManual || summary.item.transactionType === 'CLOSE') return sum;
+      return sum + summary.item.shares * (summary.quote?.change ?? 0);
+    }, 0),
+  );
 
   protected readonly todayCashChange = computed<number | null>(() => {
     const prev = this.previousDayEntry();
@@ -82,6 +77,14 @@ export class PortfolioSummaryBarComponent {
     const prev = this.previousDayEntry();
     if (prev === null) return null;
     return this.optionState.totalMarketValue() - prev.optionsValue;
+  });
+
+  /** Always equals the visible Stocks + Cash + Options breakdown. */
+  protected readonly oneDayChange = computed<number | null>(() => {
+    const cashChange = this.todayCashChange();
+    const optionsChange = this.todayOptionsChange();
+    if (cashChange === null || optionsChange === null) return null;
+    return this.todayStocksChange() + cashChange + optionsChange;
   });
 
   constructor() {
