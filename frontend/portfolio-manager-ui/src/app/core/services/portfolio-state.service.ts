@@ -204,9 +204,10 @@ export class PortfolioStateService {
 
   updateItem(id: number, request: UpdatePortfolioItemRequest): void {
     this.api.updateItem(id, request).subscribe({
-      next: (updated) => {
-        this._summaries.update((items) =>
-          items.map((s) =>
+      next: (response) => {
+        const updated = response.updated;
+        this._summaries.update((items) => {
+          const patched = items.map((s) =>
             s.item.id === id
               ? {
                   ...s,
@@ -228,9 +229,19 @@ export class PortfolioStateService {
                   },
                 }
               : s,
-          ),
+          );
+          // Partial close: the remaining shares were auto-split server-side into a new OPEN row.
+          return response.newOpenItem
+            ? [...patched, { item: response.newOpenItem, quote: null }]
+            : patched;
+        });
+        this.snackBar.open(
+          response.newOpenItem
+            ? `${updated.symbol} partially closed \u2014 remaining ${response.newOpenItem.shares} shares moved to a new open position`
+            : `Position updated`,
+          'Close',
+          { duration: response.newOpenItem ? 5000 : 3000 },
         );
-        this.snackBar.open(`Position updated`, 'Close', { duration: 3000 });
       },
       error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });

@@ -37,6 +37,7 @@ import {
   UpdateCashItemRequest,
   UpdateOptionItemRequest,
   UpdatePortfolioItemRequest,
+  UpdatePortfolioItemResponse,
   ValueScreenerRequest,
   ValueScreenerResult,
   WatchlistSummary,
@@ -61,8 +62,11 @@ export class PortfolioApiService {
     return this.http.post<PortfolioItem>(`${this.base}/portfolio/manual`, request);
   }
 
-  updateItem(id: number, request: UpdatePortfolioItemRequest): Observable<PortfolioItem> {
-    return this.http.put<PortfolioItem>(`${this.base}/portfolio/${id}`, request);
+  updateItem(
+    id: number,
+    request: UpdatePortfolioItemRequest,
+  ): Observable<UpdatePortfolioItemResponse> {
+    return this.http.put<UpdatePortfolioItemResponse>(`${this.base}/portfolio/${id}`, request);
   }
 
   deleteItem(id: number): Observable<void> {

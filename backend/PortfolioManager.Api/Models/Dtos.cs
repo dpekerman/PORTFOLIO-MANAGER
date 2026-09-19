@@ -70,6 +70,12 @@ public record PortfolioItemDto(
     string? FinalActionPriority = null,
     DateTime? FinalActionUpdatedAt = null);
 
+/// <summary>Result of PUT /api/portfolio/{id}. NewOpenItem is populated only when the edit was a
+/// partial close (TransactionType changed to CLOSE with Shares less than the position's prior
+/// Shares) — the remaining shares are auto-split into a new OPEN row so the user never has to
+/// manually create it.</summary>
+public record UpdatePortfolioItemResponse(PortfolioItemDto Updated, PortfolioItemDto? NewOpenItem);
+
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
     StockQuote? Quote,

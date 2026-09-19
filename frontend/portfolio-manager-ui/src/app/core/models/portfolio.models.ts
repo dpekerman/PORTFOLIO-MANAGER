@@ -184,6 +184,13 @@ export interface UpdatePortfolioItemRequest {
   decisionSourceClosed?: string | null;
 }
 
+/** Response of PUT /api/portfolio/{id}. newOpenItem is populated only when the edit was a partial
+ * close — the remaining shares were auto-split into a new OPEN position. */
+export interface UpdatePortfolioItemResponse {
+  updated: PortfolioItem;
+  newOpenItem: PortfolioItem | null;
+}
+
 export interface SectorIndustryLists {
   sectors: string[];
   industries: string[];

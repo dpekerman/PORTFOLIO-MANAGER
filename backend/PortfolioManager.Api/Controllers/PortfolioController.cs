@@ -65,10 +65,10 @@ public class PortfolioController(
 
     [Authorize(Roles = "Admin,Trader")]
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<PortfolioItemDto>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
+    public async Task<ActionResult<UpdatePortfolioItemResponse>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
     {
-        var item = await portfolioService.UpdateAsync(id, request, ct);
-        return item is null ? NotFound() : Ok(item);
+        var result = await portfolioService.UpdateAsync(id, request, ct);
+        return result is null ? NotFound() : Ok(result);
     }
 
     /// <summary>Updates the holding role for a portfolio item.</summary>
