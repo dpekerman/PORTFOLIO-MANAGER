@@ -1186,7 +1186,7 @@
 
               <ng-container matColumnDef="refreshStatus">
                 <th mat-header-cell *matHeaderCellDef mat-sort-header>Refresh</th>
-                <td mat-cell *matCellDef="let run">{{ run.refreshStatus || '—' }}</td>
+                <td mat-cell *matCellDef="let run">{{ refreshStatusLabel(run) }}</td>
               </ng-container>
 
               <ng-container matColumnDef="rsiStatus">
