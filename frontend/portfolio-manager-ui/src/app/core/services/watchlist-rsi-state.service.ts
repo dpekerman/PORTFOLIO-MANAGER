@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { EnvironmentInjector, Injectable, computed, inject, signal } from '@angular/core';
 import { toObservable } from '@angular/core/rxjs-interop';
 import {
   Subject,
@@ -16,11 +16,19 @@ import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 import { WatchlistStateService } from './watchlist-state.service';
 
-/** Root-scoped so RSI results survive navigation — no re-scan when returning to the watchlist page. */
+/**
+ * Root-scoped so RSI results survive navigation — no re-scan when returning to the watchlist page.
+ *
+ * Reading `rsiMap()`/`rsiLoading()` is always safe (passive cache read, no side effect). Only
+ * `triggerRefresh()` and `enableAutoRefreshOnWatchlistChange()` cause a live Yahoo Finance batch
+ * scan (`POST /api/scanner/analyze`) — callers that only need the cached data (e.g. Dashboard)
+ * must never call either.
+ */
 @Injectable({ providedIn: 'root' })
 export class WatchlistRsiStateService {
   private readonly watchlistState = inject(WatchlistStateService);
   private readonly api = inject(PortfolioApiService);
+  private readonly injector = inject(EnvironmentInjector);
 
   private readonly _rsiMap = signal<Map<string, RsiScanResult>>(new Map());
   private readonly _loading = signal(false);
@@ -30,6 +38,7 @@ export class WatchlistRsiStateService {
 
   private readonly rsiTrigger$ = new Subject<string[]>();
   private readonly cancel$ = new Subject<void>();
+  private autoRefreshEnabled = false;
 
   /** Sorted symbol key — changes only when symbols are added or removed. */
   private readonly _symbolKey = computed(() =>
@@ -47,8 +56,28 @@ export class WatchlistRsiStateService {
     this._loading.set(false);
   }
 
+  /**
+   * Opt-in: automatically re-analyzes the watchlist whenever its symbol set changes (add/remove).
+   * This triggers a live batch scan — call only from a consumer that wants that side effect (the
+   * Watchlist page). Idempotent; safe to call more than once.
+   */
+  enableAutoRefreshOnWatchlistChange(): void {
+    if (this.autoRefreshEnabled) return;
+    this.autoRefreshEnabled = true;
+    // Rooted at the service's own (root) injector, not the caller's — must outlive whichever
+    // component happened to enable it, matching this service's "survives navigation" contract.
+    toObservable(this._symbolKey, { injector: this.injector })
+      .pipe(
+        distinctUntilChanged(),
+        filter((key) => key.length > 0),
+        map((key) => key.split(',')),
+      )
+      .subscribe((symbols) => this.rsiTrigger$.next(symbols));
+  }
+
   constructor() {
     // Pipeline: batches symbols (max 50/request), cancels in-flight on new trigger.
+    // Merely wiring this up has no side effect — nothing runs until triggerRefresh() is called.
     this.rsiTrigger$
       .pipe(
         tap((symbols) => {
@@ -93,15 +122,5 @@ export class WatchlistRsiStateService {
           console.error(`[Watchlist RSI] Scan failed @ ${new Date().toISOString()}`);
         },
       });
-
-    // Trigger RSI only when the set of symbols actually changes (add/remove).
-    // Role updates and quote refreshes do NOT change _symbolKey → no spurious scans.
-    toObservable(this._symbolKey)
-      .pipe(
-        distinctUntilChanged(),
-        filter((key) => key.length > 0),
-        map((key) => key.split(',')),
-      )
-      .subscribe((symbols) => this.rsiTrigger$.next(symbols));
   }
 }

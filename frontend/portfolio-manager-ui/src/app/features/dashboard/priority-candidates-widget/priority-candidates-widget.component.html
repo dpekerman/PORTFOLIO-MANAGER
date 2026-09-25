@@ -5,10 +5,11 @@
   <div class="pc-how-to">
     <mat-icon class="pc-info-ico">info_outline</mat-icon>
     <span
-      >Watchlist-only candidates ranked 0–100 by four factors: Portfolio Need (30 pts) · Technical
-      Setup (30 pts) · Fundamental Quality (25 pts) · Risk Room (15 pts). Tickers already held in
-      your portfolio are excluded. HIGH ≥ 75 · WATCH ≥ 50. Act on HIGH badges first — confirm with
-      RSI Scanner and Value Screener before entering.</span
+      >Watchlist-only candidates that first pass technical eligibility (canonical Final Action, no
+      active hard-negative structure, not owned), then rank 0–100 by Portfolio Need (30 pts) ·
+      Technical Setup (30 pts) · Fundamental Quality (25 pts) · Risk Room (15 pts). HIGH ≥ 75 ·
+      WATCH ≥ 50. Up to 5 eligible candidates are shown. Confirm with RSI Scanner and Value Screener
+      before entering.</span
     >
   </div>
   @if (!loading() && scores().length === 0) {
@@ -17,71 +18,98 @@
       <span>No watchlist candidates scored yet — ensure scanner has run recently</span>
     </div>
   }
-  @if (scores().length > 0) {
+  @if (!loading() && scores().length > 0 && technicalDataPending()) {
+    <div class="pc-empty">
+      <mat-icon>hourglass_empty</mat-icon>
+      <span
+        >Technical data hasn't been loaded yet for this watchlist.<br />Visit the Watchlist page
+        once, or use the app Refresh action, to populate it — Priority Candidates never triggers a
+        scan on its own.</span
+      >
+    </div>
+  }
+  @if (
+    !loading() &&
+    scores().length > 0 &&
+    !technicalDataPending() &&
+    eligibleCandidates().length === 0
+  ) {
+    <div class="pc-empty">
+      <mat-icon>playlist_add_check</mat-icon>
+      <span
+        >No eligible priority candidates right now.<br />Developing setups remain available in
+        Action Center and Watchlist.</span
+      >
+    </div>
+  }
+  @if (eligibleCandidates().length > 0) {
     <div class="pc-list">
-      @for (s of scores().slice(0, 5); track s.symbol) {
+      @for (row of eligibleCandidates().slice(0, 5); track row.score.symbol) {
         <div class="pc-row">
           <div
             class="pc-score-ring"
-            [class.ring-high]="s.badge === 'HIGH_PRIORITY'"
-            [class.ring-watch]="s.badge === 'WATCH'"
+            [class.ring-high]="row.eligibility.priorityLevel === 'HIGH'"
+            [class.ring-watch]="row.eligibility.priorityLevel === 'WATCH'"
             [matTooltip]="
               'Score: ' +
-              (s.totalScore | number: '1.0-0') +
+              (row.score.totalScore | number: '1.0-0') +
               '\nNeed: ' +
-              (s.portfolioNeedScore | number: '1.0-0') +
+              (row.score.portfolioNeedScore | number: '1.0-0') +
               '/30  Technical: ' +
-              (s.technicalScore | number: '1.0-0') +
+              (row.score.technicalScore | number: '1.0-0') +
               '/30\nFundamental: ' +
-              (s.fundamentalScore | number: '1.1-1') +
+              (row.score.fundamentalScore | number: '1.1-1') +
               '/25  Risk Room: ' +
-              (s.riskScore | number: '1.1-1') +
-              '/15'
+              (row.score.riskScore | number: '1.1-1') +
+              '/15\nFinal Action: ' +
+              row.eligibility.finalAction
             "
           >
-            <span class="pc-score-val">{{ s.totalScore | number: '1.0-0' }}</span>
+            <span class="pc-score-val">{{ row.score.totalScore | number: '1.0-0' }}</span>
           </div>
           <div class="pc-info">
-            <strong>{{ s.symbol }}</strong>
-            <span class="pc-company">{{ s.companyName }}</span>
+            <strong>{{ row.score.symbol }}</strong>
+            <span class="pc-company">{{ row.score.companyName }}</span>
           </div>
           <div class="pc-price-col">
-            @if (s.currentPrice > 0) {
+            @if (row.score.currentPrice > 0) {
               <span class="pc-price">{{
-                s.currentPrice | currency: 'USD' : 'symbol' : '1.2-2'
+                row.score.currentPrice | currency: 'USD' : 'symbol' : '1.2-2'
               }}</span>
-              <span class="pc-rsi-val">RSI {{ s.rsi | number: '1.0-0' }}</span>
+              <span class="pc-rsi-val">RSI {{ row.score.rsi | number: '1.0-0' }}</span>
             }
           </div>
           <div class="pc-meta">
-            @if (s.trendShift) {
+            @if (row.score.trendShift) {
               <span class="pc-trend">
-                {{ trendLabel(s.trendShift)
-                }}<span class="pc-trend-dot" [class]="trendDotCls(s.trendShift)"></span>
+                {{ trendLabel(row.score.trendShift)
+                }}<span class="pc-trend-dot" [class]="trendDotCls(row.score.trendShift)"></span>
               </span>
             }
-            @if (s.allocationStatus === 'under') {
+            @if (row.score.allocationStatus === 'under') {
               <span class="pc-alloc-under" matTooltip="Sector underweight">↓ Under</span>
-            } @else if (s.allocationStatus === 'over') {
+            } @else if (row.score.allocationStatus === 'over') {
               <span class="pc-alloc-over" matTooltip="Sector overweight">↑ Over</span>
             }
           </div>
           <div class="pc-badges">
-            @if (s.latestEodSignalState) {
+            @if (row.score.latestEodSignalState) {
               <span
                 class="pc-eod-badge"
-                [class.pc-eod-invalidated]="s.latestEodIsInvalidated"
-                [matTooltip]="eodTooltip(s)"
-                >{{ eodBadgeLabel(s) }}</span
+                [class.pc-eod-invalidated]="row.score.latestEodIsInvalidated"
+                [matTooltip]="eodTooltip(row.score)"
+                >{{ eodBadgeLabel(row.score) }}</span
               >
             }
-            <span class="pc-badge" [class]="badgeCls(s.badge)">{{ badgeLabel(s.badge) }}</span>
+            <span class="pc-badge" [class]="badgeCls(row.eligibility.priorityLevel)">{{
+              badgeLabel(row.eligibility.priorityLevel)
+            }}</span>
           </div>
         </div>
       }
     </div>
-    @if (scores().length > 5) {
-      <p class="pc-more">+{{ scores().length - 5 }} more in Watchlist</p>
+    @if (eligibleCandidates().length > 5) {
+      <p class="pc-more">+{{ eligibleCandidates().length - 5 }} more in Watchlist</p>
     }
   }
 </div>

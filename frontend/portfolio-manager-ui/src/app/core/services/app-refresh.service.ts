@@ -7,6 +7,7 @@ import { EodSignalsStateService } from './eod-signals-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
 import { PortfolioStateService } from './portfolio-state.service';
+import { WatchlistRsiStateService } from './watchlist-rsi-state.service';
 import { WatchlistStateService } from './watchlist-state.service';
 
 export interface RefreshStep {
@@ -28,6 +29,7 @@ export class AppRefreshService {
   private readonly watchlistState = inject(WatchlistStateService);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly eodSignalsState = inject(EodSignalsStateService);
+  private readonly watchlistRsi = inject(WatchlistRsiStateService);
   // Referenced only to force this root singleton to instantiate at app boot (this service is
   // itself created early via the layout shell) so RSI analysis + Action Center sync run without
   // requiring the Portfolio page to ever be opened.
@@ -137,6 +139,8 @@ export class AppRefreshService {
           this.watchlistState.setFromRefresh(result.watchlistSummaries);
           // Rebuild (not just re-fetch cached) so the dashboard total reflects the quotes just refreshed above
           this.dashboardState.refresh();
+          // Bounded, explicit refresh of full-watchlist technical data (Priority Candidates only ever reads the cache)
+          this.watchlistRsi.triggerRefresh(result.watchlistSymbols);
 
           this.setStepStatus('dashboard', 'done');
           this.setStepStatus('actions', 'loading');

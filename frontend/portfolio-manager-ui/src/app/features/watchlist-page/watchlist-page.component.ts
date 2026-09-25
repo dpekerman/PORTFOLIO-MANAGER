@@ -160,6 +160,10 @@ export class WatchlistPageComponent {
   ];
 
   constructor() {
+    // Opt into live re-analysis whenever the watchlist symbol set changes — this page is the
+    // only consumer that should trigger that side effect (Dashboard only reads the cache).
+    this.watchlistRsi.enableAutoRefreshOnWatchlistChange();
+
     // Load latest Value Screener results for watchlist context
     this.api.getLatestValueScreener().subscribe({
       next: (dto) => {

@@ -175,13 +175,35 @@ Measures how much room remains in this holding role before the role target is hi
 
 If no role target configured: 8 pts (neutral).
 
+### Eligibility gate (applied before scoring is used for display)
+
+The Dashboard widget never displays a raw sort of all scored watchlist tickers. A candidate must
+first pass eligibility; only eligible candidates are ranked and shown:
+
+1. **Not owned** — already excluded from the scored set (see Portfolio exclusion below).
+2. **Canonical Final Action** — the same Final Action the Watchlist page computes
+   (`evaluateWatchlistEntry`) must be `ENTRY CANDIDATE`, `STARTER ENTRY`, `BUY WATCH`, or
+   `REVERSAL WATCH`. `WAIT FOR RECLAIM/REVERSAL/PULLBACK`, `WATCH / NO CHASE`, `AVOID`, and plain
+   `WATCH` are never eligible, regardless of score.
+3. **No active hard-negative structure** (wedge breakdown, channel broken, support broken, etc.) —
+   already encoded in the Final Action above; a hard negative can never be outscored by RSI or a
+   Bull Turn event.
+4. **Score ≥ 50** — see Badge thresholds below.
+
+A candidate missing scanner/RSI data entirely is treated as ineligible (cannot verify eligibility),
+not shown with a stale or partial score.
+
 ### Badge thresholds
 
-| Total score | Badge             | Meaning                                            |
-| ----------- | ----------------- | -------------------------------------------------- |
-| ≥ 75        | **HIGH PRIORITY** | Strong setup across all four dimensions — act soon |
-| 50–74       | **WATCH**         | Good setup but one dimension is weak — monitor     |
-| < 50        | **NO ADD**        | Not yet positioned for an entry                    |
+| Total score | Badge        | Meaning                                            |
+| ----------- | ------------ | -------------------------------------------------- |
+| ≥ 75        | **HIGH**     | Strong setup across all four dimensions — act soon |
+| 50–74       | **WATCH**    | Good setup but one dimension is weak — monitor     |
+| < 50        | _(excluded)_ | Not yet positioned for an entry — never rendered   |
+
+A `NO ADD` row can never render in Priority Candidates — that badge only ever applied before this
+gate existed. If zero candidates pass the eligibility gate, the panel shows an empty state instead
+of back-filling with ineligible names.
 
 ### Portfolio exclusion
 
@@ -190,9 +212,9 @@ Any ticker that is currently held in the portfolio (open position) is excluded f
 ### How to use Priority Candidates
 
 1. **Focus on HIGH badges** — these have the best combination of portfolio need, technical setup, fundamental quality, and available risk room.
-2. **Hover the score ring** to see the score breakdown across all four dimensions. This tells you _why_ a ticker ranked where it did.
+2. **Hover the score ring** to see the score breakdown across all four dimensions plus the canonical Final Action that qualified the ticker.
 3. **Confirm with the RSI Scanner** — check the ticker's current RSI, trend shift, and whether volume is validated.
 4. **Confirm with Value Screener** — verify the fundamental tier and action trigger before sizing a position.
 5. **Check allocation** — before entering, look at Allocation vs Targets to confirm there is sector and role room.
 6. **WATCH badges**: wait for technical improvement (trend shift to Bullish) before committing capital.
-7. **Top 5 are shown on the dashboard**; the full list is available in the Watchlist page with the full score breakdown.
+7. **Up to 5 eligible candidates are shown** on the dashboard — fewer than 5 (or none) is expected and correct when fewer setups currently qualify.

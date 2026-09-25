@@ -101,14 +101,21 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
             valueMap.TryGetValue(item.Symbol, out var vs);
             factsMap.TryGetValue(item.Symbol, out var facts);
 
-            // 1. Portfolio Need (30 pts) — sector underweight boosts score
-            var portfolioNeed = ComputePortfolioNeed(item.Symbol, sectorActuals, sectorTargets, openPortfolio);
+            // Sector metadata isn't stored on WatchlistItem — resolve from whichever source has
+            // scanned/analyzed this symbol most recently; open-holding sector is a last resort only.
+            var sector = FirstNonEmpty(
+                scan?.Sector,
+                vs?.Sector,
+                openPortfolio.FirstOrDefault(p => string.Equals(p.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase))?.Item.Sector);
+
+            // 1. Portfolio Need (30 pts) — sector underweight boosts score; works for non-owned candidates too
+            var portfolioNeed = ComputePortfolioNeed(sector, sectorActuals, sectorTargets);
 
             // 2. Technical Setup (30 pts) — RSI scan state quality
             var technical = Math.Min(30m, ComputeTechnicalScore(scan) + (IsActiveEod(facts) ? 2m : 0m));
 
-            // 3. Fundamental Quality (25 pts) — ValueScreener score
-            var fundamental = vs is not null ? Math.Min(25m, vs.Score / 4m) : 0m; // score 0-100 → 0-25
+            // 3. Fundamental Quality (25 pts) — ValueScreener score is 0-10 → scale to 0-25
+            var fundamental = vs is not null ? Math.Min(25m, vs.Score * 2.5m) : 0m;
 
             // 4. Risk / Position Room (15 pts) — how much room remains before limits hit
             var risk = ComputeRiskScore(item.Role ?? "Strategic", roleActuals, roleTargets, positionLimits, totalValue);
@@ -116,9 +123,8 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
             var total = Math.Round(portfolioNeed + technical + fundamental + risk, 1);
             var badge = total >= 75 && technical >= 10m ? "HIGH_PRIORITY" : total >= 50 ? "WATCH" : "NO_ADD";
 
-            // Determine allocation status for display
-            var sectorForItem = scan?.Sector ?? "";
-            var allocationStatus = ComputeAllocationStatus(sectorForItem, sectorActuals, sectorTargets);
+            // Determine allocation status for display — uses the same resolved sector as Need above
+            var allocationStatus = ComputeAllocationStatus(sector ?? "", sectorActuals, sectorTargets);
 
             results.Add(new ActionScoreDto(
                 Symbol: item.Symbol,
@@ -148,15 +154,10 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
     }
 
     private static decimal ComputePortfolioNeed(
-        string symbol,
+        string? sector,
         Dictionary<string, decimal> sectorActuals,
-        List<AllocationSectorTarget> targets,
-        List<PortfolioSummaryDto> portfolio)
+        List<AllocationSectorTarget> targets)
     {
-        // Find the sector of this watchlist symbol from portfolio if already held, else skip
-        var inPortfolio = portfolio.FirstOrDefault(p =>
-            string.Equals(p.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
-        var sector = inPortfolio?.Item.Sector ?? "";
         if (string.IsNullOrEmpty(sector)) return 15m; // neutral when sector unknown
 
         var target = targets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
@@ -172,6 +173,9 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
         if (delta <= 5m) return 7m;
         return 0m;
     }
+
+    private static string? FirstNonEmpty(params string?[] candidates)
+        => candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c));
 
     public static decimal ComputeTechnicalScore(RsiScanResult? scan)
     {
