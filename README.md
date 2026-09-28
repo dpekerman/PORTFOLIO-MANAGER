@@ -1,20 +1,32 @@
-# Portfolio Manager – TSX Momentum Scanner
+# Portfolio Manager
 
-A full-stack executive-grade stock portfolio tracker and RSI momentum scanner built with **Angular 22**, **.NET 8**, and **SQL Server**, using [Yahoo Finance](https://finance.yahoo.com) as the market data provider.
+A full-stack, executive-grade stock/options portfolio tracker, RSI momentum scanner, and EOD automation platform — built with **Angular 22**, **.NET 8**, and **SQL Server**, using [Yahoo Finance](https://finance.yahoo.com) as the market data provider.
 
 > **No API key required.** All live data is sourced from Yahoo Finance — just run the backend and start scanning.
+
+Repo: [github.com/dpekerman/PORTFOLIO-MANAGER](https://github.com/dpekerman/PORTFOLIO-MANAGER)
 
 ---
 
 ## Features
 
-- **Executive RSI Momentum Scanner** — TSX watchlist (50 symbols), scanned for RSI(14) extremes
-- **5 Technical Indicators per signal**: RSI/Stochastics · MACD crossover · Bollinger Bands · Volume (OBV) · 50/200 DMA deviation
-- **Reversal Probability Rating** — Low / Medium / High (aggregate of 5 indicator scores)
-- **CONFIRMED vs EARLY WARNING** signal classification with 3 trigger rules each
-- **Portfolio CRUD** — add/remove TSX/US stocks, live price quotes when API key is set
-- **Dark Bloomberg-style UI** — Angular Material 22, OnPush, signals, fully responsive
-- **Mobile responsive** — card layout on ≤768px, horizontal scroll with touch support
+- **Portfolio & Transactions** — CRUD for stock/option positions, full transaction history with context capture (splits, dividends, cash flows)
+- **Cash Ledger** — running cash balance, manual adjustments, auto-linking of trades to cash movements, ledger start date tracking
+- **Options Tracking** — separate options book (calls/puts, premiums) rolled into total portfolio value
+- **RSI Momentum Scanner** — TSX/US watchlist scan with RSI(14), Stochastics, MACD crossover, Bollinger Bands, OBV volume, 50/200 DMA deviation, and an aggregate Low/Medium/High reversal-probability rating
+- **EOD Signals & Staged Signals** — end-of-day CONFIRMED vs. EARLY WARNING signal classification, persisted daily, with Fibonacci levels and technical channel analysis
+- **EOD Automation Pipeline** — scheduled orchestrator that runs the full close-of-market cycle (scan → persist → snapshot → notify), with missed-run watchdog, recovery, and diagnostics endpoints
+- **Value Screener** — scheduled fundamental/technical screening job (weekdays 5 PM ET) with persisted results and manual refresh
+- **Market Leadership Tracker** — sector/industry relative-strength leadership calculations
+- **Allocation & Risk** — sector/position risk targets, allocation-vs-target breakdown
+- **Portfolio Value History** — daily EOD snapshots (stocks/cash/options split) with backfill & reconciliation endpoints
+- **Dashboard** — portfolio summary, EOD summary, portfolio actions/action-center, performance summary, decision-performance analytics
+- **Watchlist** — snapshotting, earnings-date tracking, per-symbol notes
+- **Authentication & Roles** — ASP.NET Identity + JWT, first-run admin setup, role-gated endpoints
+- **Notifications** — email alerts (MailKit/Gmail SMTP) for signals and automation run results; recipients managed via `notification-recipients.json`
+- **Automated Backups** — scheduled database backup background service
+- **Demo Mode** — global value-masking (`demoMode.maskValue()` / `maskPercent()`) for screenshots/demos without exposing real balances
+- **Dark Bloomberg-style UI** — Angular Material 22, zoneless, signals-based state, OnPush, fully responsive (card layout ≤768px)
 
 ---
 
@@ -23,22 +35,28 @@ A full-stack executive-grade stock portfolio tracker and RSI momentum scanner bu
 ```
 PORTFOLIO-MANAGER/
 ├── backend/
-│   └── PortfolioManager.Api/      # .NET 8 Web API (port 5000)
-│       ├── Controllers/           # portfolio, stocks, scanner endpoints
-│       ├── Data/                  # EF Core 8 + SQL Server migrations
-│       ├── Models/                # ScannerModels, PortfolioItem, Dtos
-│       └── Services/              # YahooFinanceService, PortfolioService, RsiScannerService
+│   ├── PortfolioManager.Api/         # .NET 8 Web API (port 5000)
+│   │   ├── Controllers/              # Portfolio, Transactions, Cash, Options, Scanner,
+│   │   │                             #   EodSignals, ValueScreener, AllocationRisk, Watchlist,
+│   │   │                             #   Dashboard, Analytics, Automation, Auth, Users, ...
+│   │   ├── Data/                     # EF Core 8 DbContext + SQL Server migrations
+│   │   ├── Models/                   # entities, DTOs, scanner/technical models
+│   │   └── Services/                 # ~55 services: Yahoo Finance client, RSI scanner,
+│   │                                 #   EOD automation orchestrator, value screener,
+│   │                                 #   market leadership, notifications, backups, auth
+│   └── PortfolioManager.Tests/       # xUnit test project
 ├── frontend/
-│   └── portfolio-manager-ui/      # Angular 22 SPA (port 4200)
+│   └── portfolio-manager-ui/         # Angular 22 SPA (port 4200)
 │       └── src/app/
-│           ├── core/              # models, API service, state services
-│           └── features/          # dashboard, market-header, rsi-scanner, stock-card
+│           ├── core/                 # models, api/state service pairs, demo mode, guards
+│           └── features/             # portfolio, transactions, scanner, allocation,
+│                                     #   watchlist-page, eod-signals, value-screener,
+│                                     #   portfolio-value-history, dashboard, auth, config
 ├── database/
-│   ├── 01_CreateDatabase.sql
-│   ├── 02_CreateTables.sql
-│   ├── 03_SeedData.sql
-│   └── 04_DropAll.sql
-└── .github/workflows/ci.yml       # CI: build + lint + security audit
+│   ├── SCRIPTS/                      # numbered deployment/migration scripts (00 → 18+)
+│   └── SQL/                          # supporting SQL assets
+├── scripts/                          # Azure migration, backup/restore, EOD automation task setup
+└── .github/workflows/                # ci.yml (build/lint/test/audit), cd.yml (Azure deploy)
 ```
 
 ---
@@ -55,11 +73,15 @@ PORTFOLIO-MANAGER/
 
 ### 1 — Database setup
 
+Run the scripts in `database/SCRIPTS/` **in order** against your SQL Server instance (or use `00_MASTER_DeployProduction.sql` for a one-shot production deploy):
+
 ```sql
--- Run in order against your SQL Server instance:
-database/01_CreateDatabase.sql
-database/02_CreateTables.sql
-database/03_SeedData.sql      -- optional: seeds 5 demo positions
+01_CreateDatabase.sql
+02_CreateTables.sql
+03_SeedData.sql                 -- optional: demo positions
+04_SeedNotificationRecipients.sql
+11_AddIdentityAndAuth.sql        -- required for login
+...                              -- remaining numbered migrations, in order
 ```
 
 ### 2 — Backend
@@ -82,32 +104,61 @@ npx ng serve
 ### One-click launch
 
 ```cmd
-start-all.bat     # kills existing processes, starts both in separate windows
+start-all.bat     # kills existing processes on 5000/4200, starts both in separate windows
 ```
+
+Other root-level helper scripts: `start-backend.bat`, `start-frontend.bat`, `add-firewall-rules.bat` (LAN/mobile access), `show-costs.bat` (Azure monthly cost report), `migrate-to-azure.bat` (cloud migration).
 
 ---
 
-## API Endpoints
+## API Endpoints (selected)
 
-| Method | Path                    | Description                              |
-| ------ | ----------------------- | ---------------------------------------- |
-| GET    | `/api/scanner/rsi`      | RSI scan with 5 indicators + probability |
-| GET    | `/api/portfolio`        | All portfolio positions                  |
-| POST   | `/api/portfolio`        | Add position                             |
-| PUT    | `/api/portfolio/{id}`   | Update position                          |
-| DELETE | `/api/portfolio/{id}`   | Remove position                          |
-| GET    | `/api/stocks/quotes`    | Live quotes for all positions            |
-| GET    | `/api/stocks/search?q=` | Yahoo Finance symbol search              |
+| Area            | Path                                                                               | Description                               |
+| --------------- | ---------------------------------------------------------------------------------- | ----------------------------------------- |
+| Portfolio       | `/api/portfolio`                                                                   | CRUD portfolio positions                  |
+| Cash            | `/api/cash`, `/api/cash/ledger-start-date`                                         | Cash ledger entries & balance adjustments |
+| Options         | `/api/options`                                                                     | CRUD options positions                    |
+| Stocks          | `/api/stocks/quotes`, `/api/stocks/quote/{symbol}`                                 | Live Yahoo Finance quotes                 |
+| Scanner         | `/api/scanner/rsi`, `/api/scanner/rsi/snapshot`, `/api/scanner/market-indices`     | RSI scan, cached snapshot, market indices |
+| EOD Signals     | `/api/eod-signals`, `/api/eod-signals/meta`                                        | Daily confirmed/early-warning signals     |
+| Value Screener  | `/api/valuescreener/analyze`, `/api/valuescreener/latest`                          | Fundamental screener results              |
+| Allocation Risk | `/api/allocation-risk`                                                             | Sector/position risk targets              |
+| Watchlist       | `/api/watchlist`, `/api/watchlist/snapshot`                                        | Watchlist CRUD + snapshotting             |
+| Portfolio Value | `/api/portfoliovaluehistory/latest`, `/range`, `/record-now`                       | Daily EOD value history                   |
+| Dashboard       | `/api/dashboard`, `/api/dashboard/eod-summary`, `/api/dashboard/market-leadership` | Aggregated dashboard data                 |
+| Analytics       | `/api/analytics/decision-performance`                                              | Trade decision performance analytics      |
+| Automation      | `/api/automation/trigger`, `/status/{runId}`, `/history`                           | EOD automation pipeline control           |
+| Notifications   | `/api/notification/recipients`, `/status`                                          | Email notification config                 |
+| Auth            | `/api/auth/setup`, `/api/auth/login`                                               | First-run admin setup + JWT login         |
+| Users           | `/api/users`, `/api/users/preferences`                                             | User management & preferences             |
+
+Full request/response contracts are available via Swagger at `http://localhost:5000/swagger` when running the backend in Development.
+
+---
+
+## Background Services
+
+Several `IHostedService` workers run continuously alongside the API:
+
+- `PortfolioValueEodBackgroundService` — records the daily EOD portfolio value snapshot
+- `RsiAlertBackgroundService` — scans for RSI signal changes and triggers notifications
+- `ValueScreenerSchedulerService` — runs the value screener weekdays at 5 PM ET
+- `AutomationMissedRunWatchdogService` — detects and recovers missed EOD automation runs
+- `DatabaseBackupBackgroundService` — scheduled database backups
 
 ---
 
 ## Environment Configuration
 
-**Never commit connection strings.** Use:
+**Never commit connection strings or secrets.**
 
-| Secret         | Where to set                                                            |
-| -------------- | ----------------------------------------------------------------------- |
-| SQL connection | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI |
+| Secret                   | Where to set                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| SQL connection           | `appsettings.json` locally; GitHub Secret `SQL_CONNECTION_STRING` in CI                  |
+| JWT signing key          | `.NET User Secrets` locally; App Service settings in Azure                               |
+| Gmail App Password       | GitHub Secret `GMAIL_APP_PASSWORD` (CI notify) / `EMAIL_APP_PASSWORD` (CD → App Service) |
+| Notification recipients  | `notification-recipients.json` (not stored in DB)                                        |
+| Azure deploy credentials | GitHub Secrets `AZURE_WEBAPP_PUBLISH_PROFILE`, `AZURE_STATIC_WEB_APPS_API_TOKEN`         |
 
 ---
 
@@ -123,125 +174,22 @@ start-all.bat     # kills existing processes, starts both in separate windows
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR to `main` and `develop`:
-
-1. **.NET build** — `dotnet build --configuration Release`
-2. **Angular production build** — `ng build --configuration production`
-3. **Angular lint** — `ng lint`
-4. **npm audit** — high-severity CVE check
-5. **NuGet vulnerability check** — `dotnet list package --vulnerable`
-6. **Artifacts uploaded** — `api-drop` and `angular-drop` (7-day retention)
-
----
-
-## QA Checklist
-
-See [QA Steps](#steps-before-qa) section below for the full pre-QA handoff checklist.
-
-            └── features/          # Dashboard, StockCard, AddStockDialog
-
-````
-
----
-
-## Prerequisites
-
-| Tool        | Version                        |
-| ----------- | ------------------------------ |
-| .NET SDK    | 8.x                            |
-| Node.js     | 22.x LTS                       |
-| SQL Server  | local (Express or full)        |
-| Angular CLI | 22 (installed locally via npx) |
-
----
-
-## ⚙️ Backend Setup
-
-### 1. Apply database migrations (auto-runs on first start in Development)
-
-```powershell
-dotnet ef database update
-```
-
-Or just run the app — it calls `MigrateAsync()` on startup in Development mode, creating `PortfolioManagerDb` automatically.
-
-### 3. Run the backend
-
-```powershell
-cd backend/PortfolioManager.Api
-dotnet run
-```
-
-API runs at **http://localhost:5000**
-Swagger UI: **http://localhost:5000/swagger**
-
----
-
-## 🖥️ Frontend Setup
-
-```powershell
-cd frontend/portfolio-manager-ui
-npm install
-npx ng serve
-```
-
-Angular dev server runs at **http://localhost:4200**
-All `/api` requests are proxied to the backend at `http://localhost:5000`.
-
----
-
-## Running Both Together
-
-Open two terminals:
-
-**Terminal 1 – Backend:**
-
-```powershell
-cd backend/PortfolioManager.Api
-dotnet run
-```
-
-**Terminal 2 – Frontend:**
-
-```powershell
-cd frontend/portfolio-manager-ui
-npx ng serve
-```
-
-Then open **http://localhost:4200**.
-
----
-
-## Features
-
-- **Dashboard** with a live portfolio summary bar (total value, cost, gain/loss %)
-- **Stock cards** showing live price, change, day range, shares, market value, P&L
-- **Add Stock dialog** with Yahoo Finance symbol search autocomplete (Material Design)
-- **30-second polling** for near-real-time price refresh
-- **Delete** a position directly from the card
-- All data persisted in SQL Server via EF Core
-
----
-
-## API Endpoints
-
-| Method | Path                         | Description                    |
-| ------ | ---------------------------- | ------------------------------ |
-| GET    | `/api/portfolio`             | List all portfolio items       |
-| POST   | `/api/portfolio`             | Add a stock                    |
-| PUT    | `/api/portfolio/{id}`        | Update shares/cost             |
-| DELETE | `/api/portfolio/{id}`        | Remove a stock                 |
-| GET    | `/api/stocks/quotes`         | All positions with live quotes |
-| GET    | `/api/stocks/quote/{symbol}` | Single live quote              |
-| GET    | `/api/stocks/search?q=`      | Symbol search via Yahoo Finance |
+- **`ci.yml`** — runs on every push/PR to `main`/`develop`: .NET build + xUnit tests, Angular production build + lint, npm audit (high+), NuGet vulnerability scan, artifact upload (`api-drop`, `angular-drop`), success email notification.
+- **`cd.yml`** — runs on push to `main` (or manual dispatch): deploys the API to Azure App Service and the Angular SPA to Azure Static Web Apps. Gracefully skips if Azure secrets aren't configured yet — see `docs/cloud-migration-guide.md`.
 
 ---
 
 ## Security Notes
 
-- API key stored in `.NET User Secrets` (development) — never in `appsettings.json` (not currently required — Yahoo Finance needs no key)
-- For **production**: use Azure Key Vault, AWS Secrets Manager, or environment variables
-- CORS is locked to `localhost:4200` in development
+- ASP.NET Identity + JWT bearer auth on protected endpoints; first-run `/api/auth/setup` provisions the initial admin
+- CORS locked to `localhost:4200` (`AngularDevPolicy`) in development
+- Rate limiting enabled on the API (`AddRateLimiter`)
 - EF Core parameterized queries prevent SQL injection
-- No sensitive data stored in browser localStorage
-````
+- Secrets (SQL, JWT, SMTP) never committed — use `.NET User Secrets` locally, GitHub Secrets / Azure App Settings in CI/CD
+- No sensitive data stored in browser localStorage; demo mode masks monetary values for screenshots
+
+---
+
+## Further Reading
+
+See `docs/` for detailed implementation reports and guides, including EOD automation pipeline, market leadership tracker, cash ledger, auth & roles, Azure setup/cost checklist, and cloud migration.
