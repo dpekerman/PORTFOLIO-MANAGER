@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
@@ -41,6 +42,7 @@ public class AuthController(
 
     [HttpPost("setup")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Setup([FromBody] SetupRequest request, CancellationToken ct)
     {
         if (await userManager.Users.AnyAsync(ct))
@@ -67,12 +69,26 @@ public class AuthController(
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken ct)
     {
         var user = await userManager.FindByEmailAsync(request.Email);
-        if (user is null || !await userManager.CheckPasswordAsync(user, request.Password))
+        if (user is null)
             return Unauthorized(new { message = "Invalid email or password." });
 
+        // Brute-force guard: same lockout window/threshold as IdentityOptions.Lockout defaults,
+        // enforced explicitly here since this endpoint calls CheckPasswordAsync directly instead
+        // of SignInManager (which would track failures automatically).
+        if (await userManager.IsLockedOutAsync(user))
+            return Unauthorized(new { message = "Account temporarily locked due to repeated failed login attempts. Try again later." });
+
+        if (!await userManager.CheckPasswordAsync(user, request.Password))
+        {
+            await userManager.AccessFailedAsync(user);
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
+
+        await userManager.ResetAccessFailedCountAsync(user);
         return await IssueTokensAsync(user, ct);
     }
 

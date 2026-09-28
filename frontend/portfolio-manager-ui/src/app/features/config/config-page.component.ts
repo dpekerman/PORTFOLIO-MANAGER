@@ -1377,7 +1377,7 @@ export class AllocConfirmDialogComponent {
           <mat-label>Password</mat-label>
           <input matInput type="password" formControlName="password" />
           @if (form.controls.password.hasError('minlength')) {
-            <mat-error>At least 8 characters required</mat-error>
+            <mat-error>At least 10 characters required</mat-error>
           }
         </mat-form-field>
         <mat-form-field appearance="outline" class="full-w">
@@ -1417,7 +1417,7 @@ export class CreateUserDialogComponent {
   protected readonly form = this.fb.group({
     displayName: ['', [Validators.required, Validators.minLength(2)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(10)]],
     role: ['Viewer' as AppRole, [Validators.required]],
   });
 
