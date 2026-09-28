@@ -1,0 +1,100 @@
+.cash-ledger-wrapper {
+  padding: 12px 24px 24px;
+
+  @media (max-width: 600px) {
+    padding: 12px 8px 24px;
+  }
+}
+
+.account-subtotals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  padding: 12px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.subtotal-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.9rem;
+
+  &.grand-total {
+    font-weight: 700;
+    margin-left: auto;
+  }
+}
+
+.loading-row,
+.empty-row {
+  padding: 24px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+}
+
+.ledger-table {
+  width: 100%;
+}
+
+.negative {
+  color: #c62828;
+}
+
+.desktop-only {
+  display: table;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+}
+
+.mobile-cards {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ledger-card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-type {
+  font-weight: 600;
+}
+
+.card-amount {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2e7d32;
+
+  &.negative {
+    color: #c62828;
+  }
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+  margin-top: 4px;
+}

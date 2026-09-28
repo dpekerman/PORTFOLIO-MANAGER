@@ -107,6 +107,18 @@ export class EditPositionDialogComponent implements OnInit {
     holdingRole: [this.data.item.holdingRole ?? (null as string | null)],
   });
 
+  /** True while the form represents a partial close — closing fewer shares than currently held.
+   * The backend auto-splits the remainder into a new open position on save. */
+  protected isPartialClose(): boolean {
+    const shares = this.form.value.shares;
+    return (
+      this.form.value.transactionType === 'CLOSE' &&
+      this.data.item.transactionType !== 'CLOSE' &&
+      shares != null &&
+      shares < this.data.item.shares
+    );
+  }
+
   ngOnInit(): void {
     this.api.getSectorIndustryLists().subscribe({
       next: (lists) => {

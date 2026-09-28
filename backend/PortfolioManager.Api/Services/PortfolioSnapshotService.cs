@@ -10,6 +10,7 @@ public interface IPortfolioSnapshotService
     Task SaveAsync(string userId, IReadOnlyList<PortfolioSummaryDto> data, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioSummaryDto>?> GetLatestAsync(string userId, CancellationToken ct = default);
     Task PatchHoldingRoleAsync(string userId, int itemId, string holdingRole, CancellationToken ct = default);
+    Task PatchFinalActionsAsync(string userId, IReadOnlyList<FinalActionSyncItem> items, CancellationToken ct = default);
 }
 
 public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshotService> logger) : IPortfolioSnapshotService
@@ -70,7 +71,7 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
             if (items is null) return;
             var idx = items.FindIndex(s => s.Item.Id == itemId);
             if (idx < 0) return;
-            items[idx] = new PortfolioSummaryDto(items[idx].Item with { HoldingRole = holdingRole }, items[idx].Quote);
+            items[idx] = new PortfolioSummaryDto(items[idx].Item with { HoldingRole = holdingRole }, items[idx].Quote, items[idx].PriceStructure);
             row.SnapshotJson = JsonSerializer.Serialize(items, _json);
             row.UpdatedAt = DateTime.UtcNow;
             await db.SaveChangesAsync(ct);
@@ -78,6 +79,45 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[PortfolioSnapshot] Failed to patch HoldingRole for item {Id}.", itemId);
+        }
+    }
+
+    // Patches each holding's Final Action (computed client-side) so Dashboard Action Center can
+    // reuse it instead of re-deriving one from scanner/EOD facts alone.
+    public async Task PatchFinalActionsAsync(string userId, IReadOnlyList<FinalActionSyncItem> items, CancellationToken ct = default)
+    {
+        var row = await db.PortfolioSnapshots.FindAsync([userId], ct);
+        if (row is null) return;
+        try
+        {
+            var list = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(row.SnapshotJson, _json);
+            if (list is null) return;
+            var byId = items.ToDictionary(i => i.ItemId);
+            var now = DateTime.UtcNow;
+            var changed = false;
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (!byId.TryGetValue(list[i].Item.Id, out var sync)) continue;
+                list[i] = list[i] with
+                {
+                    Item = list[i].Item with
+                    {
+                        FinalAction = sync.FinalAction,
+                        FinalActionSeverity = sync.Severity,
+                        FinalActionPriority = sync.Priority,
+                        FinalActionUpdatedAt = now,
+                    },
+                };
+                changed = true;
+            }
+            if (!changed) return;
+            row.SnapshotJson = JsonSerializer.Serialize(list, _json);
+            row.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[PortfolioSnapshot] Failed to patch final actions.");
         }
     }
 }

@@ -17,6 +17,7 @@ public interface IPortfolioBetaService
 public sealed class PortfolioBetaService(
     AppDbContext db,
     IMarketDataProvider marketData,
+    ISecurityAnalysisResolver analysisResolver,
     ILogger<PortfolioBetaService> logger) : IPortfolioBetaService
 {
     // Sector average betas (proxy fallback)
@@ -42,14 +43,12 @@ public sealed class PortfolioBetaService(
             .Where(p => p.TransactionType != "CLOSE" && !p.IsManual)
             .ToListAsync(ct);
 
-        // CDR symbols: .TO tickers whose company name indicates they are Canadian Depositary Receipts.
-        // These represent underlying US stocks — use the US ticker's beta.
-        // Real Canadian stocks (e.g. KEY.TO, TD.TO) keep their .TO suffix for correct Yahoo Finance lookup.
-        var cdrSymbols = stocks
-            .Where(s => s.Symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase)
-                     && s.CompanyName.Contains("CDR", StringComparison.OrdinalIgnoreCase))
-            .Select(s => s.Symbol)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var analysisSymbols = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var stock in stocks)
+        {
+            var resolved = await analysisResolver.ResolveAsync(stock.Symbol, stock.UserId, ct);
+            analysisSymbols[stock.Symbol] = resolved.AnalysisTicker;
+        }
         var cashTotal = await db.CashItems.SumAsync(c => c.Amount, ct);
         var options = await db.OptionItems
             .Where(o => o.TransactionType != "CLOSE")
@@ -85,7 +84,7 @@ public sealed class PortfolioBetaService(
 
         // Determine which underlying tickers we need beta for
         var betaSymbols = positionValues
-            .Select(pv => GetBetaSymbol(pv.Symbol, cdrSymbols))
+            .Select(pv => analysisSymbols.TryGetValue(pv.Symbol, out var analysisSymbol) ? analysisSymbol : pv.Symbol)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -105,7 +104,7 @@ public sealed class PortfolioBetaService(
 
         // Aggregate by symbol (group multiple lots)
         var grouped = positionValues
-            .GroupBy(pv => GetBetaSymbol(pv.Symbol, cdrSymbols), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(pv => analysisSymbols.TryGetValue(pv.Symbol, out var analysisSymbol) ? analysisSymbol : pv.Symbol, StringComparer.OrdinalIgnoreCase)
             .Select(g =>
             {
                 var mv = g.Sum(pv => pv.MarketValue);
@@ -174,18 +173,4 @@ public sealed class PortfolioBetaService(
         return (1.0m, true);
     }
 
-    /// <summary>
-    /// Returns the ticker to use for beta lookup.
-    /// CDRs (Canadian Depositary Receipts — description contains "CDR") map to the underlying US ticker by stripping .TO.
-    /// Real Canadian stocks (e.g. KEY.TO, TD.TO) keep their .TO suffix so Yahoo Finance returns the correct Canadian beta.
-    /// Trust units (.UN) strip the suffix as before.
-    /// </summary>
-    private static string GetBetaSymbol(string symbol, HashSet<string> cdrSymbols)
-    {
-        if (symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase))
-            return cdrSymbols.Contains(symbol) ? symbol[..^3] : symbol;
-        if (symbol.EndsWith(".UN", StringComparison.OrdinalIgnoreCase))
-            return symbol[..^3];
-        return symbol;
-    }
 }

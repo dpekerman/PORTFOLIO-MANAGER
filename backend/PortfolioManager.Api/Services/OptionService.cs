@@ -24,6 +24,7 @@ public sealed class OptionService(
     AppDbContext db,
     HttpClient http,
     ILogger<OptionService> logger,
+    IMutationClock mutationClock,
     IHttpContextAccessor httpCtx) : IOptionService
 {
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
@@ -76,6 +77,8 @@ public sealed class OptionService(
         };
         db.OptionItems.Add(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -98,6 +101,8 @@ public sealed class OptionService(
         item.DecisionSource    = request.DecisionSource;
         item.DecisionSourceClosed = request.DecisionSourceClosed;
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -107,6 +112,8 @@ public sealed class OptionService(
         if (item is null) return false;
         db.OptionItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return true;
     }
 

@@ -12,7 +12,43 @@ using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
+// Single-instance guard: if the trigger script's health-check briefly reports the backend as down
+// (slow startup) and starts a redundant process, that second instance must fail fast rather than
+// running two Portfolio Manager backends side by side. Named Mutex is belt-and-suspenders with
+// Kestrel's own port-bind exclusivity. Only ever exits the process — never blocks or throws.
+var singleInstanceMutex = new Mutex(true, "Global\\PortfolioManagerApi_SingleInstance", out var isFirstInstance);
+if (!isFirstInstance)
+{
+    Console.WriteLine("Another PortfolioManager.Api instance is already running — exiting.");
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Windows Event Log (diagnostic visibility for the hidden/detached automation process) ────
+// The trigger script starts the published backend with -WindowStyle Hidden, so Console output is
+// otherwise invisible. The Event Source is created once by setup-eod-automation-task.ps1 (already
+// elevated for Scheduled Task registration) — if it doesn't exist yet, writing is silently skipped
+// rather than throwing, so this never blocks startup on a machine where setup hasn't run yet.
+if (OperatingSystem.IsWindows())
+{
+    try
+    {
+        if (System.Diagnostics.EventLog.SourceExists("PortfolioManagerApi"))
+        {
+            builder.Logging.AddEventLog(settings =>
+            {
+                settings.SourceName = "PortfolioManagerApi";
+                settings.LogName = "Application";
+            });
+        }
+    }
+    catch
+    {
+        // Missing permission to query/create the source (e.g. first run before setup has ever
+        // executed elevated) — non-critical, Console logging still works.
+    }
+}
 
 // ── Controllers + Swagger ────────────────────────────────────────────────────
 builder.Services.AddControllers()
@@ -110,6 +146,8 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
+builder.Services.AddSingleton<IMutationClock, MutationClock>();
 builder.Services.AddScoped<IAllocationRiskService, AllocationRiskService>();
 builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
 {
@@ -118,6 +156,8 @@ builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddMemoryCache();          // used by ScannerController to cache scan results
+builder.Services.AddScoped<IChannelAnalysisService, ChannelAnalysisService>();
+builder.Services.AddScoped<ITechnicalChannelPersistenceService, TechnicalChannelPersistenceService>();
 builder.Services.AddHttpClient<IRsiScannerService, RsiScannerService>(client =>
 {
     client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
@@ -200,6 +240,13 @@ builder.Services.AddHostedService<RsiAlertBackgroundService>();
 builder.Services.AddScoped<IPortfolioValueHistoryService, PortfolioValueHistoryService>();
 builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
 
+// One-click "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today
+builder.Services.AddScoped<IMissedDataRecoveryService, MissedDataRecoveryService>();
+
+// Daily full SQL backup at 15:00 ET (default) into D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\DAYLY_BACKUP
+builder.Services.AddSingleton<IDatabaseBackupService, DatabaseBackupService>();
+builder.Services.AddHostedService<DatabaseBackupBackgroundService>();
+
 // Portfolio beta calculation
 builder.Services.AddScoped<IPortfolioBetaService, PortfolioBetaService>();
 
@@ -209,12 +256,39 @@ builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
 builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IDataRefreshService, DataRefreshService>();
 builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
+builder.Services.AddScoped<IDashboardEodSummaryService, DashboardEodSummaryService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<ITransactionContextCaptureService, TransactionContextCaptureService>();
 builder.Services.AddScoped<IPortfolioActionScoreService, PortfolioActionScoreService>();
+builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>();
+builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
+
+// ── EOD Automation Pipeline ──────────────────────────────────────────────────
+// Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window
+// and ValueScreenerScheduleConfig's schedule (business-time rules); this is machine availability only.
+builder.Services.AddSingleton<AutomationRuntimeConfig>(_ =>
+{
+    var cfg = new AutomationRuntimeConfig();
+    cfg.LoadFromFile();
+    return cfg;
+});
+builder.Services.AddSingleton<ISystemAwakeService, SystemAwakeService>();
+#pragma warning disable CA1416 // DPAPI/AutomationSecretStore is Windows-only by design (this app runs on Windows only)
+builder.Services.AddSingleton<IAutomationSecretStore, AutomationSecretStore>();
+#pragma warning restore CA1416
+builder.Services.AddScoped<ITradingSessionGuard, TradingSessionGuard>();
+builder.Services.AddScoped<IEodAutomationOrchestratorService, EodAutomationOrchestratorService>();
+builder.Services.AddScoped<IAutomationRunNotificationService, AutomationRunNotificationService>();
+// Singleton: enforces single-flight execution + runs the orchestrator in its own DI scope,
+// decoupled from any HTTP request's lifetime.
+builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinator>();
+// Watchdog: emails an alert if no Scheduled/FixMissingData run has succeeded for today by
+// MissedRunAlertTimeEt (default 17:30 ET) — catches a fully silent trigger miss (see 2026-09-15).
+builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
 
@@ -260,6 +334,10 @@ app.UseCors("AngularDevPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Trivial, unauthenticated liveness probe — used only by the local automation trigger script to
+// know when it's safe to POST /api/automation/trigger after starting a detached backend process.
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
 

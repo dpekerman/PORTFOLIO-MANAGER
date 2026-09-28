@@ -1,0 +1,52 @@
+.admin-actions {
+  margin: 24px 24px 0;
+  padding: 16px;
+  border: 1px dashed #ef6c00;
+  border-radius: 8px;
+  background: rgba(239, 108, 0, 0.04);
+
+  @media (max-width: 600px) {
+    margin: 24px 8px 0;
+  }
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #ef6c00;
+  margin-bottom: 12px;
+}
+
+.admin-error {
+  background: #fdecea;
+  color: #c62828;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 12px;
+}
+
+.admin-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-field {
+  width: 180px;
+}
+
+.ledger-start-value {
+  font-weight: 600;
+}

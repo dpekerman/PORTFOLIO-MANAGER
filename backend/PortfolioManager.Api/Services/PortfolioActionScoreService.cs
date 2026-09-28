@@ -18,7 +18,12 @@ public sealed record ActionScoreDto(
     string Badge,                 // HIGH_PRIORITY | WATCH | NO_ADD
     string TrendShift,
     decimal Rsi,
-    string AllocationStatus);
+    string AllocationStatus,
+    decimal CurrentPrice,         // latest price from scanner snapshot
+    string? LatestEodSignalState = null,
+    string? LatestEodScanType = null,
+    bool LatestEodIsNew = false,
+    bool LatestEodIsInvalidated = false);
 
 public interface IPortfolioActionScoreService
 {
@@ -38,6 +43,7 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
         if (watchlistItems.Count == 0) return [];
 
         var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        var watchlistSnap = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
         var rsiSnap = await db.RsiScanSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.Id == 1, ct);
         var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
         var roleTargets = await db.AllocationRiskTargets.AsNoTracking().ToListAsync(ct);
@@ -46,6 +52,7 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
             .OrderByDescending(s => s.RunAt).FirstOrDefaultAsync(ct);
 
         var portfolio = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
+        var watchlistSummaries = Deserialize<List<WatchlistSummaryDto>>(watchlistSnap?.SnapshotJson ?? "[]") ?? [];
         var scanner = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
         var valueResults = Deserialize<List<ValueScreenerResult>>(valueSnap?.ResultsJson ?? "[]") ?? [];
 
@@ -57,6 +64,11 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
         var valueMap = valueResults
             .GroupBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var factsMap = watchlistSummaries
+            .Where(w => w.TechnicalFacts is not null)
+            .GroupBy(w => w.Item.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().TechnicalFacts!, StringComparer.OrdinalIgnoreCase);
 
         var openPortfolio = portfolio.Where(p => !IsClose(p.Item.TransactionType)).ToList();
         var totalValue = openPortfolio.Sum(p => MarketValue(p));
@@ -75,31 +87,44 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
                 g => totalValue > 0 ? g.Sum(p => MarketValue(p)) / totalValue * 100m : 0m,
                 StringComparer.OrdinalIgnoreCase);
 
+        var portfolioSymbols = new HashSet<string>(
+            openPortfolio.Select(p => p.Item.Symbol),
+            StringComparer.OrdinalIgnoreCase);
+
         var results = new List<ActionScoreDto>();
 
         foreach (var item in watchlistItems)
         {
+            // Exclude tickers already held in the portfolio
+            if (portfolioSymbols.Contains(item.Symbol)) continue;
             signalMap.TryGetValue(item.Symbol, out var scan);
             valueMap.TryGetValue(item.Symbol, out var vs);
+            factsMap.TryGetValue(item.Symbol, out var facts);
 
-            // 1. Portfolio Need (30 pts) — sector underweight boosts score
-            var portfolioNeed = ComputePortfolioNeed(item.Symbol, sectorActuals, sectorTargets, openPortfolio);
+            // Sector metadata isn't stored on WatchlistItem — resolve from whichever source has
+            // scanned/analyzed this symbol most recently; open-holding sector is a last resort only.
+            var sector = FirstNonEmpty(
+                scan?.Sector,
+                vs?.Sector,
+                openPortfolio.FirstOrDefault(p => string.Equals(p.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase))?.Item.Sector);
+
+            // 1. Portfolio Need (30 pts) — sector underweight boosts score; works for non-owned candidates too
+            var portfolioNeed = ComputePortfolioNeed(sector, sectorActuals, sectorTargets);
 
             // 2. Technical Setup (30 pts) — RSI scan state quality
-            var technical = ComputeTechnicalScore(scan);
+            var technical = Math.Min(30m, ComputeTechnicalScore(scan) + (IsActiveEod(facts) ? 2m : 0m));
 
-            // 3. Fundamental Quality (25 pts) — ValueScreener score
-            var fundamental = vs is not null ? Math.Min(25m, vs.Score / 4m) : 0m; // score 0-100 → 0-25
+            // 3. Fundamental Quality (25 pts) — ValueScreener score is 0-10 → scale to 0-25
+            var fundamental = vs is not null ? Math.Min(25m, vs.Score * 2.5m) : 0m;
 
             // 4. Risk / Position Room (15 pts) — how much room remains before limits hit
             var risk = ComputeRiskScore(item.Role ?? "Strategic", roleActuals, roleTargets, positionLimits, totalValue);
 
             var total = Math.Round(portfolioNeed + technical + fundamental + risk, 1);
-            var badge = total >= 75 ? "HIGH_PRIORITY" : total >= 50 ? "WATCH" : "NO_ADD";
+            var badge = total >= 75 && technical >= 10m ? "HIGH_PRIORITY" : total >= 50 ? "WATCH" : "NO_ADD";
 
-            // Determine allocation status for display
-            var sectorForItem = scan?.Sector ?? "";
-            var allocationStatus = ComputeAllocationStatus(sectorForItem, sectorActuals, sectorTargets);
+            // Determine allocation status for display — uses the same resolved sector as Need above
+            var allocationStatus = ComputeAllocationStatus(sector ?? "", sectorActuals, sectorTargets);
 
             results.Add(new ActionScoreDto(
                 Symbol: item.Symbol,
@@ -114,7 +139,12 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
                 Badge: badge,
                 TrendShift: scan?.TrendShift ?? "",
                 Rsi: scan?.Rsi ?? 0m,
-                AllocationStatus: allocationStatus));
+                AllocationStatus: allocationStatus,
+                CurrentPrice: scan?.CurrentPrice ?? 0m,
+                LatestEodSignalState: facts?.LatestEodSignalState,
+                LatestEodScanType: facts?.LatestEodScanType,
+                LatestEodIsNew: facts?.LatestEodIsNew ?? false,
+                LatestEodIsInvalidated: facts?.LatestEodIsInvalidated ?? false));
         }
 
         return results
@@ -124,15 +154,10 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
     }
 
     private static decimal ComputePortfolioNeed(
-        string symbol,
+        string? sector,
         Dictionary<string, decimal> sectorActuals,
-        List<AllocationSectorTarget> targets,
-        List<PortfolioSummaryDto> portfolio)
+        List<AllocationSectorTarget> targets)
     {
-        // Find the sector of this watchlist symbol from portfolio if already held, else skip
-        var inPortfolio = portfolio.FirstOrDefault(p =>
-            string.Equals(p.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
-        var sector = inPortfolio?.Item.Sector ?? "";
         if (string.IsNullOrEmpty(sector)) return 15m; // neutral when sector unknown
 
         var target = targets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
@@ -149,7 +174,10 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
         return 0m;
     }
 
-    private static decimal ComputeTechnicalScore(RsiScanResult? scan)
+    private static string? FirstNonEmpty(params string?[] candidates)
+        => candidates.FirstOrDefault(c => !string.IsNullOrEmpty(c));
+
+    public static decimal ComputeTechnicalScore(RsiScanResult? scan)
     {
         if (scan is null) return 0m;
 
@@ -169,6 +197,23 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
 
         // Volume confirmation bonus
         if (scan.VolumeSignal == "Validated") baseScore += 2m;
+
+        var levelState = scan.PriceStructure.KeyLevelState;
+        var patternState = scan.PriceStructure.PrimaryPatternState;
+        if (scan.PriceStructure.HasHardStructuralNegative || scan.ChannelState == "CHANNEL_BROKEN")
+            return 0m;
+
+        baseScore += levelState switch
+        {
+            "SUPPORT_RECLAIM" or "BREAKOUT_CONFIRMED" => 6m,
+            "SUPPORT_TEST" or "RESISTANCE_TEST" => 4m,
+            "APPROACHING_SUPPORT" or "APPROACHING_RESISTANCE" => 2m,
+            _ => 0m,
+        };
+        if (patternState == "NEAR_APEX" && scan.PriceStructure.PrimaryPatternType == "TIGHT_FALLING_WEDGE")
+            baseScore += 2m;
+        if (scan.MomentumState is "Accelerating" or "Positive") baseScore += 2m;
+        else if (scan.MomentumState == "Declining") baseScore = Math.Max(0m, baseScore - 4m);
 
         return Math.Min(30m, Math.Round(baseScore, 1));
     }
@@ -207,6 +252,11 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
 
     private static bool IsClose(string? txType)
         => string.Equals(txType, "CLOSE", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsActiveEod(SharedTechnicalFacts? facts) =>
+        facts is not null &&
+        string.Equals(facts.LatestEodSignalState, "Active", StringComparison.OrdinalIgnoreCase) &&
+        !facts.LatestEodIsInvalidated;
 
     private static decimal MarketValue(PortfolioSummaryDto p)
     {

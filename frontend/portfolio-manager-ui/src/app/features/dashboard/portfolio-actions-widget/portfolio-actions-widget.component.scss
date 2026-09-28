@@ -32,7 +32,48 @@
 .pa-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: 0.82rem;
+
+  th:nth-child(1),
+  td:nth-child(1) {
+    width: 15%;
+  }
+  th:nth-child(2),
+  td:nth-child(2) {
+    width: 11%;
+  }
+  th:nth-child(3),
+  td:nth-child(3) {
+    width: 7%;
+  }
+  th:nth-child(4),
+  td:nth-child(4) {
+    width: 15%;
+  }
+  th:nth-child(5),
+  td:nth-child(5) {
+    width: 15%;
+  }
+  th:nth-child(6),
+  td:nth-child(6) {
+    width: 15%;
+  }
+  th:nth-child(7),
+  td:nth-child(7) {
+    width: 10%;
+  }
+  th:nth-child(8),
+  td:nth-child(8) {
+    width: 12%;
+  }
+
+  &:has(th:nth-child(7):last-child) {
+    th:nth-child(7),
+    td:nth-child(7) {
+      width: 22%;
+    }
+  }
 
   th {
     text-align: left;
@@ -41,6 +82,26 @@
     color: var(--mat-sys-on-surface-variant);
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     white-space: nowrap;
+  }
+
+  .pa-sort {
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+      color: var(--mat-sys-primary);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
   }
 
   td {
@@ -108,6 +169,25 @@
   background: #6a1b9a;
   color: white;
 }
+.pa-eod-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #e8f7f2;
+  color: #0f766e;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  white-space: nowrap;
+
+  &.pa-eod-invalidated {
+    background: #ffebee;
+    color: #b71c1c;
+  }
+}
 
 .pa-role {
   font-size: 0.75rem;
@@ -132,10 +212,11 @@
 .pa-rsi {
   font-variant-numeric: tabular-nums;
 }
-.pa-trend {
+.pa-technical,
+.pa-structure {
   white-space: nowrap;
 }
-.pa-fib {
+.pa-structure {
   font-size: 0.78rem;
   color: var(--mat-sys-on-surface-variant);
 }
@@ -199,4 +280,87 @@
   width: 14px;
   vertical-align: middle;
   margin-left: 4px;
+}
+
+// ── Priority counts bar ───────────────────────────────────────────
+.pa-counts {
+  display: flex;
+  gap: 20px;
+  padding: 4px 0 10px;
+  flex-wrap: wrap;
+}
+
+.pa-count {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  &.active {
+    background: var(--mat-sys-surface-container-high);
+    border-radius: 4px;
+    padding: 3px 6px;
+  }
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.pa-count-required {
+    color: #c62828;
+  }
+  &.pa-count-developing {
+    color: #e65100;
+  }
+  &.pa-count-info {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+// ── Section headers (Holdings / Watchlist) ──────────────────────
+.pa-section-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #1565c0;
+  padding: 10px 0 4px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  margin-top: 4px;
+
+  mat-icon {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+  }
+
+  &.pa-section-watchlist {
+    color: #6a1b9a;
+  }
+}
+
+// ── Priority row intensity ────────────────────────────────────
+.pa-table {
+  tr.priority-required td:first-child {
+    border-left-width: 4px;
+  }
+  tr.priority-developing td:first-child {
+    border-left-width: 2px;
+  }
+  tr.priority-informational {
+    opacity: 0.65;
+    td:first-child {
+      border-left-width: 0;
+      border-left-color: transparent;
+    }
+  }
 }

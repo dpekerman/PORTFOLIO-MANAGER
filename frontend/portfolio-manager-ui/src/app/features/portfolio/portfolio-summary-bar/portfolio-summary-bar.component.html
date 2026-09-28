@@ -24,6 +24,28 @@
         <span class="dim">—</span>
       }
     </span>
+    @if (!oneDayChangeLoading() && dayChange !== null) {
+      <div class="breakdown">
+        @let sc = todayStocksChange();
+        @if (sc !== null) {
+          <span class="breakdown-row" [class.positive]="sc > 0" [class.negative]="sc < 0">
+            Stocks&nbsp;{{ sc >= 0 ? '+' : '' }}{{ dv(sc) | currency: 'USD' : 'symbol' : '1.0-0' }}
+          </span>
+        }
+        @let cc = todayCashChange();
+        @if (cc !== null && cc !== 0) {
+          <span class="breakdown-row" [class.positive]="cc > 0" [class.negative]="cc < 0">
+            Cash&nbsp;{{ cc >= 0 ? '+' : '' }}{{ dv(cc) | currency: 'USD' : 'symbol' : '1.0-0' }}
+          </span>
+        }
+        @let oc = todayOptionsChange();
+        @if (oc !== null && oc !== 0) {
+          <span class="breakdown-row" [class.positive]="oc > 0" [class.negative]="oc < 0">
+            Options&nbsp;{{ oc >= 0 ? '+' : '' }}{{ dv(oc) | currency: 'USD' : 'symbol' : '1.0-0' }}
+          </span>
+        }
+      </div>
+    }
   </div>
   <!-- Portfolio Beta mini-tile -->
   @if (betaState.result(); as beta) {

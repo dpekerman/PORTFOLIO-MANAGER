@@ -28,16 +28,20 @@
           <button
             mat-stroked-button
             class="refresh-btn"
-            (click)="refresh()"
-            [disabled]="refreshing() || loading() || clearing()"
-            matTooltip="Re-run Value Screener for Portfolio and Watchlist, then save results"
+            (click)="refreshing() ? cancelRefresh() : refresh()"
+            [disabled]="loading() || clearing()"
+            [matTooltip]="
+              refreshing()
+                ? 'Cancel the in-progress refresh'
+                : 'Re-run Value Screener for Portfolio and Watchlist, then save results'
+            "
           >
             @if (refreshing()) {
               <mat-spinner diameter="16" class="btn-spinner" />
             } @else {
               <mat-icon>refresh</mat-icon>
             }
-            {{ refreshing() ? 'Refreshing...' : 'Refresh' }}
+            {{ refreshing() ? 'Cancel' : 'Refresh' }}
           </button>
           <button
             mat-stroked-button

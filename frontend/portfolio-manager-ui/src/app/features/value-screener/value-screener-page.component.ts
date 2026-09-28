@@ -18,6 +18,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { Subscription } from 'rxjs';
 import {
   ActionTrigger,
   TechnicalState,
@@ -195,9 +196,11 @@ export class ValueScreenerPageComponent implements OnInit {
   }
 
   // -- Refresh: re-run entire module and persist ----------------------------
+  private refreshSub: Subscription | null = null;
+
   refresh(): void {
     this.refreshing.set(true);
-    this.api.refreshValueScreener().subscribe({
+    this.refreshSub = this.api.refreshValueScreener().subscribe({
       next: (dto) => {
         this.portfolioResults.set(dto.portfolio ?? []);
         this.watchlistResults.set(dto.watchlist ?? []);
@@ -213,6 +216,14 @@ export class ValueScreenerPageComponent implements OnInit {
         this.refreshing.set(false);
       },
     });
+  }
+
+  /** Cancel an in-flight refresh — stops listening for the response and re-enables the button. */
+  cancelRefresh(): void {
+    this.refreshSub?.unsubscribe();
+    this.refreshSub = null;
+    this.refreshing.set(false);
+    this.snackBar.open('Refresh cancelled.', 'OK', { duration: 3000 });
   }
 
   // -- Ad-hoc live analysis trigger ----------------------------------------

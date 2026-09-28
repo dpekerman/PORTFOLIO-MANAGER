@@ -43,6 +43,13 @@ export class NotificationApiService {
     return this.http.post<TestEmailResult>(`${this.base}/send-test`, { toEmail });
   }
 
+  sendAutomationTestEmail(): Observable<TestEmailResult & { recipientCount?: number }> {
+    return this.http.post<TestEmailResult & { recipientCount?: number }>(
+      `${this.base}/send-automation-test`,
+      {},
+    );
+  }
+
   scanAndNotifyNow(): Observable<ScanNowResult> {
     return this.http.post<ScanNowResult>(`${this.base}/scan-now`, {});
   }

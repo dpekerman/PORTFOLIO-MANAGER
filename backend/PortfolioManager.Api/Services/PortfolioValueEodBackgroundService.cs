@@ -7,15 +7,20 @@ using PortfolioManager.Api.Services;
 namespace PortfolioManager.Api.Services;
 
 /// <summary>
-/// Persists the total portfolio value to the database every day at 4:30 PM Eastern time.
+/// Persists the total portfolio value to the database once per trading day, any time between
+/// 4:30 PM and midnight Eastern — the same window in every environment, so a slow start, a
+/// missed poll, or an app restart during the evening still produces exactly one EOD snapshot.
 /// Calculates: stocks market value + cash + options market value.
 /// </summary>
 public sealed class PortfolioValueEodBackgroundService(
     IServiceScopeFactory scopeFactory,
-    IHostEnvironment env,
+    IMutationClock mutationClock,
     ILogger<PortfolioValueEodBackgroundService> logger) : BackgroundService
 {
     private static readonly string[] EasternTzIds = ["Eastern Standard Time", "America/New_York"];
+    private static readonly TimeSpan EodWindowStart = new(16, 30, 0);
+    private static readonly TimeSpan EodWindowEnd = new(23, 59, 59);
+    private const double QuietPeriodSeconds = MutationClock.QuietPeriodSeconds;
     private static TimeZoneInfo? _easternTz;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -25,12 +30,53 @@ public sealed class PortfolioValueEodBackgroundService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try { await RunCheckAsync(stoppingToken); }
+            try
+            {
+                await RunCheckAsync(stoppingToken);
+                await RunDebouncedReselAsync(stoppingToken);
+            }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
             catch (Exception ex) { logger.LogError(ex, "[PortfolioValueEod] Check failed."); }
 
-            await Task.Delay(TimeSpan.FromMinutes(2), stoppingToken);
+            // Short interval so the debounced same-day reseal (item below) reacts promptly;
+            // the once-daily EOD write is still guarded by ExistsForDateAsync regardless of cadence.
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
         }
+    }
+
+    /// <summary>
+    /// Same-day-only responsibility, independent of the 4:30pm–midnight window: if a Cash/Portfolio/
+    /// Option mutation marked today dirty and at least <see cref="QuietPeriodSeconds"/> have passed since
+    /// the last mutation, reseal today's row. This is purely a race-smoothing optimization — historical
+    /// correctness never depends on it (that's guaranteed transactionally in CashService).
+    /// </summary>
+    private async Task RunDebouncedReselAsync(CancellationToken ct)
+    {
+        if (!mutationClock.TryTakeTodayDirty()) return;
+
+        if (mutationClock.SecondsSinceLastMutation() < QuietPeriodSeconds)
+        {
+            // Not quiet yet — put the flag back and re-check on the next poll.
+            mutationClock.MarkTodayDirty();
+            return;
+        }
+
+        var tz = GetEasternTz();
+        if (tz is null) return;
+        var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
+        var recordedDate = nowEt.ToString("yyyy-MM-dd");
+
+        using var scope = scopeFactory.CreateScope();
+        var history = scope.ServiceProvider.GetRequiredService<IPortfolioValueHistoryService>();
+        if (!await history.ExistsForDateAsync(recordedDate, ct))
+        {
+            // No snapshot yet today — the once-daily EOD writer below will pick up the settled
+            // state once its own window opens; nothing to reseal yet.
+            return;
+        }
+
+        logger.LogInformation("[PortfolioValueEod] Resealing today's ({Date}) snapshot after a quiet period.", recordedDate);
+        await history.RecordCurrentValueAsync(ct, PortfolioValueSource.SameDayReseal);
     }
 
     private async Task RunCheckAsync(CancellationToken ct)
@@ -40,14 +86,14 @@ public sealed class PortfolioValueEodBackgroundService(
 
         var nowEt = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
 
-        // Dev bypasses so local testing works at any time; enforced only in Production.
-        if (!env.IsDevelopment())
-        {
-            // Only fire at 4:30 PM ET on weekdays (within a 2-minute window)
-            if (nowEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
-            var target = new TimeSpan(16, 30, 0);
-            if (nowEt.TimeOfDay < target || nowEt.TimeOfDay > target.Add(TimeSpan.FromMinutes(2))) return;
-        }
+        // Weekends never have a market close — writing a row for Sat/Sun freezes stale
+        // Friday quotes and corrupts every later "before this date" baseline lookup.
+        if (nowEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return;
+
+        // Same EOD window in every environment: wait until 4:30 PM ET so the closing quote
+        // settles, then accept any poll up to midnight. ExistsForDateAsync below still
+        // guarantees only the first poll in that window ever writes a row for the date.
+        if (nowEt.TimeOfDay < EodWindowStart || nowEt.TimeOfDay > EodWindowEnd) return;
 
         var recordedDate = nowEt.ToString("yyyy-MM-dd");
 
@@ -55,6 +101,17 @@ public sealed class PortfolioValueEodBackgroundService(
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var history = scope.ServiceProvider.GetRequiredService<IPortfolioValueHistoryService>();
         var marketData = scope.ServiceProvider.GetRequiredService<IMarketDataProvider>();
+        var cashLedger = scope.ServiceProvider.GetRequiredService<ICashLedgerQueryService>();
+
+        // Market holiday guard: a weekday with no actual trading session (e.g. Thanksgiving,
+        // Christmas) would otherwise pass the DayOfWeek check above and record a snapshot
+        // mislabeled with today's date using stale last-traded quotes.
+        var tradingSessionGuard = scope.ServiceProvider.GetRequiredService<ITradingSessionGuard>();
+        if (!await tradingSessionGuard.IsTodayATradingDayAsync(ct))
+        {
+            logger.LogInformation("[PortfolioValueEod] Skipping {Date} — not a trading day (market holiday).", recordedDate);
+            return;
+        }
 
         if (await history.ExistsForDateAsync(recordedDate, ct))
         {
@@ -86,12 +143,18 @@ public sealed class PortfolioValueEodBackgroundService(
             }
         }
 
-        // Manual positions use stored market value
+        // Manual positions use stored market value; warn if missing
         foreach (var item in portfolioItems.Where(p => p.IsManual))
+        {
+            if (item.ManualMarketValue == null)
+                logger.LogWarning(
+                    "[PortfolioValueEod] Manual position {Symbol} missing ManualMarketValue on {Date}; using stale cost basis as fallback.",
+                    item.Symbol, recordedDate);
             stocksValue += item.ManualMarketValue ?? item.AverageCostBasis;
+        }
 
         // ── Cash ──────────────────────────────────────────────────────────────
-        var cashValue = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var cashValue = await cashLedger.GetTotalAsOfAsync(DateOnly.Parse(recordedDate), null, ct);
 
         // ── Options ───────────────────────────────────────────────────────────
         var optionsValue = await db.OptionItems

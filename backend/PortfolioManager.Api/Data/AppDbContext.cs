@@ -27,6 +27,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<DashboardSnapshot> DashboardSnapshots => Set<DashboardSnapshot>();
     public DbSet<SectorIndustryConfig> SectorIndustryConfigs => Set<SectorIndustryConfig>();
     public DbSet<TransactionContextSnapshot> TransactionContextSnapshots => Set<TransactionContextSnapshot>();
+    public DbSet<TechnicalChannel> TechnicalChannels => Set<TechnicalChannel>();
+    public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
+    public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
+    public DbSet<CashLedgerSettings> CashLedgerSettings => Set<CashLedgerSettings>();
+    public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
+    public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -61,6 +67,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
             entity.Property(e => e.AccountType).HasMaxLength(30);
             entity.Property(e => e.TransactionDate).IsRequired(false);
+            entity.Property(e => e.CashFlowType).HasMaxLength(30);
+            // At most one OpeningBalance per account+date — prevents accidental double-counted cash
+            // (same filtered-unique-index pattern already used for DailySignals below).
+            entity.HasIndex(e => new { e.AccountType, e.TransactionDate })
+                .IsUnique()
+                .HasFilter("[CashFlowType] = 'OpeningBalance'")
+                .HasDatabaseName("IX_CashItems_Account_OpeningBalance");
+        });
+
+        modelBuilder.Entity<CashLedgerSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
@@ -75,6 +93,58 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.WatchlistTier).HasMaxLength(20).HasDefaultValue("Strategic");
             // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
             entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<SecurityAnalysisMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TradingTicker).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.UnderlyingTicker).HasMaxLength(20);
+            entity.Property(e => e.UnderlyingMarket).HasMaxLength(10);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.DetectionDetail).HasMaxLength(500);
+            entity.HasIndex(e => new { e.TradingTicker, e.UserId });
+            entity.HasIndex(e => e.UnderlyingTicker);
+            entity.HasData(
+                new SecurityAnalysisMapping
+                {
+                    Id = -1,
+                    TradingTicker = "SPGI.TO",
+                    UnderlyingTicker = "SPGI",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                },
+                new SecurityAnalysisMapping
+                {
+                    Id = -2,
+                    TradingTicker = "DIS.TO",
+                    UnderlyingTicker = "DIS",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                },
+                new SecurityAnalysisMapping
+                {
+                    Id = -3,
+                    TradingTicker = "MU.TO",
+                    UnderlyingTicker = "MU",
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = true,
+                    ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = "Managed CDR reference data",
+                    CreatedAt = DateTime.UnixEpoch,
+                    UpdatedAt = DateTime.UnixEpoch,
+                });
         });
 
         modelBuilder.Entity<AdhocAnalysisSession>(entity =>
@@ -115,6 +185,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Price).HasColumnType("decimal(18,4)");
             entity.Property(e => e.TriggerDetails).HasMaxLength(1000).HasDefaultValue("");
             entity.Property(e => e.SignalDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TradingDate).HasMaxLength(10);
+            entity.Property(e => e.ScannedAt);
             entity.Property(e => e.RuleVersion).HasMaxLength(20).HasDefaultValue("Legacy");
             entity.Property(e => e.SignalState).HasMaxLength(30).HasDefaultValue("Active");
             entity.Property(e => e.PreviousSignalState).HasMaxLength(30).IsRequired(false);
@@ -138,6 +210,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });
+            entity.HasIndex(e => new { e.Symbol, e.ScanType, e.SignalType, e.TradingDate })
+                .IsUnique()
+                .HasFilter("[TradingDate] IS NOT NULL");
         });
 
         modelBuilder.Entity<StagedSignal>(entity =>
@@ -159,6 +234,25 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.IsActiveWatch).HasDefaultValue(true);
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.IsActiveWatch);
+        });
+
+        modelBuilder.Entity<TechnicalChannel>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Ticker).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Timeframe).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Direction).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ChannelState).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Slope).HasColumnType("decimal(18,8)");
+            entity.Property(e => e.LowerRailCurrent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.UpperRailCurrent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToLowerRailPercent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToLowerRailATR).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.NearestOpenGapAbove).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.NearestOpenGapBelow).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToGapAbovePercent).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.DistanceToGapBelowPercent).HasColumnType("decimal(18,4)");
+            entity.HasIndex(e => new { e.Ticker, e.Timeframe }).IsUnique();
         });
 
         modelBuilder.Entity<AllocationRiskTarget>(entity =>
@@ -246,6 +340,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => new { e.UserId, e.PreferenceKey }).IsUnique();
         });
 
+        modelBuilder.Entity<MarketLeadershipTracker>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.DisplayName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.TrackerType).HasConversion<string>().HasMaxLength(20);
+            entity.HasIndex(e => new { e.UserId, e.Symbol }).IsUnique().HasFilter("[IsActive] = 1");
+        });
+
         modelBuilder.Entity<PortfolioSnapshot>(entity =>
         {
             entity.HasKey(e => e.UserId);
@@ -281,5 +385,55 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.ValueScoreAtEntry).HasColumnType("decimal(7,2)");
             entity.HasIndex(e => e.TransactionId);
         });
+
+        modelBuilder.Entity<AutomationRunLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TradingDate).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TriggerType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.TriggerCorrelationId).HasMaxLength(32);
+            entity.Property(e => e.OverallStatus).IsRequired().HasMaxLength(30).HasDefaultValue("Running");
+            entity.Property(e => e.OwnerUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.RefreshStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.RsiStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.SnapshotStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.SnapshotSource).HasMaxLength(30);
+            entity.Property(e => e.ValueScreenerStatus).HasMaxLength(20).HasDefaultValue("");
+            entity.Property(e => e.LastHeartbeatStep).HasMaxLength(100);
+            entity.Property(e => e.ErrorStep).HasMaxLength(100);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(2000);
+            entity.Property(e => e.MachineName).HasMaxLength(100).HasDefaultValue("");
+            entity.HasIndex(e => e.RunId).IsUnique();
+            entity.HasIndex(e => e.TradingDate);
+            entity.HasIndex(e => e.TriggerCorrelationId);
+        });
+
+        modelBuilder.Entity<AutomationNotificationRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OperationKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(40);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+            entity.HasIndex(e => e.OperationKey).IsUnique();
+        });
+
+        // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
+        // with DateTime.UtcNow; stamp Kind=Utc on read so JSON emits a trailing "Z" for Angular.
+        var utcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+            v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        var nullableUtcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+            v => v, v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (!property.Name.EndsWith("Utc", StringComparison.Ordinal) &&
+                    !property.Name.EndsWith("At", StringComparison.Ordinal)) continue;
+                if (property.ClrType == typeof(DateTime)) property.SetValueConverter(utcConverter);
+                else if (property.ClrType == typeof(DateTime?)) property.SetValueConverter(nullableUtcConverter);
+            }
+        }
     }
 }

@@ -1,3 +1,5 @@
+using PortfolioManager.Api.Services;
+
 namespace PortfolioManager.Api.Models;
 
 // DTOs for API request/response
@@ -62,11 +64,56 @@ public record PortfolioItemDto(
     string? HoldingRole = null,
     string? Notes = null,
     string? DecisionSource = null,
-    string? DecisionSourceClosed = null);
+    string? DecisionSourceClosed = null,
+    string? FinalAction = null,
+    string? FinalActionSeverity = null,
+    string? FinalActionPriority = null,
+    DateTime? FinalActionUpdatedAt = null);
+
+/// <summary>Result of PUT /api/portfolio/{id}. NewOpenItem is populated only when the edit was a
+/// partial close (TransactionType changed to CLOSE with Shares less than the position's prior
+/// Shares) — the remaining shares are auto-split into a new OPEN row so the user never has to
+/// manually create it.</summary>
+public record UpdatePortfolioItemResponse(PortfolioItemDto Updated, PortfolioItemDto? NewOpenItem);
 
 public record PortfolioSummaryDto(
     PortfolioItemDto Item,
-    StockQuote? Quote);
+    StockQuote? Quote,
+    PriceStructureResult? PriceStructure = null,
+    SharedTechnicalFacts? TechnicalFacts = null);
+
+/// <summary>One Portfolio holding's Final Action, computed client-side and pushed after every recompute.</summary>
+public record FinalActionSyncItem(int ItemId, string FinalAction, string Severity, string Priority);
+
+public record SyncFinalActionsRequest(IReadOnlyList<FinalActionSyncItem> Items);
+
+public sealed record SharedTechnicalFacts(
+    string Symbol,
+    decimal? Rsi,
+    string? MaStructure,
+    string? MaCrossState,
+    string? MomentumState,
+    PriceStructureResult PriceStructure,
+    int? BuyScore,
+    DateTime CalculatedAt,
+    // ── Latest EOD Signal (populated from DailySignals table) ────────────────
+    string? LatestEodTradingDate = null,
+    DateTime? LatestEodSignalDate = null,
+    string? LatestEodSignalState = null,        // "Active" | "Invalidated" | "FollowThrough" | etc.
+    string? LatestEodScanType = null,           // "Oversold" | "Overbought"
+    decimal? LatestEodRsi = null,
+    string? LatestEodTrendShift = null,         // "Bull Turn" | "Bear Turn" | "Stabilizing" | "Bull Turn — Early"
+    decimal? LatestEodEntryPrice = null,
+    decimal? LatestEodStopLoss = null,
+    decimal? LatestEodRiskPercent = null,
+    string? LatestEodReversalStrength = null,   // "Low" | "Medium" | "Strong"
+    string? LatestEodVolumeState = null,        // "Validated" | "Neutral" | "Low"
+    bool LatestEodIsNew = false,                // true if signal created in latest trading session
+    bool LatestEodIsInvalidated = false,
+    string? AnalysisTicker = null,
+    string? AnalysisMarket = null,
+    string? AnalysisCurrency = null,
+    bool UsesUnderlyingSecurity = false);
 
 // ── Watchlist ──────────────────────────────────────────────────────────────────
 public record AddWatchlistItemRequest(string Symbol, string Notes = "", string Role = "Strategic", string WatchlistTier = "Strategic");
@@ -78,11 +125,28 @@ public record UpdatePortfolioNotesRequest(string? Notes);
 
 public record WatchlistItemDto(int Id, string Symbol, string Notes, DateTime AddedAt, string Role = "Strategic", bool IsFavorite = false, DateTime? EarningsDate = null, string WatchlistTier = "Strategic");
 
-public record WatchlistSummaryDto(WatchlistItemDto Item, StockQuote? Quote);
+public record WatchlistSummaryDto(
+    WatchlistItemDto Item,
+    StockQuote? Quote,
+    PriceStructureResult? PriceStructure = null,
+    SharedTechnicalFacts? TechnicalFacts = null);
 
 public record UpdateWatchlistFavoriteRequest(bool IsFavorite);
 public record UpdateWatchlistNotesRequest(string Notes);
 public record UpdateWatchlistEarningsDateRequest(DateTime? EarningsDate);
+
+// ── Security analysis mappings ───────────────────────────────────────────────
+public record SecurityAnalysisMappingDto(
+    string TradingTicker,
+    string AnalysisTicker,
+    string AnalysisMarket,
+    string AnalysisCurrency,
+    bool UsesUnderlyingSecurity,
+    UnderlyingResolutionStatus ResolutionStatus,
+    SecurityAnalysisMappingSource? MappingSource,
+    string? DataError = null);
+
+public record SaveSecurityAnalysisMappingRequest(string UnderlyingTicker, bool UseUnderlyingForAnalysis = true);
 
 // ── Sector / Industry Lists ─────────────────────────────────────────────────────
 public record SectorIndustryListsDto(List<string> Sectors, List<string> Industries, List<string>? DecisionSources = null);
@@ -93,9 +157,14 @@ public record DecisionSourcesDto(List<string> Items);
 public record UpdateDecisionSourcesRequest(List<string> Items);
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
-public record AddCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
-public record UpdateCashItemRequest(string Description, decimal Amount, string? AccountType = null, DateTime? TransactionDate = null);
-public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null);
+// CashFlowType is required (no default) — see Services.CashFlowTypeRules for the allowed values,
+// sign direction, and IsExternalFlow classification.
+public record AddCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
+public record UpdateCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null, string? CashFlowType = null, bool IsExternalFlow = false, DateTime? ModifiedAt = null);
+/// <summary>"Adjust Balance" — user types the desired new total; backend computes the delta and inserts
+/// one new ledger row. cashFlowType is required and validated against the delta's sign direction.</summary>
+public record AdjustCashBalanceRequest(string AccountType, decimal DesiredNewTotal, string CashFlowType, DateTime? TransactionDate = null);
 
 // ── Options ───────────────────────────────────────────────────────────────────
 public record AddOptionItemRequest(

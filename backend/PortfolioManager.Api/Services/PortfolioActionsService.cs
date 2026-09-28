@@ -14,14 +14,16 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
-    private static readonly HashSet<string> BullishShifts = new(StringComparer.OrdinalIgnoreCase)
+    // Strict bull = confirmed reversal candle; any bullish includes Stabilizing
+    private static readonly HashSet<string> StrictBullish = new(StringComparer.OrdinalIgnoreCase)
+        { "🟢 Bull Turn" };
+    private static readonly HashSet<string> AnyBullish = new(StringComparer.OrdinalIgnoreCase)
         { "🟢 Bull Turn", "🟡 Stabilizing" };
     private static readonly HashSet<string> BearishShifts = new(StringComparer.OrdinalIgnoreCase)
         { "🟢 Bear Turn", "🔴 Still Rising" };
 
     public async Task<IReadOnlyList<PortfolioActionDto>> GetActionsAsync(string userId, CancellationToken ct = default)
     {
-        // Load data from snapshots — avoids Yahoo Finance calls on every request
         var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking()
             .SingleOrDefaultAsync(s => s.UserId == userId, ct);
         var watchlistSnap = await db.WatchlistSnapshots.AsNoTracking()
@@ -32,17 +34,16 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
 
         var portfolio = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
         var watchlist = Deserialize<List<WatchlistSummaryDto>>(watchlistSnap?.SnapshotJson ?? "[]") ?? [];
-        var scanner = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
+        var scanner   = Deserialize<ScannerResponse>(rsiSnap?.SnapshotJson ?? "{}") ?? new ScannerResponse();
+        var channels = await db.TechnicalChannels.AsNoTracking()
+            .Where(c => c.Timeframe == "1D")
+            .ToDictionaryAsync(c => c.Ticker, StringComparer.OrdinalIgnoreCase, ct);
 
-        // Build a flat lookup of all RSI signals keyed by symbol
         var signals = scanner.OversoldChain
             .Concat(scanner.OverboughtChain)
             .GroupBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        if (signals.Count == 0) return [];
-
-        // Compute sector allocations to determine over/under status
         var totalValue = portfolio
             .Where(p => !IsClose(p.Item.TransactionType))
             .Sum(p => MarketValue(p));
@@ -53,92 +54,341 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
                 g => totalValue > 0 ? g.Sum(p => MarketValue(p)) / totalValue * 100m : 0m,
                 StringComparer.OrdinalIgnoreCase);
 
-        var results = new List<PortfolioActionDto>();
-
-        // Portfolio holdings with signals
         var portfolioBySymbol = portfolio
             .Where(p => !IsClose(p.Item.TransactionType))
             .GroupBy(p => p.Item.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (symbol, scan) in signals)
+        var activeWatchlist = watchlist
+            .Where(w => string.Equals(w.Item.WatchlistTier, "Active", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var universe = portfolioBySymbol.Keys
+            .Concat(activeWatchlist.Select(w => w.Item.Symbol))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var results = new List<PortfolioActionDto>();
+
+        foreach (var symbol in universe)
         {
+            signals.TryGetValue(symbol, out var scan);
+            channels.TryGetValue(symbol, out var channel);
             portfolioBySymbol.TryGetValue(symbol, out var pos);
-            var wlItem = watchlist.FirstOrDefault(w => string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
+            var wlItem = activeWatchlist.FirstOrDefault(w =>
+                string.Equals(w.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase));
 
             if (pos is null && wlItem is null) continue;
+            var persistedFacts = pos?.TechnicalFacts ?? wlItem?.TechnicalFacts;
+            var persistedStructure = persistedFacts?.PriceStructure ?? pos?.PriceStructure ?? wlItem?.PriceStructure;
+            var hasScannerData = scan is not null;
+            scan ??= new RsiScanResult
+            {
+                Symbol = symbol,
+                CompanyName = pos?.Item.CompanyName ?? wlItem?.Item.Symbol ?? symbol,
+                ScanType = ScanType.Neutral,
+                Status = SignalStatus.Neutral,
+                TrendShift = string.Empty,
+                ChannelDirection = channel?.Direction ?? "NONE",
+                ChannelState = channel?.ChannelState ?? "NONE",
+                ChannelQuality = channel?.ChannelQuality ?? 0,
+                PriorConfirmedLowerTouches = channel?.LowerTouchCount ?? 0,
+                LowerRailToday = channel?.LowerRailCurrent ?? 0,
+                DistanceToLowerRailPercent = channel?.DistanceToLowerRailPercent ?? 0,
+                DistanceToLowerRailATR = channel?.DistanceToLowerRailATR ?? 0,
+                LastLowerTouchDate = channel?.LastLowerTouchDate,
+                NearestOpenGapAbove = channel?.NearestOpenGapAbove,
+            };
+            if (channel is not null && scan.ChannelState == "NONE")
+            {
+                scan.ChannelDirection = channel.Direction;
+                scan.ChannelState = channel.ChannelState;
+                scan.ChannelQuality = channel.ChannelQuality;
+                scan.PriorConfirmedLowerTouches = channel.LowerTouchCount;
+                scan.LowerRailToday = channel.LowerRailCurrent;
+                scan.DistanceToLowerRailPercent = channel.DistanceToLowerRailPercent;
+                scan.DistanceToLowerRailATR = channel.DistanceToLowerRailATR;
+                scan.LastLowerTouchDate = channel.LastLowerTouchDate;
+                scan.NearestOpenGapAbove = channel.NearestOpenGapAbove;
+            }
 
-            var holdingRole = pos?.Item.HoldingRole ?? wlItem?.Item.Role ?? "Strategic";
-            var sector = pos?.Item.Sector ?? scan.Sector ?? "";
+            var holdingRole      = pos?.Item.HoldingRole ?? wlItem?.Item.Role ?? "Strategic";
+            var sector           = pos?.Item.Sector ?? scan.Sector ?? "";
             var allocationStatus = ComputeAllocationStatus(sector, sectorActuals, sectorTargets);
-            var (actionLabel, severity) = DeriveAction(scan, holdingRole, allocationStatus);
+            var isHolding        = pos is not null;
+            var priceStructure = scan.PriceStructure?.HasHardStructuralNegative == true
+                ? scan.PriceStructure
+                : persistedStructure?.HasHardStructuralNegative == true
+                    ? persistedStructure
+                    : HasPriceStructure(scan.PriceStructure)
+                        ? scan.PriceStructure
+                        : persistedStructure;
+            var hasPriceStructure = HasPriceStructure(priceStructure);
+            var hasActiveEod = IsActiveEod(persistedFacts);
+
+            if (!isHolding && scan.Status == SignalStatus.Neutral && !hasPriceStructure && !hasActiveEod) continue;
+
+            var (actionLabel, severity, priority) =
+                DeriveAction(scan, holdingRole, allocationStatus, isHolding, priceStructure);
+            (actionLabel, severity, priority) = ApplyEodContext(actionLabel, severity, priority, persistedFacts, priceStructure);
+
+            // Prefer the Portfolio grid's own computed Final Action for holdings — it already runs
+            // the momentum/trend/profit-taking rules this service doesn't replicate. Only trusted
+            // for the current ET trading day; a fresh structural-negative signal always wins since
+            // a synced value can't know about damage discovered after it was pushed.
+            var usedSyncedFinalAction = false;
+            if (isHolding && pos is not null
+                && !string.IsNullOrEmpty(pos.Item.FinalAction)
+                && pos.Item.FinalActionUpdatedAt is not null
+                && IsCurrentEasternTradingDay(pos.Item.FinalActionUpdatedAt.Value)
+                && priceStructure?.HasHardStructuralNegative != true)
+            {
+                actionLabel = pos.Item.FinalAction;
+                severity = pos.Item.FinalActionSeverity ?? severity;
+                priority = pos.Item.FinalActionPriority ?? priority;
+                usedSyncedFinalAction = true;
+            }
+
+            severity = usedSyncedFinalAction
+                ? severity
+                : ActionSeverityMapper.Get(actionLabel, allocationStatus == "over" && severity == "buy");
+            var inclusionReason = InclusionReason(scan, priceStructure, hasScannerData);
 
             results.Add(new PortfolioActionDto(
-                Symbol: symbol,
-                CompanyName: scan.CompanyName,
-                HoldingRole: holdingRole,
-                ScanType: scan.ScanType.ToString(),
-                Rsi: scan.Rsi,
-                TrendShift: scan.TrendShift ?? "",
-                FibZone: scan.FibZone ?? "",
-                ChaseRisk: scan.ChaseRisk ?? "",
+                Symbol:           symbol,
+                CompanyName:      scan.CompanyName,
+                HoldingRole:      holdingRole,
+                ScanType:         scan.ScanType.ToString(),
+                Rsi:              hasScannerData ? scan.Rsi : persistedFacts?.Rsi,
+                TrendShift:       scan.TrendShift ?? "",
+                FibZone:          scan.FibZone ?? "",
+                ChaseRisk:        scan.ChaseRisk ?? "",
                 AllocationStatus: allocationStatus,
-                ActionLabel: actionLabel,
-                ActionSeverity: severity,
-                IsInPortfolio: pos is not null,
-                IsInWatchlist: wlItem is not null));
+                ActionLabel:      actionLabel,
+                ActionSeverity:   severity,
+                ActionPriority:   priority,
+                IsInPortfolio:    pos is not null,
+                IsInWatchlist:    wlItem is not null,
+                ChannelState:     scan.ChannelState,
+                ChannelDirection: scan.ChannelDirection,
+                ChannelQuality:   scan.ChannelQuality,
+                PriorConfirmedLowerTouches: scan.PriorConfirmedLowerTouches,
+                LowerRailToday:   scan.LowerRailToday,
+                EodClose:         scan.CurrentPrice,
+                DistanceToLowerRailPercent: scan.DistanceToLowerRailPercent,
+                DistanceToLowerRailATR: scan.DistanceToLowerRailATR,
+                LastLowerTouchDate: scan.LastLowerTouchDate,
+                NearestOpenGapAbove: scan.NearestOpenGapAbove,
+                ChannelTouchDetails: scan.ChannelTouchDetails,
+                MaStructure: scan.MaStructure ?? persistedFacts?.MaStructure,
+                MomentumState: scan.MomentumState ?? persistedFacts?.MomentumState,
+                PriceStructure: priceStructure,
+                InclusionReason: inclusionReason,
+                TechnicalCalculatedAt: priceStructure?.CalculatedAt ?? persistedFacts?.CalculatedAt,
+                LatestEodSignalState: persistedFacts?.LatestEodSignalState,
+                LatestEodScanType: persistedFacts?.LatestEodScanType,
+                LatestEodTrendShift: persistedFacts?.LatestEodTrendShift,
+                LatestEodIsNew: persistedFacts?.LatestEodIsNew ?? false,
+                LatestEodIsInvalidated: persistedFacts?.LatestEodIsInvalidated ?? false));
         }
 
-        // Sort: portfolio first, then by severity priority, then by RSI
         return results
-            .OrderByDescending(r => r.IsInPortfolio)
+            .OrderBy(r => PriorityOrder(r.ActionPriority))
+            .ThenByDescending(r => r.IsInPortfolio)
             .ThenBy(r => SeverityOrder(r.ActionSeverity))
-            .ThenBy(r => r.ScanType == "Oversold" ? r.Rsi : 100 - r.Rsi)
+            .ThenBy(r => r.Rsi.HasValue ? r.ScanType == "Oversold" ? r.Rsi.Value : 100 - r.Rsi.Value : decimal.MaxValue)
             .ToList()
             .AsReadOnly();
     }
 
-    private static (string label, string severity) DeriveAction(RsiScanResult scan, string role, string allocationStatus)
+    private static (string label, string severity, string priority)
+        DeriveAction(RsiScanResult scan, string role, string allocationStatus, bool isHolding, PriceStructureResult? priceStructure)
     {
-        // Chase risk overrides everything
         if (!string.IsNullOrEmpty(scan.ChaseRisk))
-            return ("DO NOT CHASE", "danger");
+            return ("DO NOT CHASE", "danger", "REQUIRED");
 
-        var isBullish = BullishShifts.Contains(scan.TrendShift ?? "");
-        var isBearish = BearishShifts.Contains(scan.TrendShift ?? "");
+        var isBullish     = AnyBullish.Contains(scan.TrendShift ?? "");
+        var isStrictBull  = StrictBullish.Contains(scan.TrendShift ?? "");
+        var isBearish     = BearishShifts.Contains(scan.TrendShift ?? "");
         var isTrendDamage = string.Equals(scan.FibZone, "Trend Damage", StringComparison.OrdinalIgnoreCase);
-        var isOversold = scan.ScanType == ScanType.Oversold;
+        var isOversold    = scan.ScanType == ScanType.Oversold;
+        var r             = (role ?? "Strategic").Trim();
+        var isCore        = string.Equals(r, "Core",        StringComparison.OrdinalIgnoreCase);
+        var isSwing       = string.Equals(r, "Swing",       StringComparison.OrdinalIgnoreCase);
+        var isSpec        = string.Equals(r, "Speculative", StringComparison.OrdinalIgnoreCase);
+        var channelState  = scan.ChannelState ?? "NONE";
+        var levelState = priceStructure?.KeyLevelState ?? "NONE";
+
+        if (priceStructure?.HasHardStructuralNegative == true)
+            return ("AVOID", "danger", "REQUIRED");
+
+        if (scan.Status == SignalStatus.Neutral && levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM"
+            or "APPROACHING_SUPPORT" or "RESISTANCE_TEST" or "APPROACHING_RESISTANCE" or "BREAKOUT_CONFIRMED")
+            return isHolding
+                ? ("ADD WATCH", "buy", "DEVELOPING")
+                : (levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM" ? "REVERSAL WATCH" : "BUY WATCH", "wait", "DEVELOPING");
+
+        if (channelState is "THIRD_TOUCH_APPROACHING" or "THIRD_TOUCH_TEST"
+            or "LOWER_RAIL_APPROACHING" or "LOWER_RAIL_RETEST"
+            or "REVERSAL_DEVELOPING" or "BOUNCE_CONFIRMED" or "CHANNEL_BROKEN")
+        {
+            var channelAction = DeriveChannelAction(channelState, scan.TrendShift ?? "", r, isHolding, scan.ScanType);
+            if (channelAction.HasValue)
+            {
+                var (label, severity, priority) = channelAction.Value;
+                if (allocationStatus == "over" && severity == "buy")
+                    return (isHolding ? "HOLD — ALLOCATION FULL" : "WATCH — ALLOCATION BLOCKED", "hold", "INFORMATIONAL");
+                return channelAction.Value;
+            }
+        }
+
+        // ── WATCHLIST ITEMS (no position) ────────────────────────────────────
+        if (!isHolding)
+        {
+            if (!isOversold)
+                return ("WAIT FOR PULLBACK", "wait", "INFORMATIONAL");
+
+            if (isBullish && !isTrendDamage)
+                return isStrictBull
+                    ? ("ENTRY CANDIDATE", "buy", "REQUIRED")
+                    : ("STARTER ENTRY",   "buy", "REQUIRED");
+
+            if (isBullish && isTrendDamage)
+                return ("BUY WATCH", "buy", "DEVELOPING");
+
+            return isTrendDamage
+                ? ("AVOID — TREND DAMAGE", "wait", "INFORMATIONAL")
+                : ("WAIT FOR REVERSAL",     "wait", "DEVELOPING");
+        }
+
+        // ── PORTFOLIO HOLDINGS ──────────────────────────────────────────────
+        if (!isOversold) // Overbought territory
+        {
+            if (isCore)
+                return isBearish
+                    ? ("TRIM WATCH",      "trim", "DEVELOPING")
+                    : ("HOLD — EXTENDED", "hold", "INFORMATIONAL");
+
+            if (isSwing || isSpec)
+                return isBearish
+                    ? ("TRIM",       "trim", "REQUIRED")
+                    : ("TRIM WATCH", "trim", "DEVELOPING");
+
+            return isBearish
+                ? ("TRIM WATCH",      "trim", "DEVELOPING")
+                : ("HOLD — EXTENDED", "hold", "INFORMATIONAL");
+        }
+
+        // Oversold territory
+        if (isCore)
+        {
+            if (isBullish)
+                return allocationStatus == "over"
+                    ? ("HOLD — SECTOR FULL", "hold", "INFORMATIONAL")
+                    : ("ADD WATCH",           "buy",  "DEVELOPING");
+            return isTrendDamage
+                ? ("HOLD — WAIT",    "hold", "INFORMATIONAL")
+                : ("HOLD — WEAKNESS", "hold", "INFORMATIONAL");
+        }
+
+        if (isSwing)
+        {
+            if (isBullish) return ("REVERSAL WATCH", "buy",    "DEVELOPING");
+            return isTrendDamage
+                ? ("EXIT REVIEW", "review", "REQUIRED")
+                : ("HOLD — WAIT", "hold",   "INFORMATIONAL");
+        }
+
+        if (isSpec)
+        {
+            if (isBullish) return ("REVERSAL WATCH", "buy",    "DEVELOPING");
+            return isTrendDamage
+                ? ("RISK REVIEW", "review", "REQUIRED")
+                : ("HOLD — WAIT", "hold",   "INFORMATIONAL");
+        }
+
+        // Strategic (default)
+        if (isBullish) return ("BUY WATCH", "buy", "DEVELOPING");
+        return isTrendDamage
+            ? ("HOLD / REVIEW THESIS", "review", "DEVELOPING")
+            : ("HOLD — WEAKNESS",     "hold",   "INFORMATIONAL");
+    }
+
+    private static (string label, string severity, string priority) ApplyEodContext(
+        string label,
+        string severity,
+        string priority,
+        SharedTechnicalFacts? facts,
+        PriceStructureResult? priceStructure)
+    {
+        if (facts is null || !IsActiveEod(facts) || facts.LatestEodIsInvalidated)
+            return (label, severity, priority);
+
+        var hasStructuralDamage = priceStructure?.HasHardStructuralNegative == true;
+        var hasEntryStructure = !hasStructuralDamage && HasPriceStructure(priceStructure) && (facts.BuyScore ?? 0) >= 65;
+
+        if (hasStructuralDamage)
+            return (label, severity, priority);
+
+        if (label == "ENTRY CANDIDATE" && !hasEntryStructure)
+            return ("REVERSAL WATCH", "wait", "DEVELOPING");
+
+        if (priority == "INFORMATIONAL")
+        {
+            var eodLabel = label.StartsWith("WAIT", StringComparison.OrdinalIgnoreCase)
+                || label.StartsWith("HOLD", StringComparison.OrdinalIgnoreCase)
+                ? "REVERSAL WATCH"
+                : label;
+            var eodSeverity = severity == "hold" ? "wait" : severity;
+            return (eodLabel, eodSeverity, "DEVELOPING");
+        }
+
+        return (label, severity, priority);
+    }
+
+    private static (string label, string severity, string priority)? DeriveChannelAction(
+        string channelState, string trendShift, string role, bool isHolding, ScanType scanType)
+    {
+        var isBullTurn = string.Equals(trendShift, "🟢 Bull Turn", StringComparison.OrdinalIgnoreCase);
+        var isStabilizing = trendShift.Contains("Stabilizing", StringComparison.OrdinalIgnoreCase);
+        var isStillFalling = trendShift.Contains("Still Falling", StringComparison.OrdinalIgnoreCase);
         var isCore = string.Equals(role, "Core", StringComparison.OrdinalIgnoreCase);
-        var isSwingSpec = role is "Swing" or "Speculative";
+        var isStrategic = string.Equals(role, "Strategic", StringComparison.OrdinalIgnoreCase);
+        var isSwing = string.Equals(role, "Swing", StringComparison.OrdinalIgnoreCase);
 
-        if (isTrendDamage)
-            return ("REVIEW — TREND DAMAGE", "review");
+        if (scanType == ScanType.Overbought) return null;
 
-        if (isOversold && isBullish)
+        if (channelState == "CHANNEL_BROKEN")
+            return isHolding
+                ? isSwing ? ("EXIT REVIEW", "review", "REQUIRED") : ("TECHNICAL REVIEW", "review", "REQUIRED")
+                : ("AVOID", "danger", "REQUIRED");
+
+        if (!isHolding && (channelState == "THIRD_TOUCH_APPROACHING" || channelState == "LOWER_RAIL_APPROACHING"))
+            return ("WATCH CHANNEL", "wait", "DEVELOPING");
+
+        if (channelState is "THIRD_TOUCH_TEST" or "LOWER_RAIL_RETEST")
         {
-            if (isCore)
-                return allocationStatus == "over" ? ("HOLD — SECTOR OVERWEIGHT", "hold") : ("ADD WATCH", "buy");
-            if (isSwingSpec)
-                return ("ENTRY CANDIDATE", "buy");
-            return ("BUY WATCH", "buy");
+            if (isStillFalling) return ("WAIT FOR REVERSAL", "wait", "DEVELOPING");
+            if (isStabilizing) return ("REVERSAL WATCH", "wait", "DEVELOPING");
+            if (isBullTurn)
+            {
+                if (!isHolding) return ("BUY WATCH", "buy", "DEVELOPING");
+                if (isSwing) return ("STAGED ADD / HOLD", "buy", "DEVELOPING");
+                if (isCore || isStrategic) return ("ADD CANDIDATE", "buy", "REQUIRED");
+            }
+            return null;
         }
 
-        if (isOversold && !isBullish)
-            return ("WAIT — STILL FALLING", "wait");
+        if (channelState == "REVERSAL_DEVELOPING")
+            return (isHolding ? "ADD WATCH" : "REVERSAL WATCH", "wait", "DEVELOPING");
 
-        if (!isOversold && isBearish)
+        if (channelState == "BOUNCE_CONFIRMED")
         {
-            if (isCore)
-                return ("HOLD / TRIM WATCH", "trim");
-            if (isSwingSpec)
-                return ("TRIM / TAKE PROFIT", "trim");
-            return ("TRIM WATCH", "trim");
+            if (!isHolding) return ("ENTRY CANDIDATE", "buy", "REQUIRED");
+            if (isSwing) return ("STAGED ADD / HOLD", "buy", "DEVELOPING");
+            return ("ADD CANDIDATE", "buy", "REQUIRED");
         }
 
-        if (!isOversold && !isBearish)
-            return ("HOLD — EXTENDED", "hold");
-
-        return ("MONITOR", "hold");
+        return null;
     }
 
     private static string ComputeAllocationStatus(
@@ -147,7 +397,8 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         List<AllocationSectorTarget> targets)
     {
         if (string.IsNullOrEmpty(sector)) return "";
-        var target = targets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
+        var target = targets.FirstOrDefault(t =>
+            string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
         if (target is null) return "";
         actuals.TryGetValue(sector, out var actual);
         var delta = actual - target.TargetPct;
@@ -164,6 +415,14 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         return (p.Quote?.CurrentPrice ?? p.Item.AverageCostBasis) * p.Item.Shares;
     }
 
+    private static int PriorityOrder(string p) => p switch
+    {
+        "REQUIRED"      => 0,
+        "DEVELOPING"    => 1,
+        "INFORMATIONAL" => 2,
+        _               => 3,
+    };
+
     private static int SeverityOrder(string severity) => severity switch
     {
         "buy"    => 0,
@@ -173,6 +432,33 @@ public sealed class PortfolioActionsService(AppDbContext db) : IPortfolioActions
         "wait"   => 4,
         _        => 5,
     };
+
+    private static bool HasPriceStructure(PriceStructureResult? structure) =>
+        structure is not null && (structure.PrimaryPatternType != "NONE" || structure.KeyLevelState != "NONE");
+
+    private static bool IsActiveEod(SharedTechnicalFacts? facts) =>
+        string.Equals(facts?.LatestEodSignalState, "Active", StringComparison.OrdinalIgnoreCase);
+
+    // Mirrors the ET-day helper used elsewhere (DashboardService, etc.) — kept local since each
+    // service in this codebase owns its own small timezone helper rather than a shared utility.
+    private static bool IsCurrentEasternTradingDay(DateTime utcTimestamp)
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
+        var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
+        var stampedDay = TimeZoneInfo.ConvertTimeFromUtc(utcTimestamp, zone).Date;
+        return stampedDay == today;
+    }
+
+    private static string InclusionReason(RsiScanResult scan, PriceStructureResult? structure, bool hasScannerData)
+    {
+        var state = structure?.KeyLevelState ?? "NONE";
+        if (state == "SUPPORT_TEST") return "PRICE_STRUCTURE_SUPPORT_TEST";
+        if (state is "RESISTANCE_TEST" or "APPROACHING_RESISTANCE") return "PRICE_STRUCTURE_BREAKOUT_WATCH";
+        if (structure?.HasHardStructuralNegative == true) return "HARD_STRUCTURE_NEGATIVE";
+        if (HasPriceStructure(structure)) return "PRIORITY_TECHNICAL_SETUP";
+        return hasScannerData && scan.Status != SignalStatus.Neutral ? "RSI_SIGNAL" : "NO_CURRENT_DECISION_LEVEL";
+    }
 
     private static T? Deserialize<T>(string json)
     {

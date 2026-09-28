@@ -8,14 +8,17 @@ import {
   AddPortfolioItemRequest,
   AdhocSessionPayload,
   AdhocSessionResponse,
+  AdjustCashBalanceRequest,
   AllocationRiskConfig,
   AllocationRiskTarget,
   AllocationSectorTarget,
   CashItem,
   DailySignalPagedResponse,
   DashboardResponse,
+  DataRefreshResultDto,
   EodSignalFilters,
   EodSignalsMeta,
+  FinalActionSyncItem,
   MarketIndicesResponse,
   OptionItem,
   OptionTechnicalData,
@@ -24,14 +27,17 @@ import {
   PortfolioSummary,
   PortfolioValueHistoryDto,
   RsiScanResult,
+  SaveSecurityAnalysisMappingRequest,
   ScannerResponse,
   SectorIndustryLists,
+  SecurityAnalysisMapping,
   SinglePositionLimit,
   StockQuote,
   SymbolSearchResult,
   UpdateCashItemRequest,
   UpdateOptionItemRequest,
   UpdatePortfolioItemRequest,
+  UpdatePortfolioItemResponse,
   ValueScreenerRequest,
   ValueScreenerResult,
   WatchlistSummary,
@@ -56,8 +62,11 @@ export class PortfolioApiService {
     return this.http.post<PortfolioItem>(`${this.base}/portfolio/manual`, request);
   }
 
-  updateItem(id: number, request: UpdatePortfolioItemRequest): Observable<PortfolioItem> {
-    return this.http.put<PortfolioItem>(`${this.base}/portfolio/${id}`, request);
+  updateItem(
+    id: number,
+    request: UpdatePortfolioItemRequest,
+  ): Observable<UpdatePortfolioItemResponse> {
+    return this.http.put<UpdatePortfolioItemResponse>(`${this.base}/portfolio/${id}`, request);
   }
 
   deleteItem(id: number): Observable<void> {
@@ -126,6 +135,39 @@ export class PortfolioApiService {
     return this.http.patch<void>(`${this.base}/watchlist/${id}/earnings-date`, { earningsDate });
   }
 
+  // ── Security analysis mappings ───────────────────────────────────────────
+  getSecurityAnalysisMapping(tradingTicker: string): Observable<SecurityAnalysisMapping> {
+    return this.http.get<SecurityAnalysisMapping>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+    );
+  }
+
+  validateUnderlyingTicker(
+    tradingTicker: string,
+    request: SaveSecurityAnalysisMappingRequest,
+  ): Observable<void> {
+    return this.http.post<void>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}/validate`,
+      request,
+    );
+  }
+
+  saveSecurityAnalysisMapping(
+    tradingTicker: string,
+    request: SaveSecurityAnalysisMappingRequest,
+  ): Observable<SecurityAnalysisMapping> {
+    return this.http.put<SecurityAnalysisMapping>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+      request,
+    );
+  }
+
+  removeSecurityAnalysisMapping(tradingTicker: string): Observable<void> {
+    return this.http.delete<void>(
+      `${this.base}/security-analysis-mappings/${encodeURIComponent(tradingTicker)}`,
+    );
+  }
+
   refreshWatchlistEarnings(): Observable<{ refreshed: number; total: number }> {
     return this.http.post<{ refreshed: number; total: number }>(
       `${this.base}/watchlist/refresh-earnings`,
@@ -139,6 +181,11 @@ export class PortfolioApiService {
 
   updatePortfolioNotes(id: number, notes: string | null): Observable<void> {
     return this.http.patch<void>(`${this.base}/portfolio/${id}/notes`, { notes });
+  }
+
+  /** Pushes the Portfolio grid's computed Final Action per holding so Dashboard Action Center matches it. */
+  syncFinalActions(items: FinalActionSyncItem[]): Observable<void> {
+    return this.http.patch<void>(`${this.base}/portfolio/final-actions`, { items });
   }
 
   /** Returns the latest persisted portfolio snapshot from DB — no Yahoo Finance call. Null when no snapshot exists yet. */
@@ -159,6 +206,11 @@ export class PortfolioApiService {
         map((r) => (r.status === 204 ? null : r.body)),
         catchError(() => of(null)),
       );
+  }
+
+  /** Batch-refreshes portfolio + watchlist quotes and rebuilds the dashboard in one backend call. */
+  refreshAll(): Observable<DataRefreshResultDto> {
+    return this.http.post<DataRefreshResultDto>(`${this.base}/data/refresh`, {});
   }
 
   // ── RSI Scanner ─────────────────────────────────────────────────────────────
@@ -371,8 +423,18 @@ export class PortfolioApiService {
     return this.http.put<CashItem>(`${this.base}/cash/${id}`, request);
   }
 
+  adjustCashBalance(request: AdjustCashBalanceRequest): Observable<CashItem> {
+    return this.http.post<CashItem>(`${this.base}/cash/adjust-balance`, request);
+  }
+
   deleteCashItem(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/cash/${id}`);
+  }
+
+  /** The accounting boundary: dates before this use frozen legacy history; dates on/after it are
+   * reconstructed authoritatively from the cash ledger. */
+  getCashLedgerStartDate(): Observable<{ ledgerStartDate: string }> {
+    return this.http.get<{ ledgerStartDate: string }>(`${this.base}/cash/ledger-start-date`);
   }
 
   // ── Options CRUD ────────────────────────────────────────────────────────────
@@ -409,6 +471,7 @@ export class PortfolioApiService {
     if (filters.signalType) params = params.set('signalType', filters.signalType);
     if (filters.signalState) params = params.set('signalState', filters.signalState);
     if (filters.ruleVersion) params = params.set('ruleVersion', filters.ruleVersion);
+    if (filters.volumeSignal) params = params.set('volumeSignal', filters.volumeSignal);
     if (filters.dateFrom) params = params.set('dateFrom', filters.dateFrom);
     if (filters.dateTo) params = params.set('dateTo', filters.dateTo);
     return this.http.get<DailySignalPagedResponse>(`${this.base}/eod-signals`, { params });
@@ -513,6 +576,38 @@ export class PortfolioApiService {
   getMissingHistoryDays(lookbackDays = 30): Observable<string[]> {
     return this.http.get<string[]>(
       `${this.base}/portfoliovaluehistory/missing-days?lookbackDays=${lookbackDays}`,
+    );
+  }
+
+  /** Snapshots within [fromDate..toDate] (most-recent-first), enriched with ExternalCashFlow/
+   * SnapshotStatus/HasMismatch. Omit either bound to default to the last 90 days. */
+  getPortfolioValueHistoryRange(
+    fromDate?: string,
+    toDate?: string,
+  ): Observable<PortfolioValueHistoryDto[]> {
+    let params = new HttpParams();
+    if (fromDate) params = params.set('fromDate', fromDate);
+    if (toDate) params = params.set('toDate', toDate);
+    return this.http.get<PortfolioValueHistoryDto[]>(`${this.base}/portfoliovaluehistory/range`, {
+      params,
+    });
+  }
+
+  /** Admin/debug: cash-only recalculation of today's already-recorded snapshot (Stocks/Options preserved).
+   * Rejects with a 400 if no snapshot exists yet for today. */
+  reconcileCashToday(): Observable<PortfolioValueHistoryDto> {
+    return this.http.post<PortfolioValueHistoryDto>(
+      `${this.base}/portfoliovaluehistory/reconcile-today`,
+      {},
+    );
+  }
+
+  /** Admin/debug: cash-only recalculation of every snapshot from fromDate through today (Stocks/Options
+   * preserved on every affected row). */
+  recalculateCashFromDate(fromDate: string): Observable<PortfolioValueHistoryDto[]> {
+    return this.http.post<PortfolioValueHistoryDto[]>(
+      `${this.base}/portfoliovaluehistory/recalculate-cash?fromDate=${fromDate}`,
+      {},
     );
   }
 

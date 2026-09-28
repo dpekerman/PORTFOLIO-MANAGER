@@ -120,7 +120,7 @@ public sealed class RsiAlertBackgroundService(
             Settings.OversoldThreshold,
             Settings.OverboughtThreshold,
             "Enhanced",   // must match the UI logic mode so email status == displayed status
-            ct);
+            ct: ct);
 
         if (result.IsDemo)
         {

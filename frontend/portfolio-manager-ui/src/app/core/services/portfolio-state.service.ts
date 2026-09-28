@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { EMPTY, filter, interval, switchMap, take } from 'rxjs';
+import { filter, take } from 'rxjs';
 import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
@@ -9,7 +9,6 @@ import {
   UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
 import { AuthStateService } from './auth-state.service';
-import { ConfigService } from './config.service';
 import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -19,7 +18,6 @@ export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly demoMode = inject(DemoModeService);
-  private readonly configService = inject(ConfigService);
   private readonly authState = inject(AuthStateService);
   private readonly dashboardState = inject(DashboardStateService);
 
@@ -36,14 +34,6 @@ export class PortfolioStateService {
 
   /** True when the current data was loaded from the DB snapshot (not a live Yahoo call). */
   readonly fromSnapshot = signal(false);
-
-  /** Human-readable label for the configured auto-refresh interval. */
-  readonly refreshIntervalLabel = computed(() => {
-    const secs = this.configService.portfolioRefreshSeconds();
-    if (secs === 0) return 'Auto-refresh disabled';
-    const min = Math.round(secs / 60);
-    return min >= 1 ? `Auto-refreshes every ${min}min` : `Auto-refreshes every ${secs}s`;
-  });
 
   readonly selectedCount = computed(() => this._selectedIds().size);
   readonly hasSelection = computed(() => this._selectedIds().size > 0);
@@ -91,31 +81,11 @@ export class PortfolioStateService {
         take(1),
       )
       .subscribe(() => this.loadSnapshot());
-
-    // Restart auto-refresh whenever the configured interval changes; 0 = disabled
-    // Skipped while the tab is hidden/backgrounded to avoid unnecessary API calls.
-    toObservable(this.configService.config)
-      .pipe(
-        takeUntilDestroyed(),
-        switchMap((cfg) =>
-          cfg.portfolioRefreshSeconds > 0 ? interval(cfg.portfolioRefreshSeconds * 1000) : EMPTY,
-        ),
-        filter(() => document.visibilityState === 'visible'),
-        switchMap(() => this.api.getAllQuotes()),
-      )
-      .subscribe({
-        next: (data) => {
-          this._summaries.set(data);
-          // Portfolio snapshot is now fresh — rebuild dashboard to keep it in sync
-          this.dashboardState.refresh();
-        },
-        error: () => this._error.set('Auto-refresh failed'),
-      });
   }
 
   /** Load last snapshot from DB (instant — no Yahoo Finance call).
    * Falls back to a live refresh when no snapshot exists yet. */
-  private loadSnapshot(): void {
+  loadSnapshot(): void {
     this._loading.set(true);
     this.api.getPortfolioSnapshot().subscribe({
       next: (data) => {
@@ -146,6 +116,12 @@ export class PortfolioStateService {
         console.error(err);
       },
     });
+  }
+
+  /** Silently update prices from a completed batch refresh — no loading state, no extra HTTP call. */
+  setFromRefresh(data: PortfolioSummary[]): void {
+    this._summaries.set(data);
+    this.fromSnapshot.set(false);
   }
 
   toggleSelection(id: number): void {
@@ -181,9 +157,10 @@ export class PortfolioStateService {
   addItem(request: AddPortfolioItemRequest): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addItem(request).subscribe({
-        next: () => {
-          this.snackBar.open(`${request.symbol} added to portfolio`, 'Close', { duration: 3000 });
-          this.refresh();
+        next: (newItem) => {
+          // Append immediately — quote populates on next refresh
+          this._summaries.update((items) => [...items, { item: newItem, quote: null }]);
+          this.snackBar.open(`${newItem.symbol} added to portfolio`, 'Close', { duration: 3000 });
           resolve();
         },
         error: (err) => {
@@ -197,9 +174,9 @@ export class PortfolioStateService {
   addManualPosition(request: AddManualPositionRequest): Promise<void> {
     return new Promise((resolve, reject) => {
       this.api.addManualPosition(request).subscribe({
-        next: () => {
+        next: (newItem) => {
+          this._summaries.update((items) => [...items, { item: newItem, quote: null }]);
           this.snackBar.open(`${request.name} added to portfolio`, 'Close', { duration: 3000 });
-          this.refresh();
           resolve();
         },
         error: (err) => {
@@ -227,9 +204,10 @@ export class PortfolioStateService {
 
   updateItem(id: number, request: UpdatePortfolioItemRequest): void {
     this.api.updateItem(id, request).subscribe({
-      next: (updated) => {
-        this._summaries.update((items) =>
-          items.map((s) =>
+      next: (response) => {
+        const updated = response.updated;
+        this._summaries.update((items) => {
+          const patched = items.map((s) =>
             s.item.id === id
               ? {
                   ...s,
@@ -251,9 +229,19 @@ export class PortfolioStateService {
                   },
                 }
               : s,
-          ),
+          );
+          // Partial close: the remaining shares were auto-split server-side into a new OPEN row.
+          return response.newOpenItem
+            ? [...patched, { item: response.newOpenItem, quote: null }]
+            : patched;
+        });
+        this.snackBar.open(
+          response.newOpenItem
+            ? `${updated.symbol} partially closed \u2014 remaining ${response.newOpenItem.shares} shares moved to a new open position`
+            : `Position updated`,
+          'Close',
+          { duration: response.newOpenItem ? 5000 : 3000 },
         );
-        this.snackBar.open(`Position updated`, 'Close', { duration: 3000 });
       },
       error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });

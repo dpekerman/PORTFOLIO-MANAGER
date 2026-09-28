@@ -11,68 +11,262 @@
   }
 
   @if (actions().length > 0) {
-    <div class="pa-table-wrap">
-      <table class="pa-table" role="table" aria-label="Portfolio actions">
-        <thead>
-          <tr>
-            <th>Symbol</th>
-            <th>Role</th>
-            <th>RSI</th>
-            <th>Trend</th>
-            <th>Fib Zone</th>
-            <th>Allocation</th>
-            <th class="pa-action-col">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (a of actions(); track a.symbol) {
-            <tr [class]="severityCls(a.actionSeverity)">
-              <td class="pa-symbol">
-                <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
-                  scanIcon(a.scanType)
-                }}</mat-icon>
-                <strong>{{ a.symbol }}</strong>
-                @if (a.isInPortfolio) {
-                  <span class="pa-badge pa-portfolio" matTooltip="In Portfolio">P</span>
-                }
-                @if (a.isInWatchlist && !a.isInPortfolio) {
-                  <span class="pa-badge pa-watchlist" matTooltip="On Watchlist">W</span>
-                }
-              </td>
-              <td>
-                <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
-              </td>
-              <td class="pa-rsi">{{ a.rsi | number: '1.1-1' }}</td>
-              <td class="pa-trend">{{ a.trendShift }}</td>
-              <td class="pa-fib">{{ a.fibZone || '—' }}</td>
-              <td class="pa-alloc">
-                @if (a.allocationStatus === 'over') {
-                  <span class="pa-alloc-over" matTooltip="Sector overweight">↑ Over</span>
-                } @else if (a.allocationStatus === 'under') {
-                  <span class="pa-alloc-under" matTooltip="Sector underweight">↓ Under</span>
-                } @else if (a.allocationStatus === 'on-target') {
-                  <span class="pa-alloc-ok">On target</span>
-                } @else {
-                  <span class="pa-alloc-none">—</span>
-                }
-              </td>
-              <td class="pa-action-col">
-                <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">
-                  {{ a.actionLabel }}
-                </span>
-                @if (a.chaseRisk) {
-                  <mat-icon
-                    class="pa-chase-ico"
-                    matTooltip="Chase risk — large rebound may be priced in"
-                    color="warn"
-                    >warning</mat-icon
-                  >
-                }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+    <!-- Priority summary counts -->
+    <div class="pa-counts">
+      <button
+        type="button"
+        class="pa-count pa-count-reset"
+        [class.active]="activeFilter() === 'ALL'"
+        (click)="resetFilter()"
+        aria-label="Show all Action Center rows"
+      >
+        All
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-required"
+        [class.active]="activeFilter() === 'REQUIRED'"
+        (click)="toggleFilter('REQUIRED')"
+      >
+        <mat-icon>error_outline</mat-icon>
+        {{ requiredCount() }} Action Required
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-developing"
+        [class.active]="activeFilter() === 'DEVELOPING'"
+        (click)="toggleFilter('DEVELOPING')"
+      >
+        <mat-icon>schedule</mat-icon>
+        {{ developingCount() }} Developing
+      </button>
+      <button
+        type="button"
+        class="pa-count pa-count-info"
+        [class.active]="activeFilter() === 'INFORMATIONAL'"
+        (click)="toggleFilter('INFORMATIONAL')"
+      >
+        <mat-icon>info_outline</mat-icon>
+        {{ informationalCount() }} Informational
+      </button>
     </div>
+
+    <!-- ── HOLDINGS ─────────────────────────────────────────────────── -->
+    @if (holdingActions().length > 0) {
+      <div class="pa-section-header">
+        <mat-icon>account_balance_wallet</mat-icon>
+        Holdings — Position Action
+      </div>
+      <div class="pa-table-wrap">
+        <table class="pa-table" role="table" aria-label="Holdings actions">
+          <thead>
+            <tr>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('symbol')">
+                  Symbol{{ holdingsSortIndicator('symbol') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('role')">
+                  Role{{ holdingsSortIndicator('role') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('rsi')">
+                  RSI{{ holdingsSortIndicator('rsi') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('maStructure')">
+                  MA Structure{{ holdingsSortIndicator('maStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('momentum')">
+                  Momentum{{ holdingsSortIndicator('momentum') }}
+                </button>
+              </th>
+              <th>
+                <button
+                  class="pa-sort"
+                  type="button"
+                  (click)="toggleHoldingsSort('priceStructure')"
+                >
+                  Price Structure{{ holdingsSortIndicator('priceStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('allocation')">
+                  Allocation{{ holdingsSortIndicator('allocation') }}
+                </button>
+              </th>
+              <th class="pa-action-col">
+                <button class="pa-sort" type="button" (click)="toggleHoldingsSort('action')">
+                  Position Action{{ holdingsSortIndicator('action') }}
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of holdingActions(); track a.symbol) {
+              <tr [class]="severityCls(a)">
+                <td class="pa-symbol">
+                  <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
+                    scanIcon(a.scanType)
+                  }}</mat-icon>
+                  <strong>{{ a.symbol }}</strong>
+                  <span class="pa-badge pa-portfolio" matTooltip="In Portfolio">P</span>
+                  @if (a.isInWatchlist) {
+                    <span class="pa-badge pa-watchlist" matTooltip="Also on Watchlist">W</span>
+                  }
+                  @if (hasEodSignal(a)) {
+                    <span
+                      class="pa-eod-badge"
+                      [class.pa-eod-invalidated]="a.latestEodIsInvalidated"
+                      [matTooltip]="eodTooltip(a)"
+                      >{{ eodBadgeLabel(a) }}</span
+                    >
+                  }
+                </td>
+                <td>
+                  <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
+                </td>
+                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
+                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
+                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                  {{ structureLabel(a) }}
+                </td>
+                <td class="pa-alloc">
+                  @if (a.allocationStatus === 'over') {
+                    <span class="pa-alloc-over" matTooltip="Sector overweight">↑ Over</span>
+                  } @else if (a.allocationStatus === 'under') {
+                    <span class="pa-alloc-under" matTooltip="Sector underweight">↓ Under</span>
+                  } @else if (a.allocationStatus === 'on-target') {
+                    <span class="pa-alloc-ok">On target</span>
+                  } @else {
+                    <span class="pa-alloc-none">—</span>
+                  }
+                </td>
+                <td class="pa-action-col">
+                  <span class="pa-action-label" [class]="'pa-action-' + a.actionSeverity">{{
+                    a.actionLabel
+                  }}</span>
+                  @if (a.chaseRisk) {
+                    <mat-icon
+                      class="pa-chase-ico"
+                      matTooltip="Chase risk — large rebound may be priced in"
+                      color="warn"
+                      >warning</mat-icon
+                    >
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <!-- ── WATCHLIST ─────────────────────────────────────────────────── -->
+    @if (watchlistActions().length > 0) {
+      <div class="pa-section-header pa-section-watchlist">
+        <mat-icon>visibility</mat-icon>
+        Watchlist — Entry Status
+      </div>
+      <div class="pa-table-wrap">
+        <table class="pa-table" role="table" aria-label="Watchlist entry status">
+          <thead>
+            <tr>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('symbol')">
+                  Symbol{{ watchlistSortIndicator('symbol') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('role')">
+                  Role{{ watchlistSortIndicator('role') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('rsi')">
+                  RSI{{ watchlistSortIndicator('rsi') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('maStructure')">
+                  MA Structure{{ watchlistSortIndicator('maStructure') }}
+                </button>
+              </th>
+              <th>
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('momentum')">
+                  Momentum{{ watchlistSortIndicator('momentum') }}
+                </button>
+              </th>
+              <th>
+                <button
+                  class="pa-sort"
+                  type="button"
+                  (click)="toggleWatchlistSort('priceStructure')"
+                >
+                  Price Structure{{ watchlistSortIndicator('priceStructure') }}
+                </button>
+              </th>
+              <th class="pa-action-col">
+                <button class="pa-sort" type="button" (click)="toggleWatchlistSort('action')">
+                  Entry Status{{ watchlistSortIndicator('action') }}
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of watchlistActions(); track a.symbol) {
+              <tr [class]="severityCls(a)">
+                <td class="pa-symbol">
+                  <mat-icon class="pa-scan-ico" [matTooltip]="a.scanType">{{
+                    scanIcon(a.scanType)
+                  }}</mat-icon>
+                  <strong>{{ a.symbol }}</strong>
+                  <span class="pa-badge pa-watchlist" matTooltip="On Watchlist">W</span>
+                  @if (hasEodSignal(a)) {
+                    <span
+                      class="pa-eod-badge"
+                      [class.pa-eod-invalidated]="a.latestEodIsInvalidated"
+                      [matTooltip]="eodTooltip(a)"
+                      >{{ eodBadgeLabel(a) }}</span
+                    >
+                  }
+                </td>
+                <td>
+                  <span class="pa-role" [attr.data-role]="a.holdingRole">{{ a.holdingRole }}</span>
+                </td>
+                <td class="pa-rsi">{{ a.rsi === null ? '—' : (a.rsi | number: '1.1-1') }}</td>
+                <td class="pa-technical">{{ a.maStructure || '—' }}</td>
+                <td class="pa-technical">{{ a.momentumState || '—' }}</td>
+                <td class="pa-structure" [matTooltip]="structureTooltip(a)">
+                  {{ structureLabel(a) }}
+                </td>
+                <td class="pa-action-col">
+                  <span
+                    class="pa-action-label"
+                    [class]="'pa-action-' + a.actionSeverity"
+                    [matTooltip]="entryStatusTooltip(a)"
+                    >{{ entryStatus(a) }}</span
+                  >
+                  @if (a.chaseRisk) {
+                    <mat-icon
+                      class="pa-chase-ico"
+                      matTooltip="Chase risk — large rebound may be priced in"
+                      color="warn"
+                      >warning</mat-icon
+                    >
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   }
 </div>

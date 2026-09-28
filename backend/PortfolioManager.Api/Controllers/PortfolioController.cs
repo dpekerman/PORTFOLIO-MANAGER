@@ -12,7 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public class PortfolioController(
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
-    ITransactionContextCaptureService contextCapture) : ControllerBase
+    ITransactionContextCaptureService contextCapture,
+    IServiceScopeFactory scopeFactory) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     [HttpGet]
@@ -34,9 +35,19 @@ public class PortfolioController(
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddAsync(request, ct);
-        // Only capture context for OPEN (buy) transactions
         if (!string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
             await contextCapture.TryCaptureAsync(item.Id, item.Symbol, request.HoldingRole, item.Sector, ct);
+        // Fetch sector/industry in background so the dialog closes immediately
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var scope = scopeFactory.CreateAsyncScope();
+                var svc = scope.ServiceProvider.GetRequiredService<IPortfolioService>();
+                await svc.RefreshSectorForItemAsync(item.Id, item.Symbol);
+            }
+            catch { /* best-effort */ }
+        });
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
@@ -54,10 +65,10 @@ public class PortfolioController(
 
     [Authorize(Roles = "Admin,Trader")]
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<PortfolioItemDto>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
+    public async Task<ActionResult<UpdatePortfolioItemResponse>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
     {
-        var item = await portfolioService.UpdateAsync(id, request, ct);
-        return item is null ? NotFound() : Ok(item);
+        var result = await portfolioService.UpdateAsync(id, request, ct);
+        return result is null ? NotFound() : Ok(result);
     }
 
     /// <summary>Updates the holding role for a portfolio item.</summary>
@@ -81,6 +92,18 @@ public class PortfolioController(
     {
         var updated = await portfolioService.UpdateNotesAsync(id, request.Notes, ct);
         return updated ? NoContent() : NotFound();
+    }
+
+    /// <summary>Pushes the Portfolio grid's computed Final Action per holding into the snapshot,
+    /// so Dashboard Action Center can reuse it instead of re-deriving one.</summary>
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPatch("final-actions")]
+    public async Task<IActionResult> SyncFinalActions([FromBody] SyncFinalActionsRequest request, CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        if (string.IsNullOrEmpty(uid)) return Unauthorized();
+        await portfolioSnapshot.PatchFinalActionsAsync(uid, request.Items, ct);
+        return NoContent();
     }
 
     [Authorize(Roles = "Admin,Trader")]

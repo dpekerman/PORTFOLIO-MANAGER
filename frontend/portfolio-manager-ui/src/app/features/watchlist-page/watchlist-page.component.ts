@@ -2,12 +2,11 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -20,23 +19,20 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import {
-  Subject,
-  catchError,
-  distinctUntilChanged,
-  filter,
-  forkJoin,
-  map,
-  of,
-  switchMap,
-  tap,
-} from 'rxjs';
+
 import * as XLSX from 'xlsx';
 import {
+  PriceStructureResult,
   RsiScanResult,
   ValueScreenerResult,
   WatchlistSummary,
 } from '../../core/models/portfolio.models';
+import {
+  priceStructureLabel as formatPriceStructureLabel,
+  priceStructureTooltip as formatPriceStructureTooltip,
+  priceStructureSortRank,
+} from '../../core/price-structure-display';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import {
   DecisionEngineService,
@@ -44,12 +40,16 @@ import {
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
+import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
+import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
 import {
   TransactionNotesDialogComponent,
@@ -60,6 +60,7 @@ import {
   AddWatchlistDialogComponent,
   AddWatchlistDialogResult,
 } from './add-watchlist-dialog.component';
+import { SecurityAnalysisMappingDialogComponent } from './security-analysis-mapping-dialog.component';
 import { WatchlistCardComponent } from './watchlist-card.component';
 
 type ViewMode = 'card' | 'grid';
@@ -76,6 +77,8 @@ type SortColumn =
   | 'buyScore'
   | 'trendSetup'
   | 'momentumShift'
+  | 'channel'
+  | 'priceStructure'
   | 'finalAction'
   | 'technical'
   | 'valueScore'
@@ -114,27 +117,36 @@ type SortDir = 'asc' | 'desc';
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
     GridColumnButtonComponent,
+    ScreenRefreshProgressComponent,
   ],
 })
 export class WatchlistPageComponent {
   protected readonly watchlist = inject(WatchlistStateService);
+  private readonly demoMode = inject(DemoModeService);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
+  private readonly watchlistRsi = inject(WatchlistRsiStateService);
   protected readonly authState = inject(AuthStateService);
+  protected readonly appRefresh = inject(AppRefreshService);
+
+  /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */
+  protected readonly screenRefresh = new ScreenRefreshService('watchlist');
+
+  protected readonly trackById = (_: number, w: WatchlistSummary): number => w.item.id;
 
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
-  private readonly destroyRef = inject(DestroyRef);
   private readonly engine = inject(DecisionEngineService);
+  protected readonly rsiLoading = this.watchlistRsi.rsiLoading;
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
   protected readonly filterTrendSetup = signal('');
   protected readonly filterFinalAction = signal('');
   protected readonly filterFavorites = signal(false);
-  protected readonly tierFilter = signal<string>('All');
+  protected readonly tierFilter = signal<string>('Active');
   protected readonly tiers = ['All', 'Active', 'Strategic', 'Universe'];
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');
@@ -147,77 +159,10 @@ export class WatchlistPageComponent {
     'Options',
   ];
 
-  // â”€â”€ RSI result map for watchlist symbols â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  protected readonly watchlistRsiMap = signal<Map<string, RsiScanResult>>(new Map());
-  private readonly _rsiLoading = signal(false);
-  protected readonly rsiLoading = this._rsiLoading.asReadonly();
-
-  /** Emits the full symbol list whenever an RSI refresh is requested. */
-  private readonly rsiTrigger$ = new Subject<string[]>();
-
-  /**
-   * Sorted comma-separated symbol key — changes only when symbols are added or removed,
-   * NOT when roles or quote prices update. Used to gate RSI re-scans.
-   */
-  private readonly _symbolKey = computed(() =>
-    [...this.watchlist.items().map((w) => w.item.symbol)].sort().join(','),
-  );
-
   constructor() {
-    // Pipeline: batches symbols (max 50/request), cancels in-flight on new trigger.
-    this.rsiTrigger$
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        tap((symbols) => {
-          console.log(
-            `[Watchlist RSI] Scan started — ${symbols.length} symbols @ ${new Date().toISOString()}`,
-          );
-          this._rsiLoading.set(true);
-        }),
-        switchMap((symbols) => {
-          const batchSize = 50;
-          const batches: string[][] = [];
-          for (let i = 0; i < symbols.length; i += batchSize)
-            batches.push(symbols.slice(i, i + batchSize));
-
-          return forkJoin(
-            batches.map((batch) =>
-              this.api.analyzeSymbols(batch, 30, 75, 'Enhanced').pipe(
-                catchError((err) => {
-                  console.warn('[Watchlist RSI] Batch fetch failed', err);
-                  return of([] as RsiScanResult[]);
-                }),
-              ),
-            ),
-          ).pipe(map((batchResults) => batchResults.flat()));
-        }),
-      )
-      .subscribe({
-        next: (results) => {
-          const map = new Map<string, RsiScanResult>();
-          for (const r of results) map.set(r.symbol.toUpperCase(), r);
-          this.watchlistRsiMap.set(map);
-          this._rsiLoading.set(false);
-          console.log(
-            `[Watchlist RSI] Scan complete — ${results.length} results @ ${new Date().toISOString()}`,
-          );
-        },
-        error: () => {
-          this._rsiLoading.set(false);
-          console.error(`[Watchlist RSI] Scan failed @ ${new Date().toISOString()}`);
-        },
-      });
-
-    // Trigger RSI only when the set of symbols actually changes (add/remove).
-    // Role updates and 60s quote refreshes do NOT change _symbolKey → no spurious scans.
-    toObservable(this._symbolKey)
-      .pipe(
-        takeUntilDestroyed(this.destroyRef),
-        distinctUntilChanged(),
-        filter((key) => key.length > 0),
-        map((key) => key.split(',')),
-      )
-      .subscribe((symbols) => this.rsiTrigger$.next(symbols));
+    // Opt into live re-analysis whenever the watchlist symbol set changes — this page is the
+    // only consumer that should trigger that side effect (Dashboard only reads the cache).
+    this.watchlistRsi.enableAutoRefreshOnWatchlistChange();
 
     // Load latest Value Screener results for watchlist context
     this.api.getLatestValueScreener().subscribe({
@@ -230,10 +175,24 @@ export class WatchlistPageComponent {
       },
       error: () => {}, // Non-critical
     });
+
+    // Bridge the RSI enrichment loading state into the mini-popup (indeterminate — no ticker count).
+    effect(() => {
+      if (this.rsiLoading()) {
+        this.screenRefresh.startRefresh(0);
+      } else {
+        this.screenRefresh.completeRefresh();
+      }
+    });
+  }
+
+  /** Actually stops the in-flight RSI scan, rather than just hiding the mini-popup. */
+  protected onScreenRefreshCancelled(): void {
+    this.watchlistRsi.cancelRefresh();
   }
 
   protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
-    const map = new Map<string, RsiScanResult>(this.watchlistRsiMap());
+    const map = new Map<string, RsiScanResult>(this.watchlistRsi.rsiMap());
     for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
       map.set(r.symbol.toUpperCase(), r);
     return map;
@@ -241,6 +200,112 @@ export class WatchlistPageComponent {
 
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
+  }
+
+  protected channelForSymbol(symbol: string): RsiScanResult | null {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected channelLabel(symbol: string): string {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return state === 'THIRD_TOUCH_APPROACHING'
+      ? '3rd Rail Approaching'
+      : state === 'THIRD_TOUCH_TEST'
+        ? '3rd Rail Test'
+        : state === 'LOWER_RAIL_APPROACHING'
+          ? 'Lower Rail Approaching'
+          : state === 'LOWER_RAIL_RETEST'
+            ? 'Lower Rail Retest'
+            : state === 'REVERSAL_DEVELOPING'
+              ? 'Reversal Developing'
+              : state === 'BOUNCE_CONFIRMED'
+                ? 'Bounce Confirmed'
+                : state === 'CHANNEL_BROKEN'
+                  ? 'Channel Broken'
+                  : '';
+  }
+
+  protected channelTooltip(symbol: string): string {
+    const channel = this.channelForSymbol(symbol);
+    if (!channel || !this.channelLabel(symbol)) return '';
+    const touches = channel.channelTouchDetails
+      .map(
+        (touch) =>
+          `#${touch.touchNumber}  ${touch.touchDate.slice(0, 10)}\nRail: ${touch.railPrice.toFixed(2)}\nLow: ${touch.actualLow.toFixed(2)}\nBounce: +${touch.bounceATR.toFixed(2)} ATR`,
+      )
+      .join('\n\n');
+    const interaction =
+      channel.priorConfirmedLowerTouches === 2
+        ? '3rd Touch'
+        : `${channel.priorConfirmedLowerTouches + 1}th Touch`;
+    return `RISING CHANNEL\n\nCURRENT STRUCTURE\nState: ${this.channelLabel(symbol)}\nInteraction: ${interaction}\nQuality: ${channel.channelQuality}/100\nEOD Close: ${channel.currentPrice.toFixed(2)}\nLower Rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}%\nDistance ATR: ${channel.distanceToLowerRailATR.toFixed(2)}\n\nTOUCH HISTORY\nConfirmed Touches: ${channel.priorConfirmedLowerTouches}\n${touches}\n\nGAP\nNearest Open Gap Above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+  }
+
+  protected channelSortValue(symbol: string): number {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return (
+      {
+        NONE: 0,
+        CHANNEL_ACTIVE: 0,
+        THIRD_TOUCH_APPROACHING: 1,
+        THIRD_TOUCH_TEST: 2,
+        LOWER_RAIL_APPROACHING: 1,
+        LOWER_RAIL_RETEST: 2,
+        REVERSAL_DEVELOPING: 3,
+        BOUNCE_CONFIRMED: 4,
+        CHANNEL_BROKEN: 5,
+      }[state ?? 'NONE'] ?? 0
+    );
+  }
+
+  protected priceStructureForSymbol(
+    symbol: string,
+    summary?: WatchlistSummary,
+  ): PriceStructureResult | null {
+    const key = symbol.toUpperCase();
+    return (
+      summary?.priceStructure ??
+      this.watchlist.items().find((item) => item.item.symbol.toUpperCase() === key)
+        ?.priceStructure ??
+      this.rsiMap().get(key)?.priceStructure ??
+      null
+    );
+  }
+
+  protected priceStructureLabel(symbol: string, summary?: WatchlistSummary): string {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    return formatPriceStructureLabel(this.priceStructureForSymbol(symbol, summary), (value) =>
+      this.demoMode.maskValue(value),
+    );
+  }
+
+  protected priceStructureTooltip(symbol: string, summary?: WatchlistSummary): string {
+    const facts =
+      summary?.technicalFacts ??
+      this.watchlist.items().find((item) => item.item.symbol.toUpperCase() === symbol.toUpperCase())
+        ?.technicalFacts;
+    return formatPriceStructureTooltip(
+      this.priceStructureForSymbol(symbol, summary),
+      (value) => this.demoMode.maskValue(value),
+      {
+        ticker: facts?.analysisTicker,
+        market: facts?.analysisMarket,
+        currency: facts?.analysisCurrency,
+        usesUnderlying: facts?.usesUnderlyingSecurity,
+      },
+    );
+  }
+
+  protected priceStructureSortValue(symbol: string, summary?: WatchlistSummary): number {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    return priceStructureSortRank(this.priceStructureForSymbol(symbol, summary));
+  }
+
+  private formatPriceStructureState(state: string): string {
+    return state
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
@@ -593,6 +658,14 @@ export class WatchlistPageComponent {
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.momentumShift ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.momentumShift ?? '';
           break;
+        case 'channel':
+          av = this.channelSortValue(a.item.symbol);
+          bv = this.channelSortValue(b.item.symbol);
+          break;
+        case 'priceStructure':
+          av = this.priceStructureSortValue(a.item.symbol, a);
+          bv = this.priceStructureSortValue(b.item.symbol, b);
+          break;
         case 'finalAction':
           av = this.decisionForSymbol(a.item.symbol, a.item.role)?.finalAction ?? '';
           bv = this.decisionForSymbol(b.item.symbol, b.item.role)?.finalAction ?? '';
@@ -719,10 +792,18 @@ export class WatchlistPageComponent {
       });
   }
 
+  openSecurityAnalysisMapping(w: WatchlistSummary): void {
+    this.dialog.open(SecurityAnalysisMappingDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      data: { tradingTicker: w.item.symbol },
+    });
+  }
+
   refresh(): void {
-    this.watchlist.refresh();
+    this.appRefresh.refreshAll();
     const symbols = this.watchlist.items().map((w) => w.item.symbol);
-    if (symbols.length > 0) this.rsiTrigger$.next(symbols);
+    if (symbols.length > 0) this.watchlistRsi.triggerRefresh(symbols);
   }
 
   remove(w: WatchlistSummary): void {
@@ -753,9 +834,7 @@ export class WatchlistPageComponent {
   );
 
   updateTier(w: WatchlistSummary, tier: string): void {
-    this.api.updateWatchlistTier(w.item.id, tier).subscribe({
-      next: () => this.watchlist.refresh(),
-    });
+    this.watchlist.updateTier(w.item.id, tier);
   }
 
   protected readonly earningsRefreshing = signal(false);
@@ -777,9 +856,7 @@ export class WatchlistPageComponent {
   }
 
   updateEarningsDate(w: WatchlistSummary, value: string): void {
-    this.api.updateWatchlistEarningsDate(w.item.id, value || null).subscribe({
-      next: () => this.watchlist.refresh(),
-    });
+    this.watchlist.updateEarningsDate(w.item.id, value || null);
   }
 
   exportToExcel(): void {
@@ -810,6 +887,7 @@ export class WatchlistPageComponent {
         'RSI (14)': this.rsiForSymbol(w.item.symbol) ?? '',
         'Trend Setup': dec?.trendSetup ?? '',
         'Momentum Shift': dec?.momentumShift ?? '',
+        'Price Structure': this.priceStructureLabel(w.item.symbol, w),
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
         'Hover Note': dec?.hoverDescription ?? '',

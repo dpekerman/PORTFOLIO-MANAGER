@@ -63,6 +63,13 @@ export const routes: Routes = [
         loadChildren: () =>
           import('./features/eod-signals/eod-signals.routes').then((m) => m.EOD_SIGNALS_ROUTES),
       },
+      {
+        path: 'portfolio-value-history',
+        loadChildren: () =>
+          import('./features/portfolio-value-history/portfolio-value-history.routes').then(
+            (m) => m.PORTFOLIO_VALUE_HISTORY_ROUTES,
+          ),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },

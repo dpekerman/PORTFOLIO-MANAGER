@@ -12,18 +12,20 @@ public interface IPortfolioService
     Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default);
     Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default);
-    Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default);
+    Task<UpdatePortfolioItemResponse?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<int> RefreshSectorsAsync(CancellationToken ct = default);
     Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default);
     Task<bool> UpdateNotesAsync(int id, string? notes, CancellationToken ct = default);
     Task<IReadOnlyList<PortfolioBackupItem>> BackupAsync(CancellationToken ct = default);
     Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default);
+    Task RefreshSectorForItemAsync(int id, string symbol, CancellationToken ct = default);
 }
 
 public sealed class PortfolioService(
     AppDbContext db,
     IMarketDataProvider marketData,
+    IMutationClock mutationClock,
     IHttpContextAccessor httpCtx) : IPortfolioService
 {
     private string? CurrentUserId() => httpCtx.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -55,9 +57,6 @@ public sealed class PortfolioService(
 
     public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
     {
-        // Auto-fetch sector/industry from Yahoo Finance
-        var (sector, industry) = await marketData.GetSectorAsync(request.Symbol, ct);
-
         var item = new PortfolioItem
         {
             UserId           = CurrentUserId(),
@@ -65,8 +64,8 @@ public sealed class PortfolioService(
             CompanyName      = request.CompanyName,
             Shares           = request.Shares,
             AverageCostBasis = request.AverageCostBasis,
-            Sector           = sector,
-            Industry         = industry,
+            Sector           = string.Empty, // populated in background after response
+            Industry         = string.Empty,
             AddedAt          = DateTime.UtcNow,
             TransactionType  = request.TransactionType,
             AccountType      = request.AccountType,
@@ -79,6 +78,8 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
@@ -104,13 +105,24 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return ToDto(item);
     }
 
-    public async Task<PortfolioItemDto?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
+    public async Task<UpdatePortfolioItemResponse?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
     {
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
+
+        // Partial close: user is closing fewer shares than the position currently holds. Rather than
+        // silently losing track of the remainder (previously required a manual second "Add Stock"),
+        // auto-split it into a new OPEN row carrying over this position's own fields — mirrors exactly
+        // what a manual split looked like, minus the extra manual step.
+        var isPartialClose = string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && request.Shares < item.Shares;
+        var remainingShares = isPartialClose ? item.Shares - request.Shares : 0m;
 
         item.CompanyName      = request.CompanyName;
         item.Shares           = request.Shares;
@@ -139,8 +151,33 @@ public sealed class PortfolioService(
         item.DecisionSource        = request.DecisionSource;
         item.DecisionSourceClosed  = request.DecisionSourceClosed;
 
+        PortfolioItem? remainderItem = null;
+        if (isPartialClose)
+        {
+            remainderItem = new PortfolioItem
+            {
+                UserId             = item.UserId,
+                Symbol             = item.Symbol,
+                CompanyName        = item.CompanyName,
+                Shares             = remainingShares,
+                AverageCostBasis   = item.AverageCostBasis,
+                Sector             = item.Sector,
+                Industry           = item.Industry,
+                SectorIsOverridden = item.SectorIsOverridden,
+                AddedAt            = DateTime.UtcNow,
+                TransactionType    = "OPEN",
+                AccountType        = item.AccountType,
+                OpenDate           = item.OpenDate,
+                HoldingRole        = item.HoldingRole,
+                DecisionSource     = item.DecisionSource,
+            };
+            db.PortfolioItems.Add(remainderItem);
+        }
+
         await db.SaveChangesAsync(ct);
-        return ToDto(item);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
+        return new UpdatePortfolioItemResponse(ToDto(item), remainderItem is null ? null : ToDto(remainderItem));
     }
 
     public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
@@ -168,7 +205,19 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        mutationClock.Touch();
+        mutationClock.MarkTodayDirty();
         return true;
+    }
+
+    public async Task RefreshSectorForItemAsync(int id, string symbol, CancellationToken ct = default)
+    {
+        var (sector, industry) = await marketData.GetSectorAsync(symbol, ct);
+        var item = await db.PortfolioItems.FindAsync([id], ct);
+        if (item is null || (!string.IsNullOrWhiteSpace(item.Sector) && item.SectorIsOverridden)) return;
+        item.Sector   = sector;
+        item.Industry = industry;
+        await db.SaveChangesAsync(ct);
     }
 
     private static PortfolioItemDto ToDto(PortfolioItem item) =>

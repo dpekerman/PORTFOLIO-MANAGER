@@ -3,31 +3,88 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { DashboardAllocation } from '../../core/models/portfolio.models';
+import {
+  DashboardAllocation,
+  DashboardEodSummaryRow,
+  DashboardRsiSection,
+} from '../../core/models/portfolio.models';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
+import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
 import { PortfolioActionsWidgetComponent } from './portfolio-actions-widget/portfolio-actions-widget.component';
 import { PriorityCandidatesWidgetComponent } from './priority-candidates-widget/priority-candidates-widget.component';
-import { StateChangesWidgetComponent } from './state-changes-widget/state-changes-widget.component';
 
 export type ChartRange = '1M' | '3M' | '6M' | 'YTD' | '1Y' | 'ALL';
+
+export interface SvgChartPoint {
+  date: string;
+  value: number;
+  x: number;
+  y: number;
+  tooltipLeftPercent: number;
+  tooltipTopPercent: number;
+  tooltipBelow: boolean;
+}
 
 export interface SvgChart {
   linePath: string;
   areaPath: string;
   isUp: boolean;
   baselineY: number;
+  points: SvgChartPoint[];
   xLabels: { x: number; label: string }[];
   yLabels: { y: number; label: string; gridY: number }[];
   viewBox: string;
   padL: number;
+}
+
+export function nearestChartPointIndex(
+  clientX: number,
+  boundsLeft: number,
+  boundsWidth: number,
+  pointCount: number,
+): number | null {
+  if (!Number.isFinite(clientX) || boundsWidth <= 0 || pointCount <= 0) return null;
+  if (pointCount === 1) return 0;
+
+  const viewBoxWidth = 960;
+  const plotLeft = 66;
+  const plotWidth = viewBoxWidth - plotLeft - 4;
+  const svgX = ((clientX - boundsLeft) / boundsWidth) * viewBoxWidth;
+  const plotFraction = Math.min(1, Math.max(0, (svgX - plotLeft) / plotWidth));
+  return Math.round(plotFraction * (pointCount - 1));
+}
+
+export function chartIndexForKey(
+  key: string,
+  currentIndex: number | null,
+  pointCount: number,
+): number | null {
+  if (pointCount <= 0 || key === 'Escape') return null;
+  const lastIndex = pointCount - 1;
+
+  switch (key) {
+    case 'ArrowLeft':
+      return currentIndex === null ? lastIndex : Math.max(0, currentIndex - 1);
+    case 'ArrowRight':
+      return currentIndex === null ? 0 : Math.min(lastIndex, currentIndex + 1);
+    case 'Home':
+      return 0;
+    case 'End':
+      return lastIndex;
+    default:
+      return currentIndex;
+  }
 }
 
 @Component({
@@ -48,26 +105,103 @@ export interface SvgChart {
     MatTooltipModule,
     RouterLink,
     PortfolioActionsWidgetComponent,
-    StateChangesWidgetComponent,
     MarketLeadershipWidgetComponent,
     PriorityCandidatesWidgetComponent,
     PerformanceSummaryWidgetComponent,
   ],
 })
 export class DashboardPageComponent {
+  protected readonly marketSignalFilter = signal<
+    'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
+  >('ALL');
   protected readonly dashboard = inject(DashboardStateService);
+  protected readonly collapseState = inject(DashboardCollapseStateService);
+  private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeService);
+  protected readonly appRefresh = inject(AppRefreshService);
 
   protected readonly snapshot = this.dashboard.data;
+  protected readonly eodSummary = this.dashboard.eodSummary;
   protected readonly chartRanges: ChartRange[] = ['1M', '3M', '6M', 'YTD', '1Y', 'ALL'];
   protected readonly selectedRange = signal<ChartRange>('3M');
+  private readonly inspectedChartIndex = signal<number | null>(null);
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
-  /** Whether the RSI signals detail table is expanded. */
-  protected readonly rsiExpanded = signal(true);
+  protected readonly filteredRsiSection = computed<DashboardRsiSection | null>(() => {
+    const section = this.snapshot()?.rsiSection;
+    if (!section) return null;
+    const filter = this.marketSignalFilter();
+    const include = (
+      row: DashboardRsiSection['oversoldSignals'][number],
+      type: 'OVERSOLD' | 'OVERBOUGHT',
+    ) =>
+      filter === 'ALL' ||
+      filter === type ||
+      (filter === 'NEW_TODAY' && row.isNewToday) ||
+      (filter === 'ACTION_REQUIRED' && row.isActionRequired);
+    return {
+      ...section,
+      oversoldSignals: section.oversoldSignals.filter((row) => include(row, 'OVERSOLD')),
+      overboughtSignals: section.overboughtSignals.filter((row) => include(row, 'OVERBOUGHT')),
+    };
+  });
+
+  protected toggleMarketSignalFilter(
+    filter: 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED',
+  ): void {
+    this.marketSignalFilter.update((current) => (current === filter ? 'ALL' : filter));
+  }
+
+  protected marketSignalFooter(type: 'OVERSOLD' | 'OVERBOUGHT', count: number): string {
+    const filter = this.marketSignalFilter();
+    return filter === 'ALL' || filter === type
+      ? `View all ${count} ${type.toLowerCase()} →`
+      : 'Open in EOD Signals →';
+  }
+
+  /** Check if a section is expanded (uses DashboardCollapseStateService). */
+  protected isExpanded(sectionId: string): boolean {
+    return this.collapseState.isExpanded(sectionId);
+  }
+
+  /** Toggle collapse state for a section (uses DashboardCollapseStateService). */
+  protected toggleExpanded(sectionId: string): void {
+    if (sectionId === 'portfolio-value-history') this.inspectedChartIndex.set(null);
+    this.collapseState.toggleCollapsed(sectionId);
+  }
+
+  protected addMarketTracker(): void {
+    this.dialog.open(AddMarketTrackerDialogComponent, { autoFocus: 'first-tabbable' });
+  }
   /** Active tab in the Allocation vs Targets panel: 'sector' | 'role'. */
   protected readonly allocTab = signal<'sector' | 'role'>('sector');
+  /** Sector table sort column and direction. Default: percent desc (highest actual first). */
+  protected readonly sectorSortCol = signal<'label' | 'percent' | 'targetPercent' | 'delta'>(
+    'percent',
+  );
+  protected readonly sectorSortDir = signal<1 | -1>(-1);
+
+  protected readonly sortedSectorAllocation = computed(() => {
+    const items = this.snapshot()?.allocation ?? [];
+    const col = this.sectorSortCol();
+    const dir = this.sectorSortDir();
+    return [...items].sort((a, b) => {
+      const av = a[col] as string | number;
+      const bv = b[col] as string | number;
+      if (typeof av === 'string') return av.localeCompare(bv as string) * dir;
+      return ((av as number) - (bv as number)) * dir;
+    });
+  });
+
+  protected toggleSectorSort(col: 'label' | 'percent' | 'targetPercent' | 'delta'): void {
+    if (this.sectorSortCol() === col) {
+      this.sectorSortDir.update((d) => (d === 1 ? -1 : 1));
+    } else {
+      this.sectorSortCol.set(col);
+      this.sectorSortDir.set(col === 'label' ? 1 : -1);
+    }
+  }
 
   // ── Portfolio-only movers ──────────────────────────────────────────────────
   protected readonly portfolioTopMovers = computed(() =>
@@ -88,9 +222,8 @@ export class DashboardPageComponent {
       .slice(0, this.moversCount()),
   );
 
-  // ── Portfolio Actions & State Changes counts ──────────────────────────────
+  // ── Portfolio Action count ───────────────────────────────────────────────
   protected readonly actionsCount = computed(() => this.dashboard.portfolioActions().length);
-  protected readonly stateChangesCount = computed(() => this.dashboard.stateChanges().length);
 
   protected readonly filteredChartPoints = computed(() => {
     const all = this.snapshot()?.valueHistory ?? [];
@@ -142,10 +275,17 @@ export class DashboardPageComponent {
     const toX = (i: number) => padL + (i / (pts.length - 1)) * iW;
     const toY = (v: number) => padT + iH - ((v - lo) / yRange) * iH;
 
-    const coords = pts.map((p, i) => ({
-      x: toX(i),
-      y: toY(this.demoMode.maskValue(p.totalValue)),
-    }));
+    const coords = pts.map(
+      (p, i): SvgChartPoint => ({
+        date: p.date,
+        value: vals[i],
+        x: toX(i),
+        y: toY(vals[i]),
+        tooltipLeftPercent: Math.min(92, Math.max(8, toX(i) / 9.6)),
+        tooltipTopPercent: (toY(vals[i]) / H) * 100,
+        tooltipBelow: toY(vals[i]) < 58,
+      }),
+    );
 
     let line = `M${coords[0].x.toFixed(1)},${coords[0].y.toFixed(1)}`;
     for (let i = 1; i < coords.length; i++) {
@@ -189,12 +329,48 @@ export class DashboardPageComponent {
       areaPath: area,
       isUp: vals[vals.length - 1] >= vals[0],
       baselineY: toY(vals[0]),
+      points: coords,
       xLabels,
       yLabels,
       viewBox: `0 0 ${W} ${H}`,
       padL,
     };
   });
+
+  protected readonly inspectedChartPoint = computed(() => {
+    const chart = this.svgChart();
+    const index = this.inspectedChartIndex();
+    return chart && index !== null ? (chart.points[index] ?? null) : null;
+  });
+
+  protected selectChartRange(range: ChartRange): void {
+    this.inspectedChartIndex.set(null);
+    this.selectedRange.set(range);
+  }
+
+  protected inspectChartPointer(event: PointerEvent): void {
+    const svg = event.currentTarget as SVGSVGElement;
+    const bounds = svg.getBoundingClientRect();
+    const index = nearestChartPointIndex(
+      event.clientX,
+      bounds.left,
+      bounds.width,
+      this.svgChart()?.points.length ?? 0,
+    );
+    this.inspectedChartIndex.set(index);
+  }
+
+  protected leaveChartPointer(event: PointerEvent): void {
+    if (event.pointerType === 'mouse') this.inspectedChartIndex.set(null);
+  }
+
+  protected navigateChart(event: KeyboardEvent): void {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'].includes(event.key)) return;
+    event.preventDefault();
+    this.inspectedChartIndex.set(
+      chartIndexForKey(event.key, this.inspectedChartIndex(), this.svgChart()?.points.length ?? 0),
+    );
+  }
 
   protected value(v: number): number {
     return this.demoMode.maskValue(v);
@@ -248,7 +424,21 @@ export class DashboardPageComponent {
     return items.reduce((acc, a) => acc + a.percent, 0);
   }
 
+  protected eodSessionLabel(tradingDate: string): string {
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
+      .format(new Date(`${tradingDate}T12:00:00`))
+      .toUpperCase();
+  }
+
+  protected ownershipBadge(ownership: DashboardEodSummaryRow['ownership']): string {
+    return ownership === 'Portfolio' ? 'P' : ownership === 'Watchlist' ? 'W' : 'U';
+  }
+
+  protected actionTooltip(row: DashboardEodSummaryRow): string {
+    return row.actionResolutionStatus === 'Resolved' ? '' : row.actionResolutionReason;
+  }
+
   protected refresh(): void {
-    this.dashboard.refresh();
+    this.appRefresh.refreshAll();
   }
 }

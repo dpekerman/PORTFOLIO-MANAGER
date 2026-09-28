@@ -44,7 +44,12 @@ export class StockCardComponent {
     return this.summary().quote?.currentPrice ?? item.averageCostBasis;
   });
 
-  protected readonly marketValue = computed(() => this.currentPrice() * this.summary().item.shares);
+  // manualMarketValue is a total position value (not per-share) everywhere else in the app.
+  protected readonly marketValue = computed(() => {
+    const item = this.summary().item;
+    if (item.isManual) return item.manualMarketValue ?? item.averageCostBasis;
+    return this.currentPrice() * item.shares;
+  });
 
   protected readonly costBasis = computed(
     () => this.summary().item.averageCostBasis * this.summary().item.shares,

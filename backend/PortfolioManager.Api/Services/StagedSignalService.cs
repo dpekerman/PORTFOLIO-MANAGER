@@ -156,6 +156,15 @@ public sealed class StagedSignalService(
             result.StageStatus = ComputeStageStatus(staged.RsiDelta1D, result.TrendShift);
             result.IsTracked   = true;
 
+            if (result.ChannelState is "THIRD_TOUCH_TEST" or "LOWER_RAIL_RETEST")
+            {
+                result.ChannelState = result.TrendShift.Contains("Bull Turn", StringComparison.OrdinalIgnoreCase)
+                    ? "BOUNCE_CONFIRMED"
+                    : result.TrendShift.Contains("Stabilizing", StringComparison.OrdinalIgnoreCase)
+                        ? "REVERSAL_DEVELOPING"
+                        : result.ChannelState;
+            }
+
             // Dynamic stop loss
             if (result.DailyAtr > 0)
             {

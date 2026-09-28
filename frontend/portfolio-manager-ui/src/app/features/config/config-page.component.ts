@@ -1,9 +1,10 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -25,6 +26,8 @@ import { MatListModule } from '@angular/material/list';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatSortModule, Sort } from '@angular/material/sort';
+import { MatTableModule } from '@angular/material/table';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Observable, forkJoin, of } from 'rxjs';
@@ -38,6 +41,7 @@ import {
   UserInfo,
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
+import { AutomationStateService } from '../../core/services/automation-state.service';
 import { ConfigService } from '../../core/services/config.service';
 import { DemoModeService, DemoStyle } from '../../core/services/demo-mode.service';
 import { NotificationApiService } from '../../core/services/notification-api.service';
@@ -51,6 +55,7 @@ import { UsersApiService } from '../../core/services/users-api.service';
   styleUrl: './config-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DatePipe,
     DecimalPipe,
     FormsModule,
     ReactiveFormsModule,
@@ -64,6 +69,8 @@ import { UsersApiService } from '../../core/services/users-api.service';
     MatListModule,
     MatSelectModule,
     MatSlideToggleModule,
+    MatSortModule,
+    MatTableModule,
     MatTimepickerModule,
     MatDialogModule,
     MatTooltipModule,
@@ -74,6 +81,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
   private readonly scannerState = inject(ScannerStateService);
+  protected readonly automationState = inject(AutomationStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
@@ -124,18 +132,7 @@ export class ConfigPageComponent implements OnInit {
     { label: '24:00', value: 86400 },
   ];
 
-  readonly PORTFOLIO_REFRESH_OPTIONS: { label: string; value: number }[] = [
-    { label: '0:00 — Disabled', value: 0 },
-    { label: '1:00 (1 min)', value: 60 },
-    { label: '2:00 (2 min)', value: 120 },
-    { label: '5:00 (5 min)', value: 300 },
-    { label: '10:00 (10 min)', value: 600 },
-    { label: '15:00 (15 min)', value: 900 },
-    { label: '30:00 (30 min)', value: 1800 },
-    { label: '60:00 (1 hour)', value: 3600 },
-  ];
-
-  readonly WATCHLIST_REFRESH_OPTIONS: { label: string; value: number }[] = [
+  readonly APP_REFRESH_OPTIONS: { label: string; value: number }[] = [
     { label: '0:00 — Disabled', value: 0 },
     { label: '1:00 (1 min)', value: 60 },
     { label: '2:00 (2 min)', value: 120 },
@@ -148,14 +145,7 @@ export class ConfigPageComponent implements OnInit {
 
   protected readonly form = this.fb.group({
     scanIntervalSeconds: [this.configService.config().scanIntervalSeconds, [Validators.required]],
-    portfolioRefreshSeconds: [
-      this.configService.config().portfolioRefreshSeconds,
-      [Validators.required],
-    ],
-    watchlistRefreshSeconds: [
-      this.configService.config().watchlistRefreshSeconds,
-      [Validators.required],
-    ],
+    appRefreshSeconds: [this.configService.config().appRefreshSeconds, [Validators.required]],
     rsiOversoldThreshold: [
       this.configService.config().rsiOversoldThreshold,
       [Validators.required, Validators.min(1), Validators.max(49)],
@@ -202,6 +192,174 @@ export class ConfigPageComponent implements OnInit {
     if (section === 'demo') {
       this.initPendingDemo();
     }
+    if (section === 'automation') {
+      this.loadAutomationTab();
+    }
+  }
+
+  private loadAutomationTab(): void {
+    this.automationState.loadSettings();
+    this.automationState.loadLastRun();
+    this.automationState.loadHistory();
+    this.automationState.loadTaskStatus();
+    this.automationState.loadTimezoneDiagnostics();
+  }
+
+  saveAutomationSettings(): void {
+    if (this.automationForm.invalid) return;
+    const v = this.automationForm.value;
+    this.automationState.saveSettings({
+      enabled: v.enabled ?? false,
+      wakeTimeEt: this.dateToTimeString(v.wakeTimeEt) || '15:15',
+      keepAwakeUntilEtOverride: v.keepAwakeUntilEtOverride
+        ? this.dateToTimeString(v.keepAwakeUntilEtOverride)
+        : null,
+      completionGraceMinutes: v.completionGraceMinutes ?? 15,
+      maxPollMinutes: v.maxPollMinutes ?? 90,
+      missedRunAlertTimeEt: this.dateToTimeString(v.missedRunAlertTimeEt) || '17:30',
+    });
+    this.automationForm.markAsPristine();
+  }
+
+  clearKeepAwakeOverride(): void {
+    this.automationForm.controls.keepAwakeUntilEtOverride.setValue(null);
+    this.automationForm.controls.keepAwakeUntilEtOverride.markAsDirty();
+  }
+
+  runAutomationNow(): void {
+    this.automationState.runNow();
+  }
+
+  fixMissingData(): void {
+    this.automationState.recoverMissedData();
+  }
+
+  backupNow(): void {
+    this.automationState.backupNow();
+  }
+
+  testAutomationWake(): void {
+    this.automationState.testWake();
+  }
+
+  enableAutomation(): void {
+    this.automationState.setup();
+  }
+
+  rotateAutomationSecret(): void {
+    this.automationState.rotateSecret();
+  }
+
+  cancelAutomationRun(): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Stop automation run?',
+          message:
+            'This stops the in-progress run early. Steps already completed (e.g. market data refresh) are not undone; the run will be recorded as Cancelled.',
+          confirmLabel: 'Stop Run',
+          confirmIcon: 'stop_circle',
+        },
+        width: '380px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.automationState.cancelRun();
+      });
+  }
+
+  clearAutomationHistory(): void {
+    this.dialog
+      .open(AllocConfirmDialogComponent, {
+        data: {
+          title: 'Clear automation run history?',
+          message:
+            "This permanently deletes all recorded automation run history entries. It does NOT touch portfolio snapshots, RSI signals, cash, transactions, or any other data — only this feature's own audit log.",
+          confirmLabel: 'Clear History',
+          confirmIcon: 'delete_sweep',
+        },
+        width: '400px',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.automationState.clearHistory();
+      });
+  }
+
+  protected readonly automationHistorySortCol = signal<string>('actualStartUtc');
+  protected readonly automationHistorySortDir = signal<'asc' | 'desc'>('desc');
+  protected readonly automationHistoryFilter = signal('');
+  protected readonly automationHistoryColumns = [
+    'overallStatus',
+    'tradingDate',
+    'triggerType',
+    'refreshStatus',
+    'rsiStatus',
+    'snapshotStatus',
+    'valueScreenerStatus',
+    'actualStartUtc',
+    'errorMessage',
+  ];
+
+  protected valueScreenerStatusLabel(status: string | null | undefined): string {
+    return status === 'NotObserved' ? 'Scheduled separately' : status || 'pending';
+  }
+
+  /** FixMissingData/TestWake runs never call the market-data refresh step by design (they only
+   * recover EOD signals/snapshot/value screener or run a non-destructive infra check) — show that
+   * distinction instead of a bare "—" so it isn't mistaken for a failure. */
+  protected refreshStatusLabel(run: { refreshStatus: string; triggerType: string }): string {
+    if (run.refreshStatus) return run.refreshStatus;
+    return run.triggerType === 'FixMissingData' || run.triggerType === 'TestWake'
+      ? 'N/A (not part of this trigger)'
+      : 'pending';
+  }
+
+  protected onAutomationHistorySortChange(sort: Sort): void {
+    this.automationHistorySortCol.set(sort.active || 'actualStartUtc');
+    this.automationHistorySortDir.set((sort.direction as 'asc' | 'desc') || 'desc');
+  }
+
+  protected readonly filteredSortedAutomationHistory = computed(() => {
+    const filter = this.automationHistoryFilter().trim().toLowerCase();
+    let rows = this.automationState.history();
+
+    if (filter) {
+      rows = rows.filter((r) =>
+        [r.overallStatus, r.tradingDate, r.triggerType, r.errorMessage, r.errorStep]
+          .filter(Boolean)
+          .some((v) => v!.toLowerCase().includes(filter)),
+      );
+    }
+
+    const col = this.automationHistorySortCol();
+    const dir = this.automationHistorySortDir() === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const av = (a as unknown as Record<string, unknown>)[col];
+      const bv = (b as unknown as Record<string, unknown>)[col];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  protected automationStatusClass(status: string | undefined | null): string {
+    switch (status) {
+      case 'Running':
+        return 'status-badge--running';
+      case 'Success':
+        return 'status-badge--success';
+      case 'Failed':
+        return 'status-badge--failed';
+      case 'Cancelled':
+        return 'status-badge--cancelled';
+      case 'SkippedNonTradingDay':
+        return 'status-badge--skipped';
+      default:
+        return 'status-badge--partial';
+    }
   }
 
   // ── Value Screener Schedule form ─────────────────────────────────────────
@@ -212,12 +370,26 @@ export class ConfigPageComponent implements OnInit {
   });
   protected readonly savingVsSchedule = signal(false);
 
+  // ── Automation (machine wake/keep-awake) form ────────────────────────────
+  // Deliberately separate from eodForm/vsForm — wake/keep-awake times are machine-availability
+  // settings, not business-time rules; EOD Window/Value Screener config is echoed read-only.
+  // wakeTimeEt/keepAwakeUntilEtOverride use Date | null (mat-timepicker), same as eodForm/vsForm.
+  protected readonly automationForm = this.fb.group({
+    enabled: [false],
+    wakeTimeEt: [ConfigPageComponent.timeStrToDate('15:15'), [Validators.required]],
+    keepAwakeUntilEtOverride: [null as Date | null],
+    completionGraceMinutes: [15, [Validators.required, Validators.min(0), Validators.max(120)]],
+    maxPollMinutes: [90, [Validators.required, Validators.min(5), Validators.max(360)]],
+    missedRunAlertTimeEt: [ConfigPageComponent.timeStrToDate('17:30'), [Validators.required]],
+  });
+
   // ── Email recipients ─────────────────────────────────────────────────────
   protected readonly recipientEmails = signal<string[]>([]);
   protected readonly emailInputValue = signal('');
   protected readonly savingEmails = signal(false);
   protected readonly loadingEmails = signal(true);
   protected readonly sendingTestEmail = signal(false);
+  protected readonly sendingAutomationTestEmail = signal(false);
   protected readonly scanningNow = signal(false);
 
   // ── Sector / Industry Lists ──────────────────────────────────────────────
@@ -486,13 +658,35 @@ export class ConfigPageComponent implements OnInit {
     });
   }
 
+  constructor() {
+    effect(() => {
+      const s = this.automationState.settings();
+      if (s && this.automationForm.pristine) {
+        this.automationForm.setValue({
+          enabled: s.enabled,
+          wakeTimeEt: ConfigPageComponent.timeStrToDate(s.wakeTimeEt),
+          keepAwakeUntilEtOverride: s.keepAwakeUntilEtOverride
+            ? ConfigPageComponent.timeStrToDate(s.keepAwakeUntilEtOverride)
+            : null,
+          completionGraceMinutes: s.completionGraceMinutes,
+          maxPollMinutes: s.maxPollMinutes,
+          missedRunAlertTimeEt: ConfigPageComponent.timeStrToDate(s.missedRunAlertTimeEt),
+        });
+      }
+    });
+
+    effect(() => {
+      const err = this.automationState.error();
+      if (err) this.snackBar.open(err, 'Dismiss', { duration: 6000 });
+    });
+  }
+
   ngOnInit(): void {
     this.initPendingDemo();
     const cfg = this.configService.config();
     this.form.setValue({
       scanIntervalSeconds: cfg.scanIntervalSeconds,
-      portfolioRefreshSeconds: cfg.portfolioRefreshSeconds,
-      watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
+      appRefreshSeconds: cfg.appRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
@@ -653,8 +847,7 @@ ${overboughtRsi}.`,
     if (this.form.invalid) return;
     this.configService.update({
       scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
-      portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
-      watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+      appRefreshSeconds: this.form.value.appRefreshSeconds ?? 120,
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
       sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
@@ -674,8 +867,7 @@ ${overboughtRsi}.`,
     const cfg = this.configService.config();
     this.form.setValue({
       scanIntervalSeconds: cfg.scanIntervalSeconds,
-      portfolioRefreshSeconds: cfg.portfolioRefreshSeconds,
-      watchlistRefreshSeconds: cfg.watchlistRefreshSeconds,
+      appRefreshSeconds: cfg.appRefreshSeconds,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
@@ -740,6 +932,26 @@ ${overboughtRsi}.`,
         this.sendingTestEmail.set(false);
         const msg = err?.error?.error ?? err?.message ?? 'Unknown error';
         this.snackBar.open(`❌ SMTP error: ${msg}`, 'Dismiss', { duration: 10000 });
+      },
+    });
+  }
+
+  sendAutomationTestEmail(): void {
+    this.sendingAutomationTestEmail.set(true);
+    this.notificationApi.sendAutomationTestEmail().subscribe({
+      next: (result) => {
+        this.sendingAutomationTestEmail.set(false);
+        const message = result.success
+          ? `${result.message ?? 'Automation test email sent.'} Check the registered inboxes.`
+          : (result.error ?? 'Automation test email failed.');
+        this.snackBar.open(message, result.success ? 'OK' : 'Dismiss', {
+          duration: result.success ? 6000 : 9000,
+        });
+      },
+      error: (err) => {
+        this.sendingAutomationTestEmail.set(false);
+        const message = err?.error?.error ?? err?.message ?? 'Automation test email failed.';
+        this.snackBar.open(message, 'Dismiss', { duration: 9000 });
       },
     });
   }
@@ -921,8 +1133,7 @@ ${overboughtRsi}.`,
     if (this.form.valid) {
       this.configService.update({
         scanIntervalSeconds: this.form.value.scanIntervalSeconds ?? 300,
-        portfolioRefreshSeconds: this.form.value.portfolioRefreshSeconds ?? 120,
-        watchlistRefreshSeconds: this.form.value.watchlistRefreshSeconds ?? 60,
+        appRefreshSeconds: this.form.value.appRefreshSeconds ?? 120,
         rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
         rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
         sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
@@ -1133,14 +1344,19 @@ ${overboughtRsi}.`,
     <mat-dialog-actions align="end">
       <button mat-stroked-button [mat-dialog-close]="false">Cancel</button>
       <button mat-flat-button color="warn" [mat-dialog-close]="true">
-        <mat-icon>delete</mat-icon> Delete
+        <mat-icon>{{ data.confirmIcon ?? 'delete' }}</mat-icon> {{ data.confirmLabel ?? 'Delete' }}
       </button>
     </mat-dialog-actions>
   `,
   imports: [MatButtonModule, MatDialogModule, MatIconModule],
 })
 export class AllocConfirmDialogComponent {
-  readonly data = inject<{ title: string; message: string }>(MAT_DIALOG_DATA);
+  readonly data = inject<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    confirmIcon?: string;
+  }>(MAT_DIALOG_DATA);
 }
 
 @Component({

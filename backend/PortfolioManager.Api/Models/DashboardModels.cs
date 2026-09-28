@@ -10,8 +10,8 @@ public sealed class DashboardSnapshot
 public sealed record DashboardResponse(
     DateTime UpdatedAt,
     DashboardSummary Summary,
-    IReadOnlyList<DashboardMover> TopMovers,   // top 10
-    IReadOnlyList<DashboardMover> BottomMovers, // bottom 10
+    IReadOnlyList<DashboardMover> TopMovers,    // top 50 gainers (frontend may limit display to 3-10)
+    IReadOnlyList<DashboardMover> BottomMovers, // bottom 50 losers
     IReadOnlyList<DashboardChartPoint> ValueHistory,
     IReadOnlyList<MarketIndexDto> MarketIndices,
     IReadOnlyList<DashboardAllocation> Allocation,
@@ -23,6 +23,9 @@ public sealed record DashboardSummary(
     decimal TotalValue,
     decimal TodayChange,
     decimal TodayChangePercent,
+    decimal TodayStocksChange,
+    decimal TodayCashChange,
+    decimal TodayOptionsChange,
     decimal WeekChange,
     decimal WeekChangePercent,
     decimal MonthChange,
@@ -59,7 +62,13 @@ public sealed record DashboardRsiSignal(
     string VolumeSignal,
     decimal ReturnPct,
     string Action,
-    string SignalStatus); // Confirmed | EodConfirm | EarlyWarning
+    string SignalStatus,
+    bool IsInPortfolio,
+    bool IsInWatchlist,
+    bool IsNewToday,
+    bool IsActionRequired,
+    string Severity,
+    string ChannelState = "NONE"); // REQUIRED | DEVELOPING | INFORMATIONAL
 
 /// <summary>Aggregated RSI market-signals section for the dashboard.</summary>
 public sealed record DashboardRsiSection(
@@ -76,25 +85,59 @@ public sealed record PortfolioActionDto(
     string CompanyName,
     string HoldingRole,
     string ScanType,
-    decimal Rsi,
+    decimal? Rsi,
     string TrendShift,
     string FibZone,
     string ChaseRisk,
     string AllocationStatus,   // "over" | "under" | "on-target" | ""
-    string ActionLabel,        // role-aware recommendation
+    string ActionLabel,
     string ActionSeverity,     // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+    string ActionPriority,     // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
     bool IsInPortfolio,
-    bool IsInWatchlist);
+    bool IsInWatchlist,
+    string ChannelState,
+    string ChannelDirection,
+    int ChannelQuality,
+    int PriorConfirmedLowerTouches,
+    decimal LowerRailToday,
+    decimal EodClose,
+    decimal DistanceToLowerRailPercent,
+    decimal DistanceToLowerRailATR,
+    DateTime? LastLowerTouchDate,
+    decimal? NearestOpenGapAbove,
+    IReadOnlyList<PortfolioManager.Api.Services.ChannelTouchDetail> ChannelTouchDetails,
+    string? MaStructure = null,
+    string? MomentumState = null,
+    PortfolioManager.Api.Services.PriceStructureResult? PriceStructure = null,
+    string? InclusionReason = null,
+    string? ReasonExcludedFromActionCenter = null,
+    DateTime? TechnicalCalculatedAt = null,
+    string? LatestEodSignalState = null,
+    string? LatestEodScanType = null,
+    string? LatestEodTrendShift = null,
+    bool LatestEodIsNew = false,
+    bool LatestEodIsInvalidated = false);
 
-/// <summary>An EOD signal whose lifecycle state changed today.</summary>
-public sealed record StateChangeDto(
-    int SignalId,
+/// <summary>Latest completed EOD scanner session, reduced to one row per canonical ticker.</summary>
+public sealed record DashboardEodSummary(
+    string? TradingDate,
+    int RawRecordCount,
+    int UniqueTickerCount,
+    IReadOnlyList<DashboardEodSummaryRow> Rows);
+
+/// <summary>One canonical ticker result from the latest completed EOD scanner session.</summary>
+public sealed record DashboardEodSummaryRow(
     string Symbol,
     string CompanyName,
-    string ScanType,
-    string PreviousState,
-    string NewState,
+    string Signal,
     decimal Rsi,
-    string TrendShift,
-    DateTime ChangedAt);
+    string SignalState,
+    string? TrendShift,
+    string Structure,
+    string Why,
+    string Ownership,
+    string Action,
+    string ActionPriority,
+    string ActionResolutionStatus,
+    string ActionResolutionReason);
 

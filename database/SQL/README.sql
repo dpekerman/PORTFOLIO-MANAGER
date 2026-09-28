@@ -1,0 +1,44 @@
+-- ============================================================
+-- SCRIPTS/README.sql
+-- How to use the scripts in this folder.
+-- ============================================================
+--
+-- PURPOSE
+-- -------
+-- This folder contains authoritative, idempotent SQL scripts
+-- for creating, seeding, and destroying the PortfolioManagerDb.
+-- They reflect the CURRENT state of the schema including ALL
+-- EF Core migrations that have been applied.
+--
+-- SCRIPTS (run in order)
+-- ----------------------
+--  01_CreateDatabase.sql             – Creates the database (safe to re-run)
+--  02_CreateTables.sql               – Creates / updates all tables (safe to re-run)
+--  03_SeedData.sql                   – Inserts demo portfolio / watchlist data
+--  04_SeedNotificationRecipients.sql – Inserts alert email recipients
+--                                      (edit VALUES before running – do NOT commit real emails)
+--  05_DeleteAllData.sql              – Wipes all rows; keeps structure (dev/reset)
+--  06_DropAll.sql                    – Drops the database entirely (destructive)
+--
+-- FULL RECREATE (from scratch)
+-- ----------------------------
+--  1. Run 06_DropAll.sql        (if you want to start clean)
+--  2. Run 01_CreateDatabase.sql
+--  3. Run 02_CreateTables.sql
+--  4. Run 03_SeedData.sql       (optional demo data)
+--  5. Run 04_SeedNotificationRecipients.sql  (after editing your real emails)
+--
+-- ADDING A NEW MIGRATION
+-- ----------------------
+-- When you add a new EF Core migration:
+--  1. Update 02_CreateTables.sql with the new columns / tables.
+--  2. Add the migration ID to the MERGE in 03_SeedData.sql
+--     (__EFMigrationsHistory section).
+--  3. Commit both script changes with the migration.
+--
+-- SENSITIVE DATA
+-- --------------
+-- 04_SeedNotificationRecipients.sql contains PLACEHOLDER addresses only.
+-- Never commit real email addresses.  The actual notification-recipients.json
+-- is .gitignored.  Use this SQL script to populate the DB table instead.
+-- ============================================================

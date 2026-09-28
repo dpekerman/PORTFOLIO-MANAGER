@@ -77,6 +77,13 @@
   border: 1px solid rgba(255, 160, 0, 0.2);
 }
 
+.underlying-indicator {
+  color: var(--text-secondary);
+  cursor: help;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
 // ── Actions ───────────────────────────────────────────────────────────────────
 .page-actions {
   display: flex;

@@ -24,6 +24,20 @@ export interface PortfolioItem {
   decisionSource?: string | null;
   /** @optional Decision source recorded at close */
   decisionSourceClosed?: string | null;
+  /** @optional Final Action synced from the Portfolio grid, consumed by Dashboard Action Center */
+  finalAction?: string | null;
+  finalActionSeverity?: string | null;
+  finalActionPriority?: string | null;
+  finalActionUpdatedAt?: string | null;
+}
+
+/** One Portfolio holding's computed Final Action, pushed to the backend after every recompute. */
+export interface FinalActionSyncItem {
+  itemId: number;
+  symbol: string;
+  finalAction: string;
+  severity: string;
+  priority: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
 }
 
 export interface StockQuote {
@@ -55,6 +69,55 @@ export interface StockQuote {
 export interface PortfolioSummary {
   item: PortfolioItem;
   quote: StockQuote | null;
+  priceStructure?: PriceStructureResult | null;
+  technicalFacts?: SharedTechnicalFacts | null;
+}
+
+export interface SharedTechnicalFacts {
+  symbol: string;
+  rsi: number | null;
+  maStructure: string | null;
+  maCrossState: string | null;
+  momentumState: string | null;
+  priceStructure: PriceStructureResult;
+  buyScore: number | null;
+  calculatedAt: string;
+  latestEodTradingDate?: string | null;
+  latestEodSignalDate?: string | null;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodRsi?: number | null;
+  latestEodTrendShift?: string | null;
+  latestEodEntryPrice?: number | null;
+  latestEodStopLoss?: number | null;
+  latestEodRiskPercent?: number | null;
+  latestEodReversalStrength?: string | null;
+  latestEodVolumeState?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
+  analysisTicker?: string | null;
+  analysisMarket?: string | null;
+  analysisCurrency?: string | null;
+  usesUnderlyingSecurity?: boolean;
+}
+
+export type SecurityAnalysisMappingSource = 'AUTO' | 'USER';
+export type UnderlyingResolutionStatus = 'NotApplicable' | 'Resolved' | 'NeedsUserInput';
+
+export interface SecurityAnalysisMapping {
+  tradingTicker: string;
+  analysisTicker: string;
+  analysisMarket: string;
+  analysisCurrency: string;
+  usesUnderlyingSecurity: boolean;
+  resolutionStatus: UnderlyingResolutionStatus;
+  mappingSource: SecurityAnalysisMappingSource | null;
+  dataError?: string | null;
+}
+
+export interface SaveSecurityAnalysisMappingRequest {
+  underlyingTicker: string;
+  useUnderlyingForAnalysis: boolean;
 }
 
 export interface WatchlistItem {
@@ -74,6 +137,20 @@ export interface WatchlistItem {
 export interface WatchlistSummary {
   item: WatchlistItem;
   quote: StockQuote | null;
+  priceStructure?: PriceStructureResult | null;
+  technicalFacts?: SharedTechnicalFacts | null;
+}
+
+export interface DataRefreshResultDto {
+  portfolioSymbolCount: number;
+  watchlistSymbolCount: number;
+  dashboardRebuilt: boolean;
+  refreshedAt: string;
+  durationMs: number;
+  portfolioSummaries: PortfolioSummary[];
+  watchlistSummaries: WatchlistSummary[];
+  portfolioSymbols: string[];
+  watchlistSymbols: string[];
 }
 
 export interface AddPortfolioItemRequest {
@@ -107,6 +184,13 @@ export interface UpdatePortfolioItemRequest {
   decisionSourceClosed?: string | null;
 }
 
+/** Response of PUT /api/portfolio/{id}. newOpenItem is populated only when the edit was a partial
+ * close — the remaining shares were auto-split into a new OPEN position. */
+export interface UpdatePortfolioItemResponse {
+  updated: PortfolioItem;
+  newOpenItem: PortfolioItem | null;
+}
+
 export interface SectorIndustryLists {
   sectors: string[];
   industries: string[];
@@ -138,9 +222,24 @@ export type BollingerPosition = 'Below Lower' | 'Above Upper' | 'Inside';
 export type MacdHistSlope = 'Rising' | 'Falling' | 'Neutral';
 export type LogicMode = 'Legacy' | 'Enhanced';
 export type RsiDivergence = 'Bullish' | 'Bearish' | 'None';
+export type ChannelDirection = 'NONE' | 'RISING';
+export type ChannelState =
+  | 'NONE'
+  | 'CHANNEL_ACTIVE'
+  | 'THIRD_TOUCH_APPROACHING'
+  | 'THIRD_TOUCH_TEST'
+  | 'LOWER_RAIL_APPROACHING'
+  | 'LOWER_RAIL_RETEST'
+  | 'REVERSAL_DEVELOPING'
+  | 'BOUNCE_CONFIRMED'
+  | 'CHANNEL_BROKEN';
 
 export interface RsiScanResult {
   symbol: string;
+  analysisTicker?: string;
+  analysisMarket?: string;
+  analysisCurrency?: string;
+  usesUnderlyingSecurity?: boolean;
   companyName: string;
   rsi: number;
   currentPrice: number;
@@ -248,6 +347,29 @@ export interface RsiScanResult {
   fibStatus: string;
   /** ((CurrentPrice − Fib61.8) / Fib61.8) × 100. Positive = above level. 0 when not calculable. */
   distanceToFib61_8Pct: number;
+  channelDirection: ChannelDirection;
+  channelSlope: number;
+  lowerRailToday: number;
+  upperRailToday: number;
+  channelQuality: number;
+  priorConfirmedLowerTouches: number;
+  lastLowerTouchDate: string | null;
+  distanceToLowerRailPercent: number;
+  distanceToLowerRailATR: number;
+  channelState: ChannelState;
+  nearestOpenGapAbove: number | null;
+  nearestOpenGapBelow: number | null;
+  distanceToGapAbovePercent: number | null;
+  distanceToGapBelowPercent: number | null;
+  channelTouchDetails: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
+  priceStructure: PriceStructureResult;
 }
 
 export interface ScannerResponse {
@@ -356,6 +478,37 @@ export interface ValueScreenerRequest {
 }
 
 // ── Cash ─────────────────────────────────────────────────────────────────────
+// CashFlowType classifies WHY cash moved — required on every new ledger entry. OpeningBalance is
+// migration/admin-only (never user-selectable). IsExternalFlow distinguishes real contributions/
+// withdrawals (Deposit/Withdrawal) from internal portfolio movements (everything else) for future
+// performance calculations.
+export type CashFlowType =
+  | 'OpeningBalance'
+  | 'Deposit'
+  | 'Withdrawal'
+  | 'TradeProceeds'
+  | 'TradePurchase'
+  | 'Dividend'
+  | 'Interest'
+  | 'Fee'
+  | 'Tax'
+  | 'AdjustmentIncrease'
+  | 'AdjustmentDecrease';
+
+/** User-selectable types for Add/Edit/Adjust dialogs — OpeningBalance excluded (migration-only). */
+export const SELECTABLE_CASH_FLOW_TYPES: CashFlowType[] = [
+  'Deposit',
+  'Withdrawal',
+  'TradeProceeds',
+  'TradePurchase',
+  'Dividend',
+  'Interest',
+  'Fee',
+  'Tax',
+  'AdjustmentIncrease',
+  'AdjustmentDecrease',
+];
+
 export interface CashItem {
   id: number;
   description: string;
@@ -363,11 +516,16 @@ export interface CashItem {
   addedAt: string;
   accountType?: string | null;
   transactionDate?: string | null;
+  cashFlowType?: CashFlowType | null;
+  isExternalFlow: boolean;
+  /** Set when an existing row was edited after creation; null if never edited. */
+  modifiedAt?: string | null;
 }
 
 export interface AddCashItemRequest {
   description: string;
   amount: number;
+  cashFlowType: CashFlowType;
   accountType?: string | null;
   transactionDate?: string | null;
 }
@@ -375,7 +533,18 @@ export interface AddCashItemRequest {
 export interface UpdateCashItemRequest {
   description: string;
   amount: number;
+  cashFlowType: CashFlowType;
   accountType?: string | null;
+  transactionDate?: string | null;
+}
+
+/** "Adjust Balance": user types the desired new total; backend computes the delta and inserts one new
+ * ledger row. cashFlowType direction must match whether the total is increasing or decreasing. */
+export interface AdjustCashBalanceRequest {
+  accountType: string;
+  desiredNewTotal: number;
+  cashFlowType: CashFlowType;
+  transactionDate?: string | null;
 }
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -500,6 +669,12 @@ export interface DailySignal {
   /** yyyy-MM-dd (ET) */
   signalDate: string;
   recordedAt: string;
+  /** yyyy-MM-dd of the completed market session that produced this signal. */
+  tradingDate: string | null;
+  /** UTC timestamp when the scanner evaluated the market session. */
+  scannedAt: string | null;
+  /** Completed market sessions since tradingDate, calculated by the API. */
+  tradingSessionsPassed: number | null;
   /** Legacy | Enhanced */
   ruleVersion: string;
   signalState: SignalState;
@@ -546,6 +721,18 @@ export interface EodSignalsMeta {
 }
 
 // ── Portfolio Value History ────────────────────────────────────────────────────
+/** What last wrote/recomputed a snapshot row. Mirrors backend PortfolioValueSource. */
+export type PortfolioValueSource =
+  | 'EodAuto'
+  | 'ManualRecordNow'
+  | 'SameDayReseal'
+  | 'CashRecalculation'
+  | 'Migration';
+
+/** Derived display status — Original/Resealed/CashRecalculated come from persisted audit fields;
+ * PendingReseal is the one transient state computed from live backend state (today's row only). */
+export type SnapshotStatus = 'Original' | 'Resealed' | 'CashRecalculated' | 'PendingReseal';
+
 export interface PortfolioValueHistoryDto {
   id: number;
   recordedAt: string;
@@ -554,6 +741,13 @@ export interface PortfolioValueHistoryDto {
   stocksValue: number;
   cashValue: number;
   optionsValue: number;
+  source: PortfolioValueSource;
+  lastRecalculatedAt: string | null;
+  /** Sum of CashItems on recordedDate with isExternalFlow===true. Never inferred from CashValue deltas. */
+  externalCashFlow: number;
+  snapshotStatus: SnapshotStatus;
+  /** Simple arithmetic check: true if totalValue !== stocksValue+optionsValue+cashValue. */
+  hasMismatch: boolean;
 }
 
 // ── Portfolio Beta ─────────────────────────────────────────────────────────────
@@ -621,6 +815,128 @@ export interface SetupRequiredResponse {
   required: boolean;
 }
 
+// ── EOD Automation Pipeline ──────────────────────────────────────────────────
+export type AutomationOverallStatus =
+  | 'Running'
+  | 'Success'
+  | 'PartialSuccess'
+  | 'Failed'
+  | 'SkippedNonTradingDay'
+  | 'Cancelled';
+export type AutomationStepStatus =
+  | ''
+  | 'Succeeded'
+  | 'Failed'
+  | 'NotEligible'
+  | 'NotScheduled'
+  | 'NotObserved';
+export type AutomationTriggerType = 'Scheduled' | 'ManualRunNow' | 'TestWake';
+
+export interface AutomationRunLogDto {
+  runId: string;
+  tradingDate: string;
+  triggerType: AutomationTriggerType | string;
+  triggerCorrelationId: string | null;
+  scheduledStartUtc: string | null;
+  actualStartUtc: string;
+  completedAtUtc: string | null;
+  overallStatus: AutomationOverallStatus | string;
+  refreshStatus: AutomationStepStatus | string;
+  refreshStartedAtUtc: string | null;
+  refreshCompletedAtUtc: string | null;
+  portfolioSymbolCount: number;
+  watchlistSymbolCount: number;
+  rsiStatus: AutomationStepStatus | string;
+  rsiCompletedAtUtc: string | null;
+  eodSignalsPersistedCount: number;
+  snapshotStatus: AutomationStepStatus | string;
+  snapshotCompletedAtUtc: string | null;
+  snapshotSource: string | null;
+  valueScreenerStatus: AutomationStepStatus | string;
+  valueScreenerLastRunAtUtc: string | null;
+  powerRequestAcquiredAtUtc: string | null;
+  powerRequestReleasedAtUtc: string | null;
+  lastHeartbeatAtUtc: string | null;
+  lastHeartbeatStep: string | null;
+  errorStep: string | null;
+  errorMessage: string | null;
+  machineName: string;
+}
+
+export interface AutomationSettingsDto {
+  enabled: boolean;
+  wakeTimeEt: string;
+  keepAwakeUntilEtOverride: string | null;
+  computedKeepAwakeUntilEt: string;
+  completionGraceMinutes: number;
+  maxPollMinutes: number;
+  eodWindowStartEt: string;
+  eodWindowEndEt: string;
+  eodWindowEnabled: boolean;
+  valueScreenerScheduledTimeEt: string;
+  valueScreenerEnabled: boolean;
+  secretConfigured: boolean;
+  missedRunAlertTimeEt: string;
+}
+
+export interface UpdateAutomationSettingsRequest {
+  enabled: boolean;
+  wakeTimeEt: string;
+  keepAwakeUntilEtOverride: string | null;
+  completionGraceMinutes: number;
+  maxPollMinutes: number;
+  missedRunAlertTimeEt?: string | null;
+}
+
+export interface AutomationTaskStatusDto {
+  exists: boolean;
+  state: string | null;
+  nextRunTime: string | null;
+  lastRunTime: string | null;
+  lastTaskResult: number | null;
+}
+
+export interface AutomationTriggerResponseDto {
+  runId: string;
+}
+
+/** Diagnostic/display-only — never affects scheduling logic. A false `taskMatchesExpected` means the
+ * underlying Scheduled Task trigger itself has drifted from Eastern Time, not just a display issue. */
+export interface AutomationTimezoneDiagnosticsDto {
+  businessTimeZoneLabel: string;
+  windowsLocalTimeZoneLabel: string;
+  wakeTimeEtDisplay: string;
+  wakeTimeLocalDisplay: string;
+  taskExists: boolean;
+  taskNextRunEtDisplay: string | null;
+  taskNextRunLocalDisplay: string | null;
+  expectedNextRunEtDisplay: string;
+  taskMatchesExpected: boolean | null;
+  driftMinutes: number | null;
+  warning: string | null;
+}
+
+/** Result of a "Fix Missing Data" recovery run — see MissedDataRecoveryService (backend). */
+export interface RecoveryStepResultDto {
+  success: boolean;
+  message: string;
+}
+
+export interface MissedDataRecoveryResultDto {
+  started: boolean;
+  status: 'Completed' | 'AlreadyRunning' | string;
+  eodSignals: RecoveryStepResultDto | null;
+  snapshot: RecoveryStepResultDto | null;
+  valueScreener: RecoveryStepResultDto | null;
+}
+
+/** Result of "Backup Now" (see DatabaseBackupService — backend). */
+export interface DatabaseBackupResultDto {
+  ran: boolean;
+  filePath: string | null;
+  message: string;
+}
+
 export interface MarketIndicesResponse {
   indices: MarketIndexDto[];
   fetchedAt: string;
@@ -630,6 +946,9 @@ export interface DashboardSummary {
   totalValue: number;
   todayChange: number;
   todayChangePercent: number;
+  todayStocksChange: number;
+  todayCashChange: number;
+  todayOptionsChange: number;
   weekChange: number;
   weekChangePercent: number;
   monthChange: number;
@@ -669,6 +988,12 @@ export interface DashboardRsiSignal {
   returnPct: number;
   action: string;
   signalStatus: string;
+  isInPortfolio: boolean;
+  isInWatchlist: boolean;
+  isNewToday: boolean;
+  isActionRequired: boolean;
+  severity: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
+  channelState?: ChannelState;
 }
 
 export interface DashboardRsiSection {
@@ -706,6 +1031,7 @@ export interface EodSignalFilters {
   signalType?: string;
   signalState?: string;
   ruleVersion?: string;
+  volumeSignal?: string;
   dateFrom?: string;
   dateTo?: string;
   page: number;
@@ -749,27 +1075,73 @@ export interface PortfolioActionDto {
   companyName: string;
   holdingRole: string;
   scanType: string;
-  rsi: number;
+  rsi: number | null;
   trendShift: string;
   fibZone: string;
   chaseRisk: string;
   allocationStatus: string; // "over" | "under" | "on-target" | ""
   actionLabel: string;
   actionSeverity: string; // "buy" | "trim" | "hold" | "review" | "wait" | "danger"
+  actionPriority: string; // "REQUIRED" | "DEVELOPING" | "INFORMATIONAL"
   isInPortfolio: boolean;
   isInWatchlist: boolean;
+  channelState: ChannelState;
+  channelDirection: ChannelDirection;
+  channelQuality: number;
+  priorConfirmedLowerTouches: number;
+  lowerRailToday: number;
+  eodClose: number;
+  distanceToLowerRailPercent: number;
+  distanceToLowerRailATR: number;
+  lastLowerTouchDate: string | null;
+  nearestOpenGapAbove: number | null;
+  channelTouchDetails?: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
+  maStructure: string | null;
+  momentumState: string | null;
+  priceStructure: PriceStructureResult | null;
+  inclusionReason: string | null;
+  reasonExcludedFromActionCenter: string | null;
+  technicalCalculatedAt: string | null;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodTrendShift?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
 }
 
-export interface StateChangeDto {
-  signalId: number;
+export type ActionResolutionStatus =
+  | 'Resolved'
+  | 'OwnershipActionNotCalculated'
+  | 'OwnershipActionNotApplicable';
+
+export interface DashboardEodSummaryRow {
   symbol: string;
   companyName: string;
-  scanType: string;
-  previousState: string;
-  newState: string;
+  signal: string;
   rsi: number;
   trendShift: string;
-  changedAt: string;
+  signalState: string;
+  structure: string;
+  why: string;
+  ownership: 'Portfolio' | 'Watchlist' | 'Universe';
+  action: string;
+  actionPriority: string;
+  actionResolutionStatus: ActionResolutionStatus;
+  actionResolutionReason: string;
+}
+
+export interface DashboardEodSummary {
+  tradingDate: string | null;
+  rawRecordCount: number;
+  uniqueTickerCount: number;
+  rows: DashboardEodSummaryRow[];
 }
 
 // ── Decision Analytics ──────────────────────────────────────────────────────────
@@ -820,21 +1192,135 @@ export interface ActionScoreDto {
   trendShift: string;
   rsi: number;
   allocationStatus: string;
+  currentPrice: number;
+  latestEodSignalState?: string | null;
+  latestEodScanType?: string | null;
+  latestEodIsNew?: boolean;
+  latestEodIsInvalidated?: boolean;
 }
 
 // ── Market Leadership ────────────────────────────────────────────────────────────
+export type MarketLeadershipTrackerType =
+  | 'ETF'
+  | 'Theme'
+  | 'Future'
+  | 'Commodity'
+  | 'SectorProxy'
+  | 'Other';
+
+export interface CreateMarketLeadershipTrackerRequest {
+  symbol: string;
+  displayName: string | null;
+  trackerType: MarketLeadershipTrackerType;
+}
+
+export interface MarketLeadershipTrackerDto {
+  id: number;
+  symbol: string;
+  displayName: string;
+  trackerType: MarketLeadershipTrackerType;
+}
+
 export interface MarketLeadershipRow {
-  sector: string;
-  symbolCount: number;
-  avgRsi: number;
-  avg1MReturnPct: number;
-  pctAboveEma20: number;
-  leadership: string; // Strong | Improving | Neutral | Weakening | Declining
-  leadershipEmoji: string;
+  id: number;
+  symbol: string;
+  displayName: string;
+  trackerType: MarketLeadershipTrackerType;
+  hasTechnicalData: boolean;
+  dataError: string | null;
+  currentPrice: number;
+  dayReturnPct: number;
+  fiveDayReturnPct: number;
+  previousFiveDayReturnPct: number;
+  twentyDayReturnPct: number;
+  previousTwentyDayReturnPct: number;
+  sma50: number;
+  sma200: number;
+  priceVsSma50Pct: number;
+  priceVsSma200Pct: number;
+  sma50VsSma200Pct: number;
+  trendState: string;
+  momentumState: string;
+  maStructure: string;
+  maBadge: string;
+  lastCross: string | null;
+  lastCrossDate: string | null;
+  lastCrossTradingDaysAgo: number | null;
+  momentumReason: string;
+  priceStructure: PriceStructureResult;
+  leadershipSignal: 'Emerging' | 'Leading' | 'Neutral' | 'Cooling' | 'Weak';
+  leadershipReason: string;
+  analysisTicker?: string | null;
+  analysisMarket?: string | null;
+  analysisCurrency?: string | null;
+  usesUnderlyingSecurity?: boolean;
+}
+
+export interface PriceStructureResult {
+  symbol: string;
+  label: string;
+  quality: number;
+  patternStart: string | null;
+  upperTrendline: number;
+  lowerTrendline: number;
+  startWidth: number;
+  currentWidth: number;
+  contractionPercent: number;
+  projectedApexDate: string | null;
+  tradingDaysToApex: number | null;
+  pivotHighs: number;
+  pivotLows: number;
+  atr: number;
+  ema9: number;
+  volumeRatio20: number;
+  rawPivotHighCount: number;
+  rawPivotLowCount: number;
+  independentUpperTouchCount: number;
+  independentLowerTouchCount: number;
+  upperFitQuality: number;
+  lowerFitQuality: number;
+  primaryPatternType: string;
+  primaryPatternState: string;
+  primaryPatternQuality: number;
+  primaryPatternHorizon: number | null;
+  keyLevelPrice: number | null;
+  keyLevelType: string;
+  keyLevelOriginalRole?: string;
+  keyLevelRole: string;
+  keyLevelState: string;
+  keyLevelDistancePercent: number | null;
+  keyLevelDistanceAtr: number | null;
+  keyLevelQuality: number;
+  keyLevelSources: string[];
+  keyLevelConfluenceCount: number;
+  breakoutTriggerPrice: number | null;
+  breakdownTriggerPrice: number | null;
+  calculatedAt: string;
+  patternHorizon: 'NONE' | 'STRUCTURAL' | 'TIGHT';
+  patternLookbackSessions: number | null;
+  keyLevelLow: number | null;
+  keyLevelHigh: number | null;
+  dailyHigh: number;
+  dailyLow: number;
+  eodClose: number;
+  channelTouchDetails: Array<{
+    touchNumber: number;
+    touchDate: string;
+    railPrice: number;
+    actualLow: number;
+    bounceATR: number;
+    confirmedBounce: boolean;
+  }>;
+  hasHardStructuralNegative?: boolean;
 }
 
 export interface MarketLeadershipResponse {
   rows: MarketLeadershipRow[];
+  emergingCount: number;
+  leadingCount: number;
+  coolingCount: number;
+  neutralCount: number;
+  weakCount: number;
   computedAt: string;
 }
 
@@ -847,9 +1333,15 @@ export interface BenchmarkReturn {
 
 export interface PerformanceSummaryResponse {
   portfolioYtdReturnPct: number;
+  portfolioYtdDollar: number;
   portfolioStartValue: number;
+  portfolioStartDate: string;
   portfolioCurrentValue: number;
+  portfolioCurrentDate: string;
   benchmarks: BenchmarkReturn[];
   alphaVsPrimaryBenchmarkPct: number;
   primaryBenchmarkName: string;
+  /** False when no snapshot exists before Jan 1 of the current year — the figures are a
+   *  "since inception" return using the earliest available snapshot, not a true YTD return. */
+  isFullYear: boolean;
 }

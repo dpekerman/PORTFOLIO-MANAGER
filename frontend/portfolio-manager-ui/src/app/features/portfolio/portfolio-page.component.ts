@@ -22,32 +22,42 @@ import {
   CashItem,
   OptionAnalysis,
   PortfolioSummary,
+  PriceStructureResult,
   RsiScanResult,
   StockQuote,
   TechnicalState,
   ValueScreenerResult,
 } from '../../core/models/portfolio.models';
+import {
+  priceStructureLabel as formatPriceStructureLabel,
+  priceStructureTooltip as formatPriceStructureTooltip,
+  priceStructureSortRank,
+} from '../../core/price-structure-display';
+import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
-import {
-  DecisionEngineService,
-  GapStatus,
-  PortfolioItemContext,
-} from '../../core/services/decision-engine.service';
+import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
+import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
+import { SecurityAnalysisMappingDialogComponent } from '../watchlist-page/security-analysis-mapping-dialog.component';
 import { AddCashDialogComponent } from './add-cash-dialog/add-cash-dialog.component';
 import { AddManualDialogComponent } from './add-manual-dialog/add-manual-dialog.component';
 import { AddOptionDialogComponent } from './add-option-dialog/add-option-dialog.component';
 import { AddStockDialogComponent } from './add-stock-dialog/add-stock-dialog.component';
+import {
+  AdjustCashBalanceDialogComponent,
+  AdjustCashBalanceDialogData,
+} from './adjust-cash-balance-dialog/adjust-cash-balance-dialog.component';
 import {
   EditCashDialogComponent,
   EditCashDialogData,
@@ -116,6 +126,8 @@ type GridSortCol =
   | 'holdingRole'
   | 'trendSetup'
   | 'momentumShift'
+  | 'channel'
+  | 'priceStructure'
   | 'finalAction'
   | 'maStatus'
   | 'fib38_2'
@@ -176,10 +188,13 @@ export class PortfolioPageComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
+  protected readonly appRefresh = inject(AppRefreshService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
   private readonly configService = inject(ConfigService);
+  private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
+  private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 
   /** Returns masked value when fake mode is on, original value otherwise. */
   protected dv(v: number): number {
@@ -352,47 +367,15 @@ export class PortfolioPageComponent {
   }
 
   /** Full RsiScanResult map for all portfolio symbols (keyed by UPPER symbol).
-   * Covers ALL symbols, not just oversold/overbought extremes.
+   * Covers ALL symbols, not just oversold/overbought extremes. Fetched app-wide by
+   * PortfolioRsiAnalysisService, not owned here, so it's fresh even before this page is opened.
    */
-  protected readonly portfolioRsiResultMap = signal<Map<string, RsiScanResult>>(new Map());
+  protected readonly rsiMap = this.rsiAnalysis.fullMap;
 
   /** Value Screener results keyed by symbol (upper case). Loaded on init. */
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
-    // Whenever portfolio summaries change, load RSI for ALL non-manual symbols.
-    // We batch in groups of 50 (backend limit) and merge results.
-    effect(() => {
-      const symbols = this.portfolio
-        .summaries()
-        .filter((s) => !s.item.isManual)
-        .map((s) => s.item.symbol);
-      if (symbols.length === 0) return;
-
-      // Split into batches of 50
-      const batchSize = 50;
-      const batches: string[][] = [];
-      for (let i = 0; i < symbols.length; i += batchSize)
-        batches.push(symbols.slice(i, i + batchSize));
-
-      const merged = new Map<string, RsiScanResult>();
-      let completed = 0;
-      for (const batch of batches) {
-        this.api.analyzeSymbols(batch, 30, 75, 'Enhanced').subscribe({
-          next: (results) => {
-            for (const r of results) merged.set(r.symbol.toUpperCase(), r);
-            completed++;
-            if (completed === batches.length) this.portfolioRsiResultMap.set(new Map(merged));
-          },
-          error: (err) => {
-            console.warn('Portfolio RSI batch fetch failed', err);
-            completed++;
-            if (completed === batches.length) this.portfolioRsiResultMap.set(new Map(merged));
-          },
-        });
-      }
-    });
-
     // On initial data load, collapse all multi-transaction symbol groups
     effect(() => {
       const summaries = this.portfolio.summaries();
@@ -426,15 +409,6 @@ export class PortfolioPageComponent {
     });
   }
 
-  /** Full result map: symbol (upper) → RsiScanResult */
-  protected readonly rsiMap = computed<Map<string, RsiScanResult>>(() => {
-    const map = new Map<string, RsiScanResult>();
-    for (const [sym, r] of this.portfolioRsiResultMap()) map.set(sym, r);
-    for (const r of [...this.scanner.oversold(), ...this.scanner.overbought()])
-      map.set(r.symbol.toUpperCase(), r);
-    return map;
-  });
-
   protected rsiForSymbol(symbol: string): number | null {
     return this.rsiMap().get(symbol.toUpperCase())?.rsi ?? null;
   }
@@ -454,6 +428,105 @@ export class PortfolioPageComponent {
 
   protected fibForSymbol(symbol: string) {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected technicalCurrencySuffix(result: RsiScanResult): string {
+    return result.usesUnderlyingSecurity ? ` ${result.analysisCurrency ?? 'USD'}` : '';
+  }
+
+  protected channelForSymbol(symbol: string): RsiScanResult | null {
+    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected channelLabel(symbol: string): string {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return state === 'THIRD_TOUCH_APPROACHING'
+      ? '3rd Rail Approaching'
+      : state === 'THIRD_TOUCH_TEST'
+        ? '3rd Rail Test'
+        : state === 'LOWER_RAIL_APPROACHING'
+          ? 'Lower Rail Approaching'
+          : state === 'LOWER_RAIL_RETEST'
+            ? 'Lower Rail Retest'
+            : state === 'REVERSAL_DEVELOPING'
+              ? 'Reversal Developing'
+              : state === 'BOUNCE_CONFIRMED'
+                ? 'Bounce Confirmed'
+                : state === 'CHANNEL_BROKEN'
+                  ? 'Channel Broken'
+                  : '';
+  }
+
+  protected channelTooltip(symbol: string): string {
+    const channel = this.channelForSymbol(symbol);
+    if (!channel || !this.channelLabel(symbol)) return '';
+    const touches = channel.channelTouchDetails
+      .map(
+        (touch) =>
+          `#${touch.touchNumber}  ${touch.touchDate.slice(0, 10)}\nRail: ${touch.railPrice.toFixed(2)}\nLow: ${touch.actualLow.toFixed(2)}\nBounce: +${touch.bounceATR.toFixed(2)} ATR`,
+      )
+      .join('\n\n');
+    const interaction =
+      channel.priorConfirmedLowerTouches === 2
+        ? '3rd Touch'
+        : `${channel.priorConfirmedLowerTouches + 1}th Touch`;
+    return `RISING CHANNEL\n\nCURRENT STRUCTURE\nState: ${this.channelLabel(symbol)}\nInteraction: ${interaction}\nQuality: ${channel.channelQuality}/100\nEOD Close: ${channel.currentPrice.toFixed(2)}\nLower Rail: ${channel.lowerRailToday.toFixed(2)}\nDistance: ${channel.distanceToLowerRailPercent.toFixed(2)}%\nDistance ATR: ${channel.distanceToLowerRailATR.toFixed(2)}\n\nTOUCH HISTORY\nConfirmed Touches: ${channel.priorConfirmedLowerTouches}\n${touches}\n\nGAP\nNearest Open Gap Above: ${channel.nearestOpenGapAbove?.toFixed(2) ?? '—'}`;
+  }
+
+  protected channelSortValue(symbol: string): number {
+    const state = this.channelForSymbol(symbol)?.channelState;
+    return (
+      {
+        NONE: 0,
+        CHANNEL_ACTIVE: 0,
+        THIRD_TOUCH_APPROACHING: 1,
+        THIRD_TOUCH_TEST: 2,
+        LOWER_RAIL_APPROACHING: 1,
+        LOWER_RAIL_RETEST: 2,
+        REVERSAL_DEVELOPING: 3,
+        BOUNCE_CONFIRMED: 4,
+        CHANNEL_BROKEN: 5,
+      }[state ?? 'NONE'] ?? 0
+    );
+  }
+
+  protected priceStructureForSymbol(
+    symbol: string,
+    summary?: PortfolioSummary,
+  ): PriceStructureResult | null {
+    const key = symbol.toUpperCase();
+    return (
+      summary?.priceStructure ??
+      this.portfolio.summaries().find((item) => item.item.symbol.toUpperCase() === key)
+        ?.priceStructure ??
+      this.rsiMap().get(key)?.priceStructure ??
+      null
+    );
+  }
+
+  protected priceStructureLabel(symbol: string, summary?: PortfolioSummary): string {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    return formatPriceStructureLabel(this.priceStructureForSymbol(symbol, summary), (value) =>
+      this.demoMode.maskValue(value),
+    );
+  }
+
+  protected priceStructureTooltip(symbol: string, summary?: PortfolioSummary): string {
+    return formatPriceStructureTooltip(this.priceStructureForSymbol(symbol, summary), (value) =>
+      this.demoMode.maskValue(value),
+    );
+  }
+
+  protected priceStructureSortValue(symbol: string, summary?: PortfolioSummary): number {
+    const structure = this.priceStructureForSymbol(symbol, summary);
+    return priceStructureSortRank(this.priceStructureForSymbol(symbol, summary));
+  }
+
+  private formatPriceStructureState(state: string): string {
+    return state
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
   }
 
   protected fibZoneClass(zone: string): string {
@@ -612,28 +685,6 @@ export class PortfolioPageComponent {
     }
   }
 
-  /**
-   * Returns the percentage of a ticker's total shares that were closed via Risk Control decisions.
-   * e.g. if 25 shares were closed (Risk Control) and 75 remain open → returns 25.
-   * Returns null when there are no Risk Control close records for the symbol.
-   */
-  private calcRiskControlClosePct(symbol: string): number | null {
-    const all = this.portfolio.summaries();
-    const rcCloses = all.filter(
-      (s) =>
-        s.item.symbol === symbol &&
-        s.item.transactionType === 'CLOSE' &&
-        s.item.decisionSource === 'Risk Control',
-    );
-    if (rcCloses.length === 0) return null;
-    const rcClosedShares = rcCloses.reduce((sum, s) => sum + s.item.shares, 0);
-    const openShares = all
-      .filter((s) => s.item.symbol === symbol && s.item.transactionType !== 'CLOSE')
-      .reduce((sum, s) => sum + s.item.shares, 0);
-    const total = openShares + rcClosedShares;
-    return total > 0 ? (rcClosedShares / total) * 100 : null;
-  }
-
   protected analystForSymbol(symbol: string): { price: number; upside: number } | null {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r || !r.analystTargetPrice) return null;
@@ -648,39 +699,14 @@ export class PortfolioPageComponent {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r) return null;
 
-    let context: PortfolioItemContext | undefined;
-    if (item) {
-      const price = r.currentPrice;
-      const unrealizedGainPct =
-        item.averageCostBasis && item.averageCostBasis > 0
-          ? ((price - item.averageCostBasis) / item.averageCostBasis) * 100
-          : null;
-      const holdingDays = item.openDate
-        ? Math.floor((Date.now() - new Date(item.openDate).getTime()) / (1000 * 60 * 60 * 24))
-        : null;
-      // Distance from 52-week high: negative means below high (e.g. -5 = 5% below high)
-      const distanceFrom52WeekHighPct =
-        r.week52High > 0 ? ((price - r.week52High) / r.week52High) * 100 : null;
-      // Position size as % of portfolio grand total
-      const marketValue = item.isManual
-        ? (item.manualMarketValue ?? item.averageCostBasis)
-        : price * item.shares;
-      const grandTotal =
-        this.portfolio.totalValue() +
-        this.cashState.totalCash() +
-        this.optionState.totalMarketValue();
-      const positionSizePct = grandTotal > 0 ? (marketValue / grandTotal) * 100 : null;
-
-      context = {
-        accountType: item.accountType ?? null,
-        unrealizedGainPct,
-        holdingDays,
-        distanceFrom52WeekHighPct,
-        positionSizePct,
-        riskControlClosePct: this.calcRiskControlClosePct(item.symbol),
-        decisionSource: item.decisionSource ?? null,
-      };
-    }
+    const context = item
+      ? this.finalActionSync.buildContext(
+          item,
+          r,
+          this.portfolio.summaries(),
+          this.portfolioGrandTotal(),
+        )
+      : undefined;
 
     return this.engine.translateForPortfolio(r, holdingRole ?? null, true, context);
   }
@@ -689,8 +715,6 @@ export class PortfolioPageComponent {
     const list = [...this.portfolio.summaries()].filter((s) => s.item.transactionType !== 'CLOSE');
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
-
-    if (field === 'default') return list;
 
     return list.sort((a, b) => {
       const av = this.sortValue(a, field);
@@ -933,6 +957,10 @@ export class PortfolioPageComponent {
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? ''
         );
+      case 'channel':
+        return this.channelSortValue(s.item.symbol);
+      case 'priceStructure':
+        return this.priceStructureSortValue(s.item.symbol, s);
       case 'finalAction':
         return (
           this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? ''
@@ -1096,6 +1124,7 @@ export class PortfolioPageComponent {
         'Role',
         'Trend Setup',
         'Momentum Shift',
+        'Price Structure',
         'Action',
       ],
     ];
@@ -1133,6 +1162,7 @@ export class PortfolioPageComponent {
         s.item.holdingRole ?? 'Strategic',
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.trendSetup ?? '',
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
+        this.priceStructureLabel(s.item.symbol, s),
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
       ]);
     }
@@ -1165,6 +1195,8 @@ export class PortfolioPageComponent {
         '',
         '',
         '',
+        '',
+        '',
       ]);
     }
 
@@ -1191,7 +1223,9 @@ export class PortfolioPageComponent {
         '0.00',
         '0.00',
         '',
+        '',
         'Options',
+        '',
         '',
         '',
         '',
@@ -1242,6 +1276,14 @@ export class PortfolioPageComponent {
       });
   }
 
+  openSecurityAnalysisMapping(s: PortfolioSummary): void {
+    this.dialog.open(SecurityAnalysisMappingDialogComponent, {
+      width: '440px',
+      maxWidth: '95vw',
+      data: { tradingTicker: s.item.symbol },
+    });
+  }
+
   confirmDeleteGridRow(s: PortfolioSummary): void {
     this.dialog
       .open(ConfirmDialogComponent, {
@@ -1286,6 +1328,14 @@ export class PortfolioPageComponent {
   openEditCashDialog(item: CashItem): void {
     this.dialog.open(EditCashDialogComponent, {
       data: { item } satisfies EditCashDialogData,
+      width: '420px',
+      maxWidth: '95vw',
+    });
+  }
+
+  openAdjustCashBalanceDialog(accountType: string, currentTotal: number): void {
+    this.dialog.open(AdjustCashBalanceDialogComponent, {
+      data: { accountType, currentTotal } satisfies AdjustCashBalanceDialogData,
       width: '420px',
       maxWidth: '95vw',
     });
@@ -1431,7 +1481,7 @@ export class PortfolioPageComponent {
   }
 
   refresh(): void {
-    this.portfolio.refresh();
+    this.appRefresh.refreshAll();
   }
 
   backupPortfolioData(): void {

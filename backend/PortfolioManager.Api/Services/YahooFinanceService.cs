@@ -13,6 +13,7 @@ namespace PortfolioManager.Api.Services;
 public interface IMarketDataProvider
 {
     Task<StockQuote?> GetQuoteAsync(string symbol, CancellationToken ct = default);
+    Task<IReadOnlyList<MarketDailyClose>?> GetDailyClosesAsync(string symbol, CancellationToken ct = default);
     Task<Dictionary<string, StockQuote>> GetBatchQuotesAsync(IEnumerable<string> symbols, CancellationToken ct = default);
     Task<(string sector, string industry)> GetSectorAsync(string symbol, CancellationToken ct = default);
     Task<IReadOnlyList<SymbolSearchResult>> SearchSymbolAsync(string query, CancellationToken ct = default);
@@ -148,6 +149,40 @@ public sealed class YahooFinanceService : IMarketDataProvider
         catch (Exception ex)
         {
             _logger.LogError(ex, "Yahoo Finance GetQuoteAsync failed for {Symbol}", symbol);
+            return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<MarketDailyClose>?> GetDailyClosesAsync(string symbol, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync(
+                $"https://query1.finance.yahoo.com/v8/finance/chart/{Uri.EscapeDataString(symbol)}?interval=1d&range=2y", ct);
+            if (!response.IsSuccessStatusCode) return null;
+
+            var json = await response.Content.ReadAsStringAsync(ct);
+            var chart = JsonSerializer.Deserialize<YahooChartResponse>(json, _json)
+                ?.Chart?.Result?.FirstOrDefault();
+            var quote = chart?.Indicators?.Quote?.FirstOrDefault();
+            if (quote is null || chart?.Timestamp is null) return null;
+
+            return quote.Close
+                .Select((close, index) => new { Close = close, Index = index })
+                .Where(item => item.Close is > 0m && item.Index < chart.Timestamp.Count
+                    && item.Index < quote.Open.Count && item.Index < quote.High.Count && item.Index < quote.Low.Count)
+                .Select(item => new MarketDailyClose(
+                    DateOnly.FromDateTime(DateTimeOffset.FromUnixTimeSeconds(chart.Timestamp[item.Index]).UtcDateTime),
+                    item.Close!.Value,
+                    quote.Open[item.Index] ?? item.Close.Value,
+                    quote.High[item.Index] ?? item.Close.Value,
+                    quote.Low[item.Index] ?? item.Close.Value,
+                    item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Yahoo Finance GetDailyClosesAsync failed for {Symbol}", symbol);
             return null;
         }
     }
@@ -562,9 +597,9 @@ public sealed class YahooFinanceService : IMarketDataProvider
             DebtToEquity       = Raw(fd?.DebtToEquity),
             CurrentRatio       = Raw(fd?.CurrentRatio),
             ProfitMargins      = Raw(fd?.GrossProfits) > 0 && Raw(fd?.TotalRevenue) > 0
-                                    ? Raw(fd.GrossProfits) / Raw(fd.TotalRevenue) : Raw(ks?.ProfitMargins),
+                                    ? Raw(fd?.GrossProfits) / Raw(fd?.TotalRevenue) : Raw(ks?.ProfitMargins),
             RevenueGrowth      = Raw(fd?.RevenueGrowth),
-            DividendYield      = Raw(sd?.DividendYield) > 0 ? Raw(sd.DividendYield)
+            DividendYield      = Raw(sd?.DividendYield) > 0 ? Raw(sd?.DividendYield)
                                    : Raw(sd?.TrailingAnnualDividendYield),
             TrailingAnnualDividendYield = Raw(sd?.TrailingAnnualDividendYield),
             TargetMeanPrice    = Raw(fd?.TargetMeanPrice),
@@ -572,7 +607,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
             OperatingCashFlow  = ocf,
             CapitalExpenditures = capex,
             FreeCashFlow       = fcf,
-            TotalRevenue       = RawL(inc?.TotalRevenue) > 0 ? RawL(inc.TotalRevenue) : RawL(fd?.TotalRevenue),
+            TotalRevenue       = RawL(inc?.TotalRevenue) > 0 ? RawL(inc?.TotalRevenue) : RawL(fd?.TotalRevenue),
             NetIncome          = RawL(inc?.NetIncome),
             Ebit               = RawL(inc?.Ebit),
             TotalAssets        = RawL(bs?.TotalAssets),

@@ -14,6 +14,7 @@ _ReSharper*/
 
 # Published output
 publish/
+artifacts/
 
 # ========================================
 # SENSITIVE / ENVIRONMENT-SPECIFIC CONFIG

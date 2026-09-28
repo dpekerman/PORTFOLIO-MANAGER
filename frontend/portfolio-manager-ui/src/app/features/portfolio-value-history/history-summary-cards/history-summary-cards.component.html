@@ -1,0 +1,55 @@
+<div class="summary-cards">
+  <mat-card class="summary-card">
+    <mat-card-content>
+      <div class="card-label">
+        <mat-icon>account_balance_wallet</mat-icon> Latest Portfolio Value
+      </div>
+      <div class="card-value">
+        @if (loading()) {
+          —
+        } @else {
+          {{ displayTotalValue() | currency: 'CAD' }}
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="summary-card">
+    <mat-card-content>
+      <div class="card-label"><mat-icon>payments</mat-icon> Latest Cash</div>
+      <div class="card-value">
+        @if (loading()) {
+          —
+        } @else {
+          {{ displayCashValue() | currency: 'CAD' }}
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="summary-card">
+    <mat-card-content>
+      <div class="card-label"><mat-icon>swap_horiz</mat-icon> Latest External Flow</div>
+      <div class="card-value">
+        @if (loading()) {
+          —
+        } @else {
+          {{ displayExternalFlow() | currency: 'CAD' }}
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card class="summary-card">
+    <mat-card-content>
+      <div class="card-label"><mat-icon>schedule</mat-icon> {{ lastSnapshotLabel() }}</div>
+      <div class="card-value">
+        @if (lastSnapshotTime(); as t) {
+          {{ t | date: 'MMM d, h:mm a' }}
+        } @else {
+          —
+        }
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>

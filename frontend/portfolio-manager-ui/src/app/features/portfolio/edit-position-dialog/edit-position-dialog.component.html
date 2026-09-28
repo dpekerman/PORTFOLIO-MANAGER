@@ -30,6 +30,13 @@
       @if (form.controls.shares.errors?.['min']) {
         <mat-error>Must be &gt; 0</mat-error>
       }
+      @if (isPartialClose()) {
+        <mat-hint
+          >Closing {{ form.value.shares }} of {{ data.item.shares }} shares — the remaining
+          {{ data.item.shares - form.value.shares! }} will automatically move to a new open
+          position</mat-hint
+        >
+      }
     </mat-form-field>
 
     <mat-form-field appearance="outline">

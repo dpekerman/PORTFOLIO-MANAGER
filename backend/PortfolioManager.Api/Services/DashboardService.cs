@@ -9,10 +9,13 @@ namespace PortfolioManager.Api.Services;
 public interface IDashboardService
 {
     Task<DashboardResponse?> GetLatestAsync(string userId, CancellationToken ct);
-    Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct);
+    Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true);
 }
 
-public sealed class DashboardService(AppDbContext db, IMarketDataProvider marketData) : IDashboardService
+public sealed class DashboardService(
+    AppDbContext db,
+    IMarketDataProvider marketData,
+    IPortfolioActionsService portfolioActions) : IDashboardService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly (string Symbol, string Name)[] IndexSymbols =
@@ -30,10 +33,11 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
     public async Task<DashboardResponse?> GetLatestAsync(string userId, CancellationToken ct)
     {
         var snapshot = await db.DashboardSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        return snapshot is null ? null : Deserialize<DashboardResponse>(snapshot.SnapshotJson);
+        var response = snapshot is null ? null : Deserialize<DashboardResponse>(snapshot.SnapshotJson);
+        return response is null ? null : NormalizeSignalSection(response);
     }
 
-    public async Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct)
+    public async Task<DashboardResponse> RebuildAsync(string userId, CancellationToken ct, bool includeEarnings = true)
     {
         var portfolioSnapshot = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
         var watchlistSnapshot = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
@@ -45,11 +49,31 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
 
         var portfolio = DeserializeList<PortfolioSummaryDto>(portfolioSnapshot?.SnapshotJson ?? "[]");
         var watchlist = DeserializeList<WatchlistSummaryDto>(watchlistSnapshot?.SnapshotJson ?? "[]");
+        var activePortfolioSymbols = portfolio
+            .Where(s => !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .Select(s => s.Item.Symbol)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var watchlistSymbols = watchlist
+            .Select(s => s.Item.Symbol)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var scanner = Deserialize<ScannerResponse>(rsiSnapshot?.SnapshotJson ?? "{}")
             ?? new ScannerResponse();
+        var canonicalActions = await portfolioActions.GetActionsAsync(userId, ct);
+        var actionsBySymbol = canonicalActions
+            .GroupBy(action => action.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var stagedSignals = await db.StagedSignals.AsNoTracking()
+            .Where(s => s.IsActiveWatch)
+            .ToListAsync(ct);
+        var stagedBySymbol = stagedSignals
+            .GroupBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(s => s.UpdatedAt).First(), StringComparer.OrdinalIgnoreCase);
         var indexQuotes = await marketData.GetBatchQuotesAsync(IndexSymbols.Select(i => i.Symbol), ct);
-        var trackedSymbols = portfolio.Select(s => s.Item.Symbol).Concat(watchlist.Select(s => s.Item.Symbol));
-        var providerEarnings = await marketData.GetEarningsDatesAsync(trackedSymbols, ct);
+        // Skip earnings fetch during batch refresh to avoid ~9s delay (300ms/symbol)
+        Dictionary<string, DateTime> providerEarnings = includeEarnings
+            ? await marketData.GetEarningsDatesAsync(
+                portfolio.Select(s => s.Item.Symbol).Concat(watchlist.Select(s => s.Item.Symbol)), ct)
+            : [];
 
         var values = history.OrderBy(h => h.RecordedDate).ToList();
         var latest = values.LastOrDefault();
@@ -63,9 +87,12 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             .Sum(s => s.Item.IsManual
                 ? (s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares)
                 : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares);
-        var liveCashValue    = await db.CashItems.SumAsync(c => c.Amount, ct);
+        var liveCashValue = await db.CashItems
+            .Where(c => c.UserId == userId || c.UserId == null)
+            .SumAsync(c => c.Amount, ct);
         var liveOptionsValue = await db.OptionItems
-            .Where(o => o.TransactionType != "CLOSE")
+            .Where(o => (o.UserId == userId || o.UserId == null)
+                && o.TransactionType != "CLOSE")
             .SumAsync(o => o.MarketPrice * o.NumberOfContracts * 100, ct);
         var liveTotal = liveStocksValue + liveCashValue + liveOptionsValue;
 
@@ -74,20 +101,22 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var hasTodayEntry = latest?.RecordedDate == etTodayStr;
         var summaryTotal = liveTotal;
         var yesterdayEntry = hasTodayEntry ? previous : latest;
-        var todayChange = yesterdayEntry is not null ? liveTotal - yesterdayEntry.TotalValue : 0m;
+        // Matches the Portfolio Stocks header and the sum of its grid Day $ values.
+        var todayStocksChange = portfolio
+            .Where(s => !s.Item.IsManual
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+            .Sum(s => s.Item.Shares * (s.Quote?.Change ?? 0m));
+        var todayCashChange    = yesterdayEntry is not null ? liveCashValue     - yesterdayEntry.CashValue    : 0m;
+        var todayOptionsChange = yesterdayEntry is not null ? liveOptionsValue  - yesterdayEntry.OptionsValue : 0m;
+        // The headline is deliberately the sum of the displayed component movements.
+        var todayChange = todayStocksChange + todayCashChange + todayOptionsChange;
         var todayPercent = Percent(todayChange, yesterdayEntry?.TotalValue);
 
         var daysSinceMonday = ((int)todayEt.DayOfWeek + 6) % 7;
         var weekStart = todayEt.AddDays(-daysSinceMonday);
         var weekStartDate = DateOnly.FromDateTime(weekStart);
-        // Week baseline: last close before the week started (e.g. Friday for Monday)
-        var weekBase = values.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < weekStartDate)
-            ?? values.FirstOrDefault(h => DateOnly.Parse(h.RecordedDate) >= weekStartDate);
-        // Month baseline: last EOD record on or before the 1st of the current month (= prior-month close)
         var monthFirstDay = new DateOnly(todayEt.Year, todayEt.Month, 1);
-        var monthBase = values.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < monthFirstDay)
-            ?? values.FirstOrDefault(h => DateOnly.Parse(h.RecordedDate).Month == todayEt.Month
-                && DateOnly.Parse(h.RecordedDate).Year == todayEt.Year);
+        var (weekBase, monthBase) = ResolvePeriodBaselines(values, weekStartDate, monthFirstDay);
         var weekChange = weekBase is not null ? summaryTotal - weekBase.TotalValue : 0m;
         var monthChange = monthBase is not null ? summaryTotal - monthBase.TotalValue : 0m;
 
@@ -96,7 +125,7 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             .Where(s => !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
             .Select(s => (Summary: s, IsPortfolio: true, IsWatchlist: false))
             .Concat(watchlist.Select(s => (Summary: new PortfolioSummaryDto(
-                new PortfolioItemDto(s.Item.Id, s.Item.Symbol, s.Item.Symbol, 0, 0, "", "", false, false, null, s.Item.AddedAt), s.Quote),
+                new PortfolioItemDto(s.Item.Id, s.Item.Symbol, s.Item.Symbol, 0, 0, "", "", false, false, null, s.Item.AddedAt), s.Quote, s.PriceStructure),
                 IsPortfolio: false, IsWatchlist: true)));
         var movers = moverSources
             .Where(s => s.Summary.Quote is not null)
@@ -119,11 +148,15 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
         var sectorTargets = await db.AllocationSectorTargets
             .AsNoTracking()
             .ToDictionaryAsync(t => t.Sector, t => t.TargetPct, StringComparer.OrdinalIgnoreCase, ct);
-        var portfolioTotal = portfolio
-            .Where(s => s.Quote is not null)
-            .Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
-        var allocation = portfolio
-            .Where(s => s.Quote is not null)
+        // Stocks + cash only; exclude Options-role items (manual positions classified as options)
+        var sectorItems = portfolio
+            .Where(s => s.Quote is not null
+                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(s.Item.HoldingRole, "Options", StringComparison.OrdinalIgnoreCase));
+        var stocksValue = sectorItems.Sum(s => s.Quote!.CurrentPrice * s.Item.Shares);
+        // Denominator = stocks only, matching the Allocation page anchor
+        var portfolioTotal = stocksValue;
+        var allocation = sectorItems
             .GroupBy(s => string.IsNullOrWhiteSpace(s.Item.Sector) ? "Unclassified" : s.Item.Sector)
             .Select(group =>
             {
@@ -138,6 +171,20 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 return new DashboardAllocation(group.Key, value, pct, target, Math.Round(delta, 2), status);
             })
             .ToList();
+
+        // Add Cash row — % of (stocks + cash) so it sums naturally alongside sector rows
+        if (liveCashValue > 0m)
+        {
+            var cashBase = stocksValue + liveCashValue;
+            var cashPct  = Percent(liveCashValue, cashBase);
+            sectorTargets.TryGetValue("Cash", out var cashTarget);
+            var cashDelta  = cashPct - cashTarget;
+            var cashStatus = cashTarget == 0m ? "no-target"
+                           : Math.Abs(cashDelta) <= 2m  ? "good"
+                           : Math.Abs(cashDelta) <= 5m  ? (cashDelta > 0 ? "watch-over" : "watch-under")
+                           :                              (cashDelta > 0 ? "over"        : "under");
+            allocation.Add(new DashboardAllocation("Cash", liveCashValue, cashPct, cashTarget, Math.Round(cashDelta, 2), cashStatus));
+        }
 
         // ── Role allocation vs risk targets ──────────────────────────────────────
         var roleTargets = await db.AllocationRiskTargets
@@ -194,29 +241,38 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
             }
         }
         var roleAllocation = stockRoleGroups.OrderByDescending(a => a.Value).ToList();
-        var newToday   = await db.DailySignals.CountAsync(s => s.SignalDate == etTodayStr, ct);
-        var actionReq  = scanner.OversoldChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm)
-                       + scanner.OverboughtChain.Count(r => r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm);
+        var newToday = 0;
+        var actionReq = 0;
 
-        static string RsiAction(RsiScanResult r)
+        var BuildSignal = (RsiScanResult r) =>
         {
-            if (r.ScanType == ScanType.Oversold)
-                return r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm ? "BUY WATCH"
-                     : r.TrendShift.Contains("Bull Turn")   ? "WATCH"
-                     : r.TrendShift.Contains("Stabilizing") ? "MONITOR"
-                     : "WAIT";
-            return r.Status == SignalStatus.Confirmed || r.Status == SignalStatus.EodConfirm ? "TRIM WATCH"
-                 : r.TrendShift.Contains("Bear Turn")   ? "REVIEW"
-                 : "MONITOR";
-        }
+            var isInPortfolio = activePortfolioSymbols.Contains(r.Symbol);
+            var isInWatchlist = watchlistSymbols.Contains(r.Symbol);
+            actionsBySymbol.TryGetValue(r.Symbol, out var canonicalAction);
+            var hasCanonicalScope = isInPortfolio || isInWatchlist;
+            var action = canonicalAction?.ActionLabel
+                ?? (hasCanonicalScope
+                    ? "—"
+                    : DashboardSignalActionInterpreter.Resolve(r, false, false));
+            var severity = canonicalAction?.ActionSeverity
+                ?? (hasCanonicalScope ? "review" : ActionSeverityMapper.Get(action));
+            var actionRequired = canonicalAction?.ActionPriority == "REQUIRED";
+            var isNew = stagedBySymbol.TryGetValue(r.Symbol, out var staged)
+                && staged.StagedDate == DateOnly.FromDateTime(todayEt);
+            if (isNew) newToday++;
+            if (actionRequired) actionReq++;
+            return new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
+                r.TrendShift, r.VolumeSignal, r.ChangePercent, action, r.Status.ToString(),
+                isInPortfolio, isInWatchlist, isNew, actionRequired, severity, r.ChannelState);
+        };
 
         var oversoldSignals   = scanner.OversoldChain
-            .Select(r => new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
-                r.TrendShift, r.VolumeSignal, r.ChangePercent, RsiAction(r), r.Status.ToString()))
+            .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+            .Select(BuildSignal)
             .ToList();
         var overboughtSignals = scanner.OverboughtChain
-            .Select(r => new DashboardRsiSignal(r.Symbol, r.CompanyName, r.Rsi,
-                r.TrendShift, r.VolumeSignal, r.ChangePercent, RsiAction(r), r.Status.ToString()))
+            .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+            .Select(BuildSignal)
             .ToList();
 
         var rsiSection = new DashboardRsiSection(
@@ -243,12 +299,19 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
                 summaryTotal,
                 todayChange,
                 todayPercent,
+                todayStocksChange,
+                todayCashChange,
+                todayOptionsChange,
                 weekChange,
                 Percent(weekChange, weekBase?.TotalValue),
                 monthChange,
                 Percent(monthChange, monthBase?.TotalValue),
-                scanner.OversoldChain.Count(r => r.Status != SignalStatus.Neutral),
-                scanner.OverboughtChain.Count(r => r.Status != SignalStatus.Neutral)),
+                scanner.OversoldChain
+                    .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                    .Count(r => r.Status != SignalStatus.Neutral),
+                scanner.OverboughtChain
+                    .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
+                    .Count(r => r.Status != SignalStatus.Neutral)),
             movers.Take(50).ToList(),
             movers.OrderBy(m => m.ChangePercent).Take(50).ToList(),
             values.Select(h => new DashboardChartPoint(h.RecordedDate, h.TotalValue)).ToList(),
@@ -280,11 +343,55 @@ public sealed class DashboardService(AppDbContext db, IMarketDataProvider market
     private static decimal Percent(decimal change, decimal? baseValue)
         => baseValue is > 0m ? Math.Round(change / baseValue.Value * 100m, 2) : 0m;
 
+    private static DashboardResponse NormalizeSignalSection(DashboardResponse response)
+    {
+        if (response.RsiSection is not { } section) return response;
+
+        var oversold = section.OversoldSignals
+            .DistinctBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var overbought = section.OverboughtSignals
+            .DistinctBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var allSignals = oversold.Concat(overbought).ToList();
+
+        return response with
+        {
+            Summary = response.Summary with
+            {
+                OversoldCount = oversold.Count,
+                OverboughtCount = overbought.Count,
+            },
+            RsiSection = section with
+            {
+                OversoldCount = oversold.Count,
+                OverboughtCount = overbought.Count,
+                NewTodayCount = allSignals.Count(s => s.IsNewToday),
+                ActionRequiredCount = allSignals.Count(s => s.IsActionRequired),
+                OversoldSignals = oversold,
+                OverboughtSignals = overbought,
+            },
+        };
+    }
+
     private static DateTime EasternToday()
     {
         var zone = TimeZoneInfo.FindSystemTimeZoneById(
             OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
         return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, zone).Date;
+    }
+
+    /// <summary>
+    /// Resolves the week/month baseline rows as the last snapshot strictly BEFORE each period start.
+    /// Never falls back to a snapshot on/after the period start — a missing baseline means the
+    /// period change is unknown (caller treats it as $0), not that it should borrow an in-period row.
+    /// </summary>
+    internal static (PortfolioValueHistory? WeekBase, PortfolioValueHistory? MonthBase) ResolvePeriodBaselines(
+        IReadOnlyList<PortfolioValueHistory> valuesAscendingByDate, DateOnly weekStartDate, DateOnly monthFirstDay)
+    {
+        var weekBase = valuesAscendingByDate.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < weekStartDate);
+        var monthBase = valuesAscendingByDate.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < monthFirstDay);
+        return (weekBase, monthBase);
     }
 
     private static T? Deserialize<T>(string json)

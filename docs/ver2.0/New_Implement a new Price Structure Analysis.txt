@@ -1,0 +1,255 @@
+Implement a new Price Structure / Channel Analysis feature using the existing 2 years of daily OHLCV data already used by the RSI scanner. Keep the implementation simple and reuse existing data pipelines and EOD processing. Do not add a new external market data source.
+
+Goal
+
+Detect high-quality rising parallel channels and identify when price is approaching or testing the 3rd lower-rail touch, because this can be a higher-quality bounce location when combined with existing RSI/momentum confirmation.
+
+Backend / Calculation Logic
+
+Use daily OHLCV history.
+
+Calculate ATR(14).
+Detect meaningful pivot lows and pivot highs using a simple 5-bar pivot:
+Pivot Low: low is lower than the previous 2 and next 2 bars.
+Pivot High: high is higher than the previous 2 and next 2 bars.
+Detect rising parallel channels using meaningful pivot lows for the lower rail and pivot highs for the upper rail.
+Evaluate multiple lookback windows: approximately 3M, 6M, 12M, 24M.
+Select the best valid rising channel based on:
+at least 2 independent lower-rail touches
+reasonable parallel upper/lower rails
+meaningful spacing between touches
+prior touches produced a real bounce
+A touch is valid when price comes within about 0.35 ATR of the projected lower rail.
+Do not count multiple consecutive candles at the rail as separate touches.
+Require at least 10 trading days between touches
+and price should move at least ~1.5 ATR away before a new touch can count.
+A previous touch is considered confirmed if price subsequently bounced at least ~1.5 ATR within the next 10–20 trading sessions.
+Calculate:
+ChannelDirection
+ChannelQuality 0–100
+LowerRailToday
+UpperRailToday
+PriorConfirmedLowerTouches
+LastLowerTouchDate
+DistanceToLowerRailPercent
+DistanceToLowerRailATR
+Only use channels with ChannelQuality >= 70.
+Channel States
+
+Use these states only:
+
+NONE
+CHANNEL_ACTIVE
+THIRD_TOUCH_APPROACHING
+THIRD_TOUCH_TEST
+REVERSAL_DEVELOPING
+BOUNCE_CONFIRMED
+CHANNEL_BROKEN
+
+Suggested rules:
+
+CHANNEL_ACTIVE
+Valid rising channel, but price is more than 1 ATR above lower rail.
+THIRD_TOUCH_APPROACHING
+2 prior confirmed lower-rail touches and current price is between ~0.35 ATR and 1 ATR above the projected lower rail.
+THIRD_TOUCH_TEST
+2 prior confirmed touches and price is within ±0.35 ATR of the projected lower rail.
+REVERSAL_DEVELOPING
+Third-touch test occurred and existing Momentum Shift becomes Stabilizing, Bull Turn Early, or RSI starts improving.
+BOUNCE_CONFIRMED
+Third-touch test occurred and existing momentum logic confirms Bull Turn, preferably with EMA9 confirmation and/or bullish close structure.
+CHANNEL_BROKEN
+Daily close is materially below the lower rail, for example more than ~0.5 ATR below it.
+Important
+
+A 3rd touch is not automatically a Buy.
+
+Channel analysis defines location.
+Existing RSI / momentum logic defines timing.
+
+Example:
+
+Third Touch + Still Falling → WAIT FOR REVERSAL
+Third Touch + Stabilizing → REVERSAL WATCH
+Third Touch + Bull Turn → BUY WATCH
+Third Touch + Bull Turn + confirmation → ENTRY CANDIDATE
+Channel Broken → AVOID or EXIT REVIEW depending on whether it is owned.
+Gap Detection
+
+Add simple daily gap detection using existing OHLC data.
+
+Detect:
+
+Gap Up when Today Low > Previous Day High
+Gap Down when Today High < Previous Day Low
+
+Track:
+
+nearest open gap above current price
+nearest open gap below current price
+gap low
+gap high
+distance to gap %
+whether gap has been filled
+
+Do not treat a gap as a guaranteed target.
+Label it as Open Gap Above / Open Gap Below.
+
+Database
+
+Keep storage simple.
+
+Add a table/entity like:
+
+TechnicalChannel
+
+Fields:
+
+Ticker
+Timeframe
+Direction
+Slope
+LowerRailCurrent
+UpperRailCurrent
+ChannelQuality
+LowerTouchCount
+LastLowerTouchDate
+DistanceToLowerRailPercent
+DistanceToLowerRailATR
+ChannelState
+NearestOpenGapAbove
+NearestOpenGapBelow
+CalculatedAt
+
+Optional second table if needed:
+
+TechnicalChannelTouch
+
+Ticker
+TouchNumber
+TouchDate
+TouchPrice
+RailPrice
+DistanceATR
+ConfirmedBounce
+BounceATR
+
+Do not over-engineer the schema.
+
+EOD Processing
+
+Run this as part of the existing EOD technical process:
+
+Load/update daily OHLCV.
+Calculate ATR.
+Detect pivots.
+Recalculate best channel.
+Update touch count and channel state.
+Detect open gaps.
+Combine Channel State with existing RSI/Momentum.
+Feed resulting Action into Dashboard Action Center.
+Watchlist UI
+
+Add one compact column:
+
+CHANNEL
+
+Show values only when relevant:
+
+3rd Touch Approaching
+3rd Touch
+Reversal Developing
+Bounce Confirmed
+Channel Broken
+blank / — otherwise
+
+Add tooltip/details with:
+
+Channel direction
+Channel quality
+Prior lower-rail touches
+Projected lower rail
+Distance to rail %
+Distance to rail ATR
+Last touch date
+Nearest open gap above
+
+Do not add many new visible columns.
+
+Dashboard — Action Center
+
+Integrate the channel setup into the existing Action Center.
+
+Keep separate behavior for:
+
+Portfolio Holdings
+
+and
+
+Watchlist
+
+Watchlist actions
+THIRD_TOUCH_APPROACHING → WATCH CHANNEL
+THIRD_TOUCH_TEST + Still Falling → WAIT FOR REVERSAL
+THIRD_TOUCH_TEST + Stabilizing → REVERSAL WATCH
+THIRD_TOUCH_TEST + Bull Turn → BUY WATCH
+BOUNCE_CONFIRMED → ENTRY CANDIDATE
+CHANNEL_BROKEN → AVOID
+Portfolio Holding actions
+
+Respect Role:
+
+Core / Strategic + Third Touch → ADD WATCH
+Core / Strategic + Third Touch + Bull Turn → ADD CANDIDATE
+Swing + Third Touch + Bull Turn → STAGED ADD / HOLD
+Core + Channel Broken → TECHNICAL REVIEW
+Swing + Channel Broken → EXIT REVIEW
+
+Allocation should still override entry/add logic:
+
+If sector or ticker is already overweight, do not recommend adding.
+Show HOLD — ALLOCATION FULL instead.
+Dashboard Display
+
+Do not create a separate large Channel widget.
+
+Surface only important exceptions in Action Center.
+
+Example:
+
+AMAT | W | Strategic | 3rd Touch | Bull Turn | Rail $464.80 | BUY WATCH
+
+XYZ | P | Core | 3rd Touch | Still Falling | Rail $82.40 | HOLD — WAIT
+
+ABC | W | Swing | Channel Broken | Bear Turn | — | AVOID
+
+Also optionally add a small badge/count at the top:
+
+Channel Setups: 3
+
+RSI Scanner / EOD Signals
+
+Do not redesign these pages.
+
+Only add Channel information to the row details / tooltip if useful:
+
+Channel State
+Lower Rail
+Distance to Rail
+Touch Count
+Channel Quality
+
+The main purpose of this feature is to improve Watchlist prioritization and Dashboard Action Center decisions, not to add another large scanner page.
+
+Final Design Principle
+
+Keep the decision hierarchy:
+
+Fundamentals / Value → What to own
+Allocation → How much room exists
+Channel / Price Structure → Where price is
+RSI / Momentum → Whether direction is turning
+Role → How aggressively to act
+Action Center → What requires attention now
+
+Prioritize simplicity, reuse existing services, and avoid introducing extra indicators unless required for the channel calculations.

@@ -9,13 +9,25 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
-import { LogicMode, RsiScanResult, ScanType } from '../../core/models/portfolio.models';
+import {
+  LogicMode,
+  PriceStructureResult,
+  RsiScanResult,
+  ScanType,
+} from '../../core/models/portfolio.models';
+import {
+  priceStructureLabel as formatPriceStructureLabel,
+  priceStructureTooltip as formatPriceStructureTooltip,
+  priceStructureSortRank,
+} from '../../core/price-structure-display';
 import {
   DecisionEngineService,
   GapStatus,
   PageDecision,
 } from '../../core/services/decision-engine.service';
+import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
+import { formatTrendShift } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 @Component({
@@ -38,6 +50,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
   ],
 })
 export class RsiScannerTableComponent {
+  private readonly demoMode = inject(DemoModeService);
   readonly results = input.required<RsiScanResult[]>();
   readonly scanType = input.required<ScanType>();
   readonly logicMode = input<LogicMode>('Legacy');
@@ -93,6 +106,10 @@ export class RsiScannerTableComponent {
         case 'analystUpside':
           av = a.analystTargetUpside ?? 0;
           bv = b.analystTargetUpside ?? 0;
+          break;
+        case 'priceStructure':
+          av = this.priceStructureSortValue(a.priceStructure);
+          bv = this.priceStructureSortValue(b.priceStructure);
           break;
         default:
           return 0;
@@ -223,18 +240,54 @@ export class RsiScannerTableComponent {
     return `50 DMA: ${sign}${d50}%  |  200 DMA: ${s200}${d200}%`;
   }
 
+  protected priceStructureLabel(structure: PriceStructureResult | null | undefined): string {
+    return formatPriceStructureLabel(structure, (value) => this.demoMode.maskValue(value));
+  }
+
+  protected priceStructureTooltip(row: RsiScanResult): string {
+    return formatPriceStructureTooltip(
+      row.priceStructure,
+      (value) => this.demoMode.maskValue(value),
+      {
+        ticker: row.analysisTicker,
+        market: row.analysisMarket,
+        currency: row.analysisCurrency,
+        usesUnderlying: row.usesUnderlyingSecurity,
+      },
+    );
+  }
+
+  protected fibonacciTooltip(row: RsiScanResult): string {
+    const currency = row.usesUnderlyingSecurity ? ` ${row.analysisCurrency ?? 'USD'}` : '';
+    const source = row.usesUnderlyingSecurity
+      ? `\nUnderlying analysis: ${row.analysisTicker} (${row.analysisMarket ?? 'US'})`
+      : '';
+    return `38.2: $${row.fib38_2.toFixed(2)}${currency} · 50: $${row.fib50.toFixed(2)}${currency} · 61.8: $${row.fib61_8.toFixed(2)}${currency} · 78.6: $${row.fib78_6.toFixed(2)}${currency}${source}`;
+  }
+
+  protected priceStructureSortValue(structure: PriceStructureResult | null | undefined): number {
+    return priceStructureSortRank(structure);
+  }
+
+  private formatPriceStructureState(state: string): string {
+    return state
+      .split('_')
+      .map((part) => part.charAt(0) + part.slice(1).toLowerCase())
+      .join(' ');
+  }
+
   // ── Trend Shift (day-over-day RSI momentum) ────────────────────────────────
   protected trendShiftClass(trendShift: string): string {
-    if (trendShift.includes('Bull Turn') || trendShift.includes('Bear Turn')) return 'trend-bull';
-    if (trendShift.includes('Still Falling') || trendShift.includes('Still Rising'))
-      return 'trend-bear';
-    if (trendShift.includes('Stabilizing')) return 'trend-neutral';
+    const label = formatTrendShift(trendShift, '');
+    if (label.includes('Bull Turn') || label.includes('Bear Turn')) return 'trend-bull';
+    if (label.includes('Still Falling') || label.includes('Still Rising')) return 'trend-bear';
+    if (label.includes('Stabilizing')) return 'trend-neutral';
     return 'trend-waiting';
   }
 
   /** Display label combining TrendShift with Turn Strength suffix. */
   protected trendShiftDisplay(row: RsiScanResult): string {
-    const shift = row.trendShift;
+    const shift = formatTrendShift(row.trendShift, 'Waiting');
     const strength = row.turnStrength;
     if (!shift || shift === 'Waiting') return shift || 'Waiting';
     if (!strength || strength === 'Normal') return shift;
@@ -395,6 +448,7 @@ export class RsiScannerTableComponent {
                 : 'None',
         SMA200: r.sma200 ?? '',
         TrendSetup: dec.trendSetup,
+        'Price Structure': this.priceStructureLabel(r.priceStructure),
         StopLoss: r.dynamicStopLoss ?? '',
         StagedDate: '',
         LastEvaluatedDate: '',

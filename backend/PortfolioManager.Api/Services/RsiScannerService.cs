@@ -9,9 +9,9 @@ public interface IRsiScannerService
     /// Scans the default TSX watchlist plus any <paramref name="extraSymbols"/> from the
     /// user's portfolio and watchlist, returning oversold/overbought chains.
     /// </summary>
-    Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
+    Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
-    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default);
+    Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
 }
 
 public sealed class RsiScannerService : IRsiScannerService
@@ -20,6 +20,9 @@ public sealed class RsiScannerService : IRsiScannerService
     private readonly ILogger<RsiScannerService> _logger;
     private readonly IMarketDataProvider _marketData;
     private readonly IStagedSignalService _stagedSignals;
+    private readonly IChannelAnalysisService _channelAnalysis;
+    private readonly ITechnicalChannelPersistenceService _channelPersistence;
+    private readonly ISecurityAnalysisResolver _analysisResolver;
 
     private static readonly JsonSerializerOptions _json = new() { PropertyNameCaseInsensitive = true };
 
@@ -67,18 +70,21 @@ public sealed class RsiScannerService : IRsiScannerService
         ["CSU.TO"]     = "Constellation Software",     ["DSG.TO"]     = "Descartes Systems"
     };
 
-    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig, IStagedSignalService stagedSignals)
+    public RsiScannerService(HttpClient http, ILogger<RsiScannerService> logger, IMarketDataProvider marketData, ScannerRuntimeConfig runtimeConfig, IStagedSignalService stagedSignals, IChannelAnalysisService channelAnalysis, ITechnicalChannelPersistenceService channelPersistence, ISecurityAnalysisResolver analysisResolver)
     {
         _http = http;
         _logger = logger;
         _marketData = marketData;
         _runtimeConfig = runtimeConfig;
         _stagedSignals = stagedSignals;
+        _channelAnalysis = channelAnalysis;
+        _channelPersistence = channelPersistence;
+        _analysisResolver = analysisResolver;
     }
 
     private readonly ScannerRuntimeConfig _runtimeConfig;
 
-    public async Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
+    public async Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
     {
         // Merge the default TSX universe with user-provided portfolio/watchlist symbols.
         var symbolsToScan = TsxWatchlist
@@ -94,7 +100,13 @@ public sealed class RsiScannerService : IRsiScannerService
         {
             _logger.LogInformation("Starting live TSX scan via Yahoo Finance ({Count} symbols, {Extra} from portfolio/watchlist). Oversold<{OS} Overbought>{OB} Mode={Mode}",
                 symbolsToScan.Length, symbolsToScan.Length - TsxWatchlist.Length, oversoldThreshold, overboughtThreshold, logicMode);
-            return await RunLiveScanAsync(symbolsToScan, oversoldThreshold, overboughtThreshold, logicMode, ct);
+            var resolved = await ResolveSymbolsAsync(symbolsToScan, userId, ct);
+            return await RunLiveScanAsync(
+                resolved.Where(symbol => symbol.ResolutionStatus != UnderlyingResolutionStatus.NeedsUserInput).ToList(),
+                oversoldThreshold,
+                overboughtThreshold,
+                logicMode,
+                ct);
         }
         catch (Exception ex)
         {
@@ -105,7 +117,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
     // ── Live scan ─────────────────────────────────────────────────────────────
     public async Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
-        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", CancellationToken ct = default)
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
     {
         var results = new List<RsiScanResult>();
         var distinct = symbols
@@ -114,18 +126,30 @@ public sealed class RsiScannerService : IRsiScannerService
             .Distinct()
             .ToArray();
 
-        // Batch of 3 with polite delay — same strategy as the main scan
-        var batches = distinct
-            .Select((sym, i) => new { sym, i })
+        var resolved = await ResolveSymbolsAsync(distinct, userId, ct);
+        var analysisGroups = resolved
+            .Where(symbol => symbol.ResolutionStatus != UnderlyingResolutionStatus.NeedsUserInput)
+            .GroupBy(symbol => symbol.AnalysisTicker, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.ToList())
+            .ToList();
+
+        // Batch of 3 with polite delay — same strategy as the main scan.
+        var batches = analysisGroups
+            .Select((symbols, i) => new { symbols, i })
             .GroupBy(x => x.i / 3)
-            .Select(g => g.Select(x => x.sym).ToArray());
+            .Select(g => g.Select(x => x.symbols).ToArray());
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, logicMode, ct)).ToArray();
+            var tasks = batch.Select(async symbols => new
+            {
+                Symbols = symbols,
+                Result = await AnalyzeSymbolAsync(symbols[0].AnalysisTicker, oversoldThreshold, overboughtThreshold, logicMode, ct),
+            }).ToArray();
             var batchResults = await Task.WhenAll(tasks);
-            results.AddRange(batchResults.Where(r => r is not null)!);
-            if (distinct.Length > 3) await Task.Delay(1500, ct);
+            foreach (var scanned in batchResults.Where(item => item.Result is not null))
+                results.AddRange(scanned.Symbols.Select(symbol => CopyForTradingTicker(scanned.Result!, symbol)));
+            if (analysisGroups.Count > 3) await Task.Delay(1500, ct);
         }
 
         await EnrichWithQuoteDataAsync(results, ct);
@@ -145,17 +169,20 @@ public sealed class RsiScannerService : IRsiScannerService
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
     }
 
-    private async Task<ScannerResponse> RunLiveScanAsync(string[] symbolsToScan, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
+    private async Task<ScannerResponse> RunLiveScanAsync(IReadOnlyList<ResolvedSecurityAnalysis> resolvedSymbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         // Load active staged signals so we keep tracking them even if RSI has recovered
         var activeStagedMap = await _stagedSignals.LoadActiveStagedSymbolsAsync(ct);
 
         // Merge default universe + user symbols + active staged symbols
-        var allSymbols = symbolsToScan
-            .Concat(activeStagedMap.Keys)
-            .Select(s => s.Trim().ToUpperInvariant())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+        var stagedSymbols = await ResolveSymbolsAsync(activeStagedMap.Keys, null, ct);
+        var allSymbols = resolvedSymbols.Concat(stagedSymbols)
+            .GroupBy(symbol => symbol.AnalysisTicker, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group
+                .GroupBy(symbol => symbol.TradingTicker, StringComparer.OrdinalIgnoreCase)
+                .Select(symbols => symbols.First())
+                .ToList())
+            .ToList();
 
         var oversold  = new List<RsiScanResult>();
         var overbought = new List<RsiScanResult>();
@@ -163,27 +190,33 @@ public sealed class RsiScannerService : IRsiScannerService
         // Yahoo Finance has no hard rate limit; ~2 req/s is courteous.
         // 3 symbols/batch with 1.5s delay → 50 symbols in ~25s.
         var batches = allSymbols
-            .Select((sym, i) => new { sym, i })
+            .Select((symbols, i) => new { symbols, i })
             .GroupBy(x => x.i / 3)
-            .Select(g => g.Select(x => x.sym).ToArray());
+            .Select(g => g.Select(x => x.symbols).ToArray());
 
         foreach (var batch in batches)
         {
-            var tasks = batch.Select(sym => AnalyzeSymbolAsync(sym, oversoldThreshold, overboughtThreshold, logicMode, ct)).ToArray();
-            var results = await Task.WhenAll(tasks);
-            foreach (var r in results.Where(r => r is not null))
+            var tasks = batch.Select(async symbols => new
             {
-                if (r!.ScanType == ScanType.Oversold) oversold.Add(r);
-                else if (r.ScanType == ScanType.Overbought) overbought.Add(r);
-                else if (activeStagedMap.TryGetValue(r.Symbol, out var stagedType))
+                Symbols = symbols,
+                Result = await AnalyzeSymbolAsync(symbols[0].AnalysisTicker, oversoldThreshold, overboughtThreshold, logicMode, ct),
+            }).ToArray();
+            var results = await Task.WhenAll(tasks);
+            foreach (var scanned in results.Where(item => item.Result is not null))
+            {
+                foreach (var r in scanned.Symbols.Select(symbol => CopyForTradingTicker(scanned.Result!, symbol)))
                 {
-                    // RSI recovered but setup is still active — keep in the appropriate chain
-                    r.ScanType = stagedType;
-                    r.IsTracked = true;
-                    if (stagedType == ScanType.Oversold) oversold.Add(r);
-                    else if (stagedType == ScanType.Overbought) overbought.Add(r);
+                    if (r.ScanType == ScanType.Oversold) oversold.Add(r);
+                    else if (r.ScanType == ScanType.Overbought) overbought.Add(r);
+                    else if (activeStagedMap.TryGetValue(r.Symbol, out var stagedType))
+                    {
+                        // RSI recovered but setup is still active — keep in the appropriate chain.
+                        r.ScanType = stagedType;
+                        r.IsTracked = true;
+                        if (stagedType == ScanType.Oversold) oversold.Add(r);
+                        else if (stagedType == ScanType.Overbought) overbought.Add(r);
+                    }
                 }
-                // Neutral results with no staged signal are not shown
             }
             await Task.Delay(1500, ct);
         }
@@ -205,6 +238,15 @@ public sealed class RsiScannerService : IRsiScannerService
             _logger.LogWarning(ex, "[StagedSignals] UpsertAndEnrichAsync failed — continuing without staged enrichment");
         }
 
+        try
+        {
+            await _channelPersistence.UpsertAsync(allResults, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Channels] Persistence failed; continuing with scan response");
+        }
+
         // Enrich with analyst targets and 52-week range in a single batch call
         await EnrichWithQuoteDataAsync(allResults, ct);
 
@@ -223,13 +265,17 @@ public sealed class RsiScannerService : IRsiScannerService
     private async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
     {
         if (results.Count == 0) return;
-        var symbols = results.Select(r => r.Symbol).Distinct().ToList();
+        var symbols = results
+            .Select(r => string.IsNullOrWhiteSpace(r.AnalysisTicker) ? r.Symbol : r.AnalysisTicker)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
         try
         {
             var quotes = await _marketData.GetBatchQuotesAsync(symbols, ct);
             foreach (var r in results)
             {
-                if (!quotes.TryGetValue(r.Symbol, out var q)) continue;
+                var analysisTicker = string.IsNullOrWhiteSpace(r.AnalysisTicker) ? r.Symbol : r.AnalysisTicker;
+                if (!quotes.TryGetValue(analysisTicker, out var q)) continue;
                 r.Week52High = q.Week52High;
                 r.Week52Low  = q.Week52Low;
                 if (q.TargetMeanPrice > 0 && r.CurrentPrice > 0)
@@ -252,10 +298,11 @@ public sealed class RsiScannerService : IRsiScannerService
             try
             {
                 var targets = await _marketData.GetAnalystTargetsAsync(
-                    missingTarget.Select(r => r.Symbol), ct);
+                    missingTarget.Select(r => string.IsNullOrWhiteSpace(r.AnalysisTicker) ? r.Symbol : r.AnalysisTicker), ct);
                 foreach (var r in missingTarget)
                 {
-                    if (targets.TryGetValue(r.Symbol, out var tp) && tp > 0 && r.CurrentPrice > 0)
+                    var analysisTicker = string.IsNullOrWhiteSpace(r.AnalysisTicker) ? r.Symbol : r.AnalysisTicker;
+                    if (targets.TryGetValue(analysisTicker, out var tp) && tp > 0 && r.CurrentPrice > 0)
                     {
                         r.AnalystTargetPrice  = Math.Round(tp, 2);
                         r.AnalystTargetUpside = Math.Round((tp - r.CurrentPrice) / r.CurrentPrice * 100m, 1);
@@ -267,6 +314,29 @@ public sealed class RsiScannerService : IRsiScannerService
                 _logger.LogWarning(ex, "EnrichWithQuoteDataAsync (quoteSummary fallback) failed");
             }
         }
+    }
+
+    private static RsiScanResult CopyForTradingTicker(RsiScanResult source, ResolvedSecurityAnalysis resolved)
+    {
+        var copy = source.Copy();
+        copy.Symbol = resolved.TradingTicker;
+        copy.AnalysisTicker = resolved.AnalysisTicker;
+        copy.AnalysisMarket = resolved.AnalysisMarket;
+        copy.AnalysisCurrency = resolved.AnalysisCurrency;
+        copy.UsesUnderlyingSecurity = resolved.UsesUnderlyingSecurity;
+        copy.PriceStructure = copy.PriceStructure with { Symbol = resolved.TradingTicker };
+        return copy;
+    }
+
+    private async Task<IReadOnlyList<ResolvedSecurityAnalysis>> ResolveSymbolsAsync(
+        IEnumerable<string> symbols,
+        string? userId,
+        CancellationToken ct)
+    {
+        var resolved = new List<ResolvedSecurityAnalysis>();
+        foreach (var symbol in symbols)
+            resolved.Add(await _analysisResolver.ResolveAsync(symbol, userId, ct));
+        return resolved;
     }
 
     /// <summary>Sort: Confirmed first, then by RSI (ascending for oversold, descending for overbought).</summary>
@@ -319,6 +389,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
             var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
             if (qd is null) return null;
+            var timestamps = chartResult.Timestamp ?? [];
 
             // Filter out null slots (non-trading days Yahoo sometimes returns as null)
             var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
@@ -357,6 +428,14 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── ATR (14-day, Wilder's) — needed for EOD Confirm Condition 4 ─
             decimal dailyAtr   = CalculateAtr(highs, lows, closes, 14);
+
+            var candleCount = Math.Min(timestamps.Count, Math.Min(opens.Count, Math.Min(highs.Count, Math.Min(lows.Count, closes.Count))));
+            var candles = Enumerable.Range(0, candleCount)
+                .Select(i => new ChannelCandle(
+                    DateTimeOffset.FromUnixTimeSeconds(timestamps[i]).UtcDateTime.Date,
+                    opens[i], highs[i], lows[i], closes[i]))
+                .ToList();
+            var channel = _channelAnalysis.Analyze(candles, dailyAtr, todayClose);
 
             // ── 9-day EMA of price — EOD Confirm Condition 2 + Momentum Shift
             decimal ema9Price  = CalculateEma(closes, 9);
@@ -467,6 +546,16 @@ public sealed class RsiScannerService : IRsiScannerService
 
             // ── Fibonacci Retracement V1 ─────────────────────────────────────────
             var fib = CalculateFibonacci(closes, highs, lows, todayClose, prevClose);
+            var sharedHistory = candles.Select((candle, index) => new MarketDailyClose(
+                DateOnly.FromDateTime(candle.Date),
+                candle.Close,
+                candle.Open,
+                candle.High,
+                candle.Low,
+                index < volumes.Count ? volumes[index] : 0L)).ToList();
+            var technicalSnapshot = TechnicalSnapshotService.FromHistory(symbol, sharedHistory);
+            var technicalAnalysis = technicalSnapshot.Analysis;
+            var priceStructure = technicalSnapshot.PriceStructure;
 
             return new RsiScanResult
             {
@@ -483,6 +572,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 TriggerDetails = trigger,
                 Volume = todayVol,
                 VolumeRatio = Math.Round(volRatio, 2),
+                TradingDate = DateOnly.FromDateTime(candles[^1].Date),
                 VolumeProjection = Math.Round(ProjectIntradayVolume(todayVol), 0),
                 StochasticK = Math.Round(stochK, 1),
                 StochasticD = Math.Round(stochD, 1),
@@ -525,6 +615,25 @@ public sealed class RsiScannerService : IRsiScannerService
                 FibZone = fib.FibZone,
                 FibStatus = fib.FibStatus,
                 DistanceToFib61_8Pct = fib.DistanceToFib61_8Pct,
+                ChannelDirection = channel.Direction.ToString(),
+                ChannelSlope = channel.Slope,
+                LowerRailToday = channel.LowerRailCurrent,
+                UpperRailToday = channel.UpperRailCurrent,
+                ChannelQuality = channel.Quality,
+                PriorConfirmedLowerTouches = channel.ConfirmedLowerTouches,
+                LastLowerTouchDate = channel.LastLowerTouchDate,
+                DistanceToLowerRailPercent = channel.DistanceToLowerRailPercent,
+                DistanceToLowerRailATR = channel.DistanceToLowerRailAtr,
+                ChannelState = channel.State.ToString(),
+                NearestOpenGapAbove = channel.NearestOpenGapAbove,
+                NearestOpenGapBelow = channel.NearestOpenGapBelow,
+                DistanceToGapAbovePercent = channel.DistanceToGapAbovePercent,
+                DistanceToGapBelowPercent = channel.DistanceToGapBelowPercent,
+                ChannelTouchDetails = channel.TouchDetails.ToList(),
+                PriceStructure = priceStructure with { Symbol = symbol },
+                MaStructure = technicalAnalysis.MaStructure,
+                MaCrossState = technicalAnalysis.LastCross,
+                MomentumState = technicalAnalysis.MomentumState,
             };
         }
         catch (Exception ex)

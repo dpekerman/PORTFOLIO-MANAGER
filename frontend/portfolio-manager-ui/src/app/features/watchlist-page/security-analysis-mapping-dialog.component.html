@@ -1,0 +1,43 @@
+<h2 mat-dialog-title>Underlying Analysis Security</h2>
+<mat-dialog-content>
+  <p class="trading-symbol">
+    Trading ticker: <strong>{{ data.tradingTicker }}</strong>
+  </p>
+  @if (mapping()?.resolutionStatus === 'NeedsUserInput') {
+    <p class="status-message">
+      A CAD-hedged/CDR security was detected, but its U.S. underlying requires confirmation.
+    </p>
+  }
+  <form [formGroup]="form">
+    <mat-form-field appearance="outline">
+      <mat-label>Underlying U.S. ticker</mat-label>
+      <input matInput formControlName="underlyingTicker" autocomplete="off" />
+    </mat-form-field>
+    <mat-checkbox formControlName="useUnderlyingForAnalysis"
+      >Use underlying for technical analysis</mat-checkbox
+    >
+  </form>
+  @if (validationMessage) {
+    <p class="validation-message">{{ validationMessage }}</p>
+  }
+  @if (error()) {
+    <p class="error-message">{{ error() }}</p>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  @if (loading()) {
+    <mat-progress-spinner diameter="20" mode="indeterminate" />
+  }
+  @if (mapping()?.mappingSource === 'USER') {
+    <button mat-button (click)="remove()" [disabled]="loading()">Remove mapping</button>
+  }
+  <button mat-button (click)="cancel()" [disabled]="loading()">Cancel</button>
+  <button
+    mat-stroked-button
+    (click)="validate()"
+    [disabled]="form.controls.underlyingTicker.invalid || loading()"
+  >
+    Validate
+  </button>
+  <button mat-flat-button (click)="save()" [disabled]="form.invalid || loading()">Save</button>
+</mat-dialog-actions>

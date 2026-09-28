@@ -2,6 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace PortfolioManager.Api.Services;
 
+public sealed record MarketDailyClose(
+    DateOnly Date,
+    decimal Close,
+    decimal Open = 0m,
+    decimal High = 0m,
+    decimal Low = 0m,
+    long Volume = 0L);
+
 // ── Yahoo Finance /v8/finance/chart response ────────────────────────────────
 public sealed class YahooChartResponse
 {

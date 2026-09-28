@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.EntityFrameworkCore;
+using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
@@ -121,6 +123,26 @@ public sealed class ValueScreenerSchedulerService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "[ValueScreenerScheduler] Watchlist screener failed.");
+            }
+        }
+
+        if (cfg.LastPortfolioRunAt.HasValue && cfg.LastWatchlistRunAt.HasValue &&
+            TimeZoneInfo.ConvertTimeFromUtc(cfg.LastPortfolioRunAt.Value, tz).Date == etToday &&
+            TimeZoneInfo.ConvertTimeFromUtc(cfg.LastWatchlistRunAt.Value, tz).Date == etToday)
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var tradingDate = etToday.ToString("yyyy-MM-dd");
+            var run = await db.AutomationRunLogs
+                .Where(r => r.TradingDate == tradingDate && r.TriggerType == "Scheduled")
+                .OrderByDescending(r => r.ActualStartUtc)
+                .FirstOrDefaultAsync(ct);
+            if (run is not null)
+            {
+                run.ValueScreenerStatus = AutomationStatuses.Succeeded;
+                run.ValueScreenerLastRunAtUtc = cfg.LastPortfolioRunAt > cfg.LastWatchlistRunAt
+                    ? cfg.LastPortfolioRunAt
+                    : cfg.LastWatchlistRunAt;
+                await db.SaveChangesAsync(ct);
             }
         }
     }

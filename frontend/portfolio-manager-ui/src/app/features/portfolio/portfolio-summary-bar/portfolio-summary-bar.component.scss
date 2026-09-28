@@ -64,9 +64,15 @@
   border-radius: 6px;
   padding: 2px 6px;
   transition: background 0.2s;
-  &.beta-good  { border-left: 2px solid #00c853; }
-  &.beta-warn  { border-left: 2px solid #ffa726; }
-  &.beta-risk  { border-left: 2px solid #ef5350; }
+  &.beta-good {
+    border-left: 2px solid #00c853;
+  }
+  &.beta-warn {
+    border-left: 2px solid #ffa726;
+  }
+  &.beta-risk {
+    border-left: 2px solid #ef5350;
+  }
 }
 
 .beta-status {
@@ -76,4 +82,23 @@
   color: var(--text-muted);
   text-transform: uppercase;
   margin-top: 1px;
+}
+
+.breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 3px;
+}
+
+.breakdown-row {
+  font-size: 0.67rem;
+  font-family: 'Roboto Mono', monospace;
+  color: var(--text-muted);
+  &.positive {
+    color: #00c853;
+  }
+  &.negative {
+    color: #ff5252;
+  }
 }
