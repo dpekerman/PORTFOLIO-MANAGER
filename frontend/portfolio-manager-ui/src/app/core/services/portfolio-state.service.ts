@@ -5,6 +5,7 @@ import { filter, take } from 'rxjs';
 import {
   AddManualPositionRequest,
   AddPortfolioItemRequest,
+  PortfolioItem,
   PortfolioSummary,
   UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
@@ -12,6 +13,7 @@ import { AuthStateService } from './auth-state.service';
 import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
+import { TradeCashLinkService } from './trade-cash-link.service';
 
 @Injectable({ providedIn: 'root' })
 export class PortfolioStateService {
@@ -20,6 +22,7 @@ export class PortfolioStateService {
   private readonly demoMode = inject(DemoModeService);
   private readonly authState = inject(AuthStateService);
   private readonly dashboardState = inject(DashboardStateService);
+  private readonly tradeCashLink = inject(TradeCashLinkService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -154,14 +157,15 @@ export class PortfolioStateService {
     this.snackBar.open(`Removed ${toDelete.length} position(s)`, 'Close', { duration: 3000 });
   }
 
-  addItem(request: AddPortfolioItemRequest): Promise<void> {
+  /** Resolves with the created row; callers decide whether to follow up (bulk import must not prompt per row). */
+  addItem(request: AddPortfolioItemRequest): Promise<PortfolioItem> {
     return new Promise((resolve, reject) => {
       this.api.addItem(request).subscribe({
         next: (newItem) => {
           // Append immediately — quote populates on next refresh
           this._summaries.update((items) => [...items, { item: newItem, quote: null }]);
           this.snackBar.open(`${newItem.symbol} added to portfolio`, 'Close', { duration: 3000 });
-          resolve();
+          resolve(newItem);
         },
         error: (err) => {
           this.snackBar.open('Failed to add stock', 'Close', { duration: 4000 });
@@ -197,12 +201,14 @@ export class PortfolioStateService {
           return c;
         });
         this.snackBar.open(`${symbol} removed from portfolio`, 'Close', { duration: 3000 });
+        void this.tradeCashLink.offerRemoveForStock(id, symbol);
       },
       error: () => this.snackBar.open('Failed to remove stock', 'Close', { duration: 4000 }),
     });
   }
 
   updateItem(id: number, request: UpdatePortfolioItemRequest): void {
+    const prev = this._summaries().find((s) => s.item.id === id)?.item ?? null;
     this.api.updateItem(id, request).subscribe({
       next: (response) => {
         const updated = response.updated;
@@ -242,6 +248,8 @@ export class PortfolioStateService {
           'Close',
           { duration: response.newOpenItem ? 5000 : 3000 },
         );
+        if (response.newOpenItem) this.tradeCashLink.onPartialClose();
+        if (prev) void this.tradeCashLink.offerForStock(prev, updated);
       },
       error: () => this.snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
     });

@@ -1,0 +1,47 @@
+<section class="unlinked-panel">
+  <div class="panel-head">
+    <div class="panel-title">
+      <mat-icon>link_off</mat-icon>
+      <span>Trades without a cash entry ({{ cashState.unlinkedTrades().length }})</span>
+    </div>
+    <button mat-icon-button matTooltip="Re-check" (click)="reload()">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+  <p class="panel-hint">
+    Each trade below changed Stocks or Options but not Cash, so Portfolio Value is overstated or
+    understated by that amount. Use "Link cash" to record it.
+  </p>
+
+  @if (cashState.unlinkedLoading() && cashState.unlinkedTrades().length === 0) {
+    <div class="panel-empty">Checking…</div>
+  } @else if (cashState.unlinkedTrades().length === 0) {
+    <div class="panel-empty ok">
+      <mat-icon>check_circle</mat-icon> Every trade since the ledger start has a cash entry.
+    </div>
+  } @else {
+    <ul class="leg-list">
+      @for (t of cashState.unlinkedTrades(); track t.sourceType + t.sourceItemId) {
+        <li class="leg">
+          <div class="leg-main">
+            <span class="leg-label">{{ t.label }}</span>
+            <span class="leg-meta">
+              {{ t.quantity }} · {{ t.accountType ?? '—' }} ·
+              {{ t.tradeDate | date: 'MMM d, yyyy' }}
+            </span>
+          </div>
+          <div class="leg-amount" [class.negative]="isBuy(t)">
+            @if (t.amount === null) {
+              <span class="missing">price missing</span>
+            } @else {
+              {{ isBuy(t) ? '−' : '+' }}{{ dv(t.amount) | currency: 'CAD' }}
+            }
+          </div>
+          @if (authState.canWrite()) {
+            <button mat-stroked-button (click)="link(t)">Link cash</button>
+          }
+        </li>
+      }
+    </ul>
+  }
+</section>

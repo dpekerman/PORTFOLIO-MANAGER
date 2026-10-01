@@ -1,0 +1,129 @@
+<h2 mat-dialog-title class="lc-title">
+  <mat-icon>link</mat-icon>
+  {{ isUpdate ? 'Update linked cash' : 'Link cash to this trade' }}
+</h2>
+
+<mat-dialog-content>
+  <div
+    class="lc-summary"
+    [class.lc-summary--out]="data.direction === 'out'"
+    [class.lc-summary--in]="data.direction === 'in'"
+  >
+    <div class="lc-summary-main">
+      <strong>{{ data.heading }}</strong>
+      <span class="lc-summary-detail">{{ data.detail }}</span>
+    </div>
+    <span class="lc-flow-chip">
+      <mat-icon>{{ data.direction === 'out' ? 'south_east' : 'north_east' }}</mat-icon>
+      {{ flowLabel }}
+    </span>
+  </div>
+
+  @if (isUpdate && data.existing; as existing) {
+    <p class="lc-note">
+      The linked entry currently records
+      <strong [class.demo-redact]="blurAmounts()">{{ dv(existing.amount) | currency }}</strong> on
+      {{ day(existing.transactionDate) }} ({{ existing.accountType ?? 'no account' }}). It no longer
+      matches this trade.
+    </p>
+  } @else {
+    <p class="lc-note">
+      Record the cash side of this trade so Cash and Portfolio Value stay correct. Saved as
+      <strong>{{ typeLabel }}</strong
+      >.
+    </p>
+  }
+
+  @if (data.duplicate; as dup) {
+    <div class="lc-banner lc-banner--warn" role="alert">
+      <mat-icon>content_copy</mat-icon>
+      <span>
+        A similar manual entry already exists ({{ dup.cashFlowType }}
+        <span [class.demo-redact]="blurAmounts()">{{ dv(dup.amount) | currency }}</span> on
+        {{ day(dup.transactionDate) }}, {{ dup.accountType ?? 'no account' }}). Adding another would
+        count this trade's cash twice — choose <strong>Skip</strong> unless that entry is for
+        something else.
+      </span>
+    </div>
+  }
+
+  <form [formGroup]="form" class="lc-form">
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Amount</mat-label>
+      <span matTextPrefix>$&nbsp;</span>
+      <input matInput type="number" formControlName="amount" step="0.01" min="0.01" />
+      <mat-hint>Includes any commission or fees you want reflected</mat-hint>
+      @if (form.controls.amount.hasError('required')) {
+        <mat-error>Enter the trade amount</mat-error>
+      }
+      @if (form.controls.amount.hasError('min')) {
+        <mat-error>Amount must be greater than 0</mat-error>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Account</mat-label>
+      <mat-select formControlName="accountType">
+        <mat-option [value]="null">— None —</mat-option>
+        @for (acct of accountTypes; track acct) {
+          <mat-option [value]="acct">{{ acct }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Cash date</mat-label>
+      <input matInput [matDatepicker]="cashDatePicker" formControlName="transactionDate" />
+      <mat-datepicker-toggle matSuffix [for]="cashDatePicker" />
+      <mat-datepicker #cashDatePicker />
+      @if (showBackdateHint()) {
+        <mat-hint>Trade date is {{ data.tradeDate }}</mat-hint>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>Description</mat-label>
+      <input matInput formControlName="description" autocomplete="off" />
+    </mat-form-field>
+  </form>
+
+  @if (showBackdateHint()) {
+    <p class="lc-hint">
+      Dating cash earlier than today rewrites past snapshots' cash but not their stock values, which
+      shows up as a dip in history. Today's date is recommended.
+    </p>
+  }
+
+  <div class="lc-balance" [class.lc-balance--negative]="goesNegative()">
+    <span class="lc-balance-label">{{ balance().account }} cash</span>
+    <span class="lc-balance-values" [class.demo-redact]="blurAmounts()">
+      {{ dv(balance().current) | currency }}
+      <mat-icon>arrow_forward</mat-icon>
+      <strong>{{ dv(balance().after) | currency }}</strong>
+    </span>
+  </div>
+
+  @if (goesNegative()) {
+    <div class="lc-banner lc-banner--warn" role="alert">
+      <mat-icon>warning</mat-icon>
+      <span>
+        This leaves {{ balance().account }} cash negative. It is allowed (margin or a deposit not
+        yet recorded), but check that nothing is missing.
+      </span>
+    </div>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" (click)="skip()">Skip</button>
+  <button
+    mat-flat-button
+    type="button"
+    [color]="data.duplicate ? 'warn' : 'primary'"
+    (click)="submit()"
+    [disabled]="form.invalid"
+  >
+    <mat-icon>{{ isUpdate ? 'sync' : 'add_link' }}</mat-icon>
+    {{ isUpdate ? 'Update cash entry' : data.duplicate ? 'Add anyway' : 'Add cash entry' }}
+  </button>
+</mat-dialog-actions>

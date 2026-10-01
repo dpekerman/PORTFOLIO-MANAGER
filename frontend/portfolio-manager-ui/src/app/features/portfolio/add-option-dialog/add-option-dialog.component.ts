@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { ConfigService } from '../../../core/services/config.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
+import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 
 @Component({
@@ -36,6 +37,7 @@ import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
 export class AddOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly optionState = inject(OptionStateService);
+  private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddOptionDialogComponent>);
   private readonly configService = inject(ConfigService);
 
@@ -75,7 +77,7 @@ export class AddOptionDialogComponent {
         d instanceof Date
           ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
           : (d as string);
-      await this.optionState.addItem({
+      const created = await this.optionState.addItem({
         underlyingTicker: this.form.value.underlyingTicker!.toUpperCase(),
         positionType: this.form.value.positionType!,
         expirationDate,
@@ -91,6 +93,7 @@ export class AddOptionDialogComponent {
         decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
+      void this.tradeCashLink.offerForOption(null, created);
     } finally {
       this.saving.set(false);
     }

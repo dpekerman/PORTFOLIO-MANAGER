@@ -59,13 +59,12 @@ export class PortfolioSummaryBarComponent {
   protected readonly previousDayEntry = signal<PortfolioValueHistoryDto | null>(null);
   protected readonly oneDayChangeLoading = signal(true);
 
-  /** Matches the Stocks header and the sum of the grid's Day $ values. */
-  protected readonly todayStocksChange = computed<number>(() =>
-    this.stockState.summaries().reduce((sum, summary) => {
-      if (summary.item.isManual || summary.item.transactionType === 'CLOSE') return sum;
-      return sum + summary.item.shares * (summary.quote?.change ?? 0);
-    }, 0),
-  );
+  /** Value delta vs the previous close (not Σ shares×Day $) so a same-day buy/sell offsets its cash leg. */
+  protected readonly todayStocksChange = computed<number | null>(() => {
+    const prev = this.previousDayEntry();
+    if (prev === null) return null;
+    return this.stockState.totalValue() - prev.stocksValue;
+  });
 
   protected readonly todayCashChange = computed<number | null>(() => {
     const prev = this.previousDayEntry();
@@ -83,8 +82,9 @@ export class PortfolioSummaryBarComponent {
   protected readonly oneDayChange = computed<number | null>(() => {
     const cashChange = this.todayCashChange();
     const optionsChange = this.todayOptionsChange();
-    if (cashChange === null || optionsChange === null) return null;
-    return this.todayStocksChange() + cashChange + optionsChange;
+    const stocksChange = this.todayStocksChange();
+    if (cashChange === null || optionsChange === null || stocksChange === null) return null;
+    return stocksChange + cashChange + optionsChange;
   });
 
   constructor() {
@@ -95,7 +95,8 @@ export class PortfolioSummaryBarComponent {
     this.api.getPortfolioValueHistory(2).subscribe({
       next: (history) => {
         if (history.length > 0) {
-          const todayDate = new Date().toISOString().split('T')[0];
+          // Snapshots are keyed by ET trading date — a UTC date flips to "tomorrow" at 7–8 PM ET.
+          const todayDate = this.easternDate(new Date());
           const isFirstRecordToday = history[0].recordedDate === todayDate;
 
           if (isFirstRecordToday && history.length >= 2) {
@@ -103,12 +104,14 @@ export class PortfolioSummaryBarComponent {
             this.oneDayChangeLoading.set(false);
           } else if (!isFirstRecordToday) {
             // Check whether the most recent record is from yesterday or older
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
+            let yesterday = this.easternDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
             // Skip back over weekends to find the last trading day
-            while (yesterday.getDay() === 0 || yesterday.getDay() === 6)
-              yesterday.setDate(yesterday.getDate() - 1);
-            const lastTradingDay = yesterday.toISOString().split('T')[0];
+            while (this.isWeekend(yesterday)) {
+              yesterday = this.easternDate(
+                new Date(new Date(`${yesterday}T12:00:00Z`).getTime() - 24 * 60 * 60 * 1000),
+              );
+            }
+            const lastTradingDay = yesterday;
 
             if (history[0].recordedDate < lastTradingDay) {
               // Gap detected — attempt silent backfill then reload
@@ -133,5 +136,15 @@ export class PortfolioSummaryBarComponent {
   private setPreviousDay(history: PortfolioValueHistoryDto[]): void {
     this.previousDayEntry.set(history[0]);
     this.oneDayChangeLoading.set(false);
+  }
+
+  /** yyyy-MM-dd calendar date in America/New_York. */
+  private easternDate(d: Date): string {
+    return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  }
+
+  private isWeekend(isoDate: string): boolean {
+    const day = new Date(`${isoDate}T12:00:00Z`).getUTCDay();
+    return day === 0 || day === 6;
   }
 }

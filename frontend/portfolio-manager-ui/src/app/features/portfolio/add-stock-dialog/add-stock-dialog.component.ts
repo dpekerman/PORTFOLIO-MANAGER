@@ -16,6 +16,7 @@ import { SymbolSearchResult } from '../../../core/models/portfolio.models';
 import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 
 export const ACCOUNT_TYPES = [
   'TFSA_L_RBC',
@@ -50,6 +51,7 @@ export class AddStockDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
   private readonly state = inject(PortfolioStateService);
+  private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
   private readonly configService = inject(ConfigService);
 
@@ -136,7 +138,7 @@ export class AddStockDialogComponent {
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
-      await this.state.addItem({
+      const created = await this.state.addItem({
         symbol: this.form.value.symbol!,
         companyName: this.form.value.companyName!,
         shares: this.form.value.shares!,
@@ -150,6 +152,7 @@ export class AddStockDialogComponent {
         decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
+      void this.tradeCashLink.offerForStock(null, created);
     } finally {
       this.saving.set(false);
     }

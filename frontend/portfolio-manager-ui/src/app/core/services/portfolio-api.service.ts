@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import {
   AddCashItemRequest,
+  AddLinkedCashRequest,
   AddManualPositionRequest,
   AddOptionItemRequest,
   AddPortfolioItemRequest,
@@ -34,6 +35,8 @@ import {
   SinglePositionLimit,
   StockQuote,
   SymbolSearchResult,
+  TradeLinkSourceType,
+  UnlinkedTrade,
   UpdateCashItemRequest,
   UpdateOptionItemRequest,
   UpdatePortfolioItemRequest,
@@ -429,6 +432,26 @@ export class PortfolioApiService {
 
   deleteCashItem(id: number): Observable<void> {
     return this.http.delete<void>(`${this.base}/cash/${id}`);
+  }
+
+  /** Creates the cash row for one trade leg (server derives type + sign from sourceType). */
+  addLinkedCash(request: AddLinkedCashRequest): Observable<CashItem> {
+    return this.http.post<CashItem>(`${this.base}/cash/link`, request);
+  }
+
+  /** Cash row linked to a trade leg; the API answers 204 (null body) when there is none. */
+  getLinkedCash(
+    sourceType: TradeLinkSourceType,
+    sourceItemId: number,
+  ): Observable<CashItem | null> {
+    return this.http
+      .get<CashItem | null>(`${this.base}/cash/link/${sourceType}/${sourceItemId}`)
+      .pipe(map((item) => item ?? null));
+  }
+
+  /** Trade legs since the ledger start that have no linked (or look-alike) cash row. */
+  getUnlinkedTrades(): Observable<UnlinkedTrade[]> {
+    return this.http.get<UnlinkedTrade[]>(`${this.base}/cash/unlinked-trades`);
   }
 
   /** The accounting boundary: dates before this use frozen legacy history; dates on/after it are

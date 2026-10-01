@@ -9,11 +9,13 @@ import {
   UpdateOptionItemRequest,
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
+import { TradeCashLinkService } from './trade-cash-link.service';
 
 @Injectable({ providedIn: 'root' })
 export class OptionStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly tradeCashLink = inject(TradeCashLinkService);
 
   private readonly _items = signal<OptionItem[]>([]);
   private readonly _technicalMap = signal<Map<string, OptionTechnicalData>>(new Map());
@@ -94,6 +96,7 @@ export class OptionStateService {
   }
 
   updateItem(id: number, request: UpdateOptionItemRequest): Promise<void> {
+    const prev = this._items().find((x) => x.id === id) ?? null;
     return new Promise((resolve, reject) => {
       this.api.updateOptionItem(id, request).subscribe({
         next: (updated) => {
@@ -101,6 +104,7 @@ export class OptionStateService {
           this.fetchTechnicalData(updated.underlyingTicker);
           this.snackBar.open('Option position updated', 'Dismiss', { duration: 3000 });
           resolve();
+          if (prev) void this.tradeCashLink.offerForOption(prev, updated);
         },
         error: (err) => {
           this.snackBar.open('Failed to update option position', 'Dismiss', { duration: 4000 });
@@ -111,10 +115,17 @@ export class OptionStateService {
   }
 
   deleteItem(id: number): void {
+    const removed = this._items().find((x) => x.id === id);
     this.api.deleteOptionItem(id).subscribe({
       next: () => {
         this._items.update((list) => list.filter((x) => x.id !== id));
         this.snackBar.open('Option position removed', 'Dismiss', { duration: 3000 });
+        if (removed) {
+          void this.tradeCashLink.offerRemoveForOption(
+            id,
+            `${removed.underlyingTicker} ${removed.positionType} $${removed.strike}`,
+          );
+        }
       },
       error: () => {
         this.snackBar.open('Failed to remove option position', 'Dismiss', { duration: 4000 });

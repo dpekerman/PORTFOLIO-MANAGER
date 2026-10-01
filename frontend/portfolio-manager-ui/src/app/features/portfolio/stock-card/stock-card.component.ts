@@ -91,6 +91,15 @@ export class StockCardComponent {
             sector: result.sector,
             industry: result.industry,
             overrideSector: result.overrideSector,
+            // The API overwrites every transaction field, so omitting these would null them out.
+            transactionType: result.transactionType,
+            accountType: result.accountType,
+            openDate: result.openDate,
+            closeDate: result.closeDate,
+            closingPrice: result.closingPrice,
+            decisionSource: result.decisionSource,
+            decisionSourceClosed: result.decisionSourceClosed,
+            holdingRole: result.holdingRole,
           });
         }
       });

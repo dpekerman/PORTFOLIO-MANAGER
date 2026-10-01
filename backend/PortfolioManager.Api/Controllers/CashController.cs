@@ -9,7 +9,7 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger) : ControllerBase
+public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger, IUnlinkedTradeService unlinkedTrades) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CashItemDto>>> GetAll(CancellationToken ct)
@@ -26,6 +26,11 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
         var date = await cashLedger.GetLedgerStartDateAsync(ct);
         return Ok(new { ledgerStartDate = date.ToString("yyyy-MM-dd") });
     }
+
+    /// <summary>Trade legs since the ledger start that have no linked (or look-alike) cash row.</summary>
+    [HttpGet("unlinked-trades")]
+    public async Task<ActionResult<IReadOnlyList<UnlinkedTradeDto>>> GetUnlinkedTrades(CancellationToken ct)
+        => Ok(await unlinkedTrades.GetUnlinkedAsync(ct));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CashItemDto>> GetById(int id, CancellationToken ct)
@@ -69,6 +74,36 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    /// <summary>Creates the cash row for one trade leg (buy = TradePurchase, sell = TradeProceeds), linked to the trade.
+    /// 400 when the leg is already linked, the trade is missing/manual, or the input is invalid.</summary>
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPost("link")]
+    public async Task<ActionResult<CashItemDto>> AddLinked([FromBody] AddLinkedCashRequest request, CancellationToken ct)
+    {
+        try
+        {
+            var item = await cashService.AddLinkedAsync(request, ct);
+            return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (DbUpdateException)
+        {
+            // Filtered unique index IX_CashItems_TradeLink — a concurrent request linked the same leg first.
+            return BadRequest("This trade already has a linked cash entry.");
+        }
+    }
+
+    /// <summary>The cash row linked to a trade leg; 204 when the leg has none.</summary>
+    [HttpGet("link/{sourceType}/{sourceItemId:int}")]
+    public async Task<ActionResult<CashItemDto>> GetLinked(string sourceType, int sourceItemId, CancellationToken ct)
+    {
+        var item = await cashService.GetLinkedAsync(sourceType, sourceItemId, ct);
+        return item is null ? NoContent() : Ok(item);
     }
 
     [Authorize(Roles = "Admin,Trader")]

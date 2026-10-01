@@ -57,7 +57,10 @@
           @if (isStale) {
             <span class="db-breakdown-stale">Click Refresh for breakdown ↑</span>
           } @else {
-            <div class="db-breakdown">
+            <div
+              class="db-breakdown"
+              title="Each line is its value change since the last close. A buy shows as Stocks up and Cash down; together they net to the real gain or loss."
+            >
               <div class="db-breakdown-row">
                 <span class="db-breakdown-label">Stocks</span>
                 <span [class]="signCls(data.summary.todayStocksChange)" class="db-breakdown-val">{{

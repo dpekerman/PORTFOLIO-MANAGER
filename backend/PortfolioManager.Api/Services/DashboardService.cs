@@ -101,11 +101,15 @@ public sealed class DashboardService(
         var hasTodayEntry = latest?.RecordedDate == etTodayStr;
         var summaryTotal = liveTotal;
         var yesterdayEntry = hasTodayEntry ? previous : latest;
-        // Matches the Portfolio Stocks header and the sum of its grid Day $ values.
-        var todayStocksChange = portfolio
-            .Where(s => !s.Item.IsManual
-                && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
-            .Sum(s => s.Item.Shares * (s.Quote?.Change ?? 0m));
+        // Value delta vs yesterday's close (not Σ shares×Quote.Change) so a same-day buy/sell lands in Stocks
+        // and offsets its cash leg; the headline then always equals liveTotal − yesterday's TotalValue.
+        // Without a baseline there is nothing to diff, so fall back to the price-move-only figure.
+        var todayStocksChange = yesterdayEntry is not null
+            ? liveStocksValue - yesterdayEntry.StocksValue
+            : portfolio
+                .Where(s => !s.Item.IsManual
+                    && !string.Equals(s.Item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Item.Shares * (s.Quote?.Change ?? 0m));
         var todayCashChange    = yesterdayEntry is not null ? liveCashValue     - yesterdayEntry.CashValue    : 0m;
         var todayOptionsChange = yesterdayEntry is not null ? liveOptionsValue  - yesterdayEntry.OptionsValue : 0m;
         // The headline is deliberately the sum of the displayed component movements.

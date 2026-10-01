@@ -671,7 +671,14 @@ export class PortfolioPageComponent {
       companyName: row.item.companyName,
       shares: row.item.shares,
       averageCostBasis: row.item.averageCostBasis,
+      // The API overwrites every transaction field, so omitting these would null them out.
+      transactionType: row.item.transactionType,
+      accountType: row.item.accountType,
+      openDate: row.item.openDate,
+      closeDate: row.item.closeDate,
+      closingPrice: row.item.closingPrice,
       decisionSource,
+      decisionSourceClosed: row.item.decisionSourceClosed,
     });
   }
 
@@ -1365,6 +1372,7 @@ export class PortfolioPageComponent {
       closeDate: analysis.item.closeDate,
       closingPrice: analysis.item.closingPrice,
       decisionSource,
+      decisionSourceClosed: analysis.item.decisionSourceClosed,
     });
   }
 
@@ -1385,6 +1393,8 @@ export class PortfolioPageComponent {
       openDate: analysis.item.openDate,
       closeDate: analysis.item.closeDate,
       closingPrice: analysis.item.closingPrice,
+      decisionSource: analysis.item.decisionSource,
+      decisionSourceClosed: analysis.item.decisionSourceClosed,
     });
   }
 

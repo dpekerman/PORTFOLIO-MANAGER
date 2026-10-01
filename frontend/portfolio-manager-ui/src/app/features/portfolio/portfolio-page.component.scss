@@ -493,6 +493,16 @@
   font-weight: 700;
 }
 
+.pg-link-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  vertical-align: middle;
+  color: var(--text-muted);
+  cursor: help;
+}
+
 .pg-company {
   font-size: 0.78rem;
   white-space: nowrap;

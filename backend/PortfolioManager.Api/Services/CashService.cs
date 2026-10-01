@@ -16,6 +16,14 @@ public interface ICashService
     /// <summary>"Adjust Balance": user types the desired new total; backend computes the delta vs the
     /// current ledger total and inserts one new row. Rejects a Type/delta direction mismatch (400).</summary>
     Task<CashItemDto> AdjustBalanceAsync(AdjustCashBalanceRequest request, CancellationToken ct = default);
+    /// <summary>Creates the TradePurchase/TradeProceeds row for one trade leg, tied to it via SourceType/SourceItemId.
+    /// Throws ArgumentException/InvalidOperationException for invalid input, a missing/manual source, or an already-linked leg.</summary>
+    Task<CashItemDto> AddLinkedAsync(AddLinkedCashRequest request, CancellationToken ct = default);
+    /// <summary>The cash row linked to a trade leg, or null when the leg has no linked cash row.</summary>
+    Task<CashItemDto?> GetLinkedAsync(string sourceType, int sourceItemId, CancellationToken ct = default);
+    /// <summary>After a partial close: moves the share of the purchase cash row that belongs to the remaining shares onto a new row
+    /// linked to the remainder position. Net cash and every historical balance are unchanged (both rows share one date).</summary>
+    Task SplitPurchaseLinkAsync(int closedItemId, int remainderItemId, decimal remainingShares, decimal totalShares, CancellationToken ct = default);
     Task<IReadOnlyList<CashBackupItem>> BackupAsync(CancellationToken ct = default);
     Task<int> RestoreAsync(IReadOnlyList<CashBackupItem> items, CancellationToken ct = default);
 }
@@ -178,6 +186,100 @@ public sealed class CashService(
         return ToDto(item);
     }
 
+    public async Task<CashItemDto> AddLinkedAsync(AddLinkedCashRequest request, CancellationToken ct = default)
+    {
+        if (!TradeLinkSourceTypes.IsKnown(request.SourceType))
+            throw new ArgumentException("SourceType must be one of PortfolioOpen, PortfolioClose, OptionOpen, OptionClose.", nameof(request));
+        if (request.Amount <= 0m)
+            throw new ArgumentException("Amount must be a positive magnitude.", nameof(request));
+
+        await EnsureSourceItemUsableAsync(request.SourceType, request.SourceItemId, ct);
+
+        if (await db.CashItems.AnyAsync(c => c.SourceType == request.SourceType && c.SourceItemId == request.SourceItemId, ct))
+            throw new InvalidOperationException("This trade already has a linked cash entry.");
+
+        var cashFlowType = TradeLinkSourceTypes.CashFlowTypeFor(request.SourceType);
+        var effectiveDate = request.TransactionDate.HasValue
+            ? DateOnly.FromDateTime(request.TransactionDate.Value)
+            : TodayEt();
+
+        var item = new CashItem
+        {
+            UserId          = CurrentUserId(),
+            Description     = string.IsNullOrWhiteSpace(request.Description) ? "CASH" : request.Description.Trim(),
+            Amount          = CashFlowTypeRules.DeriveSignedAmount(cashFlowType, request.Amount),
+            AccountType     = request.AccountType,
+            TransactionDate = effectiveDate.ToDateTime(TimeOnly.MinValue),
+            CashFlowType    = cashFlowType,
+            AddedAt         = DateTime.UtcNow,
+            SourceType      = request.SourceType,
+            SourceItemId    = request.SourceItemId
+        };
+        db.CashItems.Add(item);
+        await ReconcileAfterMutationAsync(effectiveDate, ct);
+        return ToDto(item);
+    }
+
+    public async Task<CashItemDto?> GetLinkedAsync(string sourceType, int sourceItemId, CancellationToken ct = default)
+    {
+        if (!TradeLinkSourceTypes.IsKnown(sourceType)) return null;
+        var item = await OwnedItems().AsNoTracking()
+            .FirstOrDefaultAsync(c => c.SourceType == sourceType && c.SourceItemId == sourceItemId, ct);
+        return item is null ? null : ToDto(item);
+    }
+
+    public async Task SplitPurchaseLinkAsync(int closedItemId, int remainderItemId, decimal remainingShares, decimal totalShares, CancellationToken ct = default)
+    {
+        if (totalShares <= 0m || remainingShares <= 0m || remainingShares >= totalShares) return;
+
+        var purchase = await OwnedItems().FirstOrDefaultAsync(
+            c => c.SourceType == TradeLinkSourceTypes.PortfolioOpen && c.SourceItemId == closedItemId, ct);
+        if (purchase is null) return;
+        if (await db.CashItems.AnyAsync(
+                c => c.SourceType == TradeLinkSourceTypes.PortfolioOpen && c.SourceItemId == remainderItemId, ct)) return;
+
+        var remainderAmount = Math.Round(purchase.Amount * remainingShares / totalShares, 2, MidpointRounding.AwayFromZero);
+        if (remainderAmount == 0m) return;
+
+        purchase.Amount -= remainderAmount;
+        purchase.ModifiedAt = DateTime.UtcNow;
+        db.CashItems.Add(new CashItem
+        {
+            UserId          = purchase.UserId,
+            Description     = $"{purchase.Description} (remaining shares)",
+            Amount          = remainderAmount,
+            AccountType     = purchase.AccountType,
+            TransactionDate = purchase.TransactionDate,
+            CashFlowType    = purchase.CashFlowType,
+            AddedAt         = DateTime.UtcNow,
+            SourceType      = TradeLinkSourceTypes.PortfolioOpen,
+            SourceItemId    = remainderItemId
+        });
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>The source trade must exist, be visible to the caller, and not be a manual (non-ticker) position.</summary>
+    private async Task EnsureSourceItemUsableAsync(string sourceType, int sourceItemId, CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        var admin = IsAdmin();
+        if (TradeLinkSourceTypes.IsPortfolio(sourceType))
+        {
+            var position = await db.PortfolioItems.AsNoTracking()
+                .Where(x => x.Id == sourceItemId && (admin || x.UserId == uid || x.UserId == null))
+                .Select(x => new { x.IsManual })
+                .FirstOrDefaultAsync(ct)
+                ?? throw new InvalidOperationException("The trade to link no longer exists.");
+            if (position.IsManual)
+                throw new InvalidOperationException("Manual positions have no trade price and cannot be linked to cash.");
+            return;
+        }
+
+        var exists = await db.OptionItems.AsNoTracking()
+            .AnyAsync(x => x.Id == sourceItemId && (admin || x.UserId == uid || x.UserId == null), ct);
+        if (!exists) throw new InvalidOperationException("The trade to link no longer exists.");
+    }
+
     public async Task<CashItemDto?> UpdateAsync(int id, UpdateCashItemRequest request, CancellationToken ct = default)
     {
         if (!CashFlowTypeRules.IsKnownType(request.CashFlowType))
@@ -243,7 +345,8 @@ public sealed class CashService(
 
     private static CashItemDto ToDto(CashItem item) =>
         new(item.Id, item.Description, item.Amount, item.AddedAt, item.AccountType, item.TransactionDate,
-            item.CashFlowType, CashFlowTypeRules.IsExternalFlow(item.CashFlowType), item.ModifiedAt);
+            item.CashFlowType, CashFlowTypeRules.IsExternalFlow(item.CashFlowType), item.ModifiedAt,
+            item.SourceType, item.SourceItemId);
 
     public async Task<IReadOnlyList<CashBackupItem>> BackupAsync(CancellationToken ct = default)
     {

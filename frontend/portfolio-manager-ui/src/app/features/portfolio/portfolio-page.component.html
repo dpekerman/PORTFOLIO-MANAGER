@@ -1526,6 +1526,15 @@
                     <th mat-header-cell *matHeaderCellDef>DESCRIPTION</th>
                     <td mat-cell *matCellDef="let c">
                       <span class="pg-company">{{ c.description }}</span>
+                      @if (c.sourceType) {
+                        <mat-icon
+                          class="pg-link-icon"
+                          matTooltip="Linked to a trade ({{
+                            c.sourceType
+                          }}). Edit the trade to be offered an update; deleting the trade offers to remove this entry."
+                          >link</mat-icon
+                        >
+                      }
                     </td>
                   </ng-container>
                   <ng-container matColumnDef="amount">
@@ -1533,7 +1542,9 @@
                     <td
                       mat-cell
                       *matCellDef="let c"
-                      class="pg-num pg-bold pg-pos"
+                      class="pg-num pg-bold"
+                      [class.pg-pos]="c.amount >= 0"
+                      [class.pg-neg]="c.amount < 0"
                       [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                     >
                       {{ dv(c.amount) | currency }}
@@ -1598,6 +1609,13 @@
                     <div class="cash-card-header">
                       <mat-icon>payments</mat-icon>
                       <span class="cash-card-label">{{ c.description }}</span>
+                      @if (c.sourceType) {
+                        <mat-icon
+                          class="pg-link-icon"
+                          matTooltip="Linked to a trade ({{ c.sourceType }})"
+                          >link</mat-icon
+                        >
+                      }
                     </div>
                     <div
                       class="cash-card-amount"

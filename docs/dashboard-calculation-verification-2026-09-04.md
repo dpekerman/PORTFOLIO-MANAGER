@@ -24,8 +24,8 @@ The fix is implemented and the backend source has no C# compiler diagnostics whe
 
 ## Not completed or not verifiable from this workspace
 
-- [ ] Unit tests specifically covering week/month boundary and holiday cases. The existing test project has no focused `DashboardService` period-calculation tests.
-- [ ] Live SQL verification of the account's `PortfolioValueHistories` rows. The local workspace does not provide a verified production database query result.
+- [x] Unit tests specifically covering week/month boundary and holiday cases (`DashboardServicePeriodBaselineTests`).
+- [x] Live SQL verification of `PortfolioValueHistories` against the local database (done 2026-09-29; see cash-link-completion-summary-2026-09-29.md). Production not verified.
 - [ ] Reconciliation against the stakeholder's displayed `$4,689` and `$104` values. This requires the exact snapshot rows, current holdings, cash, options, and timestamps used for that dashboard response.
 - [ ] Production deployment and post-deployment monitoring. No deployment was performed.
 - [ ] A user-facing `N/A` state for a missing baseline. Current API behavior returns numeric zero because the response model uses decimal fields.

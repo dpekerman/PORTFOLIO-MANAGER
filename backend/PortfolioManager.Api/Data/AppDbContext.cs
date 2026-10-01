@@ -74,6 +74,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
                 .IsUnique()
                 .HasFilter("[CashFlowType] = 'OpeningBalance'")
                 .HasDatabaseName("IX_CashItems_Account_OpeningBalance");
+            entity.Property(e => e.SourceType).HasMaxLength(20);
+            // A trade leg can be linked to at most one cash row — DB-level guard against double-counted cash.
+            entity.HasIndex(e => new { e.SourceType, e.SourceItemId })
+                .IsUnique()
+                .HasFilter("[SourceType] IS NOT NULL")
+                .HasDatabaseName("IX_CashItems_TradeLink");
         });
 
         modelBuilder.Entity<CashLedgerSettings>(entity =>
