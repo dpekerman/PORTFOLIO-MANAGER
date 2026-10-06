@@ -1529,7 +1529,23 @@
           } @else {
             @if (viewMode() === 'grid') {
               <!-- CASH: TABLE VIEW -->
-              <div class="portfolio-table-wrapper">
+              <button
+                type="button"
+                class="cash-table-toggle"
+                [attr.aria-expanded]="cashTableExpanded()"
+                aria-controls="cash-table-content"
+                (click)="cashTableExpanded.set(!cashTableExpanded())"
+              >
+                <span>Cash transactions</span>
+                <mat-icon>{{
+                  cashTableExpanded() ? 'expand_less' : 'expand_more'
+                }}</mat-icon>
+              </button>
+              <div
+                id="cash-table-content"
+                class="portfolio-table-wrapper"
+                [hidden]="!cashTableExpanded()"
+              >
                 <table
                   class="portfolio-grid-table mat-elevation-z0"
                   mat-table

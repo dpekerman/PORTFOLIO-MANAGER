@@ -15,6 +15,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -41,6 +42,10 @@ import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
+import {
+  accountTypeError,
+  AccountTypesStateService,
+} from '../../core/services/account-types-state.service';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -188,6 +193,7 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
   ],
 })
 export class PortfolioPageComponent {
+  private readonly accountTypeSnackBar = inject(MatSnackBar);
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
@@ -220,6 +226,7 @@ export class PortfolioPageComponent {
   // ── Section collapse state ──────────────────────────────────────────────────
   protected readonly stocksExpanded = signal(true);
   protected readonly cashExpanded = signal(true);
+  protected readonly cashTableExpanded = signal(false);
   protected readonly optionsExpanded = signal(true);
   protected readonly filtersExpanded = signal(false);
 
@@ -416,6 +423,11 @@ export class PortfolioPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
+    const accountTypes = inject(AccountTypesStateService);
+    effect(() => {
+      const rename = accountTypes.renamed();
+      if (rename && this.filterAccount() === rename.oldName) this.filterAccount.set(rename.newName);
+    });
     // On initial data load, collapse all multi-transaction symbol groups
     effect(() => {
       const summaries = this.portfolio.summaries();
@@ -1582,7 +1594,8 @@ export class PortfolioPageComponent {
 
         this.api.restorePortfolio({ items: backup.items ?? [] }).subscribe({
           next: () => this.portfolio.refresh(),
-          error: () => console.error('[Portfolio] Restore failed'),
+          error: (error: unknown) =>
+            this.accountTypeSnackBar.open(accountTypeError(error), 'Dismiss', { duration: 7000 }),
         });
       } catch {
         console.error('[Portfolio] Invalid backup file');

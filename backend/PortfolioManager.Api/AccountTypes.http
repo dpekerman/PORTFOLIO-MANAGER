@@ -1,0 +1,42 @@
+@baseUrl = http://localhost:5000
+@token = replace-with-admin-access-token
+
+### Shared catalog
+GET {{baseUrl}}/api/account-types
+Authorization: Bearer {{token}}
+
+### One account type
+GET {{baseUrl}}/api/account-types/1
+Authorization: Bearer {{token}}
+
+### Add
+POST {{baseUrl}}/api/account-types
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "RRSP_TD" }
+
+### Rename (replace version with the value from GET)
+PUT {{baseUrl}}/api/account-types/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "name": "TFSA_L_RBC_NEW", "version": "00000000-0000-0000-0000-000000000001" }
+
+### Delete unused type (replace ID/version with values from GET)
+DELETE {{baseUrl}}/api/account-types/1?version=00000000-0000-0000-0000-000000000001
+Authorization: Bearer {{token}}
+
+### Missing resource
+GET {{baseUrl}}/api/account-types/999999
+Authorization: Bearer {{token}}
+
+### Restore allocation atomically (destructive; use only a test database)
+POST {{baseUrl}}/api/allocation/restore
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "cash": [{ "description": "Opening", "amount": 100, "addedAt": "2026-10-01T00:00:00Z" }],
+  "options": []
+}

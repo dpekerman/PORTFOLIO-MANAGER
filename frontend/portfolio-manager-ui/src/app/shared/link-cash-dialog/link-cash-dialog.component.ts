@@ -14,7 +14,7 @@ import { startWith } from 'rxjs';
 import { CashItem } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
-import { ACCOUNT_TYPES } from '../../features/portfolio/add-stock-dialog/add-stock-dialog.component';
+import { AccountTypeSelectComponent } from '../account-type-select/account-type-select.component';
 
 export interface LinkCashDialogData {
   /** create: no cash row exists for this trade leg yet. update: a linked row exists but no longer matches the trade. */
@@ -55,6 +55,7 @@ export function easternToday(): string {
   styleUrl: './link-cash-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     CurrencyPipe,
     MatDialogModule,
     MatFormFieldModule,
@@ -74,7 +75,6 @@ export class LinkCashDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<LinkCashDialogComponent, LinkCashDialogResult>);
   protected readonly data = inject<LinkCashDialogData>(MAT_DIALOG_DATA);
 
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly isUpdate = this.data.mode === 'update';
   protected readonly sign = this.data.direction === 'out' ? -1 : 1;
   protected readonly flowLabel = this.data.direction === 'out' ? 'Cash out' : 'Cash in';

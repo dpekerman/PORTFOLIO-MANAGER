@@ -2,6 +2,8 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of } from 'rxjs';
 import {
+  AccountType,
+  AccountTypeRename,
   AddCashItemRequest,
   AddLinkedCashRequest,
   AddManualPositionRequest,
@@ -51,6 +53,27 @@ import {
 export class PortfolioApiService {
   private readonly http = inject(HttpClient);
   private readonly base = '/api';
+
+  getAccountTypes(): Observable<AccountType[]> {
+    return this.http.get<AccountType[]>(`${this.base}/account-types`);
+  }
+
+  addAccountType(name: string): Observable<AccountType> {
+    return this.http.post<AccountType>(`${this.base}/account-types`, { name });
+  }
+
+  renameAccountType(item: AccountType, name: string): Observable<AccountTypeRename> {
+    return this.http.put<AccountTypeRename>(`${this.base}/account-types/${item.id}`, {
+      name,
+      version: item.version,
+    });
+  }
+
+  deleteAccountType(item: AccountType): Observable<void> {
+    return this.http.delete<void>(`${this.base}/account-types/${item.id}`, {
+      params: { version: item.version },
+    });
+  }
 
   // ── Portfolio CRUD ──────────────────────────────────────────────────────────
   getPortfolio(): Observable<PortfolioItem[]> {
@@ -570,6 +593,16 @@ export class PortfolioApiService {
 
   restoreOptions(request: { items: unknown[] }): Observable<{ restored: number }> {
     return this.http.post<{ restored: number }>(`${this.base}/options/restore`, request);
+  }
+
+  restoreAllocation(request: {
+    cash: unknown[];
+    options: unknown[];
+  }): Observable<{ cashCount: number; optionCount: number }> {
+    return this.http.post<{ cashCount: number; optionCount: number }>(
+      `${this.base}/allocation/restore`,
+      request,
+    );
   }
 
   // ── Portfolio Value History ─────────────────────────────────────────────────

@@ -1,0 +1,27 @@
+<mat-form-field appearance="outline">
+  <mat-label>Account Type</mat-label>
+  <mat-select
+    [value]="value()"
+    [disabled]="disabled() || state.loading()"
+    (selectionChange)="select($event.value)"
+    (closed)="touched()"
+  >
+    <mat-option [value]="null">None</mat-option>
+    @if (value() && !state.names().includes(value()!)) {
+      <mat-option [value]="value()" disabled
+        >{{ value() }} (stored value - reselect after refresh)</mat-option
+      >
+    }
+    @for (name of state.names(); track name) {
+      <mat-option [value]="name">{{ name }}</mat-option>
+    }
+  </mat-select>
+</mat-form-field>
+@if (state.loading()) {
+  <p role="status">Loading account types...</p>
+} @else if (state.error()) {
+  <p role="alert">{{ state.error() }}</p>
+  <button mat-stroked-button type="button" (click)="state.load()">Retry account types</button>
+} @else if (value() && !state.names().includes(value()!)) {
+  <p role="alert">This account type has changed. Select a current account before saving.</p>
+}

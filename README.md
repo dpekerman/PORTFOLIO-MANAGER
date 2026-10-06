@@ -10,6 +10,8 @@ Repo: [github.com/dpekerman/PORTFOLIO-MANAGER](https://github.com/dpekerman/PORT
 
 ## Features
 
+- **Account Types Configuration** - shared stock/option/cash choices, managed by Admins in Configuration -> Account Types. Add, rename, and delete save individually; used types cannot be deleted.
+
 - **Portfolio & Transactions** — CRUD for stock/option positions, full transaction history with context capture (splits, dividends, cash flows)
 - **Cash Ledger** — running cash balance, manual adjustments, auto-linking of trades to cash movements, ledger start date tracking
 - **Options Tracking** — separate options book (calls/puts, premiums) rolled into total portfolio value
@@ -29,6 +31,36 @@ Repo: [github.com/dpekerman/PORTFOLIO-MANAGER](https://github.com/dpekerman/PORT
 - **Dark Bloomberg-style UI** — Angular Material 22, zoneless, signals-based state, OnPush, fully responsive (card layout ≤768px)
 
 ---
+
+## Managing account types
+
+Open **Configuration -> Account Types** to add a new choice (1-120 characters).
+All existing stock, option, cash, and Link Cash selectors use this shared database list.
+Only Admins can change it; authenticated users can view it.
+
+Renaming updates matching records across **all users**, including closed transactions,
+cash entries, and stored portfolio snapshots, in one transaction. It does not change
+amounts or dates. An account with any remaining records cannot be deleted, even if
+its cash balance is zero. Save All and Reset All do not modify account types.
+
+Backend startup applies the generated `AddAccountTypes` migration and imports existing
+legacy account names. Whitespace/case collisions are reported instead of merging accounts.
+For manual SQL deployment on an existing schema, run
+[`23_AddAccountTypes.sql`](database/SQL/23_AddAccountTypes.sql) and then
+[`24_WidenAccountTypeNames.sql`](database/SQL/24_WidenAccountTypeNames.sql) (names up to
+120 characters) before restarting the API.
+The master deployment script includes the equivalent upgrade.
+The design-time factory allows EF scaffolding without starting the API. It uses the
+same configuration as the API; review the intended database or supply an explicit
+`--connection` before using `dotnet ef database update`.
+
+Old backups may contain names removed or renamed since export. Restore rejects missing
+types before replacing records; ask an Admin to add the names or map the backup to
+current choices first. Allocation restore commits cash and options together, so an
+invalid account type cannot leave a partially replaced allocation.
+
+Focused SQL Server tests use separate, uniquely named LocalDB databases and clean
+up only those databases. Set `PM_ACCOUNT_TYPES_SQL_TESTS=1` to enable them.
 
 ## Architecture
 

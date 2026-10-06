@@ -61,15 +61,7 @@
       }
     </mat-form-field>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Account</mat-label>
-      <mat-select formControlName="accountType">
-        <mat-option [value]="null">— None —</mat-option>
-        @for (acct of accountTypes; track acct) {
-          <mat-option [value]="acct">{{ acct }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <app-account-type-select formControlName="accountType" class="full-width" />
 
     <mat-form-field appearance="outline" class="full-width">
       <mat-label>Cash date</mat-label>

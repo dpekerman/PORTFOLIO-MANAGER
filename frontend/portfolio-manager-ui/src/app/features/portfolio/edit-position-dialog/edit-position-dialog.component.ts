@@ -12,7 +12,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { PortfolioItem } from '../../../core/models/portfolio.models';
 import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 export const HOLDING_ROLES = [
   'Core',
@@ -50,6 +50,7 @@ export interface EditPositionDialogResult {
   styleUrl: './edit-position-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     ReactiveFormsModule,
     MatDialogModule,
     MatButtonModule,
@@ -71,7 +72,6 @@ export class EditPositionDialogComponent implements OnInit {
 
   protected readonly sectors = signal<string[]>([]);
   protected readonly industries = signal<string[]>([]);
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly holdingRoles = HOLDING_ROLES;
   protected readonly decisionSources = this.configService.config().decisionSources;
 

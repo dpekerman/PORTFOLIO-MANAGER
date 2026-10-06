@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -10,11 +10,13 @@ import {
   UpdateCashItemRequest,
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
+import { AccountTypesStateService } from './account-types-state.service';
 
 @Injectable({ providedIn: 'root' })
 export class CashStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
+  private readonly accountTypes = inject(AccountTypesStateService);
 
   private readonly _items = signal<CashItem[]>([]);
   private readonly _loading = signal(false);
@@ -43,6 +45,21 @@ export class CashStateService {
   });
 
   constructor() {
+    effect(() => {
+      const rename = this.accountTypes.renamed();
+      if (rename) {
+        this._items.update((items) =>
+          items.map((x) =>
+            x.accountType === rename.oldName ? { ...x, accountType: rename.newName } : x,
+          ),
+        );
+        this._unlinkedTrades.update((items) =>
+          items.map((x) =>
+            x.accountType === rename.oldName ? { ...x, accountType: rename.newName } : x,
+          ),
+        );
+      }
+    });
     this.refresh();
   }
 

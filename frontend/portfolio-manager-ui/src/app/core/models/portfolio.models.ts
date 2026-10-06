@@ -1,3 +1,17 @@
+export interface AccountType {
+  id: number;
+  name: string;
+  version: string;
+  stockCount: number;
+  optionCount: number;
+  cashCount: number;
+}
+
+export interface AccountTypeRename {
+  oldName: string;
+  item: AccountType;
+}
+
 export interface PortfolioItem {
   id: number;
   symbol: string;

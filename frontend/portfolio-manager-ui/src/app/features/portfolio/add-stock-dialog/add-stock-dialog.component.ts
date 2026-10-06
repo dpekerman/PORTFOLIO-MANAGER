@@ -17,16 +17,7 @@ import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
-
-export const ACCOUNT_TYPES = [
-  'TFSA_L_RBC',
-  'TFSA_L_TD',
-  'TFSA_D_TD',
-  'Margin_L_TD',
-  'Margin_L_RBC',
-  'Margin_D_TD',
-  'Corp_TD',
-] as const;
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 @Component({
   selector: 'app-add-stock-dialog',
@@ -34,6 +25,7 @@ export const ACCOUNT_TYPES = [
   styleUrl: './add-stock-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -59,7 +51,6 @@ export class AddStockDialogComponent {
   protected readonly searching = signal(false);
   protected readonly saving = signal(false);
 
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly today = new Date();
 
   protected readonly roles = [

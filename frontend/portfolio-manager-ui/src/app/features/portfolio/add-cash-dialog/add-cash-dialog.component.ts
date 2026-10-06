@@ -11,7 +11,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { CashFlowType, SELECTABLE_CASH_FLOW_TYPES } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
-import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 @Component({
   selector: 'app-add-cash-dialog',
@@ -19,6 +19,7 @@ import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
   styleUrl: './add-cash-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -37,7 +38,6 @@ export class AddCashDialogComponent {
   private readonly dialogRef = inject(MatDialogRef<AddCashDialogComponent>);
 
   protected readonly saving = signal(false);
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly cashFlowTypes = SELECTABLE_CASH_FLOW_TYPES;
 
   readonly form = this.fb.group({

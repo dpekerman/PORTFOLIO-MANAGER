@@ -121,14 +121,7 @@
       </mat-form-field>
     </div>
 
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Account Type</mat-label>
-      <mat-select formControlName="accountType">
-        @for (acct of accountTypes; track acct) {
-          <mat-option [value]="acct">{{ acct }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <app-account-type-select formControlName="accountType" class="full-width" />
 
     <div class="form-row">
       <mat-form-field appearance="outline" class="field-half">

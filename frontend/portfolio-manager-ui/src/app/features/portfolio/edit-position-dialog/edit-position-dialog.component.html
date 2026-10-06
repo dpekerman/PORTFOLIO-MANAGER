@@ -73,15 +73,7 @@
     </mat-form-field>
 
     <!-- Row 4: Account Type | Open Date -->
-    <mat-form-field appearance="outline">
-      <mat-label>Account Type</mat-label>
-      <mat-select formControlName="accountType">
-        <mat-option [value]="null">— None —</mat-option>
-        @for (a of accountTypes; track a) {
-          <mat-option [value]="a">{{ a }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <app-account-type-select formControlName="accountType" />
 
     <mat-form-field appearance="outline">
       <mat-label>Open Date</mat-label>

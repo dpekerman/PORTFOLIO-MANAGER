@@ -155,6 +155,87 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.AccountType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<Guid>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("AccountTypes");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Name = "TFSA_L_RBC",
+                            NormalizedName = "TFSA_L_RBC",
+                            Version = new Guid("00000000-0000-0000-0000-000000000001")
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Name = "TFSA_L_TD",
+                            NormalizedName = "TFSA_L_TD",
+                            Version = new Guid("00000000-0000-0000-0000-000000000002")
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Name = "TFSA_D_TD",
+                            NormalizedName = "TFSA_D_TD",
+                            Version = new Guid("00000000-0000-0000-0000-000000000003")
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Name = "Margin_L_TD",
+                            NormalizedName = "MARGIN_L_TD",
+                            Version = new Guid("00000000-0000-0000-0000-000000000004")
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Name = "Margin_L_RBC",
+                            NormalizedName = "MARGIN_L_RBC",
+                            Version = new Guid("00000000-0000-0000-0000-000000000005")
+                        },
+                        new
+                        {
+                            Id = 6,
+                            Name = "Margin_D_TD",
+                            NormalizedName = "MARGIN_D_TD",
+                            Version = new Guid("00000000-0000-0000-0000-000000000006")
+                        },
+                        new
+                        {
+                            Id = 7,
+                            Name = "Corp_TD",
+                            NormalizedName = "CORP_TD",
+                            Version = new Guid("00000000-0000-0000-0000-000000000007")
+                        });
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.AdhocAnalysisSession", b =>
                 {
                     b.Property<int>("Id")
@@ -527,8 +608,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AccountType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("datetime2");
@@ -845,8 +926,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AccountType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("datetime2");
@@ -918,8 +999,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AccountType")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
 
                     b.Property<DateTime>("AddedAt")
                         .HasColumnType("datetime2");

@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   AddOptionItemRequest,
@@ -10,12 +10,14 @@ import {
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
+import { AccountTypesStateService } from './account-types-state.service';
 
 @Injectable({ providedIn: 'root' })
 export class OptionStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly tradeCashLink = inject(TradeCashLinkService);
+  private readonly accountTypes = inject(AccountTypesStateService);
 
   private readonly _items = signal<OptionItem[]>([]);
   private readonly _technicalMap = signal<Map<string, OptionTechnicalData>>(new Map());
@@ -41,6 +43,15 @@ export class OptionStateService {
   );
 
   constructor() {
+    effect(() => {
+      const rename = this.accountTypes.renamed();
+      if (rename)
+        this._items.update((items) =>
+          items.map((x) =>
+            x.accountType === rename.oldName ? { ...x, accountType: rename.newName } : x,
+          ),
+        );
+    });
     this.refresh();
   }
 

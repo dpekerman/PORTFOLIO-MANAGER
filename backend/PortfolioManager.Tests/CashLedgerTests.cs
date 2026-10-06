@@ -52,9 +52,13 @@ public sealed class CashFlowTypeRulesTests
 
 public sealed class CashLedgerTests
 {
-    private static AppDbContext CreateDb() => new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString())
-        .Options);
+    private static AppDbContext CreateDb()
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.Database.EnsureCreated();
+        return db;
+    }
 
     private const string Account = "TFSA_D_TD";
 

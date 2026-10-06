@@ -13,9 +13,15 @@ public sealed class UnlinkedTradeAndSnapshotTests
     private const string Account = "TFSA_D_TD";
     private static readonly DateTime LedgerStart = new(2026, 8, 1);
 
-    private static AppDbContext CreateDb() => new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString())
-        .Options);
+    private static AppDbContext CreateDb()
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.Database.EnsureCreated();
+        db.AccountTypes.Add(new AccountType { Name = "RRSP", NormalizedName = "RRSP" });
+        db.SaveChanges();
+        return db;
+    }
 
     private static async Task SeedLedgerAsync(AppDbContext db)
     {

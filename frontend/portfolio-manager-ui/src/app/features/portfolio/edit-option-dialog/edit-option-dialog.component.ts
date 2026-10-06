@@ -13,7 +13,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { OptionItem } from '../../../core/models/portfolio.models';
 import { ConfigService } from '../../../core/services/config.service';
 import { OptionStateService } from '../../../core/services/option-state.service';
-import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 export interface EditOptionDialogData {
   item: OptionItem;
@@ -25,6 +25,7 @@ export interface EditOptionDialogData {
   styleUrl: './edit-option-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -46,7 +47,6 @@ export class EditOptionDialogComponent {
   protected readonly data = inject<EditOptionDialogData>(MAT_DIALOG_DATA);
 
   protected readonly saving = signal(false);
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly decisionSources = this.configService.config().decisionSources;
 
   /** Parse date string to Date object for the datepicker */

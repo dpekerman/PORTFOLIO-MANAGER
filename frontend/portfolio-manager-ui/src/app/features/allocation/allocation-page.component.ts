@@ -10,6 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
+import { accountTypeError } from '../../core/services/account-types-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -339,25 +340,19 @@ export class AllocationPageComponent {
         );
         if (!confirmed) return;
 
-        this.api.restoreCash({ items: backup.cash ?? [] }).subscribe({
-          next: () => {
-            this.cashState.refresh();
-            this.api.restoreOptions({ items: backup.options ?? [] }).subscribe({
-              next: () => {
-                this.optionState.refresh();
-                this.snackBar.open('Allocation data restored successfully', 'Dismiss', {
-                  duration: 4000,
-                });
-              },
-              error: () =>
-                this.snackBar.open('Failed to restore options data', 'Dismiss', {
-                  duration: 4000,
-                }),
-            });
-          },
-          error: () =>
-            this.snackBar.open('Failed to restore cash data', 'Dismiss', { duration: 4000 }),
-        });
+        this.api
+          .restoreAllocation({ cash: backup.cash ?? [], options: backup.options ?? [] })
+          .subscribe({
+            next: () => {
+              this.cashState.refresh();
+              this.optionState.refresh();
+              this.snackBar.open('Allocation data restored successfully', 'Dismiss', {
+                duration: 4000,
+              });
+            },
+            error: (error: unknown) =>
+              this.snackBar.open(accountTypeError(error), 'Dismiss', { duration: 7000 }),
+          });
       } catch {
         this.snackBar.open('Invalid JSON backup file', 'Dismiss', { duration: 4000 });
       }

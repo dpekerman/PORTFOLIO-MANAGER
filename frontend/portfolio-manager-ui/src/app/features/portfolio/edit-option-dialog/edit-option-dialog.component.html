@@ -95,15 +95,7 @@
     </div>
 
     <!-- Account Type -->
-    <mat-form-field appearance="outline" class="full-width">
-      <mat-label>Account Type</mat-label>
-      <mat-select formControlName="accountType">
-        <mat-option [value]="null">— None —</mat-option>
-        @for (a of accountTypes; track a) {
-          <mat-option [value]="a">{{ a }}</mat-option>
-        }
-      </mat-select>
-    </mat-form-field>
+    <app-account-type-select formControlName="accountType" class="full-width" />
 
     <!-- Open Date / Close Date -->
     <div class="form-row">

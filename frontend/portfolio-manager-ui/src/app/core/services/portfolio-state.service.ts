@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { filter, take } from 'rxjs';
@@ -14,6 +14,7 @@ import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeService } from './demo-mode.service';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
+import { AccountTypesStateService } from './account-types-state.service';
 
 @Injectable({ providedIn: 'root' })
 export class PortfolioStateService {
@@ -23,6 +24,7 @@ export class PortfolioStateService {
   private readonly authState = inject(AuthStateService);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
+  private readonly accountTypes = inject(AccountTypesStateService);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);
@@ -76,6 +78,17 @@ export class PortfolioStateService {
   );
 
   constructor() {
+    effect(() => {
+      const rename = this.accountTypes.renamed();
+      if (rename)
+        this._summaries.update((items) =>
+          items.map((x) =>
+            x.item.accountType === rename.oldName
+              ? { ...x, item: { ...x.item, accountType: rename.newName } }
+              : x,
+          ),
+        );
+    });
     // Wait for auth before loading snapshot — prevents 401 race on app start
     toObservable(this.authState.isAuthenticated)
       .pipe(

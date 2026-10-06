@@ -48,6 +48,7 @@ import { NotificationApiService } from '../../core/services/notification-api.ser
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { UsersApiService } from '../../core/services/users-api.service';
+import { AccountTypesComponent } from './account-types/account-types.component';
 
 @Component({
   selector: 'app-config-page',
@@ -55,6 +56,7 @@ import { UsersApiService } from '../../core/services/users-api.service';
   styleUrl: './config-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypesComponent,
     DatePipe,
     DecimalPipe,
     FormsModule,

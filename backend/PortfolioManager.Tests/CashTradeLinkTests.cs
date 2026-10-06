@@ -12,9 +12,13 @@ public sealed class CashTradeLinkTests
 {
     private const string Account = "TFSA_D_TD";
 
-    private static AppDbContext CreateDb() => new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString())
-        .Options);
+    private static AppDbContext CreateDb()
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.Database.EnsureCreated();
+        return db;
+    }
 
     private static async Task SeedLedgerAsync(AppDbContext db, decimal opening = 50000m)
     {
