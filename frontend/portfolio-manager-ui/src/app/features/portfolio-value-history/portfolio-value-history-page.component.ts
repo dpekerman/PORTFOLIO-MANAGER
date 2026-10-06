@@ -7,6 +7,7 @@ import { CashLedgerTableComponent } from './cash-ledger-table/cash-ledger-table.
 import { HistoryFilterBarComponent } from './history-filter-bar/history-filter-bar.component';
 import { HistorySummaryCardsComponent } from './history-summary-cards/history-summary-cards.component';
 import { SnapshotsTableComponent } from './snapshots-table/snapshots-table.component';
+import { UnlinkedTradesComponent } from './unlinked-trades/unlinked-trades.component';
 
 @Component({
   selector: 'app-portfolio-value-history-page',
@@ -19,6 +20,7 @@ import { SnapshotsTableComponent } from './snapshots-table/snapshots-table.compo
     HistoryFilterBarComponent,
     SnapshotsTableComponent,
     CashLedgerTableComponent,
+    UnlinkedTradesComponent,
     AdminActionsComponent,
   ],
 })

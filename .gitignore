@@ -70,3 +70,7 @@ add-firewall-rules.bat
 frontend/portfolio-manager-ui/proxy.conf.json
 backend/PortfolioManager.Api/Properties/launchSettings.json
 docs/test-code-review-report.md
+
+# Private guide screenshots and browser-automation output (contain real portfolio numbers; never commit)
+docs/images/
+.playwright-mcp/

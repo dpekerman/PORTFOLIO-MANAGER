@@ -15,6 +15,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -33,10 +34,18 @@ import {
   priceStructureTooltip as formatPriceStructureTooltip,
   priceStructureSortRank,
 } from '../../core/price-structure-display';
+import {
+  currencyCodeForAnalysis,
+  currencyCodeForTradingSymbol,
+} from '../../core/technical-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigService } from '../../core/services/config.service';
+import {
+  accountTypeError,
+  AccountTypesStateService,
+} from '../../core/services/account-types-state.service';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -156,6 +165,8 @@ type OptionSortCol =
   | 'opt_action'
   | 'opt_age';
 
+type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
+
 @Component({
   selector: 'app-portfolio-page',
   templateUrl: './portfolio-page.component.html',
@@ -182,6 +193,7 @@ type OptionSortCol =
   ],
 })
 export class PortfolioPageComponent {
+  private readonly accountTypeSnackBar = inject(MatSnackBar);
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
@@ -214,6 +226,7 @@ export class PortfolioPageComponent {
   // ── Section collapse state ──────────────────────────────────────────────────
   protected readonly stocksExpanded = signal(true);
   protected readonly cashExpanded = signal(true);
+  protected readonly cashTableExpanded = signal(false);
   protected readonly optionsExpanded = signal(true);
   protected readonly filtersExpanded = signal(false);
 
@@ -262,6 +275,40 @@ export class PortfolioPageComponent {
 
   protected readonly optionSortCol = signal<OptionSortCol>('opt_expiry');
   protected readonly optionSortDir = signal<SortDir>('asc');
+
+  // Default: most recently added first
+  protected readonly cashSortCol = signal<CashSortCol>('addedAt');
+  protected readonly cashSortDir = signal<SortDir>('desc');
+
+  protected readonly sortedCashItems = computed(() => {
+    const col = this.cashSortCol();
+    const dir = this.cashSortDir() === 'asc' ? 1 : -1;
+    return [...this.cashState.items()].sort((a, b) => {
+      const av = this.cashSortValue(a, col);
+      const bv = this.cashSortValue(b, col);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  private cashSortValue(c: CashItem, col: CashSortCol): number | string {
+    switch (col) {
+      case 'description':
+        return c.description ?? '';
+      case 'amount':
+        return c.amount;
+      case 'addedAt':
+        return new Date(c.addedAt).getTime() || 0;
+      case 'cashAccountType':
+        return c.accountType ?? '';
+    }
+  }
+
+  onCashSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.cashSortCol.set(sort.active as CashSortCol);
+    this.cashSortDir.set(sort.direction as SortDir);
+  }
 
   protected readonly optionDisplayedColumns =
     inject(GridColumnService).getColumnKeys('portfolio-options');
@@ -376,6 +423,11 @@ export class PortfolioPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
+    const accountTypes = inject(AccountTypesStateService);
+    effect(() => {
+      const rename = accountTypes.renamed();
+      if (rename && this.filterAccount() === rename.oldName) this.filterAccount.set(rename.newName);
+    });
     // On initial data load, collapse all multi-transaction symbol groups
     effect(() => {
       const summaries = this.portfolio.summaries();
@@ -430,8 +482,13 @@ export class PortfolioPageComponent {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
   }
 
-  protected technicalCurrencySuffix(result: RsiScanResult): string {
-    return result.usesUnderlyingSecurity ? ` ${result.analysisCurrency ?? 'USD'}` : '';
+  protected holdingCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
+  }
+
+  protected analysisCurrencyForSymbol(symbol: string): string {
+    const result = this.rsiMap().get(symbol.toUpperCase());
+    return currencyCodeForAnalysis(symbol, result?.analysisCurrency);
   }
 
   protected channelForSymbol(symbol: string): RsiScanResult | null {
@@ -671,7 +728,14 @@ export class PortfolioPageComponent {
       companyName: row.item.companyName,
       shares: row.item.shares,
       averageCostBasis: row.item.averageCostBasis,
+      // The API overwrites every transaction field, so omitting these would null them out.
+      transactionType: row.item.transactionType,
+      accountType: row.item.accountType,
+      openDate: row.item.openDate,
+      closeDate: row.item.closeDate,
+      closingPrice: row.item.closingPrice,
       decisionSource,
+      decisionSourceClosed: row.item.decisionSourceClosed,
     });
   }
 
@@ -1365,6 +1429,7 @@ export class PortfolioPageComponent {
       closeDate: analysis.item.closeDate,
       closingPrice: analysis.item.closingPrice,
       decisionSource,
+      decisionSourceClosed: analysis.item.decisionSourceClosed,
     });
   }
 
@@ -1385,6 +1450,8 @@ export class PortfolioPageComponent {
       openDate: analysis.item.openDate,
       closeDate: analysis.item.closeDate,
       closingPrice: analysis.item.closingPrice,
+      decisionSource: analysis.item.decisionSource,
+      decisionSourceClosed: analysis.item.decisionSourceClosed,
     });
   }
 
@@ -1527,7 +1594,8 @@ export class PortfolioPageComponent {
 
         this.api.restorePortfolio({ items: backup.items ?? [] }).subscribe({
           next: () => this.portfolio.refresh(),
-          error: () => console.error('[Portfolio] Restore failed'),
+          error: (error: unknown) =>
+            this.accountTypeSnackBar.open(accountTypeError(error), 'Dismiss', { duration: 7000 }),
         });
       } catch {
         console.error('[Portfolio] Invalid backup file');

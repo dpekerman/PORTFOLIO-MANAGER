@@ -147,6 +147,7 @@ builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
+builder.Services.AddScoped<IUnlinkedTradeService, UnlinkedTradeService>();
 builder.Services.AddSingleton<IMutationClock, MutationClock>();
 builder.Services.AddScoped<IAllocationRiskService, AllocationRiskService>();
 builder.Services.AddHttpClient<IOptionService, OptionService>(client =>
@@ -238,6 +239,10 @@ builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailNotification"));
 builder.Services.AddSingleton<NotificationRecipientsService>();
 builder.Services.AddScoped<SectorIndustryService>();
+builder.Services.AddScoped<IAccountTypeService, AccountTypeService>();
+builder.Services.AddScoped<IAllocationRestoreService, AllocationRestoreService>();
+builder.Services.AddExceptionHandler<PortfolioManager.Api.Middleware.AccountTypeExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<SignalNotificationTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
@@ -310,6 +315,7 @@ try
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<IAccountTypeService>().InitializeAsync(CancellationToken.None);
 }
 catch (Exception ex)
 {
@@ -340,6 +346,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseExceptionHandler();
 app.UseRateLimiter();
 app.UseCors("AngularDevPolicy");
 
@@ -361,4 +368,3 @@ app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 
 app.Run();
-

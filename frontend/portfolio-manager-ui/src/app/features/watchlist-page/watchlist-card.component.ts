@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { WatchlistSummary } from '../../core/models/portfolio.models';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -34,6 +35,10 @@ export class WatchlistCardComponent {
   protected readonly quote = computed(() => this.summary().quote);
   protected readonly isUp = computed(() => (this.quote()?.change ?? 0) >= 0);
   protected readonly hasData = computed(() => this.quote() !== null);
+
+  protected tradingCurrency(): string {
+    return currencyCodeForTradingSymbol(this.summary().item.symbol);
+  }
 
   remove(): void {
     const symbol = this.summary().item.symbol;

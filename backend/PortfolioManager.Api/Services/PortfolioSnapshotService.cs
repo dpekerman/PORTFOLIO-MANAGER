@@ -11,6 +11,8 @@ public interface IPortfolioSnapshotService
     Task<IReadOnlyList<PortfolioSummaryDto>?> GetLatestAsync(string userId, CancellationToken ct = default);
     Task PatchHoldingRoleAsync(string userId, int itemId, string holdingRole, CancellationToken ct = default);
     Task PatchFinalActionsAsync(string userId, IReadOnlyList<FinalActionSyncItem> items, CancellationToken ct = default);
+    Task UpsertItemsAsync(string userId, IReadOnlyList<PortfolioItemDto> items, CancellationToken ct = default);
+    Task RemoveItemAsync(string userId, int itemId, CancellationToken ct = default);
 }
 
 public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshotService> logger) : IPortfolioSnapshotService
@@ -79,6 +81,66 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
         catch (Exception ex)
         {
             logger.LogWarning(ex, "[PortfolioSnapshot] Failed to patch HoldingRole for item {Id}.", itemId);
+        }
+    }
+
+    // Keeps the stored snapshot in step with add/edit/delete so a reload never shows pre-edit rows.
+    // Existing rows keep their quote, price structure and Final Action; new rows get no quote until the next refresh.
+    public async Task UpsertItemsAsync(string userId, IReadOnlyList<PortfolioItemDto> items, CancellationToken ct = default)
+    {
+        var row = await db.PortfolioSnapshots.FindAsync([userId], ct);
+        if (row is null || items.Count == 0) return;
+        try
+        {
+            var list = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(row.SnapshotJson, _json);
+            if (list is null) return;
+            foreach (var dto in items)
+            {
+                var idx = list.FindIndex(s => s.Item.Id == dto.Id);
+                if (idx < 0)
+                {
+                    list.Add(new PortfolioSummaryDto(dto, null));
+                    continue;
+                }
+                var old = list[idx].Item;
+                list[idx] = list[idx] with
+                {
+                    Item = dto with
+                    {
+                        FinalAction = old.FinalAction,
+                        FinalActionSeverity = old.FinalActionSeverity,
+                        FinalActionPriority = old.FinalActionPriority,
+                        FinalActionUpdatedAt = old.FinalActionUpdatedAt,
+                    },
+                };
+            }
+            row.SnapshotJson = JsonSerializer.Serialize(list, _json);
+            row.UpdatedAt = DateTime.UtcNow;
+            row.ItemCount = list.Count;
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[PortfolioSnapshot] Failed to upsert items.");
+        }
+    }
+
+    public async Task RemoveItemAsync(string userId, int itemId, CancellationToken ct = default)
+    {
+        var row = await db.PortfolioSnapshots.FindAsync([userId], ct);
+        if (row is null) return;
+        try
+        {
+            var list = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(row.SnapshotJson, _json);
+            if (list is null || list.RemoveAll(s => s.Item.Id == itemId) == 0) return;
+            row.SnapshotJson = JsonSerializer.Serialize(list, _json);
+            row.UpdatedAt = DateTime.UtcNow;
+            row.ItemCount = list.Count;
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[PortfolioSnapshot] Failed to remove item {Id}.", itemId);
         }
     }
 

@@ -161,7 +161,12 @@ public record UpdateDecisionSourcesRequest(List<string> Items);
 // sign direction, and IsExternalFlow classification.
 public record AddCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
 public record UpdateCashItemRequest(string Description, decimal Amount, string CashFlowType, string? AccountType = null, DateTime? TransactionDate = null);
-public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null, string? CashFlowType = null, bool IsExternalFlow = false, DateTime? ModifiedAt = null);
+public record CashItemDto(int Id, string Description, decimal Amount, DateTime AddedAt, string? AccountType = null, DateTime? TransactionDate = null, string? CashFlowType = null, bool IsExternalFlow = false, DateTime? ModifiedAt = null, string? SourceType = null, int? SourceItemId = null);
+/// <summary>Creates the cash row for one trade leg. Amount is a positive magnitude; the server derives
+/// CashFlowType (TradePurchase for *Open, TradeProceeds for *Close) and the sign from SourceType.</summary>
+public record AddLinkedCashRequest(string SourceType, int SourceItemId, decimal Amount, string? Description = null, string? AccountType = null, DateTime? TransactionDate = null);
+/// <summary>One trade leg with no cash-ledger counterpart. Reason: NoCash, or MissingPrice when the leg has no price to size the cash row.</summary>
+public record UnlinkedTradeDto(string SourceType, int SourceItemId, string Symbol, string Label, string Quantity, decimal? Price, decimal? Amount, string? AccountType, DateTime TradeDate, string Reason);
 /// <summary>"Adjust Balance" — user types the desired new total; backend computes the delta and inserts
 /// one new ledger row. cashFlowType is required and validated against the delta's sign direction.</summary>
 public record AdjustCashBalanceRequest(string AccountType, decimal DesiredNewTotal, string CashFlowType, DateTime? TransactionDate = null);

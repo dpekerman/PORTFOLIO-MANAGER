@@ -10,6 +10,7 @@ import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 
 interface PositionRow {
   symbol: string;
@@ -75,6 +76,10 @@ export class SectorExpositionComponent {
     return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
       ? this.demoMode.maskPercent(v)
       : v;
+  }
+
+  protected tradingCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
   }
 
   protected readonly refreshing = signal(false);

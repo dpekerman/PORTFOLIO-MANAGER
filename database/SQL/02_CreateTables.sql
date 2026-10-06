@@ -398,6 +398,8 @@ GO
 -- ────────────────────────────────────────────────────────────────────────────
 
 -- CashItems: AccountType (AddCashAccountType migration)
+-- The shared AccountTypes catalog is deployed by 23_AddAccountTypes.sql
+-- after migration history is initialized, or automatically by API startup.
 IF NOT EXISTS (SELECT 1
 FROM sys.columns
 WHERE object_id = OBJECT_ID(N'[dbo].[CashItems]') AND name = N'AccountType')

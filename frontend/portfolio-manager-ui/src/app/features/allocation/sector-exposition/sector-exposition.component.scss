@@ -213,8 +213,8 @@
 }
 
 // ── Grid column definition ────────────────────────────────────────────────────
-// Cols: ticker | description | bar | %total | mv | price | gain/loss | g/l% | rsi | day% | momentum
-$ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px 96px;
+// Cols: ticker | description | currency | bar | %total | mv | price | gain/loss | g/l% | rsi | day% | momentum
+$ticker-grid: 76px minmax(120px, 1fr) 56px 100px 58px 70px 80px 88px 68px 44px 68px 96px;
 
 .ticker-list {
   padding: 6px 14px 10px 56px;
@@ -253,7 +253,8 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px 9
     font-family: 'Roboto Mono', monospace;
   }
 
-  .ticker-desc-col {
+  .ticker-desc-col,
+  .ticker-ccy-col {
     text-align: left;
   }
 
@@ -293,6 +294,13 @@ $ticker-grid: 76px minmax(120px, 1fr) 100px 58px 70px 80px 88px 68px 44px 68px 9
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  // Currency
+  .ticker-ccy {
+    font-size: 0.72rem;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--text-faint);
   }
 
   // Col 3 — Mini bar

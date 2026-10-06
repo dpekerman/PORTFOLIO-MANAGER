@@ -12,6 +12,7 @@ namespace PortfolioManager.Api.Controllers;
 public class PortfolioController(
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
+    ICashService cashService,
     ITransactionContextCaptureService contextCapture,
     IServiceScopeFactory scopeFactory) : ControllerBase
 {
@@ -35,6 +36,7 @@ public class PortfolioController(
     public async Task<ActionResult<PortfolioItemDto>> Add([FromBody] AddPortfolioItemRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddAsync(request, ct);
+        await SyncSnapshotAsync([item], ct);
         if (!string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase))
             await contextCapture.TryCaptureAsync(item.Id, item.Symbol, request.HoldingRole, item.Sector, ct);
         // Fetch sector/industry in background so the dialog closes immediately
@@ -60,6 +62,7 @@ public class PortfolioController(
     public async Task<ActionResult<PortfolioItemDto>> AddManual([FromBody] AddManualPositionRequest request, CancellationToken ct)
     {
         var item = await portfolioService.AddManualAsync(request, ct);
+        await SyncSnapshotAsync([item], ct);
         return CreatedAtAction(nameof(GetById), new { id = item.Id }, item);
     }
 
@@ -68,7 +71,14 @@ public class PortfolioController(
     public async Task<ActionResult<UpdatePortfolioItemResponse>> Update(int id, [FromBody] UpdatePortfolioItemRequest request, CancellationToken ct)
     {
         var result = await portfolioService.UpdateAsync(id, request, ct);
-        return result is null ? NotFound() : Ok(result);
+        if (result is null) return NotFound();
+        if (result.NewOpenItem is not null)
+            await cashService.SplitPurchaseLinkAsync(
+                result.Updated.Id, result.NewOpenItem.Id, result.NewOpenItem.Shares,
+                result.Updated.Shares + result.NewOpenItem.Shares, ct);
+        await SyncSnapshotAsync(
+            result.NewOpenItem is null ? [result.Updated] : [result.Updated, result.NewOpenItem], ct);
+        return Ok(result);
     }
 
     /// <summary>Updates the holding role for a portfolio item.</summary>
@@ -111,7 +121,18 @@ public class PortfolioController(
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         var deleted = await portfolioService.DeleteAsync(id, ct);
-        return deleted ? NoContent() : NotFound();
+        if (!deleted) return NotFound();
+        var uid = CurrentUserId();
+        if (!string.IsNullOrEmpty(uid))
+            await portfolioSnapshot.RemoveItemAsync(uid, id, ct);
+        return NoContent();
+    }
+
+    private async Task SyncSnapshotAsync(IReadOnlyList<PortfolioItemDto> items, CancellationToken ct)
+    {
+        var uid = CurrentUserId();
+        if (!string.IsNullOrEmpty(uid))
+            await portfolioSnapshot.UpsertItemsAsync(uid, items, ct);
     }
 
     /// <summary>

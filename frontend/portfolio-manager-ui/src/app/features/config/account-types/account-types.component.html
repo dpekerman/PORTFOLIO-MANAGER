@@ -1,0 +1,147 @@
+<div class="acct-panel">
+  <div class="acct-header">
+    <span class="acct-title">Account Types</span>
+    <span class="acct-badge">{{ state.items().length }}</span>
+    <button
+      mat-icon-button
+      type="button"
+      class="acct-icon-btn"
+      matTooltip="Refresh"
+      aria-label="Refresh account types"
+      (click)="state.load()"
+      [disabled]="state.loading() || state.saving()"
+    >
+      <mat-icon>refresh</mat-icon>
+    </button>
+    @if (auth.isAdmin()) {
+      <button
+        mat-icon-button
+        type="button"
+        class="acct-icon-btn"
+        matTooltip="Add account type"
+        aria-label="Add account type"
+        (click)="startAdd()"
+        [disabled]="state.saving() || !state.ready()"
+      >
+        <mat-icon>add</mat-icon>
+      </button>
+    }
+  </div>
+
+  <p class="acct-note">
+    <!--    Each action saves immediately. Save All and Reset All do not change this list.-->
+    @if (!auth.isAdmin()) {
+      Only an Admin can manage account types.
+    }
+  </p>
+  @if (state.loading()) {
+    <p class="acct-status" role="status">Loading account types...</p>
+  }
+  @if (state.error()) {
+    <p class="acct-status acct-status--error" role="alert">{{ state.error() }}</p>
+  }
+
+  @if (adding()) {
+    <ng-container [ngTemplateOutlet]="editor" />
+  }
+
+  <div
+    class="acct-table"
+    role="table"
+    aria-label="Account types and usage across all users, including closed transactions"
+  >
+    <div class="acct-col-headers" role="row">
+      @for (column of columns; track column.key) {
+        <div
+          role="columnheader"
+          [class.acct-col-num]="column.key !== 'name'"
+          [attr.aria-sort]="ariaSort(column.key)"
+        >
+          <button type="button" class="acct-sort-btn" (click)="toggleSort(column.key)">
+            {{ column.label }}
+            @if (sortKey() === column.key) {
+              <mat-icon class="acct-sort-icon">{{
+                sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'
+              }}</mat-icon>
+            }
+          </button>
+        </div>
+      }
+      <div role="columnheader"></div>
+    </div>
+
+    <div class="acct-list">
+      @for (item of sortedItems(); track item.id) {
+        @if (editing()?.id === item.id) {
+          <ng-container [ngTemplateOutlet]="editor" />
+        } @else {
+          <div class="acct-row" role="row">
+            <span class="acct-name" role="cell">{{ item.name }}</span>
+            <span class="acct-col-num acct-num" role="cell">{{ item.stockCount }}</span>
+            <span class="acct-col-num acct-num" role="cell">{{ item.optionCount }}</span>
+            <span class="acct-col-num acct-num" role="cell">{{ item.cashCount }}</span>
+            <span class="acct-col-actions" role="cell">
+              @if (auth.isAdmin()) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="acct-act"
+                  matTooltip="Rename"
+                  [attr.aria-label]="'Rename ' + item.name"
+                  (click)="edit(item)"
+                  [disabled]="state.saving()"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <span [matTooltip]="usage(item) > 0 ? 'In use - cannot delete' : 'Delete'">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    class="acct-act acct-del"
+                    [attr.aria-label]="'Delete ' + item.name"
+                    (click)="remove(item)"
+                    [disabled]="usage(item) > 0 || state.saving()"
+                  >
+                    <mat-icon>delete_outline</mat-icon>
+                  </button>
+                </span>
+              }
+            </span>
+          </div>
+        }
+      } @empty {
+        <p class="acct-empty">No account types loaded.</p>
+      }
+    </div>
+  </div>
+</div>
+
+<ng-template #editor>
+  <form class="acct-edit-row" [formGroup]="form" (ngSubmit)="save()">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="acct-field">
+      <mat-label>{{ editing() ? 'New account type name' : 'Account type name' }}</mat-label>
+      <input matInput formControlName="name" maxlength="120" autocomplete="off" />
+      <mat-hint>1-120 characters; names must be unique</mat-hint>
+      <mat-error>Enter a nonblank name of at most 120 characters.</mat-error>
+    </mat-form-field>
+    <button
+      mat-icon-button
+      type="submit"
+      matTooltip="Save"
+      aria-label="Save account type"
+      [disabled]="form.invalid || !state.ready() || state.saving()"
+    >
+      <mat-icon>check</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      matTooltip="Cancel"
+      aria-label="Cancel"
+      (click)="cancel()"
+      [disabled]="state.saving()"
+    >
+      <mat-icon>close</mat-icon>
+    </button>
+  </form>
+</ng-template>

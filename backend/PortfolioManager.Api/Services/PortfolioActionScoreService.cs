@@ -23,7 +23,8 @@ public sealed record ActionScoreDto(
     string? LatestEodSignalState = null,
     string? LatestEodScanType = null,
     bool LatestEodIsNew = false,
-    bool LatestEodIsInvalidated = false);
+    bool LatestEodIsInvalidated = false,
+    string? AnalysisCurrency = null);
 
 public interface IPortfolioActionScoreService
 {
@@ -144,7 +145,8 @@ public sealed class PortfolioActionScoreService(AppDbContext db) : IPortfolioAct
                 LatestEodSignalState: facts?.LatestEodSignalState,
                 LatestEodScanType: facts?.LatestEodScanType,
                 LatestEodIsNew: facts?.LatestEodIsNew ?? false,
-                LatestEodIsInvalidated: facts?.LatestEodIsInvalidated ?? false));
+                LatestEodIsInvalidated: facts?.LatestEodIsInvalidated ?? false,
+                AnalysisCurrency: scan?.AnalysisCurrency));
         }
 
         return results

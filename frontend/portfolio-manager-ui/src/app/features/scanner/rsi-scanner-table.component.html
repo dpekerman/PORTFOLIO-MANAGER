@@ -161,12 +161,17 @@
       </td>
     </ng-container>
 
+    <ng-container matColumnDef="currency">
+      <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
+      <td mat-cell *matCellDef="let row">{{ analysisCurrency(row) }}</td>
+    </ng-container>
+
     <!-- Price Column -->
     <ng-container matColumnDef="price">
       <th mat-header-cell *matHeaderCellDef mat-sort-header>Price</th>
       <td mat-cell *matCellDef="let row">
         <span class="price-value">{{
-          row.currentPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2'
+          row.currentPrice | currency: analysisCurrency(row) : 'symbol-narrow' : '1.2-2'
         }}</span>
       </td>
     </ng-container>
@@ -213,7 +218,9 @@
               >{{ row.analystTargetUpside >= 0 ? '+' : ''
               }}{{ row.analystTargetUpside | number: '1.1-1' }}%</span
             >
-            <span class="upside-target">${{ row.analystTargetPrice | number: '1.2-2' }}</span>
+            <span class="upside-target"
+              >${{ row.analystTargetPrice | number: '1.2-2' }}</span
+            >
           </div>
         } @else {
           <span class="no-data">—</span>
@@ -465,7 +472,9 @@
       <td mat-cell *matCellDef="let row">
         @if (row.sma200 > 0) {
           <div class="sma200-cell" [class]="sma200Class(row)">
-            <span class="sma200-price">${{ row.sma200 | number: '1.2-2' }}</span>
+            <span class="sma200-price"
+              >${{ row.sma200 | number: '1.2-2' }}</span
+            >
             <span class="sma200-dev">
               {{ row.dma200Deviation >= 0 ? '+' : '' }}{{ row.dma200Deviation | number: '1.1-1' }}%
               {{ row.dma200Deviation >= 0 ? 'ABOVE' : 'BELOW' }}
@@ -687,9 +696,7 @@
               ' · Swing High: $' +
               row.fibSwingHigh?.toFixed(2) +
               (row.usesUnderlyingSecurity
-                ? ' ' +
-                  (row.analysisCurrency ?? 'USD') +
-                  ' · Underlying analysis: ' +
+                ? ' · Underlying analysis: ' +
                   row.analysisTicker +
                   ' (' +
                   (row.analysisMarket ?? 'US') +

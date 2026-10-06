@@ -28,6 +28,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
+import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
@@ -84,6 +85,10 @@ export class ValueScreenerPageComponent implements OnInit {
   protected readonly sortDir = signal<'asc' | 'desc'>('desc');
 
   protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('value-screener');
+
+  protected tradingCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
+  }
 
   /** Results currently shown in the grid (filtered by tier, then sorted) */
   protected readonly activeResults = computed<ValueScreenerResult[]>(() => {

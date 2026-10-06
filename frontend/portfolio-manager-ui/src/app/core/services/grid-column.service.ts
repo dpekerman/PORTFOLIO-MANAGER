@@ -36,6 +36,7 @@ export const GRID_REGISTRY: GridDef[] = [
     columns: [
       { key: 'symbol', label: 'Ticker' },
       { key: 'company', label: 'Company' },
+      { key: 'currency', label: 'Currency' },
       { key: 'accountType', label: 'Account' },
       { key: 'sector', label: 'Sector' },
       { key: 'industry', label: 'Industry' },
@@ -81,6 +82,7 @@ export const GRID_REGISTRY: GridDef[] = [
     pageIcon: 'account_balance_wallet',
     columns: [
       { key: 'opt_ticker', label: 'Underlying' },
+      { key: 'opt_currency', label: 'Currency' },
       { key: 'opt_type', label: 'Type' },
       { key: 'opt_expiry', label: 'Expiry' },
       { key: 'opt_strike', label: 'Strike' },
@@ -125,6 +127,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'tx_type', label: 'Type' },
       { key: 'tx_account', label: 'Account' },
       { key: 'tx_symbol', label: 'Ticker' },
+      { key: 'tx_currency', label: 'Currency' },
       { key: 'tx_company', label: 'Company' },
       { key: 'tx_shares', label: 'Shares' },
       { key: 'tx_avg_cost', label: 'Avg Cost' },
@@ -153,6 +156,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'otx_type', label: 'Type' },
       { key: 'otx_account', label: 'Account' },
       { key: 'otx_ticker', label: 'Underlying' },
+      { key: 'otx_currency', label: 'Currency' },
       { key: 'otx_position', label: 'Position' },
       { key: 'otx_expiry', label: 'Expiry' },
       { key: 'otx_strike', label: 'Strike' },
@@ -179,6 +183,7 @@ export const GRID_REGISTRY: GridDef[] = [
     columns: [
       { key: 'tracking', label: 'Tracking' },
       { key: 'symbol', label: 'Ticker' },
+      { key: 'currency', label: 'Currency' },
       { key: 'rsi', label: 'RSI (14)' },
       { key: 'rsiDelta1D', label: 'RSI Δ1D' },
       { key: 'rsiSignal', label: 'RSI (9 EMA)' },
@@ -215,6 +220,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'signalDate', label: 'Trading Date' },
       { key: 'daysPassed', label: 'Trading Sessions Passed' },
       { key: 'symbol', label: 'Ticker' },
+      { key: 'currency', label: 'Currency' },
       { key: 'scanType', label: 'Scan' },
       { key: 'signalType', label: 'Signal' },
       { key: 'trendShift', label: 'Trend Shift' },
@@ -246,6 +252,7 @@ export const GRID_REGISTRY: GridDef[] = [
     pageIcon: 'analytics',
     columns: [
       { key: 'ticker', label: 'Ticker' },
+      { key: 'currency', label: 'Currency' },
       { key: 'description', label: 'Description' },
       { key: 'technicalState', label: 'Technical State' },
       { key: 'score', label: 'Score' },
@@ -261,6 +268,7 @@ export const GRID_REGISTRY: GridDef[] = [
     columns: [
       { key: 'symbol', label: 'Ticker' },
       { key: 'company', label: 'Description' },
+      { key: 'currency', label: 'Currency' },
       { key: 'role', label: 'Role' },
       { key: 'earningsDate', label: 'Earnings Date' },
       { key: 'price', label: 'Last Price' },

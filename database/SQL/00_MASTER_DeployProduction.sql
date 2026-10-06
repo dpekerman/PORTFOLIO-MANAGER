@@ -18,6 +18,9 @@
 --   Step 7  09_SetStrategicIncomeRole.sql               (Strategic-Income role assignment)
 --   Step 8  11_AddIdentityAndAuth.sql                   (ASP.NET Core Identity + RefreshTokens)
 --   Step 9  14_AddFibonacciToDailySignals.sql           (Fibonacci snapshot columns on DailySignals)
+--   Step 10 19_AddAnalysisCurrencyToDailySignals.sql     (analysis ticker/currency metadata)
+--   Step 11 23_AddAccountTypes.sql                      (shared account type catalog)
+--   Step 12 24_WidenAccountTypeNames.sql                (account type names up to 120 characters)
 --
 -- SCRIPTS NOT RUN IN THIS MASTER:
 --   04_SeedNotificationRecipients.sql  -- contains placeholder emails; run manually
@@ -1018,3 +1021,79 @@ END
 PRINT '  Step 9 OK: Fibonacci columns verified.';
 GO
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- STEP 10: Analysis ticker and currency on DailySignals
+-- ════════════════════════════════════════════════════════════════════════════
+PRINT '-- Step 10: DailySignals analysis ticker/currency --';
+
+IF COL_LENGTH('dbo.DailySignals', 'AnalysisCurrency') IS NULL
+    ALTER TABLE dbo.DailySignals ADD AnalysisCurrency NVARCHAR(10) NULL;
+IF COL_LENGTH('dbo.DailySignals', 'AnalysisTicker') IS NULL
+    ALTER TABLE dbo.DailySignals ADD AnalysisTicker NVARCHAR(20) NULL;
+
+UPDATE ds
+SET ds.AnalysisTicker = COALESCE(
+        ds.AnalysisTicker,
+        CASE WHEN m.UseUnderlyingForAnalysis = 1 AND m.UnderlyingTicker IS NOT NULL
+            THEN m.UnderlyingTicker ELSE ds.Symbol END),
+    ds.AnalysisCurrency = COALESCE(
+        ds.AnalysisCurrency,
+        CASE WHEN m.UseUnderlyingForAnalysis = 1 AND m.UnderlyingTicker IS NOT NULL THEN 'USD'
+            WHEN UPPER(ds.Symbol) LIKE '%.TO' THEN 'CAD' ELSE 'USD' END)
+FROM dbo.DailySignals AS ds
+LEFT JOIN dbo.SecurityAnalysisMappings AS m
+    ON m.TradingTicker = ds.Symbol
+   AND m.UserId IS NULL
+   AND m.ResolutionStatus = 1
+WHERE ds.AnalysisTicker IS NULL OR ds.AnalysisCurrency IS NULL;
+
+PRINT '  Step 10 OK: analysis ticker/currency columns and historical values verified.';
+GO
+
+-- Shared account types. Seed only when creating the table; never revive deleted defaults.
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF OBJECT_ID(N'dbo.AccountTypes', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AccountTypes (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_AccountTypes PRIMARY KEY,
+        Name nvarchar(120) NOT NULL,
+        NormalizedName nvarchar(120) NOT NULL,
+        Version uniqueidentifier NOT NULL
+    );
+    CREATE UNIQUE INDEX IX_AccountTypes_NormalizedName ON dbo.AccountTypes(NormalizedName);
+    INSERT INTO dbo.AccountTypes(Name, NormalizedName, Version) VALUES
+        (N'TFSA_L_RBC', N'TFSA_L_RBC', '00000000-0000-0000-0000-000000000001'),
+        (N'TFSA_L_TD', N'TFSA_L_TD', '00000000-0000-0000-0000-000000000002'),
+        (N'TFSA_D_TD', N'TFSA_D_TD', '00000000-0000-0000-0000-000000000003'),
+        (N'Margin_L_TD', N'MARGIN_L_TD', '00000000-0000-0000-0000-000000000004'),
+        (N'Margin_L_RBC', N'MARGIN_L_RBC', '00000000-0000-0000-0000-000000000005'),
+        (N'Margin_D_TD', N'MARGIN_D_TD', '00000000-0000-0000-0000-000000000006'),
+        (N'Corp_TD', N'CORP_TD', '00000000-0000-0000-0000-000000000007');
+END;
+IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'20261006143817_AddAccountTypes')
+    INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion)
+    VALUES (N'20261006143817_AddAccountTypes', N'8.0.10');
+COMMIT;
+PRINT '  Step 11 OK: account catalog created; API startup imports legacy names.';
+GO
+
+-- Account type names: widen to 120 characters (idempotent).
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.AccountTypes') AND name = N'Name' AND max_length < 240)
+    ALTER TABLE dbo.AccountTypes ALTER COLUMN Name nvarchar(120) NOT NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.AccountTypes') AND name = N'NormalizedName' AND max_length < 240)
+    ALTER TABLE dbo.AccountTypes ALTER COLUMN NormalizedName nvarchar(120) NOT NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.PortfolioItems') AND name = N'AccountType' AND max_length BETWEEN 0 AND 239)
+    ALTER TABLE dbo.PortfolioItems ALTER COLUMN AccountType nvarchar(120) NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.OptionItems') AND name = N'AccountType' AND max_length BETWEEN 0 AND 239)
+    ALTER TABLE dbo.OptionItems ALTER COLUMN AccountType nvarchar(120) NULL;
+IF EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'dbo.CashItems') AND name = N'AccountType' AND max_length BETWEEN 0 AND 239)
+    ALTER TABLE dbo.CashItems ALTER COLUMN AccountType nvarchar(120) NULL;
+IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'20261006150738_WidenAccountTypeNames')
+    INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion)
+    VALUES (N'20261006150738_WidenAccountTypeNames', N'8.0.10');
+COMMIT;
+PRINT '  Step 12 OK: account type names widened to 120 characters.';
+GO

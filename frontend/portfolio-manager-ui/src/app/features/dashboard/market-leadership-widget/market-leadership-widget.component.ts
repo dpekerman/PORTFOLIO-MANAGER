@@ -11,6 +11,7 @@ import {
   priceStructureSortRank,
   priceStructureTooltip,
 } from '../../../core/price-structure-display';
+import { currencyCodeForAnalysis } from '../../../core/technical-display';
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { MarketLeadershipStateService } from '../../../core/services/market-leadership-state.service';
@@ -154,6 +155,10 @@ export class MarketLeadershipWidgetComponent {
       currency: row.analysisCurrency,
       usesUnderlying: row.usesUnderlyingSecurity,
     });
+  }
+
+  protected analysisCurrency(row: MarketLeadershipRow): string {
+    return currencyCodeForAnalysis(row.symbol, row.analysisCurrency);
   }
 
   private compareRows(

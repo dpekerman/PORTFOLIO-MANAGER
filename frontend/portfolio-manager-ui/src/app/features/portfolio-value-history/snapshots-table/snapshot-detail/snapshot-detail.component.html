@@ -4,16 +4,16 @@
   <div class="detail-section">
     <div class="section-title">Portfolio Components</div>
     <div class="component-row">
-      <span>Stocks</span><span>{{ dv(snapshot().stocksValue) | currency: 'CAD' }}</span>
+      <span>Stocks</span><span>{{ dv(snapshot().stocksValue) | currency: 'CAD' : 'symbol-narrow' }}</span>
     </div>
     <div class="component-row">
-      <span>Options</span><span>{{ dv(snapshot().optionsValue) | currency: 'CAD' }}</span>
+      <span>Options</span><span>{{ dv(snapshot().optionsValue) | currency: 'CAD' : 'symbol-narrow' }}</span>
     </div>
     <div class="component-row">
-      <span>Cash</span><span>{{ dv(snapshot().cashValue) | currency: 'CAD' }}</span>
+      <span>Cash</span><span>{{ dv(snapshot().cashValue) | currency: 'CAD' : 'symbol-narrow' }}</span>
     </div>
     <div class="component-row total-row">
-      <span>Total</span><span>{{ dv(snapshot().totalValue) | currency: 'CAD' }}</span>
+      <span>Total</span><span>{{ dv(snapshot().totalValue) | currency: 'CAD' : 'symbol-narrow' }}</span>
     </div>
   </div>
 
@@ -22,7 +22,7 @@
     @if (snapshot().externalCashFlow !== 0) {
       <div class="component-row">
         <span>Net external flow</span
-        ><span>{{ dv(snapshot().externalCashFlow) | currency: 'CAD' }}</span>
+        ><span>{{ dv(snapshot().externalCashFlow) | currency: 'CAD' : 'symbol-narrow' }}</span>
       </div>
     } @else {
       <div class="muted-row">None</div>
@@ -35,7 +35,7 @@
       @for (c of cashActivity(); track c.id) {
         <div class="ledger-row">
           <span class="ledger-sign" [class.negative]="c.amount < 0">
-            {{ c.amount >= 0 ? '+' : '' }}{{ dv(c.amount) | currency: 'CAD' }}
+            {{ c.amount >= 0 ? '+' : '' }}{{ dv(c.amount) | currency: 'CAD' : 'symbol-narrow' }}
           </span>
           <span>{{ c.cashFlowType }}</span>
           <span class="ledger-account">{{ c.accountType ?? '—' }}</span>

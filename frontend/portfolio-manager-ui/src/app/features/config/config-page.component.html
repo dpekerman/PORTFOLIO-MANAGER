@@ -95,6 +95,15 @@
     <button
       class="cfg-tab-btn"
       role="tab"
+      [attr.aria-selected]="activeSection() === 'accounts'"
+      [class.cfg-tab-btn--active]="activeSection() === 'accounts'"
+      (click)="setSection('accounts')"
+    >
+      <mat-icon>account_balance</mat-icon><span class="cfg-tab-label">Account Types</span>
+    </button>
+    <button
+      class="cfg-tab-btn"
+      role="tab"
       [attr.aria-selected]="activeSection() === 'allocation'"
       [class.cfg-tab-btn--active]="activeSection() === 'allocation'"
       (click)="activeSection.set('allocation')"
@@ -140,6 +149,25 @@
       </button>
     }
   </nav>
+
+  @if (activeSection() === 'accounts') {
+    <div class="cfg-panel cfg-panel--active">
+      <div class="config-section">
+        <div class="section-header">
+          <mat-icon>account_balance</mat-icon>
+          <div class="section-header-text">
+            <h2 class="section-title">Account Types</h2>
+            <p class="section-subtitle">
+              Shared choices for stocks, options and cash · Changes save immediately
+            </p>
+          </div>
+        </div>
+        <div class="section-body">
+          <app-account-types />
+        </div>
+      </div>
+    </div>
+  }
 
   <!-- ════════════════════════════════════════════════════════════════════
        SECTION 0 — DEMO MODE

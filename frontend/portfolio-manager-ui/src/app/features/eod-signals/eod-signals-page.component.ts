@@ -37,7 +37,10 @@ import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
-import { formatTrendShift } from '../../core/technical-display';
+import {
+  currencyCodeForAnalysis,
+  formatTrendShift,
+} from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
@@ -270,6 +273,10 @@ export class EodSignalsPageComponent implements OnInit {
   /** Current price from the fetched price map */
   protected lastPrice(row: DailySignal): number | null {
     return this.currentPriceMap().get(row.symbol.toUpperCase()) ?? null;
+  }
+
+  protected analysisCurrency(row: DailySignal): string {
+    return currencyCodeForAnalysis(row.symbol, row.analysisCurrency);
   }
 
   /** Price Diff = Last Price - Signal Price */
@@ -704,6 +711,8 @@ export class EodSignalsPageComponent implements OnInit {
       'Entry Price': r.entryPrice ?? '',
       'Stop Loss': r.stopLossPrice ?? '',
       'Risk / Share': r.riskPerShare != null ? +r.riskPerShare.toFixed(3) : '',
+      'Analysis Ticker': r.analysisTicker ?? r.symbol,
+      'Analysis Currency': this.analysisCurrency(r),
       'Recommended Shares': r.positionSizingShares ?? '',
       'Position Risk': r.positionSizingRiskAmount ?? '',
       'Position Value': r.positionSizingPositionValue ?? '',
@@ -711,6 +720,7 @@ export class EodSignalsPageComponent implements OnInit {
       'Risk %': this.riskPercent(r) != null ? +this.riskPercent(r)!.toFixed(2) : '',
       'SMA 200': r.sma200 ?? '',
       'Signal Price': r.price,
+      'Last Price': this.lastPrice(r) ?? '',
       Volume: r.volumeSignal ?? '',
       'Reversal P.': r.reversalProbability,
       Mode: r.ruleVersion,

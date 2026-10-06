@@ -16,16 +16,8 @@ import { SymbolSearchResult } from '../../../core/models/portfolio.models';
 import { ConfigService } from '../../../core/services/config.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
-
-export const ACCOUNT_TYPES = [
-  'TFSA_L_RBC',
-  'TFSA_L_TD',
-  'TFSA_D_TD',
-  'Margin_L_TD',
-  'Margin_L_RBC',
-  'Margin_D_TD',
-  'Corp_TD',
-] as const;
+import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 @Component({
   selector: 'app-add-stock-dialog',
@@ -33,6 +25,7 @@ export const ACCOUNT_TYPES = [
   styleUrl: './add-stock-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -50,6 +43,7 @@ export class AddStockDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
   private readonly state = inject(PortfolioStateService);
+  private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
   private readonly configService = inject(ConfigService);
 
@@ -57,7 +51,6 @@ export class AddStockDialogComponent {
   protected readonly searching = signal(false);
   protected readonly saving = signal(false);
 
-  protected readonly accountTypes = ACCOUNT_TYPES;
   protected readonly today = new Date();
 
   protected readonly roles = [
@@ -136,7 +129,7 @@ export class AddStockDialogComponent {
     if (this.form.invalid) return;
     this.saving.set(true);
     try {
-      await this.state.addItem({
+      const created = await this.state.addItem({
         symbol: this.form.value.symbol!,
         companyName: this.form.value.companyName!,
         shares: this.form.value.shares!,
@@ -150,6 +143,7 @@ export class AddStockDialogComponent {
         decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
+      void this.tradeCashLink.offerForStock(null, created);
     } finally {
       this.saving.set(false);
     }

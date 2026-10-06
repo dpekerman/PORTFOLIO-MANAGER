@@ -15,7 +15,7 @@ import {
   SELECTABLE_CASH_FLOW_TYPES,
 } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
-import { ACCOUNT_TYPES } from '../add-stock-dialog/add-stock-dialog.component';
+import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 export interface EditCashDialogData {
   item: CashItem;
@@ -27,6 +27,7 @@ export interface EditCashDialogData {
   styleUrl: './edit-cash-dialog.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AccountTypeSelectComponent,
     MatDialogModule,
     MatFormFieldModule,
     MatInputModule,
@@ -46,7 +47,6 @@ export class EditCashDialogComponent {
   protected readonly data = inject<EditCashDialogData>(MAT_DIALOG_DATA);
 
   protected readonly saving = signal(false);
-  protected readonly accountTypes = ACCOUNT_TYPES;
   /** OpeningBalance is migration/admin-only — never selectable, but must stay visible+pinned when
    * editing a row that already has it (backend rejects moving a row to/from OpeningBalance). */
   protected readonly isOpeningBalance = this.data.item.cashFlowType === 'OpeningBalance';

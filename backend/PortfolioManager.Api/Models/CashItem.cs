@@ -18,4 +18,9 @@ public class CashItem
     public string? CashFlowType { get; set; }
     /// <summary>Set when an existing row is edited via UpdateAsync. Null for rows never edited since creation.</summary>
     public DateTime? ModifiedAt { get; set; }
+    /// <summary>Trade leg that produced this row (PortfolioOpen/PortfolioClose/OptionOpen/OptionClose); null for manual entries.
+    /// See <see cref="Services.TradeLinkSourceTypes"/>.</summary>
+    public string? SourceType { get; set; }
+    /// <summary>Id of the PortfolioItem/OptionItem named by <see cref="SourceType"/>. Deliberately not a FK: the trade may be deleted while its cash stays.</summary>
+    public int? SourceItemId { get; set; }
 }

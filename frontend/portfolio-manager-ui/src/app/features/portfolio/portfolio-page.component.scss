@@ -493,6 +493,16 @@
   font-weight: 700;
 }
 
+.pg-link-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  vertical-align: middle;
+  color: var(--text-muted);
+  cursor: help;
+}
+
 .pg-company {
   font-size: 0.78rem;
   white-space: nowrap;
@@ -857,6 +867,37 @@
   padding: 8px 20px;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
 }
+
+.cash-table-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 20px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+  }
+
+  mat-icon {
+    color: var(--text-faint);
+  }
+}
+
 .cash-account-subtotal-row {
   display: flex;
   align-items: center;

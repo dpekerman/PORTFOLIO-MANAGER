@@ -1,4 +1,4 @@
-﻿<div class="eod-page">
+<div class="eod-page">
   <!-- ── Page Header ──────────────────────────────────────────────────── -->
   <div class="page-header">
     <div class="page-title-group">
@@ -368,7 +368,9 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.entryPrice !== null && row.entryPrice !== undefined) {
-              <span class="mono">${{ row.entryPrice | number: '1.2-2' }}</span>
+              <span class="mono"
+                >${{ row.entryPrice | number: '1.2-2' }}</span
+              >
             } @else {
               <span class="muted">—</span>
             }
@@ -382,7 +384,9 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.stopLossPrice !== null && row.stopLossPrice !== undefined) {
-              <span class="mono">${{ row.stopLossPrice | number: '1.2-2' }}</span>
+              <span class="mono"
+                >${{ row.stopLossPrice | number: '1.2-2' }}</span
+              >
             } @else {
               <span class="muted">—</span>
             }
@@ -397,7 +401,9 @@
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.riskPerShare !== null && row.riskPerShare !== undefined) {
               <div class="risk-cell">
-                <span class="mono">${{ row.riskPerShare | number: '1.2-2' }}</span>
+                <span class="mono"
+                  >${{ row.riskPerShare | number: '1.2-2' }}</span
+                >
                 @let rp = riskPercent(row);
                 @if (rp !== null) {
                   <span
@@ -459,18 +465,29 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.sma200 !== null && row.sma200 !== undefined) {
-              <span class="mono">${{ row.sma200 | number: '1.2-2' }}</span>
+              <span class="mono"
+                >${{ row.sma200 | number: '1.2-2' }}</span
+              >
             } @else {
               <span class="muted">—</span>
             }
           </td>
         </ng-container>
 
+        <ng-container matColumnDef="currency">
+          <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
+          <td mat-cell *matCellDef="let row">{{ analysisCurrency(row) }}</td>
+        </ng-container>
+
         <!-- Price -->
         <ng-container matColumnDef="price">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="price" class="num-col">PRICE</th>
           <td mat-cell *matCellDef="let row" class="num-col">
-            <span class="mono">${{ row.price | number: '1.2-2' }}</span>
+            <span
+              class="mono"
+              [matTooltip]="'Analyzed on ' + (row.analysisTicker ?? row.symbol)"
+              >${{ row.price | number: '1.2-2' }}</span
+            >
           </td>
         </ng-container>
 
@@ -481,7 +498,11 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (lastPrice(row); as lp) {
-              <span class="mono">${{ lp | number: '1.2-2' }}</span>
+              <span
+                class="mono"
+                [matTooltip]="'Priced on ' + (row.analysisTicker ?? row.symbol)"
+                >${{ lp | number: '1.2-2' }}</span
+              >
             } @else {
               <span class="muted">—</span>
             }
@@ -497,7 +518,7 @@
             @let pd = priceDiff(row);
             @if (pd !== null) {
               <span class="mono" [class.eod-pos]="pd >= 0" [class.eod-neg]="pd < 0"
-                >{{ pd >= 0 ? '+' : '' }}{{ pd | number: '1.2-2' }}</span
+                >{{ pd >= 0 ? '+' : '' }}${{ pd | number: '1.2-2' }}</span
               >
             } @else {
               <span class="muted">—</span>

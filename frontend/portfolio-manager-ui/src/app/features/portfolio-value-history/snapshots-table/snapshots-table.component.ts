@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
@@ -13,6 +14,7 @@ import {
 import { CashStateService } from '../../../core/services/cash-state.service';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
+import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
 import { SnapshotDetailComponent } from './snapshot-detail/snapshot-detail.component';
 
 interface DailyChange {
@@ -33,6 +35,7 @@ interface ReconciliationIcon {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatTableModule,
+    MatSortModule,
     MatChipsModule,
     MatIconModule,
     MatButtonModule,
@@ -64,6 +67,30 @@ export class SnapshotsTableComponent {
   ];
 
   protected readonly expandedId = signal<number | null>(null);
+  protected readonly sort = signal<Sort>({ active: 'recordedDate', direction: 'desc' });
+  protected readonly sortedSnapshots = computed(() =>
+    sortHistoryRows(
+      this.historyState.filteredSnapshots(),
+      this.sort(),
+      this.sortAccessors,
+      'recordedDate',
+    ),
+  );
+
+  private readonly sortAccessors: HistorySortAccessors<PortfolioValueHistoryDto> = {
+    recordedDate: (row) => row.recordedDate,
+    totalValue: (row) => row.totalValue,
+    stocksValue: (row) => row.stocksValue,
+    optionsValue: (row) => row.optionsValue,
+    cashValue: (row) => row.cashValue,
+    externalCashFlow: (row) => row.externalCashFlow,
+    dailyChange: (row) => this.dailyChangeFor(row).changeAmount,
+    dailyPct: (row) => this.dailyChangeFor(row).changePct,
+    status: (row) => this.statusLabel(row.snapshotStatus),
+    recordedAt: (row) => Date.parse(row.recordedAt),
+    lastRecalculatedAt: (row) =>
+      row.lastRecalculatedAt ? Date.parse(row.lastRecalculatedAt) : null,
+  };
 
   /** Chronological pairing (full unfiltered list) so filtering never distorts day-over-day deltas. */
   protected readonly dailyChanges = computed(() => {

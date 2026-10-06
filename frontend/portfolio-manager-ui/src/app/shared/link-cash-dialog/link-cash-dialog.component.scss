@@ -1,0 +1,153 @@
+.lc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lc-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+
+  &--out {
+    border-left-color: #ff5252;
+  }
+
+  &--in {
+    border-left-color: #2e9e6b;
+  }
+}
+
+.lc-summary-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text-primary);
+}
+
+.lc-summary-detail {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.lc-flow-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px 2px 6px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.lc-summary--out .lc-flow-chip mat-icon {
+  color: #ff5252;
+}
+
+.lc-summary--in .lc-flow-chip mat-icon {
+  color: #2e9e6b;
+}
+
+.lc-note {
+  margin: 12px 0 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.lc-hint {
+  margin: 0 0 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lc-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  min-width: 380px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.lc-balance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  font-size: 13px;
+
+  &--negative strong {
+    color: #ff5252;
+  }
+}
+
+.lc-balance-values {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    color: var(--text-muted);
+  }
+}
+
+.lc-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+
+  mat-icon {
+    flex: none;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  &--warn {
+    background: rgba(255, 171, 64, 0.12);
+    border: 1px solid rgba(255, 171, 64, 0.45);
+    color: var(--text-primary);
+
+    mat-icon {
+      color: #ffab40;
+    }
+  }
+}
+
+mat-dialog-actions {
+  padding: 16px 0 0;
+  gap: 8px;
+}

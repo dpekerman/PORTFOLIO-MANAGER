@@ -141,6 +141,12 @@
                   <td mat-footer-cell *matFooterCellDef></td>
                 </ng-container>
 
+                <ng-container matColumnDef="tx_currency">
+                  <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
+                  <td mat-cell *matCellDef="let s">{{ stockCurrency(s.item.symbol) }}</td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+
                 <ng-container matColumnDef="tx_company" sticky>
                   <th mat-header-cell *matHeaderCellDef mat-sort-header>COMPANY</th>
                   <td mat-cell *matCellDef="let s">
@@ -169,7 +175,7 @@
                     class="pg-num"
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
-                    {{ s.item.averageCostBasis | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                    {{ s.item.averageCostBasis | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                   </td>
                   <td
                     mat-footer-cell
@@ -206,7 +212,7 @@
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     @if (s.item.closingPrice != null) {
-                      {{ s.item.closingPrice | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      {{ s.item.closingPrice | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                     } @else {
                       <span class="pg-dim">—</span>
                     }
@@ -229,7 +235,7 @@
                         "
                       >
                         {{ gl >= 0 ? '+' : ''
-                        }}{{ gl | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                        }}{{ gl | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                       </span>
                     } @else {
                       <span class="pg-dim">—</span>
@@ -279,7 +285,7 @@
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     @if (stockLastPrice(s) != null) {
-                      {{ stockLastPrice(s) | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                      {{ stockLastPrice(s) | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                     } @else {
                       <span class="pg-dim">—</span>
                     }
@@ -302,7 +308,7 @@
                         "
                       >
                         {{ pd >= 0 ? '+' : ''
-                        }}{{ pd | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                        }}{{ pd | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                       </span>
                     } @else {
                       <span class="pg-dim">—</span>
@@ -326,7 +332,7 @@
                         "
                       >
                         {{ dd >= 0 ? '+' : ''
-                        }}{{ dd | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                        }}{{ dd | currency: stockCurrency(s.item.symbol) : 'symbol-narrow' : '1.2-2' }}
                       </span>
                     } @else {
                       <span class="pg-dim">—</span>
@@ -521,6 +527,12 @@
                   <td mat-footer-cell *matFooterCellDef></td>
                 </ng-container>
 
+                <ng-container matColumnDef="otx_currency">
+                  <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
+                  <td mat-cell *matCellDef="let a">{{ stockCurrency(a.item.underlyingTicker) }}</td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+
                 <ng-container matColumnDef="otx_position">
                   <th mat-header-cell *matHeaderCellDef mat-sort-header>POSITION</th>
                   <td mat-cell *matCellDef="let a">
@@ -553,7 +565,10 @@
                     class="pg-num"
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
-                    {{ a.item.strike | currency }}
+                    {{
+                      a.item.strike
+                        | currency: stockCurrency(a.item.underlyingTicker) : 'symbol-narrow' : '1.2-2'
+                    }}
                   </td>
                   <td mat-footer-cell *matFooterCellDef></td>
                 </ng-container>
@@ -568,7 +583,10 @@
                     class="pg-num"
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
-                    {{ a.item.premium | currency }}
+                    {{
+                      a.item.premium
+                        | currency: stockCurrency(a.item.underlyingTicker) : 'symbol-narrow' : '1.2-2'
+                    }}
                   </td>
                   <td mat-footer-cell *matFooterCellDef class="pg-num"></td>
                 </ng-container>
@@ -610,7 +628,10 @@
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
                     @if (a.item.closingPrice != null) {
-                      {{ a.item.closingPrice | currency }}
+                      {{
+                        a.item.closingPrice
+                          | currency: stockCurrency(a.item.underlyingTicker) : 'symbol-narrow' : '1.2-2'
+                      }}
                     } @else {
                       <span class="pg-dim">—</span>
                     }
@@ -633,7 +654,7 @@
                         "
                       >
                         {{ ogl >= 0 ? '+' : ''
-                        }}{{ ogl | currency: 'CAD' : 'symbol-narrow' : '1.2-2' }}
+                        }}{{ ogl | currency: stockCurrency(a.item.underlyingTicker) : 'symbol-narrow' : '1.2-2' }}
                       </span>
                     } @else {
                       <span class="pg-dim">—</span>
@@ -682,7 +703,10 @@
                     class="pg-num pg-bold"
                     [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
                   >
-                    {{ optionMktValue(a) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                    {{
+                      optionMktValue(a)
+                        | currency: stockCurrency(a.item.underlyingTicker) : 'symbol-narrow' : '1.0-0'
+                    }}
                   </td>
                   <td mat-footer-cell *matFooterCellDef></td>
                 </ng-container>

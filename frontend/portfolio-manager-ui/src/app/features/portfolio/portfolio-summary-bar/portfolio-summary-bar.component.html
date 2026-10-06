@@ -25,7 +25,10 @@
       }
     </span>
     @if (!oneDayChangeLoading() && dayChange !== null) {
-      <div class="breakdown">
+      <div
+        class="breakdown"
+        matTooltip="Each line is its value change since the last close. A buy shows as Stocks up and Cash down; together they net to the real gain or loss."
+      >
         @let sc = todayStocksChange();
         @if (sc !== null) {
           <span class="breakdown-row" [class.positive]="sc > 0" [class.negative]="sc < 0">

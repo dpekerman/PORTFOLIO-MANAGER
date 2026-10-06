@@ -14,7 +14,8 @@ public class StocksController(
     ITechnicalSnapshotService technicalSnapshots,
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
-    IDashboardService dashboard) : ControllerBase
+    IDashboardService dashboard,
+    ISecurityAnalysisResolver analysisResolver) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
@@ -108,15 +109,24 @@ public class StocksController(
     }
 
     /// <summary>Lightweight batch price lookup for arbitrary symbols. Max 50 symbols per call.
-    /// Used by EOD Signals page to refresh last-price column without running a full RSI scan.</summary>
+    /// Used by EOD Signals page to refresh last-price column without running a full RSI scan.
+    /// Returns the analysis-security price (e.g. USD underlying for a CDR) so it is comparable to stored signal prices.</summary>
     [HttpPost("batch-prices")]
     public async Task<IActionResult> GetBatchPrices(
         [FromBody] IReadOnlyList<string> symbols, CancellationToken ct)
     {
         if (symbols is null || symbols.Count == 0) return Ok(Array.Empty<object>());
         var distinct = symbols.Take(50).Select(s => s.Trim().ToUpperInvariant()).Distinct().ToList();
-        var quotes = await marketData.GetBatchQuotesAsync(distinct, ct);
-        var result = quotes.Select(kv => new { symbol = kv.Key, price = kv.Value.CurrentPrice }).ToList();
+        var uid = CurrentUserId();
+        var analysisBySymbol = new Dictionary<string, string>();
+        foreach (var symbol in distinct)
+            analysisBySymbol[symbol] = (await analysisResolver.ResolveAsync(symbol, uid, ct)).AnalysisTicker;
+
+        var quotes = await marketData.GetBatchQuotesAsync(analysisBySymbol.Values.Distinct().ToList(), ct);
+        var result = analysisBySymbol
+            .Where(kv => quotes.ContainsKey(kv.Value))
+            .Select(kv => new { symbol = kv.Key, price = quotes[kv.Value].CurrentPrice })
+            .ToList();
         return Ok(result);
     }
 }

@@ -46,8 +46,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           });
           return next(retried);
         }),
-        catchError(() => {
+        catchError((refreshError: HttpErrorResponse) => {
           refreshInFlight = null;
+          // Rate-limited is not an auth failure: keep the session and let the caller see the 429.
+          if (refreshError.status === 429) return throwError(() => refreshError);
           authState.clearAuth();
           router.navigate(['/login']);
           return throwError(() => error);

@@ -1,11 +1,25 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbContext<ApplicationUser>(options)
 {
+    public DbSet<AccountType> AccountTypes => Set<AccountType>();
+
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
+    {
+        if (!AccountTypeWriteGuard.NeedsValidation(this))
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+        await using var tx = await AccountTypeWriteGuard.BeginAsync(this, ct);
+        await AccountTypeWriteGuard.ValidateAsync(this, ct);
+        var count = await base.SaveChangesAsync(acceptAllChangesOnSuccess, ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return count;
+    }
+
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
@@ -37,6 +51,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<AccountType>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(120);
+            entity.Property(x => x.NormalizedName).IsRequired().HasMaxLength(120);
+            entity.Property(x => x.Version).IsConcurrencyToken();
+            entity.HasIndex(x => x.NormalizedName).IsUnique();
+            var names = new[] { "TFSA_L_RBC", "TFSA_L_TD", "TFSA_D_TD", "Margin_L_TD", "Margin_L_RBC", "Margin_D_TD", "Corp_TD" };
+            entity.HasData(names.Select((name, i) => new AccountType
+            {
+                Id = i + 1, Name = name, NormalizedName = AccountTypeService.Normalize(name),
+                Version = Guid.Parse($"00000000-0000-0000-0000-{i + 1:000000000000}")
+            }));
+        });
         modelBuilder.Entity<PortfolioItem>(entity =>
         {
             entity.HasKey(e => e.Id);
@@ -51,7 +79,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.IsManual).HasDefaultValue(false);
             entity.Property(e => e.ManualMarketValue).HasColumnType("decimal(18,4)");
             entity.Property(e => e.TransactionType).HasMaxLength(10);
-            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.AccountType).HasMaxLength(120);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.HoldingRole).HasMaxLength(20);
             entity.Property(e => e.DecisionSource).HasMaxLength(50);
@@ -65,15 +93,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.UserId).HasMaxLength(450);
             entity.Property(e => e.Description).IsRequired().HasMaxLength(200).HasDefaultValue("CASH");
             entity.Property(e => e.Amount).HasColumnType("decimal(18,4)");
-            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.AccountType).HasMaxLength(120);
             entity.Property(e => e.TransactionDate).IsRequired(false);
             entity.Property(e => e.CashFlowType).HasMaxLength(30);
-            // At most one OpeningBalance per account+date — prevents accidental double-counted cash
+            // At most one OpeningBalance per account+date â€” prevents accidental double-counted cash
             // (same filtered-unique-index pattern already used for DailySignals below).
             entity.HasIndex(e => new { e.AccountType, e.TransactionDate })
                 .IsUnique()
                 .HasFilter("[CashFlowType] = 'OpeningBalance'")
                 .HasDatabaseName("IX_CashItems_Account_OpeningBalance");
+            entity.Property(e => e.SourceType).HasMaxLength(20);
+            // A trade leg can be linked to at most one cash row â€” DB-level guard against double-counted cash.
+            entity.HasIndex(e => new { e.SourceType, e.SourceItemId })
+                .IsUnique()
+                .HasFilter("[SourceType] IS NOT NULL")
+                .HasDatabaseName("IX_CashItems_TradeLink");
         });
 
         modelBuilder.Entity<CashLedgerSettings>(entity =>
@@ -91,7 +125,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.IsFavorite).HasDefaultValue(false);
             entity.Property(e => e.EarningsDate).IsRequired(false);
             entity.Property(e => e.WatchlistTier).HasMaxLength(20).HasDefaultValue("Strategic");
-            // Per-user duplicate symbols allowed — composite unique index (Symbol, UserId)
+            // Per-user duplicate symbols allowed â€” composite unique index (Symbol, UserId)
             entity.HasIndex(e => new { e.Symbol, e.UserId }).IsUnique();
         });
 
@@ -168,7 +202,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Premium).HasColumnType("decimal(18,4)");
             entity.Property(e => e.MarketPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.TransactionType).HasMaxLength(10);
-            entity.Property(e => e.AccountType).HasMaxLength(30);
+            entity.Property(e => e.AccountType).HasMaxLength(120);
             entity.Property(e => e.ClosingPrice).HasColumnType("decimal(18,4)");
             entity.Property(e => e.DecisionSource).HasMaxLength(50);
             entity.Property(e => e.DecisionSourceClosed).HasMaxLength(50);
@@ -207,6 +241,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Fib61_8AtSignal).HasColumnType("decimal(18,4)");
             entity.Property(e => e.FibZoneAtSignal).HasMaxLength(30);
             entity.Property(e => e.FibStatusAtSignal).HasMaxLength(30);
+            entity.Property(e => e.AnalysisTicker).HasMaxLength(20);
+            entity.Property(e => e.AnalysisCurrency).HasMaxLength(10);
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });
@@ -294,7 +330,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<SectorIndustryConfig>(entity =>
         {
             entity.HasKey(e => e.Id);
-            // Single-row upsert table — Id is always explicitly 1, never auto-generated
+            // Single-row upsert table â€” Id is always explicitly 1, never auto-generated
             entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.SectorsJson).IsRequired().HasDefaultValue("[]");
             entity.Property(e => e.IndustriesJson).IsRequired().HasDefaultValue("[]");
@@ -326,7 +362,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<RsiScanSnapshot>(entity =>
         {
             entity.HasKey(e => e.Id);
-            // Single-row upsert table — Id is always explicitly 1, never auto-generated
+            // Single-row upsert table â€” Id is always explicitly 1, never auto-generated
             entity.Property(e => e.Id).ValueGeneratedNever();
             entity.Property(e => e.SnapshotJson).IsRequired().HasDefaultValue("{}");
         });

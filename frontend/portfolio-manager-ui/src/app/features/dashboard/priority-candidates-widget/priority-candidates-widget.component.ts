@@ -24,7 +24,7 @@ import {
 } from '../../../core/services/priority-candidate-eligibility';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
 import { WatchlistRsiStateService } from '../../../core/services/watchlist-rsi-state.service';
-import { formatTrendShift } from '../../../core/technical-display';
+import { currencyCodeForAnalysis, formatTrendShift } from '../../../core/technical-display';
 
 export interface PriorityCandidateRow {
   score: ActionScoreDto;
@@ -166,5 +166,9 @@ export class PriorityCandidatesWidgetComponent implements OnInit {
     if (raw.startsWith('🟡')) return 'dot-yellow';
     if (raw.startsWith('🔴')) return 'dot-red';
     return 'dot-neutral';
+  }
+
+  protected analysisCurrency(score: ActionScoreDto): string {
+    return currencyCodeForAnalysis(score.symbol, score.analysisCurrency);
   }
 }

@@ -1,3 +1,17 @@
+export interface AccountType {
+  id: number;
+  name: string;
+  version: string;
+  stockCount: number;
+  optionCount: number;
+  cashCount: number;
+}
+
+export interface AccountTypeRename {
+  oldName: string;
+  item: AccountType;
+}
+
 export interface PortfolioItem {
   id: number;
   symbol: string;
@@ -383,6 +397,8 @@ export interface ScannerResponse {
 // ── Yesterday's EOD Signals (overnight persistence / Gap 3) ──────────────────
 export interface EodSignalRecord {
   symbol: string;
+  analysisTicker?: string | null;
+  analysisCurrency?: string | null;
   companyName: string;
   scanType: string;
   rsi: number;
@@ -509,6 +525,9 @@ export const SELECTABLE_CASH_FLOW_TYPES: CashFlowType[] = [
   'AdjustmentDecrease',
 ];
 
+/** Trade leg that owns a cash ledger row: Open = cash out (TradePurchase), Close = cash in (TradeProceeds). */
+export type TradeLinkSourceType = 'PortfolioOpen' | 'PortfolioClose' | 'OptionOpen' | 'OptionClose';
+
 export interface CashItem {
   id: number;
   description: string;
@@ -520,6 +539,35 @@ export interface CashItem {
   isExternalFlow: boolean;
   /** Set when an existing row was edited after creation; null if never edited. */
   modifiedAt?: string | null;
+  /** Set only on rows created from a trade via "Link cash"; null for manual entries. */
+  sourceType?: TradeLinkSourceType | null;
+  sourceItemId?: number | null;
+}
+
+/** Amount is a positive magnitude; the server derives CashFlowType and sign from sourceType. */
+export interface AddLinkedCashRequest {
+  sourceType: TradeLinkSourceType;
+  sourceItemId: number;
+  amount: number;
+  description?: string | null;
+  accountType?: string | null;
+  transactionDate?: string | null;
+}
+
+/** A trade leg with no cash-ledger counterpart (it still double-counts in Portfolio Value). */
+export interface UnlinkedTrade {
+  sourceType: TradeLinkSourceType;
+  sourceItemId: number;
+  symbol: string;
+  label: string;
+  /** e.g. "500 sh" or "10 contracts". */
+  quantity: string;
+  price: number | null;
+  amount: number | null;
+  accountType: string | null;
+  tradeDate: string;
+  /** NoCash, or MissingPrice when the leg has no price to size the cash row. */
+  reason: 'NoCash' | 'MissingPrice';
 }
 
 export interface AddCashItemRequest {
@@ -700,6 +748,9 @@ export interface DailySignal {
   fib61_8AtSignal: number | null;
   fibZoneAtSignal: string | null;
   fibStatusAtSignal: string | null;
+  /** Underlying ticker whose (USD) prices are stored; null when the signal symbol itself was analyzed. */
+  analysisTicker?: string | null;
+  analysisCurrency?: string | null;
 }
 
 export interface DailySignalPagedResponse {
@@ -1193,6 +1244,7 @@ export interface ActionScoreDto {
   rsi: number;
   allocationStatus: string;
   currentPrice: number;
+  analysisCurrency?: string | null;
   latestEodSignalState?: string | null;
   latestEodScanType?: string | null;
   latestEodIsNew?: boolean;

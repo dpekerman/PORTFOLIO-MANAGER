@@ -18,6 +18,7 @@
 --   Step 7  09_SetStrategicIncomeRole.sql               (Strategic-Income role assignment)
 --   Step 8  11_AddIdentityAndAuth.sql                   (ASP.NET Core Identity + RefreshTokens)
 --   Step 9  14_AddFibonacciToDailySignals.sql           (Fibonacci snapshot columns on DailySignals)
+--   Step 10 19_AddAnalysisCurrencyToDailySignals.sql     (analysis ticker/currency metadata)
 --
 -- SCRIPTS NOT RUN IN THIS MASTER:
 --   04_SeedNotificationRecipients.sql  -- contains placeholder emails; run manually
@@ -1018,3 +1019,31 @@ END
 PRINT '  Step 9 OK: Fibonacci columns verified.';
 GO
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- STEP 10: Analysis ticker and currency on DailySignals
+-- ════════════════════════════════════════════════════════════════════════════
+PRINT '-- Step 10: DailySignals analysis ticker/currency --';
+
+IF COL_LENGTH('dbo.DailySignals', 'AnalysisCurrency') IS NULL
+    ALTER TABLE dbo.DailySignals ADD AnalysisCurrency NVARCHAR(10) NULL;
+IF COL_LENGTH('dbo.DailySignals', 'AnalysisTicker') IS NULL
+    ALTER TABLE dbo.DailySignals ADD AnalysisTicker NVARCHAR(20) NULL;
+
+UPDATE ds
+SET ds.AnalysisTicker = COALESCE(
+        ds.AnalysisTicker,
+        CASE WHEN m.UseUnderlyingForAnalysis = 1 AND m.UnderlyingTicker IS NOT NULL
+            THEN m.UnderlyingTicker ELSE ds.Symbol END),
+    ds.AnalysisCurrency = COALESCE(
+        ds.AnalysisCurrency,
+        CASE WHEN m.UseUnderlyingForAnalysis = 1 AND m.UnderlyingTicker IS NOT NULL THEN 'USD'
+            WHEN UPPER(ds.Symbol) LIKE '%.TO' THEN 'CAD' ELSE 'USD' END)
+FROM dbo.DailySignals AS ds
+LEFT JOIN dbo.SecurityAnalysisMappings AS m
+    ON m.TradingTicker = ds.Symbol
+   AND m.UserId IS NULL
+   AND m.ResolutionStatus = 1
+WHERE ds.AnalysisTicker IS NULL OR ds.AnalysisCurrency IS NULL;
+
+PRINT '  Step 10 OK: analysis ticker/currency columns and historical values verified.';
+GO

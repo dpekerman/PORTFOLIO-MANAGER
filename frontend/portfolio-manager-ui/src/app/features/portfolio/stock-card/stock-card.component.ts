@@ -9,6 +9,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../../core/models/portfolio.models';
 import { DemoModeService } from '../../../core/services/demo-mode.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import {
   EditPositionDialogComponent,
@@ -70,6 +71,10 @@ export class StockCardComponent {
 
   protected readonly isSelected = computed(() => this.state.isSelected(this.summary().item.id));
 
+  protected holdingCurrency(): string {
+    return currencyCodeForTradingSymbol(this.summary().item.symbol);
+  }
+
   toggleSelect(): void {
     this.state.toggleSelection(this.summary().item.id);
   }
@@ -91,6 +96,15 @@ export class StockCardComponent {
             sector: result.sector,
             industry: result.industry,
             overrideSector: result.overrideSector,
+            // The API overwrites every transaction field, so omitting these would null them out.
+            transactionType: result.transactionType,
+            accountType: result.accountType,
+            openDate: result.openDate,
+            closeDate: result.closeDate,
+            closingPrice: result.closingPrice,
+            decisionSource: result.decisionSource,
+            decisionSourceClosed: result.decisionSourceClosed,
+            holdingRole: result.holdingRole,
           });
         }
       });
