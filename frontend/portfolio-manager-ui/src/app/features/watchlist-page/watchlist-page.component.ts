@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -47,6 +47,10 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
 import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import {
+  currencyCodeForAnalysis,
+  currencyCodeForTradingSymbol,
+} from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
@@ -522,6 +526,10 @@ export class WatchlistPageComponent {
 
   protected fibForSymbol(symbol: string) {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+  }
+
+  protected tradingCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
   }
 
   protected fibZoneClass(zone: string): string {

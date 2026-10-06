@@ -31,20 +31,27 @@ export class PortfolioFinalActionSyncService {
     allSummaries: PortfolioSummary[],
     grandTotal: number,
   ): PortfolioItemContext {
-    const price = r.currentPrice;
+    // Performance uses the traded security's price (e.g. CAD for a CDR); r.currentPrice is the analysis (USD) price.
+    const tradedPrice =
+      allSummaries.find((s) => s.item.id === item.id)?.quote?.currentPrice ??
+      (r.usesUnderlyingSecurity ? null : r.currentPrice);
+    const analysisPrice = r.currentPrice;
     const unrealizedGainPct =
-      item.averageCostBasis > 0
-        ? ((price - item.averageCostBasis) / item.averageCostBasis) * 100
+      tradedPrice !== null && item.averageCostBasis > 0
+        ? ((tradedPrice - item.averageCostBasis) / item.averageCostBasis) * 100
         : null;
     const holdingDays = item.openDate
       ? Math.floor((Date.now() - new Date(item.openDate).getTime()) / (1000 * 60 * 60 * 24))
       : null;
     const distanceFrom52WeekHighPct =
-      r.week52High > 0 ? ((price - r.week52High) / r.week52High) * 100 : null;
+      r.week52High > 0 ? ((analysisPrice - r.week52High) / r.week52High) * 100 : null;
     const marketValue = item.isManual
       ? (item.manualMarketValue ?? item.averageCostBasis)
-      : price * item.shares;
-    const positionSizePct = grandTotal > 0 ? (marketValue / grandTotal) * 100 : null;
+      : tradedPrice !== null
+        ? tradedPrice * item.shares
+        : null;
+    const positionSizePct =
+      grandTotal > 0 && marketValue !== null ? (marketValue / grandTotal) * 100 : null;
 
     return {
       accountType: item.accountType ?? null,

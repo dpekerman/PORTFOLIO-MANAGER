@@ -34,7 +34,7 @@
             @if (t.amount === null) {
               <span class="missing">price missing</span>
             } @else {
-              {{ isBuy(t) ? '−' : '+' }}{{ dv(t.amount) | currency: 'CAD' }}
+              {{ isBuy(t) ? '−' : '+' }}{{ dv(t.amount) | currency: 'CAD' : 'symbol-narrow' }}
             }
           </div>
           @if (authState.canWrite()) {

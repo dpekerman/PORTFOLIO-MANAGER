@@ -33,6 +33,10 @@ import {
   priceStructureTooltip as formatPriceStructureTooltip,
   priceStructureSortRank,
 } from '../../core/price-structure-display';
+import {
+  currencyCodeForAnalysis,
+  currencyCodeForTradingSymbol,
+} from '../../core/technical-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
@@ -156,6 +160,8 @@ type OptionSortCol =
   | 'opt_action'
   | 'opt_age';
 
+type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
+
 @Component({
   selector: 'app-portfolio-page',
   templateUrl: './portfolio-page.component.html',
@@ -262,6 +268,40 @@ export class PortfolioPageComponent {
 
   protected readonly optionSortCol = signal<OptionSortCol>('opt_expiry');
   protected readonly optionSortDir = signal<SortDir>('asc');
+
+  // Default: most recently added first
+  protected readonly cashSortCol = signal<CashSortCol>('addedAt');
+  protected readonly cashSortDir = signal<SortDir>('desc');
+
+  protected readonly sortedCashItems = computed(() => {
+    const col = this.cashSortCol();
+    const dir = this.cashSortDir() === 'asc' ? 1 : -1;
+    return [...this.cashState.items()].sort((a, b) => {
+      const av = this.cashSortValue(a, col);
+      const bv = this.cashSortValue(b, col);
+      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+  });
+
+  private cashSortValue(c: CashItem, col: CashSortCol): number | string {
+    switch (col) {
+      case 'description':
+        return c.description ?? '';
+      case 'amount':
+        return c.amount;
+      case 'addedAt':
+        return new Date(c.addedAt).getTime() || 0;
+      case 'cashAccountType':
+        return c.accountType ?? '';
+    }
+  }
+
+  onCashSortChange(sort: Sort): void {
+    if (!sort.active || sort.direction === '') return;
+    this.cashSortCol.set(sort.active as CashSortCol);
+    this.cashSortDir.set(sort.direction as SortDir);
+  }
 
   protected readonly optionDisplayedColumns =
     inject(GridColumnService).getColumnKeys('portfolio-options');
@@ -430,8 +470,13 @@ export class PortfolioPageComponent {
     return this.rsiMap().get(symbol.toUpperCase()) ?? null;
   }
 
-  protected technicalCurrencySuffix(result: RsiScanResult): string {
-    return result.usesUnderlyingSecurity ? ` ${result.analysisCurrency ?? 'USD'}` : '';
+  protected holdingCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
+  }
+
+  protected analysisCurrencyForSymbol(symbol: string): string {
+    const result = this.rsiMap().get(symbol.toUpperCase());
+    return currencyCodeForAnalysis(symbol, result?.analysisCurrency);
   }
 
   protected channelForSymbol(symbol: string): RsiScanResult | null {

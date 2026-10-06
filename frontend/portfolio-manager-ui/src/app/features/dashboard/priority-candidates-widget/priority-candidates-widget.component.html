@@ -74,7 +74,8 @@
           <div class="pc-price-col">
             @if (row.score.currentPrice > 0) {
               <span class="pc-price">{{
-                row.score.currentPrice | currency: 'USD' : 'symbol' : '1.2-2'
+                row.score.currentPrice
+                  | currency: analysisCurrency(row.score) : 'symbol-narrow' : '1.2-2'
               }}</span>
               <span class="pc-rsi-val">RSI {{ row.score.rsi | number: '1.0-0' }}</span>
             }

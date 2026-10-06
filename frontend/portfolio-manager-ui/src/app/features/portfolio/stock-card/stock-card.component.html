@@ -54,7 +54,7 @@
       <span
         class="current-price"
         [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-        >{{ currentPrice() | currency }}</span
+        >{{ currentPrice() | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2' }}</span
       >
       @if (summary().quote) {
         <span
@@ -65,6 +65,7 @@
           <mat-icon>{{ isDailyPositive() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
           <span [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
             {{ summary().quote!.change | number: '1.2-2' }}
+
             ({{ summary().quote!.changePercent | number: '1.2-2' }}%)
           </span>
         </span>
@@ -106,7 +107,9 @@
           <span
             class="value"
             [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-            >{{ summary().item.averageCostBasis | currency }}</span
+            >{{
+              summary().item.averageCostBasis | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2'
+            }}</span
           >
         </div>
       }
@@ -115,7 +118,7 @@
         <span
           class="value"
           [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
-          >{{ marketValue() | currency }}</span
+          >{{ marketValue() | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2' }}</span
         >
       </div>
       <div class="metric">
@@ -126,7 +129,8 @@
           [class.negative]="!isPositive()"
           [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
         >
-          {{ gainLoss() | currency }} ({{ gainLossPct() | number: '1.2-2' }}%)
+          {{ gainLoss() | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2' }}
+          ({{ gainLossPct() | number: '1.2-2' }}%)
         </span>
       </div>
     </div>
@@ -136,13 +140,21 @@
         <span class="range-label">52 Week:</span>
         @if (summary().quote!.week52Low > 0 || summary().quote!.week52High > 0) {
           <span
-            >{{ summary().quote!.week52Low | currency }} –
-            {{ summary().quote!.week52High | currency }}</span
+            >{{
+              summary().quote!.week52Low | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2'
+            }} –
+            {{
+              summary().quote!.week52High | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2'
+            }}</span
           >
         } @else {
           <span
-            >{{ summary().quote!.lowPrice | currency }} –
-            {{ summary().quote!.highPrice | currency }}</span
+            >{{
+              summary().quote!.lowPrice | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2'
+            }} –
+            {{
+              summary().quote!.highPrice | currency: holdingCurrency() : 'symbol-narrow' : '1.2-2'
+            }}</span
           >
         }
       </div>

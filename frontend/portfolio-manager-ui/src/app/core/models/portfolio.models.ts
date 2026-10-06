@@ -383,6 +383,8 @@ export interface ScannerResponse {
 // ── Yesterday's EOD Signals (overnight persistence / Gap 3) ──────────────────
 export interface EodSignalRecord {
   symbol: string;
+  analysisTicker?: string | null;
+  analysisCurrency?: string | null;
   companyName: string;
   scanType: string;
   rsi: number;
@@ -732,6 +734,9 @@ export interface DailySignal {
   fib61_8AtSignal: number | null;
   fibZoneAtSignal: string | null;
   fibStatusAtSignal: string | null;
+  /** Underlying ticker whose (USD) prices are stored; null when the signal symbol itself was analyzed. */
+  analysisTicker?: string | null;
+  analysisCurrency?: string | null;
 }
 
 export interface DailySignalPagedResponse {
@@ -1225,6 +1230,7 @@ export interface ActionScoreDto {
   rsi: number;
   allocationStatus: string;
   currentPrice: number;
+  analysisCurrency?: string | null;
   latestEodSignalState?: string | null;
   latestEodScanType?: string | null;
   latestEodIsNew?: boolean;

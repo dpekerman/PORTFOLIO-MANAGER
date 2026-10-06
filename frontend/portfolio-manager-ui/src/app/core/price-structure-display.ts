@@ -23,13 +23,10 @@ export function priceStructureTooltip(
   },
 ): string {
   if (!hasPriceStructure(structure)) return '';
-  const currencySuffix = analysisSource?.usesUnderlying
-    ? ` ${analysisSource.currency ?? 'USD'}`
-    : '';
   const money = (value: number | null | undefined) =>
     value === null || value === undefined || value === 0
       ? '—'
-      : `$${maskValue(value).toFixed(2)}${currencySuffix}`;
+      : `$${maskValue(value).toFixed(2)}`;
   const optional = (value: number | null | undefined, suffix = '') =>
     value === null || value === undefined ? '—' : `${value}${suffix}`;
 
@@ -61,7 +58,9 @@ export function priceStructureTooltip(
   const technical = [pattern, level, touches].filter(Boolean).join('\n\n');
   const source = analysisSource?.usesUnderlying
     ? `TECHNICAL ANALYSIS SOURCE\nUnderlying: ${analysisSource.ticker ?? '—'} (${analysisSource.market ?? 'US'})\nTechnical levels are in ${analysisSource.currency ?? 'USD'}.`
-    : '';
+    : analysisSource?.currency
+      ? `TECHNICAL ANALYSIS VALUES ARE IN ${analysisSource.currency}.`
+      : '';
   return [explanation, source, `TECHNICAL DETAILS\n\n${technical}`].filter(Boolean).join('\n\n');
 }
 

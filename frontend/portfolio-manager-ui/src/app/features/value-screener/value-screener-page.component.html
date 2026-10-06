@@ -1,4 +1,4 @@
-﻿<div class="value-screener-page">
+<div class="value-screener-page">
   <!-- HEADER -->
   <section class="screener-section">
     <div class="section-header">
@@ -231,10 +231,17 @@
                 <span class="sector-label">{{ row.sector }}</span>
               }
               @if (row.currentPrice > 0) {
-                <span class="price-label">{{ row.currentPrice | currency }}</span>
+                <span class="price-label">{{
+                  row.currentPrice | currency: tradingCurrency(row.symbol) : 'symbol-narrow' : '1.2-2'
+                }}</span>
               }
             </div>
           </td>
+        </ng-container>
+
+        <ng-container matColumnDef="currency">
+          <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
+          <td mat-cell *matCellDef="let row">{{ tradingCurrency(row.symbol) }}</td>
         </ng-container>
 
         <!-- Technical State Column -->

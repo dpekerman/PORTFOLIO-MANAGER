@@ -24,6 +24,7 @@ import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import {
   ConfirmDialogComponent,
@@ -273,6 +274,10 @@ export class TransactionsPageComponent {
   /** Last price (current market price) */
   protected stockLastPrice(s: PortfolioSummary): number | null {
     return s.quote?.currentPrice ?? null;
+  }
+
+  protected stockCurrency(symbol: string): string {
+    return currencyCodeForTradingSymbol(symbol);
   }
 
   /**

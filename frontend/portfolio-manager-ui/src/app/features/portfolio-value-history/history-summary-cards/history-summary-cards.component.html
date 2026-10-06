@@ -8,7 +8,7 @@
         @if (loading()) {
           —
         } @else {
-          {{ displayTotalValue() | currency: 'CAD' }}
+          {{ displayTotalValue() | currency: 'CAD' : 'symbol-narrow' }}
         }
       </div>
     </mat-card-content>
@@ -21,7 +21,7 @@
         @if (loading()) {
           —
         } @else {
-          {{ displayCashValue() | currency: 'CAD' }}
+          {{ displayCashValue() | currency: 'CAD' : 'symbol-narrow' }}
         }
       </div>
     </mat-card-content>
@@ -34,7 +34,7 @@
         @if (loading()) {
           —
         } @else {
-          {{ displayExternalFlow() | currency: 'CAD' }}
+          {{ displayExternalFlow() | currency: 'CAD' : 'symbol-narrow' }}
         }
       </div>
     </mat-card-content>

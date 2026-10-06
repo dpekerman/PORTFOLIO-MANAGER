@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatChipsModule } from '@angular/material/chips';
@@ -27,7 +27,10 @@ import {
 } from '../../core/services/decision-engine.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { GridColumnService } from '../../core/services/grid-column.service';
-import { formatTrendShift } from '../../core/technical-display';
+import {
+  currencyCodeForAnalysis,
+  formatTrendShift,
+} from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 
 @Component({
@@ -257,12 +260,15 @@ export class RsiScannerTableComponent {
     );
   }
 
+  protected analysisCurrency(row: RsiScanResult): string {
+    return currencyCodeForAnalysis(row.symbol, row.analysisCurrency);
+  }
+
   protected fibonacciTooltip(row: RsiScanResult): string {
-    const currency = row.usesUnderlyingSecurity ? ` ${row.analysisCurrency ?? 'USD'}` : '';
     const source = row.usesUnderlyingSecurity
       ? `\nUnderlying analysis: ${row.analysisTicker} (${row.analysisMarket ?? 'US'})`
       : '';
-    return `38.2: $${row.fib38_2.toFixed(2)}${currency} · 50: $${row.fib50.toFixed(2)}${currency} · 61.8: $${row.fib61_8.toFixed(2)}${currency} · 78.6: $${row.fib78_6.toFixed(2)}${currency}${source}`;
+    return `38.2: $${row.fib38_2.toFixed(2)} · 50: $${row.fib50.toFixed(2)} · 61.8: $${row.fib61_8.toFixed(2)} · 78.6: $${row.fib78_6.toFixed(2)}${source}`;
   }
 
   protected priceStructureSortValue(structure: PriceStructureResult | null | undefined): number {
@@ -414,6 +420,8 @@ export class RsiScannerTableComponent {
         eodPriceConfirmed;
       return {
         Symbol: r.symbol,
+        'Analysis Ticker': r.analysisTicker || r.symbol,
+        'Analysis Currency': currencyCodeForAnalysis(r.symbol, r.analysisCurrency),
         ScanType: r.scanType,
         BaseRsi: r.rsi != null ? +r.rsi.toFixed(2) : '',
         PreviousRsi: '',
@@ -423,6 +431,7 @@ export class RsiScannerTableComponent {
         TurnStrength: r.turnStrength,
         StageStatus: r.stageStatus,
         CurrentPrice: r.currentPrice,
+        Currency: currencyCodeForAnalysis(r.symbol, r.analysisCurrency),
         EMA9: r.ema9Price ?? '',
         Ema9Confirmed: ema9Confirmed,
         VolumeRatio: r.volumeRatio != null ? +r.volumeRatio.toFixed(2) : '',

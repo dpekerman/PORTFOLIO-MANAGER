@@ -23,24 +23,33 @@
 
   @if (quote()) {
     <div class="price-row">
-      <span class="price">{{ quote()!.currentPrice | currency }}</span>
+      <span class="price">{{
+        quote()!.currentPrice | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+      }}</span>
       <span class="change" [class.up]="isUp()" [class.down]="!isUp()">
         <mat-icon>{{ isUp() ? 'arrow_upward' : 'arrow_downward' }}</mat-icon>
-        {{ quote()!.change | number: '1.2-2' }} ({{ quote()!.changePercent | number: '1.2-2' }}%)
+        {{ quote()!.change | number: '1.2-2' }}
+        ({{ quote()!.changePercent | number: '1.2-2' }}%)
       </span>
     </div>
     <div class="stats-row">
       <div class="stat">
         <span class="stat-label">High</span>
-        <span class="stat-value">{{ quote()!.highPrice | currency }}</span>
+        <span class="stat-value">{{
+          quote()!.highPrice | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+        }}</span>
       </div>
       <div class="stat">
         <span class="stat-label">Low</span>
-        <span class="stat-value">{{ quote()!.lowPrice | currency }}</span>
+        <span class="stat-value">{{
+          quote()!.lowPrice | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+        }}</span>
       </div>
       <div class="stat">
         <span class="stat-label">Prev Close</span>
-        <span class="stat-value">{{ quote()!.previousClose | currency }}</span>
+        <span class="stat-value">{{
+          quote()!.previousClose | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+        }}</span>
       </div>
       @if (quote()!.sector) {
         <div class="stat sector-tag"><mat-icon>category</mat-icon>{{ quote()!.sector }}</div>
@@ -50,7 +59,9 @@
       <div class="week52-strip">
         <div class="week52-item">
           <span class="week52-tag">52W H</span>
-          <span class="week52-val">{{ quote()!.week52High | currency }}</span>
+          <span class="week52-val">{{
+            quote()!.week52High | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+          }}</span>
           <span class="week52-delta down">
             {{
               ((quote()!.currentPrice - quote()!.week52High) / quote()!.week52High) * 100
@@ -60,7 +71,9 @@
         </div>
         <div class="week52-item">
           <span class="week52-tag">52W L</span>
-          <span class="week52-val">{{ quote()!.week52Low | currency }}</span>
+          <span class="week52-val">{{
+            quote()!.week52Low | currency: tradingCurrency() : 'symbol-narrow' : '1.2-2'
+          }}</span>
           <span class="week52-delta up">
             +{{
               ((quote()!.currentPrice - quote()!.week52Low) / quote()!.week52Low) * 100

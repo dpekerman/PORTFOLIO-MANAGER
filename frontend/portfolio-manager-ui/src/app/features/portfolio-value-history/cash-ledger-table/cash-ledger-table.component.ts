@@ -1,8 +1,9 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CashItem } from '../../../core/models/portfolio.models';
@@ -12,6 +13,7 @@ import {
   EditCashDialogComponent,
   EditCashDialogData,
 } from '../../portfolio/edit-cash-dialog/edit-cash-dialog.component';
+import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
 
 @Component({
   selector: 'app-cash-ledger-table',
@@ -20,6 +22,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatTableModule,
+    MatSortModule,
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
@@ -44,12 +47,21 @@ export class CashLedgerTableComponent {
     'actions',
   ];
 
-  /** Most-recent-first for readability. */
+  protected readonly sort = signal<Sort>({ active: 'effectiveDate', direction: 'desc' });
   protected readonly sortedItems = computed(() =>
-    [...this.cashState.items()].sort(
-      (a, b) => this.effectiveDate(b).localeCompare(this.effectiveDate(a)) || b.id - a.id,
-    ),
+    sortHistoryRows(this.cashState.items(), this.sort(), this.sortAccessors, 'effectiveDate'),
   );
+
+  private readonly sortAccessors: HistorySortAccessors<CashItem> = {
+    effectiveDate: (item) => this.effectiveDate(item),
+    accountType: (item) => item.accountType,
+    cashFlowType: (item) => item.cashFlowType,
+    amount: (item) => item.amount,
+    isExternalFlow: (item) => Number(item.isExternalFlow),
+    runningBalance: (item) => this.runningBalanceFor(item),
+    addedAt: (item) => Date.parse(item.addedAt),
+    modifiedAt: (item) => (item.modifiedAt ? Date.parse(item.modifiedAt) : null),
+  };
 
   /** Cumulative running balance per account, computed in chronological (ascending) order. */
   protected readonly runningBalanceById = computed(() => {

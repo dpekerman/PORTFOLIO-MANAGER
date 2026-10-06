@@ -1,4 +1,4 @@
-﻿<div class="sector-exposition">
+<div class="sector-exposition">
   <!-- ── Toolbar ── -->
   <div class="expo-toolbar">
     <span class="expo-hint">Click a sector to expand · Expand/collapse all at once</span>
@@ -172,6 +172,7 @@
                       <div class="ticker-row ticker-header-row">
                         <span class="ticker-symbol-col">Ticker</span>
                         <span class="ticker-desc-col">Description</span>
+                        <span class="ticker-ccy-col">Currency</span>
                         <span class="ticker-bar-spacer"></span>
                         <span class="ticker-pct-col">% Total</span>
                         <span class="ticker-mv-col">Total MV</span>
@@ -183,6 +184,7 @@
                         <div class="ticker-row">
                           <span class="ticker-symbol">{{ pos.symbol }}</span>
                           <span class="ticker-name ticker-desc-col">{{ pos.companyName }}</span>
+                          <span class="ticker-ccy">{{ tradingCurrency(pos.symbol) }}</span>
                           <div class="ticker-bar-track">
                             <div
                               class="ticker-bar-fill"
@@ -204,7 +206,10 @@
                             "
                           >
                             {{
-                              pos.lastPrice != null ? '$' + (pos.lastPrice | number: '1.2-2') : '—'
+                              pos.lastPrice != null
+                                ? '$' +
+                                  (pos.lastPrice | number: '1.2-2')
+                                : '—'
                             }}
                           </span>
                           <span

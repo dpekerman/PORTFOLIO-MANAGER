@@ -72,7 +72,7 @@
               ><strong>{{ row.displayName }}</strong
               ><small>{{ row.symbol }}</small></span
             >
-            <span>{{ row.currentPrice | currency }}</span>
+            <span>{{ row.currentPrice | currency: analysisCurrency(row) : 'symbol-narrow' }}</span>
             <span [class]="returnClass(row.dayReturnPct)"
               >{{ row.dayReturnPct | number: '1.1-1' }}%</span
             >
@@ -137,7 +137,7 @@
           </div>
           @if (expandedRowId() === row.id) {
             <div class="ml-details-content">
-              Price {{ row.currentPrice | currency }} · Day
+              Price {{ row.currentPrice | currency: analysisCurrency(row) : 'symbol-narrow' }} · Day
               {{ row.dayReturnPct | number: '1.1-1' }}% · 5D
               {{ row.fiveDayReturnPct | number: '1.1-1' }}% · Momentum {{ row.momentumState }}
             </div>

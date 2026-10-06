@@ -123,7 +123,7 @@ export class DashboardPageComponent {
   protected readonly snapshot = this.dashboard.data;
   protected readonly eodSummary = this.dashboard.eodSummary;
   protected readonly chartRanges: ChartRange[] = ['1M', '3M', '6M', 'YTD', '1Y', 'ALL'];
-  protected readonly selectedRange = signal<ChartRange>('3M');
+  protected readonly selectedRange = signal<ChartRange>('1M');
   private readonly inspectedChartIndex = signal<number | null>(null);
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
   protected readonly moversCount = signal<number>(5);

@@ -213,6 +213,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Fib61_8AtSignal).HasColumnType("decimal(18,4)");
             entity.Property(e => e.FibZoneAtSignal).HasMaxLength(30);
             entity.Property(e => e.FibStatusAtSignal).HasMaxLength(30);
+            entity.Property(e => e.AnalysisTicker).HasMaxLength(20);
+            entity.Property(e => e.AnalysisCurrency).HasMaxLength(10);
             entity.HasIndex(e => e.Symbol);
             entity.HasIndex(e => e.SignalDate);
             entity.HasIndex(e => new { e.Symbol, e.SignalDate });

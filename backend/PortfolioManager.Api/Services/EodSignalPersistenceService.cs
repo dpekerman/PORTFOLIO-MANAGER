@@ -99,6 +99,8 @@ public class EodSignalPersistenceService
                     existing.VolumeSignal = result.VolumeSignal ?? string.Empty;
                     existing.TrendShift = result.TrendShift;
                     existing.RsiDelta1D = result.RsiDelta1D;
+                    existing.AnalysisTicker = AnalysisTicker(result);
+                    existing.AnalysisCurrency = AnalysisCurrency(result);
                 }
 
                 var existingSet = existingByKey.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -154,6 +156,8 @@ public class EodSignalPersistenceService
                             Fib61_8AtSignal    = r.Fib61_8 > 0 ? r.Fib61_8 : null,
                             FibZoneAtSignal    = !string.IsNullOrEmpty(r.FibZone) ? r.FibZone : null,
                             FibStatusAtSignal  = !string.IsNullOrEmpty(r.FibStatus) ? r.FibStatus : null,
+                            AnalysisTicker     = AnalysisTicker(r),
+                            AnalysisCurrency   = AnalysisCurrency(r),
                         };
                     })
                     .ToList();
@@ -224,6 +228,14 @@ public class EodSignalPersistenceService
             ? r.CurrentPrice > r.Ema9Price
             : r.CurrentPrice < r.Ema9Price;
 
+    private static string AnalysisTicker(RsiScanResult result) =>
+        string.IsNullOrWhiteSpace(result.AnalysisTicker) ? result.Symbol : result.AnalysisTicker;
+
+    private static string AnalysisCurrency(RsiScanResult result) =>
+        string.IsNullOrWhiteSpace(result.AnalysisCurrency)
+            ? result.Symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase) ? "CAD" : "USD"
+            : result.AnalysisCurrency;
+
     // ── Read ──────────────────────────────────────────────────────────────────
 
     /// <summary>Returns the most recent EOD signals from the DailySignals table.</summary>
@@ -260,6 +272,9 @@ public class EodSignalPersistenceService
                     ScanType       = s.ScanType,
                     Rsi            = s.Rsi,
                     Price          = s.Price,
+                    AnalysisTicker = s.AnalysisTicker ?? s.Symbol,
+                    AnalysisCurrency = s.AnalysisCurrency
+                        ?? (s.Symbol.EndsWith(".TO", StringComparison.OrdinalIgnoreCase) ? "CAD" : "USD"),
                     TriggerDetails = s.TriggerDetails,
                     TradingDate    = s.TradingDate ?? s.SignalDate,
                     ScannedAt      = s.ScannedAt ?? s.RecordedAt,
