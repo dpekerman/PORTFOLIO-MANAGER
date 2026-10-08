@@ -45,6 +45,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<MarketLeadershipTracker> MarketLeadershipTrackers => Set<MarketLeadershipTracker>();
     public DbSet<SecurityAnalysisMapping> SecurityAnalysisMappings => Set<SecurityAnalysisMapping>();
     public DbSet<CashLedgerSettings> CashLedgerSettings => Set<CashLedgerSettings>();
+    public DbSet<UnlinkedTradeBaseline> UnlinkedTradeBaselines => Set<UnlinkedTradeBaseline>();
     public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
     public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
 
@@ -113,6 +114,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
         modelBuilder.Entity<CashLedgerSettings>(entity =>
         {
             entity.HasKey(e => e.Id);
+        });
+
+        modelBuilder.Entity<UnlinkedTradeBaseline>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SourceType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Label).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.AccountType).HasMaxLength(120);
+            entity.Property(e => e.Fingerprint).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Note).IsRequired().HasMaxLength(200);
+            entity.HasIndex(e => new { e.SourceType, e.SourceItemId }).IsUnique();
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>

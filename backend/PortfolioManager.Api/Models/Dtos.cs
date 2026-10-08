@@ -166,7 +166,12 @@ public record CashItemDto(int Id, string Description, decimal Amount, DateTime A
 /// CashFlowType (TradePurchase for *Open, TradeProceeds for *Close) and the sign from SourceType.</summary>
 public record AddLinkedCashRequest(string SourceType, int SourceItemId, decimal Amount, string? Description = null, string? AccountType = null, DateTime? TransactionDate = null);
 /// <summary>One trade leg with no cash-ledger counterpart. Reason: NoCash, or MissingPrice when the leg has no price to size the cash row.</summary>
-public record UnlinkedTradeDto(string SourceType, int SourceItemId, string Symbol, string Label, string Quantity, decimal? Price, decimal? Amount, string? AccountType, DateTime TradeDate, string Reason);
+public record UnlinkedTradeDto(string SourceType, int SourceItemId, string Symbol, string Label, string Quantity, decimal? Price, decimal? Amount, string? AccountType, DateTime TradeDate, string Reason, UnlinkedTradeDiagnosisDto? Diagnosis = null);
+/// <summary>Why a trade leg is reported: a plain-English summary, the cash row that was expected, the closest
+/// existing cash row (if any) and every individual finding.</summary>
+public record UnlinkedTradeDiagnosisDto(string Summary, DateTime TradeRecordedAt, string ExpectedCashFlowType, decimal? ExpectedCashAmount, decimal? AmountTolerance, UnlinkedNearestCashDto? NearestCash, IReadOnlyList<string> Details);
+public record UnlinkedNearestCashDto(int Id, string Description, decimal Amount, string? AccountType, DateTime? Date, string? CashFlowType, IReadOnlyList<string> Mismatches);
+public record UnlinkedBaselineResultDto(int Added, int AlreadyBaselined);
 /// <summary>"Adjust Balance" — user types the desired new total; backend computes the delta and inserts
 /// one new ledger row. cashFlowType is required and validated against the delta's sign direction.</summary>
 public record AdjustCashBalanceRequest(string AccountType, decimal DesiredNewTotal, string CashFlowType, DateTime? TransactionDate = null);

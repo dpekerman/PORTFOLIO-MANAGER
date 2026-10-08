@@ -568,6 +568,29 @@ export interface UnlinkedTrade {
   tradeDate: string;
   /** NoCash, or MissingPrice when the leg has no price to size the cash row. */
   reason: 'NoCash' | 'MissingPrice';
+  diagnosis?: UnlinkedTradeDiagnosis | null;
+}
+
+export interface UnlinkedNearestCash {
+  id: number;
+  description: string;
+  amount: number;
+  accountType: string | null;
+  date: string | null;
+  cashFlowType: string | null;
+  /** Which matching rules this row failed. */
+  mismatches: string[];
+}
+
+/** Why a trade leg is reported as having no cash entry. */
+export interface UnlinkedTradeDiagnosis {
+  summary: string;
+  tradeRecordedAt: string;
+  expectedCashFlowType: string;
+  expectedCashAmount: number | null;
+  amountTolerance: number | null;
+  nearestCash: UnlinkedNearestCash | null;
+  details: string[];
 }
 
 export interface AddCashItemRequest {

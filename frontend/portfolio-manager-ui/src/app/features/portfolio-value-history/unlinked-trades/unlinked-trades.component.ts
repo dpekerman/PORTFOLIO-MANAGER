@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -19,8 +19,22 @@ import { TradeCashLinkService } from '../../../core/services/trade-cash-link.ser
 export class UnlinkedTradesComponent {
   protected readonly cashState = inject(CashStateService);
   protected readonly authState = inject(AuthStateService);
-  private readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
+  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  protected key(t: UnlinkedTrade): string {
+    return t.sourceType + t.sourceItemId;
+  }
+
+  protected toggle(t: UnlinkedTrade): void {
+    const k = this.key(t);
+    this.expanded.update((s) => {
+      const next = new Set(s);
+      if (!next.delete(k)) next.add(k);
+      return next;
+    });
+  }
 
   constructor() {
     // Any change to the cash ledger (a link was added/removed, a row edited) can change what is unlinked.

@@ -32,6 +32,13 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
     public async Task<ActionResult<IReadOnlyList<UnlinkedTradeDto>>> GetUnlinkedTrades(CancellationToken ct)
         => Ok(await unlinkedTrades.GetUnlinkedAsync(ct));
 
+    /// <summary>Acknowledges every currently listed trade as legacy history so it is no longer displayed.
+    /// Insert-only; never alters trades or cash.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("unlinked-trades/baseline")]
+    public async Task<ActionResult<UnlinkedBaselineResultDto>> BaselineUnlinkedTrades(CancellationToken ct)
+        => Ok(await unlinkedTrades.BaselineCurrentAsync(ct));
+
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CashItemDto>> GetById(int id, CancellationToken ct)
     {
