@@ -50,8 +50,6 @@ export class LayoutComponent {
 
   protected readonly sidenav = viewChild.required<MatSidenav>('sidenav');
 
-  protected readonly isRefreshDisabled = computed(() => this.appRefresh.isRefreshing());
-
   protected readonly offlineBadgeTooltip = computed(() => {
     switch (this.appRefresh.offlineReason()) {
       case 'network':
@@ -88,10 +86,6 @@ export class LayoutComponent {
     { path: '/portfolio-value-history', label: 'Value History', icon: 'history' },
     { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;
-
-  refreshAll(): void {
-    this.appRefresh.refreshAll('user-click');
-  }
 
   logout(): void {
     this.authApi.logout().subscribe();

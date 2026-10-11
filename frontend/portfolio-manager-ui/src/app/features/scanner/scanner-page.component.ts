@@ -24,12 +24,15 @@ const MORNING_DISMISSED_KEY = 'morning-check-dismissed';
 const MORNING_FORCE_KEY = 'morning-check-force-show';
 const MORNING_AUTO_OPENED_KEY = 'morning-check-auto-opened';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-scanner-page',
   templateUrl: './scanner-page.component.html',
   styleUrl: './scanner-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     DatePipe,
     DecimalPipe,
     MatButtonModule,

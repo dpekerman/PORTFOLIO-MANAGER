@@ -9,12 +9,15 @@ import { HistorySummaryCardsComponent } from './history-summary-cards/history-su
 import { SnapshotsTableComponent } from './snapshots-table/snapshots-table.component';
 import { UnlinkedTradesComponent } from './unlinked-trades/unlinked-trades.component';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-portfolio-value-history-page',
   templateUrl: './portfolio-value-history-page.component.html',
   styleUrl: './portfolio-value-history-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     MatTabsModule,
     HistorySummaryCardsComponent,
     HistoryFilterBarComponent,

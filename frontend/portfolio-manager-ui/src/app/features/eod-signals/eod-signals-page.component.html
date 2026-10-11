@@ -30,9 +30,11 @@
     </div>
 
     <div class="page-actions">
-      <button mat-icon-button matTooltip="Refresh" (click)="loadSignals()" [disabled]="loading()">
-        <mat-icon [class.spinning]="loading()">refresh</mat-icon>
-      </button>
+      <app-refresh-button
+        tooltip="Refresh all data and reload signals"
+        [busy]="loading()"
+        (refreshed)="loadSignals()"
+      />
       <button
         mat-icon-button
         matTooltip="Export to Excel"

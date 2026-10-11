@@ -26,12 +26,15 @@ interface OptionTickerGroup {
   expanded: boolean;
 }
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-allocation-page',
   templateUrl: './allocation-page.component.html',
   styleUrl: './allocation-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     CurrencyPipe,
     DecimalPipe,
     PercentPipe,

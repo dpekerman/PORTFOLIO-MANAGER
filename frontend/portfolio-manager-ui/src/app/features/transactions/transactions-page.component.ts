@@ -91,12 +91,15 @@ type OptionTxCol =
   | 'otx_age'
   | 'otx_actions';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-transactions-page',
   templateUrl: './transactions-page.component.html',
   styleUrl: './transactions-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,

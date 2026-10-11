@@ -72,12 +72,15 @@ type SortCol =
   | 'signalState';
 type SortDir = 'asc' | 'desc';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-eod-signals-page',
   templateUrl: './eod-signals-page.component.html',
   styleUrl: './eod-signals-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,

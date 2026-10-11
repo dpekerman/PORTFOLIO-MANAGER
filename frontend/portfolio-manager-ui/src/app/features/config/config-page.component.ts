@@ -49,6 +49,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { UsersApiService } from '../../core/services/users-api.service';
 import { AccountTypesComponent } from './account-types/account-types.component';
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
 
 @Component({
   selector: 'app-config-page',
@@ -56,6 +57,7 @@ import { AccountTypesComponent } from './account-types/account-types.component';
   styleUrl: './config-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     AccountTypesComponent,
     DatePipe,
     DecimalPipe,

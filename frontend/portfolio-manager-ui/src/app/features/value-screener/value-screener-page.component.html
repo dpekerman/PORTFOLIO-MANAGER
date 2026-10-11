@@ -24,6 +24,7 @@
         @if (lastRunAt()) {
           <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
         }
+        <app-refresh-button tooltip="Refresh market data (quotes, dashboard, signals)" />
         @if (sourceMode() !== 'adhoc') {
           <button
             mat-stroked-button

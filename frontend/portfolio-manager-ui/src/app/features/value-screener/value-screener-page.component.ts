@@ -33,12 +33,15 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+
 @Component({
   selector: 'app-value-screener-page',
   templateUrl: './value-screener-page.component.html',
   styleUrl: './value-screener-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     DecimalPipe,
     CurrencyPipe,
     DatePipe,
