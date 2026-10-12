@@ -464,19 +464,19 @@
           </div>
 
           <div class="eod-time-row">
-            <mat-timepicker #startPicker interval="30m"></mat-timepicker>
+            <mat-timepicker #startPicker interval="30m" />
             <mat-form-field appearance="outline">
               <mat-label>Window start time (ET)</mat-label>
               <input matInput [matTimepicker]="startPicker" formControlName="eodWindowStart" />
-              <mat-timepicker-toggle matSuffix [for]="startPicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="startPicker" />
               <mat-hint>Eastern Time · 30-min steps · Default: 3:30 PM</mat-hint>
             </mat-form-field>
 
-            <mat-timepicker #endPicker interval="30m"></mat-timepicker>
+            <mat-timepicker #endPicker interval="30m" />
             <mat-form-field appearance="outline">
               <mat-label>Window end time (ET)</mat-label>
               <input matInput [matTimepicker]="endPicker" formControlName="eodWindowEnd" />
-              <mat-timepicker-toggle matSuffix [for]="endPicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="endPicker" />
               <mat-hint>Eastern Time · 30-min steps · Default: 4:00 PM</mat-hint>
             </mat-form-field>
           </div>
@@ -586,11 +586,11 @@
           </div>
 
           <div class="eod-time-row">
-            <mat-timepicker #vsPicker interval="30m"></mat-timepicker>
+            <mat-timepicker #vsPicker interval="30m" />
             <mat-form-field appearance="outline">
               <mat-label>Run time (Eastern Time)</mat-label>
               <input matInput [matTimepicker]="vsPicker" formControlName="vsScheduleTime" />
-              <mat-timepicker-toggle matSuffix [for]="vsPicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="vsPicker" />
               <mat-hint>Eastern Time · 30-min steps · Default: 5:00 PM</mat-hint>
             </mat-form-field>
           </div>
@@ -906,18 +906,18 @@
           </div>
 
           <div class="eod-time-row">
-            <mat-timepicker #wakePicker interval="15m"></mat-timepicker>
+            <mat-timepicker #wakePicker interval="15m" />
             <mat-form-field appearance="outline">
               <mat-label>Wake / start time (ET)</mat-label>
               <input matInput [matTimepicker]="wakePicker" formControlName="wakeTimeEt" />
-              <mat-timepicker-toggle matSuffix [for]="wakePicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="wakePicker" />
               <mat-hint>Eastern Time · 15-min steps · when the Scheduled Task fires</mat-hint>
               @if (automationForm.controls.wakeTimeEt?.errors?.['required']) {
                 <mat-error>Required</mat-error>
               }
             </mat-form-field>
 
-            <mat-timepicker #keepAwakePicker interval="15m"></mat-timepicker>
+            <mat-timepicker #keepAwakePicker interval="15m" />
             <mat-form-field appearance="outline">
               <mat-label>Keep-awake-until override (ET, optional)</mat-label>
               <input
@@ -936,7 +936,7 @@
                   <mat-icon>close</mat-icon>
                 </button>
               }
-              <mat-timepicker-toggle matSuffix [for]="keepAwakePicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="keepAwakePicker" />
               <mat-hint>
                 Eastern Time · 15-min steps · leave blank to use the computed default:
                 {{ automationState.settings()?.computedKeepAwakeUntilEt }}
@@ -968,7 +968,7 @@
           </div>
 
           <div class="eod-time-row">
-            <mat-timepicker #missedRunAlertPicker interval="15m"></mat-timepicker>
+            <mat-timepicker #missedRunAlertPicker interval="15m" />
             <mat-form-field appearance="outline">
               <mat-label>Missed-run alert time (ET)</mat-label>
               <input
@@ -976,7 +976,7 @@
                 [matTimepicker]="missedRunAlertPicker"
                 formControlName="missedRunAlertTimeEt"
               />
-              <mat-timepicker-toggle matSuffix [for]="missedRunAlertPicker"></mat-timepicker-toggle>
+              <mat-timepicker-toggle matSuffix [for]="missedRunAlertPicker" />
               <mat-hint
                 >If no Scheduled/Fix Missing Data run has succeeded for today by this time, one
                 alert email is sent. Default: 17:30</mat-hint
