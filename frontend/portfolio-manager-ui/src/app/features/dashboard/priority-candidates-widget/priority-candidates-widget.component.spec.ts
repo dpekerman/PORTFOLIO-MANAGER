@@ -6,7 +6,7 @@ import { DashboardStateService } from '../../../core/services/dashboard-state.se
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
-import { WatchlistRsiStateService } from '../../../core/services/watchlist-rsi-state.service';
+import { WatchlistRsiStore } from '../../../core/store/watchlist-rsi.store';
 import {
   PriorityCandidatesWidgetComponent,
   buildEligibleCandidates,
@@ -142,7 +142,7 @@ describe('PriorityCandidatesWidgetComponent (rendered)', () => {
           provide: ScannerStateService,
           useValue: { oversold: signal(scanned.map((s) => scanOf(s))), overbought: signal([]) },
         },
-        { provide: WatchlistRsiStateService, useValue: { rsiMap: signal(new Map()) } },
+        { provide: WatchlistRsiStore, useValue: { rsiMap: signal(new Map()) } },
         {
           provide: PortfolioApiService,
           useValue: { getLatestValueScreener: () => of({ watchlist: [], portfolio: [] }) },

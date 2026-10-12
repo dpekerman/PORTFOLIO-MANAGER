@@ -45,7 +45,7 @@ import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
-import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
+import { WatchlistRsiStore } from '../../core/store/watchlist-rsi.store';
 import { WatchlistStore } from '../../core/store/watchlist.store';
 import {
   currencyCodeForAnalysis,
@@ -130,7 +130,7 @@ export class WatchlistPageComponent {
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
-  private readonly watchlistRsi = inject(WatchlistRsiStateService);
+  private readonly watchlistRsi = inject(WatchlistRsiStore);
   protected readonly authState = inject(AuthStateService);
   protected readonly appRefresh = inject(AppRefreshService);
 

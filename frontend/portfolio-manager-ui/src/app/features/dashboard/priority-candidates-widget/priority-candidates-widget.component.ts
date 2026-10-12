@@ -23,7 +23,7 @@ import {
   resolvePriorityCandidateEligibility,
 } from '../../../core/services/priority-candidate-eligibility';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
-import { WatchlistRsiStateService } from '../../../core/services/watchlist-rsi-state.service';
+import { WatchlistRsiStore } from '../../../core/store/watchlist-rsi.store';
 import { currencyCodeForAnalysis, formatTrendShift } from '../../../core/technical-display';
 
 export interface PriorityCandidateRow {
@@ -87,7 +87,7 @@ export class PriorityCandidatesWidgetComponent implements OnInit {
   private readonly scanner = inject(ScannerStateService);
   // Cache-only consumer: never call triggerRefresh()/enableAutoRefreshOnWatchlistChange() here.
   // Live re-analysis is triggered only by the Watchlist page or the bounded AppRefreshService pipeline.
-  private readonly watchlistRsi = inject(WatchlistRsiStateService);
+  private readonly watchlistRsi = inject(WatchlistRsiStore);
   private readonly api = inject(PortfolioApiService);
   private readonly engine = inject(DecisionEngineService);
 
