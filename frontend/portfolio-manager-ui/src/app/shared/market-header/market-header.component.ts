@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 
 @Component({
   selector: 'app-market-header',
@@ -13,7 +13,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
   imports: [MatIconModule, MatTooltipModule, DecimalPipe],
 })
 export class MarketHeaderComponent {
-  protected readonly scanner = inject(ScannerStateService);
+  protected readonly scanner = inject(ScannerStore);
   protected readonly demoMode = inject(DemoModeStore);
 
   protected readonly signalBias = computed(() => {

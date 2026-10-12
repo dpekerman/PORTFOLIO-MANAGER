@@ -54,7 +54,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
@@ -197,7 +197,7 @@ export class PortfolioPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
-  protected readonly scanner = inject(ScannerStateService);
+  protected readonly scanner = inject(ScannerStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
   protected readonly appRefresh = inject(AppRefreshService);

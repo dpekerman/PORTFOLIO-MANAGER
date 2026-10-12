@@ -12,7 +12,7 @@ import {
   WatchlistEntryDecision,
 } from '../../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { ScannerStore } from '../../../core/store/scanner.store';
 import { formatTrendShift } from '../../../core/technical-display';
 
 export const ACTION_CENTER_FILTER_STORAGE_KEY = 'dashboard_action_center_filter';
@@ -39,7 +39,7 @@ export class PortfolioActionsWidgetComponent {
   private static readonly FILTER_STORAGE_KEY = ACTION_CENTER_FILTER_STORAGE_KEY;
   private readonly demoMode = inject(DemoModeStore);
   private readonly decisionEngine = inject(DecisionEngineService);
-  private readonly scanner = inject(ScannerStateService);
+  private readonly scanner = inject(ScannerStore);
   private readonly filter = signal<ActionCenterFilter>(this.loadFilter());
   private readonly holdingsSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
   private readonly watchlistSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });

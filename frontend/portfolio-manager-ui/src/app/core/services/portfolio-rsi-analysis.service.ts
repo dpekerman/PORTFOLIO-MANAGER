@@ -3,7 +3,7 @@ import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
 import { PortfolioStateService } from './portfolio-state.service';
-import { ScannerStateService } from './scanner-state.service';
+import { ScannerStore } from '../store/scanner.store';
 
 /**
  * Fetches full Enhanced-mode RSI/technical data for every open portfolio symbol (not just the
@@ -15,7 +15,7 @@ import { ScannerStateService } from './scanner-state.service';
 export class PortfolioRsiAnalysisService {
   private readonly api = inject(PortfolioApiService);
   private readonly portfolio = inject(PortfolioStateService);
-  private readonly scanner = inject(ScannerStateService);
+  private readonly scanner = inject(ScannerStore);
   private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
 
   private readonly _resultMap = signal<Map<string, RsiScanResult>>(new Map());

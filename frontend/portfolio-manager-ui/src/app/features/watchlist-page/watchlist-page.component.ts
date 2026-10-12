@@ -43,7 +43,7 @@ import {
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistRsiStore } from '../../core/store/watchlist-rsi.store';
 import { WatchlistStore } from '../../core/store/watchlist.store';
@@ -129,7 +129,7 @@ export class WatchlistPageComponent {
   private readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
-  private readonly scanner = inject(ScannerStateService);
+  private readonly scanner = inject(ScannerStore);
   private readonly watchlistRsi = inject(WatchlistRsiStore);
   protected readonly authState = inject(AuthStore);
   protected readonly appRefresh = inject(AppRefreshService);

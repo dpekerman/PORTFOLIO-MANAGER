@@ -12,7 +12,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistStore } from '../../core/store/watchlist.store';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
@@ -45,7 +45,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   ],
 })
 export class ScannerPageComponent implements OnInit {
-  protected readonly scanner = inject(ScannerStateService);
+  protected readonly scanner = inject(ScannerStore);
   private readonly portfolio = inject(PortfolioStateService);
   private readonly watchlist = inject(WatchlistStore);
 

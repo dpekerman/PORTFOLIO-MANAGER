@@ -5,7 +5,7 @@ import { ActionScoreDto, RsiScanResult } from '../../../core/models/portfolio.mo
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { ScannerStore } from '../../../core/store/scanner.store';
 import { WatchlistRsiStore } from '../../../core/store/watchlist-rsi.store';
 import {
   PriorityCandidatesWidgetComponent,
@@ -139,7 +139,7 @@ describe('PriorityCandidatesWidgetComponent (rendered)', () => {
           },
         },
         {
-          provide: ScannerStateService,
+          provide: ScannerStore,
           useValue: { oversold: signal(scanned.map((s) => scanOf(s))), overbought: signal([]) },
         },
         { provide: WatchlistRsiStore, useValue: { rsiMap: signal(new Map()) } },

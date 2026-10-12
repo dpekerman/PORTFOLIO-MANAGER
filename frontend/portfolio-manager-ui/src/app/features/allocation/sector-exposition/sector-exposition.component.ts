@@ -9,7 +9,7 @@ import { RsiScanResult } from '../../../core/models/portfolio.models';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { ScannerStore } from '../../../core/store/scanner.store';
 import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 
 interface PositionRow {
@@ -62,7 +62,7 @@ interface SectorRow {
 export class SectorExpositionComponent {
   private readonly portfolio = inject(PortfolioStateService);
   private readonly api = inject(PortfolioApiService);
-  private readonly scanner = inject(ScannerStateService);
+  private readonly scanner = inject(ScannerStore);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly demoMode = inject(DemoModeStore);
 

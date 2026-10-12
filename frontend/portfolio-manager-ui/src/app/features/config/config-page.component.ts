@@ -46,7 +46,7 @@ import { ConfigStore } from '../../core/store/config.store';
 import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { UsersApiService } from '../../core/services/users-api.service';
 import { AccountTypesComponent } from './account-types/account-types.component';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
@@ -84,7 +84,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly configService = inject(ConfigStore);
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
-  private readonly scannerState = inject(ScannerStateService);
+  private readonly scannerState = inject(ScannerStore);
   protected readonly automationState = inject(AutomationStateService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);

@@ -13,7 +13,7 @@ import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStore } from '../../core/store/auth.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ThemeStore } from '../../core/store/theme.store';
 import { AppRefreshProgressComponent } from '../app-refresh-progress/app-refresh-progress.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
@@ -39,7 +39,7 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
   ],
 })
 export class LayoutComponent {
-  protected readonly scanner = inject(ScannerStateService);
+  protected readonly scanner = inject(ScannerStore);
   protected readonly theme = inject(ThemeStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
