@@ -261,6 +261,7 @@
               [value]="moversCount()"
               (selectionChange)="moversCount.set($event.value)"
               class="movers-count-sel"
+              panelClass="movers-count-panel"
               aria-label="Number of movers"
             >
               @for (n of moversOptions; track n) {

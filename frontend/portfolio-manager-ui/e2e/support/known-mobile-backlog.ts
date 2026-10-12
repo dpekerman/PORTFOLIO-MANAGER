@@ -10,8 +10,6 @@
  * the set to empty, then list every failing combination.
  */
 export const KNOWN_OVERFLOW_BACKLOG = new Set<string>([
-  'mobile-s21:/dashboard',
-  'mobile-s23:/dashboard',
 ]);
 
 export const isKnownOverflow = (project: string, route: string): boolean =>

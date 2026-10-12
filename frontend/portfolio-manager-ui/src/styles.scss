@@ -1,6 +1,7 @@
 @use '@angular/material' as mat;
 @use 'styles/responsive-table';
 @use 'styles/responsive-pages';
+@use 'styles/responsive-dashboard';
 
 // ── Dark theme (default) — Angular Material ───────────────────────────────────
 html {
@@ -87,6 +88,17 @@ html {
 // Multi-line tooltips on the Value Screener (matTooltipClass="value-screener-tooltip").
 .mat-mdc-tooltip.value-screener-tooltip {
   max-width: 380px;
+}
+
+// Dashboard "Top movers" count select (panelClass="movers-count-panel"): the overlay panel lives
+// outside the component, so its compact sizing is set here.
+.mat-mdc-select-panel.movers-count-panel {
+  --mat-option-label-text-size: 0.8rem;
+  min-width: 70px;
+
+  .mat-mdc-option {
+    min-height: 36px;
+  }
 }
 
 // ── Skeleton shimmer CSS variables ────────────────────────────────────────────
