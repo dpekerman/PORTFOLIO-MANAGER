@@ -94,7 +94,7 @@ jobs:
 
       - name: Install and build Angular
         working-directory: frontend/portfolio-manager-ui
-        run: npm install && npx ng build --configuration production
+        run: npm ci && npx ng build --configuration production
 
       # app_location points directly at the pre-built output so skip_app_build is unambiguous
       - name: Deploy to Azure Static Web Apps

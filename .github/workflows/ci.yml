@@ -48,7 +48,7 @@ jobs:
           path: ${{ github.workspace }}/artifacts/api
           retention-days: 7
 
-  # ── Frontend: lint + build ──────────────────────────────────────────────────
+  # ── Frontend: build + unit tests ────────────────────────────────────────────
   frontend:
     name: Angular 22 Client
     runs-on: ubuntu-latest
@@ -56,19 +56,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Angular 22 requires Node 22 LTS
+      # Angular 22 supports Node ^22.22.3, ^24.15.0 or ^26 (22.x resolves to the latest 22 LTS).
       - name: Setup Node 22
         uses: actions/setup-node@v4
         with:
           node-version: "22.x"
-          # Only use cache when lock file exists to avoid CI failure
-          cache: ${{ hashFiles('frontend/portfolio-manager-ui/package-lock.json') != '' && 'npm' || '' }}
+          cache: npm
           cache-dependency-path: frontend/portfolio-manager-ui/package-lock.json
 
       - name: Install dependencies
         working-directory: frontend/portfolio-manager-ui
-        # Use npm install (not npm ci) so it works with or without a lock file
-        run: npm install --prefer-offline --no-audit
+        run: npm ci --prefer-offline --no-audit
 
       - name: Lint (skip if no lint target configured)
         working-directory: frontend/portfolio-manager-ui
@@ -79,6 +77,10 @@ jobs:
             echo "No lint target configured in angular.json – skipping"
           fi
 
+      - name: Unit tests (Vitest)
+        working-directory: frontend/portfolio-manager-ui
+        run: npx ng test --watch=false
+
       - name: Production build
         working-directory: frontend/portfolio-manager-ui
         run: npx ng build --configuration production
@@ -88,6 +90,43 @@ jobs:
         with:
           name: angular-drop
           path: frontend/portfolio-manager-ui/dist
+          retention-days: 7
+
+  # Browser regression suite: runs against `ng serve` with every /api call mocked in-browser,
+  # so no .NET API or SQL Server is needed. Known mobile layout failures are marked
+  # test.fail() in e2e/support/known-mobile-backlog.ts and do not fail the job.
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: frontend/portfolio-manager-ui/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend/portfolio-manager-ui
+        run: npm ci --prefer-offline --no-audit
+
+      - name: Install Playwright browsers
+        working-directory: frontend/portfolio-manager-ui
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Run Playwright tests
+        working-directory: frontend/portfolio-manager-ui
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/portfolio-manager-ui/playwright-report
           retention-days: 7
 
   # ── Security: dependency audit ──────────────────────────────────────────────
@@ -106,7 +145,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend/portfolio-manager-ui
-        run: npm install --prefer-offline --no-audit
+        run: npm ci --prefer-offline --no-audit
 
       - name: npm audit (high+)
         working-directory: frontend/portfolio-manager-ui
@@ -125,7 +164,7 @@ jobs:
   notify-success:
     name: Notify on Success
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, e2e]
     # Fire on every successful push AND every successful pull_request
     if: success()
 
