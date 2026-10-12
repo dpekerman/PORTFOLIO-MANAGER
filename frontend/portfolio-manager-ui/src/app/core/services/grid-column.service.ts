@@ -1,5 +1,5 @@
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { UserPreferencesStateService } from './user-preferences-state.service';
+import { UserPreferencesStore } from '../store/user-preferences.store';
 
 // ── Public Interfaces ─────────────────────────────────────────────────────────
 
@@ -312,7 +312,7 @@ type StoredPrefs = Record<string, ColumnPreference[]>;
 
 @Injectable({ providedIn: 'root' })
 export class GridColumnService {
-  private readonly userPrefs = inject(UserPreferencesStateService);
+  private readonly userPrefs = inject(UserPreferencesStore);
   private readonly _prefs = signal<StoredPrefs>(this.loadFromStorage());
 
   constructor() {

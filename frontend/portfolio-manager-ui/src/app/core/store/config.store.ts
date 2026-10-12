@@ -1,6 +1,6 @@
 import { computed, effect, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
-import { UserPreferencesStateService } from '../services/user-preferences-state.service';
+import { UserPreferencesStore } from './user-preferences.store';
 import { withStorageSync } from './features/storage-sync.feature';
 
 export interface AppConfig {
@@ -84,7 +84,7 @@ export const ConfigStore = signalStore(
     rsiOversoldThreshold: computed(() => config().rsiOversoldThreshold),
     rsiOverboughtThreshold: computed(() => config().rsiOverboughtThreshold),
   })),
-  withMethods((store, userPrefs = inject(UserPreferencesStateService)) => ({
+  withMethods((store, userPrefs = inject(UserPreferencesStore)) => ({
     update(patch: Partial<AppConfig>): void {
       patchState(store, ({ config }) => ({ config: { ...config, ...patch } }));
       userPrefs.set(STORAGE_KEY, store.config()); // write-through to DB
@@ -100,7 +100,7 @@ export const ConfigStore = signalStore(
   }),
   withHooks({
     onInit(store) {
-      const userPrefs = inject(UserPreferencesStateService);
+      const userPrefs = inject(UserPreferencesStore);
       effect(() => {
         const dbValue = userPrefs.get<AppConfig>(STORAGE_KEY);
         if (dbValue) {

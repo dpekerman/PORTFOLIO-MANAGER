@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
-import { UserPreferencesStateService } from '../services/user-preferences-state.service';
+import { UserPreferencesStore } from './user-preferences.store';
 import { ConfigStore } from './config.store';
 
 describe('ConfigStore', () => {
@@ -13,7 +13,7 @@ describe('ConfigStore', () => {
     dbPrefs.set(null);
     vi.clearAllMocks();
     TestBed.configureTestingModule({
-      providers: [{ provide: UserPreferencesStateService, useValue: prefs }],
+      providers: [{ provide: UserPreferencesStore, useValue: prefs }],
     });
   });
 
