@@ -6,7 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { SecurityAnalysisMappingStateService } from '../../core/services/security-analysis-mapping-state.service';
+import { SecurityAnalysisMappingStore } from '../../core/store/security-analysis-mapping.store';
 
 export interface SecurityAnalysisMappingDialogData {
   tradingTicker: string;
@@ -29,7 +29,7 @@ export interface SecurityAnalysisMappingDialogData {
 })
 export class SecurityAnalysisMappingDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly state = inject(SecurityAnalysisMappingStateService);
+  private readonly state = inject(SecurityAnalysisMappingStore);
   private readonly dialogRef = inject(MatDialogRef<SecurityAnalysisMappingDialogComponent>);
 
   protected readonly mapping = this.state.mapping;

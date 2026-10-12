@@ -14,7 +14,7 @@ import { accountTypeError } from '../../core/store/account-types.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioBetaStateService } from '../../core/services/portfolio-beta-state.service';
+import { PortfolioBetaStore } from '../../core/store/portfolio-beta.store';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
@@ -56,7 +56,7 @@ export class AllocationPageComponent {
   protected readonly optionState = inject(OptionStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  protected readonly betaState = inject(PortfolioBetaStateService);
+  protected readonly betaState = inject(PortfolioBetaStore);
 
   protected readonly showBetaDetail = signal(false);
   protected readonly betaSortCol = signal<'symbol' | 'weightPct' | 'beta'>('symbol');

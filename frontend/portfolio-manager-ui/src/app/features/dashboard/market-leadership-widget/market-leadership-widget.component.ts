@@ -14,7 +14,7 @@ import {
 import { currencyCodeForAnalysis } from '../../../core/technical-display';
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { MarketLeadershipStateService } from '../../../core/services/market-leadership-state.service';
+import { MarketLeadershipStore } from '../../../core/store/market-leadership.store';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import { AddMarketTrackerDialogComponent } from '../add-market-tracker-dialog/add-market-tracker-dialog.component';
 
@@ -46,7 +46,7 @@ type MarketLeadershipSortColumn =
 export class MarketLeadershipWidgetComponent {
   private readonly demoMode = inject(DemoModeStore);
   protected readonly dashboard = inject(DashboardStateService);
-  protected readonly trackerState = inject(MarketLeadershipStateService);
+  protected readonly trackerState = inject(MarketLeadershipStore);
   private readonly dialog = inject(MatDialog);
   protected readonly leadership = this.dashboard.marketLeadership;
   protected readonly loading = this.dashboard.marketLeadershipLoading;

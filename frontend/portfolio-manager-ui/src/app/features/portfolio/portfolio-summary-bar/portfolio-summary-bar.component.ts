@@ -8,7 +8,7 @@ import { CashStateService } from '../../../core/services/cash-state.service';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioBetaStateService } from '../../../core/services/portfolio-beta-state.service';
+import { PortfolioBetaStore } from '../../../core/store/portfolio-beta.store';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 
 @Component({
@@ -24,7 +24,7 @@ export class PortfolioSummaryBarComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeStore);
   private readonly api = inject(PortfolioApiService);
-  protected readonly betaState = inject(PortfolioBetaStateService);
+  protected readonly betaState = inject(PortfolioBetaStore);
 
   protected dv(v: number): number {
     return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'
