@@ -3,7 +3,7 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, filter, interval, switchMap, takeUntil } from 'rxjs';
 import { ConfigStore } from '../store/config.store';
 import { DashboardStateService } from './dashboard-state.service';
-import { EodSignalsStateService } from './eod-signals-state.service';
+import { EodSignalsStore } from '../store/eod-signals.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
 import { PortfolioStateService } from './portfolio-state.service';
@@ -28,7 +28,7 @@ export class AppRefreshService {
   private readonly portfolioState = inject(PortfolioStateService);
   private readonly watchlistState = inject(WatchlistStore);
   private readonly dashboardState = inject(DashboardStateService);
-  private readonly eodSignalsState = inject(EodSignalsStateService);
+  private readonly eodSignalsState = inject(EodSignalsStore);
   private readonly watchlistRsi = inject(WatchlistRsiStore);
   // Referenced only to force this root singleton to instantiate at app boot (this service is
   // itself created early via the layout shell) so RSI analysis + Action Center sync run without
