@@ -125,8 +125,12 @@ body.light-theme {
   box-sizing: border-box !important;
   // Extra top padding so outline form-field floating labels aren't clipped
   padding: 16px 24px 16px !important;
-  max-height: 65vh !important;
-  min-width: min(340px, 90vw);
+  // `dvh` tracks the *visible* viewport, so a phone with its URL bar showing cannot push the
+  // action buttons off screen the way a plain `65vh` would.
+  max-height: min(65vh, calc(100dvh - 168px)) !important;
+  // `min()` keeps the comfortable desktop width but lets the dialog shrink on a phone instead of
+  // forcing the surface wider than the screen.
+  min-width: min(340px, 100%);
 
   // Ensure form fields inside dialogs fill width
   mat-form-field {
@@ -144,6 +148,37 @@ body.light-theme {
 .mat-mdc-dialog-actions {
   padding: 8px 24px 16px !important;
   min-height: unset !important;
+}
+
+// ── Dialogs on a handset ──────────────────────────────────────────────────────
+// Material caps a dialog at 80vw, which on a 390px phone leaves 312px — narrower than every form
+// in this app. Phones get the full width minus a small gutter, tighter padding, and wrapping
+// actions so the confirm button is always reachable. Desktop sizing is untouched.
+@media (max-width: 599.98px) {
+  .cdk-overlay-pane.mat-mdc-dialog-panel {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+  }
+
+  .mat-mdc-dialog-surface {
+    max-width: 100%;
+  }
+
+  .mat-mdc-dialog-title {
+    padding: 16px 16px 8px !important;
+  }
+
+  .mat-mdc-dialog-content {
+    padding: 12px 16px !important;
+    min-width: 0;
+    max-height: calc(100dvh - 190px) !important;
+  }
+
+  .mat-mdc-dialog-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px 14px !important;
+  }
 }
 
 // ── Demo mode value redaction ─────────────────────────────────────────────────
