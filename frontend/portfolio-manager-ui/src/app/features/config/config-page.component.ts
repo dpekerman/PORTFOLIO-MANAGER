@@ -41,7 +41,7 @@ import {
   UserInfo,
 } from '../../core/models/portfolio.models';
 import { AuthStore } from '../../core/store/auth.store';
-import { AutomationStateService } from '../../core/services/automation-state.service';
+import { AutomationStore } from '../../core/store/automation.store';
 import { ConfigStore } from '../../core/store/config.store';
 import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
 import { NotificationApiService } from '../../core/services/notification-api.service';
@@ -85,7 +85,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
   private readonly scannerState = inject(ScannerStore);
-  protected readonly automationState = inject(AutomationStateService);
+  protected readonly automationState = inject(AutomationStore);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
