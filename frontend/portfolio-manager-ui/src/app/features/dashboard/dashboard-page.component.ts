@@ -16,7 +16,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardCollapseStore } from '../../core/store/dashboard-collapse.store';
-import { DashboardStateService } from '../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../core/store/dashboard.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
@@ -114,7 +114,7 @@ export class DashboardPageComponent {
   protected readonly marketSignalFilter = signal<
     'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
   >('ALL');
-  protected readonly dashboard = inject(DashboardStateService);
+  protected readonly dashboard = inject(DashboardStore);
   protected readonly collapseState = inject(DashboardCollapseStore);
   private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeStore);

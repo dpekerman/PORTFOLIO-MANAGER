@@ -15,7 +15,7 @@ import {
   RsiScanResult,
   ValueScreenerResult,
 } from '../../../core/models/portfolio.models';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import {
@@ -83,7 +83,7 @@ export function buildEligibleCandidates(
   imports: [CurrencyPipe, DecimalPipe, MatIconModule, MatProgressBarModule, MatTooltipModule],
 })
 export class PriorityCandidatesWidgetComponent implements OnInit {
-  protected readonly dashboard = inject(DashboardStateService);
+  protected readonly dashboard = inject(DashboardStore);
   private readonly scanner = inject(ScannerStore);
   // Cache-only consumer: never call triggerRefresh()/enableAutoRefreshOnWatchlistChange() here.
   // Live re-analysis is triggered only by the Watchlist page or the bounded AppRefreshService pipeline.

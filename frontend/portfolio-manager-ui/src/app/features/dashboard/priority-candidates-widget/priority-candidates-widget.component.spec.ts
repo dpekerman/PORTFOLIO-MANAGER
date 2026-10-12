@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { ActionScoreDto, RsiScanResult } from '../../../core/models/portfolio.models';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ScannerStore } from '../../../core/store/scanner.store';
@@ -131,7 +131,7 @@ describe('PriorityCandidatesWidgetComponent (rendered)', () => {
       imports: [HostComponent],
       providers: [
         {
-          provide: DashboardStateService,
+          provide: DashboardStore,
           useValue: {
             actionScores: signal(scores),
             actionScoresLoading: signal(opts.loading ?? false),

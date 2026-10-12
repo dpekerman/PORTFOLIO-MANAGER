@@ -18,7 +18,7 @@ import {
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
 import { AuthStore } from '../../core/store/auth.store';
-import { DashboardStateService } from '../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../core/store/dashboard.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -121,7 +121,7 @@ export class TransactionsPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
-  protected readonly dashboardState = inject(DashboardStateService);
+  protected readonly dashboardState = inject(DashboardStore);
   private readonly api = inject(PortfolioApiService);
 
   protected readonly activeTab = signal<'transactions' | 'analytics'>('transactions');

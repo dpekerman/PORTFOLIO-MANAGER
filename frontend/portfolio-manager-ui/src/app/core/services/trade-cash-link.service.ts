@@ -20,7 +20,7 @@ import {
   UnlinkedTrade,
 } from '../models/portfolio.models';
 import { CashStore } from '../store/cash.store';
-import { DashboardStateService } from './dashboard-state.service';
+import { DashboardStore } from '../store/dashboard.store';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 
@@ -60,7 +60,7 @@ export class TradeCashLinkService {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly demoMode = inject(DemoModeStore);
-  private readonly dashboardState = inject(DashboardStateService);
+  private readonly dashboardState = inject(DashboardStore);
 
   /** Offers the missing cash row for a trade leg that was saved without one (from the "Unlinked trades" list). */
   linkUnlinkedTrade(t: UnlinkedTrade): Promise<void> {

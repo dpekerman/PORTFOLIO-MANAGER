@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { Observable, finalize, firstValueFrom } from 'rxjs';
 import { CreateMarketLeadershipTrackerRequest } from '../models/portfolio.models';
-import { DashboardStateService } from '../services/dashboard-state.service';
+import { DashboardStore } from './dashboard.store';
 import { MarketLeadershipApiService } from '../services/market-leadership-api.service';
 
 interface MarketLeadershipState {
@@ -26,7 +26,7 @@ function messageFor(error: unknown): string {
 
 /**
  * Write side of the dashboard's market-leadership trackers. The tracker list itself lives in
- * `DashboardStateService`; every successful change asks it to reload so the widget stays in sync.
+ * `DashboardStore`; every successful change asks it to reload so the widget stays in sync.
  */
 export const MarketLeadershipStore = signalStore(
   { providedIn: 'root' },
@@ -35,7 +35,7 @@ export const MarketLeadershipStore = signalStore(
     (
       store,
       api = inject(MarketLeadershipApiService),
-      dashboard = inject(DashboardStateService),
+      dashboard = inject(DashboardStore),
     ) => {
       const save = async (request$: Observable<unknown>): Promise<boolean> => {
         patchState(store, { saving: true, error: null });

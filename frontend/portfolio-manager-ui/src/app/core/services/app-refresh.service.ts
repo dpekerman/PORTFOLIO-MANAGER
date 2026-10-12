@@ -2,7 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, filter, interval, switchMap, takeUntil } from 'rxjs';
 import { ConfigStore } from '../store/config.store';
-import { DashboardStateService } from './dashboard-state.service';
+import { DashboardStore } from '../store/dashboard.store';
 import { EodSignalsStore } from '../store/eod-signals.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
@@ -27,7 +27,7 @@ export class AppRefreshService {
   private readonly configService = inject(ConfigStore);
   private readonly portfolioState = inject(PortfolioStateService);
   private readonly watchlistState = inject(WatchlistStore);
-  private readonly dashboardState = inject(DashboardStateService);
+  private readonly dashboardState = inject(DashboardStore);
   private readonly eodSignalsState = inject(EodSignalsStore);
   private readonly watchlistRsi = inject(WatchlistRsiStore);
   // Referenced only to force this root singleton to instantiate at app boot (this service is

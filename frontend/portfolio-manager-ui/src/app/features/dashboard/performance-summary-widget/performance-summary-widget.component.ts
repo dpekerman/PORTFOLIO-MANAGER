@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 
 @Component({
@@ -14,7 +14,7 @@ import { DemoModeStore } from '../../../core/store/demo-mode.store';
   imports: [CurrencyPipe, DecimalPipe, MatIconModule, MatProgressBarModule, MatTooltipModule],
 })
 export class PerformanceSummaryWidgetComponent {
-  protected readonly dashboard = inject(DashboardStateService);
+  protected readonly dashboard = inject(DashboardStore);
   private readonly demoMode = inject(DemoModeStore);
   protected readonly summary = this.dashboard.performanceSummary;
   protected readonly loading = this.dashboard.performanceSummaryLoading;

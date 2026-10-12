@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { CashItem, OptionItem, PortfolioItem, UnlinkedTrade } from '../models/portfolio.models';
 import { CashStore } from '../store/cash.store';
-import { DashboardStateService } from './dashboard-state.service';
+import { DashboardStore } from '../store/dashboard.store';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
@@ -89,7 +89,7 @@ describe('TradeCashLinkService', () => {
         TradeCashLinkService,
         { provide: PortfolioApiService, useValue: { getLinkedCash } },
         { provide: CashStore, useValue: cashState },
-        { provide: DashboardStateService, useValue: dashboardState },
+        { provide: DashboardStore, useValue: dashboardState },
         { provide: MatDialog, useValue: { open: dialogOpen } },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
         {

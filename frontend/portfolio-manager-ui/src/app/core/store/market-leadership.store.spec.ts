@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { CreateMarketLeadershipTrackerRequest } from '../models/portfolio.models';
-import { DashboardStateService } from '../services/dashboard-state.service';
+import { DashboardStore } from './dashboard.store';
 import { MarketLeadershipApiService } from '../services/market-leadership-api.service';
 import { MarketLeadershipStore } from './market-leadership.store';
 
@@ -19,7 +19,7 @@ describe('MarketLeadershipStore', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: MarketLeadershipApiService, useValue: api },
-        { provide: DashboardStateService, useValue: dashboard },
+        { provide: DashboardStore, useValue: dashboard },
       ],
     });
   });

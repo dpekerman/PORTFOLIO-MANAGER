@@ -5,7 +5,7 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioActionDto } from '../../../core/models/portfolio.models';
 import { priceStructureLabel, priceStructureTooltip } from '../../../core/price-structure-display';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import {
   DecisionEngineService,
   evaluateWatchlistEntry,
@@ -43,7 +43,7 @@ export class PortfolioActionsWidgetComponent {
   private readonly filter = signal<ActionCenterFilter>(this.loadFilter());
   private readonly holdingsSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
   private readonly watchlistSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
-  protected readonly dashboard = inject(DashboardStateService);
+  protected readonly dashboard = inject(DashboardStore);
   protected readonly actions = this.dashboard.portfolioActions;
   protected readonly loading = this.dashboard.actionsLoading;
   private readonly watchlistEntryDecisions = computed(() => {
