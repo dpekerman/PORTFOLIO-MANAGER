@@ -102,6 +102,17 @@ const CASES: CardTableCase[] = [
     desktopMinHeaders: 12,
     hasSecondaryFields: true,
   },
+  {
+    name: 'value screener table',
+    path: '/value-screener',
+    landmark: (p) => p.getByRole('heading', { level: 2, name: /VALUE SCREENER/ }),
+    table: (p) => p.locator('table.screener-table'),
+    sortLabel: 'Sort Screener by',
+    sortOption: 'Score',
+    cellLabel: 'TICKER',
+    desktopMinHeaders: 5,
+    hasSecondaryFields: true,
+  },
 ];
 
 for (const c of CASES) {

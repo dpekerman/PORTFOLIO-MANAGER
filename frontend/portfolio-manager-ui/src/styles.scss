@@ -84,6 +84,11 @@ html {
   white-space: pre-line;
 }
 
+// Multi-line tooltips on the Value Screener (matTooltipClass="value-screener-tooltip").
+.mat-mdc-tooltip.value-screener-tooltip {
+  max-width: 380px;
+}
+
 // ── Skeleton shimmer CSS variables ────────────────────────────────────────────
 :root {
   --skeleton-base: #1e1e1e;

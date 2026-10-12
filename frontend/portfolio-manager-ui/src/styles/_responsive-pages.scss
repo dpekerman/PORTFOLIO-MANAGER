@@ -207,6 +207,75 @@
     }
   }
 
+  // ── Value Screener ─────────────────────────────────────────────────────────
+  html .value-screener-page {
+    .section-actions-right {
+      width: 100%;
+
+      .refresh-btn,
+      .export-btn,
+      .clear-data-btn {
+        min-height: 44px;
+      }
+
+      .scan-time {
+        flex: 1 0 100%;
+        white-space: normal;
+      }
+    }
+
+    .source-bar {
+      padding: 10px 12px;
+    }
+
+    .source-chip {
+      height: 44px;
+    }
+
+    .adhoc-trigger-group {
+      flex: 1 1 100%;
+      padding-left: 0;
+      border-left: 0;
+
+      .adhoc-field {
+        flex: 1 1 100%;
+        width: auto;
+        min-width: 0;
+      }
+
+      .analyze-btn {
+        min-height: 44px;
+      }
+    }
+
+    .tier-card {
+      box-sizing: border-box;
+      flex: 1 1 calc(33% - 8px);
+      min-width: 0;
+      padding: 10px 6px;
+    }
+
+    .clear-filter-btn {
+      min-height: 44px;
+    }
+
+    .table-wrapper {
+      border: 0;
+      border-radius: 0;
+      padding: 0 12px;
+      overflow: visible;
+    }
+
+    .desc-cell {
+      max-width: none;
+      align-items: flex-end;
+    }
+
+    .screener-table td.mat-mdc-cell .score-bar {
+      width: 100%;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {
