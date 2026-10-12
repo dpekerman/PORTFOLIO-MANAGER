@@ -276,6 +276,184 @@
     }
   }
 
+  // ── Allocation (+ sector exposition) ───────────────────────────────────────
+  html .allocation-page {
+    .page-actions .mat-mdc-icon-button,
+    .expo-actions .mat-mdc-button-base {
+      min-height: 44px;
+    }
+
+    // Header rows (sector / industry / cash / options): name on top, aligned metric grid below.
+    .sector-header,
+    .industry-header,
+    .alloc-sector-header {
+      flex-wrap: wrap;
+      row-gap: 8px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .industry-header {
+      padding-left: 20px;
+    }
+
+    .sector-left,
+    .industry-left,
+    .alloc-sector-left {
+      flex: 1 1 100%;
+    }
+
+    .sector-right,
+    .alloc-sector-right {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: minmax(24px, 1fr) 52px 52px 66px 54px;
+      gap: 8px;
+
+      .bar-track,
+      .alloc-bar-track {
+        max-width: 100%;
+      }
+
+      .pct,
+      .mv,
+      .gl-val,
+      .gl-pct,
+      .alloc-col-pct-val,
+      .alloc-col-mv,
+      .alloc-col-gl,
+      .alloc-col-glpct {
+        min-width: 0;
+      }
+    }
+
+    .sector-col-headers {
+      display: none;
+    }
+
+    // Position rows: ticker / name / currency on top, the bar, then labelled figures three per line.
+    .ticker-list {
+      padding: 6px 10px 10px;
+    }
+
+    .ticker-header-row {
+      display: none;
+    }
+
+    .ticker-row:not(.ticker-header-row) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color);
+
+      .ticker-symbol {
+        flex: 0 0 auto;
+      }
+
+      .ticker-name {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      .ticker-bar-track {
+        flex: 1 1 100%;
+      }
+
+      .ticker-pct,
+      .ticker-mv,
+      .ticker-price-col,
+      .ticker-gl-col,
+      .ticker-glpct-col {
+        flex: 1 1 calc(33.33% - 8px);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        min-width: 0;
+
+        &::before {
+          font-family: var(--mat-sys-label-small-font, inherit);
+          font-size: 0.6rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+      }
+
+      .ticker-pct::before {
+        content: '% Total';
+      }
+
+      .ticker-mv::before {
+        content: 'Total MV';
+      }
+
+      .ticker-price-col::before {
+        content: 'Last Price';
+      }
+
+      .ticker-gl-col::before {
+        content: 'Gain/Loss';
+      }
+
+      .ticker-glpct-col::before {
+        content: 'G/L %';
+      }
+    }
+
+    .breakdown-section,
+    .alloc-items-table,
+    .alloc-grand-total-row {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .alloc-ticker-group {
+      margin-left: 16px;
+      margin-right: 16px;
+    }
+
+    .alloc-subsection-header {
+      padding: 12px 14px;
+    }
+
+    .alloc-items-table {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .alloc-items-header,
+    .alloc-item-row,
+    .alloc-total-row {
+      padding-left: 6px;
+      padding-right: 6px;
+      gap: 6px;
+    }
+
+    .alloc-net-totals-row {
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+
+    .alloc-net-totals-left {
+      flex: 1 1 100%;
+    }
+
+    .alloc-net-totals-right {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: minmax(24px, 1fr) 52px 52px;
+      gap: 8px;
+    }
+
+    .alloc-grand-total-row {
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {

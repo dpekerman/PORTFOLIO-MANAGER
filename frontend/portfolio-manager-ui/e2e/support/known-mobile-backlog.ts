@@ -11,10 +11,8 @@
  */
 export const KNOWN_OVERFLOW_BACKLOG = new Set<string>([
   'mobile-s21:/dashboard',
-  'mobile-s21:/allocation',
   'mobile-s21:/config',
   'mobile-s23:/dashboard',
-  'mobile-s23:/allocation',
   'mobile-s23:/config',
 ]);
 
