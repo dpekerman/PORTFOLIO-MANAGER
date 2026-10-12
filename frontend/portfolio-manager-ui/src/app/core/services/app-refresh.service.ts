@@ -6,7 +6,7 @@ import { DashboardStore } from '../store/dashboard.store';
 import { EodSignalsStore } from '../store/eod-signals.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 import { WatchlistRsiStore } from '../store/watchlist-rsi.store';
 import { WatchlistStore } from '../store/watchlist.store';
 
@@ -25,7 +25,7 @@ export type RefreshReason = 'auto-timer' | 'user-click' | 'feature-refresh';
 export class AppRefreshService {
   private readonly api = inject(PortfolioApiService);
   private readonly configService = inject(ConfigStore);
-  private readonly portfolioState = inject(PortfolioStateService);
+  private readonly portfolioState = inject(PortfolioStore);
   private readonly watchlistState = inject(WatchlistStore);
   private readonly dashboardState = inject(DashboardStore);
   private readonly eodSignalsState = inject(EodSignalsStore);

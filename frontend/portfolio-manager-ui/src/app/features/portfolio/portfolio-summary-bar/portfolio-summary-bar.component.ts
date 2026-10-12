@@ -9,7 +9,7 @@ import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioBetaStore } from '../../../core/store/portfolio-beta.store';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 
 @Component({
   selector: 'app-portfolio-summary-bar',
@@ -19,7 +19,7 @@ import { PortfolioStateService } from '../../../core/services/portfolio-state.se
   imports: [MatCardModule, MatIconModule, CurrencyPipe, DecimalPipe, MatTooltipModule],
 })
 export class PortfolioSummaryBarComponent {
-  protected readonly stockState = inject(PortfolioStateService);
+  protected readonly stockState = inject(PortfolioStore);
   protected readonly cashState = inject(CashStore);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeStore);

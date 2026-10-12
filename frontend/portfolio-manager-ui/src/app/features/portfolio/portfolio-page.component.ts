@@ -53,7 +53,7 @@ import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { ScannerStore } from '../../core/store/scanner.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
@@ -194,7 +194,7 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
 })
 export class PortfolioPageComponent {
   private readonly accountTypeSnackBar = inject(MatSnackBar);
-  protected readonly portfolio = inject(PortfolioStateService);
+  protected readonly portfolio = inject(PortfolioStore);
   protected readonly cashState = inject(CashStore);
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStore);

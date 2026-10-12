@@ -2,7 +2,7 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 import { ScannerStore } from '../store/scanner.store';
 
 /**
@@ -14,7 +14,7 @@ import { ScannerStore } from '../store/scanner.store';
 @Injectable({ providedIn: 'root' })
 export class PortfolioRsiAnalysisService {
   private readonly api = inject(PortfolioApiService);
-  private readonly portfolio = inject(PortfolioStateService);
+  private readonly portfolio = inject(PortfolioStore);
   private readonly scanner = inject(ScannerStore);
   private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
 

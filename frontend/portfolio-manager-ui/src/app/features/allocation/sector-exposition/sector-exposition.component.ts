@@ -8,7 +8,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RsiScanResult } from '../../../core/models/portfolio.models';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 import { ScannerStore } from '../../../core/store/scanner.store';
 import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 
@@ -60,7 +60,7 @@ interface SectorRow {
   ],
 })
 export class SectorExpositionComponent {
-  private readonly portfolio = inject(PortfolioStateService);
+  private readonly portfolio = inject(PortfolioStore);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStore);
   private readonly snackBar = inject(MatSnackBar);

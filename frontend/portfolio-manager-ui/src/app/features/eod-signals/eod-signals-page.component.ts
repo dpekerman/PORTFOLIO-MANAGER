@@ -35,7 +35,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { ScannerStore } from '../../core/store/scanner.store';
 import {
   currencyCodeForAnalysis,
@@ -105,7 +105,7 @@ export class EodSignalsPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
   private readonly scannerState = inject(ScannerStore);
-  private readonly portfolioState = inject(PortfolioStateService);
+  private readonly portfolioState = inject(PortfolioStore);
 
   protected readonly portfolioRoleMap = computed<ReadonlyMap<string, string>>(
     () =>

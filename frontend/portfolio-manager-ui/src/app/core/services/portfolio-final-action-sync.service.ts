@@ -9,7 +9,7 @@ import { CashStore } from '../store/cash.store';
 import { DecisionEngineService, PortfolioItemContext } from './decision-engine.service';
 import { OptionStateService } from './option-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 
 /**
  * Single source of truth for the profit-taking/account context used by `translateForPortfolio`.
@@ -18,7 +18,7 @@ import { PortfolioStateService } from './portfolio-state.service';
  */
 @Injectable({ providedIn: 'root' })
 export class PortfolioFinalActionSyncService {
-  private readonly portfolio = inject(PortfolioStateService);
+  private readonly portfolio = inject(PortfolioStore);
   private readonly cashState = inject(CashStore);
   private readonly optionState = inject(OptionStateService);
   private readonly engine = inject(DecisionEngineService);

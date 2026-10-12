@@ -11,7 +11,7 @@ import { DecisionEngineService } from './decision-engine.service';
 import { OptionStateService } from './option-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 
 const item = (over: Partial<PortfolioItem> = {}): PortfolioItem =>
   ({
@@ -40,7 +40,7 @@ describe('PortfolioFinalActionSyncService.buildContext (CDR currency handling)',
     TestBed.configureTestingModule({
       providers: [
         PortfolioFinalActionSyncService,
-        { provide: PortfolioStateService, useValue: {} },
+        { provide: PortfolioStore, useValue: {} },
         { provide: CashStore, useValue: {} },
         { provide: OptionStateService, useValue: {} },
         { provide: PortfolioApiService, useValue: {} },

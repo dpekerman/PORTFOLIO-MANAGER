@@ -15,7 +15,7 @@ import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../../core/models/portfolio.models';
 import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -42,7 +42,7 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 export class AddStockDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
-  private readonly state = inject(PortfolioStateService);
+  private readonly state = inject(PortfolioStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
   private readonly configService = inject(ConfigStore);
