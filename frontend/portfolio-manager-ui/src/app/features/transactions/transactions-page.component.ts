@@ -26,6 +26,8 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStore } from '../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -114,6 +116,8 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class TransactionsPageComponent {
@@ -157,10 +161,18 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns = inject(GridColumnStore).getColumnKeys('transactions-stocks');
+  /**
+   * Stock table columns, projected for the current breakpoint.
+   *
+   * Desktop and tablet get exactly the saved layout; a handset gets the primary columns only,
+   * because `appResponsiveTable` renders the table as cards there. The MatSort instance is handed
+   * to `<app-mobile-table-controls>` through the `#stockSort` template reference, since the header
+   * row that normally offers sorting is hidden in card mode.
+   */
+  protected readonly stockColumns =
+    inject(GridColumnStore).getResponsiveColumnKeys('transactions-stocks');
 
-  protected readonly optionColumns =
-    inject(GridColumnStore).getColumnKeys('transactions-options');
+  protected readonly optionColumns = inject(GridColumnStore).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();

@@ -1,12 +1,7 @@
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject } from 'rxjs';
-import {
-  BreakpointStore,
-  DESKTOP_QUERY,
-  HANDSET_QUERY,
-  TABLET_QUERY,
-} from './breakpoint.store';
+import { BreakpointStore, DESKTOP_QUERY, HANDSET_QUERY, TABLET_QUERY } from './breakpoint.store';
 
 /** Builds the `BreakpointState` the CDK emits for the one query that currently matches. */
 function state(match: typeof HANDSET_QUERY | typeof TABLET_QUERY | typeof DESKTOP_QUERY) {

@@ -45,18 +45,32 @@ table.mat-mdc-table[data-responsive='cards'] {
     max-width: 100%;
     box-sizing: border-box;
     height: auto !important;
-    margin: 0 0 10px;
-    padding: 4px 14px;
+    margin: 0 0 12px;
+    padding: 2px 14px 6px;
     border: 1px solid var(--mat-sys-outline-variant);
     border-radius: 12px;
-    background: var(--mat-sys-surface-container-low);
+    // `surface-container-high` keeps the card readable on both the near-black dark page and the
+    // white light-theme panel the grids sit in.
+    background: var(--mat-sys-surface-container-high);
     overflow: hidden;
   }
 
   // Totals/summary row: same card, visually tied to the data above it.
   tr.mat-mdc-footer-row {
-    background: var(--mat-sys-surface-container-high);
+    background: var(--mat-sys-surface-container-highest);
     border-color: var(--mat-sys-outline);
+
+    // By convention the first footer cell holds the row's caption ("TOTALS"), not a value, so it
+    // becomes the card title instead of a labelled value. Empty first cells stay hidden.
+    td:first-child {
+      justify-content: flex-start;
+      text-align: left;
+      font-weight: 700;
+
+      &::before {
+        content: none !important;
+      }
+    }
   }
 
   tr.mat-mdc-row:last-of-type {
@@ -74,13 +88,16 @@ table.mat-mdc-table[data-responsive='cards'] {
     width: auto !important;
     min-width: 0 !important;
     max-width: none !important;
-    // Sticky columns only make sense while the table scrolls sideways.
+    // Sticky columns (and the opaque background that keeps them readable while scrolling) only
+    // make sense while the table scrolls sideways.
     position: static !important;
     left: auto !important;
     right: auto !important;
-    padding: 9px 0;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 8px 0;
     border: 0;
-    border-bottom: 1px solid var(--mat-sys-surface-variant);
+    border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 65%, transparent);
     text-align: right;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -105,6 +122,11 @@ table.mat-mdc-table[data-responsive='cards'] {
     &:empty {
       display: none;
     }
+  }
+
+  // The divider belongs between data rows, not above the action buttons.
+  td:has(+ td[class*='actions' i]) {
+    border-bottom: 0;
   }
 
   // ── Actions become the card footer ─────────────────────────────────────────
@@ -163,7 +185,10 @@ table.mat-mdc-table[data-responsive='cards'] {
   }
 }
 
-// The scroll wrapper around a card table must not advertise a horizontal scroller any more.
+// A wrapper built for a sideways-scrolling table must stop constraining the card list: the cards
+// are narrow enough for the viewport, so the page itself should scroll, never a nested box.
+// `!important` because these wrappers are styled from component stylesheets, which outrank globals.
 :has(> table.mat-mdc-table[data-responsive='cards']) {
-  overflow-x: visible;
+  overflow: visible !important;
+  max-height: none !important;
 }

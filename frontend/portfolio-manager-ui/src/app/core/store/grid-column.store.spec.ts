@@ -3,12 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { BreakpointStore } from './breakpoint.store';
 import { GridColumnStore, resolveEditablePrefs, resolveKeys } from './grid-column.store';
-import {
-  ColumnPreference,
-  GRID_REGISTRY,
-  GridDef,
-  resolveHandsetKeys,
-} from './grid-registry';
+import { ColumnPreference, GRID_REGISTRY, GridDef, resolveHandsetKeys } from './grid-registry';
 import { UserPreferencesStore } from './user-preferences.store';
 
 const LS_KEY = 'pm_grid_columns_v1';
@@ -296,7 +291,9 @@ describe('GridColumnStore', () => {
       const s = store();
       isHandset.set(true);
 
-      const expected = s.getColumnKeys('portfolio-cash')().filter((k) => k !== 'colConfig');
+      const expected = s
+        .getColumnKeys('portfolio-cash')()
+        .filter((k) => k !== 'colConfig');
       expect(s.getResponsiveColumnKeys('portfolio-cash')()).toEqual(expected);
     });
 
@@ -306,7 +303,9 @@ describe('GridColumnStore', () => {
       s.setShowAllColumnsOnHandset(true);
 
       expect(s.getResponsiveColumnKeys(GRID)()).toEqual(
-        s.getColumnKeys(GRID)().filter((k) => k !== 'colConfig'),
+        s
+          .getColumnKeys(GRID)()
+          .filter((k) => k !== 'colConfig'),
       );
 
       s.setShowAllColumnsOnHandset(false);

@@ -67,12 +67,16 @@ export class ResponsiveTableDirective implements OnDestroy {
     this.syncLabels();
     if (this.headerObserver || typeof MutationObserver === 'undefined') return;
 
-    // Watching the header row only (not the body) keeps this cheap: a long table rewrites its
-    // <tbody> on every sort, while the <thead> changes only when columns are toggled or reordered.
-    const head = this.table.nativeElement.tHead;
-    if (!head) return;
+    // The table itself is observed rather than `tHead`: Material creates `<thead>` only when it
+    // first renders the header row, which happens *after* this directive's effect runs, so an
+    // observer bound to `tHead` would never see the initial labels. `syncLabels` is a no-op write
+    // when the generated CSS is unchanged, so row-level churn costs one small DOM read.
     this.headerObserver = new MutationObserver(() => this.syncLabels());
-    this.headerObserver.observe(head, { childList: true, subtree: true, characterData: true });
+    this.headerObserver.observe(this.table.nativeElement, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
   }
 
   private stopLabelSync(): void {
@@ -130,7 +134,9 @@ function columnKey(cell: Element): string | null {
 function headerText(th: HTMLTableCellElement): string {
   const clone = th.cloneNode(true) as HTMLElement;
   clone
-    .querySelectorAll('.mat-sort-header-arrow, mat-icon, .cdk-visually-hidden, [aria-hidden="true"]')
+    .querySelectorAll(
+      '.mat-sort-header-arrow, mat-icon, .cdk-visually-hidden, [aria-hidden="true"]',
+    )
     .forEach((el) => el.remove());
   return (clone.textContent ?? '').replace(/\s+/g, ' ').trim();
 }

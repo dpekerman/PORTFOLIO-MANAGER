@@ -60,7 +60,9 @@ describe('ResponsiveTableDirective', () => {
   /** CSS text of the stylesheet this table injected, or '' when there is none. */
   function injectedCss(table: HTMLTableElement): string {
     const id = table.getAttribute('data-responsive-table');
-    const el = document.head.querySelector<HTMLStyleElement>(`style[data-responsive-table="${id}"]`);
+    const el = document.head.querySelector<HTMLStyleElement>(
+      `style[data-responsive-table="${id}"]`,
+    );
     return el?.textContent ?? '';
   }
 

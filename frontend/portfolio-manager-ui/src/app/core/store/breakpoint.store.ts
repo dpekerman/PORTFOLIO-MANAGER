@@ -40,11 +40,7 @@ export const BreakpointStore = signalStore(
   { providedIn: 'root' },
   withState<BreakpointState>({ isHandset: false, isTablet: false, isDesktop: true }),
   withHooks({
-    onInit(
-      store,
-      observer = inject(BreakpointObserver),
-      destroyRef = inject(DestroyRef),
-    ): void {
+    onInit(store, observer = inject(BreakpointObserver), destroyRef = inject(DestroyRef)): void {
       observer
         .observe([HANDSET_QUERY, TABLET_QUERY, DESKTOP_QUERY])
         .pipe(takeUntilDestroyed(destroyRef))

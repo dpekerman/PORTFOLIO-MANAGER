@@ -1,4 +1,3 @@
-
 /**
  * Static catalogue of every configurable data grid: types and the column definitions themselves.
  *

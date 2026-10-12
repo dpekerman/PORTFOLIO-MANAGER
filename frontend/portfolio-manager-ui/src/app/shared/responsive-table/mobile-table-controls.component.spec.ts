@@ -41,7 +41,10 @@ describe('MobileTableControlsComponent', () => {
     isHandset.set(true);
     TestBed.configureTestingModule({
       providers: [
-        { provide: UserPreferencesStore, useValue: { get: () => null, set: () => {}, remove: () => {} } },
+        {
+          provide: UserPreferencesStore,
+          useValue: { get: () => null, set: () => {}, remove: () => {} },
+        },
         {
           provide: BreakpointStore,
           useValue: { isHandset, isTablet: signal(false), isDesktop: signal(false) },

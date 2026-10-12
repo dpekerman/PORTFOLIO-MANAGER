@@ -1,5 +1,12 @@
 import { Signal, computed, effect, inject } from '@angular/core';
-import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withHooks,
+  withMethods,
+  withProps,
+  withState,
+} from '@ngrx/signals';
 import { BreakpointStore } from './breakpoint.store';
 import {
   ColumnDef,
@@ -143,11 +150,7 @@ export const GridColumnStore = signalStore(
   /** All registered grids. */
   withProps(() => ({ grids: GRID_REGISTRY })),
   withMethods(
-    (
-      store,
-      userPrefs = inject(UserPreferencesStore),
-      breakpoints = inject(BreakpointStore),
-    ) => {
+    (store, userPrefs = inject(UserPreferencesStore), breakpoints = inject(BreakpointStore)) => {
       // One cached signal per grid id: grids read these in templates, so the same instance must be
       // returned on every call or Angular would re-create a computed on each change detection pass.
       const columnKeySignals = new Map<string, Signal<string[]>>();

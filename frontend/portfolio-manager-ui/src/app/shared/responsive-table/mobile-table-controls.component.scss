@@ -1,20 +1,26 @@
+@use '@angular/material' as mat;
+
 .mtc-bar {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 8px 10px;
+  padding: 6px 14px 10px;
   box-sizing: border-box;
   max-width: 100%;
+
+  // A full-height Material field would dominate a phone screen; -3 keeps the control compact
+  // while the 44px direction button still sets the touch-target floor for the row.
+  @include mat.form-field-density(-3);
 }
 
 .mtc-sort-field {
-  flex: 1 1 10rem;
+  flex: 1 1 7rem;
   min-width: 0;
   font-size: 0.85rem;
 }
 
-// Square icon-sized button that still meets the 44px touch target.
+// Square-ish button that still meets the 44px touch target.
 .mtc-dir-btn {
   flex: 0 0 auto;
   min-width: 44px;

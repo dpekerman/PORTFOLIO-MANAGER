@@ -100,11 +100,18 @@
               >
             </div>
           } @else {
+            <app-mobile-table-controls
+              [sort]="stockSort"
+              gridId="transactions-stocks"
+              label="Stock transactions"
+            />
             <div class="tx-table-wrapper">
               <table
                 mat-table
+                appResponsiveTable
                 [dataSource]="sortedStockTransactions()"
                 matSort
+                #stockSort="matSort"
                 (matSortChange)="onStockSortChange($event)"
                 class="tx-grid-table"
               >
