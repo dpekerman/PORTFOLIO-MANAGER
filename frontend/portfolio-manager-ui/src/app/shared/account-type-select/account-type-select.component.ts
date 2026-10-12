@@ -18,7 +18,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
-import { AccountTypesStateService } from '../../core/services/account-types-state.service';
+import { AccountTypesStore } from '../../core/store/account-types.store';
 
 @Component({
   selector: 'app-account-type-select',
@@ -40,7 +40,7 @@ import { AccountTypesStateService } from '../../core/services/account-types-stat
   ],
 })
 export class AccountTypeSelectComponent implements ControlValueAccessor, Validator, OnInit {
-  protected readonly state = inject(AccountTypesStateService);
+  protected readonly state = inject(AccountTypesStore);
   protected readonly value = signal<string | null>(null);
   protected readonly disabled = signal(false);
   private onChange: (value: string | null) => void = () => {};

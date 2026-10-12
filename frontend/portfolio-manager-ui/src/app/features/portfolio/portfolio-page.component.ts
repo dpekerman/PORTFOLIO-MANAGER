@@ -38,24 +38,26 @@ import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
-import { CashStateService } from '../../core/services/cash-state.service';
-import { ConfigService } from '../../core/services/config.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
+import { AuthStore } from '../../core/store/auth.store';
+import { CashStore } from '../../core/store/cash.store';
+import { ConfigStore } from '../../core/store/config.store';
 import {
   accountTypeError,
-  AccountTypesStateService,
-} from '../../core/services/account-types-state.service';
+  AccountTypesStore,
+} from '../../core/store/account-types.store';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
 import { SecurityAnalysisMappingDialogComponent } from '../watchlist-page/security-analysis-mapping-dialog.component';
@@ -190,21 +192,23 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
     PortfolioSummaryBarComponent,
     StockCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class PortfolioPageComponent {
   private readonly accountTypeSnackBar = inject(MatSnackBar);
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly optionState = inject(OptionStateService);
-  protected readonly scanner = inject(ScannerStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly optionState = inject(OptionStore);
+  protected readonly scanner = inject(ScannerStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly appRefresh = inject(AppRefreshStore);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
   private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 
@@ -245,7 +249,7 @@ export class PortfolioPageComponent {
   protected readonly gridSortDir = signal<SortDir>('desc');
 
   protected readonly gridDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-stocks');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-stocks');
 
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
@@ -311,9 +315,9 @@ export class PortfolioPageComponent {
   }
 
   protected readonly optionDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-options');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-options');
   protected readonly cashDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-cash');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-cash');
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {
@@ -423,7 +427,7 @@ export class PortfolioPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
-    const accountTypes = inject(AccountTypesStateService);
+    const accountTypes = inject(AccountTypesStore);
     effect(() => {
       const rename = accountTypes.renamed();
       if (rename && this.filterAccount() === rename.oldName) this.filterAccount.set(rename.newName);

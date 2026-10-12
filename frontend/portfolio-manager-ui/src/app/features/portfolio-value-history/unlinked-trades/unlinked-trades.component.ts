@@ -4,9 +4,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { UnlinkedTrade } from '../../../core/models/portfolio.models';
-import { AuthStateService } from '../../../core/services/auth-state.service';
-import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { AuthStore } from '../../../core/store/auth.store';
+import { CashStore } from '../../../core/store/cash.store';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 
 @Component({
@@ -17,9 +17,9 @@ import { TradeCashLinkService } from '../../../core/services/trade-cash-link.ser
   imports: [MatButtonModule, MatIconModule, MatTooltipModule, CurrencyPipe, DatePipe],
 })
 export class UnlinkedTradesComponent {
-  protected readonly cashState = inject(CashStateService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly cashState = inject(CashStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
 

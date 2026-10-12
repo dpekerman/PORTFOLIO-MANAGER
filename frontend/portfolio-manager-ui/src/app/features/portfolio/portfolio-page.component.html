@@ -296,11 +296,14 @@
                   }
                 </div>
               }
+              <app-mobile-table-controls [sort]="stockSort" gridId="portfolio-stocks" label="Stocks" />
               <div class="portfolio-table-wrapper">
                 <table
                   mat-table
+                  appResponsiveTable
                   [dataSource]="gridRows()"
                   matSort
+                  #stockSort="matSort"
                   (matSortChange)="onGridSortChange($event)"
                   class="portfolio-grid-table"
                 >
@@ -1541,6 +1544,12 @@
                   cashTableExpanded() ? 'expand_less' : 'expand_more'
                 }}</mat-icon>
               </button>
+              <app-mobile-table-controls
+                [sort]="cashSort"
+                gridId="portfolio-cash"
+                label="Cash"
+                [hidden]="!cashTableExpanded()"
+              />
               <div
                 id="cash-table-content"
                 class="portfolio-table-wrapper"
@@ -1549,8 +1558,10 @@
                 <table
                   class="portfolio-grid-table mat-elevation-z0"
                   mat-table
+                  appResponsiveTable
                   [dataSource]="sortedCashItems()"
                   matSort
+                  #cashSort="matSort"
                   matSortActive="addedAt"
                   matSortDirection="desc"
                   (matSortChange)="onCashSortChange($event)"
@@ -1747,12 +1758,15 @@
               <span>No option positions. Click "+ Add Option" to track an options contract.</span>
             </div>
           } @else {
+            <app-mobile-table-controls [sort]="optionSort" gridId="portfolio-options" label="Options" />
             <div class="portfolio-table-wrapper options-table-wrapper">
               <table
                 class="portfolio-grid-table options-grid-table mat-elevation-z0"
                 mat-table
+                appResponsiveTable
                 [dataSource]="sortedOptionAnalyses()"
                 matSort
+                #optionSort="matSort"
                 (matSortChange)="onOptionSortChange($event)"
               >
                 <ng-container matColumnDef="opt_ticker" sticky>

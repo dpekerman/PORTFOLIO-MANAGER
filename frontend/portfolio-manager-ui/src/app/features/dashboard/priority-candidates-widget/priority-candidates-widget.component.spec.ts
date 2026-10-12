@@ -2,11 +2,11 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 import { ActionScoreDto, RsiScanResult } from '../../../core/models/portfolio.models';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
-import { WatchlistRsiStateService } from '../../../core/services/watchlist-rsi-state.service';
+import { ScannerStore } from '../../../core/store/scanner.store';
+import { WatchlistRsiStore } from '../../../core/store/watchlist-rsi.store';
 import {
   PriorityCandidatesWidgetComponent,
   buildEligibleCandidates,
@@ -131,7 +131,7 @@ describe('PriorityCandidatesWidgetComponent (rendered)', () => {
       imports: [HostComponent],
       providers: [
         {
-          provide: DashboardStateService,
+          provide: DashboardStore,
           useValue: {
             actionScores: signal(scores),
             actionScoresLoading: signal(opts.loading ?? false),
@@ -139,10 +139,10 @@ describe('PriorityCandidatesWidgetComponent (rendered)', () => {
           },
         },
         {
-          provide: ScannerStateService,
+          provide: ScannerStore,
           useValue: { oversold: signal(scanned.map((s) => scanOf(s))), overbought: signal([]) },
         },
-        { provide: WatchlistRsiStateService, useValue: { rsiMap: signal(new Map()) } },
+        { provide: WatchlistRsiStore, useValue: { rsiMap: signal(new Map()) } },
         {
           provide: PortfolioApiService,
           useValue: { getLatestValueScreener: () => of({ watchlist: [], portfolio: [] }) },

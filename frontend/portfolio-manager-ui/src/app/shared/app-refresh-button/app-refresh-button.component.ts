@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input, output } from '@angu
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 
 @Component({
   selector: 'app-refresh-button',
@@ -12,7 +12,7 @@ import { AppRefreshService } from '../../core/services/app-refresh.service';
   imports: [MatButtonModule, MatIconModule, MatTooltipModule],
 })
 export class AppRefreshButtonComponent {
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   readonly tooltip = input('Refresh all data (bypasses 4-min cache)');
   readonly label = input('');

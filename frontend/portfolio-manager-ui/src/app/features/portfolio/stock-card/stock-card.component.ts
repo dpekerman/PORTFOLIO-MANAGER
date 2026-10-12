@@ -7,8 +7,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../../core/models/portfolio.models';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import {
@@ -35,8 +35,8 @@ export class StockCardComponent {
   readonly summary = input.required<PortfolioSummary>();
   /** RSI(14) value from the scanner — null when this symbol is not in the scanner results. */
   readonly rsi = input<number | null>(null);
-  protected readonly state = inject(PortfolioStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly state = inject(PortfolioStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
 
   protected readonly currentPrice = computed(() => {

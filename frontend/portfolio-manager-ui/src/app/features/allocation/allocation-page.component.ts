@@ -9,13 +9,13 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
-import { CashStateService } from '../../core/services/cash-state.service';
-import { accountTypeError } from '../../core/services/account-types-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { CashStore } from '../../core/store/cash.store';
+import { accountTypeError } from '../../core/store/account-types.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioBetaStateService } from '../../core/services/portfolio-beta-state.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioBetaStore } from '../../core/store/portfolio-beta.store';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
 interface OptionTickerGroup {
@@ -50,13 +50,13 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   ],
 })
 export class AllocationPageComponent {
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly optionState = inject(OptionStore);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  protected readonly betaState = inject(PortfolioBetaStateService);
+  protected readonly betaState = inject(PortfolioBetaStore);
 
   protected readonly showBetaDetail = signal(false);
   protected readonly betaSortCol = signal<'symbol' | 'weightPct' | 'beta'>('symbol');

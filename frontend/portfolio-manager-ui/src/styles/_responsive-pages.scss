@@ -1,0 +1,620 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Handset (<600px) layout for the page toolbars, filters and card lists of the rolled-out pages.
+//
+// Kept in the global bundle on purpose: those components' stylesheets already exceed the Angular
+// component-style budget, and these rules only exist for phones. Component styles carry an extra
+// `[_ngcontent-*]` attribute, so each selector is prefixed with `html` to out-rank them without
+// `!important`. Everything sits inside one max-width media query, so tablet and desktop are never
+// affected.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@media (max-width: 599.98px) {
+  // ── Portfolio ──────────────────────────────────────────────────────────────
+  html .portfolio-page {
+    .section-actions {
+      .mat-mdc-icon-button,
+      .action-btn,
+      .action-btn-primary,
+      .action-btn-cash,
+      .action-btn-option {
+        min-height: 44px;
+      }
+    }
+
+    .view-toggle {
+      height: 44px;
+    }
+
+    .subsection-header {
+      padding: 12px 14px;
+    }
+
+    .subsection-title-group {
+      flex-wrap: wrap;
+      row-gap: 6px;
+    }
+
+    .subsection-meta {
+      margin-left: 0;
+      gap: 6px 16px;
+    }
+
+    .grid-filters-banner {
+      flex-wrap: wrap;
+      padding: 0 10px;
+
+      .gf-toggle-btn {
+        min-height: 44px;
+      }
+    }
+
+    // The desktop filter bar is sticky; stacked on a phone it would cover half the screen.
+    .grid-filters-bar {
+      position: static;
+      margin: 6px 0;
+      padding: 6px 10px;
+
+      .gf-field,
+      .gf-ticker,
+      .gf-select {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 0;
+        max-width: none;
+      }
+
+      .gf-ticker {
+        flex-basis: 100%;
+      }
+    }
+
+    .gf-clear-btn {
+      min-height: 44px;
+    }
+
+    .portfolio-table-wrapper {
+      border: 0;
+      padding: 0 10px;
+      margin-top: 0;
+    }
+
+    .bulk-toolbar {
+      margin: 8px 10px;
+
+      .mat-mdc-button-base {
+        min-height: 44px;
+      }
+    }
+
+    .sort-bar {
+      padding: 8px 10px 4px;
+
+      .sort-chip {
+        height: 44px;
+        line-height: 42px;
+        padding: 0 14px;
+        border-radius: 22px;
+      }
+    }
+
+    .stock-grid {
+      padding: 0 10px;
+    }
+
+    // Aggregated (multi-account) rows: the desktop tint would paint a box inside the card.
+    table.portfolio-grid-table tr.pg-agg-row {
+      background: var(--mat-sys-surface-container-highest);
+      border-color: var(--mat-sys-outline);
+
+      td.mat-mdc-cell {
+        background: transparent !important;
+        border-top: 0 !important;
+        border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 65%, transparent) !important;
+
+        &:last-child,
+        &:has(+ td[class*='actions' i]) {
+          border-bottom: 0 !important;
+        }
+      }
+    }
+
+    table.portfolio-grid-table tr.pg-child-row:hover td.mat-mdc-cell {
+      background: transparent !important;
+    }
+
+    .opt-action-badge,
+    .opt-state-badge {
+      white-space: normal;
+      text-align: right;
+    }
+
+    .cash-table-toggle,
+    .cash-account-subtotals {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+  }
+
+  // ── Scanner ────────────────────────────────────────────────────────────────
+  table.scanner-table.mat-mdc-table[data-responsive='cards'] {
+    // The history link is a row action: make it the card footer like the registry `*actions` cells.
+    td.mat-mdc-cell.signal-history-cell {
+      justify-content: flex-end;
+      padding: 2px 0 0;
+      border-bottom: 0;
+
+      .mat-mdc-icon-button {
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    td.mat-mdc-cell:has(+ td.signal-history-cell) {
+      border-bottom: 0;
+    }
+  }
+
+  // ── EOD Signals ────────────────────────────────────────────────────────────
+  html .eod-page {
+    .page-header,
+    .eod-banner,
+    .persist-banner {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .page-actions {
+      flex-wrap: wrap;
+
+      .mat-mdc-icon-button,
+      .delete-all-btn {
+        min-height: 44px;
+      }
+    }
+
+    .eod-banner .eod-banner-hint {
+      margin-left: 0;
+    }
+
+    // Sticky + stacked fields would cover half of a phone screen.
+    .filter-bar {
+      position: static;
+      padding: 12px 14px;
+
+      .f-ticker,
+      .f-select,
+      .f-date {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 0;
+        max-width: none;
+      }
+
+      .f-ticker {
+        flex-basis: 100%;
+      }
+
+      .clear-btn {
+        min-height: 44px;
+      }
+    }
+
+    .table-wrapper {
+      padding: 0 10px;
+    }
+
+    .error-banner {
+      margin: 12px 14px;
+      flex-wrap: wrap;
+    }
+  }
+
+  // ── Value Screener ─────────────────────────────────────────────────────────
+  html .value-screener-page {
+    .section-actions-right {
+      width: 100%;
+
+      .refresh-btn,
+      .export-btn,
+      .clear-data-btn {
+        min-height: 44px;
+      }
+
+      .scan-time {
+        flex: 1 0 100%;
+        white-space: normal;
+      }
+    }
+
+    .source-bar {
+      padding: 10px 12px;
+    }
+
+    .source-chip {
+      height: 44px;
+    }
+
+    .adhoc-trigger-group {
+      flex: 1 1 100%;
+      padding-left: 0;
+      border-left: 0;
+
+      .adhoc-field {
+        flex: 1 1 100%;
+        width: auto;
+        min-width: 0;
+      }
+
+      .analyze-btn {
+        min-height: 44px;
+      }
+    }
+
+    .tier-card {
+      box-sizing: border-box;
+      flex: 1 1 calc(33% - 8px);
+      min-width: 0;
+      padding: 10px 6px;
+    }
+
+    .clear-filter-btn {
+      min-height: 44px;
+    }
+
+    .table-wrapper {
+      border: 0;
+      border-radius: 0;
+      padding: 0 12px;
+      overflow: visible;
+    }
+
+    .desc-cell {
+      max-width: none;
+      align-items: flex-end;
+    }
+
+    .screener-table td.mat-mdc-cell .score-bar {
+      width: 100%;
+    }
+  }
+
+  // ── Allocation (+ sector exposition) ───────────────────────────────────────
+  html .allocation-page {
+    .page-actions .mat-mdc-icon-button,
+    .expo-actions .mat-mdc-button-base {
+      min-height: 44px;
+    }
+
+    // Header rows (sector / industry / cash / options): name on top, aligned metric grid below.
+    .sector-header,
+    .industry-header,
+    .alloc-sector-header {
+      flex-wrap: wrap;
+      row-gap: 8px;
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .industry-header {
+      padding-left: 20px;
+    }
+
+    .sector-left,
+    .industry-left,
+    .alloc-sector-left {
+      flex: 1 1 100%;
+    }
+
+    .sector-right,
+    .alloc-sector-right {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: minmax(24px, 1fr) 52px 52px 66px 54px;
+      gap: 8px;
+
+      .bar-track,
+      .alloc-bar-track {
+        max-width: 100%;
+      }
+
+      .pct,
+      .mv,
+      .gl-val,
+      .gl-pct,
+      .alloc-col-pct-val,
+      .alloc-col-mv,
+      .alloc-col-gl,
+      .alloc-col-glpct {
+        min-width: 0;
+      }
+    }
+
+    .sector-col-headers {
+      display: none;
+    }
+
+    // Position rows: ticker / name / currency on top, the bar, then labelled figures three per line.
+    .ticker-list {
+      padding: 6px 10px 10px;
+    }
+
+    .ticker-header-row {
+      display: none;
+    }
+
+    .ticker-row:not(.ticker-header-row) {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-color);
+
+      .ticker-symbol {
+        flex: 0 0 auto;
+      }
+
+      .ticker-name {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+
+      .ticker-bar-track {
+        flex: 1 1 100%;
+      }
+
+      .ticker-pct,
+      .ticker-mv,
+      .ticker-price-col,
+      .ticker-gl-col,
+      .ticker-glpct-col {
+        flex: 1 1 calc(33.33% - 8px);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        min-width: 0;
+
+        &::before {
+          font-family: var(--mat-sys-label-small-font, inherit);
+          font-size: 0.6rem;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+        }
+      }
+
+      .ticker-pct::before {
+        content: '% Total';
+      }
+
+      .ticker-mv::before {
+        content: 'Total MV';
+      }
+
+      .ticker-price-col::before {
+        content: 'Last Price';
+      }
+
+      .ticker-gl-col::before {
+        content: 'Gain/Loss';
+      }
+
+      .ticker-glpct-col::before {
+        content: 'G/L %';
+      }
+    }
+
+    .breakdown-section,
+    .alloc-items-table,
+    .alloc-grand-total-row {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .alloc-ticker-group {
+      margin-left: 16px;
+      margin-right: 16px;
+    }
+
+    .alloc-subsection-header {
+      padding: 12px 14px;
+    }
+
+    .alloc-items-table {
+      padding-left: 0;
+      padding-right: 0;
+    }
+
+    .alloc-items-header,
+    .alloc-item-row,
+    .alloc-total-row {
+      padding-left: 6px;
+      padding-right: 6px;
+      gap: 6px;
+    }
+
+    .alloc-net-totals-row {
+      flex-wrap: wrap;
+      row-gap: 8px;
+    }
+
+    .alloc-net-totals-left {
+      flex: 1 1 100%;
+    }
+
+    .alloc-net-totals-right {
+      flex: 1 1 100%;
+      display: grid;
+      grid-template-columns: minmax(24px, 1fr) 52px 52px;
+      gap: 8px;
+    }
+
+    .alloc-grand-total-row {
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+  }
+
+  // ── Configuration (+ account types) ────────────────────────────────────────
+  html .config-page {
+    padding: 12px;
+    padding-top: 8px;
+
+    // A sticky bar of stacked buttons would cover a third of a phone screen.
+    .sticky-save-bar {
+      position: static;
+      margin: 0 -12px;
+      padding: 0 12px;
+    }
+
+    .sticky-save-bar-inner {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sticky-sub {
+      display: none;
+    }
+
+    .sticky-save-bar-actions {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .mat-mdc-button-base:not(.mat-mdc-icon-button) {
+        flex: 1 1 100%;
+        min-height: 44px;
+      }
+    }
+
+    .section-body {
+      padding: 12px;
+    }
+
+    // Tabs scroll sideways instead of wrapping onto several rows.
+    .cfg-tab-nav {
+      flex-wrap: nowrap;
+    }
+
+    .cfg-tab-btn {
+      min-height: 44px;
+      flex: 0 0 auto;
+    }
+
+    .section-header {
+      padding: 12px 14px 10px;
+    }
+
+    .section-footer {
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .mat-mdc-button-base {
+        min-height: 44px;
+      }
+    }
+
+    // User management: one stacked card per user instead of a 4-column grid.
+    .user-table-header {
+      display: none;
+    }
+
+    .user-table-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 4px;
+
+      .user-email {
+        grid-column: 1 / -1;
+        overflow-wrap: anywhere;
+      }
+
+      .role-select {
+        min-width: 0;
+      }
+    }
+
+    .acct-col-headers,
+    .acct-row {
+      grid-template-columns: minmax(0, 1fr) 40px 40px 40px 56px;
+      gap: 4px;
+    }
+  }
+
+  // ── Portfolio value history ────────────────────────────────────────────────
+  // The snapshot/ledger lists already switch to cards below 900px; this only polishes handsets.
+  html .history-page app-history-summary-cards .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    .card-value {
+      font-size: 1.05rem;
+    }
+  }
+
+  html .history-page app-snapshots-table .snapshot-card,
+  html .history-page app-cash-ledger-table .ledger-card,
+  html .history-page app-cash-ledger-table .account-subtotals {
+    border-color: var(--mat-sys-outline-variant);
+  }
+
+  html .history-page app-admin-actions {
+    .admin-buttons,
+    .admin-row {
+      .mat-mdc-button-base {
+        min-height: 44px;
+      }
+    }
+
+    .date-field {
+      flex: 1 1 100%;
+      width: auto;
+    }
+  }
+
+  // ── Watchlist ──────────────────────────────────────────────────────────────
+  html .watchlist-page {
+    .page-actions {
+      flex-wrap: wrap;
+
+      .mat-mdc-icon-button,
+      .add-btn {
+        min-height: 44px;
+      }
+    }
+
+    .view-toggle {
+      height: 44px;
+    }
+
+    .tier-filter-bar {
+      padding: 8px 16px 4px;
+      overflow-x: auto;
+    }
+
+    // Sticky + stacked fields would cover half of a phone screen.
+    .grid-filter-bar {
+      position: static;
+
+      .grid-filter-field,
+      .grid-filter-select {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        max-width: none;
+      }
+
+      .grid-filter-field:first-child {
+        flex-basis: 100%;
+      }
+
+      .mat-mdc-icon-button {
+        min-height: 44px;
+      }
+    }
+
+    .grid-table-wrapper {
+      padding: 0 10px 24px;
+    }
+
+    table.watchlist-table colgroup {
+      display: none;
+    }
+  }
+}

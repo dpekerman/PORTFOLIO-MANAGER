@@ -14,10 +14,10 @@ import {
   DashboardEodSummaryRow,
   DashboardRsiSection,
 } from '../../core/models/portfolio.models';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
-import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
+import { DashboardCollapseStore } from '../../core/store/dashboard-collapse.store';
+import { DashboardStore } from '../../core/store/dashboard.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
@@ -114,11 +114,11 @@ export class DashboardPageComponent {
   protected readonly marketSignalFilter = signal<
     'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
   >('ALL');
-  protected readonly dashboard = inject(DashboardStateService);
-  protected readonly collapseState = inject(DashboardCollapseStateService);
+  protected readonly dashboard = inject(DashboardStore);
+  protected readonly collapseState = inject(DashboardCollapseStore);
   private readonly dialog = inject(MatDialog);
-  private readonly demoMode = inject(DemoModeService);
-  protected readonly appRefresh = inject(AppRefreshService);
+  private readonly demoMode = inject(DemoModeStore);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   protected readonly snapshot = this.dashboard.data;
   protected readonly eodSummary = this.dashboard.eodSummary;
@@ -160,12 +160,12 @@ export class DashboardPageComponent {
       : 'Open in EOD Signals →';
   }
 
-  /** Check if a section is expanded (uses DashboardCollapseStateService). */
+  /** Check if a section is expanded (uses DashboardCollapseStore). */
   protected isExpanded(sectionId: string): boolean {
     return this.collapseState.isExpanded(sectionId);
   }
 
-  /** Toggle collapse state for a section (uses DashboardCollapseStateService). */
+  /** Toggle collapse state for a section (uses DashboardCollapseStore). */
   protected toggleExpanded(sectionId: string): void {
     if (sectionId === 'portfolio-value-history') this.inspectedChartIndex.set(null);
     this.collapseState.toggleCollapsed(sectionId);

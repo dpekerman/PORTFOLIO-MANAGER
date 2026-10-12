@@ -5,22 +5,24 @@ import {
   PortfolioSummary,
   RsiScanResult,
 } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
+import { CashStore } from '../store/cash.store';
 import { DecisionEngineService, PortfolioItemContext } from './decision-engine.service';
-import { OptionStateService } from './option-state.service';
+import { OptionStore } from '../store/option.store';
 import { PortfolioApiService } from './portfolio-api.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 
 /**
  * Single source of truth for the profit-taking/account context used by `translateForPortfolio`.
  * Computed here (not duplicated per caller) so the Portfolio grid and the values pushed to
  * Dashboard Action Center always agree.
+ *
+ * Plain service, not a store: pure derivation over other stores, with no state of its own.
  */
 @Injectable({ providedIn: 'root' })
 export class PortfolioFinalActionSyncService {
-  private readonly portfolio = inject(PortfolioStateService);
-  private readonly cashState = inject(CashStateService);
-  private readonly optionState = inject(OptionStateService);
+  private readonly portfolio = inject(PortfolioStore);
+  private readonly cashState = inject(CashStore);
+  private readonly optionState = inject(OptionStore);
   private readonly engine = inject(DecisionEngineService);
   private readonly api = inject(PortfolioApiService);
 

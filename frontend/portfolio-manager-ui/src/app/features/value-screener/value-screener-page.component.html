@@ -192,11 +192,14 @@
 
   <!-- RESULTS TABLE -->
   @if (activeResults().length > 0) {
+    <app-mobile-table-controls [sort]="screenerSort" gridId="value-screener" label="Screener" />
     <div class="table-wrapper">
       <table
         mat-table
+        appResponsiveTable
         [dataSource]="activeResults()"
         matSort
+        #screenerSort="matSort"
         (matSortChange)="onSortChange($event)"
         [matSortActive]="sortCol()"
         [matSortDirection]="sortDir()"

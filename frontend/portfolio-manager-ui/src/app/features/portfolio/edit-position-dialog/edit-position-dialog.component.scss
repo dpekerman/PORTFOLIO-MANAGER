@@ -18,7 +18,7 @@ h2[mat-dialog-title] {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   padding: 4px 0 6px;
-  min-width: 560px;
+  min-width: min(560px, 100%);
   width: 100%;
 }
 
@@ -37,4 +37,12 @@ h2[mat-dialog-title] {
 .half-width {
   flex: 1;
   min-width: 0;
+}
+
+// A phone has no room for two form columns; one column keeps every field legible and the
+// dialog inside the viewport. Desktop keeps the two-column layout.
+@media (max-width: 599.98px) {
+  .edit-form {
+    grid-template-columns: 1fr;
+  }
 }

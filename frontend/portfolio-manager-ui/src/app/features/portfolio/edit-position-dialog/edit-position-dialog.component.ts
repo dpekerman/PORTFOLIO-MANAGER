@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { PortfolioItem } from '../../../core/models/portfolio.models';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -67,7 +67,7 @@ export class EditPositionDialogComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly dialogRef = inject(MatDialogRef<EditPositionDialogComponent>);
   private readonly api = inject(PortfolioApiService);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   protected readonly data: EditPositionDialogData = inject(MAT_DIALOG_DATA);
 
   protected readonly sectors = signal<string[]>([]);

@@ -236,13 +236,17 @@
   color: #687481;
 }
 .db-range-group {
-  ::ng-deep .mat-button-toggle {
+  mat-button-toggle {
     font-size: 0.76rem;
-  }
-  ::ng-deep .mat-button-toggle-button {
-    padding: 0 10px;
-    line-height: 26px;
     min-width: 36px;
+    // Material exposes no token for the label padding, so the extra 10px lives on the host.
+    padding: 0 10px;
+    box-sizing: border-box;
+
+    // The checked toggle already gets a 30px left padding for its check mark.
+    &.mat-button-toggle-checked {
+      padding-left: 0;
+    }
   }
 }
 .db-chart-interactive {
@@ -468,26 +472,18 @@ mat-card.db-panel {
 
 /* Panel icon = navigatable button — force Material touch-target to match visible size */
 .panel-nav-btn {
-  width: 24px !important;
-  height: 24px !important;
+  // The button keeps a 24px footprint; the 32px box (ripple, focus ring, touch target) is
+  // centred on it with a negative margin instead of overriding Material's internals.
+  --mat-icon-button-touch-target-size: 32px;
+  width: 32px !important;
+  height: 32px !important;
+  margin: -4px;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0;
   vertical-align: middle;
-  // shrink Material's internal 48 px touch-target so it doesn't push the icon off-axis
-  ::ng-deep {
-    .mat-mdc-button-touch-target,
-    .mdc-icon-button__ripple,
-    .mat-mdc-focus-indicator {
-      width: 32px !important;
-      height: 32px !important;
-      top: 50% !important;
-      left: 50% !important;
-      transform: translate(-50%, -50%) !important;
-    }
-  }
   mat-icon {
     font-size: 18px !important;
     width: 18px !important;
@@ -505,26 +501,9 @@ mat-card.db-panel {
 
 /* ── Movers ──────────────────────────────────────────────────────────────── */
 .movers-count-sel {
-  width: 60px;
-  font-size: 0.76rem;
-  ::ng-deep .mat-mdc-select-value {
-    font-size: 0.76rem;
-  }
-  /* ensure the overlay panel is wide enough to show full option text */
-  ::ng-deep .mat-mdc-select-panel {
-    min-width: 70px !important;
-  }
-  ::ng-deep .mat-mdc-option {
-    font-size: 0.8rem;
-    min-height: 36px;
-  }
-}
-.movers-count-sel {
+  --mat-select-trigger-text-size: 0.76rem;
   width: 76px;
   font-size: 0.76rem;
-  ::ng-deep .mat-mdc-select-value {
-    font-size: 0.76rem;
-  }
 }
 
 /* Side-by-side movers columns */

@@ -8,7 +8,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 
 interface ImportRow {
   symbol: string;
@@ -35,7 +35,7 @@ interface ImportRow {
   ],
 })
 export class ImportStocksDialogComponent {
-  private readonly state = inject(PortfolioStateService);
+  private readonly state = inject(PortfolioStore);
   private readonly snackBar = inject(MatSnackBar);
   readonly dialogRef = inject(MatDialogRef<ImportStocksDialogComponent>);
 

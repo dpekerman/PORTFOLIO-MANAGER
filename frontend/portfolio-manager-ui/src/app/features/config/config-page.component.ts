@@ -13,12 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
-import {
-  MAT_DIALOG_DATA,
-  MatDialog,
-  MatDialogModule,
-  MatDialogRef,
-} from '@angular/material/dialog';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -40,16 +35,19 @@ import {
   SinglePositionLimit,
   UserInfo,
 } from '../../core/models/portfolio.models';
-import { AuthStateService } from '../../core/services/auth-state.service';
-import { AutomationStateService } from '../../core/services/automation-state.service';
-import { ConfigService } from '../../core/services/config.service';
-import { DemoModeService, DemoStyle } from '../../core/services/demo-mode.service';
+import { AuthStore } from '../../core/store/auth.store';
+import { AutomationStore } from '../../core/store/automation.store';
+import { ConfigStore } from '../../core/store/config.store';
+import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { UsersApiService } from '../../core/services/users-api.service';
 import { AccountTypesComponent } from './account-types/account-types.component';
+import { AllocConfirmDialogComponent } from './alloc-confirm-dialog.component';
+import { CreateUserDialogComponent } from './create-user-dialog.component';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 @Component({
   selector: 'app-config-page',
@@ -78,19 +76,20 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTimepickerModule,
     MatDialogModule,
     MatTooltipModule,
+    ResponsiveTableDirective,
   ],
 })
 export class ConfigPageComponent implements OnInit {
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
-  private readonly scannerState = inject(ScannerStateService);
-  protected readonly automationState = inject(AutomationStateService);
+  private readonly scannerState = inject(ScannerStore);
+  protected readonly automationState = inject(AutomationStore);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly authState = inject(AuthStore);
   private readonly usersApi = inject(UsersApiService);
 
   // ── Demo Mode pending state (applied only on Save) ───────────────────────
@@ -1337,97 +1336,5 @@ ${overboughtRsi}.`,
           },
         });
       });
-  }
-}
-
-@Component({
-  selector: 'app-alloc-confirm-dialog',
-  template: `
-    <h2 mat-dialog-title>{{ data.title }}</h2>
-    <mat-dialog-content>{{ data.message }}</mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-stroked-button [mat-dialog-close]="false">Cancel</button>
-      <button mat-flat-button color="warn" [mat-dialog-close]="true">
-        <mat-icon>{{ data.confirmIcon ?? 'delete' }}</mat-icon> {{ data.confirmLabel ?? 'Delete' }}
-      </button>
-    </mat-dialog-actions>
-  `,
-  imports: [MatButtonModule, MatDialogModule, MatIconModule],
-})
-export class AllocConfirmDialogComponent {
-  readonly data = inject<{
-    title: string;
-    message: string;
-    confirmLabel?: string;
-    confirmIcon?: string;
-  }>(MAT_DIALOG_DATA);
-}
-
-@Component({
-  selector: 'app-create-user-dialog',
-  template: `
-    <h2 mat-dialog-title>Create User</h2>
-    <mat-dialog-content>
-      <form [formGroup]="form" class="create-user-form">
-        <mat-form-field appearance="outline" class="full-w">
-          <mat-label>Display Name</mat-label>
-          <input matInput formControlName="displayName" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full-w">
-          <mat-label>Email</mat-label>
-          <input matInput type="email" formControlName="email" />
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full-w">
-          <mat-label>Password</mat-label>
-          <input matInput type="password" formControlName="password" />
-          @if (form.controls.password.hasError('minlength')) {
-            <mat-error>At least 10 characters required</mat-error>
-          }
-        </mat-form-field>
-        <mat-form-field appearance="outline" class="full-w">
-          <mat-label>Role</mat-label>
-          <mat-select formControlName="role">
-            <mat-option value="Admin">Admin</mat-option>
-            <mat-option value="Trader">Trader</mat-option>
-            <mat-option value="Viewer">Viewer</mat-option>
-          </mat-select>
-        </mat-form-field>
-      </form>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-stroked-button [mat-dialog-close]="undefined">Cancel</button>
-      <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="submit()">
-        Create
-      </button>
-    </mat-dialog-actions>
-  `,
-  styles: [
-    '.create-user-form { display:flex; flex-direction:column; gap:4px; padding-top:8px; } .full-w { width:100%; }',
-  ],
-  imports: [
-    ReactiveFormsModule,
-    MatButtonModule,
-    MatDialogModule,
-    MatFormFieldModule,
-    MatIconModule,
-    MatInputModule,
-    MatSelectModule,
-  ],
-})
-export class CreateUserDialogComponent {
-  private readonly dialogRef = inject(MatDialogRef<CreateUserDialogComponent>);
-  private readonly fb = inject(FormBuilder);
-
-  protected readonly form = this.fb.group({
-    displayName: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(10)]],
-    role: ['Viewer' as AppRole, [Validators.required]],
-  });
-
-  submit(): void {
-    if (this.form.invalid) return;
-    const { displayName, email, password, role } = this.form.value;
-    this.dialogRef.close({ displayName, email, password, role } as CreateUserRequest);
   }
 }

@@ -6,9 +6,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { ScannerStore } from '../../../core/store/scanner.store';
 import { ScannerRowSkeletonComponent } from '../../../shared/skeleton/scanner-row-skeleton.component';
 import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
 
@@ -31,13 +31,13 @@ import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
 })
 export class AdhocAnalyzerComponent {
   private readonly api = inject(PortfolioApiService);
-  private readonly config = inject(ConfigService);
-  private readonly scannerState = inject(ScannerStateService);
+  private readonly config = inject(ConfigStore);
+  private readonly scannerState = inject(ScannerStore);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly logicMode = this.scannerState.logicMode;
 
-  // ── State lives in the service so it survives navigation away and back ──
+  // State lives in the store so it survives navigation away and back
   protected readonly symbols = this.scannerState.adhocSymbols;
   protected readonly results = this.scannerState.adhocResults;
   protected readonly analyzed = this.scannerState.adhocAnalyzed;
@@ -78,16 +78,18 @@ export class AdhocAnalyzerComponent {
       return;
     }
     if (this.symbols().length >= 20) return;
-    this.symbols.update((list) => [...list, sym]);
+    this.scannerState.setAdhocSymbols([...this.symbols(), sym]);
     this.inputValue.set('');
     this.persistSession();
   }
 
   removeSymbol(sym: string): void {
-    this.symbols.update((list) => list.filter((s) => s !== sym));
-    this.results.update((list) => list.filter((r) => r.symbol.toUpperCase() !== sym.toUpperCase()));
+    this.scannerState.setAdhocSymbols(this.symbols().filter((s) => s !== sym));
+    this.scannerState.setAdhocResults(
+      this.results().filter((r) => r.symbol.toUpperCase() !== sym.toUpperCase()),
+    );
     if (this.results().length === 0) {
-      this.analyzed.set(false);
+      this.scannerState.setAdhocAnalyzed(false);
     }
     this.persistSession();
   }
@@ -100,7 +102,7 @@ export class AdhocAnalyzerComponent {
     }
     // On backspace with empty input, remove last chip
     if (event.key === 'Backspace' && !val && this.symbols().length > 0) {
-      this.symbols.update((list) => list.slice(0, -1));
+      this.scannerState.setAdhocSymbols(this.symbols().slice(0, -1));
     }
   }
 
@@ -108,8 +110,8 @@ export class AdhocAnalyzerComponent {
     if (this.symbols().length === 0 || this.loading()) return;
     this.loading.set(true);
     this.error.set(null);
-    this.results.set([]);
-    this.analyzed.set(false);
+    this.scannerState.setAdhocResults([]);
+    this.scannerState.setAdhocAnalyzed(false);
 
     const oversold = this.config.rsiOversoldThreshold();
     const overbought = this.config.rsiOverboughtThreshold();
@@ -118,9 +120,9 @@ export class AdhocAnalyzerComponent {
       .analyzeSymbols(this.symbols(), oversold, overbought, this.scannerState.logicMode())
       .subscribe({
         next: (r) => {
-          this.results.set(r);
+          this.scannerState.setAdhocResults(r);
           this.loading.set(false);
-          this.analyzed.set(true);
+          this.scannerState.setAdhocAnalyzed(true);
           this.persistSession();
         },
         error: () => {
@@ -131,10 +133,10 @@ export class AdhocAnalyzerComponent {
   }
 
   clear(): void {
-    this.symbols.set([]);
-    this.results.set([]);
+    this.scannerState.setAdhocSymbols([]);
+    this.scannerState.setAdhocResults([]);
     this.error.set(null);
-    this.analyzed.set(false);
+    this.scannerState.setAdhocAnalyzed(false);
     this.inputValue.set('');
   }
 }

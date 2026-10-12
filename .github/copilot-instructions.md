@@ -18,12 +18,22 @@ DB: run `database/SCRIPTS/01_CreateDatabase.sql` through `03_SeedData.sql` in or
 
 ## State Pattern (MANDATORY for all features)
 
-Two services per feature in `core/services/`:
-1. `*-api.service.ts` -- HttpClient wrapper, returns `Observable<T>`, zero state
-2. `*-state.service.ts` -- `signal()`/`computed()` state, calls API service, `.asReadonly()` exposed
+Two files per feature:
+1. `core/services/*-api.service.ts` -- HttpClient wrapper, returns `Observable<T>`, zero state
+2. `core/store/*.store.ts` -- NgRx `signalStore` (`@ngrx/signals`): `withState`, `withRequestStatus()` for loading/error, `rxMethod` + `tapResponse` for loads, `onceAuthenticated()` in `withHooks({ onInit })` for the first load. State is patched only inside the store; components read signals and call methods.
 
-All HTTP via `PortfolioApiService`, base `/api` proxied to `localhost:5000/api`.
-Always use `demoMode.maskValue()` / `maskPercent()` for monetary display -- never raw signal values.
+Pure-logic or per-instance services (`decision-engine`, `portfolio-rsi-analysis`, `trade-cash-link`, `session-timeout`, `ScreenRefreshService`) stay plain services. Template: `/new-angular-feature`; real example: `core/store/watchlist.store.ts`.
+
+All HTTP via the API services, base `/api` proxied to `localhost:5000/api`.
+Always use `DemoModeStore.maskValue()` / `maskPercent()` for monetary display -- never raw signal values.
+
+## Mobile / Devices (MANDATORY for UI work)
+
+Supported: Samsung S21 Ultra (384px), Samsung S23 (360px), Pixel Tablet, desktop. Design for 360px minimum; desktop must stay unchanged. Tables follow `/responsive-material-table` (cards on handsets). Verify with Playwright (`npx playwright test`, projects `desktop-chrome`, `tablet`, `mobile-s21`, `mobile-s23`; API is mocked, no backend needed). CI runs unit tests and e2e.
+
+## Tooling
+
+Angular CLI MCP (`search_documentation`, `get_best_practices`) and Context7 are configured in `.vscode/mcp.json`; use them to verify unfamiliar Angular/Material/NgRx APIs before using them. Official skills `angular-developer` and `angular-new-app` are vendored in `.github/skills/` (see `VENDORED.md`); this file wins on conflicts.
 
 ## Backend Conventions
 
@@ -41,6 +51,7 @@ Always use `demoMode.maskValue()` / `maskPercent()` for monetary display -- neve
 - `@if` / `@for` / `@switch` -- never `*ngIf` / `*ngFor`
 - `[class.x]` / `[style.x]` -- never `ngClass` / `ngStyle`
 - `templateUrl` + `styleUrl` always (never inline)
+- App is **zoneless** (Angular 21+ default, no zone.js). Never add `provideZoneChangeDetection`. Programmatic Reactive Forms `setValue`/`patchValue` do not trigger change detection; new forms use Signal Forms (`@angular/forms/signals`, stable in v22). Existing Reactive Forms are migrated separately.
 
 ## Features
 

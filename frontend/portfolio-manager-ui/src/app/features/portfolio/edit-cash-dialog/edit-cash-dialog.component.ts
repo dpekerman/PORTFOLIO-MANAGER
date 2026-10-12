@@ -14,7 +14,7 @@ import {
   CashItem,
   SELECTABLE_CASH_FLOW_TYPES,
 } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 export interface EditCashDialogData {
@@ -42,7 +42,7 @@ export interface EditCashDialogData {
 })
 export class EditCashDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly cashState = inject(CashStateService);
+  private readonly cashState = inject(CashStore);
   private readonly dialogRef = inject(MatDialogRef<EditCashDialogComponent>);
   protected readonly data = inject<EditCashDialogData>(MAT_DIALOG_DATA);
 

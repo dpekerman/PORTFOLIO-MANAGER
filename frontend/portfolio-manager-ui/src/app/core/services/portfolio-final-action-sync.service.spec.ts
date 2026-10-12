@@ -6,12 +6,12 @@ import {
   RsiScanResult,
   StockQuote,
 } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
+import { CashStore } from '../store/cash.store';
 import { DecisionEngineService } from './decision-engine.service';
-import { OptionStateService } from './option-state.service';
+import { OptionStore } from '../store/option.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
-import { PortfolioStateService } from './portfolio-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
 
 const item = (over: Partial<PortfolioItem> = {}): PortfolioItem =>
   ({
@@ -40,9 +40,9 @@ describe('PortfolioFinalActionSyncService.buildContext (CDR currency handling)',
     TestBed.configureTestingModule({
       providers: [
         PortfolioFinalActionSyncService,
-        { provide: PortfolioStateService, useValue: {} },
-        { provide: CashStateService, useValue: {} },
-        { provide: OptionStateService, useValue: {} },
+        { provide: PortfolioStore, useValue: {} },
+        { provide: CashStore, useValue: {} },
+        { provide: OptionStore, useValue: {} },
         { provide: PortfolioApiService, useValue: {} },
       ],
     });

@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AppRefreshButtonComponent } from './app-refresh-button.component';
 
 describe('AppRefreshButtonComponent', () => {
@@ -14,7 +14,7 @@ describe('AppRefreshButtonComponent', () => {
       imports: [AppRefreshButtonComponent],
       providers: [
         {
-          provide: AppRefreshService,
+          provide: AppRefreshStore,
           useValue: { isRefreshing, refreshAll: (r: string) => calls.push(r) },
         },
       ],

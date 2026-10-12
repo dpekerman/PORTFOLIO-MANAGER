@@ -26,10 +26,12 @@ import {
   ValueScreenerResult,
   ValueTier,
 } from '../../core/models/portfolio.models';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
 
@@ -56,6 +58,8 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class ValueScreenerPageComponent implements OnInit {
@@ -87,7 +91,7 @@ export class ValueScreenerPageComponent implements OnInit {
   protected readonly sortCol = signal<string>('score');
   protected readonly sortDir = signal<'asc' | 'desc'>('desc');
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('value-screener');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('value-screener');
 
   protected tradingCurrency(symbol: string): string {
     return currencyCodeForTradingSymbol(symbol);

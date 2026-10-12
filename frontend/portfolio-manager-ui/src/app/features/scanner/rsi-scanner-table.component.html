@@ -9,9 +9,12 @@
       <mat-icon>download</mat-icon>
     </button>
   </div>
+  <app-mobile-table-controls [sort]="scannerSort" gridId="scanner" label="Scanner" />
   <table
     mat-table
+    appResponsiveTable
     matSort
+    #scannerSort="matSort"
     matSortActive="momentumShift"
     matSortDirection="asc"
     (matSortChange)="onSortChange($event)"

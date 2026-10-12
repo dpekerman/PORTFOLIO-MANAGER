@@ -398,6 +398,7 @@ export interface PortfolioItemContext {
   decisionSource?: string | null;
 }
 
+/** Pure decision rules engine — plain service, not a store: no state, only calculations. */
 @Injectable({ providedIn: 'root' })
 export class DecisionEngineService {
   calculateDecision(r: RsiScanResult, role?: string | null, page = 'Unknown'): DecisionResult {

@@ -17,15 +17,17 @@ import {
   PortfolioItem,
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
-import { AuthStateService } from '../../core/services/auth-state.service';
-import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { AuthStore } from '../../core/store/auth.store';
+import { DashboardStore } from '../../core/store/dashboard.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -114,14 +116,16 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class TransactionsPageComponent {
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly optionState = inject(OptionStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly dashboardState = inject(DashboardStateService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly optionState = inject(OptionStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly dashboardState = inject(DashboardStore);
   private readonly api = inject(PortfolioApiService);
 
   protected readonly activeTab = signal<'transactions' | 'analytics'>('transactions');
@@ -157,10 +161,18 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns = inject(GridColumnService).getColumnKeys('transactions-stocks');
+  /**
+   * Stock table columns, projected for the current breakpoint.
+   *
+   * Desktop and tablet get exactly the saved layout; a handset gets the primary columns only,
+   * because `appResponsiveTable` renders the table as cards there. The MatSort instance is handed
+   * to `<app-mobile-table-controls>` through the `#stockSort` template reference, since the header
+   * row that normally offers sorting is hidden in card mode.
+   */
+  protected readonly stockColumns =
+    inject(GridColumnStore).getResponsiveColumnKeys('transactions-stocks');
 
-  protected readonly optionColumns =
-    inject(GridColumnService).getColumnKeys('transactions-options');
+  protected readonly optionColumns = inject(GridColumnStore).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();

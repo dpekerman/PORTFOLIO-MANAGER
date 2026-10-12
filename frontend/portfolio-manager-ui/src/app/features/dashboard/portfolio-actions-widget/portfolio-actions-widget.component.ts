@@ -5,14 +5,14 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioActionDto } from '../../../core/models/portfolio.models';
 import { priceStructureLabel, priceStructureTooltip } from '../../../core/price-structure-display';
-import { DashboardStateService } from '../../../core/services/dashboard-state.service';
+import { DashboardStore } from '../../../core/store/dashboard.store';
 import {
   DecisionEngineService,
   evaluateWatchlistEntry,
   WatchlistEntryDecision,
 } from '../../../core/services/decision-engine.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
-import { ScannerStateService } from '../../../core/services/scanner-state.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
+import { ScannerStore } from '../../../core/store/scanner.store';
 import { formatTrendShift } from '../../../core/technical-display';
 
 export const ACTION_CENTER_FILTER_STORAGE_KEY = 'dashboard_action_center_filter';
@@ -37,13 +37,13 @@ export type ActionCenterSort = { column: ActionCenterSortColumn; direction: 1 | 
 })
 export class PortfolioActionsWidgetComponent {
   private static readonly FILTER_STORAGE_KEY = ACTION_CENTER_FILTER_STORAGE_KEY;
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly decisionEngine = inject(DecisionEngineService);
-  private readonly scanner = inject(ScannerStateService);
+  private readonly scanner = inject(ScannerStore);
   private readonly filter = signal<ActionCenterFilter>(this.loadFilter());
   private readonly holdingsSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
   private readonly watchlistSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
-  protected readonly dashboard = inject(DashboardStateService);
+  protected readonly dashboard = inject(DashboardStore);
   protected readonly actions = this.dashboard.portfolioActions;
   protected readonly loading = this.dashboard.actionsLoading;
   private readonly watchlistEntryDecisions = computed(() => {

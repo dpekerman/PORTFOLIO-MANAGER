@@ -11,10 +11,10 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { WatchlistStore } from '../../core/store/watchlist.store';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { ScannerRowSkeletonComponent } from '../../shared/skeleton/scanner-row-skeleton.component';
 import { AdhocAnalyzerComponent } from './adhoc-analyzer/adhoc-analyzer.component';
@@ -45,9 +45,9 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   ],
 })
 export class ScannerPageComponent implements OnInit {
-  protected readonly scanner = inject(ScannerStateService);
-  private readonly portfolio = inject(PortfolioStateService);
-  private readonly watchlist = inject(WatchlistStateService);
+  protected readonly scanner = inject(ScannerStore);
+  private readonly portfolio = inject(PortfolioStore);
+  private readonly watchlist = inject(WatchlistStore);
 
   /** Mini refresh popup for this screen's independent live scan (not part of the unified app refresh). */
   protected readonly screenRefresh = new ScreenRefreshService('scanner');

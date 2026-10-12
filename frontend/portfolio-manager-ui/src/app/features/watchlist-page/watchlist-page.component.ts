@@ -32,26 +32,28 @@ import {
   priceStructureTooltip as formatPriceStructureTooltip,
   priceStructureSortRank,
 } from '../../core/price-structure-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
+import { AuthStore } from '../../core/store/auth.store';
 import {
   DecisionEngineService,
   GapStatus,
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
-import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { WatchlistRsiStore } from '../../core/store/watchlist-rsi.store';
+import { WatchlistStore } from '../../core/store/watchlist.store';
 import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
@@ -121,18 +123,20 @@ type SortDir = 'asc' | 'desc';
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
     ScreenRefreshProgressComponent,
   ],
 })
 export class WatchlistPageComponent {
-  protected readonly watchlist = inject(WatchlistStateService);
-  private readonly demoMode = inject(DemoModeService);
+  protected readonly watchlist = inject(WatchlistStore);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
-  private readonly scanner = inject(ScannerStateService);
-  private readonly watchlistRsi = inject(WatchlistRsiStateService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly appRefresh = inject(AppRefreshService);
+  private readonly scanner = inject(ScannerStore);
+  private readonly watchlistRsi = inject(WatchlistRsiStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */
   protected readonly screenRefresh = new ScreenRefreshService('watchlist');
@@ -568,7 +572,7 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();
