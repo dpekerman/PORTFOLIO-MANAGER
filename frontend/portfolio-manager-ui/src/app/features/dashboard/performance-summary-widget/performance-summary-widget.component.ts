@@ -4,7 +4,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { DashboardStateService } from '../../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 
 @Component({
   selector: 'app-performance-summary-widget',
@@ -15,7 +15,7 @@ import { DemoModeService } from '../../../core/services/demo-mode.service';
 })
 export class PerformanceSummaryWidgetComponent {
   protected readonly dashboard = inject(DashboardStateService);
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   protected readonly summary = this.dashboard.performanceSummary;
   protected readonly loading = this.dashboard.performanceSummaryLoading;
 

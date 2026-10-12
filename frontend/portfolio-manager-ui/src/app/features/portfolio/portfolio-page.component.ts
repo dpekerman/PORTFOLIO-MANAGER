@@ -47,7 +47,7 @@ import {
   AccountTypesStateService,
 } from '../../core/services/account-types-state.service';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -198,7 +198,7 @@ export class PortfolioPageComponent {
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStateService);
   protected readonly appRefresh = inject(AppRefreshService);
   private readonly api = inject(PortfolioApiService);

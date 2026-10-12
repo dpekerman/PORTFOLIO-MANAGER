@@ -2,7 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { CashItem, PortfolioValueHistoryDto } from '../../../../core/models/portfolio.models';
-import { DemoModeService } from '../../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../../core/store/demo-mode.store';
 
 @Component({
   selector: 'app-snapshot-detail',
@@ -12,7 +12,7 @@ import { DemoModeService } from '../../../../core/services/demo-mode.service';
   imports: [CurrencyPipe, DatePipe, MatIconModule],
 })
 export class SnapshotDetailComponent {
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
 
   readonly snapshot = input.required<PortfolioValueHistoryDto>();
   readonly cashActivity = input<CashItem[]>([]);

@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioValueHistoryDto } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioBetaStateService } from '../../../core/services/portfolio-beta-state.service';
@@ -22,7 +22,7 @@ export class PortfolioSummaryBarComponent {
   protected readonly stockState = inject(PortfolioStateService);
   protected readonly cashState = inject(CashStateService);
   protected readonly optionState = inject(OptionStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly api = inject(PortfolioApiService);
   protected readonly betaState = inject(PortfolioBetaStateService);
 

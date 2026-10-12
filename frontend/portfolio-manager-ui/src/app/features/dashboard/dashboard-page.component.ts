@@ -17,7 +17,7 @@ import {
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
@@ -117,7 +117,7 @@ export class DashboardPageComponent {
   protected readonly dashboard = inject(DashboardStateService);
   protected readonly collapseState = inject(DashboardCollapseStateService);
   private readonly dialog = inject(MatDialog);
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   protected readonly appRefresh = inject(AppRefreshService);
 
   protected readonly snapshot = this.dashboard.data;

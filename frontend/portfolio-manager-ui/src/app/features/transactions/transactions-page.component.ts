@@ -19,7 +19,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -119,7 +119,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
 export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly optionState = inject(OptionStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStateService);
   protected readonly dashboardState = inject(DashboardStateService);
   private readonly api = inject(PortfolioApiService);

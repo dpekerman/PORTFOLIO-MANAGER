@@ -12,7 +12,7 @@ import { filter, map, startWith } from 'rxjs';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeStore } from '../../core/store/theme.store';
 import { AppRefreshProgressComponent } from '../app-refresh-progress/app-refresh-progress.component';
@@ -41,7 +41,7 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
 export class LayoutComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly theme = inject(ThemeStore);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStateService);
   // Instantiate to activate auto-refresh timer
   protected readonly appRefresh = inject(AppRefreshService);

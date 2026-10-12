@@ -6,7 +6,7 @@ import { vi } from 'vitest';
 import { CashItem, OptionItem, PortfolioItem, UnlinkedTrade } from '../models/portfolio.models';
 import { CashStateService } from './cash-state.service';
 import { DashboardStateService } from './dashboard-state.service';
-import { DemoModeService } from './demo-mode.service';
+import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
 
@@ -93,7 +93,7 @@ describe('TradeCashLinkService', () => {
         { provide: MatDialog, useValue: { open: dialogOpen } },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },
         {
-          provide: DemoModeService,
+          provide: DemoModeStore,
           useValue: {
             isDemoMode: () => false,
             demoStyle: () => 'fake',

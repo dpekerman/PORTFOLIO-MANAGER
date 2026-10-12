@@ -43,7 +43,7 @@ import {
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { AutomationStateService } from '../../core/services/automation-state.service';
 import { ConfigService } from '../../core/services/config.service';
-import { DemoModeService, DemoStyle } from '../../core/services/demo-mode.service';
+import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -89,7 +89,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStateService);
   private readonly usersApi = inject(UsersApiService);
 

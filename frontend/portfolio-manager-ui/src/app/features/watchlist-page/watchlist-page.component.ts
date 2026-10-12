@@ -40,7 +40,7 @@ import {
   PageDecision,
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
@@ -126,7 +126,7 @@ type SortDir = 'asc' | 'desc';
 })
 export class WatchlistPageComponent {
   protected readonly watchlist = inject(WatchlistStore);
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);

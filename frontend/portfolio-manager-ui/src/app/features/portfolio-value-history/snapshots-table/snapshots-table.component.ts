@@ -12,7 +12,7 @@ import {
   SnapshotStatus,
 } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
 import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
 import { SnapshotDetailComponent } from './snapshot-detail/snapshot-detail.component';
@@ -49,7 +49,7 @@ interface ReconciliationIcon {
 export class SnapshotsTableComponent {
   protected readonly historyState = inject(PortfolioValueHistoryStateService);
   protected readonly cashState = inject(CashStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
 
   protected readonly displayedColumns = [
     'recordedDate',

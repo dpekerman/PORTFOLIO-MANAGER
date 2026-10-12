@@ -6,7 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RsiScanResult } from '../../../core/models/portfolio.models';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
@@ -64,7 +64,7 @@ export class SectorExpositionComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
   private readonly snackBar = inject(MatSnackBar);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
 
   protected dv(v: number): number {
     return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'

@@ -2,7 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 
 @Component({
@@ -14,7 +14,7 @@ import { ScannerStateService } from '../../core/services/scanner-state.service';
 })
 export class MarketHeaderComponent {
   protected readonly scanner = inject(ScannerStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
 
   protected readonly signalBias = computed(() => {
     const o = this.scanner.oversold().length;

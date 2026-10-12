@@ -25,7 +25,7 @@ import {
   GapStatus,
   PageDecision,
 } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
 import {
   currencyCodeForAnalysis,
@@ -53,7 +53,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
   ],
 })
 export class RsiScannerTableComponent {
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   readonly results = input.required<RsiScanResult[]>();
   readonly scanType = input.required<ScanType>();
   readonly logicMode = input<LogicMode>('Legacy');

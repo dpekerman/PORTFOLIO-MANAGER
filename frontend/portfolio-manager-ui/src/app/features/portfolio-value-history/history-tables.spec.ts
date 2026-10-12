@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { CashItem, PortfolioValueHistoryDto } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { PortfolioValueHistoryStateService } from '../../core/services/portfolio-value-history-state.service';
 import { CashLedgerTableComponent } from './cash-ledger-table/cash-ledger-table.component';
 import { SnapshotsTableComponent } from './snapshots-table/snapshots-table.component';
@@ -97,7 +97,7 @@ describe('Portfolio value history table sorting', () => {
           },
         },
         {
-          provide: DemoModeService,
+          provide: DemoModeStore,
           useValue: { maskValue: (value: number) => value, maskPercent: (value: number) => value },
         },
         { provide: MatDialog, useValue: { open: vi.fn() } },

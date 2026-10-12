@@ -11,7 +11,7 @@ import {
 } from '../models/portfolio.models';
 import { AuthStateService } from './auth-state.service';
 import { DashboardStateService } from './dashboard-state.service';
-import { DemoModeService } from './demo-mode.service';
+import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
 import { AccountTypesStateService } from './account-types-state.service';
@@ -20,7 +20,7 @@ import { AccountTypesStateService } from './account-types-state.service';
 export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly authState = inject(AuthStateService);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);

@@ -11,7 +11,7 @@ import {
   evaluateWatchlistEntry,
   WatchlistEntryDecision,
 } from '../../../core/services/decision-engine.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
 import { formatTrendShift } from '../../../core/technical-display';
 
@@ -37,7 +37,7 @@ export type ActionCenterSort = { column: ActionCenterSortColumn; direction: 1 | 
 })
 export class PortfolioActionsWidgetComponent {
   private static readonly FILTER_STORAGE_KEY = ACTION_CENTER_FILTER_STORAGE_KEY;
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly decisionEngine = inject(DecisionEngineService);
   private readonly scanner = inject(ScannerStateService);
   private readonly filter = signal<ActionCenterFilter>(this.loadFilter());

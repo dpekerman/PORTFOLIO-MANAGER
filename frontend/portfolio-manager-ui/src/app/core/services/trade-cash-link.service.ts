@@ -21,7 +21,7 @@ import {
 } from '../models/portfolio.models';
 import { CashStateService } from './cash-state.service';
 import { DashboardStateService } from './dashboard-state.service';
-import { DemoModeService } from './demo-mode.service';
+import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 
 /** Everything needed to offer (or correct) the cash row of one trade leg. */
@@ -59,7 +59,7 @@ export class TradeCashLinkService {
   private readonly cashState = inject(CashStateService);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly dashboardState = inject(DashboardStateService);
 
   /** Offers the missing cash row for a trade leg that was saved without one (from the "Unlinked trades" list). */
