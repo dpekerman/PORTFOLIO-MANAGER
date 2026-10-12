@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../../core/services/scanner-state.service';
 import { ScannerRowSkeletonComponent } from '../../../shared/skeleton/scanner-row-skeleton.component';
@@ -31,7 +31,7 @@ import { RsiScannerTableComponent } from '../rsi-scanner-table.component';
 })
 export class AdhocAnalyzerComponent {
   private readonly api = inject(PortfolioApiService);
-  private readonly config = inject(ConfigService);
+  private readonly config = inject(ConfigStore);
   private readonly scannerState = inject(ScannerStateService);
   private readonly destroyRef = inject(DestroyRef);
 

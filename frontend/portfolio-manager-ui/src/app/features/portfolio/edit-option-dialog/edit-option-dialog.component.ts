@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { OptionItem } from '../../../core/models/portfolio.models';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -43,7 +43,7 @@ export class EditOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly optionState = inject(OptionStateService);
   private readonly dialogRef = inject(MatDialogRef<EditOptionDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   protected readonly data = inject<EditOptionDialogData>(MAT_DIALOG_DATA);
 
   protected readonly saving = signal(false);

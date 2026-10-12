@@ -1,7 +1,7 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { EMPTY, Subject, filter, interval, switchMap, takeUntil } from 'rxjs';
-import { ConfigService } from './config.service';
+import { ConfigStore } from '../store/config.store';
 import { DashboardStateService } from './dashboard-state.service';
 import { EodSignalsStateService } from './eod-signals-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -24,7 +24,7 @@ export type RefreshReason = 'auto-timer' | 'user-click' | 'feature-refresh';
 @Injectable({ providedIn: 'root' })
 export class AppRefreshService {
   private readonly api = inject(PortfolioApiService);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   private readonly portfolioState = inject(PortfolioStateService);
   private readonly watchlistState = inject(WatchlistStore);
   private readonly dashboardState = inject(DashboardStateService);

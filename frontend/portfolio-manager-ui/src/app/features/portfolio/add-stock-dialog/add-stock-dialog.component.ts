@@ -13,7 +13,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../../core/models/portfolio.models';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
@@ -45,7 +45,7 @@ export class AddStockDialogComponent {
   private readonly state = inject(PortfolioStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);

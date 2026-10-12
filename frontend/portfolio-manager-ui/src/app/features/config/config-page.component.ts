@@ -42,7 +42,7 @@ import {
 } from '../../core/models/portfolio.models';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { AutomationStateService } from '../../core/services/automation-state.service';
-import { ConfigService } from '../../core/services/config.service';
+import { ConfigStore } from '../../core/store/config.store';
 import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
 import { NotificationApiService } from '../../core/services/notification-api.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -81,7 +81,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   ],
 })
 export class ConfigPageComponent implements OnInit {
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   private readonly notificationApi = inject(NotificationApiService);
   private readonly api = inject(PortfolioApiService);
   private readonly scannerState = inject(ScannerStateService);

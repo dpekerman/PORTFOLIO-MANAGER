@@ -41,7 +41,7 @@ import {
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { CashStateService } from '../../core/services/cash-state.service';
-import { ConfigService } from '../../core/services/config.service';
+import { ConfigStore } from '../../core/store/config.store';
 import {
   accountTypeError,
   AccountTypesStateService,
@@ -204,7 +204,7 @@ export class PortfolioPageComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
   private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
   private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 

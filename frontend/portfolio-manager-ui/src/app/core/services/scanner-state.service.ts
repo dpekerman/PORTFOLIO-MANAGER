@@ -8,13 +8,13 @@ import {
   ScannerResponse,
   YesterdayEodResponse,
 } from '../models/portfolio.models';
-import { ConfigService } from './config.service';
+import { ConfigStore } from '../store/config.store';
 import { PortfolioApiService } from './portfolio-api.service';
 
 @Injectable({ providedIn: 'root' })
 export class ScannerStateService {
   private readonly api = inject(PortfolioApiService);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
 
   private readonly _response = signal<ScannerResponse | null>(null);
   private readonly _loading = signal(false);

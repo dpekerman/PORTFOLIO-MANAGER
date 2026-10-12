@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { OptionStateService } from '../../../core/services/option-state.service';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
@@ -40,7 +40,7 @@ export class AddOptionDialogComponent {
   private readonly optionState = inject(OptionStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddOptionDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
 
   protected readonly saving = signal(false);
 
