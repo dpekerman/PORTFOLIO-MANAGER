@@ -14,7 +14,7 @@ import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { DemoModeService } from '../../core/services/demo-mode.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
-import { ThemeService } from '../../core/services/theme.service';
+import { ThemeStore } from '../../core/store/theme.store';
 import { AppRefreshProgressComponent } from '../app-refresh-progress/app-refresh-progress.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
 
@@ -40,7 +40,7 @@ import { MarketHeaderComponent } from '../market-header/market-header.component'
 })
 export class LayoutComponent {
   protected readonly scanner = inject(ScannerStateService);
-  protected readonly theme = inject(ThemeService);
+  protected readonly theme = inject(ThemeStore);
   protected readonly demoMode = inject(DemoModeService);
   protected readonly authState = inject(AuthStateService);
   // Instantiate to activate auto-refresh timer
