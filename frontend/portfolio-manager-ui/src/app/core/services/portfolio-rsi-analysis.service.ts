@@ -10,6 +10,8 @@ import { ScannerStore } from '../store/scanner.store';
  * oversold/overbought scanner extremes), then pushes computed Final Actions to the backend.
  * Runs app-wide — not tied to the Portfolio page being open — so Dashboard Action Center reflects
  * today's recommendation the moment the app loads or refreshes.
+ *
+ * Plain service, not a store: it owns no state — it reads other stores and pushes to the API.
  */
 @Injectable({ providedIn: 'root' })
 export class PortfolioRsiAnalysisService {

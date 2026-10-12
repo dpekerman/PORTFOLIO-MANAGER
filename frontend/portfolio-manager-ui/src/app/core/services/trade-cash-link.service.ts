@@ -52,6 +52,8 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
  * Offers the cash-ledger side of a stock/option trade after it is saved, so buys and sells move Cash the
  * same way they move Stocks/Options. Always a confirm step ("Skip" keeps today's manual workflow), and
  * never nags on edits that don't touch size, price or account.
+ *
+ * Plain service, not a store: stateless dialog orchestration over the cash API.
  */
 @Injectable({ providedIn: 'root' })
 export class TradeCashLinkService {

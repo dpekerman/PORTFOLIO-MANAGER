@@ -15,6 +15,8 @@ import { PortfolioStore } from '../store/portfolio.store';
  * Single source of truth for the profit-taking/account context used by `translateForPortfolio`.
  * Computed here (not duplicated per caller) so the Portfolio grid and the values pushed to
  * Dashboard Action Center always agree.
+ *
+ * Plain service, not a store: pure derivation over other stores, with no state of its own.
  */
 @Injectable({ providedIn: 'root' })
 export class PortfolioFinalActionSyncService {
