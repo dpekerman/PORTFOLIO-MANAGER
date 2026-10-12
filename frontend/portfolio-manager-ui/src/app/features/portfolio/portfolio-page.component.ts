@@ -48,7 +48,7 @@ import {
 } from '../../core/store/account-types.store';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
@@ -245,7 +245,7 @@ export class PortfolioPageComponent {
   protected readonly gridSortDir = signal<SortDir>('desc');
 
   protected readonly gridDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-stocks');
+    inject(GridColumnStore).getColumnKeys('portfolio-stocks');
 
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
@@ -311,9 +311,9 @@ export class PortfolioPageComponent {
   }
 
   protected readonly optionDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-options');
+    inject(GridColumnStore).getColumnKeys('portfolio-options');
   protected readonly cashDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-cash');
+    inject(GridColumnStore).getColumnKeys('portfolio-cash');
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {

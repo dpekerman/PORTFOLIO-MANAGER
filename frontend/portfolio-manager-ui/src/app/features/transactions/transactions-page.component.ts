@@ -20,7 +20,7 @@ import {
 import { AuthStore } from '../../core/store/auth.store';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
@@ -157,10 +157,10 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns = inject(GridColumnService).getColumnKeys('transactions-stocks');
+  protected readonly stockColumns = inject(GridColumnStore).getColumnKeys('transactions-stocks');
 
   protected readonly optionColumns =
-    inject(GridColumnService).getColumnKeys('transactions-options');
+    inject(GridColumnStore).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();

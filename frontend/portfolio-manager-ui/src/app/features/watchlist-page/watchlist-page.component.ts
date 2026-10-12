@@ -41,7 +41,7 @@ import {
   WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
@@ -568,7 +568,7 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
+  protected readonly displayedColumns = inject(GridColumnStore).getColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();

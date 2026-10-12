@@ -3,7 +3,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GRID_REGISTRY, GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { GRID_REGISTRY } from '../../core/store/grid-registry';
 import {
   ColumnConfigDialogComponent,
   ColumnConfigDialogData,
@@ -54,9 +55,9 @@ export class GridColumnButtonComponent {
   readonly gridId = input.required<string>();
 
   private readonly dialog = inject(MatDialog);
-  private readonly gridColService = inject(GridColumnService);
+  private readonly gridColumns = inject(GridColumnStore);
 
-  private readonly _cols = computed(() => this.gridColService.getColumnKeys(this.gridId())());
+  private readonly _cols = computed(() => this.gridColumns.getColumnKeys(this.gridId())());
 
   /** True when the grid has been customised (differs from defaults). */
   protected readonly isCustomised = computed(() => {

@@ -33,7 +33,7 @@ import {
   EodSignalsMeta,
   SignalState,
 } from '../../core/models/portfolio.models';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStateService } from '../../core/services/portfolio-state.service';
 import { ScannerStore } from '../../core/store/scanner.store';
@@ -296,7 +296,7 @@ export class EodSignalsPageComponent implements OnInit {
     return (pd / row.price) * 100;
   }
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('eod-signals');
+  protected readonly displayedColumns = inject(GridColumnStore).getColumnKeys('eod-signals');
 
   protected readonly scanTypeOptions = ['Oversold', 'Overbought'];
   protected readonly signalTypeOptions = ['EodConfirm', 'Confirmed', 'EarlyWarning'];

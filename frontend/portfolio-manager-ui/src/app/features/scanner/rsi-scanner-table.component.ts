@@ -26,7 +26,7 @@ import {
   PageDecision,
 } from '../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import {
   currencyCodeForAnalysis,
   formatTrendShift,
@@ -128,7 +128,7 @@ export class RsiScannerTableComponent {
   }
 
   private readonly engine = inject(DecisionEngineService);
-  private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');
+  private readonly _serviceColumns = inject(GridColumnStore).getColumnKeys('scanner');
 
   /** Effective displayed columns: service order/visibility, minus signalHistory when showHistory=false. */
   protected readonly displayedColumns = computed(() => {
