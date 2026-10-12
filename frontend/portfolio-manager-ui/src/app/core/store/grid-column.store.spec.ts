@@ -126,6 +126,33 @@ describe('resolveHandsetKeys', () => {
   });
 });
 
+describe('GRID_REGISTRY handset priorities', () => {
+  const withPrimary = GRID_REGISTRY.filter((g) => g.columns.some((c) => c.priority === 'primary'));
+
+  it('keeps every opted-in grid to a phone-sized set of default-visible primary columns', () => {
+    for (const g of withPrimary) {
+      const primary = g.columns.filter((c) => c.priority === 'primary');
+      expect(primary.length, g.id).toBeLessThanOrEqual(9);
+      expect(
+        primary.some((c) => c.defaultHidden),
+        `${g.id} has a default-hidden primary column`,
+      ).toBe(false);
+    }
+  });
+
+  it.each(['portfolio-stocks', 'portfolio-options'])(
+    '%s keeps its identifying column and row actions on a handset',
+    (id) => {
+      const g = GRID_REGISTRY.find((x) => x.id === id)!;
+      const visible = g.columns.filter((c) => !c.defaultHidden).map((c) => c.key);
+      const keys = resolveHandsetKeys(g, visible);
+      expect(keys[0]).toBe(g.columns[0].key);
+      expect(keys.some((k) => k.endsWith('actions'))).toBe(true);
+      expect(keys).not.toContain('colConfig');
+    },
+  );
+});
+
 describe('GridColumnStore', () => {
   const dbValue = signal<Record<string, ColumnPreference[]> | null>(null);
   const userPrefs = { get: vi.fn(() => dbValue()), set: vi.fn(), remove: vi.fn() };

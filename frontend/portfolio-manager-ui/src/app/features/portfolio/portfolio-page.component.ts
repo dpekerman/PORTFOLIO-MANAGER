@@ -56,6 +56,8 @@ import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-a
 import { PortfolioStore } from '../../core/store/portfolio.store';
 import { ScannerStore } from '../../core/store/scanner.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
 import { SecurityAnalysisMappingDialogComponent } from '../watchlist-page/security-analysis-mapping-dialog.component';
@@ -190,6 +192,8 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
     PortfolioSummaryBarComponent,
     StockCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class PortfolioPageComponent {
@@ -245,7 +249,7 @@ export class PortfolioPageComponent {
   protected readonly gridSortDir = signal<SortDir>('desc');
 
   protected readonly gridDisplayedColumns =
-    inject(GridColumnStore).getColumnKeys('portfolio-stocks');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-stocks');
 
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
@@ -311,9 +315,9 @@ export class PortfolioPageComponent {
   }
 
   protected readonly optionDisplayedColumns =
-    inject(GridColumnStore).getColumnKeys('portfolio-options');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-options');
   protected readonly cashDisplayedColumns =
-    inject(GridColumnStore).getColumnKeys('portfolio-cash');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-cash');
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {
