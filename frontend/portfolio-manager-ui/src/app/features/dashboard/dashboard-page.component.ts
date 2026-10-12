@@ -15,7 +15,7 @@ import {
   DashboardRsiSection,
 } from '../../core/models/portfolio.models';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { DashboardCollapseStateService } from '../../core/services/dashboard-collapse-state.service';
+import { DashboardCollapseStore } from '../../core/store/dashboard-collapse.store';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
@@ -115,7 +115,7 @@ export class DashboardPageComponent {
     'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
   >('ALL');
   protected readonly dashboard = inject(DashboardStateService);
-  protected readonly collapseState = inject(DashboardCollapseStateService);
+  protected readonly collapseState = inject(DashboardCollapseStore);
   private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeStore);
   protected readonly appRefresh = inject(AppRefreshService);
@@ -160,12 +160,12 @@ export class DashboardPageComponent {
       : 'Open in EOD Signals →';
   }
 
-  /** Check if a section is expanded (uses DashboardCollapseStateService). */
+  /** Check if a section is expanded (uses DashboardCollapseStore). */
   protected isExpanded(sectionId: string): boolean {
     return this.collapseState.isExpanded(sectionId);
   }
 
-  /** Toggle collapse state for a section (uses DashboardCollapseStateService). */
+  /** Toggle collapse state for a section (uses DashboardCollapseStore). */
   protected toggleExpanded(sectionId: string): void {
     if (sectionId === 'portfolio-value-history') this.inspectedChartIndex.set(null);
     this.collapseState.toggleCollapsed(sectionId);
