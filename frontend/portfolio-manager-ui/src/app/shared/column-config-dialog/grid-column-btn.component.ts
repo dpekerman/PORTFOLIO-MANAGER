@@ -17,37 +17,8 @@ import {
  */
 @Component({
   selector: 'app-grid-column-btn',
-  template: `
-    <button
-      mat-icon-button
-      class="gcb-btn"
-      [class.gcb-customised]="isCustomised()"
-      [matTooltip]="tooltip()"
-      (click)="open()"
-      aria-label="Configure columns"
-    >
-      <mat-icon>view_column</mat-icon>
-    </button>
-  `,
-  styles: [
-    `
-      :host {
-        display: inline-flex;
-        align-items: center;
-      }
-      .gcb-btn {
-        opacity: 0.65;
-        transition: opacity 150ms;
-      }
-      .gcb-btn:hover {
-        opacity: 1;
-      }
-      .gcb-btn.gcb-customised {
-        opacity: 1;
-        color: var(--mat-sys-primary);
-      }
-    `,
-  ],
+  templateUrl: './grid-column-btn.component.html',
+  styleUrl: './grid-column-btn.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatButtonModule, MatIconModule, MatTooltipModule],
 })

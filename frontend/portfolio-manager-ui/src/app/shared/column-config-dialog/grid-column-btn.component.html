@@ -1,0 +1,10 @@
+<button
+  mat-icon-button
+  class="gcb-btn"
+  [class.gcb-customised]="isCustomised()"
+  [matTooltip]="tooltip()"
+  (click)="open()"
+  aria-label="Configure columns"
+>
+  <mat-icon>view_column</mat-icon>
+</button>
