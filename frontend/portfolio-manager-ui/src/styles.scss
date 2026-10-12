@@ -116,8 +116,11 @@ body.light-theme {
   width: 100%;
 }
 
+.mat-mdc-dialog-container {
+  --mat-dialog-container-shape: 12px;
+}
+
 .mat-mdc-dialog-surface {
-  border-radius: 12px !important;
   display: flex !important;
   flex-direction: column !important;
   // Allow overflow so floating labels are not clipped at the top
