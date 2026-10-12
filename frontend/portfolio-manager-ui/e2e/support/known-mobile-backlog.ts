@@ -11,11 +11,9 @@
  */
 export const KNOWN_OVERFLOW_BACKLOG = new Set<string>([
   'mobile-pixel:/dashboard',
-  'mobile-pixel:/scanner',
   'mobile-pixel:/allocation',
   'mobile-pixel:/config',
   'mobile-iphone:/dashboard',
-  'mobile-iphone:/scanner',
   'mobile-iphone:/allocation',
   'mobile-iphone:/config',
 ]);

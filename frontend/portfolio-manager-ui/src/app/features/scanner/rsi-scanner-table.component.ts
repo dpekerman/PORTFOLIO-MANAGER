@@ -32,6 +32,8 @@ import {
   formatTrendShift,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 @Component({
   selector: 'app-rsi-scanner-table',
@@ -50,6 +52,8 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
     DecimalPipe,
     CurrencyPipe,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class RsiScannerTableComponent {
@@ -128,7 +132,7 @@ export class RsiScannerTableComponent {
   }
 
   private readonly engine = inject(DecisionEngineService);
-  private readonly _serviceColumns = inject(GridColumnStore).getColumnKeys('scanner');
+  private readonly _serviceColumns = inject(GridColumnStore).getResponsiveColumnKeys('scanner');
 
   /** Effective displayed columns: service order/visibility, minus signalHistory when showHistory=false. */
   protected readonly displayedColumns = computed(() => {

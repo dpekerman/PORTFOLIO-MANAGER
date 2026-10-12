@@ -134,6 +134,25 @@
     }
   }
 
+  // ── Scanner ────────────────────────────────────────────────────────────────
+  table.scanner-table.mat-mdc-table[data-responsive='cards'] {
+    // The history link is a row action: make it the card footer like the registry `*actions` cells.
+    td.mat-mdc-cell.signal-history-cell {
+      justify-content: flex-end;
+      padding: 2px 0 0;
+      border-bottom: 0;
+
+      .mat-mdc-icon-button {
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    td.mat-mdc-cell:has(+ td.signal-history-cell) {
+      border-bottom: 0;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {

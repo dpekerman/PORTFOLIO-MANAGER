@@ -80,6 +80,17 @@ const CASES: CardTableCase[] = [
     desktopMinHeaders: 15,
     hasSecondaryFields: true,
   },
+  {
+    name: 'scanner table',
+    path: '/scanner',
+    landmark: (p) => p.getByRole('heading', { level: 2, name: /OVERSOLD CHAIN/ }),
+    table: (p) => p.locator('table.scanner-table').first(),
+    sortLabel: 'Sort Scanner by',
+    sortOption: 'Price',
+    cellLabel: 'TICKER',
+    desktopMinHeaders: 12,
+    hasSecondaryFields: true,
+  },
 ];
 
 for (const c of CASES) {

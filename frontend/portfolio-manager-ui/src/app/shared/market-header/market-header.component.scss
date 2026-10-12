@@ -275,6 +275,7 @@
   }
   .stat-tile {
     width: 100%;
+    box-sizing: border-box;
   }
   .portfolio-kpis {
     flex-wrap: wrap;
