@@ -19,7 +19,7 @@ import {
   TradeLinkSourceType,
   UnlinkedTrade,
 } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
+import { CashStore } from '../store/cash.store';
 import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -56,7 +56,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
 @Injectable({ providedIn: 'root' })
 export class TradeCashLinkService {
   private readonly api = inject(PortfolioApiService);
-  private readonly cashState = inject(CashStateService);
+  private readonly cashState = inject(CashStore);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly demoMode = inject(DemoModeStore);

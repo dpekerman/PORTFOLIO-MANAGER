@@ -11,7 +11,7 @@ import {
   PortfolioValueHistoryDto,
   SnapshotStatus,
 } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { PortfolioValueHistoryStore } from '../../../core/store/portfolio-value-history.store';
 import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
@@ -48,7 +48,7 @@ interface ReconciliationIcon {
 })
 export class SnapshotsTableComponent {
   protected readonly historyState = inject(PortfolioValueHistoryStore);
-  protected readonly cashState = inject(CashStateService);
+  protected readonly cashState = inject(CashStore);
   protected readonly demoMode = inject(DemoModeStore);
 
   protected readonly displayedColumns = [

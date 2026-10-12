@@ -9,7 +9,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
-import { CashStateService } from '../../core/services/cash-state.service';
+import { CashStore } from '../../core/store/cash.store';
 import { accountTypeError } from '../../core/store/account-types.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { OptionStateService } from '../../core/services/option-state.service';
@@ -52,7 +52,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
 export class AllocationPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly demoMode = inject(DemoModeStore);
-  protected readonly cashState = inject(CashStateService);
+  protected readonly cashState = inject(CashStore);
   protected readonly optionState = inject(OptionStateService);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);

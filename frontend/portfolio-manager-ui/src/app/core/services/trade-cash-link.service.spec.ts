@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
 import { CashItem, OptionItem, PortfolioItem, UnlinkedTrade } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
+import { CashStore } from '../store/cash.store';
 import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -88,7 +88,7 @@ describe('TradeCashLinkService', () => {
       providers: [
         TradeCashLinkService,
         { provide: PortfolioApiService, useValue: { getLinkedCash } },
-        { provide: CashStateService, useValue: cashState },
+        { provide: CashStore, useValue: cashState },
         { provide: DashboardStateService, useValue: dashboardState },
         { provide: MatDialog, useValue: { open: dialogOpen } },
         { provide: MatSnackBar, useValue: { open: vi.fn() } },

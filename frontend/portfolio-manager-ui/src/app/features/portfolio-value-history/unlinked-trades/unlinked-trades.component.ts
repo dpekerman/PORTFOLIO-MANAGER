@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { UnlinkedTrade } from '../../../core/models/portfolio.models';
 import { AuthStore } from '../../../core/store/auth.store';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 
@@ -17,7 +17,7 @@ import { TradeCashLinkService } from '../../../core/services/trade-cash-link.ser
   imports: [MatButtonModule, MatIconModule, MatTooltipModule, CurrencyPipe, DatePipe],
 })
 export class UnlinkedTradesComponent {
-  protected readonly cashState = inject(CashStateService);
+  protected readonly cashState = inject(CashStore);
   protected readonly authState = inject(AuthStore);
   protected readonly demoMode = inject(DemoModeStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);

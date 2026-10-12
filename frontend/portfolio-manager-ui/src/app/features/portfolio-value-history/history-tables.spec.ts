@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { CashItem, PortfolioValueHistoryDto } from '../../core/models/portfolio.models';
-import { CashStateService } from '../../core/services/cash-state.service';
+import { CashStore } from '../../core/store/cash.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { PortfolioValueHistoryStore } from '../../core/store/portfolio-value-history.store';
 import { CashLedgerTableComponent } from './cash-ledger-table/cash-ledger-table.component';
@@ -88,7 +88,7 @@ describe('Portfolio value history table sorting', () => {
           useValue: { snapshots, filteredSnapshots, loading: signal(false) },
         },
         {
-          provide: CashStateService,
+          provide: CashStore,
           useValue: {
             items,
             loading: signal(false),

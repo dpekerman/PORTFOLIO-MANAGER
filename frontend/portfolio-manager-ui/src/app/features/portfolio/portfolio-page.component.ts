@@ -40,7 +40,7 @@ import {
 } from '../../core/technical-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthStore } from '../../core/store/auth.store';
-import { CashStateService } from '../../core/services/cash-state.service';
+import { CashStore } from '../../core/store/cash.store';
 import { ConfigStore } from '../../core/store/config.store';
 import {
   accountTypeError,
@@ -195,7 +195,7 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
 export class PortfolioPageComponent {
   private readonly accountTypeSnackBar = inject(MatSnackBar);
   protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly cashState = inject(CashStateService);
+  protected readonly cashState = inject(CashStore);
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStore);
   protected readonly demoMode = inject(DemoModeStore);

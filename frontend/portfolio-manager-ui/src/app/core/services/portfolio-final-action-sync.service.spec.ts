@@ -6,7 +6,7 @@ import {
   RsiScanResult,
   StockQuote,
 } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
+import { CashStore } from '../store/cash.store';
 import { DecisionEngineService } from './decision-engine.service';
 import { OptionStateService } from './option-state.service';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -41,7 +41,7 @@ describe('PortfolioFinalActionSyncService.buildContext (CDR currency handling)',
       providers: [
         PortfolioFinalActionSyncService,
         { provide: PortfolioStateService, useValue: {} },
-        { provide: CashStateService, useValue: {} },
+        { provide: CashStore, useValue: {} },
         { provide: OptionStateService, useValue: {} },
         { provide: PortfolioApiService, useValue: {} },
       ],

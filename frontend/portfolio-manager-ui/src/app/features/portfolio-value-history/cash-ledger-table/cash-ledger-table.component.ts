@@ -7,7 +7,7 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { CashItem } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import {
   EditCashDialogComponent,
@@ -31,7 +31,7 @@ import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
   ],
 })
 export class CashLedgerTableComponent {
-  protected readonly cashState = inject(CashStateService);
+  protected readonly cashState = inject(CashStore);
   protected readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
 
