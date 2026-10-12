@@ -14,7 +14,7 @@ import {
 } from 'rxjs';
 import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
-import { WatchlistStateService } from './watchlist-state.service';
+import { WatchlistStore } from '../store/watchlist.store';
 
 /**
  * Root-scoped so RSI results survive navigation — no re-scan when returning to the watchlist page.
@@ -26,7 +26,7 @@ import { WatchlistStateService } from './watchlist-state.service';
  */
 @Injectable({ providedIn: 'root' })
 export class WatchlistRsiStateService {
-  private readonly watchlistState = inject(WatchlistStateService);
+  private readonly watchlistState = inject(WatchlistStore);
   private readonly api = inject(PortfolioApiService);
   private readonly injector = inject(EnvironmentInjector);
 

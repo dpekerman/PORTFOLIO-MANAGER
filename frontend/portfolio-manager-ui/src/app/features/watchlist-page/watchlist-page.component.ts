@@ -46,7 +46,7 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
 import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { WatchlistStore } from '../../core/store/watchlist.store';
 import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
@@ -125,7 +125,7 @@ type SortDir = 'asc' | 'desc';
   ],
 })
 export class WatchlistPageComponent {
-  protected readonly watchlist = inject(WatchlistStateService);
+  protected readonly watchlist = inject(WatchlistStore);
   private readonly demoMode = inject(DemoModeService);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);

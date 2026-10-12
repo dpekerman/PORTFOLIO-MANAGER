@@ -8,7 +8,7 @@ import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioRsiAnalysisService } from './portfolio-rsi-analysis.service';
 import { PortfolioStateService } from './portfolio-state.service';
 import { WatchlistRsiStateService } from './watchlist-rsi-state.service';
-import { WatchlistStateService } from './watchlist-state.service';
+import { WatchlistStore } from '../store/watchlist.store';
 
 export interface RefreshStep {
   key: string;
@@ -26,7 +26,7 @@ export class AppRefreshService {
   private readonly api = inject(PortfolioApiService);
   private readonly configService = inject(ConfigService);
   private readonly portfolioState = inject(PortfolioStateService);
-  private readonly watchlistState = inject(WatchlistStateService);
+  private readonly watchlistState = inject(WatchlistStore);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly eodSignalsState = inject(EodSignalsStateService);
   private readonly watchlistRsi = inject(WatchlistRsiStateService);
