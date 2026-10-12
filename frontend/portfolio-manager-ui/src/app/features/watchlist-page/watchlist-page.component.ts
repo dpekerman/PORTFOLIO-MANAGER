@@ -52,6 +52,8 @@ import {
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
@@ -121,6 +123,8 @@ type SortDir = 'asc' | 'desc';
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
     ScreenRefreshProgressComponent,
   ],
 })
@@ -568,7 +572,7 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly displayedColumns = inject(GridColumnStore).getColumnKeys('watchlist');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();

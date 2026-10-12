@@ -69,6 +69,17 @@ const CASES: CardTableCase[] = [
     cellLabel: 'DESCRIPTION',
     desktopMinHeaders: 4,
   },
+  {
+    name: 'watchlist table',
+    path: '/watchlist',
+    landmark: (p) => p.getByRole('heading', { level: 1, name: /MY WATCHLIST/ }),
+    table: (p) => p.locator('table.watchlist-table'),
+    sortLabel: 'Sort Watchlist by',
+    sortOption: 'Last Price',
+    cellLabel: 'TICKER',
+    desktopMinHeaders: 15,
+    hasSecondaryFields: true,
+  },
 ];
 
 for (const c of CASES) {

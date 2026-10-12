@@ -133,4 +133,53 @@
       padding-right: 14px;
     }
   }
+
+  // ── Watchlist ──────────────────────────────────────────────────────────────
+  html .watchlist-page {
+    .page-actions {
+      flex-wrap: wrap;
+
+      .mat-mdc-icon-button,
+      .add-btn {
+        min-height: 44px;
+      }
+    }
+
+    .view-toggle {
+      height: 44px;
+    }
+
+    .tier-filter-bar {
+      padding: 8px 16px 4px;
+      overflow-x: auto;
+    }
+
+    // Sticky + stacked fields would cover half of a phone screen.
+    .grid-filter-bar {
+      position: static;
+
+      .grid-filter-field,
+      .grid-filter-select {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        max-width: none;
+      }
+
+      .grid-filter-field:first-child {
+        flex-basis: 100%;
+      }
+
+      .mat-mdc-icon-button {
+        min-height: 44px;
+      }
+    }
+
+    .grid-table-wrapper {
+      padding: 0 10px 24px;
+    }
+
+    table.watchlist-table colgroup {
+      display: none;
+    }
+  }
 }
