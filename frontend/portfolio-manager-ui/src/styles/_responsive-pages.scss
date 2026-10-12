@@ -454,6 +454,91 @@
     }
   }
 
+  // ── Configuration (+ account types) ────────────────────────────────────────
+  html .config-page {
+    padding: 12px;
+    padding-top: 8px;
+
+    // A sticky bar of stacked buttons would cover a third of a phone screen.
+    .sticky-save-bar {
+      position: static;
+      margin: 0 -12px;
+      padding: 0 12px;
+    }
+
+    .sticky-save-bar-inner {
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .sticky-sub {
+      display: none;
+    }
+
+    .sticky-save-bar-actions {
+      flex: 1 1 100%;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .mat-mdc-button-base:not(.mat-mdc-icon-button) {
+        flex: 1 1 100%;
+        min-height: 44px;
+      }
+    }
+
+    .section-body {
+      padding: 12px;
+    }
+
+    // Tabs scroll sideways instead of wrapping onto several rows.
+    .cfg-tab-nav {
+      flex-wrap: nowrap;
+    }
+
+    .cfg-tab-btn {
+      min-height: 44px;
+      flex: 0 0 auto;
+    }
+
+    .section-header {
+      padding: 12px 14px 10px;
+    }
+
+    .section-footer {
+      flex-wrap: wrap;
+      gap: 8px;
+
+      .mat-mdc-button-base {
+        min-height: 44px;
+      }
+    }
+
+    // User management: one stacked card per user instead of a 4-column grid.
+    .user-table-header {
+      display: none;
+    }
+
+    .user-table-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      row-gap: 4px;
+
+      .user-email {
+        grid-column: 1 / -1;
+        overflow-wrap: anywhere;
+      }
+
+      .role-select {
+        min-width: 0;
+      }
+    }
+
+    .acct-col-headers,
+    .acct-row {
+      grid-template-columns: minmax(0, 1fr) 40px 40px 40px 56px;
+      gap: 4px;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {

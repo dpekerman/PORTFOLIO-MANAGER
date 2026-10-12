@@ -50,6 +50,7 @@ import { ScannerStore } from '../../core/store/scanner.store';
 import { UsersApiService } from '../../core/services/users-api.service';
 import { AccountTypesComponent } from './account-types/account-types.component';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 @Component({
   selector: 'app-config-page',
@@ -78,6 +79,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTimepickerModule,
     MatDialogModule,
     MatTooltipModule,
+    ResponsiveTableDirective,
   ],
 })
 export class ConfigPageComponent implements OnInit {
