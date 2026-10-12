@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { AuthStore } from '../../../core/store/auth.store';
 import { CashStateService } from '../../../core/services/cash-state.service';
-import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
+import { PortfolioValueHistoryStore } from '../../../core/store/portfolio-value-history.store';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -33,7 +33,7 @@ import {
 })
 export class AdminActionsComponent {
   protected readonly authState = inject(AuthStore);
-  protected readonly historyState = inject(PortfolioValueHistoryStateService);
+  protected readonly historyState = inject(PortfolioValueHistoryStore);
   protected readonly cashState = inject(CashStateService);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);

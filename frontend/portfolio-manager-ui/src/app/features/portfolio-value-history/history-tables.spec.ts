@@ -4,7 +4,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { CashItem, PortfolioValueHistoryDto } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { PortfolioValueHistoryStateService } from '../../core/services/portfolio-value-history-state.service';
+import { PortfolioValueHistoryStore } from '../../core/store/portfolio-value-history.store';
 import { CashLedgerTableComponent } from './cash-ledger-table/cash-ledger-table.component';
 import { SnapshotsTableComponent } from './snapshots-table/snapshots-table.component';
 
@@ -84,7 +84,7 @@ describe('Portfolio value history table sorting', () => {
     TestBed.configureTestingModule({
       providers: [
         {
-          provide: PortfolioValueHistoryStateService,
+          provide: PortfolioValueHistoryStore,
           useValue: { snapshots, filteredSnapshots, loading: signal(false) },
         },
         {

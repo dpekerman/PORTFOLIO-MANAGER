@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { MatTabsModule } from '@angular/material/tabs';
 import { CashStateService } from '../../core/services/cash-state.service';
-import { PortfolioValueHistoryStateService } from '../../core/services/portfolio-value-history-state.service';
+import { PortfolioValueHistoryStore } from '../../core/store/portfolio-value-history.store';
 import { AdminActionsComponent } from './admin-actions/admin-actions.component';
 import { CashLedgerTableComponent } from './cash-ledger-table/cash-ledger-table.component';
 import { HistoryFilterBarComponent } from './history-filter-bar/history-filter-bar.component';
@@ -28,6 +28,6 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   ],
 })
 export class PortfolioValueHistoryPageComponent {
-  protected readonly historyState = inject(PortfolioValueHistoryStateService);
+  protected readonly historyState = inject(PortfolioValueHistoryStore);
   protected readonly cashState = inject(CashStateService);
 }

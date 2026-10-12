@@ -13,7 +13,7 @@ import {
 } from '../../../core/models/portfolio.models';
 import { CashStateService } from '../../../core/services/cash-state.service';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
+import { PortfolioValueHistoryStore } from '../../../core/store/portfolio-value-history.store';
 import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
 import { SnapshotDetailComponent } from './snapshot-detail/snapshot-detail.component';
 
@@ -47,7 +47,7 @@ interface ReconciliationIcon {
   ],
 })
 export class SnapshotsTableComponent {
-  protected readonly historyState = inject(PortfolioValueHistoryStateService);
+  protected readonly historyState = inject(PortfolioValueHistoryStore);
   protected readonly cashState = inject(CashStateService);
   protected readonly demoMode = inject(DemoModeStore);
 
