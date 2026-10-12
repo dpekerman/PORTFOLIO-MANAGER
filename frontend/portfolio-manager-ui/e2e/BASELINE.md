@@ -9,39 +9,42 @@ with the fixtures in `e2e/fixtures` (every table populated). Overflow = the wide
 ## Results
 
 Smoke, navigation and tables: **green on all 4 projects**. Overflow (content width vs viewport):
+the table below is the pre-refactor baseline measured on the since-retired Pixel 7 (412px) and
+iPhone (393px) projects; the supported phones are now `mobile-s21` (384px) and `mobile-s23`
+(360px), and the tablet is 800px.
 
-| Route                    | desktop-chrome 1920 | tablet 820 | mobile-pixel 412 | mobile-iphone 393 |
-| ------------------------ | ------------------- | ---------- | ---------------- | ----------------- |
-| /login                   | ok                  | ok         | ok               | ok                |
-| /dashboard               | ok                  | ok         | **572** ❌       | **573** ❌        |
-| /portfolio               | ok                  | ok         | ok               | ok                |
-| /watchlist               | ok                  | ok         | ok               | ok                |
-| /scanner                 | ok                  | ok         | **430** ❌       | **411** ❌        |
-| /eod-signals             | ok                  | ok         | ok               | ok                |
-| /transactions            | ok                  | ok         | ok               | ok                |
-| /allocation              | ok                  | ok         | **422** ❌       | **423** ❌        |
-| /value-screener          | ok                  | ok         | ok               | ok                |
-| /portfolio-value-history | ok                  | ok         | ok               | ok                |
-| /config                  | ok                  | ok         | **617** ❌       | **617** ❌        |
+| Route                    | desktop-chrome 1920 | tablet 800 | mobile-s21 384 | mobile-s23 360 |
+| ------------------------ | ------------------- | ---------- | -------------- | -------------- |
+| /login                   | ok                  | ok         | ok             | ok             |
+| /dashboard               | ok                  | ok         | ok (was 572)   | ok (was 572)   |
+| /portfolio               | ok                  | ok         | ok             | ok             |
+| /watchlist               | ok                  | ok         | ok             | ok             |
+| /scanner                 | ok                  | ok         | ok (was 430)   | ok (was 430)   |
+| /eod-signals             | ok                  | ok         | ok             | ok             |
+| /transactions            | ok                  | ok         | ok             | ok             |
+| /allocation              | ok                  | ok         | ok (was 422)   | ok (was 422)   |
+| /value-screener          | ok                  | ok         | ok             | ok             |
+| /portfolio-value-history | ok                  | ok         | ok             | ok             |
+| /config                  | ok                  | ok         | ok (was 617)   | ok (was 617)   |
 
-The ❌ cells are the entries in `support/known-mobile-backlog.ts` (marked `test.fail()`).
+The backlog set in `support/known-mobile-backlog.ts` is empty; the mechanism is kept for new pages.
 
-"ok" on table pages means the **page** does not scroll sideways; the wide Material tables
-(e.g. `/portfolio` is ~4,300px wide, `/watchlist` ~3,400px) scroll inside their own wrapper. That is
-the current design, not a card/stacked layout — the refactor may want a stricter check later.
+"ok" means the **page** does not scroll sideways. On phones the Material grids render as stacked
+cards (`responsive-cards*.spec.ts`); on tablet/desktop they remain the untouched wide tables that
+scroll inside their own wrapper.
 
-## Offenders on the failing pages
+## Offenders found in the baseline (all fixed)
 
-| Route       | Widest offending elements (width)                                                                                                                 | Likely cause                                                     |
+| Route       | Widest offending elements (width)                                                                                                                 | Fix                                                              |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| /dashboard  | pixel: `mat-card.db-panel` 560px, `div.db-movers-cols` 560px, `div.db-movers-col` 283px. iPhone: signals table `th` / `td.st-act.act-watch` 183px | Movers two-column panel and the signals table are not responsive |
-| /scanner    | `div.stat-tile.oversold-tile` / `overbought-tile` 414px (pixel), 395px (iPhone)                                                                   | Stat tiles wider than the viewport minus padding                 |
-| /allocation | `div.sector-col-headers-right` 380px, `span.col-hdr-glpct` 64px                                                                                   | Fixed-width sector header columns                                |
-| /config     | `div.sticky-save-bar-actions` 430px with a 173px button pushing to 617px                                                                          | Sticky save bar actions do not wrap                              |
+| /dashboard  | pixel: `mat-card.db-panel` 560px, `div.db-movers-cols` 560px, `div.db-movers-col` 283px. iPhone: signals table `th` / `td.st-act.act-watch` 183px | Movers stack, dense tables scroll inside their card              |
+| /scanner    | `div.stat-tile.oversold-tile` / `overbought-tile` 414px (pixel), 395px (iPhone)                                                                   | `box-sizing` on the shared market-header tiles                   |
+| /allocation | `div.sector-col-headers-right` 380px, `span.col-hdr-glpct` 64px                                                                                   | Handset metric grid under the sector/industry name               |
+| /config     | `div.sticky-save-bar-actions` 430px with a 173px button pushing to 617px                                                                          | Static stacked save bar, scrolling tabs, tighter section padding |
 
 ## Environment notes
 
-- Tablet (820px) shows the desktop toolbar or the hamburger depending on the breakpoint; the
+- Tablet (800px) shows the desktop toolbar or the hamburger depending on the breakpoint; the
   navigation spec accepts either and exercises whichever is visible.
 - `/transactions` only lists OPEN rows opened after the hard-coded `OPEN_DATE_THRESHOLD`
   (`2026-06-01`, `transactions-page.component.ts`); fixtures use relative dates so the Open and

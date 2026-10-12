@@ -133,7 +133,9 @@ for (const c of CASES) {
       if (handset) {
         await expect(table).toHaveAttribute('data-responsive', 'cards');
         await expect(headerRow).toBeHidden();
-        await expect(page.locator(`.mtc-bar[aria-label="${c.sortLabel!.slice(5, -3)} display options"]`)).toBeVisible();
+        await expect(
+          page.locator(`.mtc-bar[aria-label="${c.sortLabel!.slice(5, -3)} display options"]`).first(),
+        ).toBeVisible();
       } else {
         expect(await table.getAttribute('data-responsive')).toBeNull();
         await expect(headerRow).toBeVisible();
@@ -174,6 +176,7 @@ for (const c of CASES) {
       test.skip(!HANDSET_PROJECTS.includes(info.project.name), 'cards are handset-only');
       const select = page
         .locator(`.mtc-bar[aria-label="${c.sortLabel!.slice(5, -3)} display options"]`)
+        .first()
         .locator('mat-select');
       await select.click();
       await page.getByRole('option', { name: c.sortOption!, exact: true }).click();
@@ -191,6 +194,7 @@ for (const c of CASES) {
       const before = await cells.count();
       await page
         .locator(`.mtc-bar[aria-label="${c.sortLabel!.slice(5, -3)} display options"]`)
+        .first()
         .getByRole('switch', { name: /Show all fields/i })
         .click();
       await page.waitForTimeout(300);

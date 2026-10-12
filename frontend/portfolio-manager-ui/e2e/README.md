@@ -1,14 +1,15 @@
 # Playwright e2e harness
 
-Regression net for the Angular app across four viewports. **No backend is needed**: every
-`/api/**` request is fulfilled in the browser from `fixtures/`.
+Regression net for the Angular app across four viewports (the only supported devices: Samsung S21
+Ultra, Samsung S23, Pixel Tablet and desktop; design for a 360px minimum width). **No backend is
+needed**: every `/api/**` request is fulfilled in the browser from `fixtures/`.
 
-| Project          | Viewport / device         |
-| ---------------- | ------------------------- |
-| `desktop-chrome` | Desktop Chrome, 1920×1080 |
-| `tablet`         | Chromium, 820×1180, touch |
-| `mobile-pixel`   | Pixel 7 (Chromium)        |
-| `mobile-iphone`  | iPhone 15 (WebKit)        |
+| Project          | Viewport / device                           |
+| ---------------- | ------------------------------------------- |
+| `desktop-chrome` | Desktop Chrome, 1920×1080                   |
+| `tablet`         | Pixel Tablet portrait, 800×1280, touch      |
+| `mobile-s21`     | Samsung S21 Ultra, 384×854 (Chromium)       |
+| `mobile-s23`     | Samsung S23, 360×780 (Chromium)             |
 
 ## Run
 
@@ -16,13 +17,13 @@ Regression net for the Angular app across four viewports. **No backend is needed
 cd frontend\portfolio-manager-ui
 npm run e2e                                   # all projects (starts `ng serve` if :4200 is free)
 npm run e2e:ui                                # Playwright UI mode
-npx playwright test --project=mobile-pixel    # one project
+npx playwright test --project=mobile-s23      # one project
 npx playwright test responsive-overflow       # one spec
 npm run e2e:report                            # open the last HTML report
 npx tsc -p e2e/tsconfig.json                  # type-check the harness
 ```
 
-Browsers: `npx playwright install chromium webkit` (once). Set `E2E_STUB_FONTS=1` to run fully
+Browsers: `npx playwright install chromium` (once). Set `E2E_STUB_FONTS=1` to run fully
 offline; icons then render as ligature text, so overflow results are not representative.
 
 ## How the mocks work
@@ -41,7 +42,8 @@ offline; icons then render as ligature text, so overflow results are not represe
 
 ## Known mobile backlog
 
-`support/known-mobile-backlog.ts` lists `${project}:${route}` overflow failures that exist today.
+`support/known-mobile-backlog.ts` lists `${project}:${route}` overflow failures that exist today
+(currently **empty**: every route fits 360px and 384px).
 `responsive-overflow.spec.ts` marks them `test.fail()`, so CI is green now and a fixed page
 reports **"expected to fail but passed"** — delete its entry to turn it into a regression guard.
 To rebuild the list: empty the set, run `npx playwright test responsive-overflow`, and add every
