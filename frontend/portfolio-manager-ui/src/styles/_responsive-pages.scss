@@ -539,6 +539,36 @@
     }
   }
 
+  // ── Portfolio value history ────────────────────────────────────────────────
+  // The snapshot/ledger lists already switch to cards below 900px; this only polishes handsets.
+  html .history-page app-history-summary-cards .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    .card-value {
+      font-size: 1.05rem;
+    }
+  }
+
+  html .history-page app-snapshots-table .snapshot-card,
+  html .history-page app-cash-ledger-table .ledger-card,
+  html .history-page app-cash-ledger-table .account-subtotals {
+    border-color: var(--mat-sys-outline-variant);
+  }
+
+  html .history-page app-admin-actions {
+    .admin-buttons,
+    .admin-row {
+      .mat-mdc-button-base {
+        min-height: 44px;
+      }
+    }
+
+    .date-field {
+      flex: 1 1 100%;
+      width: auto;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {
