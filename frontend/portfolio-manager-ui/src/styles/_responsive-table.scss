@@ -1,0 +1,169 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Card layout for Material tables on handsets.
+//
+// Every rule is scoped under `table[data-responsive='cards']`, an attribute that
+// `ResponsiveTableDirective` only sets while the viewport is a handset. Desktop and tablet
+// therefore render the untouched Material table — no media query here can ever leak into a wide
+// screen, which is the one hard requirement of the mobile-first refactor.
+//
+// The companion stylesheet injected by the directive supplies the per-column labels:
+//   td.mat-column-<key>::before { content: "<header text>" }
+// so this file only has to lay out `label | value` rows.
+//
+// `!important` appears only where a *component* stylesheet must be overridden (component styles
+// carry an extra attribute selector, so they outrank a global rule): fixed table widths, sticky
+// column positioning and fixed cell widths all exist to make a wide grid scroll sideways, which is
+// exactly what card mode removes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+table.mat-mdc-table[data-responsive='cards'] {
+  display: block;
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+  background: transparent;
+  border: 0;
+
+  // The header row is the source of the ::before labels, but a hidden-yet-hit-testable row would
+  // leave invisible sort buttons on top of the first card, so it is removed from the layout
+  // entirely. Each cell carries its own label instead.
+  thead {
+    display: none;
+  }
+
+  tbody,
+  tfoot {
+    display: block;
+    width: 100%;
+  }
+
+  // ── One card per row ───────────────────────────────────────────────────────
+  tr.mat-mdc-row,
+  tr.mat-mdc-footer-row {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: auto !important;
+    margin: 0 0 10px;
+    padding: 4px 14px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 12px;
+    background: var(--mat-sys-surface-container-low);
+    overflow: hidden;
+  }
+
+  // Totals/summary row: same card, visually tied to the data above it.
+  tr.mat-mdc-footer-row {
+    background: var(--mat-sys-surface-container-high);
+    border-color: var(--mat-sys-outline);
+  }
+
+  tr.mat-mdc-row:last-of-type {
+    margin-bottom: 4px;
+  }
+
+  // ── label | value rows ─────────────────────────────────────────────────────
+  td.mat-mdc-cell,
+  td.mat-mdc-footer-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    box-sizing: border-box;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    // Sticky columns only make sense while the table scrolls sideways.
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    padding: 9px 0;
+    border: 0;
+    border-bottom: 1px solid var(--mat-sys-surface-variant);
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+
+    &::before {
+      content: '';
+      flex: 0 1 auto;
+      min-width: 5.5rem;
+      max-width: 48%;
+      text-align: left;
+      font: var(--mat-sys-label-small);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--mat-sys-on-surface-variant);
+      white-space: normal;
+    }
+
+    // A cell Angular rendered with no content at all (footer placeholders, the config column)
+    // would otherwise show a lonely label.
+    &:empty {
+      display: none;
+    }
+  }
+
+  // ── Actions become the card footer ─────────────────────────────────────────
+  // Matched by class substring so every grid works: the registry names these columns `actions`,
+  // `tx_actions`, `opt_actions`, `cashActions`, … and Material renders `mat-column-<key>`.
+  td[class*='actions' i] {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 6px 0 4px;
+    border-bottom: 0;
+    white-space: normal;
+
+    &::before {
+      content: none !important;
+    }
+
+    .mat-mdc-icon-button {
+      width: 44px !important;
+      height: 44px !important;
+      padding: 10px !important;
+    }
+  }
+
+  // The column-config gear is chrome, not data. `getResponsiveColumnKeys` already drops it; this
+  // keeps grids that are not wired to the projection yet from showing an empty row.
+  td.mat-column-colConfig {
+    display: none;
+  }
+
+  tr > td:last-child:not([class*='actions' i]) {
+    border-bottom: 0;
+  }
+
+  // ── Full-width rows: "no results", expanded detail, spanned summaries ──────
+  td[colspan] {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 14px 0;
+
+    &::before {
+      content: none !important;
+    }
+  }
+
+  // Interactive content stays thumb-sized and inside the card.
+  button,
+  a,
+  .mat-mdc-form-field {
+    max-width: 100%;
+  }
+
+  .mat-mdc-button-base {
+    min-height: 44px;
+  }
+}
+
+// The scroll wrapper around a card table must not advertise a horizontal scroller any more.
+:has(> table.mat-mdc-table[data-responsive='cards']) {
+  overflow-x: visible;
+}

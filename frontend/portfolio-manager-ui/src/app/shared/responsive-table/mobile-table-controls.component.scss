@@ -1,0 +1,29 @@
+.mtc-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.mtc-sort-field {
+  flex: 1 1 10rem;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+// Square icon-sized button that still meets the 44px touch target.
+.mtc-dir-btn {
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 10px;
+}
+
+.mtc-show-all {
+  flex: 0 0 auto;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
