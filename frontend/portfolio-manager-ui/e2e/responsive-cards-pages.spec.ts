@@ -91,6 +91,17 @@ const CASES: CardTableCase[] = [
     desktopMinHeaders: 12,
     hasSecondaryFields: true,
   },
+  {
+    name: 'eod signals table',
+    path: '/eod-signals',
+    landmark: (p) => p.getByRole('heading', { level: 1, name: /EOD SIGNALS/ }),
+    table: (p) => p.locator('table.signals-table'),
+    sortLabel: 'Sort Signals by',
+    sortOption: 'Entry Price',
+    cellLabel: 'TICKER',
+    desktopMinHeaders: 12,
+    hasSecondaryFields: true,
+  },
 ];
 
 for (const c of CASES) {

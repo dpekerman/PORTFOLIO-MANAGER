@@ -42,6 +42,8 @@ import {
   formatTrendShift,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -96,6 +98,8 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class EodSignalsPageComponent implements OnInit {
@@ -296,7 +300,7 @@ export class EodSignalsPageComponent implements OnInit {
     return (pd / row.price) * 100;
   }
 
-  protected readonly displayedColumns = inject(GridColumnStore).getColumnKeys('eod-signals');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('eod-signals');
 
   protected readonly scanTypeOptions = ['Oversold', 'Overbought'];
   protected readonly signalTypeOptions = ['EodConfirm', 'Confirmed', 'EarlyWarning'];

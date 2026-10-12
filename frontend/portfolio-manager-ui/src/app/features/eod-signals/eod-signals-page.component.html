@@ -247,11 +247,14 @@
 
   <!-- ── Table ─────────────────────────────────────────────────────────── -->
   @if (sortedSignals().length > 0) {
+    <app-mobile-table-controls [sort]="signalsSort" gridId="eod-signals" label="Signals" />
     <div class="table-wrapper">
       <table
         mat-table
+        appResponsiveTable
         [dataSource]="sortedSignals()"
         matSort
+        #signalsSort="matSort"
         (matSortChange)="onMatSortChange($event)"
         class="signals-table"
       >

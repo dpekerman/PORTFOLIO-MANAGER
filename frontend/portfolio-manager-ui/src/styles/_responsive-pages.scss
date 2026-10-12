@@ -153,6 +153,60 @@
     }
   }
 
+  // ── EOD Signals ────────────────────────────────────────────────────────────
+  html .eod-page {
+    .page-header,
+    .eod-banner,
+    .persist-banner {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .page-actions {
+      flex-wrap: wrap;
+
+      .mat-mdc-icon-button,
+      .delete-all-btn {
+        min-height: 44px;
+      }
+    }
+
+    .eod-banner .eod-banner-hint {
+      margin-left: 0;
+    }
+
+    // Sticky + stacked fields would cover half of a phone screen.
+    .filter-bar {
+      position: static;
+      padding: 12px 14px;
+
+      .f-ticker,
+      .f-select,
+      .f-date {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 0;
+        max-width: none;
+      }
+
+      .f-ticker {
+        flex-basis: 100%;
+      }
+
+      .clear-btn {
+        min-height: 44px;
+      }
+    }
+
+    .table-wrapper {
+      padding: 0 10px;
+    }
+
+    .error-banner {
+      margin: 12px 14px;
+      flex-wrap: wrap;
+    }
+  }
+
   // ── Watchlist ──────────────────────────────────────────────────────────────
   html .watchlist-page {
     .page-actions {
