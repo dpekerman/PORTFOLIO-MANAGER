@@ -12,7 +12,7 @@ import { OptionItem } from '../../core/models/portfolio.models';
 import { CashStore } from '../../core/store/cash.store';
 import { accountTypeError } from '../../core/store/account-types.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioBetaStore } from '../../core/store/portfolio-beta.store';
 import { PortfolioStore } from '../../core/store/portfolio.store';
@@ -53,7 +53,7 @@ export class AllocationPageComponent {
   protected readonly portfolio = inject(PortfolioStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly cashState = inject(CashStore);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly optionState = inject(OptionStore);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   protected readonly betaState = inject(PortfolioBetaStore);

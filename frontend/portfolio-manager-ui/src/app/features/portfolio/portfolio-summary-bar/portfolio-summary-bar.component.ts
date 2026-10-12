@@ -6,7 +6,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioValueHistoryDto } from '../../../core/models/portfolio.models';
 import { CashStore } from '../../../core/store/cash.store';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { OptionStateService } from '../../../core/services/option-state.service';
+import { OptionStore } from '../../../core/store/option.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { PortfolioBetaStore } from '../../../core/store/portfolio-beta.store';
 import { PortfolioStore } from '../../../core/store/portfolio.store';
@@ -21,7 +21,7 @@ import { PortfolioStore } from '../../../core/store/portfolio.store';
 export class PortfolioSummaryBarComponent {
   protected readonly stockState = inject(PortfolioStore);
   protected readonly cashState = inject(CashStore);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly optionState = inject(OptionStore);
   protected readonly demoMode = inject(DemoModeStore);
   private readonly api = inject(PortfolioApiService);
   protected readonly betaState = inject(PortfolioBetaStore);

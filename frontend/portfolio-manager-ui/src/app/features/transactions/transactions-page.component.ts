@@ -21,7 +21,7 @@ import { AuthStore } from '../../core/store/auth.store';
 import { DashboardStore } from '../../core/store/dashboard.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioStore } from '../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
@@ -118,7 +118,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
 })
 export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStore);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly optionState = inject(OptionStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
   protected readonly dashboardState = inject(DashboardStore);

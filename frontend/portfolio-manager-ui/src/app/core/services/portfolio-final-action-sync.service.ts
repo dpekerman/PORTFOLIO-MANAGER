@@ -7,7 +7,7 @@ import {
 } from '../models/portfolio.models';
 import { CashStore } from '../store/cash.store';
 import { DecisionEngineService, PortfolioItemContext } from './decision-engine.service';
-import { OptionStateService } from './option-state.service';
+import { OptionStore } from '../store/option.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioStore } from '../store/portfolio.store';
 
@@ -20,7 +20,7 @@ import { PortfolioStore } from '../store/portfolio.store';
 export class PortfolioFinalActionSyncService {
   private readonly portfolio = inject(PortfolioStore);
   private readonly cashState = inject(CashStore);
-  private readonly optionState = inject(OptionStateService);
+  private readonly optionState = inject(OptionStore);
   private readonly engine = inject(DecisionEngineService);
   private readonly api = inject(PortfolioApiService);
 

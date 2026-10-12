@@ -8,7 +8,7 @@ import {
 } from '../models/portfolio.models';
 import { CashStore } from '../store/cash.store';
 import { DecisionEngineService } from './decision-engine.service';
-import { OptionStateService } from './option-state.service';
+import { OptionStore } from '../store/option.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
 import { PortfolioStore } from '../store/portfolio.store';
@@ -42,7 +42,7 @@ describe('PortfolioFinalActionSyncService.buildContext (CDR currency handling)',
         PortfolioFinalActionSyncService,
         { provide: PortfolioStore, useValue: {} },
         { provide: CashStore, useValue: {} },
-        { provide: OptionStateService, useValue: {} },
+        { provide: OptionStore, useValue: {} },
         { provide: PortfolioApiService, useValue: {} },
       ],
     });

@@ -49,7 +49,7 @@ import {
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
@@ -196,7 +196,7 @@ export class PortfolioPageComponent {
   private readonly accountTypeSnackBar = inject(MatSnackBar);
   protected readonly portfolio = inject(PortfolioStore);
   protected readonly cashState = inject(CashStore);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly optionState = inject(OptionStore);
   protected readonly scanner = inject(ScannerStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);

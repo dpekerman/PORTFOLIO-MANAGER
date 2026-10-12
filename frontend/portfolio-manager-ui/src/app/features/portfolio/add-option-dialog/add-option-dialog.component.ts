@@ -11,7 +11,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { ConfigStore } from '../../../core/store/config.store';
-import { OptionStateService } from '../../../core/services/option-state.service';
+import { OptionStore } from '../../../core/store/option.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -37,7 +37,7 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 })
 export class AddOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly optionState = inject(OptionStateService);
+  private readonly optionState = inject(OptionStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddOptionDialogComponent>);
   private readonly configService = inject(ConfigStore);
