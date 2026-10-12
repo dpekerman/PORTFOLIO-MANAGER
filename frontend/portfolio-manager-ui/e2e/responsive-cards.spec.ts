@@ -9,7 +9,7 @@ import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
  * Desktop and tablet must be byte-for-byte the old table — that is the hard guarantee of the
  * design, so the same spec asserts the negative there.
  */
-const HANDSET_PROJECTS = ['mobile-pixel', 'mobile-iphone'];
+const HANDSET_PROJECTS = ['mobile-s21', 'mobile-s23'];
 
 /** First Material table on the page is the stock-transactions one. */
 const stockTable = (page: import('@playwright/test').Page) =>

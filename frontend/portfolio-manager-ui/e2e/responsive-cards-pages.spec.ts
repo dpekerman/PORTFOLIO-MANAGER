@@ -10,7 +10,7 @@ import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
  *   cells, sort control that drives the page's own `matSortChange`, no page overflow;
  * - desktop/tablet: the untouched table (header row visible, no mobile controls).
  */
-const HANDSET_PROJECTS = ['mobile-pixel', 'mobile-iphone'];
+const HANDSET_PROJECTS = ['mobile-s21', 'mobile-s23'];
 
 interface CardTableCase {
   /** Test group name. */

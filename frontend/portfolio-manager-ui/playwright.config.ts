@@ -25,16 +25,34 @@ export default defineConfig({
       name: 'desktop-chrome',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } },
     },
+    // The only devices in use: Samsung S21 Ultra, Samsung S23 and Pixel Tablet (Chrome on all).
+    // Viewports are the CSS-pixel sizes these devices report at their default display scaling.
     {
       name: 'tablet',
       use: {
         ...devices['Desktop Chrome'],
-        viewport: { width: 820, height: 1180 },
+        viewport: { width: 800, height: 1280 },
+        deviceScaleFactor: 2,
         hasTouch: true,
+        isMobile: true,
       },
     },
-    { name: 'mobile-pixel', use: { ...devices['Pixel 7'] } },
-    { name: 'mobile-iphone', use: { ...devices['iPhone 15'] } },
+    {
+      name: 'mobile-s21',
+      use: {
+        ...devices['Pixel 7'],
+        viewport: { width: 384, height: 854 },
+        deviceScaleFactor: 3.75,
+      },
+    },
+    {
+      name: 'mobile-s23',
+      use: {
+        ...devices['Pixel 7'],
+        viewport: { width: 360, height: 780 },
+        deviceScaleFactor: 3,
+      },
+    },
   ],
   webServer: {
     command: 'npx ng serve --port 4200',

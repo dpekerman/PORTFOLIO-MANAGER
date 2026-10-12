@@ -1,7 +1,7 @@
 import { test, expect } from './support/test';
 import { APP_ROUTES } from './support/routes';
 
-const MOBILE_PROJECTS = ['mobile-pixel', 'mobile-iphone'];
+const MOBILE_PROJECTS = ['mobile-s21', 'mobile-s23'];
 
 /**
  * The shell shows desktop toolbar links on wide screens and a hamburger-driven sidenav on small
