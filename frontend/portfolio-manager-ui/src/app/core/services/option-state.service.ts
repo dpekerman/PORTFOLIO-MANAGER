@@ -10,14 +10,14 @@ import {
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
-import { AccountTypesStateService } from './account-types-state.service';
+import { AccountTypesStore } from '../store/account-types.store';
 
 @Injectable({ providedIn: 'root' })
 export class OptionStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly tradeCashLink = inject(TradeCashLinkService);
-  private readonly accountTypes = inject(AccountTypesStateService);
+  private readonly accountTypes = inject(AccountTypesStore);
 
   private readonly _items = signal<OptionItem[]>([]);
   private readonly _technicalMap = signal<Map<string, OptionTechnicalData>>(new Map());

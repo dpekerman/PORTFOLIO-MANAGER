@@ -5,7 +5,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
-import { AccountTypesStateService } from '../../../core/services/account-types-state.service';
+import { AccountTypesStore } from '../../../core/store/account-types.store';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { AccountTypesComponent } from './account-types.component';
 
@@ -35,7 +35,7 @@ describe('Account Types configuration', () => {
     snack.mockClear();
     TestBed.configureTestingModule({
       providers: [
-        { provide: AccountTypesStateService, useValue: state },
+        { provide: AccountTypesStore, useValue: state },
         { provide: AuthStateService, useValue: { isAdmin: admin } },
         { provide: MatDialog, useValue: { open } },
         { provide: MatSnackBar, useValue: { open: snack } },

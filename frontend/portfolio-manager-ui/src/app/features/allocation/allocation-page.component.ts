@@ -10,7 +10,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
 import { CashStateService } from '../../core/services/cash-state.service';
-import { accountTypeError } from '../../core/services/account-types-state.service';
+import { accountTypeError } from '../../core/store/account-types.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { OptionStateService } from '../../core/services/option-state.service';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';

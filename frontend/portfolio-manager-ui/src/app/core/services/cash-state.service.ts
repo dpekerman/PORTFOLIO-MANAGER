@@ -10,13 +10,13 @@ import {
   UpdateCashItemRequest,
 } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
-import { AccountTypesStateService } from './account-types-state.service';
+import { AccountTypesStore } from '../store/account-types.store';
 
 @Injectable({ providedIn: 'root' })
 export class CashStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly accountTypes = inject(AccountTypesStateService);
+  private readonly accountTypes = inject(AccountTypesStore);
 
   private readonly _items = signal<CashItem[]>([]);
   private readonly _loading = signal(false);

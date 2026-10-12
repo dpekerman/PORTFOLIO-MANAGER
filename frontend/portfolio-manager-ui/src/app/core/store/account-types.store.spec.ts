@@ -4,9 +4,9 @@ import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { AccountType } from '../models/portfolio.models';
-import { AccountTypesApiService } from './account-types-api.service';
-import { AccountTypesStateService } from './account-types-state.service';
-import { AuthStateService } from './auth-state.service';
+import { AccountTypesApiService } from '../services/account-types-api.service';
+import { AuthStateService } from '../services/auth-state.service';
+import { AccountTypesStore } from './account-types.store';
 
 const item: AccountType = {
   id: 1,
@@ -17,7 +17,7 @@ const item: AccountType = {
   cashCount: 1,
 };
 
-describe('AccountTypesStateService', () => {
+describe('AccountTypesStore', () => {
   const authenticated = signal(true);
   const currentUser = signal<{ id: string } | null>({ id: 'admin' });
   const api = {
@@ -48,8 +48,8 @@ describe('AccountTypesStateService', () => {
     });
   });
 
-  function state(): AccountTypesStateService {
-    const state = TestBed.inject(AccountTypesStateService);
+  function state(): InstanceType<typeof AccountTypesStore> {
+    const state = TestBed.inject(AccountTypesStore);
     TestBed.tick();
     return state;
   }

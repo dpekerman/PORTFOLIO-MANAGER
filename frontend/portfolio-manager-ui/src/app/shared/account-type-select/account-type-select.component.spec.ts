@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormControl } from '@angular/forms';
 import { vi } from 'vitest';
-import { AccountTypesStateService } from '../../core/services/account-types-state.service';
+import { AccountTypesStore } from '../../core/store/account-types.store';
 import { AccountTypeSelectComponent } from './account-type-select.component';
 
 describe('Shared account selector', () => {
@@ -20,7 +20,7 @@ describe('Shared account selector', () => {
     TestBed.configureTestingModule({
       providers: [
         {
-          provide: AccountTypesStateService,
+          provide: AccountTypesStore,
           useValue: { names, ready, loading, error, load },
         },
       ],

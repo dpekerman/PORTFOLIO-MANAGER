@@ -14,7 +14,7 @@ import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 import { TradeCashLinkService } from './trade-cash-link.service';
-import { AccountTypesStateService } from './account-types-state.service';
+import { AccountTypesStore } from '../store/account-types.store';
 
 @Injectable({ providedIn: 'root' })
 export class PortfolioStateService {
@@ -24,7 +24,7 @@ export class PortfolioStateService {
   private readonly authState = inject(AuthStateService);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
-  private readonly accountTypes = inject(AccountTypesStateService);
+  private readonly accountTypes = inject(AccountTypesStore);
 
   // ── State signals ───────────────────────────────────────────────────────────
   private readonly _summaries = signal<PortfolioSummary[]>([]);

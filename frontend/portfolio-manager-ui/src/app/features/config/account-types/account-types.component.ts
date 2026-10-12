@@ -20,8 +20,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { AccountType } from '../../../core/models/portfolio.models';
 import {
   accountTypeError,
-  AccountTypesStateService,
-} from '../../../core/services/account-types-state.service';
+  AccountTypesStore,
+} from '../../../core/store/account-types.store';
 import { AuthStateService } from '../../../core/services/auth-state.service';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 
@@ -43,7 +43,7 @@ type SortKey = 'name' | 'stockCount' | 'optionCount' | 'cashCount';
   ],
 })
 export class AccountTypesComponent implements OnInit {
-  protected readonly state = inject(AccountTypesStateService);
+  protected readonly state = inject(AccountTypesStore);
   protected readonly auth = inject(AuthStateService);
   private readonly fb = inject(FormBuilder);
   private readonly dialog = inject(MatDialog);

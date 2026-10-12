@@ -44,8 +44,8 @@ import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigStore } from '../../core/store/config.store';
 import {
   accountTypeError,
-  AccountTypesStateService,
-} from '../../core/services/account-types-state.service';
+  AccountTypesStore,
+} from '../../core/store/account-types.store';
 import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -423,7 +423,7 @@ export class PortfolioPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
-    const accountTypes = inject(AccountTypesStateService);
+    const accountTypes = inject(AccountTypesStore);
     effect(() => {
       const rename = accountTypes.renamed();
       if (rename && this.filterAccount() === rename.oldName) this.filterAccount.set(rename.newName);
