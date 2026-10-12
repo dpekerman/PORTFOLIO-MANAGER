@@ -17,7 +17,7 @@ import {
   PortfolioItem,
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AuthStore } from '../../core/store/auth.store';
 import { DashboardStateService } from '../../core/services/dashboard-state.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnService } from '../../core/services/grid-column.service';
@@ -120,7 +120,7 @@ export class TransactionsPageComponent {
   protected readonly portfolio = inject(PortfolioStateService);
   protected readonly optionState = inject(OptionStateService);
   protected readonly demoMode = inject(DemoModeStore);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly authState = inject(AuthStore);
   protected readonly dashboardState = inject(DashboardStateService);
   private readonly api = inject(PortfolioApiService);
 

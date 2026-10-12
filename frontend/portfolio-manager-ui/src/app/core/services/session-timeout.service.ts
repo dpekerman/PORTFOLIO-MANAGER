@@ -1,11 +1,11 @@
 import { effect, inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { AuthStore } from '../store/auth.store';
 import { AuthApiService } from './auth-api.service';
-import { AuthStateService } from './auth-state.service';
 import { ConfigStore } from '../store/config.store';
 
 @Injectable({ providedIn: 'root' })
 export class SessionTimeoutService implements OnDestroy {
-  private readonly authState = inject(AuthStateService);
+  private readonly authState = inject(AuthStore);
   private readonly authApi = inject(AuthApiService);
   private readonly config = inject(ConfigStore);
   private readonly zone = inject(NgZone);

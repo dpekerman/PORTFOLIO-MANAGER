@@ -3,7 +3,7 @@ import { tapResponse } from '@ngrx/operators';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { EMPTY, distinctUntilChanged, filter, pipe, switchMap, tap } from 'rxjs';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from './auth.store';
 import { UserPreferencesApiService } from '../services/user-preferences-api.service';
 
 interface UserPreferencesState {
@@ -23,7 +23,7 @@ interface UserPreferencesState {
 export const UserPreferencesStore = signalStore(
   { providedIn: 'root' },
   withState<UserPreferencesState>({ prefs: {}, isLoaded: false }),
-  withMethods((store, api = inject(UserPreferencesApiService), auth = inject(AuthStateService)) => {
+  withMethods((store, api = inject(UserPreferencesApiService), auth = inject(AuthStore)) => {
     const fetchAll = () =>
       api.getAll().pipe(
         tapResponse({

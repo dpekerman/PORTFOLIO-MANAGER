@@ -4,7 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { WatchlistSummary } from '../models/portfolio.models';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from './auth.store';
 import { PortfolioApiService } from '../services/portfolio-api.service';
 import { WatchlistStore } from './watchlist.store';
 
@@ -37,7 +37,7 @@ describe('WatchlistStore', () => {
       providers: [
         { provide: PortfolioApiService, useValue: api },
         { provide: MatSnackBar, useValue: snackBar },
-        { provide: AuthStateService, useValue: { isAuthenticated: authenticated } },
+        { provide: AuthStore, useValue: { isAuthenticated: authenticated } },
       ],
     });
   });

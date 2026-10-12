@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withState } from '@ngrx/signals';
 import { unprotected } from '@ngrx/signals/testing';
 import { vi } from 'vitest';
-import { AuthStateService } from '../../services/auth-state.service';
+import { AuthStore } from '../auth.store';
 import { onceAuthenticated } from './auth-gate';
 import { setError, setLoaded, setLoading, withRequestStatus } from './request-status.feature';
 import { withStorageSync } from './storage-sync.feature';
@@ -38,7 +38,7 @@ describe('onceAuthenticated', () => {
   it('fires exactly once, on the first authentication', () => {
     const callback = vi.fn();
     TestBed.configureTestingModule({
-      providers: [{ provide: AuthStateService, useValue: { isAuthenticated: authenticated } }],
+      providers: [{ provide: AuthStore, useValue: { isAuthenticated: authenticated } }],
     });
     TestBed.runInInjectionContext(() => onceAuthenticated(callback));
 

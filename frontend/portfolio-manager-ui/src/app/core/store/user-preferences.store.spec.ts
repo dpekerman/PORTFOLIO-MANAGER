@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from './auth.store';
 import { UserPreferencesApiService } from '../services/user-preferences-api.service';
 import { UserPreferencesStore } from './user-preferences.store';
 
@@ -22,7 +22,7 @@ describe('UserPreferencesStore', () => {
     api.getAll.mockReturnValue(of({ a: '{"x":1}', bad: '{nope' }));
     TestBed.configureTestingModule({
       providers: [
-        { provide: AuthStateService, useValue: { accessToken, isAuthenticated } },
+        { provide: AuthStore, useValue: { accessToken, isAuthenticated } },
         { provide: UserPreferencesApiService, useValue: api },
       ],
     });

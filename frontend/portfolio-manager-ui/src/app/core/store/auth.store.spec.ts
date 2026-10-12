@@ -3,20 +3,20 @@ import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { defer, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
-import { AuthApiService } from './auth-api.service';
-import { AuthStateService } from './auth-state.service';
+import { AuthApiService } from '../services/auth-api.service';
+import { AuthStore } from './auth.store';
 
 const rateLimited = () => throwError(() => new HttpErrorResponse({ status: 429 }));
 
-describe('AuthStateService.initializeAuth', () => {
+describe('AuthStore.initializeAuth', () => {
   let checkSetupRequired: ReturnType<typeof vi.fn>;
   let refreshToken: ReturnType<typeof vi.fn>;
   const navigate = vi.fn();
   const auth = { accessToken: 't', user: { roles: ['Admin'] } };
 
   const createState = () => {
-    const state = TestBed.inject(AuthStateService);
-    state.rateLimitBackoffMs = 1;
+    const state = TestBed.inject(AuthStore);
+    state.setRateLimitBackoffMs(1);
     return state;
   };
 
@@ -26,7 +26,7 @@ describe('AuthStateService.initializeAuth', () => {
     refreshToken = vi.fn(() => of(auth));
     TestBed.configureTestingModule({
       providers: [
-        AuthStateService,
+        AuthStore,
         { provide: AuthApiService, useValue: { checkSetupRequired, refreshToken } },
         { provide: Router, useValue: { navigate } },
       ],
@@ -82,5 +82,30 @@ describe('AuthStateService.initializeAuth', () => {
 
     expect(calls).toBe(2);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('records the setup check result and stops before refreshing when setup is required', async () => {
+    checkSetupRequired.mockReturnValue(of({ required: true }));
+    const state = createState();
+
+    await state.initializeAuth();
+
+    expect(state.setupRequired()).toBe(true);
+    expect(refreshToken).not.toHaveBeenCalled();
+  });
+
+  it('derives roles from the signed-in user and clears them on clearAuth', () => {
+    const state = createState();
+    expect(state.canWrite()).toBe(false);
+
+    state.setAuth({ accessToken: 't', user: { roles: ['Trader'] } } as never);
+    expect(state.isAuthenticated()).toBe(true);
+    expect(state.isTrader()).toBe(true);
+    expect(state.isAdmin()).toBe(false);
+    expect(state.canWrite()).toBe(true);
+
+    state.clearAuth();
+    expect(state.isAuthenticated()).toBe(false);
+    expect(state.currentUser()).toBeNull();
   });
 });

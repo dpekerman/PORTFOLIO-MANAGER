@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { filter, take } from 'rxjs';
-import { AuthStateService } from '../../services/auth-state.service';
+import { AuthStore } from '../auth.store';
 
 /**
  * Runs `callback` once, the first time the user is authenticated.
@@ -11,7 +11,7 @@ import { AuthStateService } from '../../services/auth-state.service';
  * `withHooks({ onInit })`, which runs in an injection context.
  */
 export function onceAuthenticated(callback: () => void): void {
-  const auth = inject(AuthStateService);
+  const auth = inject(AuthStore);
   toObservable(auth.isAuthenticated)
     .pipe(
       filter((authenticated) => authenticated),

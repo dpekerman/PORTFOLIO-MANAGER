@@ -33,7 +33,7 @@ import {
   priceStructureSortRank,
 } from '../../core/price-structure-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AuthStore } from '../../core/store/auth.store';
 import {
   DecisionEngineService,
   GapStatus,
@@ -131,7 +131,7 @@ export class WatchlistPageComponent {
   private readonly api = inject(PortfolioApiService);
   private readonly scanner = inject(ScannerStateService);
   private readonly watchlistRsi = inject(WatchlistRsiStore);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly authState = inject(AuthStore);
   protected readonly appRefresh = inject(AppRefreshService);
 
   /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */

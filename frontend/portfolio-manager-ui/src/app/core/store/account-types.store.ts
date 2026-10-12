@@ -14,7 +14,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Observable, firstValueFrom, pipe, switchMap } from 'rxjs';
 import { AccountType } from '../models/portfolio.models';
 import { AccountTypesApiService } from '../services/account-types-api.service';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from '../store/auth.store';
 import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
 
 export function accountTypeError(error: unknown): string {
@@ -54,7 +54,7 @@ export const AccountTypesStore = signalStore(
     (
       store,
       api = inject(AccountTypesApiService),
-      auth = inject(AuthStateService),
+      auth = inject(AuthStore),
       destroyRef = inject(DestroyRef),
     ) => {
       let generation = 0;
@@ -144,7 +144,7 @@ export const AccountTypesStore = signalStore(
   ),
   withHooks({
     onInit(store) {
-      const auth = inject(AuthStateService);
+      const auth = inject(AuthStore);
       effect(() => {
         const authenticated = auth.isAuthenticated();
         const userId = auth.currentUser()?.id;

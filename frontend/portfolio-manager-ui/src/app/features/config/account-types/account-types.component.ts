@@ -22,7 +22,7 @@ import {
   accountTypeError,
   AccountTypesStore,
 } from '../../../core/store/account-types.store';
-import { AuthStateService } from '../../../core/services/auth-state.service';
+import { AuthStore } from '../../../core/store/auth.store';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 
 type SortKey = 'name' | 'stockCount' | 'optionCount' | 'cashCount';
@@ -44,7 +44,7 @@ type SortKey = 'name' | 'stockCount' | 'optionCount' | 'cashCount';
 })
 export class AccountTypesComponent implements OnInit {
   protected readonly state = inject(AccountTypesStore);
-  protected readonly auth = inject(AuthStateService);
+  protected readonly auth = inject(AuthStore);
   private readonly fb = inject(FormBuilder);
   private readonly dialog = inject(MatDialog);
   private readonly destroyRef = inject(DestroyRef);

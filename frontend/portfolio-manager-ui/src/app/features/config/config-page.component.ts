@@ -40,7 +40,7 @@ import {
   SinglePositionLimit,
   UserInfo,
 } from '../../core/models/portfolio.models';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AuthStore } from '../../core/store/auth.store';
 import { AutomationStateService } from '../../core/services/automation-state.service';
 import { ConfigStore } from '../../core/store/config.store';
 import { DemoModeStore, DemoStyle } from '../../core/store/demo-mode.store';
@@ -90,7 +90,7 @@ export class ConfigPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly dialog = inject(MatDialog);
   protected readonly demoMode = inject(DemoModeStore);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly authState = inject(AuthStore);
   private readonly usersApi = inject(UsersApiService);
 
   // ── Demo Mode pending state (applied only on Save) ───────────────────────

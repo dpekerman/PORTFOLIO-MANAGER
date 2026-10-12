@@ -9,7 +9,7 @@ import {
   PortfolioSummary,
   UpdatePortfolioItemRequest,
 } from '../models/portfolio.models';
-import { AuthStateService } from './auth-state.service';
+import { AuthStore } from '../store/auth.store';
 import { DashboardStateService } from './dashboard-state.service';
 import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
@@ -21,7 +21,7 @@ export class PortfolioStateService {
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
   private readonly demoMode = inject(DemoModeStore);
-  private readonly authState = inject(AuthStateService);
+  private readonly authState = inject(AuthStore);
   private readonly dashboardState = inject(DashboardStateService);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly accountTypes = inject(AccountTypesStore);

@@ -5,7 +5,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { AccountType } from '../models/portfolio.models';
 import { AccountTypesApiService } from '../services/account-types-api.service';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from './auth.store';
 import { AccountTypesStore } from './account-types.store';
 
 const item: AccountType = {
@@ -43,7 +43,7 @@ describe('AccountTypesStore', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: AccountTypesApiService, useValue: api },
-        { provide: AuthStateService, useValue: { isAuthenticated: authenticated, currentUser } },
+        { provide: AuthStore, useValue: { isAuthenticated: authenticated, currentUser } },
       ],
     });
   });

@@ -39,7 +39,7 @@ import {
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AuthStore } from '../../core/store/auth.store';
 import { CashStateService } from '../../core/services/cash-state.service';
 import { ConfigStore } from '../../core/store/config.store';
 import {
@@ -199,7 +199,7 @@ export class PortfolioPageComponent {
   protected readonly optionState = inject(OptionStateService);
   protected readonly scanner = inject(ScannerStateService);
   protected readonly demoMode = inject(DemoModeStore);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly authState = inject(AuthStore);
   protected readonly appRefresh = inject(AppRefreshService);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);

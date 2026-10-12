@@ -11,7 +11,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter, map, startWith } from 'rxjs';
 import { AppRefreshService } from '../../core/services/app-refresh.service';
 import { AuthApiService } from '../../core/services/auth-api.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AuthStore } from '../../core/store/auth.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { ScannerStateService } from '../../core/services/scanner-state.service';
 import { ThemeStore } from '../../core/store/theme.store';
@@ -42,7 +42,7 @@ export class LayoutComponent {
   protected readonly scanner = inject(ScannerStateService);
   protected readonly theme = inject(ThemeStore);
   protected readonly demoMode = inject(DemoModeStore);
-  protected readonly authState = inject(AuthStateService);
+  protected readonly authState = inject(AuthStore);
   // Instantiate to activate auto-refresh timer
   protected readonly appRefresh = inject(AppRefreshService);
   private readonly authApi = inject(AuthApiService);

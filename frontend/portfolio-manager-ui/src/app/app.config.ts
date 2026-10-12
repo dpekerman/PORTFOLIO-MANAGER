@@ -10,7 +10,7 @@ import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { baseUrlInterceptor } from './core/interceptors/base-url.interceptor';
-import { AuthStateService } from './core/services/auth-state.service';
+import { AuthStore } from './core/store/auth.store';
 import { SessionTimeoutService } from './core/services/session-timeout.service';
 
 /**
@@ -24,7 +24,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding()),
     provideHttpClient(withFetch(), withInterceptors([baseUrlInterceptor, authInterceptor])),
     provideNativeDateAdapter(),
-    provideAppInitializer(() => inject(AuthStateService).initializeAuth()),
+    provideAppInitializer(() => inject(AuthStore).initializeAuth()),
     provideAppInitializer(() => void inject(SessionTimeoutService)),
   ],
 };
