@@ -1,8 +1,14 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
+import { BreakpointStore } from './breakpoint.store';
 import { GridColumnStore, resolveEditablePrefs, resolveKeys } from './grid-column.store';
-import { ColumnPreference, GRID_REGISTRY, GridDef } from './grid-registry';
+import {
+  ColumnPreference,
+  GRID_REGISTRY,
+  GridDef,
+  resolveHandsetKeys,
+} from './grid-registry';
 import { UserPreferencesStore } from './user-preferences.store';
 
 const LS_KEY = 'pm_grid_columns_v1';
@@ -17,6 +23,18 @@ const grid: GridDef = {
     { key: 'b', label: 'B' },
     { key: 'c', label: 'C', defaultHidden: true },
     { key: 'actions', label: 'Actions', pinned: true },
+  ],
+};
+
+/** Same grid with a responsive priority on `a` plus the config gear column. */
+const responsiveGrid: GridDef = {
+  ...grid,
+  columns: [
+    { key: 'a', label: 'A', priority: 'primary' },
+    { key: 'b', label: 'B' },
+    { key: 'c', label: 'C', priority: 'secondary' },
+    { key: 'actions', label: 'Actions', pinned: true },
+    { key: 'colConfig', label: '', pinned: true },
   ],
 };
 
@@ -87,17 +105,55 @@ describe('resolveEditablePrefs', () => {
   });
 });
 
+describe('resolveHandsetKeys', () => {
+  const visible = ['a', 'b', 'c', 'actions', 'colConfig'];
+
+  it('keeps primary and pinned columns and drops the config column', () => {
+    expect(resolveHandsetKeys(responsiveGrid, visible)).toEqual(['a', 'actions']);
+  });
+
+  it('returns every visible column except the config one when showAll is set', () => {
+    expect(resolveHandsetKeys(responsiveGrid, visible, true)).toEqual(['a', 'b', 'c', 'actions']);
+  });
+
+  it('falls back to all visible columns when the grid declares no primary column', () => {
+    expect(resolveHandsetKeys(grid, ['a', 'b', 'actions'])).toEqual(['a', 'b', 'actions']);
+  });
+
+  it('never resurrects a column the user hid on desktop', () => {
+    expect(resolveHandsetKeys(responsiveGrid, ['b', 'actions'])).toEqual(['actions']);
+  });
+
+  it('preserves the user-configured order', () => {
+    const reordered = { ...responsiveGrid };
+    reordered.columns = [{ key: 'b', label: 'B', priority: 'primary' }, ...responsiveGrid.columns];
+    expect(resolveHandsetKeys(reordered, ['b', 'a', 'actions'])).toEqual(['b', 'a', 'actions']);
+  });
+});
+
 describe('GridColumnStore', () => {
   const dbValue = signal<Record<string, ColumnPreference[]> | null>(null);
   const userPrefs = { get: vi.fn(() => dbValue()), set: vi.fn(), remove: vi.fn() };
+  const isHandset = signal(false);
 
   beforeEach(() => {
     localStorage.clear();
     dbValue.set(null);
+    isHandset.set(false);
     userPrefs.set.mockReset();
     userPrefs.remove.mockReset();
     TestBed.configureTestingModule({
-      providers: [{ provide: UserPreferencesStore, useValue: userPrefs }],
+      providers: [
+        { provide: UserPreferencesStore, useValue: userPrefs },
+        {
+          provide: BreakpointStore,
+          useValue: {
+            isHandset,
+            isTablet: signal(false),
+            isDesktop: signal(true),
+          },
+        },
+      ],
     });
   });
 
@@ -203,5 +259,93 @@ describe('GridColumnStore', () => {
       .getEditablePrefs('portfolio-cash')
       .map((p) => p.key);
     expect(keys).toEqual(['description', 'amount', 'addedAt', 'cashAccountType']);
+  });
+
+  describe('getResponsiveColumnKeys', () => {
+    const GRID = 'transactions-stocks';
+
+    it('returns the same cached signal instance per gridId', () => {
+      const s = store();
+      expect(s.getResponsiveColumnKeys(GRID)).toBe(s.getResponsiveColumnKeys(GRID));
+      expect(s.getResponsiveColumnKeys(GRID)).not.toBe(s.getResponsiveColumnKeys('watchlist'));
+    });
+
+    it('is identical to the desktop keys on a wide viewport', () => {
+      const s = store();
+      for (const g of GRID_REGISTRY) {
+        expect(s.getResponsiveColumnKeys(g.id)()).toEqual(s.getColumnKeys(g.id)());
+      }
+    });
+
+    it('collapses to primary + pinned columns on a handset', () => {
+      const s = store();
+      isHandset.set(true);
+
+      expect(s.getResponsiveColumnKeys(GRID)()).toEqual([
+        'tx_type',
+        'tx_symbol',
+        'tx_shares',
+        'tx_avg_cost',
+        'tx_open_date',
+        'tx_gain_loss',
+        'tx_actions',
+      ]);
+    });
+
+    it('falls back to every visible column for a grid without priorities', () => {
+      const s = store();
+      isHandset.set(true);
+
+      const expected = s.getColumnKeys('portfolio-cash')().filter((k) => k !== 'colConfig');
+      expect(s.getResponsiveColumnKeys('portfolio-cash')()).toEqual(expected);
+    });
+
+    it('reveals every visible column when showAllColumnsOnHandset is on', () => {
+      const s = store();
+      isHandset.set(true);
+      s.setShowAllColumnsOnHandset(true);
+
+      expect(s.getResponsiveColumnKeys(GRID)()).toEqual(
+        s.getColumnKeys(GRID)().filter((k) => k !== 'colConfig'),
+      );
+
+      s.setShowAllColumnsOnHandset(false);
+      expect(s.getResponsiveColumnKeys(GRID)()).toHaveLength(7);
+    });
+
+    it('honours columns the user hid on desktop', () => {
+      const s = store();
+      s.updatePrefs(GRID, [
+        { key: 'tx_symbol', visible: false },
+        { key: 'tx_type', visible: true },
+      ]);
+      isHandset.set(true);
+
+      expect(s.getResponsiveColumnKeys(GRID)()).not.toContain('tx_symbol');
+      expect(s.getResponsiveColumnKeys(GRID)()).toContain('tx_type');
+    });
+
+    it('never writes saved preferences, localStorage or the DB', () => {
+      const s = store();
+      const before = JSON.stringify(localStorage.getItem(LS_KEY));
+      isHandset.set(true);
+
+      s.getResponsiveColumnKeys(GRID)();
+      s.setShowAllColumnsOnHandset(true);
+      s.getResponsiveColumnKeys(GRID)();
+
+      expect(JSON.stringify(localStorage.getItem(LS_KEY))).toBe(before);
+      expect(userPrefs.set).not.toHaveBeenCalled();
+      expect(s.prefs()).toEqual({});
+      // ...and the desktop projection is untouched once the viewport grows again
+      isHandset.set(false);
+      expect(s.getResponsiveColumnKeys(GRID)()).toEqual(s.getColumnKeys(GRID)());
+    });
+
+    it('returns an empty list for an unknown grid', () => {
+      const s = store();
+      isHandset.set(true);
+      expect(s.getResponsiveColumnKeys('nope')()).toEqual([]);
+    });
   });
 });

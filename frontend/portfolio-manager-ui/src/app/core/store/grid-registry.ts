@@ -16,6 +16,14 @@ export interface ColumnDef {
   pinned?: boolean;
   /** When true, this column is hidden by default for users who have not saved a preference. */
   defaultHidden?: boolean;
+  /**
+   * Controls **MOBILE visibility only; never affects desktop**.
+   *
+   * On a handset a 20-40 column grid is rendered as one card per row, so only the few columns a
+   * user actually decides on should survive. `'primary'` marks those columns; everything else
+   * defaults to `'secondary'` and is reachable through the "Show all fields" toggle.
+   */
+  priority?: 'primary' | 'secondary';
 }
 
 export interface ColumnPreference {
@@ -29,6 +37,43 @@ export interface GridDef {
   page: string;
   pageIcon: string;
   columns: ColumnDef[];
+}
+
+// ── Responsive projection helpers ─────────────────────────────────────────────
+// Pure: a handset layout is a *view* over the user's saved preferences, never a mutation of them.
+// Keeping the rules here (next to `priority`) means they can be unit-tested without the store and
+// reused by any future breakpoint-aware grid.
+
+/** Key of the column-config gear column. It is chrome, not data, so cards never render it. */
+export const CONFIG_COLUMN_KEY = 'colConfig';
+
+/**
+ * Projects the keys a grid should render on a handset.
+ *
+ * @param gridDef registry entry the keys belong to.
+ * @param visibleKeys the user's currently visible keys, in their configured order (the desktop
+ *   result of `resolveKeys`), so hiding a column on desktop also hides it on mobile.
+ * @param showAll when true the user asked for every visible field, so only the config column is
+ *   dropped.
+ * @returns `visibleKeys` filtered to primary columns plus pinned columns (e.g. `actions`), always
+ *   without {@link CONFIG_COLUMN_KEY}. Grids that declare no primary column fall back to all
+ *   visible keys, so adding `priority` is opt-in and a grid is never emptied by accident.
+ */
+export function resolveHandsetKeys(
+  gridDef: GridDef,
+  visibleKeys: readonly string[],
+  showAll = false,
+): string[] {
+  const withoutConfig = visibleKeys.filter((key) => key !== CONFIG_COLUMN_KEY);
+  if (showAll) return withoutConfig;
+
+  const primary = new Set(
+    gridDef.columns.filter((c) => c.priority === 'primary').map((c) => c.key),
+  );
+  if (primary.size === 0) return withoutConfig;
+
+  const pinned = new Set(gridDef.columns.filter((c) => c.pinned).map((c) => c.key));
+  return withoutConfig.filter((key) => primary.has(key) || pinned.has(key));
 }
 
 // ── Grid Registry ─────────────────────────────────────────────────────────────
@@ -130,17 +175,17 @@ export const GRID_REGISTRY: GridDef[] = [
     page: 'Transactions',
     pageIcon: 'receipt_long',
     columns: [
-      { key: 'tx_type', label: 'Type' },
+      { key: 'tx_type', label: 'Type', priority: 'primary' },
       { key: 'tx_account', label: 'Account' },
-      { key: 'tx_symbol', label: 'Ticker' },
+      { key: 'tx_symbol', label: 'Ticker', priority: 'primary' },
       { key: 'tx_currency', label: 'Currency' },
       { key: 'tx_company', label: 'Company' },
-      { key: 'tx_shares', label: 'Shares' },
-      { key: 'tx_avg_cost', label: 'Avg Cost' },
-      { key: 'tx_open_date', label: 'Open Date' },
+      { key: 'tx_shares', label: 'Shares', priority: 'primary' },
+      { key: 'tx_avg_cost', label: 'Avg Cost', priority: 'primary' },
+      { key: 'tx_open_date', label: 'Open Date', priority: 'primary' },
       { key: 'tx_close_date', label: 'Close Date' },
       { key: 'tx_closing_price', label: 'Closing Price' },
-      { key: 'tx_gain_loss', label: 'Gain/Loss' },
+      { key: 'tx_gain_loss', label: 'Gain/Loss', priority: 'primary' },
       { key: 'tx_gain_pct', label: 'Gain %' },
       { key: 'tx_last_price', label: 'Last Price' },
       { key: 'tx_price_diff', label: 'Price Diff' },
@@ -159,19 +204,19 @@ export const GRID_REGISTRY: GridDef[] = [
     page: 'Transactions',
     pageIcon: 'receipt_long',
     columns: [
-      { key: 'otx_type', label: 'Type' },
+      { key: 'otx_type', label: 'Type', priority: 'primary' },
       { key: 'otx_account', label: 'Account' },
-      { key: 'otx_ticker', label: 'Underlying' },
+      { key: 'otx_ticker', label: 'Underlying', priority: 'primary' },
       { key: 'otx_currency', label: 'Currency' },
-      { key: 'otx_position', label: 'Position' },
-      { key: 'otx_expiry', label: 'Expiry' },
-      { key: 'otx_strike', label: 'Strike' },
+      { key: 'otx_position', label: 'Position', priority: 'primary' },
+      { key: 'otx_expiry', label: 'Expiry', priority: 'primary' },
+      { key: 'otx_strike', label: 'Strike', priority: 'primary' },
       { key: 'otx_premium', label: 'Premium' },
       { key: 'otx_contracts', label: 'Contracts' },
       { key: 'otx_open_date', label: 'Open Date' },
       { key: 'otx_close_date', label: 'Close Date' },
       { key: 'otx_closing_price', label: 'Closing Price' },
-      { key: 'otx_gain_loss', label: 'Gain/Loss' },
+      { key: 'otx_gain_loss', label: 'Gain/Loss', priority: 'primary' },
       { key: 'otx_gain_pct', label: 'Gain %' },
       { key: 'otx_mkt_value', label: 'Current Mkt Value' },
       { key: 'otx_decision_source', label: 'Decision Source' },

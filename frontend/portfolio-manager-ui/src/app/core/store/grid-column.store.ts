@@ -1,6 +1,13 @@
 import { Signal, computed, effect, inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withProps, withState } from '@ngrx/signals';
-import { ColumnDef, ColumnPreference, GRID_REGISTRY, GridDef } from './grid-registry';
+import { BreakpointStore } from './breakpoint.store';
+import {
+  ColumnDef,
+  ColumnPreference,
+  GRID_REGISTRY,
+  GridDef,
+  resolveHandsetKeys,
+} from './grid-registry';
 import { UserPreferencesStore } from './user-preferences.store';
 
 const LS_KEY = 'pm_grid_columns_v1';
@@ -10,6 +17,13 @@ type StoredPrefs = Record<string, ColumnPreference[]>;
 
 interface GridColumnState {
   prefs: StoredPrefs;
+  /**
+   * Handset escape hatch: show every *visible* column instead of only the primary ones.
+   *
+   * Intentionally **not** persisted — it is a momentary "let me see everything on this screen"
+   * action, not a preference, and persisting it would silently change the saved layout.
+   */
+  showAllColumnsOnHandset: boolean;
 }
 
 // ── Pure resolution helpers ───────────────────────────────────────────────────
@@ -122,23 +136,30 @@ function saveToStorage(prefs: StoredPrefs): void {
  */
 export const GridColumnStore = signalStore(
   { providedIn: 'root' },
-  withState<GridColumnState>(() => ({ prefs: loadFromStorage() })),
+  withState<GridColumnState>(() => ({
+    prefs: loadFromStorage(),
+    showAllColumnsOnHandset: false,
+  })),
   /** All registered grids. */
   withProps(() => ({ grids: GRID_REGISTRY })),
-  withMethods((store, userPrefs = inject(UserPreferencesStore)) => {
-    // One cached signal per grid id: grids read these in templates, so the same instance must be
-    // returned on every call or Angular would re-create a computed on each change detection pass.
-    const columnKeySignals = new Map<string, Signal<string[]>>();
+  withMethods(
+    (
+      store,
+      userPrefs = inject(UserPreferencesStore),
+      breakpoints = inject(BreakpointStore),
+    ) => {
+      // One cached signal per grid id: grids read these in templates, so the same instance must be
+      // returned on every call or Angular would re-create a computed on each change detection pass.
+      const columnKeySignals = new Map<string, Signal<string[]>>();
+      const responsiveKeySignals = new Map<string, Signal<string[]>>();
 
-    /** Persists to localStorage and writes through to the DB. */
-    const persist = (): void => {
-      saveToStorage(store.prefs());
-      userPrefs.set(LS_KEY, store.prefs());
-    };
+      /** Persists to localStorage and writes through to the DB. */
+      const persist = (): void => {
+        saveToStorage(store.prefs());
+        userPrefs.set(LS_KEY, store.prefs());
+      };
 
-    return {
-      /** Cached computed signal of visible column keys for a grid, in user-configured order. */
-      getColumnKeys(gridId: string): Signal<string[]> {
+      const columnKeys = (gridId: string): Signal<string[]> => {
         let keys = columnKeySignals.get(gridId);
         if (!keys) {
           keys = computed(() => {
@@ -149,51 +170,87 @@ export const GridColumnStore = signalStore(
           columnKeySignals.set(gridId, keys);
         }
         return keys;
-      },
+      };
 
-      /**
-       * Returns a mutable working copy of preferences for editing in the dialog.
-       * Non-pinned columns only — pinned columns are always appended automatically.
-       */
-      getEditablePrefs(gridId: string): ColumnPreference[] {
-        const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
-        if (!gridDef) return [];
-        return resolveEditablePrefs(gridDef, store.prefs()[gridId]);
-      },
+      return {
+        /** Cached computed signal of visible column keys for a grid, in user-configured order. */
+        getColumnKeys: columnKeys,
 
-      /** Persist updated preferences for a grid. */
-      updatePrefs(gridId: string, prefs: ColumnPreference[]): void {
-        patchState(store, (current) => ({ prefs: { ...current.prefs, [gridId]: prefs } }));
-        persist();
-      },
+        /**
+         * Breakpoint-aware view over {@link getColumnKeys}.
+         *
+         * Desktop and tablet return *exactly* the saved keys, so wiring a grid to this signal can
+         * never change its appearance on a wide screen. On a handset the list collapses to the
+         * columns marked `priority: 'primary'` plus pinned ones (see `resolveHandsetKeys`), unless
+         * {@link showAllColumnsOnHandset} is on.
+         *
+         * INVARIANT: this is a *projection*. It never writes `prefs`, localStorage or the DB, so a
+         * user who opens the app on a phone still finds their desktop layout untouched.
+         */
+        getResponsiveColumnKeys(gridId: string): Signal<string[]> {
+          let keys = responsiveKeySignals.get(gridId);
+          if (!keys) {
+            keys = computed(() => {
+              const visible = columnKeys(gridId)();
+              if (!breakpoints.isHandset()) return visible;
+              const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
+              if (!gridDef) return visible;
+              return resolveHandsetKeys(gridDef, visible, store.showAllColumnsOnHandset());
+            });
+            responsiveKeySignals.set(gridId, keys);
+          }
+          return keys;
+        },
 
-      /** Clear saved preferences for one grid (restores defaults). */
-      resetGrid(gridId: string): void {
-        patchState(store, (current) => {
-          const next = { ...current.prefs };
-          delete next[gridId];
-          return { prefs: next };
-        });
-        persist();
-      },
+        /** Reveal/hide every visible column on a handset. Applies to all grids; never persisted. */
+        setShowAllColumnsOnHandset(showAll: boolean): void {
+          patchState(store, { showAllColumnsOnHandset: showAll });
+        },
 
-      /** Clear ALL saved column preferences. */
-      resetAll(): void {
-        patchState(store, { prefs: {} });
-        try {
-          localStorage.removeItem(LS_KEY);
-        } catch {
-          // storage unavailable — ignore
-        }
-        userPrefs.remove(LS_KEY);
-      },
+        /**
+         * Returns a mutable working copy of preferences for editing in the dialog.
+         * Non-pinned columns only — pinned columns are always appended automatically.
+         */
+        getEditablePrefs(gridId: string): ColumnPreference[] {
+          const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
+          if (!gridDef) return [];
+          return resolveEditablePrefs(gridDef, store.prefs()[gridId]);
+        },
 
-      /** Overlays the DB copy once it loads; the DB wins over localStorage. */
-      applyFromDb(prefs: StoredPrefs): void {
-        patchState(store, { prefs });
-      },
-    };
-  }),
+        /** Persist updated preferences for a grid. */
+        updatePrefs(gridId: string, prefs: ColumnPreference[]): void {
+          patchState(store, (current) => ({ prefs: { ...current.prefs, [gridId]: prefs } }));
+          persist();
+        },
+
+        /** Clear saved preferences for one grid (restores defaults). */
+        resetGrid(gridId: string): void {
+          patchState(store, (current) => {
+            const next = { ...current.prefs };
+            delete next[gridId];
+            return { prefs: next };
+          });
+          persist();
+        },
+
+        /** Clear ALL saved column preferences. */
+        resetAll(): void {
+          patchState(store, { prefs: {} });
+          try {
+            localStorage.removeItem(LS_KEY);
+          } catch {
+            // storage unavailable — ignore
+          }
+          userPrefs.remove(LS_KEY);
+        },
+
+        /** Overlays the DB copy once it loads; the DB wins over localStorage. */
+        applyFromDb(prefs: StoredPrefs): void {
+          patchState(store, { prefs });
+        },
+      };
+    },
+  ),
   withHooks({
     onInit(store, userPrefs = inject(UserPreferencesStore)) {
       // When DB preferences load, overlay them onto the state (DB wins over localStorage)
