@@ -75,7 +75,7 @@ export class AddStockDialogComponent {
     shares: [null as number | null, [Validators.required, Validators.min(0.0001)]],
     averageCostBasis: [null as number | null, [Validators.required, Validators.min(0.01)]],
     openDate: [new Date() as Date | null],
-    closeDate: [new Date() as Date | null],
+    closeDate: [null as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
     accountType: [null as string | null],
     holdingRole: [null as string | null],
@@ -83,6 +83,12 @@ export class AddStockDialogComponent {
   });
 
   constructor() {
+    this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed()).subscribe((t) => {
+      if (t === 'CLOSE' && !this.form.controls.closeDate.value) {
+        this.form.controls.closeDate.setValue(new Date());
+      }
+    });
+
     this.searchSubject
       .pipe(
         takeUntilDestroyed(),
@@ -128,6 +134,7 @@ export class AddStockDialogComponent {
   async submit(): Promise<void> {
     if (this.form.invalid) return;
     this.saving.set(true);
+    const isClose = this.form.value.transactionType === 'CLOSE';
     try {
       const created = await this.state.addItem({
         symbol: this.form.value.symbol!,
@@ -137,7 +144,7 @@ export class AddStockDialogComponent {
         transactionType: this.form.value.transactionType,
         accountType: this.form.value.accountType,
         openDate: this.formatDate(this.form.value.openDate),
-        closeDate: this.formatDate(this.form.value.closeDate),
+        closeDate: isClose ? this.formatDate(this.form.value.closeDate ?? new Date()) : null,
         closingPrice: this.form.value.closingPrice,
         holdingRole: this.form.value.holdingRole,
         decisionSource: this.form.value.decisionSource,

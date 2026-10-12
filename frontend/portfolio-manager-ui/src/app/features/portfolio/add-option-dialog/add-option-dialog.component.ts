@@ -57,7 +57,7 @@ export class AddOptionDialogComponent {
     marketPrice: [null as number | null, [Validators.required, Validators.min(0)]],
     accountType: [null as string | null],
     openDate: [new Date() as Date | null],
-    closeDate: [new Date() as Date | null],
+    closeDate: [null as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
     decisionSource: [null as string | null],
   });
@@ -88,7 +88,10 @@ export class AddOptionDialogComponent {
         transactionType: this.form.value.transactionType,
         accountType: this.form.value.accountType,
         openDate: this.formatDate(this.form.value.openDate),
-        closeDate: this.formatDate(this.form.value.closeDate),
+        closeDate:
+          this.form.value.transactionType === 'CLOSE'
+            ? this.formatDate(this.form.value.closeDate ?? new Date())
+            : null,
         closingPrice: this.form.value.closingPrice,
         decisionSource: this.form.value.decisionSource,
       });
