@@ -17,7 +17,7 @@ interface EodSignalsState {
 
 /**
  * Latest EOD signals plus the server's EOD-window status, kept fresh by background polling
- * (skipped while the tab is hidden) and by the unified refresh in AppRefreshService.
+ * (skipped while the tab is hidden) and by the unified refresh in AppRefreshStore.
  */
 export const EodSignalsStore = signalStore(
   { providedIn: 'root' },

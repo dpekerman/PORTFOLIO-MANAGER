@@ -9,7 +9,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStore } from '../../core/store/auth.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
@@ -43,8 +43,8 @@ export class LayoutComponent {
   protected readonly theme = inject(ThemeStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
-  // Instantiate to activate auto-refresh timer
-  protected readonly appRefresh = inject(AppRefreshService);
+  // Instantiate to activate auto-refresh timer and the RSI analysis / Action Center sync it starts
+  protected readonly appRefresh = inject(AppRefreshStore);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
 

@@ -11,7 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 
 @Component({
   selector: 'app-refresh-progress',
@@ -27,7 +27,7 @@ import { AppRefreshService } from '../../core/services/app-refresh.service';
   ],
 })
 export class AppRefreshProgressComponent implements OnDestroy {
-  protected readonly refresh = inject(AppRefreshService);
+  protected readonly refresh = inject(AppRefreshStore);
   private readonly snackBar = inject(MatSnackBar);
 
   /** Controls whether the completed overlay is still visible (auto-hides after 5s). */

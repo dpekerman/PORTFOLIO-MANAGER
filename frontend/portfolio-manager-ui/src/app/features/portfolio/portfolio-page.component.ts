@@ -38,7 +38,7 @@ import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AuthStore } from '../../core/store/auth.store';
 import { CashStore } from '../../core/store/cash.store';
 import { ConfigStore } from '../../core/store/config.store';
@@ -200,7 +200,7 @@ export class PortfolioPageComponent {
   protected readonly scanner = inject(ScannerStore);
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly authState = inject(AuthStore);
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly appRefresh = inject(AppRefreshStore);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
   protected readonly engine = inject(DecisionEngineService);

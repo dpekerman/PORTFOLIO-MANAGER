@@ -14,7 +14,7 @@ import {
   DashboardEodSummaryRow,
   DashboardRsiSection,
 } from '../../core/models/portfolio.models';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { DashboardCollapseStore } from '../../core/store/dashboard-collapse.store';
 import { DashboardStore } from '../../core/store/dashboard.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
@@ -118,7 +118,7 @@ export class DashboardPageComponent {
   protected readonly collapseState = inject(DashboardCollapseStore);
   private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeStore);
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   protected readonly snapshot = this.dashboard.data;
   protected readonly eodSummary = this.dashboard.eodSummary;

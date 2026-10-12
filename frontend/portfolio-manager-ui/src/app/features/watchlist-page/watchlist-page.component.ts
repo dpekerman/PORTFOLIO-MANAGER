@@ -32,7 +32,7 @@ import {
   priceStructureTooltip as formatPriceStructureTooltip,
   priceStructureSortRank,
 } from '../../core/price-structure-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AuthStore } from '../../core/store/auth.store';
 import {
   DecisionEngineService,
@@ -132,7 +132,7 @@ export class WatchlistPageComponent {
   private readonly scanner = inject(ScannerStore);
   private readonly watchlistRsi = inject(WatchlistRsiStore);
   protected readonly authState = inject(AuthStore);
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */
   protected readonly screenRefresh = new ScreenRefreshService('watchlist');
