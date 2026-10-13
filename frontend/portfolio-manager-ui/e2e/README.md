@@ -40,6 +40,13 @@ offline; icons then render as ligature text, so overflow results are not represe
   column filled: empty tables make overflow checks meaningless, and a missing nested object
   crashes the template.
 
+## Dashboard on small screens
+
+`dashboard-mobile.spec.ts` expands every dashboard section (market leadership starts collapsed) on the
+phone and tablet projects and asserts no page overflow, no card scrolling sideways internally, and
+that the dense tables render inside the viewport; on phones also that they are grid cards. It skips
+`desktop-chrome`.
+
 ## Known mobile backlog
 
 `support/known-mobile-backlog.ts` lists `${project}:${route}` overflow failures that exist today
