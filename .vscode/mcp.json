@@ -7,12 +7,6 @@
       "command": "npx",
       "args": ["-y", "@angular/cli", "mcp"],
       "cwd": "${workspaceFolder}/frontend/portfolio-manager-ui"
-    },
-    // Context7: current docs for Angular Material, NgRx Signals, Playwright, etc.
-    // Works without a key (rate limited); add a CONTEXT7_API_KEY header for higher limits.
-    "context7": {
-      "type": "http",
-      "url": "https://mcp.context7.com/mcp"
     }
   }
 }
