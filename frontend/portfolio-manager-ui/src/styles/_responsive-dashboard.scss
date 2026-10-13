@@ -30,8 +30,27 @@
       justify-content: flex-end;
     }
 
-    .db-range-group {
-      max-width: 100%;
+    .db-range-group.db-range-group {
+      display: flex;
+      box-sizing: border-box;
+      width: calc(100% - 24px);
+      max-width: calc(100% - 24px);
+      margin: 0 12px 4px;
+
+      mat-button-toggle {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0;
+      }
+
+      .mat-pseudo-checkbox {
+        display: none;
+      }
+
+      .mat-button-toggle-label-content {
+        padding: 0;
+        line-height: 44px;
+      }
     }
 
     // Top movers: Portfolio and Watchlist stack instead of sharing 328px.
@@ -74,14 +93,6 @@
       padding: 6px 4px;
     }
 
-    // Dense decision tables scroll inside their card instead of widening the page.
-    .db-sig-table {
-      display: block;
-      overflow-x: auto;
-      white-space: nowrap;
-      max-width: 100%;
-    }
-
     .db-alloc-table th:nth-child(5),
     .db-alloc-table td:nth-child(5) {
       display: none;
@@ -91,24 +102,6 @@
     .db-eod-table-wrap {
       padding-left: 12px;
       padding-right: 12px;
-    }
-
-    .db-eod-table {
-      white-space: nowrap;
-
-      th {
-        background: var(--mat-sys-surface-container-high);
-        color: var(--mat-sys-on-surface-variant);
-      }
-
-      td {
-        color: var(--mat-sys-on-surface);
-      }
-
-      .eod-why {
-        white-space: normal;
-        min-width: 160px;
-      }
     }
 
     .db-panel-hd {
@@ -125,25 +118,24 @@
     }
   }
 
-  // Action Center: eight fixed-percentage columns cannot be read in 328px, so the table keeps a
-  // readable width and scrolls inside its wrapper.
-  html app-portfolio-actions-widget .pa-table {
-    table-layout: auto;
-    min-width: 640px;
-
-    th,
-    td {
-      white-space: nowrap;
-    }
-  }
-
-  html app-priority-candidates-widget .pc-row {
+  // Card per candidate: ring + name + price on top, trend/allocation/badges wrapping below.
+  html app-priority-candidates-widget .pc-row.pc-row {
     grid-template-columns: 44px minmax(0, 1fr) auto;
-    row-gap: 4px;
+    row-gap: 6px;
 
-    .pc-meta,
-    .pc-badges {
-      grid-column: 2 / -1;
+    .pc-info,
+    .pc-price-col {
+      min-width: 0;
+    }
+
+    .pc-meta.pc-meta,
+    .pc-badges.pc-badges {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      overflow: visible;
     }
   }
 
