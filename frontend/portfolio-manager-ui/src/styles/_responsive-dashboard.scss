@@ -108,6 +108,19 @@
       flex-wrap: wrap;
     }
 
+    // The title group must wrap too: the EOD ownership legend is wider than the card minus the
+    // title on a 360px phone, and its width grows with the platform's font metrics (it overflowed
+    // by 3px on the Linux CI runner while fitting on Windows).
+    .db-panel-hd-left {
+      flex-wrap: wrap;
+      min-width: 0;
+      row-gap: 2px;
+    }
+
+    .eod-ownership-legend.eod-ownership-legend {
+      white-space: normal;
+    }
+
     .db-alloc-tab {
       min-height: 44px;
     }

@@ -6,6 +6,16 @@ applyTo: "**"
 
 Angular 22 SPA + .NET 8 Web API + SQL Server. Yahoo Finance data (no API key).
 
+## Agent Execution Rules
+
+- Do not delegate implementation to subagents.
+- Do not spawn parallel or background agents.
+- Perform all work in the main Copilot agent session.
+- Preserve project context across implementation steps.
+- Review existing architecture before modifying code.
+- Do not introduce architectural changes without justification.
+- Run relevant tests after implementation.
+
 ## Run
 
 ```powershell
