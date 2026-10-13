@@ -45,12 +45,21 @@ test.describe('dashboard on small screens', () => {
 
   test('no dashboard card scrolls sideways internally', async ({ page }) => {
     await openExpandedDashboard(page);
+    // Platform fonts differ (the Linux CI runner renders text wider than Windows), so widen text a
+    // little: a layout that only fits with one platform's metrics fails here on every OS.
+    await page.addStyleTag({ content: '.db-page * { letter-spacing: 0.04em !important; }' });
     const offenders = await page.evaluate(() => {
       const found: string[] = [];
-      const describe = (el: Element) =>
-        el.tagName.toLowerCase() +
-        '.' +
-        (el.getAttribute('class') ?? '').trim().split(/\s+/).slice(0, 2).join('.');
+      const describe = (el: Element) => {
+        const own =
+          el.tagName.toLowerCase() +
+          '.' +
+          (el.getAttribute('class') ?? '').trim().split(/\s+/).slice(0, 2).join('.');
+        // Name the offender by its widget/heading so a CI failure is actionable without a local repro.
+        const host = el.closest('app-portfolio-actions-widget, app-market-leadership-widget, app-priority-candidates-widget, app-performance-summary-widget, section, mat-card');
+        const title = el.querySelector('h1, h2, h3, h4, .db-panel-title')?.textContent?.trim().slice(0, 40);
+        return `${own}${host && host !== el ? ` in ${host.tagName.toLowerCase()}` : ''}${title ? ` "${title}"` : ''}`;
+      };
       const roots = document.querySelectorAll(
         '.db-page, app-portfolio-actions-widget, app-market-leadership-widget, ' +
           'app-priority-candidates-widget, app-performance-summary-widget',
