@@ -82,6 +82,14 @@ html {
   height: 100%;
 }
 
+// Handsets: most sizes in the app are rem-based, so raising the root size enlarges text
+// (16px -> 18px) without touching desktop/tablet.
+@media (max-width: 599.98px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
 .mat-mdc-tooltip .mdc-tooltip__surface {
   white-space: pre-line;
 }
