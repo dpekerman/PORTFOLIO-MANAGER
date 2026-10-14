@@ -93,6 +93,11 @@ html {
   html {
     font-size: 112.5%;
   }
+
+  // Slightly heavier body text reads sharper on small, dense screens.
+  body {
+    font-weight: 500;
+  }
 }
 
 .mat-mdc-tooltip .mdc-tooltip__surface {

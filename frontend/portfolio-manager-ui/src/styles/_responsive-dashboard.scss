@@ -1,9 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Handset (<600px) layout for the dashboard and its widgets. Kept in the global bundle for the
 // same reason as `_responsive-pages.scss` (the dashboard stylesheet is already over the component
 // style budget). The `html` prefix out-ranks the components' attribute-scoped selectors without
 // `!important`; tablet and desktop are never affected.
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @media (max-width: 599.98px) {
   html .db-page {
@@ -37,14 +37,21 @@
       max-width: calc(100% - 24px);
       margin: 0 12px 4px;
 
-      mat-button-toggle {
+      mat-button-toggle,
+      mat-button-toggle.mat-button-toggle-checked {
         flex: 1 1 0;
         min-width: 0;
         padding: 0;
       }
 
-      .mat-pseudo-checkbox {
+      .mat-pseudo-checkbox,
+      .mat-button-toggle-checkbox-wrapper {
         display: none;
+      }
+
+      // Material reserves 30px for the (hidden) check mark on the selected toggle.
+      .mat-button-toggle-checked .mat-button-toggle-button {
+        padding-left: 0;
       }
 
       .mat-button-toggle-label-content {
@@ -96,6 +103,20 @@
     .db-alloc-table th:nth-child(5),
     .db-alloc-table td:nth-child(5) {
       display: none;
+    }
+
+    .db-alloc-table.db-alloc-table th,
+    .db-alloc-table.db-alloc-table td {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+
+    .db-alloc-table.db-alloc-table .alloc-sector {
+      min-width: 0;
+    }
+
+    .db-alloc-table.db-alloc-table th {
+      letter-spacing: 0;
     }
 
     .db-alloc-table-wrap,
