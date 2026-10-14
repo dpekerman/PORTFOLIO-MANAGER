@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { BreakpointStore } from './breakpoint.store';
 import { DashboardCollapseStore } from './dashboard-collapse.store';
 
 describe('DashboardCollapseStore', () => {
@@ -30,4 +32,26 @@ describe('DashboardCollapseStore', () => {
     expect(store.isExpanded('allocation')).toBe(true);
     expect(store.isExpanded('market-leadership')).toBe(false);
   });
-});
+
+  describe('on a phone', () => {
+    beforeEach(() =>
+      TestBed.configureTestingModule({
+        providers: [{ provide: BreakpointStore, useValue: { isHandset: signal(true) } }],
+      }),
+    );
+
+    it('starts every section collapsed under its own storage keys', () => {
+      localStorage.setItem('dashboard_collapse_top-movers', 'false');
+      const store = TestBed.inject(DashboardCollapseStore);
+      expect(store.isExpanded('top-movers')).toBe(false);
+      expect(store.isExpanded('allocation')).toBe(false);
+      expect(localStorage.getItem('dashboard_collapse_m_top-movers')).toBe('true');
+    });
+
+    it('remembers what the user expanded', () => {
+      localStorage.setItem('dashboard_collapse_m_allocation', 'false');
+      const store = TestBed.inject(DashboardCollapseStore);
+      expect(store.isExpanded('allocation')).toBe(true);
+      expect(store.isExpanded('top-movers')).toBe(false);
+    });
+  });});

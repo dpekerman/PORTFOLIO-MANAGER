@@ -1252,6 +1252,116 @@ mat-card.db-panel {
   }
 }
 
+/* ── Phone: collapsed-first dashboard ────────────────────────────────────── */
+@media (max-width: 599.98px) {
+  .db-hide-collapsed {
+    display: none !important;
+  }
+
+  // One header pattern: title on the left, chevron pinned to the far right.
+  .db-panel-hd,
+  .db-card-header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .db-card-header {
+    flex-wrap: wrap;
+    padding: 8px 16px 0 16px;
+  }
+  .db-chart-card mat-card-content:empty {
+    display: none;
+  }
+  .db-panel-subtitle {
+    display: none;
+  }
+  .db-panel-hd-left {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+    > mat-icon,
+    > button,
+    > .db-panel-badge {
+      flex: none;
+    }
+  }
+  .db-panel-title {
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .db-panel-hd .db-toggle-btn,
+  .db-card-header .db-toggle-btn {
+    order: 3;
+    flex: none;
+    margin-left: auto;
+  }
+  .db-panel-hd-right {
+    display: flex;
+    align-items: center;
+    flex: none;
+    margin-left: auto;
+    gap: 4px;
+  }
+  // Chart: the range toggle drops to its own full-width row under the title and chevron.
+  .db-card-header {
+    .db-panel-hd-left {
+      order: 1;
+    }
+    .db-panel-hd-right {
+      display: contents;
+    }
+    .db-toggle-btn {
+      order: 2;
+    }
+    .db-range-group {
+      order: 3;
+      flex: 1 0 100%;
+      margin: 0 0 8px;
+    }
+  }
+
+  .db-toggle-btn {
+    --mat-icon-button-state-layer-size: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    transition: background-color 0.15s ease;
+
+    &:active {
+      background: color-mix(in srgb, currentColor 16%, transparent);
+    }
+    &[aria-expanded='true'] mat-icon {
+      animation: db-chevron-open 0.25s ease-out;
+    }
+    &[aria-expanded='false'] mat-icon {
+      animation: db-chevron-close 0.25s ease-out;
+    }
+  }
+}
+
+@keyframes db-chevron-open {
+  from {
+    transform: rotate(-180deg);
+  }
+  to {
+    transform: rotate(0);
+  }
+}
+@keyframes db-chevron-close {
+  from {
+    transform: rotate(180deg);
+  }
+  to {
+    transform: rotate(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-toggle-btn mat-icon {
+    animation: none !important;
+  }
+}
+
 /* ── Dark mode overrides ─────────────────────────────────────────────────── */
 :host-context(body:not(.light-theme)) {
   .db-header h1 {
