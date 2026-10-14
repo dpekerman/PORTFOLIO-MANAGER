@@ -13,7 +13,7 @@ html {
         tertiary: mat.$blue-palette,
         theme-type: dark,
       ),
-      typography: Roboto,
+      typography: Inter,
       density: 0,
     )
   );
@@ -28,7 +28,7 @@ body.light-theme {
         tertiary: mat.$blue-palette,
         theme-type: light,
       ),
-      typography: Roboto,
+      typography: Inter,
       density: 0,
     )
   );
@@ -74,12 +74,30 @@ body {
   background-color: var(--bg-page);
   color: var(--text-primary);
   font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  // Equal-width digits keep money columns aligned and easier to scan.
+  font-variant-numeric: tabular-nums;
   margin: 0;
   height: 100%;
 }
 
 html {
   height: 100%;
+}
+
+// Handsets: most sizes in the app are rem-based, so raising the root size enlarges text
+// (16px -> 18px) without touching desktop/tablet.
+@media (max-width: 599.98px) {
+  html {
+    font-size: 112.5%;
+  }
+
+  // Slightly heavier body text reads sharper on small, dense screens.
+  body {
+    font-weight: 500;
+  }
 }
 
 .mat-mdc-tooltip .mdc-tooltip__surface {
