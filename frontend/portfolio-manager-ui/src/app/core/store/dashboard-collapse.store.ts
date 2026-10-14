@@ -1,4 +1,6 @@
+import { inject } from '@angular/core';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
+import { BreakpointStore } from './breakpoint.store';
 import { withStorageSync } from './features/storage-sync.feature';
 
 const SECTIONS = [
@@ -13,27 +15,33 @@ const SECTIONS = [
   'signal-changes',
   'priority-candidates',
   'ytd-performance',
+  'latest-eod-signals',
 ];
 
-const storageKey = (sectionId: string) => `dashboard_collapse_${sectionId}`;
+/** Phones keep their own keys so a desktop "expanded" snapshot never overrides the phone default. */
+const storageKey = (sectionId: string, handset: boolean) =>
+  `dashboard_collapse_${handset ? 'm_' : ''}${sectionId}`;
 
-/** Only the market-leadership section starts collapsed. */
-const defaultCollapsed = (sectionId: string) => sectionId === 'market-leadership';
+/** Desktop and tablet: only market-leadership starts collapsed. Phones: everything does. */
+const defaultCollapsed = (sectionId: string, handset: boolean) =>
+  handset || sectionId === 'market-leadership';
 
 interface DashboardCollapseState {
+  /** Phone layout, fixed when the store is created. */
+  handset: boolean;
   /** Explicit choices only; a section absent from the map uses its default. */
   collapsed: Record<string, boolean>;
 }
 
-function loadPersisted(): DashboardCollapseState {
+function loadPersisted(handset: boolean): DashboardCollapseState {
   const collapsed: Record<string, boolean> = {};
   for (const sectionId of SECTIONS) {
-    const stored = localStorage.getItem(storageKey(sectionId));
+    const stored = localStorage.getItem(storageKey(sectionId, handset));
     if (stored !== null) {
       collapsed[sectionId] = stored === 'true';
     }
   }
-  return { collapsed };
+  return { handset, collapsed };
 }
 
 /**
@@ -43,10 +51,10 @@ function loadPersisted(): DashboardCollapseState {
  */
 export const DashboardCollapseStore = signalStore(
   { providedIn: 'root' },
-  withState<DashboardCollapseState>(loadPersisted),
+  withState<DashboardCollapseState>(() => loadPersisted(inject(BreakpointStore).isHandset())),
   withMethods((store) => {
     const isCollapsed = (sectionId: string) =>
-      store.collapsed()[sectionId] ?? defaultCollapsed(sectionId);
+      store.collapsed()[sectionId] ?? defaultCollapsed(sectionId, store.handset());
 
     return {
       /** True if the section is expanded. */
@@ -58,7 +66,7 @@ export const DashboardCollapseStore = signalStore(
         patchState(store, ({ collapsed }) => ({
           collapsed: {
             ...collapsed,
-            [sectionId]: !(collapsed[sectionId] ?? defaultCollapsed(sectionId)),
+            [sectionId]: !(collapsed[sectionId] ?? defaultCollapsed(sectionId, store.handset())),
           },
         }));
       },
@@ -71,16 +79,16 @@ export const DashboardCollapseStore = signalStore(
 
       resetToDefaults(): void {
         patchState(store, {
-          collapsed: Object.fromEntries(SECTIONS.map((id) => [id, defaultCollapsed(id)])),
+          collapsed: Object.fromEntries(SECTIONS.map((id) => [id, defaultCollapsed(id, store.handset())])),
         });
       },
     };
   }),
-  withStorageSync<DashboardCollapseState>(({ collapsed }) => {
+  withStorageSync<DashboardCollapseState>(({ collapsed, handset }) => {
     for (const sectionId of SECTIONS) {
       localStorage.setItem(
-        storageKey(sectionId),
-        String(collapsed[sectionId] ?? defaultCollapsed(sectionId)),
+        storageKey(sectionId, handset),
+        String(collapsed[sectionId] ?? defaultCollapsed(sectionId, handset)),
       );
     }
   }),

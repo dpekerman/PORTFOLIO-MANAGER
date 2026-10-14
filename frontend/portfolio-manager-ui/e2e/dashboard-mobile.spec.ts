@@ -24,7 +24,10 @@ const SECTIONS = [
 
 async function openExpandedDashboard(page: Page): Promise<void> {
   await page.addInitScript((ids) => {
-    for (const id of ids) localStorage.setItem(`dashboard_collapse_${id}`, 'false');
+    for (const id of ids) {
+      localStorage.setItem(`dashboard_collapse_${id}`, 'false');
+      localStorage.setItem(`dashboard_collapse_m_${id}`, 'false');
+    }
   }, SECTIONS);
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();

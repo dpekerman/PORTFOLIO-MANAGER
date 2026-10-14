@@ -88,15 +88,16 @@
             class="panel-nav-btn"
             aria-label="Portfolio"
           >
-            <mat-icon>show_chart</mat-icon>
+            <mat-icon class="db-panel-ico">show_chart</mat-icon>
           </button>
-          <span class="db-chart-title">Portfolio value history</span>
+          <span class="db-panel-title">Portfolio value history</span>
         </div>
         <div class="db-panel-hd-right">
           <mat-button-toggle-group
             [value]="selectedRange()"
             (change)="selectChartRange($event.value)"
             class="db-range-group"
+            [class.db-hide-collapsed]="!isExpanded('portfolio-value-history')"
             aria-label="Chart range"
           >
             @for (r of chartRanges; track r) {
@@ -107,6 +108,8 @@
             mat-icon-button
             (click)="toggleExpanded('portfolio-value-history')"
             [matTooltip]="isExpanded('portfolio-value-history') ? 'Collapse' : 'Expand chart'"
+            class="db-toggle-btn"
+            [attr.aria-expanded]="isExpanded('portfolio-value-history')"
             aria-label="Toggle chart"
           >
             <mat-icon>{{
@@ -232,10 +235,12 @@
             </div>
           }
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view portfolio value
             chart.
           </p>
+          -->
         }
       </mat-card-content>
     </mat-card>
@@ -261,6 +266,7 @@
               [value]="moversCount()"
               (selectionChange)="moversCount.set($event.value)"
               class="movers-count-sel"
+              [class.db-hide-collapsed]="!isExpanded('top-movers')"
               panelClass="movers-count-panel"
               aria-label="Number of movers"
             >
@@ -272,6 +278,8 @@
               mat-icon-button
               (click)="toggleExpanded('top-movers')"
               [matTooltip]="isExpanded('top-movers') ? 'Collapse' : 'Expand movers'"
+              class="db-toggle-btn"
+              [attr.aria-expanded]="isExpanded('top-movers')"
               aria-label="Toggle movers"
             >
               <mat-icon>{{ isExpanded('top-movers') ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -349,9 +357,11 @@
             </div>
           </div>
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view top/bottom movers.
           </p>
+          -->
         }
       </mat-card>
       <!-- Market indices -->
@@ -373,6 +383,8 @@
             mat-icon-button
             (click)="toggleExpanded('market-indices')"
             [matTooltip]="isExpanded('market-indices') ? 'Collapse' : 'Expand indices'"
+            class="db-toggle-btn"
+            [attr.aria-expanded]="isExpanded('market-indices')"
             aria-label="Toggle indices"
           >
             <mat-icon>{{ isExpanded('market-indices') ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -397,9 +409,11 @@
             }
           </div>
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view market indices.
           </p>
+          -->
         }
       </mat-card>
       <!-- Market Leadership — collapsible, spans both grid columns -->
@@ -416,6 +430,8 @@
             mat-icon-button
             (click)="toggleExpanded('market-leadership')"
             [matTooltip]="isExpanded('market-leadership') ? 'Collapse' : 'Expand market leadership'"
+            class="db-toggle-btn"
+            [attr.aria-expanded]="isExpanded('market-leadership')"
             aria-label="Toggle market leadership"
           >
             <mat-icon>{{
@@ -426,10 +442,12 @@
         @if (isExpanded('market-leadership')) {
           <app-market-leadership-widget />
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view market tracker
             momentum.
           </p>
+          -->
         }
       </mat-card>
       <!-- RSI signals -->
@@ -451,6 +469,8 @@
             mat-icon-button
             (click)="toggleExpanded('market-signals')"
             [matTooltip]="isExpanded('market-signals') ? 'Collapse' : 'Expand signals'"
+            class="db-toggle-btn"
+            [attr.aria-expanded]="isExpanded('market-signals')"
             aria-label="Toggle signal details"
             [style.display]="
               data.rsiSection &&
@@ -464,7 +484,7 @@
           </button>
         </div>
         @if (filteredRsiSection(); as rsi) {
-          <div class="db-signal-summary">
+          <div class="db-signal-summary" [class.db-hide-collapsed]="!isExpanded('market-signals')">
             <button
               type="button"
               class="db-sig oversold"
@@ -658,13 +678,13 @@
               }
             }
           } @else {
-            <p class="db-sig-hint">
+            <p class="db-sig-hint" [class.db-hide-collapsed]="!isExpanded('market-signals')">
               From last scanner snapshot &middot;
               <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
             </p>
           }
         } @else {
-          <div class="db-signal-row">
+          <div class="db-signal-row" [class.db-hide-collapsed]="!isExpanded('market-signals')">
             <div class="db-sig oversold">
               <strong>{{ data.summary.oversoldCount }}</strong
               ><span>Oversold</span>
@@ -675,7 +695,7 @@
               ><span>Overbought</span>
             </div>
           </div>
-          <p class="db-sig-hint">
+          <p class="db-sig-hint" [class.db-hide-collapsed]="!isExpanded('market-signals')">
             From last scanner snapshot &middot;
             <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
           </p>
@@ -698,7 +718,7 @@
           </div>
           <!-- Tab toggles -->
           <div class="db-panel-hd-right">
-            <div class="db-alloc-tabs">
+            <div class="db-alloc-tabs" [class.db-hide-collapsed]="!isExpanded('allocation')">
               <button
                 class="db-alloc-tab"
                 [class.active]="allocTab() === 'sector'"
@@ -720,6 +740,8 @@
               mat-icon-button
               (click)="toggleExpanded('allocation')"
               [matTooltip]="isExpanded('allocation') ? 'Collapse' : 'Expand allocation'"
+              class="db-toggle-btn"
+              [attr.aria-expanded]="isExpanded('allocation')"
               aria-label="Toggle allocation"
             >
               <mat-icon>{{ isExpanded('allocation') ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -910,9 +932,11 @@
             </div>
           }
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view allocation.
           </p>
+          -->
         }
       </mat-card>
     </div>
@@ -930,12 +954,14 @@
             >
               <mat-icon class="db-panel-ico">event</mat-icon>
             </button>
-            <span class="db-panel-title">Upcoming earnings (next 7 days)</span>
+            <span class="db-panel-title db-title-fill">Upcoming earnings (next 7 days)</span>
           </div>
           <button
             mat-icon-button
             (click)="toggleExpanded('upcoming-earnings')"
             [matTooltip]="isExpanded('upcoming-earnings') ? 'Collapse' : 'Expand upcoming earnings'"
+            class="db-toggle-btn"
+            [attr.aria-expanded]="isExpanded('upcoming-earnings')"
             aria-label="Toggle upcoming earnings"
           >
             <mat-icon>{{
@@ -957,9 +983,11 @@
             }
           </div>
         } @else {
+          <!--
           <p class="db-collapsed-hint">
             Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view upcoming earnings.
           </p>
+          -->
         }
       </mat-card>
     }
@@ -978,6 +1006,8 @@
           mat-icon-button
           (click)="toggleExpanded('action-center')"
           [matTooltip]="isExpanded('action-center') ? 'Collapse' : 'Expand action center'"
+          class="db-toggle-btn"
+          [attr.aria-expanded]="isExpanded('action-center')"
           aria-label="Toggle action center"
         >
           <mat-icon>{{ isExpanded('action-center') ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -995,9 +1025,11 @@
         </div>
         <app-portfolio-actions-widget />
       } @else {
+        <!--
         <p class="db-collapsed-hint">
           Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view action center.
         </p>
+        -->
       }
     </mat-card>
     <!-- ── EOD Summary ───────────────────────────────────────────────── -->
@@ -1017,6 +1049,7 @@
           }
           <span
             class="eod-ownership-legend"
+            [class.db-hide-collapsed]="!isExpanded('latest-eod-signals')"
             aria-label="Ownership badges: P is Portfolio, W is Watchlist, U is Universe"
           >
             P Portfolio · W Watchlist · U Universe
@@ -1026,6 +1059,8 @@
           mat-icon-button
           (click)="toggleExpanded('latest-eod-signals')"
           [matTooltip]="isExpanded('latest-eod-signals') ? 'Collapse' : 'Expand EOD summary'"
+          class="db-toggle-btn"
+          [attr.aria-expanded]="isExpanded('latest-eod-signals')"
           aria-label="Toggle EOD summary"
         >
           <mat-icon>{{
@@ -1080,10 +1115,12 @@
           <p class="db-muted db-eod-empty">No completed EOD session is available.</p>
         }
       } @else {
+        <!--
         <p class="db-collapsed-hint">
           Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view the latest EOD
           summary.
         </p>
+        -->
       }
     </mat-card>
     <!-- ── Priority Candidates ────────────────────────────────────────── -->
@@ -1099,6 +1136,8 @@
           [matTooltip]="
             isExpanded('priority-candidates') ? 'Collapse' : 'Expand priority candidates'
           "
+          class="db-toggle-btn"
+          [attr.aria-expanded]="isExpanded('priority-candidates')"
           aria-label="Toggle priority candidates"
         >
           <mat-icon>{{
@@ -1109,9 +1148,11 @@
       @if (isExpanded('priority-candidates')) {
         <app-priority-candidates-widget />
       } @else {
+        <!--
         <p class="db-collapsed-hint">
           Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view priority candidates.
         </p>
+        -->
       }
     </mat-card>
     <!-- ── Performance Summary ────────────────────────────────────────── -->
@@ -1125,6 +1166,8 @@
           mat-icon-button
           (click)="toggleExpanded('ytd-performance')"
           [matTooltip]="isExpanded('ytd-performance') ? 'Collapse' : 'Expand YTD performance'"
+          class="db-toggle-btn"
+          [attr.aria-expanded]="isExpanded('ytd-performance')"
           aria-label="Toggle YTD performance"
         >
           <mat-icon>{{ isExpanded('ytd-performance') ? 'expand_less' : 'expand_more' }}</mat-icon>
@@ -1133,9 +1176,11 @@
       @if (isExpanded('ytd-performance')) {
         <app-performance-summary-widget />
       } @else {
+        <!--
         <p class="db-collapsed-hint">
           Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view YTD performance.
         </p>
+        -->
       }
     </mat-card>
   }
