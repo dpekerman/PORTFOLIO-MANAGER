@@ -70,6 +70,10 @@ export const routes: Routes = [
             (m) => m.PORTFOLIO_VALUE_HISTORY_ROUTES,
           ),
       },
+      {
+        path: 'audit',
+        loadChildren: () => import('./features/audit/audit.routes').then((m) => m.AUDIT_ROUTES),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },

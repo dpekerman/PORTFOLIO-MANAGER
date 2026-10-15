@@ -36,6 +36,7 @@ import {
   valueHistory,
 } from '../fixtures/dashboard';
 import { isoDate, isoDateTime, makeStockQuote } from '../fixtures/factories';
+import { auditFilters, auditResponse } from '../fixtures/audit';
 
 /** Request as seen by a handler. `path` excludes the query string. */
 export interface MockRequest {
@@ -195,6 +196,12 @@ get(/^\/api\/cash\/unlinked-trades$/, unlinkedTrades);
 get(/^\/api\/cash\/ledger-start-date$/, { ledgerStartDate: isoDate(-400) });
 // Nullable: "no linked cash row for this trade" is represented as a null body.
 get(/^\/api\/cash\/link\/.+$/, () => null);
+
+// ── Audit ────────────────────────────────────────────────────────────────────
+get(/^\/api\/audit$/, auditResponse);
+get(/^\/api\/audit\/filters$/, auditFilters);
+get(/^\/api\/audit\/export$/, () => 'Time (UTC),User\n');
+on('POST', /^\/api\/audit\/delete-batch$/, () => ({ deleted: 1 }));
 
 // ── Scanner ──────────────────────────────────────────────────────────────────
 get(/^\/api\/scanner\/rsi(\/snapshot)?$/, scannerResponse);

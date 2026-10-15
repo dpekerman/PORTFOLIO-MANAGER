@@ -106,6 +106,14 @@ export const APP_ROUTES: RouteSpec[] = [
     inLayout: true,
   },
   {
+    path: '/audit',
+    navLabel: 'Audit',
+    landmark: heading(1, /^Audit$/),
+    hasMatTable: true,
+    primaryControls: (p) => [btn(p, /Export CSV/)],
+    inLayout: true,
+  },
+  {
     path: '/config',
     navLabel: 'Configuration',
     landmark: heading(2, /Scanner Settings/),

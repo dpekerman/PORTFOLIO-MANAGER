@@ -186,6 +186,18 @@ public class AutomationController(
     public async Task<ActionResult<object>> BackupNow(CancellationToken ct)
     {
         var result = await databaseBackup.RunManualBackupAsync(ct);
+        db.AuditLogs.Add(new AuditLog
+        {
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            UserName = User.FindFirstValue(ClaimTypes.Name),
+            Source = AuditSources.User,
+            Category = AuditCategories.Automation,
+            Action = AuditActions.Other,
+            EntityType = "DatabaseBackup",
+            Summary = result.Ran ? "Manual database backup created" : $"Manual database backup skipped: {result.Message}",
+            CorrelationId = HttpContext.TraceIdentifier,
+        });
+        await db.SaveChangesAsync(ct);
         var operationId = Guid.NewGuid();
         await TrySendOperationEmailAsync(
             operationId,

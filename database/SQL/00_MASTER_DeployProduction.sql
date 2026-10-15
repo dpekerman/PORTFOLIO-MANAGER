@@ -21,6 +21,7 @@
 --   Step 10 19_AddAnalysisCurrencyToDailySignals.sql     (analysis ticker/currency metadata)
 --   Step 11 23_AddAccountTypes.sql                      (shared account type catalog)
 --   Step 12 24_WidenAccountTypeNames.sql                (account type names up to 120 characters)
+--   Step 13 25_CreateAuditLog.sql                       (AuditLogs table + indexes)
 --
 -- SCRIPTS NOT RUN IN THIS MASTER:
 --   04_SeedNotificationRecipients.sql  -- contains placeholder emails; run manually
@@ -1096,4 +1097,39 @@ IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'202
     VALUES (N'20261006150738_WidenAccountTypeNames', N'8.0.10');
 COMMIT;
 PRINT '  Step 12 OK: account type names widened to 120 characters.';
+GO
+
+-- Audit log: immutable audit trail table (EF migration 20261015173504_AddAuditLog).
+SET XACT_ABORT ON;
+IF OBJECT_ID(N'dbo.AuditLogs', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AuditLogs (
+        Id            bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_AuditLogs PRIMARY KEY,
+        OccurredAtUtc datetime2(3)  NOT NULL,
+        UserId        nvarchar(450) NULL,
+        UserName      nvarchar(256) NULL,
+        Source        nvarchar(20)  NOT NULL,
+        Category      nvarchar(20)  NOT NULL,
+        Action        nvarchar(20)  NOT NULL,
+        EntityType    nvarchar(60)  NOT NULL,
+        EntityId      nvarchar(64)  NULL,
+        Symbol        nvarchar(30)  NULL,
+        AccountType   nvarchar(120) NULL,
+        Summary       nvarchar(500) NOT NULL,
+        ChangesJson   nvarchar(max) NULL,
+        CorrelationId nvarchar(64)  NULL
+    );
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.AuditLogs') AND name = N'IX_AuditLogs_OccurredAtUtc')
+    CREATE INDEX IX_AuditLogs_OccurredAtUtc ON dbo.AuditLogs (OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.AuditLogs') AND name = N'IX_AuditLogs_UserId_OccurredAtUtc')
+    CREATE INDEX IX_AuditLogs_UserId_OccurredAtUtc ON dbo.AuditLogs (UserId ASC, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.AuditLogs') AND name = N'IX_AuditLogs_Category_OccurredAtUtc')
+    CREATE INDEX IX_AuditLogs_Category_OccurredAtUtc ON dbo.AuditLogs (Category ASC, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.AuditLogs') AND name = N'IX_AuditLogs_Symbol_OccurredAtUtc')
+    CREATE INDEX IX_AuditLogs_Symbol_OccurredAtUtc ON dbo.AuditLogs (Symbol ASC, OccurredAtUtc DESC);
+IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'20261015173504_AddAuditLog')
+    INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion)
+    VALUES (N'20261015173504_AddAuditLog', N'8.0.0');
+PRINT '  Step 13 OK: AuditLogs table and indexes verified.';
 GO

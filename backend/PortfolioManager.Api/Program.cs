@@ -82,8 +82,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ── Database ─────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSingleton<AuditSaveChangesInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, opts) =>
+    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // ── ASP.NET Core Identity ─────────────────────────────────────────────────────
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
