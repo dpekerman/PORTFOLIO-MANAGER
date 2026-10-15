@@ -9,7 +9,7 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger, IUnlinkedTradeService unlinkedTrades) : ControllerBase
+public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger, IUnlinkedTradeService unlinkedTrades, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CashItemDto>>> GetAll(CancellationToken ct)
@@ -157,6 +157,7 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
     public async Task<IActionResult> Restore([FromBody] RestoreCashRequest request, CancellationToken ct)
     {
         var count = await cashService.RestoreAsync(request.Items, ct);
+        await audit.LogAsync(AuditCategories.Cash, AuditActions.Restore, $"Restored {count} cash entries from backup", nameof(CashItem), ct: ct);
         return Ok(new { restored = count });
     }
 }

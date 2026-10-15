@@ -106,6 +106,14 @@ export const APP_ROUTES: RouteSpec[] = [
     inLayout: true,
   },
   {
+    path: '/audit',
+    navLabel: 'Audit Log',
+    landmark: heading(1, /^Audit Log$/),
+    hasMatTable: true,
+    primaryControls: (p) => [p.getByLabel(/Search symbol/)],
+    inLayout: true,
+  },
+  {
     path: '/config',
     navLabel: 'Configuration',
     landmark: heading(2, /Scanner Settings/),

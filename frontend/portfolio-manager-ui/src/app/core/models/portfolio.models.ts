@@ -1421,3 +1421,67 @@ export interface PerformanceSummaryResponse {
    *  "since inception" return using the earliest available snapshot, not a true YTD return. */
   isFullYear: boolean;
 }
+
+// ── Audit log ─────────────────────────────────────────────────────────────
+
+export type AuditSource = 'User' | 'System';
+export type AuditCategory =
+  | 'Stock'
+  | 'Option'
+  | 'Cash'
+  | 'Watchlist'
+  | 'Allocation'
+  | 'Config'
+  | 'User'
+  | 'Automation';
+export type AuditAction = 'Create' | 'Update' | 'Delete' | 'Restore' | 'Adjust' | 'Other';
+
+export interface AuditChange {
+  field: string;
+  old: string | null;
+  new: string | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  occurredAtUtc: string;
+  userId: string | null;
+  userName: string | null;
+  source: AuditSource;
+  category: AuditCategory;
+  action: AuditAction;
+  entityType: string;
+  entityId: string | null;
+  symbol: string | null;
+  accountType: string | null;
+  summary: string;
+  changes: AuditChange[];
+  correlationId: string | null;
+}
+
+export interface AuditPagedResponse {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AuditFilters {
+  categories: AuditCategory[];
+  actions: AuditAction[];
+  users: { userId: string; userName: string }[];
+}
+
+export interface AuditQueryParams {
+  page: number;
+  pageSize: number;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+  from: string | null;
+  to: string | null;
+  category: AuditCategory[];
+  action: AuditAction[];
+  source: AuditSource | null;
+  userId: string | null;
+  q: string;
+}

@@ -111,6 +111,16 @@ public sealed class EodAutomationOrchestratorService(
 
             log.CompletedAtUtc = DateTime.UtcNow;
             log.OverallStatus = DeriveOverallStatus(log);
+            db.AuditLogs.Add(new AuditLog
+            {
+                Source = AuditSources.System,
+                Category = AuditCategories.Automation,
+                Action = AuditActions.Other,
+                EntityType = nameof(AutomationRunLog),
+                EntityId = runId.ToString(),
+                Summary = $"EOD automation ({triggerType}) {log.TradingDate}: {log.OverallStatus}; refresh {log.RefreshStatus}, RSI {log.RsiStatus}, snapshot {log.SnapshotStatus}",
+                CorrelationId = triggerCorrelationId,
+            });
             await db.SaveChangesAsync(ct);
             logger.LogInformation("[EodAutomation] Run {RunId} finished with status {Status}.", runId, log.OverallStatus);
         }

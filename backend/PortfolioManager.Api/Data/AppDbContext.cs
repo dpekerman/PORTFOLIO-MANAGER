@@ -48,6 +48,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<UnlinkedTradeBaseline> UnlinkedTradeBaselines => Set<UnlinkedTradeBaseline>();
     public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
     public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -466,6 +467,27 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
             entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
             entity.HasIndex(e => e.OperationKey).IsUnique();
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OccurredAtUtc).HasColumnType("datetime2(3)");
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.UserName).HasMaxLength(256);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.EntityType).IsRequired().HasMaxLength(60);
+            entity.Property(e => e.EntityId).HasMaxLength(64);
+            entity.Property(e => e.Symbol).HasMaxLength(30);
+            entity.Property(e => e.AccountType).HasMaxLength(120);
+            entity.Property(e => e.Summary).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.CorrelationId).HasMaxLength(64);
+            entity.HasIndex(e => e.OccurredAtUtc).IsDescending();
+            entity.HasIndex(e => new { e.UserId, e.OccurredAtUtc }).IsDescending(false, true);
+            entity.HasIndex(e => new { e.Category, e.OccurredAtUtc }).IsDescending(false, true);
+            entity.HasIndex(e => new { e.Symbol, e.OccurredAtUtc }).IsDescending(false, true);
         });
 
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written

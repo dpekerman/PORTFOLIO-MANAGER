@@ -1,0 +1,274 @@
+.audit-page {
+  padding: 0 0 48px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+  }
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.filters {
+  margin: 0 24px 16px;
+
+  @media (max-width: 600px) {
+    margin: 0 8px 12px;
+  }
+}
+
+.filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+
+  mat-form-field {
+    min-width: 160px;
+  }
+
+  .search-field {
+    flex: 1 1 240px;
+  }
+
+  @media (max-width: 600px) {
+    mat-form-field,
+    .search-field,
+    .range-toggle {
+      width: 100%;
+      flex: 1 1 100%;
+    }
+
+    .range-toggle {
+      display: flex;
+      overflow-x: auto;
+    }
+  }
+}
+
+.mobile-sort {
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+
+  mat-form-field {
+    flex: 1;
+  }
+}
+
+.state-row {
+  padding: 24px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+
+  &.error {
+    color: var(--mat-sys-error, #c62828);
+  }
+}
+
+.desktop-only {
+  display: block;
+}
+
+.mobile-only {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-only {
+    display: flex;
+  }
+}
+
+.table-wrap {
+  margin: 0 24px;
+  overflow-x: auto;
+  border: 1px solid var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+}
+
+.audit-table {
+  width: 100%;
+}
+
+.audit-row {
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-on-surface, #000) 5%, transparent);
+  }
+}
+
+.detail-row {
+  height: 0;
+}
+
+.detail-cell {
+  padding: 0 !important;
+  border-bottom-width: 0;
+}
+
+.symbol {
+  font-weight: 600;
+}
+
+.summary-cell {
+  max-width: 480px;
+}
+
+.summary-text {
+  overflow-wrap: anywhere;
+}
+
+.expand-icon {
+  vertical-align: middle;
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.badge-create {
+    background: rgba(46, 125, 50, 0.16);
+    color: #2e7d32;
+  }
+
+  &.badge-update {
+    background: rgba(25, 118, 210, 0.16);
+    color: #1976d2;
+  }
+
+  &.badge-delete {
+    background: rgba(198, 40, 40, 0.16);
+    color: #c62828;
+  }
+
+  &.badge-restore,
+  &.badge-adjust,
+  &.badge-other {
+    background: rgba(237, 108, 2, 0.16);
+    color: #ed6c02;
+  }
+}
+
+.diff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--mat-sys-on-surface, #000) 4%, transparent);
+  font-size: 0.85rem;
+}
+
+.diff-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-field {
+  min-width: 140px;
+  font-weight: 600;
+
+  @media (max-width: 600px) {
+    min-width: 100%;
+  }
+}
+
+.diff-old {
+  color: #c62828;
+  text-decoration: line-through;
+  overflow-wrap: anywhere;
+}
+
+.diff-new {
+  color: #2e7d32;
+  overflow-wrap: anywhere;
+}
+
+.diff-arrow {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  opacity: 0.6;
+}
+
+.mobile-cards {
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 8px;
+}
+
+.audit-card {
+  border: 1px solid var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.12));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.card-top,
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-time,
+.card-meta,
+.card-cat {
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant, rgba(0, 0, 0, 0.6));
+}
+
+.card-title {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.card-summary {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+mat-paginator {
+  margin: 8px 24px 0;
+
+  @media (max-width: 600px) {
+    margin: 8px 0 0;
+  }
+}
