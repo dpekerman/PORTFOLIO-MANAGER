@@ -1216,6 +1216,7 @@ export interface DashboardEodSummary {
   rawRecordCount: number;
   uniqueTickerCount: number;
   rows: DashboardEodSummaryRow[];
+  lastScanDate?: string | null;
 }
 
 // ── Decision Analytics ──────────────────────────────────────────────────────────

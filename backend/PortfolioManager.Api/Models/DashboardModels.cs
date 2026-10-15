@@ -123,7 +123,8 @@ public sealed record DashboardEodSummary(
     string? TradingDate,
     int RawRecordCount,
     int UniqueTickerCount,
-    IReadOnlyList<DashboardEodSummaryRow> Rows);
+    IReadOnlyList<DashboardEodSummaryRow> Rows,
+    string? LastScanDate = null);
 
 /// <summary>One canonical ticker result from the latest completed EOD scanner session.</summary>
 public sealed record DashboardEodSummaryRow(

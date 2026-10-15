@@ -1072,6 +1072,12 @@
         @if (dashboard.eodSummaryLoading()) {
           <mat-progress-bar mode="indeterminate" />
         } @else if (summary && summary.rows.length > 0) {
+          @if (summary.lastScanDate && summary.tradingDate && summary.lastScanDate > summary.tradingDate) {
+            <p class="db-muted db-eod-empty">
+              {{ eodSessionLabel(summary.lastScanDate) }} EOD scan completed with no new confirmed
+              signals. Showing the latest signals from {{ eodSessionLabel(summary.tradingDate) }}.
+            </p>
+          }
           <div class="db-eod-table-wrap">
             <table class="db-eod-table" aria-label="Latest completed EOD session summary">
               <thead>
