@@ -68,7 +68,7 @@ describe('AuditStore', () => {
   it('surfaces a load error', () => {
     api.query.mockReturnValue(throwError(() => new Error('x')));
     const store = login();
-    expect(store.error()).toBe('Failed to load audit log');
+    expect(store.error()).toBe('Failed to load audit');
     expect(store.loading()).toBe(false);
   });
 

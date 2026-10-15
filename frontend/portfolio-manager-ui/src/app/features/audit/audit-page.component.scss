@@ -19,12 +19,33 @@
   font-weight: 600;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .filters {
   margin: 0 24px 16px;
 
   @media (max-width: 600px) {
     margin: 0 8px 12px;
   }
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--mat-sys-primary, #1976d2);
+  color: var(--mat-sys-on-primary, #fff);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .filter-grid {
@@ -42,18 +63,42 @@
     flex: 1 1 240px;
   }
 
+  // Handsets: a compact two-column grid instead of one full-width field per row.
   @media (max-width: 600px) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
     mat-form-field,
-    .search-field,
-    .range-toggle {
+    .search-field {
+      min-width: 0;
       width: 100%;
-      flex: 1 1 100%;
+    }
+
+    .span-all {
+      grid-column: 1 / -1;
     }
 
     .range-toggle {
       display: flex;
-      overflow-x: auto;
+      width: 100%;
+
+      mat-button-toggle {
+        flex: 1;
+        min-width: 0;
+      }
+
+      // Tighter label padding so all five options fit a 360px screen.
+      ::ng-deep .mat-button-toggle-label-content {
+        padding: 0 4px;
+        font-size: 0.8rem;
+        line-height: 36px;
+      }
     }
+
+    // Dense fields: shorter than the default 56px so five filters fit without a long scroll.
+    --mat-form-field-container-height: 44px;
+    --mat-form-field-container-vertical-padding: 10px;
   }
 }
 
@@ -65,6 +110,34 @@
   mat-form-field {
     flex: 1;
   }
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 24px 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-secondary-container, #e8def8);
+
+  @media (max-width: 600px) {
+    margin: 0 8px 10px;
+  }
+
+  .bulk-spacer {
+    flex: 1;
+  }
+
+  .danger-btn {
+    background: var(--mat-sys-error, #c62828);
+    color: var(--mat-sys-on-error, #fff);
+  }
+}
+
+.select-cell {
+  width: 48px;
+  padding-right: 0 !important;
 }
 
 .state-row {
@@ -224,6 +297,16 @@
   border: 1px solid var(--mat-sys-outline-variant, rgba(0, 0, 0, 0.12));
   border-radius: 8px;
   overflow: hidden;
+
+  &.selected {
+    border-color: var(--mat-sys-primary, #1976d2);
+    background: color-mix(in srgb, var(--mat-sys-primary, #1976d2) 6%, transparent);
+  }
+}
+
+.actions-cell {
+  width: 56px;
+  text-align: right;
 }
 
 .card-head {
@@ -231,7 +314,7 @@
   flex-direction: column;
   gap: 4px;
   width: 100%;
-  padding: 12px;
+  padding: 0 12px 12px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -240,11 +323,33 @@
   cursor: pointer;
 }
 
-.card-top,
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 0 8px;
+
+  .card-time {
+    margin-left: auto;
+  }
+}
+
 .card-meta {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.meta-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+}
+
+.card-delete {
+  color: var(--mat-sys-error, #c62828);
 }
 
 .card-time,

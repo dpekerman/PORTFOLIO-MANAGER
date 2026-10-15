@@ -39,15 +39,30 @@ public sealed class AuditSaveChangesInterceptor(
         [nameof(SinglePositionLimit)] = AuditCategories.Allocation,
         [nameof(AccountType)] = AuditCategories.Config,
         [nameof(SectorIndustryConfig)] = AuditCategories.Config,
-        [nameof(UserPreference)] = AuditCategories.Config,
         [nameof(ValueScreenerScheduleConfig)] = AuditCategories.Config,
         [nameof(ApplicationUser)] = AuditCategories.User,
     };
 
+    // UI preferences (grid columns, filters) are not portfolio operations; timestamp columns are derived.
     private static readonly HashSet<string> IgnoredFields = new(StringComparer.OrdinalIgnoreCase)
     {
         "PasswordHash", "SecurityStamp", "ConcurrencyStamp", "Version", "UserId",
         "NormalizedName", "NormalizedUserName", "NormalizedEmail", "LockoutEnd", "AccessFailedCount",
+        "UpdatedAt", "ModifiedAt", "LastModifiedAt",
+    };
+
+    private static readonly Dictionary<string, string> FriendlyNames = new()
+    {
+        [nameof(PortfolioItem)] = "stock",
+        [nameof(OptionItem)] = "option",
+        [nameof(CashItem)] = "cash entry",
+        [nameof(WatchlistItem)] = "watchlist item",
+        [nameof(AllocationRiskTarget)] = "risk target",
+        [nameof(AllocationSectorTarget)] = "sector target",
+        [nameof(SinglePositionLimit)] = "position limit",
+        [nameof(AccountType)] = "account type",
+        [nameof(SectorIndustryConfig)] = "sector/industry setting",
+        [nameof(ApplicationUser)] = "user",
     };
 
     private static readonly string[] SymbolProps = ["Symbol", "UnderlyingTicker", "Ticker", "TradingTicker"];
@@ -223,14 +238,14 @@ public sealed class AuditSaveChangesInterceptor(
                 EntityId = Truncate(id, 64),
                 Symbol = Truncate(symbol, 30),
                 AccountType = Truncate(account, 120),
-                Summary = Truncate(Summarize(label, p), 500)!,
+                Summary = Truncate(Summarize(label, account, p), 500)!,
                 ChangesJson = JsonSerializer.Serialize(p.Changes),
                 CorrelationId = Truncate(correlation, 64),
             };
         }).ToList();
     }
 
-    private static string Summarize(string label, Pending p)
+    private static string Summarize(string label, string? account, Pending p)
     {
         var parts = p.Changes
             .Where(c => c.Field is not ("Id" or "AddedAt" or "CreatedAt"))
@@ -243,7 +258,11 @@ public sealed class AuditSaveChangesInterceptor(
             });
         var verb = p.Action switch { AuditActions.Create => "Added", AuditActions.Delete => "Deleted", _ => "Updated" };
         var body = string.Join(", ", parts);
-        return p.Action == AuditActions.Update ? $"{label}: {body}" : $"{verb} {p.Type} {label}: {body}";
+        var friendly = FriendlyNames.GetValueOrDefault(p.Type, p.Type);
+        var subject = label == p.Type ? friendly : $"{friendly} {label}";
+        return p.Action == AuditActions.Update
+            ? $"{(label == p.Type ? friendly : label)}{(account is null ? "" : $" ({account})")}: {body}"
+            : $"{verb} {subject}{(account is null ? "" : $" ({account})")}: {body}";
     }
 
     private static string? Read(EntityEntry entry, string name)

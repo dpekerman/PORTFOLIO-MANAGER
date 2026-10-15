@@ -83,6 +83,85 @@ public class AuditTests
     }
 
     [Fact]
+    public async Task UserPreferences_AndTimestampOnlyChanges_AreNotAudited()
+    {
+        var (db, _) = Create();
+        db.UserPreferences.Add(new UserPreference { UserId = "u1", PreferenceKey = "k", PreferenceValue = "1" });
+        var item = new CashItem { Amount = 5 };
+        db.CashItems.Add(item);
+        await db.SaveChangesAsync();
+        var before = await db.AuditLogs.CountAsync();
+
+        item.ModifiedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        before.Should().Be(1);
+        (await db.AuditLogs.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Query_ShowsCurrentDisplayName_NotStoredEmail()
+    {
+        var (db, http) = Create("admin", "Admin");
+        db.Users.Add(new ApplicationUser { Id = "u1", UserName = "x@y.com", DisplayName = "Liz" });
+        db.AuditLogs.Add(new AuditLog { UserId = "u1", UserName = "x@y.com", Category = "Stock", Action = "Create", EntityType = "T", Summary = "a" });
+        await db.SaveChangesAsync();
+        var svc = new AuditService(db, http, NullLogger<AuditService>.Instance);
+        (await svc.QueryAsync(new AuditQuery())).Items.Single(i => i.Category == "Stock").UserName.Should().Be("Liz");
+    }
+
+    [Fact]
+    public async Task Summary_UsesFriendlyNameAndAccount()
+    {
+        var (db, _) = Create();
+        db.AccountTypes.Add(new AccountType { Name = "TFSA_L_TD", NormalizedName = "TFSA_L_TD", Version = Guid.NewGuid() });
+        await db.SaveChangesAsync();
+        db.CashItems.Add(new CashItem { Amount = 5, AccountType = "TFSA_L_TD" });
+        await db.SaveChangesAsync();
+        (await db.AuditLogs.SingleAsync(l => l.Category == "Cash")).Summary.Should().StartWith("Added cash entry (TFSA_L_TD)");
+    }
+
+    [Fact]
+    public async Task DeleteMany_IsAdminOnly_AndExportQuotesAndNeutralisesFormulas()
+    {
+        var user = Create("u1");
+        user.db.AuditLogs.Add(new AuditLog { UserId = "u1", Category = "Stock", Action = "Create", EntityType = "T", Summary = "a" });
+        await user.db.SaveChangesAsync();
+        var userSvc = new AuditService(user.db, user.http, NullLogger<AuditService>.Instance);
+        (await userSvc.DeleteManyAsync([1])).Should().Be(0);
+
+        var admin = Create("admin", "Admin");
+        admin.db.AuditLogs.AddRange(
+            new AuditLog { UserId = "u1", Category = "Stock", Action = "Create", EntityType = "T", Summary = "=HYPERLINK(\"x\")" },
+            new AuditLog { UserId = "u1", Category = "Cash", Action = "Create", EntityType = "T", Summary = "b" });
+        await admin.db.SaveChangesAsync();
+        var svc = new AuditService(admin.db, admin.http, NullLogger<AuditService>.Instance);
+        var csv = await svc.ExportCsvAsync(new AuditQuery());
+        csv.Should().Contain("\"'=HYPERLINK(\"\"x\"\")\"");
+        (await svc.DeleteManyAsync([1, 2])).Should().Be(2);
+        (await admin.db.AuditLogs.SingleAsync()).Summary.Should().Be("2 audit entries deleted");
+    }
+
+    [Fact]
+    public async Task Delete_IsAdminOnly_AndIsItselfRecorded()
+    {
+        var user = Create("u1");
+        user.db.AuditLogs.Add(new AuditLog { UserId = "u1", Category = "Stock", Action = "Create", EntityType = "T", Summary = "a" });
+        await user.db.SaveChangesAsync();
+        var userSvc = new AuditService(user.db, user.http, NullLogger<AuditService>.Instance);
+        (await userSvc.DeleteAsync(1)).Should().BeFalse();
+        (await user.db.AuditLogs.CountAsync()).Should().Be(1);
+
+        var admin = Create("admin", "Admin");
+        admin.db.AuditLogs.Add(new AuditLog { UserId = "u1", Category = "Stock", Action = "Create", EntityType = "T", Summary = "a", Symbol = "AAPL" });
+        await admin.db.SaveChangesAsync();
+        var adminSvc = new AuditService(admin.db, admin.http, NullLogger<AuditService>.Instance);
+        (await adminSvc.DeleteAsync(1)).Should().BeTrue();
+        var rows = await admin.db.AuditLogs.ToListAsync();
+        rows.Should().ContainSingle().Which.Summary.Should().Contain("#1 deleted");
+    }
+
+    [Fact]
     public async Task Query_ScopesNonAdminToOwnRows_AndAdminSeesAll()
     {
         var (db, http) = Create("u1");

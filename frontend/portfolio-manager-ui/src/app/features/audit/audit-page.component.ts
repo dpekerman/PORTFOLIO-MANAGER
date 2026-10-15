@@ -2,6 +2,8 @@ import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -10,11 +12,17 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuditAction, AuditCategory, AuditLogEntry, AuditSource } from '../../core/models/portfolio.models';
 import { AuditRange, AuditStore } from '../../core/store/audit.store';
 import { AuthStore } from '../../core/store/auth.store';
+import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import {
+  ConfirmDialogComponent,
+  ConfirmDialogData,
+} from '../../shared/confirm-dialog/confirm-dialog.component';
 
 /** Fields holding money values; they go through DemoModeStore like every other monetary display. */
 const MONEY_FIELDS = new Set([
@@ -42,6 +50,7 @@ const SEARCH_DEBOUNCE_MS = 350;
     AppRefreshButtonComponent,
     MatButtonModule,
     MatButtonToggleModule,
+    MatCheckboxModule,
     MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
@@ -50,16 +59,30 @@ const SEARCH_DEBOUNCE_MS = 350;
     MatSelectModule,
     MatSortModule,
     MatTableModule,
+    MatTooltipModule,
   ],
 })
 export class AuditPageComponent {
   protected readonly store = inject(AuditStore);
   protected readonly isAdmin = inject(AuthStore).isAdmin;
+  protected readonly isHandset = inject(BreakpointStore).isHandset;
   private readonly demoMode = inject(DemoModeStore);
 
-  protected readonly displayedColumns = ['time', 'user', 'category', 'action', 'symbol', 'account', 'summary'];
+  protected readonly displayedColumns = computed(() => {
+    const cols = ['time', 'user', 'category', 'action', 'symbol', 'account', 'summary'];
+    return this.isAdmin() ? ['select', ...cols, 'actions'] : cols;
+  });
+  private readonly dialog = inject(MatDialog);
   protected readonly expandedId = signal<number | null>(null);
+  /** Collapsed by default on handsets so the entries are visible without scrolling past the filters. */
+  protected readonly filtersOpen = signal(!this.isHandset());
+  protected readonly selected = signal<ReadonlySet<number>>(new Set());
+  protected readonly selectedCount = computed(() => this.selected().size);
+  protected readonly allOnPageSelected = computed(
+    () => this.store.items().length > 0 && this.store.items().every((r) => this.selected().has(r.id)),
+  );
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  protected readonly emptySelection: ReadonlySet<number> = new Set();
 
   protected readonly ranges: { value: AuditRange; label: string }[] = [
     { value: 'today', label: 'Today' },
@@ -116,6 +139,63 @@ export class AuditPageComponent {
 
   protected toggle(row: AuditLogEntry): void {
     this.expandedId.update((id) => (id === row.id ? null : row.id));
+  }
+
+  protected toggleSelected(id: number): void {
+    this.selected.update((s) => {
+      const next = new Set(s);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  protected toggleAllOnPage(): void {
+    const ids = this.store.items().map((r) => r.id);
+    this.selected.update((s) => {
+      const next = new Set(s);
+      if (this.allOnPageSelected()) ids.forEach((id) => next.delete(id));
+      else ids.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  protected confirmDeleteSelected(): void {
+    const ids = [...this.selected()];
+    if (ids.length === 0) return;
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        data: {
+          title: 'Delete Audit Entries',
+          message: `Permanently delete ${ids.length} selected audit ${ids.length === 1 ? 'entry' : 'entries'}? This cannot be undone.`,
+          confirmLabel: 'Delete',
+          danger: true,
+        } satisfies ConfirmDialogData,
+        width: '400px',
+        maxWidth: '95vw',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.store.deleteEntries(ids, () => this.selected.set(new Set()));
+      });
+  }
+
+  protected confirmDelete(row: AuditLogEntry, event: Event): void {
+    event.stopPropagation();
+    this.dialog
+      .open(ConfirmDialogComponent, {
+        data: {
+          title: 'Delete Audit Entry',
+          message: `Permanently delete audit entry #${row.id} (${row.category} ${row.action}${row.symbol ? ' ' + row.symbol : ''})? This cannot be undone.`,
+          confirmLabel: 'Delete',
+          danger: true,
+        } satisfies ConfirmDialogData,
+        width: '400px',
+        maxWidth: '95vw',
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) this.store.deleteEntry(row.id);
+      });
   }
 
   protected setCategory(v: AuditCategory[]): void {

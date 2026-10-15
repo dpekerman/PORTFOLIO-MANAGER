@@ -1,4 +1,5 @@
 import { computed, inject } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { tapResponse } from '@ngrx/operators';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
@@ -92,6 +93,16 @@ export const AuditStore = signalStore(
   withState<AuditState>(initialState),
   withRequestStatus(),
   withComputed((s) => ({
+    /** Number of non-default filters, shown in the collapsed mobile header. */
+    activeFilterCount: computed(
+      () =>
+        (s.category().length > 0 ? 1 : 0) +
+        (s.action().length > 0 ? 1 : 0) +
+        (s.source() ? 1 : 0) +
+        (s.userId() ? 1 : 0) +
+        (s.q().trim() ? 1 : 0) +
+        (s.range() !== '7d' ? 1 : 0),
+    ),
     hasActiveFilters: computed(
       () =>
         s.category().length > 0 ||
@@ -102,7 +113,7 @@ export const AuditStore = signalStore(
         s.range() !== '7d',
     ),
   })),
-  withMethods((store, api = inject(AuditApiService)) => {
+  withMethods((store, api = inject(AuditApiService), snackBar = inject(MatSnackBar)) => {
     const params = (): AuditQueryParams => ({
       page: store.page(),
       pageSize: store.pageSize(),
@@ -123,7 +134,7 @@ export const AuditStore = signalStore(
           api.query(params()).pipe(
             tapResponse({
               next: (r) => patchState(store, { items: r.items, total: r.total }, setLoaded()),
-              error: () => patchState(store, setError('Failed to load audit log')),
+              error: () => patchState(store, setError('Failed to load audit')),
             }),
           ),
         ),
@@ -152,6 +163,41 @@ export const AuditStore = signalStore(
     return {
       load,
       loadFilters,
+      /** Deletes several entries (admin) and refetches; the server records the deletion itself. */
+      deleteEntries(ids: number[], done: () => void): void {
+        api.deleteMany(ids).subscribe({
+          next: ({ deleted }) => {
+            snackBar.open(`${deleted} audit entries deleted`, 'Close', { duration: 3000 });
+            done();
+            load();
+          },
+          error: () => snackBar.open('Failed to delete audit entries', 'Close', { duration: 4000 }),
+        });
+      },
+      /** Downloads the current filter as CSV. */
+      exportCsv(): void {
+        api.exportCsv(params()).subscribe({
+          next: (blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          },
+          error: () => snackBar.open('Failed to export audit', 'Close', { duration: 4000 }),
+        });
+      },
+      /** Deletes one entry (admin) and refetches; the server records the deletion itself. */
+      deleteEntry(id: number): void {
+        api.delete(id).subscribe({
+          next: () => {
+            snackBar.open('Audit entry deleted', 'Close', { duration: 3000 });
+            load();
+          },
+          error: () => snackBar.open('Failed to delete audit entry', 'Close', { duration: 4000 }),
+        });
+      },
       setRange: (range: AuditRange, customFrom: string | null = null, customTo: string | null = null) =>
         applyFilter({ range, customFrom, customTo }),
       setCategory: (category: AuditCategory[]) => applyFilter({ category }),

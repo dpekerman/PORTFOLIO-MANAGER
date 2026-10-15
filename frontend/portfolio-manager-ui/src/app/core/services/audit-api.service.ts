@@ -9,6 +9,27 @@ export class AuditApiService {
   private readonly base = '/api/audit';
 
   query(p: AuditQueryParams): Observable<AuditPagedResponse> {
+    return this.http.get<AuditPagedResponse>(this.base, { params: this.toParams(p) });
+  }
+
+  /** CSV of everything matching the filters (server caps at 10,000 rows); paging is ignored. */
+  exportCsv(p: AuditQueryParams): Observable<Blob> {
+    return this.http.get(`${this.base}/export`, { params: this.toParams(p), responseType: 'blob' });
+  }
+
+  getFilters(): Observable<AuditFilters> {
+    return this.http.get<AuditFilters>(`${this.base}/filters`);
+  }
+
+  delete(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${id}`);
+  }
+
+  deleteMany(ids: number[]): Observable<{ deleted: number }> {
+    return this.http.post<{ deleted: number }>(`${this.base}/delete-batch`, { ids });
+  }
+
+  private toParams(p: AuditQueryParams): HttpParams {
     let params = new HttpParams()
       .set('page', p.page)
       .set('pageSize', p.pageSize)
@@ -21,10 +42,6 @@ export class AuditApiService {
     if (p.source) params = params.set('source', p.source);
     if (p.userId) params = params.set('userId', p.userId);
     if (p.q.trim()) params = params.set('q', p.q.trim());
-    return this.http.get<AuditPagedResponse>(this.base, { params });
-  }
-
-  getFilters(): Observable<AuditFilters> {
-    return this.http.get<AuditFilters>(`${this.base}/filters`);
+    return params;
   }
 }

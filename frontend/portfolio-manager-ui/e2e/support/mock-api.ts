@@ -200,6 +200,8 @@ get(/^\/api\/cash\/link\/.+$/, () => null);
 // ── Audit ────────────────────────────────────────────────────────────────────
 get(/^\/api\/audit$/, auditResponse);
 get(/^\/api\/audit\/filters$/, auditFilters);
+get(/^\/api\/audit\/export$/, () => 'Time (UTC),User\n');
+on('POST', /^\/api\/audit\/delete-batch$/, () => ({ deleted: 1 }));
 
 // ── Scanner ──────────────────────────────────────────────────────────────────
 get(/^\/api\/scanner\/rsi(\/snapshot)?$/, scannerResponse);

@@ -107,10 +107,10 @@ export const APP_ROUTES: RouteSpec[] = [
   },
   {
     path: '/audit',
-    navLabel: 'Audit Log',
-    landmark: heading(1, /^Audit Log$/),
+    navLabel: 'Audit',
+    landmark: heading(1, /^Audit$/),
     hasMatTable: true,
-    primaryControls: (p) => [p.getByLabel(/Search symbol/)],
+    primaryControls: (p) => [btn(p, /Export CSV/)],
     inLayout: true,
   },
   {

@@ -1,20 +1,38 @@
 <div class="audit-page">
   <header class="page-header">
-    <h1 class="page-title">Audit Log</h1>
-    <app-refresh-button />
+    <h1 class="page-title">Audit</h1>
+    <div class="header-actions">
+      <button
+        mat-icon-button
+        type="button"
+        matTooltip="Export filtered entries to CSV"
+        aria-label="Export CSV"
+        [disabled]="store.total() === 0"
+        (click)="store.exportCsv()"
+      >
+        <mat-icon>download</mat-icon>
+      </button>
+      <app-refresh-button />
+    </div>
   </header>
 
   <section class="filters" aria-label="Audit filters">
-    <mat-expansion-panel class="filters-panel" [expanded]="true">
+    <mat-expansion-panel class="filters-panel" [(expanded)]="filtersOpen">
       <mat-expansion-panel-header>
-        <mat-panel-title>Filters</mat-panel-title>
+        <mat-panel-title>
+          Filters
+          @if (store.activeFilterCount() > 0) {
+            <span class="filter-badge" [attr.aria-label]="store.activeFilterCount() + ' active filters'">{{ store.activeFilterCount() }}</span>
+          }
+        </mat-panel-title>
         <mat-panel-description>{{ store.total() }} events</mat-panel-description>
       </mat-expansion-panel-header>
 
       <div class="filter-grid">
         <mat-button-toggle-group
-          class="range-toggle"
+          class="range-toggle span-all"
           aria-label="Date range"
+          hideSingleSelectionIndicator
           [value]="store.range()"
           (change)="onRangeChange($event.value)"
         >
@@ -34,8 +52,14 @@
           </mat-form-field>
         }
 
-        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
-          <mat-label>Search symbol, account or text</mat-label>
+        <mat-form-field
+          appearance="outline"
+          subscriptSizing="dynamic"
+          class="search-field span-all"
+          matTooltip="Type a symbol (AAPL), an account (TFSA_L_TD) or any text from the summary"
+          matTooltipPosition="above"
+        >
+          <mat-label>Search</mat-label>
           <input matInput [value]="store.q()" (input)="onSearch($any($event.target).value)" />
           <mat-icon matSuffix>search</mat-icon>
         </mat-form-field>
@@ -80,7 +104,7 @@
           </mat-form-field>
         }
 
-        <div class="mobile-only mobile-sort">
+        <div class="mobile-only mobile-sort span-all">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
             <mat-label>Sort by</mat-label>
             <mat-select [value]="store.sortBy()" (selectionChange)="store.setSort($event.value, store.sortDir())">
@@ -95,13 +119,24 @@
         </div>
 
         @if (store.hasActiveFilters()) {
-          <button mat-button type="button" class="clear-btn" (click)="store.resetFilters()">
+          <button mat-button type="button" class="clear-btn span-all" (click)="store.resetFilters()">
             <mat-icon>filter_alt_off</mat-icon> Clear filters
           </button>
         }
       </div>
     </mat-expansion-panel>
   </section>
+
+  @if (isAdmin() && selectedCount() > 0) {
+    <div class="bulk-bar" role="region" aria-label="Selection actions">
+      <span>{{ selectedCount() }} selected</span>
+      <span class="bulk-spacer"></span>
+      <button mat-button type="button" (click)="selected.set(emptySelection)">Clear</button>
+      <button mat-flat-button type="button" class="danger-btn" (click)="confirmDeleteSelected()">
+        <mat-icon>delete</mat-icon> Delete selected
+      </button>
+    </div>
+  }
 
   @if (store.error(); as error) {
     <div class="state-row error" role="alert">{{ error }}</div>
@@ -125,6 +160,23 @@
         (matSortChange)="onSortChange($event)"
         class="audit-table"
       >
+        <ng-container matColumnDef="select">
+          <th mat-header-cell *matHeaderCellDef class="select-cell">
+            <mat-checkbox
+              [checked]="allOnPageSelected()"
+              [indeterminate]="selectedCount() > 0 && !allOnPageSelected()"
+              (change)="toggleAllOnPage()"
+              aria-label="Select all on this page"
+            />
+          </th>
+          <td mat-cell *matCellDef="let row" class="select-cell" (click)="$event.stopPropagation()">
+            <mat-checkbox
+              [checked]="selected().has(row.id)"
+              (change)="toggleSelected(row.id)"
+              aria-label="Select audit entry"
+            />
+          </td>
+        </ng-container>
         <ng-container matColumnDef="time">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Time</th>
           <td mat-cell *matCellDef="let row">{{ row.occurredAtUtc | date: 'MMM d, y, h:mm:ss a' }}</td>
@@ -159,18 +211,27 @@
           </td>
         </ng-container>
 
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row" class="actions-cell">
+            <button mat-icon-button type="button" matTooltip="Delete entry" aria-label="Delete audit entry" (click)="confirmDelete(row, $event)">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="detail">
-          <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns.length" class="detail-cell">
+          <td mat-cell *matCellDef="let row" [attr.colspan]="displayedColumns().length" class="detail-cell">
             @if (expandedId() === row.id) {
               <ng-container [ngTemplateOutlet]="diff" [ngTemplateOutletContext]="{ $implicit: row }" />
             }
           </td>
         </ng-container>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
         <tr
           mat-row
-          *matRowDef="let row; columns: displayedColumns"
+          *matRowDef="let row; columns: displayedColumns()"
           class="audit-row"
           [class.expanded]="expandedId() === row.id"
           (click)="toggle(row)"
@@ -181,23 +242,38 @@
 
     <div class="mobile-only mobile-cards">
       @for (row of store.items(); track row.id) {
-        <article class="audit-card">
+        <article class="audit-card" [class.selected]="selected().has(row.id)">
+          <div class="card-top">
+            @if (isAdmin()) {
+              <mat-checkbox
+                [checked]="selected().has(row.id)"
+                (change)="toggleSelected(row.id)"
+                aria-label="Select audit entry"
+              />
+            }
+            <span class="badge" [class]="'badge ' + actionClass(row.action)">{{ row.action }}</span>
+            <span class="card-time">{{ row.occurredAtUtc | date: 'MMM d, h:mm a' }}</span>
+            @if (isAdmin()) {
+              <button mat-icon-button type="button" class="card-delete" aria-label="Delete audit entry" (click)="confirmDelete(row, $event)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            }
+          </div>
           <button type="button" class="card-head" [attr.aria-expanded]="expandedId() === row.id" (click)="toggle(row)">
-            <span class="card-top">
-              <span class="badge" [class]="'badge ' + actionClass(row.action)">{{ row.action }}</span>
-              <span class="card-time">{{ row.occurredAtUtc | date: 'MMM d, h:mm a' }}</span>
-            </span>
             <span class="card-title">
               @if (row.symbol) {
                 <strong>{{ row.symbol }}</strong>
               }
               <span class="card-cat">{{ row.category }}</span>
+              @if (row.accountType) {
+                <span class="card-cat">· {{ row.accountType }}</span>
+              }
             </span>
             <span class="card-summary">{{ summary(row) }}</span>
             <span class="card-meta">
-              <span>{{ who(row) }}</span>
-              @if (row.accountType) {
-                <span>{{ row.accountType }}</span>
+              <span><mat-icon class="meta-icon">person</mat-icon> {{ who(row) }}</span>
+              @if (row.changes.length > 0) {
+                <mat-icon class="expand-icon">{{ expandedId() === row.id ? 'expand_less' : 'expand_more' }}</mat-icon>
               }
             </span>
           </button>

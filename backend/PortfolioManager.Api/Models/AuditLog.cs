@@ -89,6 +89,8 @@ public record AuditPagedResponse(
 
 public record AuditUserDto(string UserId, string UserName);
 
+public record DeleteAuditBatchRequest(long[]? Ids);
+
 public record AuditFiltersDto(
     IReadOnlyList<string> Categories,
     IReadOnlyList<string> Actions,
