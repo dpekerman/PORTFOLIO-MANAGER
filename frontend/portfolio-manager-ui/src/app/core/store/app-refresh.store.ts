@@ -32,6 +32,8 @@ export type RefreshReason = 'auto-timer' | 'user-click' | 'feature-refresh';
 type OfflineReason = 'network' | 'server' | 'timeout';
 
 const LAST_REFRESHED_KEY = 'pm_last_refreshed';
+const REFRESH_WATCH_INTERVAL_MS = 100;
+const REFRESH_WATCH_TIMEOUT_MS = 30_000;
 
 interface AppRefreshState {
   isRefreshing: boolean;
@@ -131,6 +133,7 @@ export const AppRefreshStore = signalStore(
     ) => {
       const cancel$ = new Subject<void>();
       let retryTimeoutId: number | null = null;
+      let currentRun = 0;
 
       const setSteps = (project: (steps: RefreshStep[]) => RefreshStep[]): void =>
         patchState(store, ({ refreshSteps }) => ({ refreshSteps: project(refreshSteps) }));
@@ -182,33 +185,57 @@ export const AppRefreshStore = signalStore(
               // Push fresh data directly — no loading state, no extra HTTP round-trips
               portfolioState.setFromRefresh(result.portfolioSummaries);
               watchlistState.setFromRefresh(result.watchlistSummaries);
-              // Rebuild (not just re-fetch cached) so the dashboard total reflects the quotes just refreshed above
-              dashboardState.refresh();
-              // Bounded, explicit refresh of full-watchlist technical data (Priority Candidates only ever reads the cache)
-              watchlistRsi.triggerRefresh(result.watchlistSymbols);
+              // /refresh-all already rebuilt the dashboard snapshot server-side from these quotes, so just
+              // read it. A second POST /dashboard/refresh repeated the rebuild plus the slow earnings fetch.
+              dashboardState.load();
 
-              setStepStatus('dashboard', 'done');
               setStepStatus('actions', 'loading');
 
               // Force-reload action scores and performance summary after snapshot rebuild
               dashboardState.loadPortfolioActions();
               dashboardState.loadEodSummary();
               dashboardState.loadMarketLeadership();
+              dashboardState.loadActionScores();
               dashboardState.loadPerformanceSummary();
 
-              setStepStatus('actions', 'done');
               setStepStatus('eod-signals', 'loading');
 
               // Poll for new EOD signals
               eodSignalsState.loadSignals();
 
-              // Simulate EOD signals completion (loadSignals is async, completes within seconds)
-              setTimeout(() => {
-                setStepStatus('eod-signals', 'done');
+              // Step statuses follow the real in-flight requests. The full-watchlist RSI scan starts
+              // only after the numbers are on screen so it does not compete with them.
+              const runId = ++currentRun;
+              const startedAt = Date.now();
+              const watch = setInterval(() => {
+                if (runId !== currentRun || !store.isRefreshing()) {
+                  clearInterval(watch);
+                  return;
+                }
+                const dashboardDone = !dashboardState.loading();
+                const actionsDone =
+                  !dashboardState.actionsLoading() &&
+                  !dashboardState.eodSummaryLoading() &&
+                  !dashboardState.marketLeadershipLoading() &&
+                  !dashboardState.actionScoresLoading() &&
+                  !dashboardState.performanceSummaryLoading();
+                const eodDone = !eodSignalsState.loading();
+                if (dashboardDone) setStepStatus('dashboard', 'done');
+                if (actionsDone) setStepStatus('actions', 'done');
+                if (eodDone) setStepStatus('eod-signals', 'done');
+
+                const timedOut = Date.now() - startedAt > REFRESH_WATCH_TIMEOUT_MS;
+                if (!(dashboardDone && actionsDone && eodDone) && !timedOut) return;
+
+                clearInterval(watch);
+                setSteps((steps) =>
+                  steps.map((s) => (s.status === 'loading' ? { ...s, status: 'done' } : s)),
+                );
                 const now = new Date();
                 patchState(store, { isRefreshing: false, lastRefreshedAt: now });
                 localStorage.setItem(LAST_REFRESHED_KEY, now.toISOString());
-              }, 1500);
+                watchlistRsi.triggerRefresh(result.watchlistSymbols);
+              }, REFRESH_WATCH_INTERVAL_MS);
             },
             error: (err) => {
               handleRefreshError(err);
