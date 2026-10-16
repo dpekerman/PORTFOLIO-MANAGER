@@ -25,13 +25,21 @@ describe('AppRefreshStore', () => {
   const portfolio = { setFromRefresh: vi.fn() };
   const watchlist = { setFromRefresh: vi.fn() };
   const dashboard = {
+    load: vi.fn(),
     refresh: vi.fn(),
     loadPortfolioActions: vi.fn(),
     loadEodSummary: vi.fn(),
     loadMarketLeadership: vi.fn(),
+    loadActionScores: vi.fn(),
     loadPerformanceSummary: vi.fn(),
+    loading: signal(false),
+    actionsLoading: signal(false),
+    eodSummaryLoading: signal(false),
+    marketLeadershipLoading: signal(false),
+    actionScoresLoading: signal(false),
+    performanceSummaryLoading: signal(false),
   };
-  const eodSignals = { loadSignals: vi.fn() };
+  const eodSignals = { loadSignals: vi.fn(), loading: signal(false) };
   const watchlistRsi = { triggerRefresh: vi.fn() };
 
   beforeEach(() => {
@@ -40,8 +48,12 @@ describe('AppRefreshStore', () => {
     config.set({ appRefreshSeconds: 0 });
     api.refreshAll.mockReset().mockReturnValue(of(refreshResult));
     [portfolio, watchlist, dashboard, eodSignals, watchlistRsi].forEach((dep) =>
-      Object.values(dep).forEach((fn) => fn.mockReset()),
+      Object.values(dep).forEach((fn) => {
+        if (typeof fn === 'function' && 'mockReset' in fn) fn.mockReset();
+      }),
     );
+    dashboard.loading.set(false);
+    eodSignals.loading.set(false);
     TestBed.configureTestingModule({
       providers: [
         { provide: PortfolioApiService, useValue: api },
@@ -73,14 +85,34 @@ describe('AppRefreshStore', () => {
 
     expect(portfolio.setFromRefresh).toHaveBeenCalledOnce();
     expect(watchlist.setFromRefresh).toHaveBeenCalledOnce();
-    expect(dashboard.refresh).toHaveBeenCalledOnce();
-    expect(watchlistRsi.triggerRefresh).toHaveBeenCalledWith(['NVDA']);
+    expect(dashboard.load).toHaveBeenCalledOnce();
+    expect(dashboard.refresh).not.toHaveBeenCalled();
+    expect(dashboard.loadActionScores).toHaveBeenCalledOnce();
+    expect(dashboard.loadActionScores).toHaveBeenCalledOnce();
     expect(dashboard.loadPerformanceSummary).toHaveBeenCalledOnce();
     expect(eodSignals.loadSignals).toHaveBeenCalledOnce();
     expect(s.isRefreshing()).toBe(true);
   });
 
-  it('finishes and persists the timestamp 1.5s after the response', () => {
+  it('starts the watchlist RSI scan only after the data requests finish', () => {
+    const s = store();
+    dashboard.loading.set(true);
+
+    s.refreshAll();
+    vi.advanceTimersByTime(1000);
+
+    expect(s.isRefreshing()).toBe(true);
+    expect(s.refreshSteps().find((x) => x.key === 'dashboard')?.status).toBe('loading');
+    expect(watchlistRsi.triggerRefresh).not.toHaveBeenCalled();
+
+    dashboard.loading.set(false);
+    vi.advanceTimersByTime(200);
+
+    expect(s.isRefreshing()).toBe(false);
+    expect(watchlistRsi.triggerRefresh).toHaveBeenCalledWith(['NVDA']);
+  });
+
+  it('finishes and persists the timestamp once the requests complete', () => {
     const s = store();
 
     s.refreshAll();
@@ -224,7 +256,7 @@ describe('AppRefreshStore', () => {
     expect(s.secondsSinceRefresh()).toBeNull();
 
     s.refreshAll();
-    vi.advanceTimersByTime(1500);
+    vi.advanceTimersByTime(100);
 
     expect(s.secondsSinceRefresh()).toBe(0);
   });

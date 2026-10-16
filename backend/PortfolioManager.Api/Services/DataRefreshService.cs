@@ -35,6 +35,8 @@ public sealed class DataRefreshService(
         var tickerItems  = portfolioItems.Where(i => !i.IsManual).ToList();
         var manualItems  = portfolioItems.Where(i => i.IsManual).ToList();
         var watchSymbols = watchlistItems.Select(i => i.Symbol);
+        var latestSignals = await LoadLatestEodSignalsAsync(
+            tickerItems.Select(i => i.Symbol).Concat(watchSymbols), ct);
 
         // Yahoo Finance HTTP calls have no DbContext — safe to run in parallel
         Task<Dictionary<string, StockQuote>> portfolioQuotesTask = tickerItems.Count > 0
@@ -56,7 +58,7 @@ public sealed class DataRefreshService(
             portfolioQuotes.TryGetValue(item.Symbol, out var quote);
             if (quote is not null) quote.CompanyName = item.CompanyName;
             var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, userId, ct);
-            var sharedFacts = await ToSharedFactsAsync(technical, item.Symbol, latestEodTradingDate, ct);
+            var sharedFacts = ToSharedFacts(technical, item.Symbol, latestEodTradingDate, latestSignals);
             portfolioSummaries.Add(new PortfolioSummaryDto(item, quote, technical.PriceStructure, sharedFacts));
         }
         foreach (var item in manualItems)
@@ -83,7 +85,7 @@ public sealed class DataRefreshService(
         {
             watchlistQuotes.TryGetValue(item.Symbol, out var quote);
             var technical = await technicalSnapshots.GetSnapshotAsync(item.Symbol, userId, ct);
-            var sharedFacts = await ToSharedFactsAsync(technical, item.Symbol, latestEodTradingDate, ct);
+            var sharedFacts = ToSharedFacts(technical, item.Symbol, latestEodTradingDate, latestSignals);
             watchlistSummaries.Add(new WatchlistSummaryDto(item, quote, technical.PriceStructure, sharedFacts));
         }
 
@@ -122,16 +124,15 @@ public sealed class DataRefreshService(
             WatchlistSymbols: watchlistSymbols);
     }
 
-    private async Task<SharedTechnicalFacts?> ToSharedFactsAsync(
+    private SharedTechnicalFacts? ToSharedFacts(
         TechnicalSnapshot snapshot,
         string symbol,
         string? latestEodTradingDate,
-        CancellationToken ct)
+        IReadOnlyDictionary<string, DailySignal> latestSignals)
     {
         if (!snapshot.HasTechnicalData) return null;
 
-        // Fetch latest EOD signal for this symbol
-        var eodSignal = await GetLatestEodSignalAsync(symbol, ct);
+        latestSignals.TryGetValue(symbol, out var eodSignal);
 
         return new SharedTechnicalFacts(
             Symbol: snapshot.Symbol,
@@ -162,13 +163,25 @@ public sealed class DataRefreshService(
             UsesUnderlyingSecurity: snapshot.UsesUnderlyingSecurity);
     }
 
-    private async Task<DailySignal?> GetLatestEodSignalAsync(string symbol, CancellationToken ct)
+    // One query for every symbol instead of one per symbol; same filter and ordering as before.
+    private async Task<Dictionary<string, DailySignal>> LoadLatestEodSignalsAsync(
+        IEnumerable<string> symbols, CancellationToken ct)
     {
-        return await db.DailySignals
-            .Where(s => s.Symbol == symbol && s.SignalState != "Expired" && s.TradingDate != null)
-            .OrderByDescending(s => s.TradingDate)
-            .ThenByDescending(s => s.ScannedAt ?? s.RecordedAt)
-            .FirstOrDefaultAsync(ct);
+        var list = symbols.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (list.Count == 0) return new Dictionary<string, DailySignal>(StringComparer.OrdinalIgnoreCase);
+
+        var signals = await db.DailySignals.AsNoTracking()
+            .Where(s => list.Contains(s.Symbol) && s.SignalState != "Expired" && s.TradingDate != null)
+            .ToListAsync(ct);
+
+        return signals
+            .GroupBy(s => s.Symbol, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(s => s.TradingDate, StringComparer.Ordinal)
+                      .ThenByDescending(s => s.ScannedAt ?? s.RecordedAt)
+                      .First(),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private static string? MapReversalStrength(string? reversalProbability)

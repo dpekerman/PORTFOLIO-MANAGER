@@ -520,31 +520,49 @@ public sealed class YahooFinanceService : IMarketDataProvider
         return null;
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime? Date, DateTime ExpiresUtc)> EarningsCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan EarningsHitTtl = TimeSpan.FromHours(6);
+    private static readonly TimeSpan EarningsMissTtl = TimeSpan.FromHours(1);
+
     public async Task<Dictionary<string, DateTime>> GetEarningsDatesAsync(IEnumerable<string> symbols, CancellationToken ct = default)
     {
         var result = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         foreach (var symbol in symbols.Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            if (EarningsCache.TryGetValue(symbol, out var cached) && cached.ExpiresUtc > DateTime.UtcNow)
+            {
+                if (cached.Date.HasValue) result[symbol] = cached.Date.Value;
+                continue;
+            }
+
+            DateTime? fetched = null;
+            var cacheable = false;
             try
             {
                 var response = await SendWithCrumbAsync(
                     $"v10/finance/quoteSummary/{Uri.EscapeDataString(symbol)}?modules=calendarEvents", ct);
-                if (!response.IsSuccessStatusCode) continue;
-                using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
-                var dates = document.RootElement
-                    .GetProperty("quoteSummary").GetProperty("result")[0]
-                    .GetProperty("calendarEvents").GetProperty("earnings").GetProperty("earningsDate");
-                var date = dates.EnumerateArray()
-                    .Select(x => x.TryGetProperty("raw", out var raw) && raw.TryGetInt64(out var unix)
-                        ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.Date
-                        : (DateTime?)null)
-                    .FirstOrDefault(x => x.HasValue);
-                if (date.HasValue) result[symbol] = date.Value;
+                if (response.IsSuccessStatusCode)
+                {
+                    using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+                    var dates = document.RootElement
+                        .GetProperty("quoteSummary").GetProperty("result")[0]
+                        .GetProperty("calendarEvents").GetProperty("earnings").GetProperty("earningsDate");
+                    fetched = dates.EnumerateArray()
+                        .Select(x => x.TryGetProperty("raw", out var raw) && raw.TryGetInt64(out var unix)
+                            ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.Date
+                            : (DateTime?)null)
+                        .FirstOrDefault(x => x.HasValue);
+                    cacheable = true;
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Earnings date unavailable for {Symbol}", symbol);
             }
+
+            if (fetched.HasValue) result[symbol] = fetched.Value;
+            if (cacheable)
+                EarningsCache[symbol] = (fetched, DateTime.UtcNow + (fetched.HasValue ? EarningsHitTtl : EarningsMissTtl));
             await Task.Delay(300, ct);
         }
         return result;
