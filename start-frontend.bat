@@ -16,6 +16,6 @@ for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":4200 " ^| findstr "LISTENIN
 )
 
 cd /d "%~dp0frontend\portfolio-manager-ui"
-npx ng serve
+npx ng serve --configuration https
 
 pause

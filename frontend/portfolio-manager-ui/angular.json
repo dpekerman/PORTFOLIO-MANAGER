@@ -73,6 +73,12 @@
             },
             "development": {
               "buildTarget": "portfolio-manager-ui:build:development"
+            },
+            "https": {
+              "buildTarget": "portfolio-manager-ui:build:development",
+              "ssl": true,
+              "sslCert": "../../certs/pm-server.pem",
+              "sslKey": "../../certs/pm-server.key"
             }
           },
           "defaultConfiguration": "development"
