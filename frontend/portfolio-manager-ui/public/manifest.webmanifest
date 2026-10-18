@@ -1,9 +1,12 @@
 {
+  "id": "/",
   "name": "Portfolio Manager",
   "short_name": "Portfolio",
-  "start_url": "/",
+  "description": "Portfolio Manager - dashboard, scanner and signals",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "icons": [
