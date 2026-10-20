@@ -34,6 +34,7 @@ public sealed class EodAutomationOrchestratorService(
     AutomationRuntimeConfig automationConfig,
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
+    IHostApplicationLifetime appLifetime,
     ILogger<EodAutomationOrchestratorService> logger) : IEodAutomationOrchestratorService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
@@ -406,7 +407,9 @@ public sealed class EodAutomationOrchestratorService(
     {
         log.OverallStatus = AutomationStatuses.Cancelled;
         log.ErrorStep = null;
-        log.ErrorMessage = "Cancelled by admin.";
+        log.ErrorMessage = appLifetime.ApplicationStopping.IsCancellationRequested
+            ? "Interrupted: the API was stopped or restarted while the run was in progress."
+            : "Cancelled by admin.";
         log.CompletedAtUtc = DateTime.UtcNow;
         logger.LogInformation("[EodAutomation] Run {RunId} was cancelled.", log.RunId);
         try { await db.SaveChangesAsync(CancellationToken.None); } catch { /* best effort */ }
