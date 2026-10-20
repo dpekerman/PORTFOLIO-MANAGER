@@ -1,35 +1,28 @@
 <div class="eod-page">
   <!-- ── Page Header ──────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
-      <mat-icon class="page-icon">timeline</mat-icon>
-      <div>
-        <h1 class="page-title">
-          EOD SIGNALS
-          @if (totalCount() > 0) {
-            <span class="count-badge">{{ totalCount() }}</span>
-          }
-        </h1>
-        <p class="page-sub">
-          Confirmed end-of-day signals · Lifecycle tracking · History
-          @if (meta(); as m) {
-            @if (m.minDate && m.maxDate) {
-              · <span class="date-range">{{ m.minDate }} – {{ m.maxDate }}</span>
-            }
-          }
-        </p>
-        @if (lastCheckedAt()) {
-          <p class="last-checked">
-            @if (autoRefreshing()) {
-              <mat-icon class="spin-xs">sync</mat-icon>
-            }
-            CHECKED {{ lastCheckedAt() | date: 'HH:mm:ss' }}
-          </p>
+  <app-page-header
+    icon="timeline"
+    title="EOD SIGNALS"
+    subtitle="Confirmed end-of-day signals · Lifecycle tracking · History"
+  >
+    @if (totalCount() > 0) {
+      <span pageTitleExtra class="count-badge">{{ totalCount() }}</span>
+    }
+    @if (meta(); as m) {
+      @if (m.minDate && m.maxDate) {
+        <span pageSub> · <span class="date-range">{{ m.minDate }} – {{ m.maxDate }}</span></span>
+      }
+    }
+    @if (lastCheckedAt()) {
+      <p pageMeta class="last-checked">
+        @if (autoRefreshing()) {
+          <mat-icon class="spin-xs">sync</mat-icon>
         }
-      </div>
-    </div>
+        CHECKED {{ lastCheckedAt() | date: 'HH:mm:ss' }}
+      </p>
+    }
 
-    <div class="page-actions">
+    <ng-container ngProjectAs="[pageActions]">
       <app-refresh-button
         tooltip="Refresh all data and reload signals"
         [busy]="loading()"
@@ -73,8 +66,8 @@
           Delete All
         </button>
       }
-    </div>
-  </div>
+    </ng-container>
+  </app-page-header>
 
   <!-- ── Persist Progress Banner ──────────────────────────────────────── -->
   @if (persistingNow()) {

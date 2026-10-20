@@ -75,6 +75,7 @@ type SortCol =
 type SortDir = 'asc' | 'desc';
 
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
 @Component({
   selector: 'app-eod-signals-page',
@@ -83,6 +84,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AppRefreshButtonComponent,
+    PageHeaderComponent,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,

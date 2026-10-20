@@ -477,13 +477,70 @@
 
     .sticky-save-bar-actions {
       flex: 1 1 100%;
-      flex-wrap: wrap;
+      width: 100%;
+      flex-wrap: nowrap;
       gap: 8px;
 
       .mat-mdc-button-base:not(.mat-mdc-icon-button) {
-        flex: 1 1 100%;
+        flex: 1 1 0;
+        min-width: 0;
         min-height: 44px;
+        padding: 0 10px;
       }
+
+      .label-full {
+        display: none;
+      }
+
+      .label-short {
+        display: inline;
+      }
+    }
+
+    // Spacing and one-column fields so hints and labels never collide on a 360px screen.
+    .fields-grid,
+    .alloc-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .section-body {
+      gap: 12px;
+    }
+
+    .sub-card-body {
+      padding: 12px;
+    }
+
+    .section-footer {
+      flex-direction: column;
+      align-items: stretch;
+
+      .section-footer-hint {
+        flex: none;
+      }
+
+      .mat-mdc-button-base {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    .demo-save-row {
+      flex-wrap: wrap;
+    }
+
+    .email-info,
+    .eod-info-banner {
+      overflow-wrap: anywhere;
+
+      code {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    .lists-grid {
+      grid-template-columns: minmax(0, 1fr);
     }
 
     .section-body {

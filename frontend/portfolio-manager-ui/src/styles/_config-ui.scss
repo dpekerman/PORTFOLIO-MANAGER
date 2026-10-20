@@ -1,0 +1,8 @@
+@use 'sass:meta';
+
+// Shared settings-UI library (sections, sub-cards, field grids, tab-specific blocks).
+// Every rule is scoped under `.cfg-tab`, the wrapper the config shell puts around each tab, so
+// nothing leaks to other pages. Kept global because the combined styles exceed the component budget.
+.cfg-tab {
+  @include meta.load-css('config-tabs');
+}
