@@ -315,5 +315,15 @@
       <mat-icon>{{ sendingAutomationTestEmail() ? 'hourglass_empty' : 'mail_outline' }}</mat-icon>
       {{ sendingAutomationTestEmail() ? 'Sending…' : 'Test Automation Email' }}
     </button>
+    <button
+      mat-stroked-button
+      type="button"
+      (click)="sendScoreAlertTest()"
+      [disabled]="sendingScoreAlertTest()"
+      matTooltip="Send a sample Priority Candidate score alert (marked [TEST]) to all registered recipients"
+    >
+      <mat-icon>{{ sendingScoreAlertTest() ? 'hourglass_empty' : 'star_outline' }}</mat-icon>
+      {{ sendingScoreAlertTest() ? 'Sending…' : 'Test Score Alert' }}
+    </button>
   </div>
 </app-settings-section>

@@ -80,6 +80,10 @@ export class ScannerTabComponent {
       this.configService.config().sessionTimeoutMinutes,
       [Validators.required, Validators.min(0), Validators.max(1440)],
     ],
+    scoreAlertThreshold: [
+      this.configService.config().scoreAlertThreshold,
+      [Validators.required, Validators.min(1), Validators.max(100)],
+    ],
   });
 
   constructor() {
@@ -105,6 +109,7 @@ export class ScannerTabComponent {
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
       sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
+      scoreAlertThreshold: this.form.value.scoreAlertThreshold ?? 70,
     });
     this.form.markAsPristine();
     // Clear server RSI cache so the next scan uses the new thresholds
@@ -131,6 +136,7 @@ export class ScannerTabComponent {
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
+      scoreAlertThreshold: cfg.scoreAlertThreshold,
     });
     this.form.markAsPristine();
     if (notify) this.snackBar.open('Settings reset to defaults.', 'OK', { duration: 3000 });

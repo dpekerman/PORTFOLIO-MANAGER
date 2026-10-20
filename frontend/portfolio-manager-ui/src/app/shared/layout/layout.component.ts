@@ -14,6 +14,7 @@ import { AuthApiService } from '../../core/services/auth-api.service';
 import { AuthStore } from '../../core/store/auth.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { ScannerStore } from '../../core/store/scanner.store';
+import { ScoreAlertStore } from '../../core/store/score-alert.store';
 import { ThemeStore } from '../../core/store/theme.store';
 import { AppRefreshProgressComponent } from '../app-refresh-progress/app-refresh-progress.component';
 import { MarketHeaderComponent } from '../market-header/market-header.component';
@@ -45,6 +46,8 @@ export class LayoutComponent {
   protected readonly authState = inject(AuthStore);
   // Instantiate to activate auto-refresh timer and the RSI analysis / Action Center sync it starts
   protected readonly appRefresh = inject(AppRefreshStore);
+  // Instantiate to activate the score e-mail alert that runs after each refresh
+  private readonly scoreAlert = inject(ScoreAlertStore);
   private readonly authApi = inject(AuthApiService);
   private readonly router = inject(Router);
 

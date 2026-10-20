@@ -19,7 +19,7 @@ public interface IAuditService
     Task<string> ExportCsvAsync(AuditQuery query, CancellationToken ct = default);
     /// <summary>Records an explicit event (automation run, backup, restore...). Never throws.</summary>
     Task LogAsync(string category, string action, string summary, string? entityType = null,
-        string? symbol = null, CancellationToken ct = default);
+        string? symbol = null, CancellationToken ct = default, string? changesJson = null);
 }
 
 public sealed class AuditService(AppDbContext db, IHttpContextAccessor httpCtx, ILogger<AuditService> logger) : IAuditService
@@ -171,7 +171,7 @@ public sealed class AuditService(AppDbContext db, IHttpContextAccessor httpCtx, 
     }
 
     public async Task LogAsync(string category, string action, string summary, string? entityType = null,
-        string? symbol = null, CancellationToken ct = default)
+        string? symbol = null, CancellationToken ct = default, string? changesJson = null)
     {
         try
         {
@@ -187,6 +187,7 @@ public sealed class AuditService(AppDbContext db, IHttpContextAccessor httpCtx, 
                 EntityType = entityType ?? category,
                 Symbol = symbol,
                 Summary = summary.Length > 500 ? summary[..500] : summary,
+                ChangesJson = changesJson,
                 CorrelationId = http?.TraceIdentifier,
             });
             await db.SaveChangesAsync(ct);

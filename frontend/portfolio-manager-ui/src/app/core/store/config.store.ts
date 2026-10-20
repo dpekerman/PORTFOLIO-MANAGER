@@ -18,6 +18,8 @@ export interface AppConfig {
   decisionSources: string[];
   /** Idle session timeout in minutes. 0 = disabled. */
   sessionTimeoutMinutes: number;
+  /** Priority Candidate score (0-100) at or above which an alert e-mail is sent. Default 70. */
+  scoreAlertThreshold: number;
 }
 
 const STORAGE_KEY = 'pm_app_config';
@@ -47,6 +49,7 @@ const DEFAULTS: AppConfig = {
     'Risk Control - Trim',
   ],
   sessionTimeoutMinutes: 480, // 8 hours
+  scoreAlertThreshold: 70,
 };
 
 function load(): AppConfig {
@@ -83,6 +86,7 @@ export const ConfigStore = signalStore(
     appRefreshSeconds: computed(() => config().appRefreshSeconds),
     rsiOversoldThreshold: computed(() => config().rsiOversoldThreshold),
     rsiOverboughtThreshold: computed(() => config().rsiOverboughtThreshold),
+    scoreAlertThreshold: computed(() => config().scoreAlertThreshold),
   })),
   withMethods((store, userPrefs = inject(UserPreferencesStore)) => ({
     update(patch: Partial<AppConfig>): void {

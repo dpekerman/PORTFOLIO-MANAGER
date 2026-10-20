@@ -47,6 +47,7 @@ export class AutomationTabComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
 
   protected readonly sendingAutomationTestEmail = signal(false);
+  protected readonly sendingScoreAlertTest = signal(false);
 
   // Wake/keep-awake times are machine-availability settings, deliberately separate from the EOD
   // window / Value Screener business-time rules (echoed read-only). Time controls use Date | null.
@@ -151,6 +152,30 @@ export class AutomationTabComponent implements OnInit {
         this.sendingAutomationTestEmail.set(false);
         const message = err?.error?.error ?? err?.message ?? 'Automation test email failed.';
         this.snackBar.open(message, 'Dismiss', { duration: 9000 });
+      },
+    });
+  }
+
+  protected sendScoreAlertTest(): void {
+    this.sendingScoreAlertTest.set(true);
+    this.notificationApi.sendScoreAlertTest().subscribe({
+      next: (result) => {
+        this.sendingScoreAlertTest.set(false);
+        this.snackBar.open(
+          result.success
+            ? (result.message ?? 'Test score alert sent.')
+            : (result.error ?? 'Test score alert failed.'),
+          'OK',
+          { duration: 6000 },
+        );
+      },
+      error: (err) => {
+        this.sendingScoreAlertTest.set(false);
+        this.snackBar.open(
+          err?.error?.error ?? err?.message ?? 'Test score alert failed.',
+          'Dismiss',
+          { duration: 9000 },
+        );
       },
     });
   }

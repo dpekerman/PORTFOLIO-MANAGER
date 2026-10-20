@@ -19,27 +19,16 @@ import { DashboardStore } from '../../../core/store/dashboard.store';
 import { DecisionEngineService } from '../../../core/services/decision-engine.service';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import {
-  PriorityCandidateEligibility,
-  resolvePriorityCandidateEligibility,
+  PriorityCandidateRow,
+  buildEligibleCandidates,
+  mergeRsiMaps,
 } from '../../../core/services/priority-candidate-eligibility';
 import { ScannerStore } from '../../../core/store/scanner.store';
 import { WatchlistRsiStore } from '../../../core/store/watchlist-rsi.store';
 import { currencyCodeForAnalysis, formatTrendShift } from '../../../core/technical-display';
 
-export interface PriorityCandidateRow {
-  score: ActionScoreDto;
-  eligibility: PriorityCandidateEligibility;
-}
-
-/** Full-watchlist cache first, then oversold/overbought overlay — same precedence as the Watchlist page. */
-export function mergeRsiMaps(
-  cached: Map<string, RsiScanResult>,
-  overlay: readonly RsiScanResult[],
-): Map<string, RsiScanResult> {
-  const map = new Map(cached);
-  for (const r of overlay) map.set(r.symbol.toUpperCase(), r);
-  return map;
-}
+export { buildEligibleCandidates, mergeRsiMaps };
+export type { PriorityCandidateRow };
 
 export function isTechnicalDataPending(
   cachedMapSize: number,
@@ -47,32 +36,6 @@ export function isTechnicalDataPending(
   overboughtCount: number,
 ): boolean {
   return cachedMapSize === 0 && oversoldCount === 0 && overboughtCount === 0;
-}
-
-/**
- * Gates every scored candidate through the canonical eligibility resolver, keeps only the
- * eligible ones, and ranks them by score — no Top-N slicing here (the template slices for
- * display only, after this full eligible set is known). One row per symbol; a duplicate symbol
- * in `scores` collapses to its `rsiMap`/`valueScreenerMap` lookup being shared, never duplicated.
- */
-export function buildEligibleCandidates(
-  scores: readonly ActionScoreDto[],
-  rsiMap: Map<string, RsiScanResult>,
-  valueScreenerMap: Map<string, ValueScreenerResult>,
-  engine: DecisionEngineService,
-): PriorityCandidateRow[] {
-  return scores
-    .map((score) => ({
-      score,
-      eligibility: resolvePriorityCandidateEligibility(
-        score,
-        rsiMap.get(score.symbol.toUpperCase()),
-        valueScreenerMap.get(score.symbol.toUpperCase()),
-        engine,
-      ),
-    }))
-    .filter((row) => row.eligibility.eligible)
-    .sort((a, b) => b.score.totalScore - a.score.totalScore);
 }
 
 @Component({

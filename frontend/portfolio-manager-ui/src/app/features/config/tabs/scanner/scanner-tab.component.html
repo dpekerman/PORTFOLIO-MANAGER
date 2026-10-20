@@ -90,6 +90,28 @@
             </mat-form-field>
           </div>
         </app-sub-card>
+
+        <app-sub-card icon="mark_email_unread" title="Score E-mail Alert">
+          <div class="fields-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>E-mail on score (≥)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="scoreAlertThreshold"
+                min="1"
+                max="100"
+              />
+              <mat-hint>Priority Candidates at or above → one e-mail. Default: 70</mat-hint>
+              @if (form.controls.scoreAlertThreshold.errors?.['min']) {
+                <mat-error>Minimum 1</mat-error>
+              }
+              @if (form.controls.scoreAlertThreshold.errors?.['max']) {
+                <mat-error>Maximum 100</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </app-sub-card>
       </div>
     </div>
 
