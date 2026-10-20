@@ -1,0 +1,58 @@
+<app-settings-section
+  icon="pie_chart"
+  title="Allocation & Risk Management"
+  subtitle="Target allocations by role and sector · Single-position size limits"
+>
+  <div class="section-body">
+    <div class="alloc-grid">
+      <app-target-panel
+        heading="Allocation by Role"
+        labelName="Role"
+        [rows]="riskRows()"
+        (saved)="upsertRisk($event)"
+        (deleted)="deleteRisk($event)"
+      />
+      <app-target-panel
+        heading="Allocation by Sector"
+        labelName="Sector"
+        [rows]="sectorRows()"
+        (saved)="upsertSector($event)"
+        (deleted)="deleteSector($event)"
+      />
+      <app-target-panel
+        heading="Single Position Limits"
+        labelName="Role"
+        pctLabel="Max %"
+        [rows]="limitRows()"
+        [showTotal]="false"
+        noTotalHint="No total — these are per-position maximums."
+        (saved)="upsertLimit($event)"
+        (deleted)="deleteLimit($event)"
+      />
+    </div>
+  </div>
+
+  <div class="section-footer">
+    <span class="section-footer-hint">
+      @if (allocationDirty()) {
+        <mat-icon class="hint-icon hint-icon--warn">warning_amber</mat-icon>
+        Unsaved changes — click Save to persist to backend
+      } @else {
+        <mat-icon class="hint-icon">check_circle</mat-icon>
+        All changes saved to backend
+      }
+    </span>
+    <button
+      mat-flat-button
+      (click)="saveAllocationRisk()"
+      [disabled]="savingAllocation() || !allocationDirty()"
+      matTooltip="Persist all allocation & risk changes to backend"
+    >
+      @if (savingAllocation()) {
+        <ng-container><mat-icon class="spinning">sync</mat-icon> Saving…</ng-container>
+      } @else {
+        <ng-container><mat-icon>save</mat-icon> Save Allocation Settings</ng-container>
+      }
+    </button>
+  </div>
+</app-settings-section>

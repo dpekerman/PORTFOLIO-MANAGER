@@ -27,6 +27,7 @@ interface OptionTickerGroup {
 }
 
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
 @Component({
   selector: 'app-allocation-page',
@@ -35,6 +36,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AppRefreshButtonComponent,
+    PageHeaderComponent,
     CurrencyPipe,
     DecimalPipe,
     PercentPipe,

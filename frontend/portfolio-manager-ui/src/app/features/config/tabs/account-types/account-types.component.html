@@ -58,7 +58,8 @@
           [attr.aria-sort]="ariaSort(column.key)"
         >
           <button type="button" class="acct-sort-btn" (click)="toggleSort(column.key)">
-            {{ column.label }}
+            <span class="lbl-full">{{ column.label }}</span>
+            <span class="lbl-short" aria-hidden="true">{{ column.short }}</span>
             @if (sortKey() === column.key) {
               <mat-icon class="acct-sort-icon">{{
                 sortDir() === 'asc' ? 'arrow_upward' : 'arrow_downward'

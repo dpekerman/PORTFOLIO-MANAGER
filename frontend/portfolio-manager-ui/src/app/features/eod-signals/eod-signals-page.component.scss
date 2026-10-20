@@ -3,42 +3,6 @@
   padding: 0 0 48px;
 }
 
-// ── Page Header ─────────────────────────────────────────────────────────────
-.page-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 20px 24px 0;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.page-title-group {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.page-icon {
-  font-size: 28px;
-  width: 28px;
-  height: 28px;
-  margin-top: 4px;
-  color: var(--mat-primary-color, #1976d2);
-}
-
-.page-title {
-  margin: 0 0 4px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
-}
-
 .count-badge {
   display: inline-flex;
   align-items: center;
@@ -51,12 +15,6 @@
   color: #1976d2;
   font-size: 0.75rem;
   font-weight: 700;
-}
-
-.page-sub {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-secondary, rgba(0, 0, 0, 0.54));
 }
 
 .last-checked {
@@ -172,13 +130,6 @@
 .date-range {
   font-family: monospace;
   font-size: 0.78rem;
-}
-
-.page-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .delete-all-btn {
