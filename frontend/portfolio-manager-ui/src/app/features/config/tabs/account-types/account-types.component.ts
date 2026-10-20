@@ -17,13 +17,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { AccountType } from '../../../core/models/portfolio.models';
-import {
-  accountTypeError,
-  AccountTypesStore,
-} from '../../../core/store/account-types.store';
-import { AuthStore } from '../../../core/store/auth.store';
-import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
+import { AccountType } from '../../../../core/models/portfolio.models';
+import { accountTypeError, AccountTypesStore } from '../../../../core/store/account-types.store';
+import { AuthStore } from '../../../../core/store/auth.store';
+import { ConfirmDialogComponent } from '../../../../shared/confirm-dialog/confirm-dialog.component';
 
 type SortKey = 'name' | 'stockCount' | 'optionCount' | 'cashCount';
 
@@ -53,11 +50,11 @@ export class AccountTypesComponent implements OnInit {
   protected readonly adding = signal(false);
   protected readonly sortKey = signal<SortKey>('name');
   protected readonly sortDir = signal<'asc' | 'desc'>('asc');
-  protected readonly columns: { key: SortKey; label: string }[] = [
-    { key: 'name', label: 'Name' },
-    { key: 'stockCount', label: 'Stocks' },
-    { key: 'optionCount', label: 'Options' },
-    { key: 'cashCount', label: 'Cash' },
+  protected readonly columns: { key: SortKey; label: string; short: string }[] = [
+    { key: 'name', label: 'Name', short: 'Name' },
+    { key: 'stockCount', label: 'Stocks', short: 'Stk' },
+    { key: 'optionCount', label: 'Options', short: 'Opt' },
+    { key: 'cashCount', label: 'Cash', short: 'Csh' },
   ];
   protected readonly sortedItems = computed(() => {
     const key = this.sortKey();

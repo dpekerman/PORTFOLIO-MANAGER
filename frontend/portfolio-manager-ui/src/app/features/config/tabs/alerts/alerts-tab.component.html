@@ -1,0 +1,78 @@
+<app-settings-section
+  icon="notifications_active"
+  title="RSI Confirmed Signal Alerts"
+  subtitle="Email recipients for high-priority RSI CONFIRMED signal alerts · Each signal fires once — no spam"
+>
+  <div class="section-body">
+    <p class="email-info">
+      <mat-icon class="email-info-icon">info_outline</mat-icon>
+      <span>
+        To enable sending, set <code>EmailNotification.Enabled = true</code> and fill in SMTP
+        credentials in <code>appsettings.json</code> on the backend.
+      </span>
+    </p>
+
+    <mat-form-field appearance="outline" class="email-input-field" subscriptSizing="dynamic">
+      <mat-label>Add recipient email</mat-label>
+      <mat-chip-grid #chipGrid>
+        @for (email of recipientEmails(); track email) {
+          <mat-chip-row (removed)="removeEmail(email)" [disabled]="savingEmails()">
+            {{ email }}
+            <button matChipRemove [attr.aria-label]="'Remove ' + email">
+              <mat-icon>cancel</mat-icon>
+            </button>
+          </mat-chip-row>
+        }
+      </mat-chip-grid>
+      <input
+        matInput
+        placeholder="e.g. trader@example.com"
+        [matChipInputFor]="chipGrid"
+        [ngModel]="emailInputValue()"
+        (ngModelChange)="emailInputValue.set($event)"
+        (keydown)="onEmailKeydown($event)"
+        (blur)="addEmail(emailInputValue())"
+        [disabled]="savingEmails() || recipientEmails().length >= 50"
+        autocomplete="off"
+        type="email"
+      />
+      <mat-hint>Press Enter to add · Max 50 recipients</mat-hint>
+    </mat-form-field>
+
+    @if (recipientEmails().length === 0 && !loadingEmails()) {
+      <p class="no-recipients">No recipients configured — alerts will not be sent.</p>
+    }
+  </div>
+
+  <div class="section-footer">
+    <button
+      mat-stroked-button
+      class="test-email-btn"
+      (click)="sendTestEmail()"
+      [disabled]="sendingTestEmail() || savingEmails() || scanningNow()"
+      matTooltip="Send a test email to verify SMTP is working"
+    >
+      <mat-icon>{{ sendingTestEmail() ? 'hourglass_empty' : 'send' }}</mat-icon>
+      {{ sendingTestEmail() ? 'Sending…' : 'Send Test Email' }}
+    </button>
+    <button
+      mat-stroked-button
+      class="scan-now-btn"
+      (click)="scanAndNotifyNow()"
+      [disabled]="scanningNow() || savingEmails() || sendingTestEmail()"
+      matTooltip="Run a live RSI scan now and email all confirmed signals"
+    >
+      <mat-icon>{{ scanningNow() ? 'hourglass_empty' : 'radar' }}</mat-icon>
+      {{ scanningNow() ? 'Scanning…' : 'Scan & Notify Now' }}
+    </button>
+    <button
+      mat-flat-button
+      (click)="saveEmailRecipients()"
+      [disabled]="savingEmails()"
+      matTooltip="Save recipient list to backend"
+    >
+      <mat-icon>{{ savingEmails() ? 'hourglass_empty' : 'save' }}</mat-icon>
+      {{ savingEmails() ? 'Saving…' : 'Save Recipients' }}
+    </button>
+  </div>
+</app-settings-section>

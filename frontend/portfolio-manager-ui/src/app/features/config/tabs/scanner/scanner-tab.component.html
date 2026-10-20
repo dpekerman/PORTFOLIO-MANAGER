@@ -1,0 +1,119 @@
+<app-settings-section
+  icon="tune"
+  title="Scanner Settings"
+  subtitle="Refresh intervals and RSI thresholds · Stored in browser · Reset restores factory defaults"
+>
+  <form [formGroup]="form" (ngSubmit)="save()" id="scanner-form">
+    <div class="section-body">
+      <div class="scanner-cards-row">
+        <app-sub-card icon="timer" title="Auto-Refresh Intervals">
+          <div class="fields-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>RSI Scanner auto-refresh</mat-label>
+              <mat-select formControlName="scanIntervalSeconds">
+                @for (opt of SCAN_INTERVAL_OPTIONS; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>0:00 = disabled · Min 30 min · Default disabled</mat-hint>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>App auto-refresh interval</mat-label>
+              <mat-select formControlName="appRefreshSeconds">
+                @for (opt of APP_REFRESH_OPTIONS; track opt.value) {
+                  <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint
+                >Refreshes portfolio, watchlist &amp; dashboard together · 0:00 = disabled · Default
+                2 min</mat-hint
+              >
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Session timeout (minutes)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="sessionTimeoutMinutes"
+                min="0"
+                max="1440"
+              />
+              <mat-hint>0 = disabled · Default 480 min (8h)</mat-hint>
+              @if (form.controls.sessionTimeoutMinutes.errors?.['min']) {
+                <mat-error>Minimum 0 (disabled)</mat-error>
+              }
+              @if (form.controls.sessionTimeoutMinutes.errors?.['max']) {
+                <mat-error>Maximum 1440 min (24h)</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </app-sub-card>
+
+        <app-sub-card icon="show_chart" title="RSI Signal Thresholds">
+          <div class="fields-grid">
+            <mat-form-field appearance="outline">
+              <mat-label>Oversold threshold (≤)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="rsiOversoldThreshold"
+                min="1"
+                max="49"
+              />
+              <mat-hint>RSI at or below → Oversold. Default: 30</mat-hint>
+              @if (form.controls.rsiOversoldThreshold.errors?.['min']) {
+                <mat-error>Minimum 1</mat-error>
+              }
+              @if (form.controls.rsiOversoldThreshold.errors?.['max']) {
+                <mat-error>Must be below 50</mat-error>
+              }
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Overbought threshold (≥)</mat-label>
+              <input
+                matInput
+                type="number"
+                formControlName="rsiOverboughtThreshold"
+                min="51"
+                max="99"
+              />
+              <mat-hint>RSI at or above → Overbought. Default: 75</mat-hint>
+              @if (form.controls.rsiOverboughtThreshold.errors?.['min']) {
+                <mat-error>Must be above 50</mat-error>
+              }
+              @if (form.controls.rsiOverboughtThreshold.errors?.['max']) {
+                <mat-error>Maximum 99</mat-error>
+              }
+            </mat-form-field>
+          </div>
+        </app-sub-card>
+      </div>
+    </div>
+
+    <div class="section-footer">
+      <span class="section-footer-hint"
+        >Changes apply immediately to both Auto-Refresh Intervals and RSI Thresholds</span
+      >
+      <button
+        mat-stroked-button
+        type="button"
+        (click)="reset()"
+        matTooltip="Restore all scanner settings to factory defaults"
+      >
+        <mat-icon>restore</mat-icon> Reset to Defaults
+      </button>
+      <button
+        mat-flat-button
+        type="submit"
+        form="scanner-form"
+        [disabled]="form.invalid || form.pristine"
+        matTooltip="Save and apply scanner settings"
+      >
+        <mat-icon>save</mat-icon> Save Scanner Settings
+      </button>
+    </div>
+  </form>
+</app-settings-section>

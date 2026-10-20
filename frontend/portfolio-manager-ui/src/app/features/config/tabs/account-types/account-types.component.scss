@@ -109,6 +109,25 @@
   height: 13px;
 }
 
+.lbl-short {
+  display: none;
+}
+
+// Phone columns are 40px wide, too narrow for the full words ("Options" overlapped "Cash").
+@media (max-width: 599.98px) {
+  .lbl-full {
+    display: none;
+  }
+
+  .lbl-short {
+    display: inline;
+  }
+
+  .acct-sort-btn {
+    letter-spacing: 0.02em;
+  }
+}
+
 .acct-col-num {
   text-align: right;
 }

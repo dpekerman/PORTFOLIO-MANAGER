@@ -5,8 +5,8 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { of } from 'rxjs';
 import { vi } from 'vitest';
-import { AccountTypesStore } from '../../../core/store/account-types.store';
-import { AuthStore } from '../../../core/store/auth.store';
+import { AccountTypesStore } from '../../../../core/store/account-types.store';
+import { AuthStore } from '../../../../core/store/auth.store';
 import { AccountTypesComponent } from './account-types.component';
 
 describe('Account Types configuration', () => {

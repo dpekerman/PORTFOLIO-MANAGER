@@ -1,0 +1,19 @@
+:host {
+  display: block;
+}
+
+.alloc-grid.alloc-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.hint-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 4px;
+
+  &--dirty {
+    color: var(--mat-sys-primary);
+  }
+}

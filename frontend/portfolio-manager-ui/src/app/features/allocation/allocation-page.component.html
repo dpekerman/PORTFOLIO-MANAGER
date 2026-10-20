@@ -1,14 +1,12 @@
 ﻿<div class="allocation-page">
   <!-- ── Page Header ───────────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
-      <mat-icon class="page-icon">donut_large</mat-icon>
-      <div>
-        <h1 class="page-title">PORTFOLIO ALLOCATION</h1>
-        <p class="page-sub">Breakdown by sector &amp; industry · Click sectors to drill down</p>
-      </div>
-    </div>
-    <div class="page-actions">
+  <app-page-header
+    icon="donut_large"
+    accent="#7e57c2"
+    title="PORTFOLIO ALLOCATION"
+    subtitle="Breakdown by sector & industry · Click sectors to drill down"
+  >
+    <ng-container ngProjectAs="[pageActions]">
       <app-refresh-button />
       <button
         mat-icon-button
@@ -42,8 +40,8 @@
       >
         <mat-icon>download</mat-icon>
       </button>
-    </div>
-  </div>
+    </ng-container>
+  </app-page-header>
 
   @if (portfolio.summaries().length === 0 && !portfolio.loading()) {
     <!-- ── Empty State ──────────────────────────────────────────────────────── -->
