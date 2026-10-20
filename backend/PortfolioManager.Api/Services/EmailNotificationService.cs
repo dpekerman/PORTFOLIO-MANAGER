@@ -68,6 +68,82 @@ public class EmailNotificationService(
     }
 
     /// <summary>
+    /// Sends ONE email listing every Priority Candidate whose score reached <paramref name="threshold"/>.
+    /// Returns the recipient addresses it was sent to, or an empty list when nothing was sent
+    /// (email disabled, no recipients, or SMTP failure).
+    /// </summary>
+    public async Task<IReadOnlyList<string>> SendScoreAlertAsync(IReadOnlyList<ActionScoreDto> candidates, decimal threshold, bool isTest = false)
+    {
+        if (candidates.Count == 0) return [];
+
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0 || !_settings.Enabled
+            || string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password))
+            return [];
+
+        try
+        {
+            var ordered = candidates.OrderByDescending(c => c.TotalScore).ToList();
+            var tickers = string.Join(", ", ordered.Select(c => $"{c.Symbol} {c.TotalScore:F0}"));
+            using var message = new MailMessage
+            {
+                From = new MailAddress(
+                    !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username,
+                    _settings.FromName),
+                Subject = (isTest ? "[TEST] " : "") + (ordered.Count == 1
+                    ? $"⭐ Score Alert — {ordered[0].Symbol} scored {ordered[0].TotalScore:F0} (≥ {threshold:F0})"
+                    : $"⭐ Score Alert — {ordered.Count} candidates ≥ {threshold:F0}: {tickers}"),
+                Body = BuildScoreAlertHtmlBody(ordered, threshold, DateTime.UtcNow),
+                IsBodyHtml = true,
+                Priority = MailPriority.High,
+            };
+            message.Headers.Add("X-Priority", "1");
+            message.Headers.Add("X-MSMail-Priority", "High");
+            message.Headers.Add("Importance", "High");
+            foreach (var email in recipientList)
+                message.To.Add(email);
+
+            await SendViaMailKitAsync(message);
+            logger.LogInformation("Score alert email sent for {Count} candidate(s) to {Recipients} recipient(s).",
+                ordered.Count, recipientList.Count);
+            return recipientList;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send score alert email.");
+            return [];
+        }
+    }
+
+    private static string BuildScoreAlertHtmlBody(List<ActionScoreDto> rows, decimal threshold, DateTime nowUtc)
+    {
+        static string E(string? s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
+        var sb = new StringBuilder();
+        sb.AppendLine(@"<!DOCTYPE html><html lang=""en""><head><meta charset=""UTF-8"">
+<meta name=""viewport"" content=""width=device-width,initial-scale=1""></head>
+<body style=""margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Arial,sans-serif;color:#333"">
+<div style=""max-width:820px;margin:0 auto;padding:24px 16px"">");
+        sb.AppendLine($@"<div style=""background:#1a237e;border-radius:12px;padding:20px 24px;margin-bottom:20px;color:#fff"">
+<h1 style=""margin:0 0 6px;font-size:1.3rem"">&#11088; Priority Candidate Score Alert</h1>
+<p style=""margin:0;font-size:0.85rem"">{rows.Count} candidate(s) with score &ge; {threshold:F0} &mdash; {E(FormatEasternTime(nowUtc))}</p></div>
+<table style=""width:100%;border-collapse:collapse;background:#fff"">
+<tr style=""background:#e8eaf6;text-align:left;font-size:0.72rem;text-transform:uppercase"">
+<th style=""padding:10px"">Symbol</th><th>Score</th><th>Badge</th><th>Need/30</th><th>Tech/30</th><th>Fund/25</th><th>Risk/15</th><th>RSI</th><th>Price</th></tr>");
+        foreach (var r in rows)
+        {
+            sb.AppendLine($@"<tr style=""border-bottom:1px solid #eee;font-size:0.82rem"">
+<td style=""padding:10px""><strong>{E(r.Symbol)}</strong><br><span style=""color:#666;font-size:0.73rem"">{E(r.CompanyName)}</span></td>
+<td><strong style=""font-size:1rem"">{r.TotalScore:F0}</strong></td><td>{E(r.Badge)}</td>
+<td>{r.PortfolioNeedScore:F1}</td><td>{r.TechnicalScore:F1}</td><td>{r.FundamentalScore:F1}</td><td>{r.RiskScore:F1}</td>
+<td>{r.Rsi:F1}</td><td>{r.CurrentPrice:F2}</td></tr>");
+        }
+        sb.AppendLine(@"</table>
+<p style=""margin-top:24px;font-size:0.72rem;color:#999;text-align:center"">Portfolio Manager &middot; Not financial advice. Confirm with RSI Scanner and Value Screener before entering.</p>
+</div></body></html>");
+        return sb.ToString();
+    }
+
+    /// <summary>
     /// Sends a plain test email to <paramref name="toEmail"/> to verify SMTP configuration.
     /// Returns null on success, or the error message on failure.
     /// </summary>

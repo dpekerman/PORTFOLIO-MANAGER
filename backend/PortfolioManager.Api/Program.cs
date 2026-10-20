@@ -247,6 +247,7 @@ builder.Services.AddScoped<IAllocationRestoreService, AllocationRestoreService>(
 builder.Services.AddExceptionHandler<PortfolioManager.Api.Middleware.AccountTypeExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<SignalNotificationTracker>();
+builder.Services.AddSingleton<ScoreAlertTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
 // Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review

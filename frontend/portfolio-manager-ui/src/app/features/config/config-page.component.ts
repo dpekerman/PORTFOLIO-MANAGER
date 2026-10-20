@@ -161,6 +161,10 @@ export class ConfigPageComponent implements OnInit {
       this.configService.config().sessionTimeoutMinutes,
       [Validators.required, Validators.min(0), Validators.max(1440)],
     ],
+    scoreAlertThreshold: [
+      this.configService.config().scoreAlertThreshold,
+      [Validators.required, Validators.min(1), Validators.max(100)],
+    ],
   });
 
   // ── EOD Window form ──────────────────────────────────────────────────────
@@ -393,6 +397,7 @@ export class ConfigPageComponent implements OnInit {
   protected readonly loadingEmails = signal(true);
   protected readonly sendingTestEmail = signal(false);
   protected readonly sendingAutomationTestEmail = signal(false);
+  protected readonly sendingScoreAlertTest = signal(false);
   protected readonly scanningNow = signal(false);
 
   // ── Sector / Industry Lists ──────────────────────────────────────────────
@@ -693,6 +698,7 @@ export class ConfigPageComponent implements OnInit {
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
+      scoreAlertThreshold: cfg.scoreAlertThreshold,
     });
 
     // Load EOD window settings from backend (to show current server-side state)
@@ -854,6 +860,7 @@ ${overboughtRsi}.`,
       rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
       rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
       sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
+      scoreAlertThreshold: this.form.value.scoreAlertThreshold ?? 70,
     });
     // Clear server RSI cache so next scan uses the new thresholds
     this.api.clearRsiCache().subscribe({
@@ -874,6 +881,7 @@ ${overboughtRsi}.`,
       rsiOversoldThreshold: cfg.rsiOversoldThreshold,
       rsiOverboughtThreshold: cfg.rsiOverboughtThreshold,
       sessionTimeoutMinutes: cfg.sessionTimeoutMinutes,
+      scoreAlertThreshold: cfg.scoreAlertThreshold,
     });
     this.eodForm.setValue({
       eodWindowStart: ConfigPageComponent.timeStrToDate(cfg.eodWindowStart),
@@ -955,6 +963,28 @@ ${overboughtRsi}.`,
         this.sendingAutomationTestEmail.set(false);
         const message = err?.error?.error ?? err?.message ?? 'Automation test email failed.';
         this.snackBar.open(message, 'Dismiss', { duration: 9000 });
+      },
+    });
+  }
+
+  sendScoreAlertTest(): void {
+    this.sendingScoreAlertTest.set(true);
+    this.notificationApi.sendScoreAlertTest().subscribe({
+      next: (result) => {
+        this.sendingScoreAlertTest.set(false);
+        this.snackBar.open(
+          result.success
+            ? (result.message ?? 'Test score alert sent.')
+            : (result.error ?? 'Test score alert failed.'),
+          'OK',
+          { duration: 6000 },
+        );
+      },
+      error: (err) => {
+        this.sendingScoreAlertTest.set(false);
+        this.snackBar.open(err?.error?.error ?? err?.message ?? 'Test score alert failed.', 'Dismiss', {
+          duration: 9000,
+        });
       },
     });
   }
@@ -1140,6 +1170,7 @@ ${overboughtRsi}.`,
         rsiOversoldThreshold: this.form.value.rsiOversoldThreshold ?? 30,
         rsiOverboughtThreshold: this.form.value.rsiOverboughtThreshold ?? 75,
         sessionTimeoutMinutes: this.form.value.sessionTimeoutMinutes ?? 480,
+        scoreAlertThreshold: this.form.value.scoreAlertThreshold ?? 70,
       });
       this.form.markAsPristine();
       this.api

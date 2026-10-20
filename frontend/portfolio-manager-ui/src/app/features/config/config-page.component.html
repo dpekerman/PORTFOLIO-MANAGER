@@ -398,6 +398,35 @@
                 </div>
               </div>
             </div>
+
+            <!-- Score E-mail Alert -->
+            <div class="sub-card">
+              <div class="sub-card-header">
+                <mat-icon>mark_email_unread</mat-icon>
+                <span class="sub-card-title">Score E-mail Alert</span>
+              </div>
+              <div class="sub-card-body">
+                <div class="fields-grid">
+                  <mat-form-field appearance="outline">
+                    <mat-label>E-mail on score (≥)</mat-label>
+                    <input
+                      matInput
+                      type="number"
+                      formControlName="scoreAlertThreshold"
+                      min="1"
+                      max="100"
+                    />
+                    <mat-hint>Priority Candidates at or above → one e-mail. Default: 70</mat-hint>
+                    @if (form.controls.scoreAlertThreshold.errors?.['min']) {
+                      <mat-error>Minimum 1</mat-error>
+                    }
+                    @if (form.controls.scoreAlertThreshold.errors?.['max']) {
+                      <mat-error>Maximum 100</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1365,6 +1394,16 @@
             sendingAutomationTestEmail() ? 'hourglass_empty' : 'mail_outline'
           }}</mat-icon>
           {{ sendingAutomationTestEmail() ? 'Sending…' : 'Test Automation Email' }}
+        </button>
+        <button
+          mat-stroked-button
+          type="button"
+          (click)="sendScoreAlertTest()"
+          [disabled]="sendingScoreAlertTest()"
+          matTooltip="Send a sample Priority Candidate score alert (marked [TEST]) to all registered recipients"
+        >
+          <mat-icon>{{ sendingScoreAlertTest() ? 'hourglass_empty' : 'star_outline' }}</mat-icon>
+          {{ sendingScoreAlertTest() ? 'Sending…' : 'Test Score Alert' }}
         </button>
       </div>
     </div>

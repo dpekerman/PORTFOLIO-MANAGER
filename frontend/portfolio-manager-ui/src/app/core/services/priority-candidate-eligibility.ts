@@ -30,6 +30,47 @@ export interface PriorityCandidateEligibility {
   reasonExcluded: string[];
 }
 
+/** Full-watchlist cache first, then oversold/overbought overlay — same precedence as the Watchlist page. */
+export function mergeRsiMaps(
+  cached: Map<string, RsiScanResult>,
+  overlay: readonly RsiScanResult[],
+): Map<string, RsiScanResult> {
+  const map = new Map(cached);
+  for (const r of overlay) map.set(r.symbol.toUpperCase(), r);
+  return map;
+}
+
+export interface PriorityCandidateRow {
+  score: ActionScoreDto;
+  eligibility: PriorityCandidateEligibility;
+}
+
+/**
+ * Gates every scored candidate through the canonical eligibility resolver, keeps only the
+ * eligible ones, and ranks them by score — no Top-N slicing here (the template slices for
+ * display only, after this full eligible set is known). One row per symbol; a duplicate symbol
+ * in `scores` collapses to its `rsiMap`/`valueScreenerMap` lookup being shared, never duplicated.
+ */
+export function buildEligibleCandidates(
+  scores: readonly ActionScoreDto[],
+  rsiMap: Map<string, RsiScanResult>,
+  valueScreenerMap: Map<string, ValueScreenerResult>,
+  engine: DecisionEngineService,
+): PriorityCandidateRow[] {
+  return scores
+    .map((score) => ({
+      score,
+      eligibility: resolvePriorityCandidateEligibility(
+        score,
+        rsiMap.get(score.symbol.toUpperCase()),
+        valueScreenerMap.get(score.symbol.toUpperCase()),
+        engine,
+      ),
+    }))
+    .filter((row) => row.eligibility.eligible)
+    .sort((a, b) => b.score.totalScore - a.score.totalScore);
+}
+
 /**
  * Gates a scored watchlist candidate against the canonical Watchlist Final Action
  * (reused as-is from DecisionEngineService — never re-derived here) plus the score
