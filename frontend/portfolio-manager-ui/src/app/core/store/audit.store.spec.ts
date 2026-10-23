@@ -5,14 +5,20 @@ import { vi } from 'vitest';
 import { AuditApiService } from '../services/audit-api.service';
 import { AuditStore, resolveRange } from './audit.store';
 import { AuthStore } from './auth.store';
+import { UserPreferencesStore } from './user-preferences.store';
 
 describe('AuditStore', () => {
   const isAuthenticated = signal(false);
+  const isLoaded = signal(false);
+  const savedPref = signal<unknown>(null);
+  const prefs = { isLoaded, get: vi.fn(() => savedPref()), set: vi.fn(), remove: vi.fn() };
   const api = { query: vi.fn(), getFilters: vi.fn() };
   const page = (total = 1) => ({ items: [{ id: 1 }], total, page: 1, pageSize: 25 });
 
   beforeEach(() => {
     isAuthenticated.set(false);
+    isLoaded.set(false);
+    savedPref.set(null);
     vi.clearAllMocks();
     api.query.mockReturnValue(of(page()));
     api.getFilters.mockReturnValue(of({ categories: ['Stock'], actions: ['Create'], users: [] }));
@@ -20,8 +26,34 @@ describe('AuditStore', () => {
       providers: [
         { provide: AuthStore, useValue: { isAuthenticated } },
         { provide: AuditApiService, useValue: api },
+        { provide: UserPreferencesStore, useValue: prefs },
       ],
     });
+  });
+
+  it('restores the user\'s saved filters once preferences load', () => {
+    savedPref.set({ range: '30d', category: ['Stock'], q: 'MDA' });
+    const store = login();
+    isLoaded.set(true);
+    TestBed.tick();
+    expect(store.range()).toBe('30d');
+    expect(store.category()).toEqual(['Stock']);
+    expect(store.q()).toBe('MDA');
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ category: ['Stock'], q: 'MDA' }));
+  });
+
+  it('shows the unfiltered default grid when nothing was saved', () => {
+    const store = login();
+    isLoaded.set(true);
+    TestBed.tick();
+    expect(store.range()).toBe('7d');
+    expect(store.hasActiveFilters()).toBe(false);
+  });
+
+  it('saves filters on change', () => {
+    const store = login();
+    store.setSearch('LMT');
+    expect(prefs.set).toHaveBeenCalledWith('audit.filters', expect.objectContaining({ q: 'LMT' }));
   });
 
   function login() {

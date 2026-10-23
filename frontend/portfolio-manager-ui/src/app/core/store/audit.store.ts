@@ -1,4 +1,4 @@
-import { computed, inject } from '@angular/core';
+import { computed, effect, inject, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { tapResponse } from '@ngrx/operators';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
@@ -15,6 +15,7 @@ import {
 import { AuditApiService } from '../services/audit-api.service';
 import { onceAuthenticated } from './features/auth-gate';
 import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
+import { UserPreferencesStore } from './user-preferences.store';
 
 export type AuditRange = 'today' | '7d' | '30d' | 'all' | 'custom';
 
@@ -53,6 +54,41 @@ const initialState: AuditState = {
   q: '',
   filters: { categories: [], actions: [], users: [] },
 };
+
+export type AuditSavedFilters = Pick<
+  AuditState,
+  'range' | 'customFrom' | 'customTo' | 'category' | 'action' | 'source' | 'userId' | 'q'
+>;
+
+const PREF_KEY = 'audit.filters';
+
+const DEFAULT_FILTERS: AuditSavedFilters = {
+  range: initialState.range,
+  customFrom: null,
+  customTo: null,
+  category: [],
+  action: [],
+  source: null,
+  userId: null,
+  q: '',
+};
+
+const RANGES: AuditRange[] = ['today', '7d', '30d', 'all', 'custom'];
+
+/** Keeps only well-formed saved values so a stale or corrupt preference can't break the page. */
+function sanitize(saved: Partial<AuditSavedFilters> | null): Partial<AuditSavedFilters> {
+  if (!saved || typeof saved !== 'object') return {};
+  const out: Partial<AuditSavedFilters> = {};
+  if (saved.range && RANGES.includes(saved.range)) out.range = saved.range;
+  if (typeof saved.customFrom === 'string') out.customFrom = saved.customFrom;
+  if (typeof saved.customTo === 'string') out.customTo = saved.customTo;
+  if (Array.isArray(saved.category)) out.category = saved.category;
+  if (Array.isArray(saved.action)) out.action = saved.action;
+  if (typeof saved.source === 'string') out.source = saved.source;
+  if (typeof saved.userId === 'string') out.userId = saved.userId;
+  if (typeof saved.q === 'string') out.q = saved.q;
+  return out;
+}
 
 const startOfDayIso = (daysAgo: number): string => {
   const d = new Date();
@@ -113,7 +149,21 @@ export const AuditStore = signalStore(
         s.range() !== '7d',
     ),
   })),
-  withMethods((store, api = inject(AuditApiService), snackBar = inject(MatSnackBar)) => {
+  withMethods((store, api = inject(AuditApiService), snackBar = inject(MatSnackBar), userPrefs = inject(UserPreferencesStore)) => {
+    const saveFilters = (): void => {
+      const saved: AuditSavedFilters = {
+        range: store.range(),
+        customFrom: store.customFrom(),
+        customTo: store.customTo(),
+        category: store.category(),
+        action: store.action(),
+        source: store.source(),
+        userId: store.userId(),
+        q: store.q(),
+      };
+      userPrefs.set(PREF_KEY, saved);
+    };
+
     const params = (): AuditQueryParams => ({
       page: store.page(),
       pageSize: store.pageSize(),
@@ -157,6 +207,7 @@ export const AuditStore = signalStore(
     /** Applies filter changes, returns to page 1 and refetches. */
     const applyFilter = (changes: Partial<AuditState>): void => {
       patchState(store, { ...changes, page: 1 });
+      if (changes.sortBy === undefined) saveFilters();
       load();
     };
 
@@ -228,6 +279,17 @@ export const AuditStore = signalStore(
   }),
   withHooks({
     onInit(store) {
+      const userPrefs = inject(UserPreferencesStore);
+      // Restore the signed-in user's saved filters once their preferences have loaded; with none
+      // saved the grid shows the defaults. Runs again for the next user after a logout/login.
+      effect(() => {
+        if (!userPrefs.isLoaded()) return;
+        const saved = untracked(() => userPrefs.get<Partial<AuditSavedFilters>>(PREF_KEY));
+        untracked(() => {
+          patchState(store, { ...DEFAULT_FILTERS, ...sanitize(saved), page: 1 });
+          store.load();
+        });
+      });
       onceAuthenticated(() => {
         store.loadFilters();
         store.load();
