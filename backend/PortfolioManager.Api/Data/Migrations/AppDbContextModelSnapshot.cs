@@ -1231,6 +1231,103 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("PortfolioValueHistories");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketAgentConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DeadlineLocal")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<DateOnly?>("FirstRunDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("ScheduleEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShadowMode")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("StartTimeLocal")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PreMarketAgentConfigs");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketAgentRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmailMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmailStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("EmailSubmittedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsTestRun")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("ReportHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReportJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RunKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunKey")
+                        .IsUnique();
+
+                    b.ToTable("PreMarketAgentRuns");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.RefreshToken", b =>
                 {
                     b.Property<int>("Id")

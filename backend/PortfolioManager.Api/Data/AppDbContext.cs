@@ -22,6 +22,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
+    public DbSet<PreMarketAgentConfig> PreMarketAgentConfigs => Set<PreMarketAgentConfig>();
+    public DbSet<PreMarketAgentRun> PreMarketAgentRuns => Set<PreMarketAgentRun>();
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
@@ -128,6 +130,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Fingerprint).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Note).IsRequired().HasMaxLength(200);
             entity.HasIndex(e => new { e.SourceType, e.SourceItemId }).IsUnique();
+        });
+
+        modelBuilder.Entity<PreMarketAgentConfig>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.StartTimeLocal).HasMaxLength(5);
+            e.Property(x => x.DeadlineLocal).HasMaxLength(5);
+            e.Property(x => x.UserId).HasMaxLength(450);
+        });
+        modelBuilder.Entity<PreMarketAgentRun>(e =>
+        {
+            e.HasIndex(x => x.RunKey).IsUnique();
+            e.Property(x => x.RunKey).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.EmailStatus).HasMaxLength(20);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>
