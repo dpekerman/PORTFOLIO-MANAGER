@@ -16,8 +16,9 @@ using System.Threading.RateLimiting;
 // (slow startup) and starts a redundant process, that second instance must fail fast rather than
 // running two Portfolio Manager backends side by side. Named Mutex is belt-and-suspenders with
 // Kestrel's own port-bind exclusivity. Only ever exits the process — never blocks or throws.
+var premarketCli = args.Contains("--premarket-run");
 var singleInstanceMutex = new Mutex(true, "Global\\PortfolioManagerApi_SingleInstance", out var isFirstInstance);
-if (!isFirstInstance)
+if (!isFirstInstance && !premarketCli)
 {
     Console.WriteLine("Another PortfolioManager.Api instance is already running — exiting.");
     return;
@@ -250,6 +251,14 @@ builder.Services.AddSingleton<SignalNotificationTracker>();
 builder.Services.AddSingleton<ScoreAlertTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
+builder.Services.Configure<OllamaSettings>(builder.Configuration.GetSection("Ollama"));
+builder.Services.AddSingleton<SafeHttpFetcher>();
+builder.Services.AddScoped<RssNewsProvider>();
+builder.Services.AddScoped<INewsProvider>(sp => sp.GetRequiredService<RssNewsProvider>());
+builder.Services.AddHttpClient<IAiProvider, OllamaProvider>(c => c.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddScoped<IPreMarketAgentService, PreMarketAgentService>();
+builder.Services.AddScoped<PreMarketEvaluationService>();
+builder.Services.AddHostedService<PreMarketSchedulerService>();
 // Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
 builder.Services.AddSingleton<EodSignalPersistenceService>();
 // Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals
@@ -312,6 +321,49 @@ builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
 
+// One-shot pre-market run (Task Scheduler / manual testing). Hosted services are not started in this mode.
+// Usage: PortfolioManager.Api --premarket-run [--as-of yyyy-MM-dd] [--dry-run] [--mock-news] [--send-email] [--html-out file]
+if (premarketCli)
+{
+    string? Arg(string name) => Array.IndexOf(args, name) is var i and >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+    using var cliScope = app.Services.CreateScope();
+    var cliAgent = cliScope.ServiceProvider.GetRequiredService<IPreMarketAgentService>();
+    DateOnly? cliAsOf = DateOnly.TryParse(Arg("--as-of"), out var parsedAsOf) ? parsedAsOf : null;
+    if (cliAsOf is null && !args.Contains("--force") && !args.Contains("--test"))
+    {
+        // Scheduled (real) run: honour the same switches as the in-process scheduler.
+        var cfg = await cliAgent.GetConfigAsync();
+        var today = PreMarketAgentService.TorontoToday();
+        if (cfg.ScheduleEnabled && cfg.AsOfDate is null)
+        {
+            // Task Scheduler wakes the laptop a little early; wait (max 45 min) for the configured start time.
+            var wait = PreMarketAgentService.TorontoToUtc(today, cfg.StartTimeLocal) - DateTime.UtcNow;
+            if (wait > TimeSpan.Zero && wait <= TimeSpan.FromMinutes(45))
+            {
+                Console.WriteLine($"Waiting {wait.TotalMinutes:0.0} min for the configured start time {cfg.StartTimeLocal} (Toronto).");
+                await Task.Delay(wait);
+            }
+        }
+        if (!cfg.ScheduleEnabled || cfg.AsOfDate is not null || (cfg.FirstRunDate is { } first && today < first)
+            || today.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            Console.WriteLine("Pre-market run skipped: scheduling is off, before the first run date, a test as-of date is set, or it is a weekend.");
+            return;
+        }
+        if (!TradingCalendar.IsOpen(MarketExchange.Tsx, today) && !TradingCalendar.IsOpen(MarketExchange.Us, today))
+        {
+            Console.WriteLine("Pre-market run skipped: both TSX and US markets are closed today.");
+            return;
+        }
+    }
+    var cliRun = await cliAgent.RunAsync(new PreMarketRunOptions(
+        cliAsOf, DryRun: args.Contains("--dry-run"), UseMockNews: args.Contains("--mock-news"),
+        SendEmail: args.Contains("--send-email"), Force: cliAsOf is not null || args.Contains("--force"),
+        IsTest: cliAsOf is not null || args.Contains("--test")));
+    Console.WriteLine($"Run {cliRun.Id} {cliRun.RunKey}: {cliRun.Status}, email {cliRun.EmailStatus} {cliRun.EmailMessage}, {cliRun.DurationMs} ms, AI calls {cliRun.AiCalls}, articles {cliRun.ArticlesRetrieved} {cliRun.Error}");
+    if (Arg("--html-out") is { } htmlOut && cliRun.ReportHtml is not null) File.WriteAllText(htmlOut, cliRun.ReportHtml);
+    return;
+}
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 // Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)
 try

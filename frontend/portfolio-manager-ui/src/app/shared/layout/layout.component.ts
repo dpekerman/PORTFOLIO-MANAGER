@@ -88,6 +88,7 @@ export class LayoutComponent {
     { path: '/value-screener', label: 'Value Screener', icon: 'analytics' },
     { path: '/portfolio-value-history', label: 'Value History', icon: 'history' },
     { path: '/audit', label: 'Audit', icon: 'fact_check' },
+    { path: '/ai-market-intelligence', label: 'AI Intelligence', icon: 'psychology' },
     { path: '/config', label: 'Configuration', icon: 'settings' },
   ] as const;
 

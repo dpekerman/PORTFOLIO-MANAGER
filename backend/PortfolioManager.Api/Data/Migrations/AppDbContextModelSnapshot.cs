@@ -997,6 +997,144 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("MarketLeadershipTrackers");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.NewsArticleReference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Fingerprint")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Headline")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTime>("PublishedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Publisher")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime>("RetrievedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SourceId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasMaxLength(600)
+                        .HasColumnType("nvarchar(600)");
+
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Fingerprint")
+                        .IsUnique();
+
+                    b.HasIndex("Symbol", "PublishedUtc");
+
+                    b.ToTable("NewsArticles");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.NewsSourceConfiguration", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("AvgDurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("LastFailureUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastSuccessUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Markets")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<int>("MaxItems")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProviderType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("RefreshMinutes")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TimeoutSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<int>("UsefulArticleCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("NewsSources");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.OptionItem", b =>
                 {
                     b.Property<int>("Id")
@@ -1231,6 +1369,162 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("PortfolioValueHistories");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketAgentConfig", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("AiEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("AiMaxCalls")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly?>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("DeadlineLocal")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("DiscoveryMode")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateOnly?>("FirstRunDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("ScheduleEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("ShadowMode")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("StartTimeLocal")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PreMarketAgentConfigs");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketAgentRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AiCalls")
+                        .HasColumnType("int");
+
+                    b.Property<int>("AiDurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("AiModel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ArticlesRetrieved")
+                        .HasColumnType("int");
+
+                    b.Property<DateOnly>("AsOfDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EmailMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmailStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("EmailSubmittedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsTestRun")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("NewsDurationMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReportHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReportJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RunKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunKey")
+                        .IsUnique();
+
+                    b.ToTable("PreMarketAgentRuns");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketFeedback", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("CreatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Rating")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("RunId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("PreMarketFeedbacks");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -1415,6 +1709,25 @@ namespace PortfolioManager.Api.Data.Migrations
                             UpdatedAt = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
                             UseUnderlyingForAnalysis = true
                         });
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.SecuritySectorCache", b =>
+                {
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Sector")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Symbol");
+
+                    b.ToTable("SecuritySectorCaches");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.SinglePositionLimit", b =>

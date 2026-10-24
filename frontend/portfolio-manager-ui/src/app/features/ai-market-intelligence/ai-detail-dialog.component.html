@@ -1,0 +1,72 @@
+<ng-template #links let-items>
+  <ul class="evidence">
+    @for (n of items; track n.evidenceId) {
+      <li>
+        @if (n.isMock) {
+          {{ label(n) }}
+        } @else {
+          <a [href]="n.url" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a>
+        }
+        <span class="muted"> · {{ n.publisher }} · {{ n.publishedUtc | date: 'MMM d, HH:mm' }}</span>
+      </li>
+    } @empty {
+      <li class="muted">No linked sources.</li>
+    }
+  </ul>
+</ng-template>
+
+@if (data.stock; as s) {
+  <h2 mat-dialog-title>{{ s.symbol }} <span class="muted">{{ s.companyName }}</span></h2>
+  <mat-dialog-content>
+    <p><strong>{{ s.action }}</strong> · {{ s.priority }}{{ s.change && s.change !== 'UNCHANGED' ? ' · ' + s.change : '' }}</p>
+    <p>{{ s.rationale }}</p>
+    @if (s.earningsInDays !== null) {
+      <p class="warn">Earnings in {{ s.earningsInDays }} day(s).</p>
+    }
+    @if (s.ai; as ai) {
+      <div class="ai-box">
+        @for (x of ai.bullish; track x) {
+          <div>＋ {{ x }}</div>
+        }
+        @for (x of ai.bearish; track x) {
+          <div>－ {{ x }}</div>
+        }
+        @for (x of ai.risks; track x) {
+          <div>⚠ {{ x }}</div>
+        }
+        <div class="muted">AI inference, not fact. Evidence: {{ ai.evidenceIds.join(', ') || 'none' }}</div>
+      </div>
+    }
+    <h3>News ({{ s.newsStatus }})</h3>
+    <ng-container [ngTemplateOutlet]="links" [ngTemplateOutletContext]="{ $implicit: s.news }" />
+    @for (w of s.warnings; track w) {
+      <p class="muted">⚠ {{ w }}</p>
+    }
+  </mat-dialog-content>
+  <mat-dialog-actions>
+    @for (r of ratings; track r.value) {
+      <button mat-button type="button" (click)="feedback(r.value)">{{ r.label }}</button>
+    }
+    <button mat-flat-button type="button" mat-dialog-close>Close</button>
+  </mat-dialog-actions>
+} @else if (data.event; as e) {
+  <h2 mat-dialog-title>{{ e.category.replaceAll('_', ' ') }}</h2>
+  <mat-dialog-content>
+    <p>{{ e.title }}</p>
+    @if (e.aiSummary) {
+      <div class="ai-box"><strong>AI summary:</strong> {{ e.aiSummary }}</div>
+    }
+    <p class="muted"><strong>Mechanism (hypothesis):</strong> {{ e.mechanism }}</p>
+    <p class="muted"><strong>Counterargument:</strong> {{ e.counterargument }}</p>
+    @if (e.aiPortfolioNote) {
+      <div class="ai-box"><strong>Portfolio note (AI):</strong> {{ e.aiPortfolioNote }}</div>
+    }
+    <p class="muted">Sectors: {{ e.affectedSectors.join(', ') }}</p>
+    <p class="muted">Possibly exposed: {{ e.affectedSymbols.length ? e.affectedSymbols.join(', ') : 'none of your holdings' }}</p>
+    <h3>Sources</h3>
+    <ng-container [ngTemplateOutlet]="links" [ngTemplateOutletContext]="{ $implicit: e.evidence }" />
+  </mat-dialog-content>
+  <mat-dialog-actions>
+    <button mat-flat-button type="button" mat-dialog-close>Close</button>
+  </mat-dialog-actions>
+}

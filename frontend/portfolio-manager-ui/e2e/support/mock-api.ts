@@ -37,6 +37,7 @@ import {
 } from '../fixtures/dashboard';
 import { isoDate, isoDateTime, makeStockQuote } from '../fixtures/factories';
 import { auditFilters, auditResponse } from '../fixtures/audit';
+import { preMarketConfig, preMarketEvaluation, preMarketLatest, preMarketRuns, preMarketSources, preMarketStatus } from '../fixtures/premarket';
 
 /** Request as seen by a handler. `path` excludes the query string. */
 export interface MockRequest {
@@ -202,6 +203,20 @@ get(/^\/api\/audit$/, auditResponse);
 get(/^\/api\/audit\/filters$/, auditFilters);
 get(/^\/api\/audit\/export$/, () => 'Time (UTC),User\n');
 on('POST', /^\/api\/audit\/delete-batch$/, () => ({ deleted: 1 }));
+
+// ── AI Market Intelligence ───────────────────────────────────────────────────
+get(/^\/api\/premarket\/config$/, preMarketConfig);
+get(/^\/api\/premarket\/status$/, preMarketStatus);
+get(/^\/api\/premarket\/runs\/latest$/, preMarketLatest);
+get(/^\/api\/premarket\/runs\/\d+\/evaluation$/, preMarketEvaluation);
+get(/^\/api\/premarket\/runs\/\d+$/, preMarketLatest);
+get(/^\/api\/premarket\/runs$/, preMarketRuns);
+get(/^\/api\/premarket\/sources$/, preMarketSources);
+on('POST', /^\/api\/premarket\/run$/, () => ({ id: 7, status: 'COMPLETE', emailStatus: 'NOT_SENT', emailMessage: null, error: null }));
+on('POST', /^\/api\/premarket\/sources\/\d+\/test$/, () => ({ ok: true, error: null, articles: 12, durationMs: 300 }));
+on('POST', /^\/api\/premarket\/sources\/\d+\/approve$/, () => preMarketSources[1]);
+on('POST', /^\/api\/premarket\/runs\/\d+\/feedback$/, () => null);
+on('POST', /^\/api\/premarket\/test-email$/, () => ({ ok: true, message: 'Test email sent', recipients: 1 }));
 
 // ── Scanner ──────────────────────────────────────────────────────────────────
 get(/^\/api\/scanner\/rsi(\/snapshot)?$/, scannerResponse);

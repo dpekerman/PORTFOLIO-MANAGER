@@ -74,6 +74,13 @@ export const routes: Routes = [
         path: 'audit',
         loadChildren: () => import('./features/audit/audit.routes').then((m) => m.AUDIT_ROUTES),
       },
+      {
+        path: 'ai-market-intelligence',
+        loadChildren: () =>
+          import('./features/ai-market-intelligence/ai-market-intelligence.routes').then(
+            (m) => m.AI_MARKET_INTELLIGENCE_ROUTES,
+          ),
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],
   },

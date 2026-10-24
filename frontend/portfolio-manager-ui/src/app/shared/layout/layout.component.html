@@ -59,9 +59,13 @@
             [routerLink]="link.path"
             routerLinkActive="nav-link-active"
             [matTooltip]="link.label"
+            [style.padding.px]="link.path === '/ai-market-intelligence' ? 4 : null"
+            [style.min-width.px]="link.path === '/ai-market-intelligence' ? 32 : null"
           >
-            <mat-icon>{{ link.icon }}</mat-icon>
-            <span class="nav-link-text">{{ link.label }}</span>
+            <mat-icon [style.margin.px]="link.path === '/ai-market-intelligence' ? 0 : null">{{ link.icon }}</mat-icon>
+            @if (link.path !== '/ai-market-intelligence') {
+              <span class="nav-link-text">{{ link.label }}</span>
+            }
           </a>
         }
       </nav>

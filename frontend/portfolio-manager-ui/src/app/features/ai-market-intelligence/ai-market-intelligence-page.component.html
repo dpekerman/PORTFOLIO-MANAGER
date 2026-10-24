@@ -1,0 +1,731 @@
+<div class="ai-page">
+  <header class="page-header">
+    <h1 class="page-title">AI Market Intelligence</h1>
+    <button mat-stroked-button type="button" (click)="store.refreshAll()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+  </header>
+
+  @if (store.loading() || store.running()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Loading" />
+  }
+
+  <mat-tab-group class="ai-tabs" animationDuration="0ms" mat-align-tabs="start">
+    <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Report â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <mat-tab label="Report">
+      <div class="tab-body">
+        @if (report(); as r) {
+          <div class="summary-line">
+            <strong>{{ r.asOfDate }}</strong>
+            <span class="pill">{{ r.isPartial ? 'PARTIAL' : 'COMPLETE' }}</span>
+            @if (r.isTestRun) {
+              <span class="pill">TEST</span>
+            }
+            <span class="muted">{{ r.holdings.length }} holdings Â· {{ r.watchlist.length }} watchlist Â· {{ events().length }} events</span>
+          </div>
+          <div class="muted">
+            Generated {{ r.generatedUtc | date: 'medium' }} Â· AI: {{ r.aiStatus }} Â· Email: {{ store.report()?.emailStatus }}
+          </div>
+
+          <mat-expansion-panel class="notes-panel">
+            <mat-expansion-panel-header>
+              <mat-panel-title>Notes and data quality ({{ r.dataQuality.length + 1 }})</mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="banner">Decision support only. Shadow mode: no trades are placed. Suggestions are research prompts, not advice.</div>
+            @for (w of r.dataQuality; track w) {
+              <div class="banner">{{ w }}</div>
+            }
+          </mat-expansion-panel>
+
+          <mat-expansion-panel class="filters-panel" [expanded]="filtersOpen()" (expandedChange)="filtersOpen.set($event)">
+            <mat-expansion-panel-header>
+              <mat-panel-title>
+                Filters (events, sectors and securities)
+                @if (activeFilters() > 0) {
+                  <span class="pill">{{ activeFilters() }}</span>
+                }
+              </mat-panel-title>
+            </mat-expansion-panel-header>
+            <div class="filter-grid">
+              <mat-form-field>
+                <mat-label>Search ticker, company, sector</mat-label>
+                <input matInput [value]="search()" (input)="setFilter('search', $any($event.target).value)" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Sector</mat-label>
+                <select matNativeControl (change)="setFilter('sector', $any($event.target).value)">
+                  <option value="ALL" [selected]="sectorFilter() === 'ALL'">All sectors</option>
+                  @for (s of sectors(); track s) {
+                    <option [value]="s" [selected]="s === sectorFilter()">{{ s }}</option>
+                  }
+                </select>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Priority</mat-label>
+                <select matNativeControl (change)="setFilter('priority', $any($event.target).value)">
+                  @for (o of priorityOptions; track o.value) {
+                    <option [value]="o.value" [selected]="o.value === priorityFilter()">{{ o.label }}</option>
+                  }
+                </select>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Action</mat-label>
+                <select matNativeControl (change)="setFilter('action', $any($event.target).value)">
+                  <option value="ALL" [selected]="actionFilter() === 'ALL'">All actions</option>
+                  @for (a of actions(); track a) {
+                    <option [value]="a" [selected]="a === actionFilter()">{{ a }}</option>
+                  }
+                </select>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Type</mat-label>
+                <select matNativeControl (change)="setFilter('kind', $any($event.target).value)">
+                  <option value="ALL" [selected]="kindFilter() === 'ALL'">Holdings and watchlist</option>
+                  <option value="HOLDING" [selected]="kindFilter() === 'HOLDING'">Holdings</option>
+                  <option value="WATCHLIST" [selected]="kindFilter() === 'WATCHLIST'">Watchlist</option>
+                </select>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>RSI(14) zone</mat-label>
+                <select matNativeControl (change)="setFilter('rsi', $any($event.target).value)">
+                  <option value="ALL" [selected]="rsiZone() === 'ALL'">Any</option>
+                  <option value="OVERSOLD" [selected]="rsiZone() === 'OVERSOLD'">Oversold (30 or below)</option>
+                  <option value="OVERBOUGHT" [selected]="rsiZone() === 'OVERBOUGHT'">Overbought (70 or above)</option>
+                </select>
+              </mat-form-field>
+              <mat-slide-toggle [checked]="changedOnly()" (change)="setToggle('changed', $event.checked)">Changed since last report</mat-slide-toggle>
+              <mat-slide-toggle [checked]="newsOnly()" (change)="setToggle('news', $event.checked)">Has news</mat-slide-toggle>
+              <mat-slide-toggle [checked]="earningsSoon()" (change)="setToggle('earnings', $event.checked)">Earnings within 7 days</mat-slide-toggle>
+              <button mat-button type="button" (click)="clearFilters()">Reset filters</button>
+            </div>
+          </mat-expansion-panel>
+          <h2 class="section-title">Global events ({{ events().length }})</h2>
+          @if (events().length === 0) {
+            <div class="muted">No major global events detected in approved sources.</div>
+          } @else {
+          @if (selectedEvent(); as e) {
+            <div class="selected-card" id="selected-event">
+              <div class="selected-head">
+                <strong>Selected event: {{ e.category.replaceAll('_', ' ') }}</strong>
+                <button mat-button type="button" (click)="selectedEvent.set(null)">Close</button>
+              </div>
+              <div>{{ e.title }}</div>
+              @if (e.aiSummary) {
+                <div class="ai-box"><strong>AI summary:</strong> {{ e.aiSummary }}</div>
+              }
+              <div class="muted"><strong>Mechanism (hypothesis):</strong> {{ e.mechanism }}</div>
+              <div class="muted"><strong>Counterargument:</strong> {{ e.counterargument }}</div>
+              @if (e.aiPortfolioNote) {
+                <div class="ai-box"><strong>Portfolio note (AI):</strong> {{ e.aiPortfolioNote }}</div>
+              }
+              <div class="muted">Sectors: {{ e.affectedSectors.join(', ') }}</div>
+              <div class="muted">Possibly exposed: {{ e.affectedSymbols.length ? e.affectedSymbols.join(', ') : 'none of your holdings' }}</div>
+              <ul class="evidence">
+                @for (n of e.evidence; track n.evidenceId) {
+                  <li>
+                    @if (n.isMock) {
+                      {{ n.headline }} (mock)
+                    } @else {
+                      <a [href]="n.url" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a>
+                    }
+                    <span class="muted"> · {{ n.publisher }} · {{ n.publishedUtc | date: 'MMM d, HH:mm' }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }            <div class="table-wrapper">
+              <table mat-table appResponsiveTable [dataSource]="sortedEvents()" matSort #evSort="matSort" (matSortChange)="eventSort.set($event)" class="ai-table">
+                <ng-container matColumnDef="category">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header="category">Category</th>
+                  <td mat-cell *matCellDef="let e">{{ e.category.replaceAll('_', ' ') }}</td>
+                </ng-container>
+                <ng-container matColumnDef="title">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header="title">Headline</th>
+                  <td mat-cell *matCellDef="let e" class="wrap">{{ e.title }}</td>
+                </ng-container>
+                <ng-container matColumnDef="exposed">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header="exposed">Exposed holdings</th>
+                  <td mat-cell *matCellDef="let e">{{ e.affectedSymbols.length }}</td>
+                </ng-container>
+                <ng-container matColumnDef="sectors">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header="sectors">Sectors</th>
+                  <td mat-cell *matCellDef="let e" class="wrap">{{ e.affectedSectors.join(', ') }}</td>
+                </ng-container>
+                <ng-container matColumnDef="evidence">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header="evidence">Sources</th>
+                  <td mat-cell *matCellDef="let e">{{ e.evidence.length }}</td>
+                </ng-container>
+                <ng-container matColumnDef="details">
+                  <th mat-header-cell *matHeaderCellDef>Details</th>
+                  <td mat-cell *matCellDef="let e">
+                    <button mat-stroked-button type="button" (click)="openEvent(e); $event.stopPropagation()">View</button>
+                  </td>
+                </ng-container>
+                <ng-container matColumnDef="colConfig" stickyEnd>
+                  <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="ai-events" /></th>
+                  <td mat-cell *matCellDef="let e"></td>
+                </ng-container>
+                <tr mat-header-row *matHeaderRowDef="eventCols(); sticky: true"></tr>
+                <tr mat-row *matRowDef="let row; columns: eventCols()" class="clickable" (click)="openEvent(row)"></tr>
+              </table>
+            </div>
+          }
+
+          <h2 class="section-title">By sector / industry ({{ sectorGroups().length }})</h2>
+          <div class="sector-tools">
+            <mat-form-field>
+              <mat-label>Order sectors by</mat-label>
+              <select matNativeControl (change)="sectorOrder.set($any($event.target).value)">
+                <option value="urgency" [selected]="sectorOrder() === 'urgency'">Most urgent first</option>
+                <option value="name" [selected]="sectorOrder() === 'name'">Name</option>
+                <option value="size" [selected]="sectorOrder() === 'size'">Number of securities</option>
+              </select>
+            </mat-form-field>
+            <span class="muted">Open a sector to see every impacted security, the decision, the AI view and the source links.</span>
+          </div>
+          <mat-accordion multi>
+            @for (g of sectorGroups(); track g.sector) {
+              <mat-expansion-panel>
+                <mat-expansion-panel-header>
+                  <mat-panel-title>{{ g.sector }}</mat-panel-title>
+                  <mat-panel-description class="sector-counts">
+                    <span>{{ g.holdings }} held · {{ g.watch }} watch</span>
+                    @if (g.high) {
+                      <span class="prio-HIGH">{{ g.high }} high</span>
+                    }
+                    @if (g.medium) {
+                      <span class="prio-MEDIUM">{{ g.medium }} medium</span>
+                    }
+                    @if (g.events.length) {
+                      <span>{{ g.events.length }} event(s)</span>
+                    }
+                  </mat-panel-description>
+                </mat-expansion-panel-header>
+                <ng-template matExpansionPanelContent>
+                  @for (e of g.events; track e.eventId) {
+                    <div class="ev-box">
+                      <div><strong>{{ e.category.replaceAll('_', ' ') }}:</strong> {{ e.title }}</div>
+                      @if (e.aiSummary) {
+                        <div class="ai-box"><strong>AI summary:</strong> {{ e.aiSummary }}</div>
+                      }
+                      <div class="muted"><strong>What it could mean (hypothesis):</strong> {{ e.mechanism }}</div>
+                      <div class="muted"><strong>Counterargument:</strong> {{ e.counterargument }}</div>
+                      @if (e.aiPortfolioNote) {
+                        <div class="ai-box"><strong>Portfolio note (AI):</strong> {{ e.aiPortfolioNote }}</div>
+                      }
+                      <ul class="evidence">
+                        @for (n of e.evidence; track n.evidenceId) {
+                          <li>
+                            @if (n.isMock) {
+                              {{ n.headline }} (mock)
+                            } @else {
+                              <a [href]="n.url" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a>
+                            }
+                            <span class="muted"> · {{ n.publisher }} · {{ n.publishedUtc | date: 'MMM d, HH:mm' }}</span>
+                          </li>
+                        }
+                      </ul>
+                    </div>
+                  }
+                  @for (a of g.items; track a.symbol) {
+                    <ng-container [ngTemplateOutlet]="stockBlock" [ngTemplateOutletContext]="{ $implicit: a }" />
+                  }
+                  <div class="actions">
+                    <button mat-stroked-button type="button" (click)="pickSector(g.sector)">Show only {{ g.sector }} in the table</button>
+                  </div>
+                </ng-template>
+              </mat-expansion-panel>
+            } @empty {
+              <div class="muted">No securities match the filters.</div>
+            }
+          </mat-accordion>
+          <h2 class="section-title">Securities ({{ filtered().length }} of {{ all().length }})</h2>
+
+
+          @if (selectedStock(); as s) {
+            <div class="selected-card" id="selected-security">
+              <div class="selected-head">
+                <strong>Selected: {{ s.symbol }}</strong>
+                <button mat-button type="button" (click)="selectedStock.set(null)">Close</button>
+              </div>
+              <ng-container [ngTemplateOutlet]="stockBlock" [ngTemplateOutletContext]="{ $implicit: s }" />
+              <div class="feedback">
+                <button mat-stroked-button type="button" (click)="feedback('USEFUL', s.symbol)">Useful</button>
+                <button mat-stroked-button type="button" (click)="feedback('NOT_USEFUL', s.symbol)">Not useful</button>
+                <button mat-stroked-button type="button" (click)="feedback('ACTION_TAKEN', s.symbol)">Action taken</button>
+                <button mat-stroked-button type="button" (click)="feedback('NO_ACTION_TAKEN', s.symbol)">No action</button>
+              </div>
+            </div>
+          }          <app-mobile-table-controls [sort]="secSortRef" gridId="ai-securities" label="Securities" />
+          <div class="table-wrapper">
+            <table mat-table appResponsiveTable [dataSource]="pagedSecurities()" matSort #secSortRef="matSort" [matSortActive]="secSort().active" [matSortDirection]="secSort().direction" (matSortChange)="onSecSort($event)" class="ai-table">
+              <ng-container matColumnDef="symbol">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="symbol">Ticker</th>
+                <td mat-cell *matCellDef="let a">
+                  <div class="symbol-cell">
+                    <span class="symbol-text">{{ a.symbol }}</span>
+                    <span class="company-name">{{ a.companyName }}</span>
+                  </div>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="kind">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="kind">Type</th>
+                <td mat-cell *matCellDef="let a">{{ a.kind === 'HOLDING' ? 'Holding' : 'Watchlist' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="sector">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="sector">Sector</th>
+                <td mat-cell *matCellDef="let a">{{ a.sector || 'â€”' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="shares">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="shares" class="num-col">Shares</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.shares === null ? 'â€”' : (a.shares | number: '1.0-4') }}</td>
+              </ng-container>
+              <ng-container matColumnDef="averageCost">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="averageCost" class="num-col">Avg Cost</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.averageCost === null ? 'â€”' : money(a.averageCost) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="lastClose">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="lastClose" class="num-col">Close</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ money(a.lastClose) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="unrealizedPct">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="unrealizedPct" class="num-col">P/L %</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.unrealizedPct === null ? 'â€”' : pct(a.unrealizedPct) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="weightPct">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="weightPct" class="num-col">Weight %</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.weightPct === null ? 'â€”' : a.weightPct + '% ' + a.currency }}</td>
+              </ng-container>
+              <ng-container matColumnDef="rsi14">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="rsi14" class="num-col">RSI(14)</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.rsi14 ?? 'â€”' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="change5dPct">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="change5dPct" class="num-col">5d %</th>
+                <td mat-cell *matCellDef="let a" class="num-col">{{ a.change5dPct === null ? 'â€”' : pct(a.change5dPct) }}</td>
+              </ng-container>
+              <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="action">Action</th>
+                <td mat-cell *matCellDef="let a">{{ a.action }}</td>
+              </ng-container>
+              <ng-container matColumnDef="priority">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="priority">Priority</th>
+                <td mat-cell *matCellDef="let a"><span [class]="'prio-' + a.priority">{{ a.priority }}</span></td>
+              </ng-container>
+              <ng-container matColumnDef="change">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="change">Change</th>
+                <td mat-cell *matCellDef="let a">{{ a.change ?? 'â€”' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="earnings">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="earnings">Earnings</th>
+                <td mat-cell *matCellDef="let a">{{ a.earningsInDays === null ? 'â€”' : 'in ' + a.earningsInDays + ' d' }}</td>
+              </ng-container>
+              <ng-container matColumnDef="newsStatus">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="newsStatus">News</th>
+                <td mat-cell *matCellDef="let a">{{ a.newsStatus }} ({{ a.news.length }})</td>
+              </ng-container>
+              <ng-container matColumnDef="rationale">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="rationale">Why</th>
+                <td mat-cell *matCellDef="let a" class="wrap">{{ a.rationale }}</td>
+              </ng-container>
+              <ng-container matColumnDef="details">
+                <th mat-header-cell *matHeaderCellDef>Details</th>
+                <td mat-cell *matCellDef="let a">
+                  <button mat-icon-button type="button" [attr.aria-label]="'Details for ' + a.symbol" (click)="openStock(a); $event.stopPropagation()">
+                    <mat-icon>open_in_new</mat-icon>
+                  </button>
+                </td>
+              </ng-container>
+              <ng-container matColumnDef="colConfig" stickyEnd>
+                <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="ai-securities" /></th>
+                <td mat-cell *matCellDef="let a"></td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="securityCols(); sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: securityCols()" class="clickable" (click)="openStock(row)"></tr>
+              <tr class="mat-row" *matNoDataRow>
+                <td class="mat-cell no-data" [attr.colspan]="securityCols().length">No securities match the filters.</td>
+              </tr>
+            </table>
+          </div>
+          <mat-paginator
+            [length]="filtered().length"
+            [pageIndex]="pageIndex()"
+            [pageSize]="pageSize()"
+            [pageSizeOptions]="pageSizes"
+            (page)="onPage($event)"
+            aria-label="Securities pages"
+          />
+
+          @if (r.metrics; as m) {
+            <div class="muted">
+              Articles {{ m.articlesRetrieved }} Â· events {{ m.events }} Â· AI calls {{ m.aiCalls }} ({{ m.aiDurationMs }} ms) Â· news
+              {{ m.newsDurationMs }} ms
+            </div>
+          }
+        } @else {
+          <div class="banner">No report yet. Open the Agent tab and press Run now (use mock news for a first test).</div>
+        }
+      </div>
+    </mat-tab>
+
+    <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ News sources â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <mat-tab label="Sources">
+      <div class="tab-body">
+        <div class="banner">
+          Only approved and enabled sources are used. New sources stay pending until you approve them. URLs must be https and public.
+        </div>
+        <app-mobile-table-controls [sort]="srcSortRef" gridId="ai-sources" label="Sources" />
+        <div class="table-wrapper">
+          <table mat-table appResponsiveTable [dataSource]="sortedSources()" matSort #srcSortRef="matSort" [matSortActive]="sourceSort().active" [matSortDirection]="sourceSort().direction" (matSortChange)="sourceSort.set($event)" class="ai-table">
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="name">Source</th>
+              <td mat-cell *matCellDef="let s" class="wrap">{{ s.name }}</td>
+            </ng-container>
+            <ng-container matColumnDef="category">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="category">Category</th>
+              <td mat-cell *matCellDef="let s">{{ s.category }}</td>
+            </ng-container>
+            <ng-container matColumnDef="priority">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="priority" class="num-col">Priority</th>
+              <td mat-cell *matCellDef="let s" class="num-col">{{ s.priority }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Status</th>
+              <td mat-cell *matCellDef="let s">{{ sourceTag(s) }}</td>
+            </ng-container>
+            <ng-container matColumnDef="enabled">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="enabled">Enabled</th>
+              <td mat-cell *matCellDef="let s">
+                <mat-slide-toggle [checked]="s.enabled" [disabled]="s.approvalStatus !== 'APPROVED'" [attr.aria-label]="'Enable ' + s.name" (change)="toggleSource(s, $event.checked)" />
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="lastSuccess">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="lastSuccess">Last success</th>
+              <td mat-cell *matCellDef="let s">{{ s.lastSuccessUtc ? (s.lastSuccessUtc | date: 'short') : 'never' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="articles">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="articles" class="num-col">Useful articles</th>
+              <td mat-cell *matCellDef="let s" class="num-col">{{ s.usefulArticleCount }}</td>
+            </ng-container>
+            <ng-container matColumnDef="avgMs">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="avgMs" class="num-col">Avg ms</th>
+              <td mat-cell *matCellDef="let s" class="num-col">{{ s.avgDurationMs }}</td>
+            </ng-container>
+            <ng-container matColumnDef="lastError">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="lastError">Last error</th>
+              <td mat-cell *matCellDef="let s" class="wrap">{{ s.lastError || 'â€”' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let s">
+                <div class="row-actions">
+                  <button mat-icon-button type="button" matTooltip="Test connectivity" [attr.aria-label]="'Test ' + s.name" (click)="store.testSource(s.id)"><mat-icon>network_check</mat-icon></button>
+                  @if (s.approvalStatus === 'PENDING') {
+                    <button mat-icon-button type="button" matTooltip="Approve" [attr.aria-label]="'Approve ' + s.name" (click)="store.approveSource(s.id)"><mat-icon>verified</mat-icon></button>
+                  }
+                  <button mat-icon-button type="button" matTooltip="Edit" [attr.aria-label]="'Edit ' + s.name" (click)="editSource(s)"><mat-icon>edit</mat-icon></button>
+                  <button mat-icon-button type="button" matTooltip="Remove" [attr.aria-label]="'Remove ' + s.name" (click)="store.archiveSource(s.id)"><mat-icon>delete</mat-icon></button>
+                </div>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="colConfig" stickyEnd>
+              <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="ai-sources" /></th>
+              <td mat-cell *matCellDef="let s"></td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="sourceCols(); sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: sourceCols()"></tr>
+          </table>
+        </div>
+
+        <mat-expansion-panel class="notes-panel" [expanded]="sourcePanelOpen()" (expandedChange)="sourcePanelOpen.set($event)">
+          <mat-expansion-panel-header>
+            <mat-panel-title>{{ editingId() === null ? 'Add source' : 'Edit source' }}</mat-panel-title>
+          </mat-expansion-panel-header>
+          <div class="form-grid">
+            <mat-form-field class="wide">
+              <mat-label>Name</mat-label>
+              <input matInput [value]="sourceForm().name" (input)="patchSource({ name: $any($event.target).value })" />
+            </mat-form-field>
+            <mat-form-field class="wide">
+              <mat-label>Feed URL (https; {{ '{symbol}' }} for company feeds)</mat-label>
+              <input matInput [value]="sourceForm().url" (input)="patchSource({ url: $any($event.target).value })" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Category</mat-label>
+              <mat-select [value]="sourceForm().category" (selectionChange)="patchSource({ category: $event.value })">
+                @for (c of categories; track c) {
+                  <mat-option [value]="c">{{ c }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Priority (1 = highest)</mat-label>
+              <input matInput type="number" [value]="sourceForm().priority" (input)="patchSource({ priority: +$any($event.target).value })" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Timeout (seconds)</mat-label>
+              <input matInput type="number" [value]="sourceForm().timeoutSeconds" (input)="patchSource({ timeoutSeconds: +$any($event.target).value })" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Max items per fetch</mat-label>
+              <input matInput type="number" [value]="sourceForm().maxItems" (input)="patchSource({ maxItems: +$any($event.target).value })" />
+            </mat-form-field>
+          </div>
+          <div class="actions">
+            <button mat-flat-button type="button" (click)="saveSource()">{{ editingId() === null ? 'Add source' : 'Save changes' }}</button>
+            @if (editingId() !== null) {
+              <button mat-button type="button" (click)="resetSourceForm()">Cancel</button>
+            }
+          </div>
+        </mat-expansion-panel>
+      </div>
+    </mat-tab>
+
+    <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ History â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <mat-tab label="History">
+      <div class="tab-body">
+        <app-mobile-table-controls [sort]="runSortRef" gridId="ai-history" label="Reports" />
+        <div class="table-wrapper">
+          <table mat-table appResponsiveTable [dataSource]="sortedRuns()" matSort #runSortRef="matSort" [matSortActive]="runSort().active" [matSortDirection]="runSort().direction" (matSortChange)="runSort.set($event)" class="ai-table">
+            <ng-container matColumnDef="asOfDate">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="asOfDate">As-of date</th>
+              <td mat-cell *matCellDef="let r">{{ r.asOfDate }}</td>
+            </ng-container>
+            <ng-container matColumnDef="type">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="type">Type</th>
+              <td mat-cell *matCellDef="let r">{{ r.isTestRun ? 'Test' : 'Scheduled' }}</td>
+            </ng-container>
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="status">Status</th>
+              <td mat-cell *matCellDef="let r">{{ r.status }}</td>
+            </ng-container>
+            <ng-container matColumnDef="emailStatus">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="emailStatus">Email</th>
+              <td mat-cell *matCellDef="let r">{{ r.emailStatus }}</td>
+            </ng-container>
+            <ng-container matColumnDef="articles">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="articles" class="num-col">Articles</th>
+              <td mat-cell *matCellDef="let r" class="num-col">{{ r.articlesRetrieved }}</td>
+            </ng-container>
+            <ng-container matColumnDef="aiCalls">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="aiCalls" class="num-col">AI calls</th>
+              <td mat-cell *matCellDef="let r" class="num-col">{{ r.aiCalls }}</td>
+            </ng-container>
+            <ng-container matColumnDef="durationMs">
+              <th mat-header-cell *matHeaderCellDef mat-sort-header="durationMs" class="num-col">Duration</th>
+              <td mat-cell *matCellDef="let r" class="num-col">{{ (r.durationMs / 1000) | number: '1.0-0' }} s</td>
+            </ng-container>
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let r">
+                <div class="row-actions">
+                  <button mat-stroked-button type="button" (click)="store.openRun(r.id)">Open</button>
+                  <button mat-stroked-button type="button" (click)="store.loadEvaluation(r.id)">Outcomes</button>
+                  <button mat-icon-button type="button" matTooltip="Resend by email" [attr.aria-label]="'Resend report ' + r.asOfDate" (click)="store.resend(r.id)"><mat-icon>forward_to_inbox</mat-icon></button>
+                </div>
+              </td>
+            </ng-container>
+            <ng-container matColumnDef="colConfig" stickyEnd>
+              <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="ai-history" /></th>
+              <td mat-cell *matCellDef="let r"></td>
+            </ng-container>
+            <tr mat-header-row *matHeaderRowDef="historyCols(); sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: historyCols()"></tr>
+            <tr class="mat-row" *matNoDataRow>
+              <td class="mat-cell no-data" [attr.colspan]="historyCols().length">No reports yet.</td>
+            </tr>
+          </table>
+        </div>
+
+        @if (store.evaluation(); as ev) {
+          <h2 class="section-title">Outcomes for {{ ev.asOfDate }} (benchmark {{ ev.benchmark }})</h2>
+          <div class="muted">{{ ev.note }} Blank = that many sessions have not happened yet. "vs bench" = excess over the benchmark.</div>
+          <app-mobile-table-controls [sort]="evalSortRef" gridId="ai-eval" label="Outcomes" />
+          <div class="table-wrapper">
+            <table mat-table appResponsiveTable [dataSource]="sortedEval()" matSort #evalSortRef="matSort" [matSortActive]="evalSort().active" [matSortDirection]="evalSort().direction" (matSortChange)="evalSort.set($event)" class="ai-table">
+              <ng-container matColumnDef="symbol">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="symbol">Ticker</th>
+                <td mat-cell *matCellDef="let x">{{ x.symbol }}</td>
+              </ng-container>
+              <ng-container matColumnDef="action">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="action">Action</th>
+                <td mat-cell *matCellDef="let x">{{ x.action }}</td>
+              </ng-container>
+              <ng-container matColumnDef="priority">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="priority">Priority</th>
+                <td mat-cell *matCellDef="let x">{{ x.priority }}</td>
+              </ng-container>
+              <ng-container matColumnDef="referenceClose">
+                <th mat-header-cell *matHeaderCellDef mat-sort-header="referenceClose" class="num-col">Reference close</th>
+                <td mat-cell *matCellDef="let x" class="num-col">{{ money(x.referenceClose) }}</td>
+              </ng-container>
+              @for (c of [['ret1', '1d %'], ['ret5', '5d %'], ['ret20', '20d %'], ['excess1', '1d vs bench'], ['excess5', '5d vs bench'], ['excess20', '20d vs bench']]; track c[0]) {
+                <ng-container [matColumnDef]="c[0]">
+                  <th mat-header-cell *matHeaderCellDef [mat-sort-header]="c[0]" class="num-col">{{ c[1] }}</th>
+                  <td mat-cell *matCellDef="let x" class="num-col">{{ x[c[0]] === null ? 'â€”' : x[c[0]] + '%' }}</td>
+                </ng-container>
+              }
+              <ng-container matColumnDef="colConfig" stickyEnd>
+                <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="ai-eval" /></th>
+                <td mat-cell *matCellDef="let x"></td>
+              </ng-container>
+              <tr mat-header-row *matHeaderRowDef="evalCols(); sticky: true"></tr>
+              <tr mat-row *matRowDef="let row; columns: evalCols()"></tr>
+            </table>
+          </div>
+        }
+      </div>
+    </mat-tab>
+
+    <!-- â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ Agent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <mat-tab label="Agent">
+      <div class="tab-body">
+        @if (store.status(); as st) {
+          <div class="banner" [class.danger]="!st.aiHealthy">
+            Local AI: {{ st.aiMessage }} Â· Next scheduled run: {{ st.nextRunUtc ? (st.nextRunUtc | date: 'medium') : 'scheduling is off' }}
+          </div>
+        }
+
+        <mat-expansion-panel [expanded]="true">
+          <mat-expansion-panel-header><mat-panel-title>Run now</mat-panel-title></mat-expansion-panel-header>
+          <div class="form-grid">
+            <mat-form-field>
+              <mat-label>As-of date (blank = today)</mat-label>
+              <input matInput [matDatepicker]="runPicker" [value]="runAsOf()" (dateChange)="runAsOf.set($event.value)" placeholder="yyyy-mm-dd" />
+              <mat-datepicker-toggle matSuffix [for]="runPicker" />
+              <mat-datepicker #runPicker touchUi />
+            </mat-form-field>
+          </div>
+          <div class="actions">
+            <mat-checkbox [checked]="runDry()" (change)="runDry.set($event.checked)">Dry run (no email)</mat-checkbox>
+            <mat-checkbox [checked]="runMock()" (change)="runMock.set($event.checked)">Use mock news</mat-checkbox>
+            <mat-checkbox [checked]="runEmail()" [disabled]="runDry()" (change)="runEmail.set($event.checked)">Email the report</mat-checkbox>
+          </div>
+          <div class="actions">
+            <button mat-flat-button type="button" [disabled]="store.running()" (click)="runNow()"><mat-icon>play_arrow</mat-icon> Run now</button>
+            <button mat-stroked-button type="button" (click)="store.testEmail()"><mat-icon>mail</mat-icon> Send test email</button>
+          </div>
+          @if (store.report(); as cur) {
+            <div class="muted">
+              Latest run: {{ cur.status }} Â· email {{ cur.emailStatus }} {{ cur.emailMessage ? '(' + cur.emailMessage + ')' : '' }} Â· SMTP acceptance is not confirmed delivery.
+              @if (cur.error) {
+                Â· Error: {{ cur.error }}
+              }
+            </div>
+          }
+        </mat-expansion-panel>
+
+        @if (configDraft(); as c) {
+          <mat-expansion-panel [expanded]="true">
+            <mat-expansion-panel-header><mat-panel-title>Schedule and settings</mat-panel-title></mat-expansion-panel-header>
+            <div class="form-grid">
+              <mat-slide-toggle [checked]="c.scheduleEnabled" (change)="patchDraft({ scheduleEnabled: $event.checked })">Daily schedule enabled</mat-slide-toggle>
+              <mat-slide-toggle [checked]="c.aiEnabled" (change)="patchDraft({ aiEnabled: $event.checked })">Local AI (Ollama) enabled</mat-slide-toggle>
+              <mat-form-field>
+                <mat-label>Start time (Toronto)</mat-label>
+                <mat-timepicker #startPicker interval="15m" touchUi />
+                <input matInput [matTimepicker]="startPicker" [value]="startDate()" (valueChange)="patchTime('startTimeLocal', $event)" />
+                <mat-timepicker-toggle matSuffix [for]="startPicker" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Email cutoff (Toronto)</mat-label>
+                <mat-timepicker #cutoffPicker interval="15m" touchUi />
+                <input matInput [matTimepicker]="cutoffPicker" [value]="cutoffDate()" (valueChange)="patchTime('deadlineLocal', $event)" />
+                <mat-timepicker-toggle matSuffix [for]="cutoffPicker" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>First run date</mat-label>
+                <input matInput [matDatepicker]="firstPicker" [value]="firstRunDateValue()" (dateChange)="patchDate('firstRunDate', $event.value)" placeholder="yyyy-mm-dd" />
+                <mat-datepicker-toggle matSuffix [for]="firstPicker" />
+                <mat-datepicker #firstPicker touchUi />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Test as-of date</mat-label>
+                <input matInput [matDatepicker]="asOfPicker" [value]="asOfDateValue()" (dateChange)="patchDate('asOfDate', $event.value)" placeholder="yyyy-mm-dd" />
+                <mat-datepicker-toggle matSuffix [for]="asOfPicker" />
+                <mat-datepicker #asOfPicker touchUi />
+                <mat-hint>Leave empty for live runs</mat-hint>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Max AI calls per run</mat-label>
+                <input matInput type="number" [value]="c.aiMaxCalls" (input)="patchDraft({ aiMaxCalls: +$any($event.target).value })" />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Discovery mode</mat-label>
+                <mat-select [value]="c.discoveryMode" (selectionChange)="patchDraft({ discoveryMode: $event.value })">
+                  <mat-option value="APPROVED_ONLY">APPROVED_ONLY</mat-option>
+                  <mat-option value="SMART_DISCOVERY" [disabled]="!discoveryReady()">SMART_DISCOVERY</mat-option>
+                  <mat-option value="FULL_DISCOVERY" [disabled]="!discoveryReady()">FULL_DISCOVERY</mat-option>
+                </mat-select>
+                <mat-hint>{{ discoveryReady() ? 'Discovery source approved' : 'Approve the discovery source in Sources to enable' }}</mat-hint>
+              </mat-form-field>
+            </div>
+            <div class="muted">A test as-of date stops the scheduler. Recipients use the existing notification recipients list.</div>
+            <div class="actions"><button mat-flat-button type="button" (click)="saveConfig()">Save settings</button></div>
+          </mat-expansion-panel>
+        }
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
+
+<ng-template #stockBlock let-a>
+  <div class="stock-block">
+    <div class="stock-head">
+      <strong>{{ a.symbol }}</strong>
+      <span class="muted">{{ a.companyName }}</span>
+      <span class="spacer"></span>
+      <span [class]="'prio-' + a.priority">{{ a.action }} · {{ a.priority }}</span>
+    </div>
+    <div class="metrics muted">
+      <span>{{ a.kind === 'HOLDING' ? 'Holding' : 'Watchlist' }}</span>
+      <span>RSI(14) {{ a.rsi14 ?? 'n/a' }}</span>
+      <span>Close {{ money(a.lastClose) }}</span>
+      <span>5d {{ a.change5dPct === null ? 'n/a' : pct(a.change5dPct) }}</span>
+      @if (a.unrealizedPct !== null) {
+        <span>P/L {{ pct(a.unrealizedPct) }}</span>
+      }
+      @if (a.weightPct !== null) {
+        <span>Weight {{ a.weightPct }}% {{ a.currency }}</span>
+      }
+      @if (a.change && a.change !== 'UNCHANGED') {
+        <span>{{ a.change }}</span>
+      }
+      @if (a.earningsInDays !== null) {
+        <span>Earnings in {{ a.earningsInDays }} d</span>
+      }
+    </div>
+    <div><strong>Decision:</strong> {{ a.rationale }}</div>
+    @if (a.ai; as ai) {
+      <div class="ai-box">
+        @for (x of ai.bullish; track x) {
+          <div>＋ {{ x }}</div>
+        }
+        @for (x of ai.bearish; track x) {
+          <div>－ {{ x }}</div>
+        }
+        @for (x of ai.risks; track x) {
+          <div>⚠ {{ x }}</div>
+        }
+        <div class="muted">AI view (inference, not fact). Evidence: {{ ai.evidenceIds.join(', ') || 'none' }}</div>
+      </div>
+    }
+    <div class="muted">News: {{ a.newsStatus }} ({{ a.news.length }})</div>
+    <ul class="evidence">
+      @for (n of a.news.slice(0, 5); track n.evidenceId) {
+        <li>
+          @if (n.isMock) {
+            {{ n.headline }} (mock)
+          } @else {
+            <a [href]="n.url" target="_blank" rel="noopener noreferrer">{{ n.headline }}</a>
+          }
+          <span class="muted"> · {{ n.publisher }} · {{ n.publishedUtc | date: 'MMM d, HH:mm' }}</span>
+        </li>
+      }
+    </ul>
+    @for (w of a.warnings; track w) {
+      <div class="muted">⚠ {{ w }}</div>
+    }
+    <button mat-button type="button" (click)="openStockDialog(a)">Open as dialog</button>
+  </div>
+</ng-template>

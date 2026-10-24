@@ -1,0 +1,9 @@
+info: PortfolioManager.Api.Services.NotificationRecipientsService[0]
+      Loaded 2 notification recipients.
+warn: Microsoft.EntityFrameworkCore.Query[10103]
+      The query uses the 'First'/'FirstOrDefault' operator without 'OrderBy' and filter operators. This may lead to unpredictable results.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (22ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT TOP(1) [p].[Id], [p].[AiEnabled], [p].[AiMaxCalls], [p].[AsOfDate], [p].[DeadlineLocal], [p].[DiscoveryMode], [p].[FirstRunDate], [p].[ScheduleEnabled], [p].[ShadowMode], [p].[StartTimeLocal], [p].[UserId]
+      FROM [PreMarketAgentConfigs] AS [p]
+Pre-market run skipped: scheduling is off, before the first run date, a test as-of date is set, or it is a weekend.

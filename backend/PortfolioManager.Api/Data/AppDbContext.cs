@@ -22,6 +22,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
 
     public DbSet<PortfolioItem> PortfolioItems => Set<PortfolioItem>();
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
+    public DbSet<PreMarketAgentConfig> PreMarketAgentConfigs => Set<PreMarketAgentConfig>();
+    public DbSet<PreMarketAgentRun> PreMarketAgentRuns => Set<PreMarketAgentRun>();
+    public DbSet<NewsSourceConfiguration> NewsSources => Set<NewsSourceConfiguration>();
+    public DbSet<NewsArticleReference> NewsArticles => Set<NewsArticleReference>();
+    public DbSet<PreMarketFeedback> PreMarketFeedbacks => Set<PreMarketFeedback>();
+    public DbSet<SecuritySectorCache> SecuritySectorCaches => Set<SecuritySectorCache>();
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
@@ -128,6 +134,57 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.Fingerprint).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Note).IsRequired().HasMaxLength(200);
             entity.HasIndex(e => new { e.SourceType, e.SourceItemId }).IsUnique();
+        });
+
+        modelBuilder.Entity<PreMarketAgentConfig>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.StartTimeLocal).HasMaxLength(5);
+            e.Property(x => x.DeadlineLocal).HasMaxLength(5);
+            e.Property(x => x.UserId).HasMaxLength(450);
+        });
+        modelBuilder.Entity<PreMarketAgentRun>(e =>
+        {
+            e.HasIndex(x => x.RunKey).IsUnique();
+            e.Property(x => x.RunKey).HasMaxLength(40);
+            e.Property(x => x.Status).HasMaxLength(20);
+            e.Property(x => x.EmailStatus).HasMaxLength(20);
+        });
+        modelBuilder.Entity<NewsSourceConfiguration>(e =>
+        {
+            e.Property(x => x.Name).HasMaxLength(120);
+            e.Property(x => x.Url).HasMaxLength(2048);
+            e.Property(x => x.ProviderType).HasMaxLength(20);
+            e.Property(x => x.Category).HasMaxLength(20);
+            e.Property(x => x.ApprovalStatus).HasMaxLength(20);
+            e.Property(x => x.Markets).HasMaxLength(60);
+            e.Property(x => x.LastError).HasMaxLength(500);
+        });
+        modelBuilder.Entity<NewsArticleReference>(e =>
+        {
+            e.HasIndex(x => x.Fingerprint).IsUnique();
+            e.HasIndex(x => new { x.Symbol, x.PublishedUtc });
+            e.Property(x => x.Fingerprint).HasMaxLength(64);
+            e.Property(x => x.Url).HasMaxLength(2048);
+            e.Property(x => x.Headline).HasMaxLength(400);
+            e.Property(x => x.Publisher).HasMaxLength(160);
+            e.Property(x => x.Symbol).HasMaxLength(30);
+            e.Property(x => x.Category).HasMaxLength(20);
+            e.Property(x => x.Summary).HasMaxLength(600);
+        });
+        modelBuilder.Entity<SecuritySectorCache>(e =>
+        {
+            e.HasKey(x => x.Symbol);
+            e.Property(x => x.Symbol).HasMaxLength(30);
+            e.Property(x => x.Sector).HasMaxLength(100);
+        });
+        modelBuilder.Entity<PreMarketFeedback>(e =>
+        {
+            e.HasIndex(x => x.RunId);
+            e.Property(x => x.Rating).HasMaxLength(20);
+            e.Property(x => x.Symbol).HasMaxLength(30);
+            e.Property(x => x.Comment).HasMaxLength(500);
         });
 
         modelBuilder.Entity<WatchlistItem>(entity =>

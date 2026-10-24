@@ -319,6 +319,36 @@ public class EmailNotificationService(
         await SendViaMailKitAsync(message);
     }
 
+    /// <summary>Sends a multipart/alternative message (plain text + HTML) to the registered recipients.</summary>
+    public async Task<(bool Success, string Message, int RecipientCount)> SendHtmlWithTextAsync(
+        string subject, string htmlBody, string textBody, CancellationToken ct = default)
+    {
+        var recipientList = recipients.GetAll();
+        if (recipientList.Count == 0)
+            return (false, "No registered notification recipients are configured.", 0);
+        if (!_settings.Enabled)
+            return (false, "Email is disabled in settings (EmailNotification.Enabled = false).", recipientList.Count);
+        if (string.IsNullOrWhiteSpace(_settings.Username) || string.IsNullOrWhiteSpace(_settings.Password)
+            || _settings.Password == "REPLACE_WITH_GMAIL_APP_PASSWORD")
+            return (false, "SMTP credentials are not configured.", recipientList.Count);
+        try
+        {
+            var from = !string.IsNullOrWhiteSpace(_settings.FromAddress) ? _settings.FromAddress : _settings.Username;
+            using var message = new MailMessage { From = new MailAddress(from, _settings.FromName), Subject = subject };
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(textBody, null, "text/plain"));
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(htmlBody, null, "text/html"));
+            foreach (var email in recipientList) message.To.Add(email);
+            await SendViaMailKitAsync(message, ct);
+            return (true, $"Report sent to {recipientList.Count} registered recipient(s).", recipientList.Count);
+        }
+        catch (Exception ex)
+        {
+            // Never log credentials; the exception message from MailKit does not contain them.
+            logger.LogError(ex, "Pre-market report email failed");
+            return (false, "SMTP error: " + ex.Message, recipientList.Count);
+        }
+    }
+
     /// <summary>Sends a MailMessage via MailKit — handles Gmail StartTLS correctly on Linux.</summary>
     private async Task SendViaMailKitAsync(MailMessage mailMessage, CancellationToken ct = default)
     {
