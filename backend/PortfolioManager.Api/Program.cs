@@ -251,6 +251,7 @@ builder.Services.AddSingleton<SignalNotificationTracker>();
 builder.Services.AddSingleton<ScoreAlertTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
+<<<<<<< HEAD
 builder.Services.Configure<OllamaSettings>(builder.Configuration.GetSection("Ollama"));
 builder.Services.AddSingleton<SafeHttpFetcher>();
 builder.Services.AddScoped<RssNewsProvider>();
@@ -259,6 +260,10 @@ builder.Services.AddHttpClient<IAiProvider, OllamaProvider>(c => c.Timeout = Tim
 builder.Services.AddScoped<IPreMarketAgentService, PreMarketAgentService>();
 builder.Services.AddScoped<PreMarketEvaluationService>();
 builder.Services.AddHostedService<PreMarketSchedulerService>();
+=======
+builder.Services.AddScoped<INewsProvider, NotConnectedNewsProvider>();
+builder.Services.AddScoped<IPreMarketAgentService, PreMarketAgentService>();
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 // Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
 builder.Services.AddSingleton<EodSignalPersistenceService>();
 // Background service: runs RSI scans every ScanIntervalSeconds, fires emails on new CONFIRMED signals

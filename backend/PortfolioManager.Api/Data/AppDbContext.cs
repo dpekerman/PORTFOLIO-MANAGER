@@ -24,10 +24,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
     public DbSet<PreMarketAgentConfig> PreMarketAgentConfigs => Set<PreMarketAgentConfig>();
     public DbSet<PreMarketAgentRun> PreMarketAgentRuns => Set<PreMarketAgentRun>();
+<<<<<<< HEAD
     public DbSet<NewsSourceConfiguration> NewsSources => Set<NewsSourceConfiguration>();
     public DbSet<NewsArticleReference> NewsArticles => Set<NewsArticleReference>();
     public DbSet<PreMarketFeedback> PreMarketFeedbacks => Set<PreMarketFeedback>();
     public DbSet<SecuritySectorCache> SecuritySectorCaches => Set<SecuritySectorCache>();
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     public DbSet<AdhocAnalysisSession> AdhocAnalysisSessions => Set<AdhocAnalysisSession>();
     public DbSet<CashItem> CashItems => Set<CashItem>();
     public DbSet<OptionItem> OptionItems => Set<OptionItem>();
@@ -151,6 +154,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.Property(x => x.Status).HasMaxLength(20);
             e.Property(x => x.EmailStatus).HasMaxLength(20);
         });
+<<<<<<< HEAD
         modelBuilder.Entity<NewsSourceConfiguration>(e =>
         {
             e.Property(x => x.Name).HasMaxLength(120);
@@ -186,6 +190,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             e.Property(x => x.Symbol).HasMaxLength(30);
             e.Property(x => x.Comment).HasMaxLength(500);
         });
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
         modelBuilder.Entity<WatchlistItem>(entity =>
         {

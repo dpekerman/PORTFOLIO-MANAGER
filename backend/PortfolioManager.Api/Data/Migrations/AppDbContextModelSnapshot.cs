@@ -1374,12 +1374,15 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<int>("Id")
                         .HasColumnType("int");
 
+<<<<<<< HEAD
                     b.Property<bool>("AiEnabled")
                         .HasColumnType("bit");
 
                     b.Property<int>("AiMaxCalls")
                         .HasColumnType("int");
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
                     b.Property<DateOnly?>("AsOfDate")
                         .HasColumnType("date");
 
@@ -1388,10 +1391,13 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(5)
                         .HasColumnType("nvarchar(5)");
 
+<<<<<<< HEAD
                     b.Property<string>("DiscoveryMode")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
                     b.Property<DateOnly?>("FirstRunDate")
                         .HasColumnType("date");
 
@@ -1423,6 +1429,7 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+<<<<<<< HEAD
                     b.Property<int>("AiCalls")
                         .HasColumnType("int");
 
@@ -1435,6 +1442,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<int>("ArticlesRetrieved")
                         .HasColumnType("int");
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
                     b.Property<DateOnly>("AsOfDate")
                         .HasColumnType("date");
 
@@ -1461,9 +1470,12 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.Property<bool>("IsTestRun")
                         .HasColumnType("bit");
 
+<<<<<<< HEAD
                     b.Property<int>("NewsDurationMs")
                         .HasColumnType("int");
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
                     b.Property<string>("ReportHtml")
                         .HasColumnType("nvarchar(max)");
 
@@ -1491,6 +1503,7 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("PreMarketAgentRuns");
                 });
 
+<<<<<<< HEAD
             modelBuilder.Entity("PortfolioManager.Api.Models.PreMarketFeedback", b =>
                 {
                     b.Property<int>("Id")
@@ -1525,6 +1538,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("PreMarketFeedbacks");
                 });
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
             modelBuilder.Entity("PortfolioManager.Api.Models.RefreshToken", b =>
                 {
                     b.Property<int>("Id")

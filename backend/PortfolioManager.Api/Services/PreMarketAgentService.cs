@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 using System.Diagnostics;
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
@@ -6,6 +9,35 @@ using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
+<<<<<<< HEAD
+=======
+public interface INewsProvider
+{
+    Task<NewsLookupResult> GetCompanyNewsAsync(string symbol, DateOnly asOf, CancellationToken ct = default);
+}
+
+/// <summary>Real news is not connected yet (Phase 3): reports COVERAGE_INCOMPLETE, never "no news".</summary>
+public sealed class NotConnectedNewsProvider : INewsProvider
+{
+    public Task<NewsLookupResult> GetCompanyNewsAsync(string symbol, DateOnly asOf, CancellationToken ct = default) =>
+        Task.FromResult(new NewsLookupResult("COVERAGE_INCOMPLETE", [], "No news provider connected yet."));
+}
+
+/// <summary>Deterministic, clearly labelled MOCK news used only for testing the pipeline.</summary>
+public sealed class MockNewsProvider : INewsProvider
+{
+    public Task<NewsLookupResult> GetCompanyNewsAsync(string symbol, DateOnly asOf, CancellationToken ct = default)
+    {
+        var now = DateTime.UtcNow;
+        var item = new NewsItemDto(
+            $"MOCK-{symbol}-{asOf:yyyyMMdd}", $"[MOCK] {symbol} sample headline", "Mock Publisher",
+            "https://example.com/mock", asOf.ToDateTime(new TimeOnly(6, 0)), now,
+            "Sample item to exercise the report pipeline. Not real news.", true);
+        return Task.FromResult(new NewsLookupResult("NEWS_FOUND", [item]));
+    }
+}
+
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 public interface IPreMarketAgentService
 {
     Task<PreMarketAgentConfig> GetConfigAsync(CancellationToken ct = default);
@@ -17,11 +49,15 @@ public sealed class PreMarketAgentService(
     AppDbContext db,
     IMarketDataProvider market,
     IServiceProvider sp,
+<<<<<<< HEAD
     IAiProvider ai,
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     EmailNotificationService email,
     ILogger<PreMarketAgentService> logger) : IPreMarketAgentService
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+<<<<<<< HEAD
     private static readonly string[] MaterialWords =
         ["earnings", "guidance", "downgrade", "lawsuit", "investigation", "bankruptcy", "trading halt", "recall",
          "merger", "acquisition", "to acquire", "takeover", "profit warning", "restructuring", "fraud", "resigns", "delist"];
@@ -41,6 +77,15 @@ public sealed class PreMarketAgentService(
     public static bool DeadlinePassed(PreMarketAgentConfig cfg, DateOnly asOf, DateTime nowUtc) =>
         nowUtc >= TorontoToUtc(asOf, cfg.DeadlineLocal);
 
+=======
+
+    public static DateOnly TorontoToday(DateTime? utcNow = null)
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(utcNow ?? DateTime.UtcNow, tz));
+    }
+
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     public async Task<PreMarketAgentConfig> GetConfigAsync(CancellationToken ct = default)
     {
         var cfg = await db.PreMarketAgentConfigs.FirstOrDefaultAsync(ct);
@@ -57,6 +102,7 @@ public sealed class PreMarketAgentService(
     {
         var cfg = await GetConfigAsync(ct);
         cfg.ScheduleEnabled = input.ScheduleEnabled;
+<<<<<<< HEAD
         if (TimeOnly.TryParse(input.StartTimeLocal, out _)) cfg.StartTimeLocal = input.StartTimeLocal;
         if (TimeOnly.TryParse(input.DeadlineLocal, out _)) cfg.DeadlineLocal = input.DeadlineLocal;
         cfg.FirstRunDate = input.FirstRunDate;
@@ -70,30 +116,47 @@ public sealed class PreMarketAgentService(
         cfg.DiscoveryMode = discoveryReady ? input.DiscoveryMode : "APPROVED_ONLY";
         cfg.AiEnabled = input.AiEnabled;
         cfg.AiMaxCalls = Math.Clamp(input.AiMaxCalls, 0, 60);
+=======
+        cfg.StartTimeLocal = TimeOnly.TryParse(input.StartTimeLocal, out _) ? input.StartTimeLocal : cfg.StartTimeLocal;
+        cfg.DeadlineLocal = TimeOnly.TryParse(input.DeadlineLocal, out _) ? input.DeadlineLocal : cfg.DeadlineLocal;
+        cfg.FirstRunDate = input.FirstRunDate;
+        cfg.AsOfDate = input.AsOfDate;
+        cfg.ShadowMode = true; // no automated trading in this feature
+        cfg.UserId = input.UserId;
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         await db.SaveChangesAsync(ct);
         return cfg;
     }
 
     public async Task<PreMarketAgentRun> RunAsync(PreMarketRunOptions o, CancellationToken ct = default)
     {
+<<<<<<< HEAD
         var sw = Stopwatch.StartNew();
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         var started = DateTime.UtcNow;
         var cfg = await GetConfigAsync(ct);
         var asOf = o.AsOfDate ?? cfg.AsOfDate ?? TorontoToday();
         var key = $"{asOf:yyyy-MM-dd}|{(o.IsTest ? "TEST" : "REAL")}";
 
         var run = await db.PreMarketAgentRuns.FirstOrDefaultAsync(r => r.RunKey == key, ct);
+<<<<<<< HEAD
         // Real runs never overlap (scheduler + Task Scheduler can both fire); a RUNNING row older than 3 h is treated as an interrupted run and recovered.
         if (run is not null && !o.IsTest && run.Status == "RUNNING" && run.StartedAtUtc > DateTime.UtcNow.AddHours(-3))
             return run;
         if (run is not null && !o.Force && run.Status is "COMPLETE" or "PARTIAL" && run.ReportJson is not null)
             return run; // idempotent: never duplicate a finished run
+=======
+        if (run is not null && !o.Force && run.Status is "COMPLETE" or "PARTIAL" && run.ReportJson is not null)
+            return run; // idempotent: do not duplicate a finished run
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
         if (run is null)
         {
             run = new PreMarketAgentRun { RunKey = key, AsOfDate = asOf, IsTestRun = o.IsTest };
             db.PreMarketAgentRuns.Add(run);
         }
+<<<<<<< HEAD
         run.Status = "RUNNING"; run.StartedAtUtc = started; run.Error = null; run.EmailStatus = "NOT_SENT"; run.EmailMessage = null;
         try { await db.SaveChangesAsync(ct); }
         catch (DbUpdateException)
@@ -135,6 +198,26 @@ public sealed class PreMarketAgentService(
                     run.EmailMessage = msg;
                     run.EmailSubmittedAtUtc = DateTime.UtcNow;
                 }
+=======
+        run.Status = "RUNNING"; run.StartedAtUtc = started; run.Error = null; run.EmailStatus = "NOT_SENT";
+        await db.SaveChangesAsync(ct);
+
+        try
+        {
+            INewsProvider news = o.UseMockNews ? new MockNewsProvider() : sp.GetRequiredService<INewsProvider>();
+            var report = await BuildReportAsync(cfg, asOf, o.IsTest, news, ct);
+            run.ReportJson = JsonSerializer.Serialize(report, Json);
+            run.ReportHtml = PreMarketReportRenderer.Render(report);
+            run.Status = report.IsPartial ? "PARTIAL" : "COMPLETE";
+
+            if (o.SendEmail && !o.DryRun)
+            {
+                var subject = PreMarketReportRenderer.Subject(report);
+                var (ok, msg, _) = await email.SendAutomationSummaryAsync(subject, run.ReportHtml, ct);
+                run.EmailStatus = ok ? "SMTP_ACCEPTED" : "FAILED";
+                run.EmailMessage = msg;
+                run.EmailSubmittedAtUtc = DateTime.UtcNow;
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
             }
         }
         catch (Exception ex)
@@ -144,15 +227,27 @@ public sealed class PreMarketAgentService(
             run.Error = ex.Message;
         }
         run.CompletedAtUtc = DateTime.UtcNow;
+<<<<<<< HEAD
         run.DurationMs = (int)sw.ElapsedMilliseconds;
+=======
+        run.DurationMs = (int)(run.CompletedAtUtc.Value - started).TotalMilliseconds;
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         await db.SaveChangesAsync(ct);
         return run;
     }
 
+<<<<<<< HEAD
     private async Task<(PreMarketReportDto Report, RunMetricsDto Metrics)> BuildReportAsync(
         PreMarketAgentConfig cfg, DateOnly asOf, bool isTest, INewsProvider news, DateTime startedUtc, CancellationToken ct)
     {
         var holdQ = db.PortfolioItems.AsNoTracking().Where(p => p.TransactionType != "CLOSE" && p.Shares > 0);
+=======
+    private async Task<PreMarketReportDto> BuildReportAsync(
+        PreMarketAgentConfig cfg, DateOnly asOf, bool isTest, INewsProvider news, CancellationToken ct)
+    {
+        var holdQ = db.PortfolioItems.AsNoTracking()
+            .Where(p => p.TransactionType != "CLOSE" && p.Shares > 0);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         var watchQ = db.WatchlistItems.AsNoTracking();
         if (!string.IsNullOrEmpty(cfg.UserId))
         {
@@ -165,10 +260,17 @@ public sealed class PreMarketAgentService(
         var warnings = new List<string>
         {
             "Prices are daily closes before the as-of date; no currency conversion is applied.",
+<<<<<<< HEAD
             "Portfolio weights are not shown: holdings can be in mixed currencies and no FX conversion is applied.",
             "Free news coverage can be incomplete (especially TSX/TSXV). A missing article is not proof that nothing happened.",
         };
 
+=======
+            "AI analysis is not enabled in this version: actions come from deterministic RSI rules only.",
+        };
+
+        // One row per symbol; merge multiple lots into a weighted-average position.
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         var held = holdings.GroupBy(h => h.Symbol.ToUpperInvariant()).Select(g =>
         {
             var shares = g.Sum(x => x.Shares);
@@ -177,6 +279,7 @@ public sealed class PreMarketAgentService(
             return (Symbol: g.Key, first.CompanyName, first.Sector, Shares: shares, Cost: cost);
         }).ToList();
         var heldSet = held.Select(h => h.Symbol).ToHashSet();
+<<<<<<< HEAD
         var watchSyms = watch.Select(w => w.Symbol.ToUpperInvariant()).Distinct().Where(s => !heldSet.Contains(s)).ToList();
 
         // 1) Global news once, classified into events once, mapped to every affected holding.
@@ -310,21 +413,43 @@ public sealed class PreMarketAgentService(
         if (aiStatus.StartsWith("UNAVAILABLE") || aiStatus == "DISABLED" || aiStatus.StartsWith("DEGRADED"))
             warnings.Add($"AI analysis {aiStatus}. Actions are from deterministic rules only.");
         if (aiSkipped) warnings.Add("AI budget reached: remaining securities have deterministic analysis only.");
+=======
+
+        var holdAudits = new List<StockAuditDto>();
+        foreach (var h in held)
+            holdAudits.Add(await AuditAsync(h.Symbol, h.CompanyName, "HOLDING", h.Sector, h.Shares, h.Cost, asOf, news, ct));
+
+        var watchAudits = new List<StockAuditDto>();
+        foreach (var sym in watch.Select(w => w.Symbol.ToUpperInvariant()).Distinct().Where(s => !heldSet.Contains(s)))
+            watchAudits.Add(await AuditAsync(sym, "", "WATCHLIST", "", null, null, asOf, news, ct));
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
         var all = holdAudits.Concat(watchAudits).ToList();
         if (all.Count == 0) warnings.Add("No holdings or watchlist symbols were found for the configured user.");
         var missing = all.Count(a => a.Action == "INSUFFICIENT_DATA");
         if (missing > 0) warnings.Add($"{missing} symbol(s) lack enough price history.");
+<<<<<<< HEAD
         var partial = missing > 0 || aiSkipped || global.Status == "SOURCE_UNAVAILABLE";
 
         var metrics = new RunMetricsDto(articles, events.Count, calls, aiMs, newsMs, model);
         return (new PreMarketReportDto(asOf, DateTime.UtcNow, partial, isTest, cfg.ShadowMode, aiStatus,
             holdAudits, watchAudits, warnings, events, metrics), metrics);
+=======
+        if (all.Any(a => a.NewsStatus == "COVERAGE_INCOMPLETE"))
+            warnings.Add("News coverage is incomplete: absence of news is NOT evidence that nothing happened.");
+
+        return new PreMarketReportDto(asOf, DateTime.UtcNow, missing > 0, isTest, cfg.ShadowMode,
+            "UNAVAILABLE (deterministic mode)", holdAudits, watchAudits, warnings);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     }
 
     private async Task<StockAuditDto> AuditAsync(
         string symbol, string name, string kind, string sector, decimal? shares, decimal? cost,
+<<<<<<< HEAD
         DateOnly asOf, INewsProvider news, IReadOnlyList<GlobalEventDto> events, DiscoveryBudget disc, string mode, CancellationToken ct)
+=======
+        DateOnly asOf, INewsProvider news, CancellationToken ct)
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     {
         var warns = new List<string>();
         IReadOnlyList<MarketDailyClose>? closes = null;
@@ -339,6 +464,7 @@ public sealed class PreMarketAgentService(
         var rsi9 = PreMarketMath.Rsi(prices, 9);
         decimal? chg5 = prices.Count >= 6 && prices[^6] != 0 ? Math.Round((prices[^1] / prices[^6] - 1) * 100, 2) : null;
         decimal? pnl = cost is > 0 && last is not null ? Math.Round((last.Close / cost.Value - 1) * 100, 2) : null;
+<<<<<<< HEAD
         if (last is not null && asOf.DayNumber - last.Date.DayNumber > 5) warns.Add($"Latest price is stale ({last.Date:yyyy-MM-dd}).");
 
         var n = await news.GetCompanyNewsAsync(symbol, asOf, ct);
@@ -385,6 +511,19 @@ public sealed class PreMarketAgentService(
 
 public sealed class DiscoveryBudget { public int Remaining; }
 
+=======
+
+        if (last is not null && asOf.DayNumber - last.Date.DayNumber > 5)
+            warns.Add($"Latest price is stale ({last.Date:yyyy-MM-dd}).");
+
+        var n = await news.GetCompanyNewsAsync(symbol, asOf, ct);
+        var (action, priority, why) = PreMarketMath.Decide(kind == "HOLDING", rsi14, pnl, last is not null);
+        return new StockAuditDto(symbol, name, kind, sector, shares, cost, last?.Close, last?.Date, pnl,
+            rsi14, rsi9, chg5, n.Status, n.Items, action, priority, why, warns);
+    }
+}
+
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 public static class PreMarketMath
 {
     /// <summary>Wilder RSI; null when fewer than period+1 closes.</summary>
@@ -424,6 +563,7 @@ public static class PreMarketMath
         if (r >= 70) return ("WATCH", "LOW", $"RSI(14) {r} is overbought; wait for a pullback.");
         return ("WATCH", "LOW", $"RSI(14) {r} is neutral; keep monitoring.");
     }
+<<<<<<< HEAD
 
     /// <summary>News and global-event exposure raise attention; they never create a buy/sell conclusion by themselves.</summary>
     public static (string Action, string Priority, string Rationale) Escalate(
@@ -448,4 +588,6 @@ public static class PreMarketMath
     private static int Rank(string p) => p switch { "HIGH" => 3, "MEDIUM" => 2, "LOW" => 1, _ => 0 };
     public static int PriorityRank(string p) => Rank(p);
     private static string Max(string a, string b) => Rank(a) >= Rank(b) ? a : b;
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 }

@@ -6,7 +6,11 @@ public class PreMarketAgentConfig
     public int Id { get; set; } = 1;
     public bool ScheduleEnabled { get; set; }
     /// <summary>America/Toronto local start time, HH:mm.</summary>
+<<<<<<< HEAD
     public string StartTimeLocal { get; set; } = "07:30";
+=======
+    public string StartTimeLocal { get; set; } = "07:00";
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     /// <summary>Scheduler ignores days before this date.</summary>
     public DateOnly? FirstRunDate { get; set; }
     /// <summary>Test override: treated as "today" for data cut-off, report date and run key.</summary>
@@ -16,11 +20,14 @@ public class PreMarketAgentConfig
     public bool ShadowMode { get; set; } = true;
     /// <summary>Owner of the holdings/watchlist analysed; null = all users.</summary>
     public string? UserId { get; set; }
+<<<<<<< HEAD
     /// <summary>APPROVED_ONLY is the only mode implemented; SMART/FULL need a verified free search source.</summary>
     public string DiscoveryMode { get; set; } = "APPROVED_ONLY";
     public bool AiEnabled { get; set; } = true;
     /// <summary>Upper bound of Ollama calls per run (CPU budget).</summary>
     public int AiMaxCalls { get; set; } = 20;
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 }
 
 public class PreMarketAgentRun
@@ -37,11 +44,16 @@ public class PreMarketAgentRun
     public int DurationMs { get; set; }
     public string? ReportJson { get; set; }
     public string? ReportHtml { get; set; }
+<<<<<<< HEAD
     /// <summary>NOT_SENT | SMTP_ACCEPTED | FAILED | SKIPPED_DEADLINE. SMTP acceptance is not confirmed delivery.</summary>
+=======
+    /// <summary>NOT_SENT | SMTP_ACCEPTED | FAILED. SMTP acceptance is not confirmed delivery.</summary>
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     public string EmailStatus { get; set; } = "NOT_SENT";
     public string? EmailMessage { get; set; }
     public DateTime? EmailSubmittedAtUtc { get; set; }
     public string? Error { get; set; }
+<<<<<<< HEAD
     public string? AiModel { get; set; }
     public int AiCalls { get; set; }
     public int AiDurationMs { get; set; }
@@ -108,6 +120,8 @@ public class SecuritySectorCache
     public string Symbol { get; set; } = string.Empty;
     public string Sector { get; set; } = string.Empty;
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 }
 
 public sealed record PreMarketRunOptions(
@@ -124,15 +138,19 @@ public sealed record NewsItemDto(
 
 public sealed record NewsLookupResult(string Status, IReadOnlyList<NewsItemDto> Items, string? Note = null);
 
+<<<<<<< HEAD
 public sealed record AiAnalysisDto(
     IReadOnlyList<string> Bullish, IReadOnlyList<string> Bearish, IReadOnlyList<string> Risks,
     IReadOnlyList<string> EvidenceIds);
 
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 public sealed record StockAuditDto(
     string Symbol, string CompanyName, string Kind, string Sector,
     decimal? Shares, decimal? AverageCost, decimal? LastClose, DateOnly? PriceDate,
     decimal? UnrealizedPct, decimal? Rsi14, decimal? Rsi9, decimal? Change5dPct,
     string NewsStatus, IReadOnlyList<NewsItemDto> News,
+<<<<<<< HEAD
     string Action, string Priority, string Rationale, IReadOnlyList<string> Warnings,
     IReadOnlyList<string>? EventIds = null, AiAnalysisDto? Ai = null, decimal? WeightPct = null, string? Currency = null,
     string? Change = null, int? EarningsInDays = null);
@@ -144,10 +162,17 @@ public sealed record GlobalEventDto(
 
 public sealed record RunMetricsDto(
     int ArticlesRetrieved, int Events, int AiCalls, int AiDurationMs, int NewsDurationMs, string? AiModel);
+=======
+    string Action, string Priority, string Rationale, IReadOnlyList<string> Warnings);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
 public sealed record PreMarketReportDto(
     DateOnly AsOfDate, DateTime GeneratedUtc, bool IsPartial, bool IsTestRun,
     bool ShadowMode, string AiStatus,
     IReadOnlyList<StockAuditDto> Holdings, IReadOnlyList<StockAuditDto> Watchlist,
+<<<<<<< HEAD
     IReadOnlyList<string> DataQuality,
     IReadOnlyList<GlobalEventDto>? Events = null, RunMetricsDto? Metrics = null);
+=======
+    IReadOnlyList<string> DataQuality);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb

@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 using System.Net;
+=======
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 using FluentAssertions;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
@@ -8,11 +11,17 @@ namespace PortfolioManager.Tests;
 
 public class PreMarketTests
 {
+<<<<<<< HEAD
     private static NewsItemDto News(string id, string headline, string summary = "") =>
         new(id, headline, "Pub", "https://example.com/" + id, DateTime.UtcNow, DateTime.UtcNow, summary, false);
 
     [Fact]
     public void Rsi_NeedsEnoughData() => PreMarketMath.Rsi([1m, 2m, 3m], 14).Should().BeNull();
+=======
+    [Fact]
+    public void Rsi_NeedsEnoughData() =>
+        PreMarketMath.Rsi([1m, 2m, 3m], 14).Should().BeNull();
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
     [Fact]
     public void Rsi_AllGains_Is100() =>
@@ -32,6 +41,7 @@ public class PreMarketTests
         PreMarketMath.Decide(true, null, null, false).Action.Should().Be("INSUFFICIENT_DATA");
 
     [Fact]
+<<<<<<< HEAD
     public void Escalate_MaterialNewsOnHolding_OneIsMediumTwoIsHigh()
     {
         var one = PreMarketMath.Escalate(true, "HOLD", "LOW", "x", [News("A1", "ACME cuts guidance after earnings miss")], 0);
@@ -250,6 +260,16 @@ public class PreMarketTests
             [Row("AAA", "HOLDING")], [Row("BBB", "WATCHLIST")], ["note"]);
         var html = PreMarketReportRenderer.Render(report);
         html.Should().Contain("AAA").And.Contain("BBB").And.Contain("MOCK").And.NotContain("<b>Co</b>");
+=======
+    public void Renderer_ListsEverySymbol_AndEscapesHtml()
+    {
+        StockAuditDto Row(string s, string kind) => new(s, "<b>Co</b>", kind, "", 1, 1, 1, null, null, 50, 50, 0,
+            "COVERAGE_INCOMPLETE", [], "HOLD", "LOW", "ok", []);
+        var report = new PreMarketReportDto(new DateOnly(2026, 10, 20), DateTime.UtcNow, false, true, true, "n/a",
+            [Row("AAA", "HOLDING")], [Row("BBB", "WATCHLIST")], ["note"]);
+        var html = PreMarketReportRenderer.Render(report);
+        html.Should().Contain("AAA").And.Contain("BBB").And.NotContain("<b>Co</b>");
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         PreMarketReportRenderer.Subject(report).Should().Contain("2026-10-20").And.Contain("Complete");
     }
 }

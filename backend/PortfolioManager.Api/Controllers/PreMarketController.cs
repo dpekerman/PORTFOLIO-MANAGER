@@ -8,6 +8,7 @@ using PortfolioManager.Api.Services;
 namespace PortfolioManager.Api.Controllers;
 
 public sealed record RunPreMarketRequest(
+<<<<<<< HEAD
     DateOnly? AsOfDate, bool DryRun = true, bool UseMockNews = false, bool SendEmail = false);
 
 public sealed record NewsSourceRequest(
@@ -15,10 +16,14 @@ public sealed record NewsSourceRequest(
     int RefreshMinutes, int TimeoutSeconds, int MaxItems);
 
 public sealed record FeedbackRequest(string Rating, string? Symbol, string? Comment);
+=======
+    DateOnly? AsOfDate, bool DryRun = true, bool UseMockNews = false, bool SendEmail = false, bool Force = true);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
 [ApiController]
 [Authorize(Roles = "Admin")]
 [Route("api/premarket")]
+<<<<<<< HEAD
 public sealed class PreMarketController(
     IPreMarketAgentService agent, AppDbContext db, IAiProvider ai, SafeHttpFetcher fetcher,
     RssNewsProvider rss, EmailNotificationService email) : ControllerBase
@@ -27,6 +32,10 @@ public sealed class PreMarketController(
     private static readonly string[] Ratings = ["REVIEWED", "USEFUL", "NOT_USEFUL", "ACTION_TAKEN", "NO_ACTION_TAKEN"];
 
     // ── Config / status ─────────────────────────────────────────────────────
+=======
+public sealed class PreMarketController(IPreMarketAgentService agent, AppDbContext db) : ControllerBase
+{
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     [HttpGet("config")]
     public async Task<PreMarketAgentConfig> GetConfig(CancellationToken ct) => await agent.GetConfigAsync(ct);
 
@@ -34,6 +43,7 @@ public sealed class PreMarketController(
     public async Task<PreMarketAgentConfig> SaveConfig(PreMarketAgentConfig cfg, CancellationToken ct) =>
         await agent.SaveConfigAsync(cfg, ct);
 
+<<<<<<< HEAD
     [HttpGet("status")]
     public async Task<object> Status(CancellationToken ct)
     {
@@ -58,11 +68,19 @@ public sealed class PreMarketController(
     public async Task<object> Run(RunPreMarketRequest r, CancellationToken ct)
     {
         var run = await agent.RunAsync(new PreMarketRunOptions(r.AsOfDate, r.DryRun, r.UseMockNews, r.SendEmail, Force: true, IsTest: true), ct);
+=======
+    [HttpPost("run")]
+    public async Task<ActionResult<object>> Run(RunPreMarketRequest r, CancellationToken ct)
+    {
+        var run = await agent.RunAsync(new PreMarketRunOptions(
+            r.AsOfDate, r.DryRun, r.UseMockNews, r.SendEmail, r.Force, IsTest: true), ct);
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
         return Summary(run);
     }
 
     [HttpGet("runs")]
     public async Task<object> List(CancellationToken ct) =>
+<<<<<<< HEAD
         await db.PreMarketAgentRuns.AsNoTracking().OrderByDescending(r => r.StartedAtUtc).Take(60)
             .Select(r => new
             {
@@ -77,11 +95,17 @@ public sealed class PreMarketController(
             .OrderByDescending(r => r.StartedAtUtc).FirstOrDefaultAsync(ct);
         return run is null ? NoContent() : Ok(Detail(run));
     }
+=======
+        (await db.PreMarketAgentRuns.AsNoTracking().OrderByDescending(r => r.StartedAtUtc).Take(30)
+            .Select(r => new { r.Id, r.RunKey, r.AsOfDate, r.IsTestRun, r.Status, r.EmailStatus, r.DurationMs, r.StartedAtUtc })
+            .ToListAsync(ct));
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 
     [HttpGet("runs/{id:int}")]
     public async Task<IActionResult> Get(int id, CancellationToken ct)
     {
         var run = await db.PreMarketAgentRuns.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
+<<<<<<< HEAD
         return run is null ? NotFound() : Ok(Detail(run));
     }
 
@@ -90,6 +114,9 @@ public sealed class PreMarketController(
     {
         var r = await eval.EvaluateAsync(id, ct);
         return r is null ? NotFound() : Ok(r);
+=======
+        return run is null ? NotFound() : Ok(new { run.Id, run.RunKey, run.Status, run.EmailStatus, run.Error, report = run.ReportJson });
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
     }
 
     [HttpGet("runs/{id:int}/html")]
@@ -99,6 +126,7 @@ public sealed class PreMarketController(
         return html is null ? NotFound() : Content(html, "text/html");
     }
 
+<<<<<<< HEAD
     /// <summary>Manual resend of a saved report. SMTP acceptance is reported, not delivery.</summary>
     [HttpPost("runs/{id:int}/resend")]
     public async Task<IActionResult> Resend(int id, CancellationToken ct)
@@ -227,4 +255,7 @@ public sealed class PreMarketController(
         r.AiModel, r.AiCalls, r.AiDurationMs, r.NewsDurationMs, r.ArticlesRetrieved,
         report = r.ReportJson is null ? null : (object)System.Text.Json.JsonDocument.Parse(r.ReportJson).RootElement,
     };
+=======
+    private static object Summary(PreMarketAgentRun r) => new { r.Id, r.RunKey, r.Status, r.EmailStatus, r.EmailMessage, r.DurationMs, r.Error };
+>>>>>>> e274b8de818b34342deac708b3471d1570cf03bb
 }
