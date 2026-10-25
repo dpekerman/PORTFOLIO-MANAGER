@@ -24,7 +24,7 @@ test.describe('navigation', () => {
     }
   });
 
-  for (const route of APP_ROUTES) {
+  for (const route of APP_ROUTES.filter((r) => r.navLabel)) {
     test(`navigates to ${route.navLabel}`, async ({ page, errors }) => {
       await page.goto('/dashboard');
       await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
@@ -39,11 +39,28 @@ test.describe('navigation', () => {
         // Selecting a destination closes the drawer so it never covers the page.
         await expect(link).toBeHidden();
       } else {
-        const link = page
-          .getByRole('navigation', { name: 'Main navigation' })
-          .locator('a', { hasText: route.navLabel });
-        await expect(link).toBeVisible();
-        await link.click();
+        const nav = page.getByRole('navigation', { name: 'Main navigation' });
+        if (route.navLabel === 'Configuration') {
+          await page.getByRole('link', { name: 'Configuration' }).click();
+        } else if ((await nav.locator('a', { hasText: route.navLabel }).count()) > 0) {
+          const link = nav.locator('a', { hasText: route.navLabel });
+          await expect(link).toBeVisible();
+          await link.click();
+        } else {
+          // Lower-traffic pages live in the Markets / Insights menus.
+          let opened = false;
+          for (const group of ['Markets menu', 'Insights menu']) {
+            await nav.getByRole('button', { name: group }).click();
+            const item = page.getByRole('menuitem', { name: route.navLabel });
+            if ((await item.count()) > 0) {
+              await item.click();
+              opened = true;
+              break;
+            }
+            await page.keyboard.press('Escape');
+          }
+          expect(opened, `${route.navLabel} found in a navigation menu`).toBe(true);
+        }
       }
 
       await expect(page).toHaveURL(new RegExp(`${route.path}$`));

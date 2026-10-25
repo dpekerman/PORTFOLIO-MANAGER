@@ -8,6 +8,7 @@ export type ConfigTabId =
   | 'accounts'
   | 'allocation'
   | 'decisions'
+  | 'signals'
   | 'history'
   | 'automation'
   | 'users';
@@ -30,6 +31,7 @@ export const CONFIG_TABS: readonly ConfigTabDef[] = [
   { id: 'accounts', label: 'Account Types', icon: 'account_balance', adminOnly: false },
   { id: 'allocation', label: 'Allocation', icon: 'pie_chart', adminOnly: false },
   { id: 'decisions', label: 'Decision Sources', icon: 'label', adminOnly: false },
+  { id: 'signals', label: 'Signal Tracker', icon: 'insights', adminOnly: false },
   { id: 'history', label: 'Portfolio History', icon: 'history', adminOnly: true },
   { id: 'automation', label: 'Automation', icon: 'bolt', adminOnly: true },
   { id: 'users', label: 'Users', icon: 'manage_accounts', adminOnly: true },

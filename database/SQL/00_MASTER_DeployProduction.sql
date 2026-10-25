@@ -22,6 +22,7 @@
 --   Step 11 23_AddAccountTypes.sql                      (shared account type catalog)
 --   Step 12 24_WidenAccountTypeNames.sql                (account type names up to 120 characters)
 --   Step 13 25_CreateAuditLog.sql                       (AuditLogs table + indexes)
+--   Step 14 26_CreateSignalAuditEvents.sql              (SignalAuditEvents table, eligibility + price-basis columns)
 --
 -- SCRIPTS NOT RUN IN THIS MASTER:
 --   04_SeedNotificationRecipients.sql  -- contains placeholder emails; run manually
@@ -1132,4 +1133,56 @@ IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'202
     INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion)
     VALUES (N'20261015173504_AddAuditLog', N'8.0.0');
 PRINT '  Step 13 OK: AuditLogs table and indexes verified.';
+GO
+
+-- Signals Audit: historical recommendation events (EF migrations 20261024210430_AddSignalAuditEvents and
+-- 20261024221705_AddSignalAuditEligibilityAndBasis). The table is created only when missing; the later columns
+-- are added only when missing, so this step never duplicates a table created by 02_CreateTables.sql.
+SET XACT_ABORT ON;
+IF OBJECT_ID(N'dbo.SignalAuditEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SignalAuditEvents (
+        Id                  bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_SignalAuditEvents PRIMARY KEY,
+        UserId              nvarchar(450)  NOT NULL,
+        Symbol              nvarchar(30)   NOT NULL,
+        AnalysisSymbol      nvarchar(30)   NOT NULL,
+        Currency            nvarchar(10)   NULL,
+        SignalType          nvarchar(60)   NOT NULL,
+        SignalCategory      nvarchar(20)   NOT NULL,
+        Direction           nvarchar(10)   NOT NULL,
+        SignalDate          date           NOT NULL,
+        CapturedAtUtc       datetime2(3)   NOT NULL,
+        SignalPrice         decimal(18,6)  NOT NULL,
+        Score               decimal(9,2)   NULL,
+        Role                nvarchar(30)   NULL,
+        Source              nvarchar(20)   NOT NULL,
+        Origin              nvarchar(20)   NOT NULL,
+        RuleVersion         nvarchar(40)   NULL,
+        EpisodeKey          nvarchar(120)  NOT NULL,
+        EpisodeEndedDate    date           NULL,
+        ContextJson         nvarchar(max)  NULL,
+        MyAction            nvarchar(20)   NOT NULL,
+        MyActionNote        nvarchar(1000) NULL,
+        MyActionUpdatedUtc  datetime2(3)   NULL,
+        LinkedTransactionId int            NULL,
+        EligibilityStatus   nvarchar(20)   NOT NULL CONSTRAINT DF_SignalAuditEvents_EligibilityStatus DEFAULT (N'Unverified'),
+        BasisClose          decimal(18,6)  NULL
+    );
+END;
+IF COL_LENGTH(N'dbo.SignalAuditEvents', N'BasisClose') IS NULL
+    ALTER TABLE dbo.SignalAuditEvents ADD BasisClose decimal(18,6) NULL;
+IF COL_LENGTH(N'dbo.SignalAuditEvents', N'EligibilityStatus') IS NULL
+    ALTER TABLE dbo.SignalAuditEvents ADD EligibilityStatus nvarchar(20) NOT NULL
+        CONSTRAINT DF_SignalAuditEvents_EligibilityStatus DEFAULT (N'Unverified');
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SignalAuditEvents') AND name = N'IX_SignalAuditEvents_UserId_EpisodeKey')
+    CREATE UNIQUE INDEX IX_SignalAuditEvents_UserId_EpisodeKey ON dbo.SignalAuditEvents (UserId, EpisodeKey);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SignalAuditEvents') AND name = N'IX_SignalAuditEvents_UserId_SignalDate')
+    CREATE INDEX IX_SignalAuditEvents_UserId_SignalDate ON dbo.SignalAuditEvents (UserId ASC, SignalDate DESC);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.SignalAuditEvents') AND name = N'IX_SignalAuditEvents_UserId_Symbol_SignalType')
+    CREATE INDEX IX_SignalAuditEvents_UserId_Symbol_SignalType ON dbo.SignalAuditEvents (UserId, Symbol, SignalType);
+IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'20261024210430_AddSignalAuditEvents')
+    INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion) VALUES (N'20261024210430_AddSignalAuditEvents', N'8.0.0');
+IF NOT EXISTS (SELECT 1 FROM dbo.__EFMigrationsHistory WHERE MigrationId = N'20261024221705_AddSignalAuditEligibilityAndBasis')
+    INSERT INTO dbo.__EFMigrationsHistory(MigrationId, ProductVersion) VALUES (N'20261024221705_AddSignalAuditEligibilityAndBasis', N'8.0.0');
+PRINT '  Step 14 OK: SignalAuditEvents table, columns and indexes verified.';
 GO

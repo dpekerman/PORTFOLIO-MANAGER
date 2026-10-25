@@ -115,7 +115,12 @@
       <app-decision-sources-tab />
     }
   </div>
-  @if (tabs().length > 9) {
+  <div class="cfg-panel cfg-tab" [class.cfg-panel--active]="activeSection() === 'signals'">
+    @defer (when isVisited('signals')) {
+      <app-signals-audit-tab />
+    }
+  </div>
+  @if (isAdmin()) {
     <div class="cfg-panel cfg-tab" [class.cfg-panel--active]="activeSection() === 'history'">
       @defer (when isVisited('history')) {
         <app-history-tab />

@@ -35,6 +35,8 @@ public sealed class EodAutomationOrchestratorService(
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
     IHostApplicationLifetime appLifetime,
+    ISignalsAuditService signalsAudit,
+    PortfolioManager.Api.Services.FinalAction.IFinalActionService finalActions,
     ILogger<EodAutomationOrchestratorService> logger) : IEodAutomationOrchestratorService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
@@ -110,6 +112,8 @@ public sealed class EodAutomationOrchestratorService(
             await PollForCompletionAsync(log, tz, pollDeadlineUtc, ct);
             await RecordHeartbeatAsync(log, "CompletionObserved", ct);
 
+            await CaptureSignalsAsync(owner.Id, ct);
+            await RecordHeartbeatAsync(log, "SignalsAuditCaptured", ct);
             log.CompletedAtUtc = DateTime.UtcNow;
             log.OverallStatus = DeriveOverallStatus(log);
             db.AuditLogs.Add(new AuditLog
@@ -209,6 +213,33 @@ public sealed class EodAutomationOrchestratorService(
         {
             log.PowerRequestReleasedAtUtc = DateTime.UtcNow;
             try { await db.SaveChangesAsync(CancellationToken.None); } catch { /* best effort */ }
+        }
+    }
+
+    /// <summary>
+    /// Final Action evaluation, Action Center publication and Signals Audit capture are auxiliary to the EOD run:
+    /// a failure is logged and never fails it.
+    /// </summary>
+    private async Task CaptureSignalsAsync(string ownerId, CancellationToken ct)
+    {
+        try
+        {
+            var snapshot = await finalActions.ComputeAsync(ownerId, fresh: true, ct);
+            var published = await finalActions.PublishPortfolioActionsAsync(ownerId, snapshot, ct);
+            logger.LogInformation("[EodAutomation] Final Action: {Watchlist} watchlist and {Portfolio} portfolio decisions; {Published} published to Action Center.",
+                snapshot.Watchlist.Count, snapshot.Portfolio.Count, published);
+
+            var result = await signalsAudit.CaptureAsync(ownerId, ct);
+            logger.LogInformation("[EodAutomation] Signals Audit: {Created} new, {Closed} closed{Skipped}.",
+                result.Created, result.Closed, result.Skipped ? $" (skipped: {result.Reason})" : "");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EodAutomation] Signals Audit capture failed; EOD run continues.");
         }
     }
 

@@ -1,14 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../core/models/portfolio.models';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -16,6 +17,11 @@ import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 export interface AddWatchlistDialogResult {
   symbol: string;
   role: string;
+}
+
+export interface AddWatchlistDialogData {
+  /** Symbols already on the watchlist; used to block duplicates. */
+  existingSymbols: string[];
 }
 
 @Component({
@@ -39,9 +45,23 @@ export class AddWatchlistDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
   private readonly dialogRef = inject(MatDialogRef<AddWatchlistDialogComponent>);
+  private readonly snackBar = inject(MatSnackBar);
+  private readonly existing = new Set(
+    (inject<AddWatchlistDialogData | null>(MAT_DIALOG_DATA, { optional: true })?.existingSymbols ?? []).map(
+      (s) => s.trim().toUpperCase(),
+    ),
+  );
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
+  private readonly typedSymbol = signal('');
+
+  /** True when the entered/selected ticker is already on the watchlist. */
+  protected readonly isDuplicate = computed(() => this.existing.has(this.typedSymbol().trim().toUpperCase()));
+
+  protected isExisting(symbol: string): boolean {
+    return this.existing.has(symbol.trim().toUpperCase());
+  }
 
   readonly roles = ['Core', 'Strategic', 'Swing', 'Speculative', 'Options'];
 
@@ -78,16 +98,30 @@ export class AddWatchlistDialogComponent {
   }
 
   onSymbolInput(event: Event): void {
-    this.searchSubject.next((event.target as HTMLInputElement).value);
+    const value = (event.target as HTMLInputElement).value;
+    this.typedSymbol.set(value);
+    this.searchSubject.next(value);
   }
 
   selectResult(result: SymbolSearchResult): void {
     this.form.patchValue({ symbol: result.symbol });
+    this.typedSymbol.set(result.symbol);
     this.searchResults.set([]);
+    if (this.isDuplicate()) this.warnDuplicate(result.symbol);
+  }
+
+  private warnDuplicate(symbol: string): void {
+    this.snackBar.open(`${symbol.toUpperCase()} already exists on your watchlist`, 'Close', {
+      duration: 4000,
+    });
   }
 
   confirm(): void {
     if (this.form.invalid) return;
+    if (this.isDuplicate()) {
+      this.warnDuplicate(this.form.value.symbol!);
+      return;
+    }
     const result: AddWatchlistDialogResult = {
       symbol: this.form.value.symbol!.toUpperCase(),
       role: this.form.value.role ?? 'Strategic',

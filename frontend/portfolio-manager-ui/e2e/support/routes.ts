@@ -114,6 +114,14 @@ export const APP_ROUTES: RouteSpec[] = [
     inLayout: true,
   },
   {
+    path: '/signal-tracker',
+    navLabel: 'Signal Tracker',
+    landmark: heading(1, /^Signal Tracker$/),
+    hasMatTable: true,
+    primaryControls: (p) => [p.getByRole('button', { name: 'Export signals' })],
+    inLayout: true,
+  },
+  {
     path: '/config',
     navLabel: 'Configuration',
     landmark: heading(2, /Scanner Settings/),

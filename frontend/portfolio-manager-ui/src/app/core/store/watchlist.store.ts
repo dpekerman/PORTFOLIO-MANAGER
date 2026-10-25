@@ -10,8 +10,8 @@ import {
   withState,
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
-import { Observable, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
-import { WatchlistSummary } from '../models/portfolio.models';
+import { EMPTY, Observable, firstValueFrom, pipe, switchMap, tap } from 'rxjs';
+import { PeriodChange, WatchlistSummary } from '../models/portfolio.models';
 import { PortfolioApiService } from '../services/portfolio-api.service';
 import { onceAuthenticated } from './features/auth-gate';
 import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
@@ -20,6 +20,8 @@ interface WatchlistState {
   items: WatchlistSummary[];
   /** True when `items` came from the DB snapshot rather than a live Yahoo Finance call. */
   fromSnapshot: boolean;
+  /** 5D / 1M change % keyed by upper-case symbol (Yahoo daily closes). */
+  periodChanges: Record<string, PeriodChange>;
 }
 
 /**
@@ -29,7 +31,7 @@ interface WatchlistState {
  */
 export const WatchlistStore = signalStore(
   { providedIn: 'root' },
-  withState<WatchlistState>({ items: [], fromSnapshot: false }),
+  withState<WatchlistState>({ items: [], fromSnapshot: false, periodChanges: {} }),
   withRequestStatus(),
   withComputed(({ items }) => ({
     count: computed(() => items().length),
@@ -89,6 +91,28 @@ export const WatchlistStore = signalStore(
     return {
       refresh,
       loadSnapshot,
+
+      /** Loads 5D / 1M change % for the given symbols. A failure leaves existing values untouched. */
+      loadPeriodChanges: rxMethod<string[]>(
+        pipe(
+          switchMap((symbols) =>
+            symbols.length === 0
+              ? EMPTY
+              : api.getPeriodChanges(symbols).pipe(
+                  tapResponse({
+                    next: (changes) =>
+                      patchState(store, ({ periodChanges }) => ({
+                        periodChanges: {
+                          ...periodChanges,
+                          ...Object.fromEntries(changes.map((c) => [c.symbol.toUpperCase(), c])),
+                        },
+                      })),
+                    error: () => undefined,
+                  }),
+                ),
+          ),
+        ),
+      ),
 
       /** Silently applies prices from a completed batch refresh: no loading state, no extra HTTP call. */
       setFromRefresh(items: WatchlistSummary[]): void {

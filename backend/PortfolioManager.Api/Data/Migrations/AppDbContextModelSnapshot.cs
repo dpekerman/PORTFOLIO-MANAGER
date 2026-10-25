@@ -1417,6 +1417,127 @@ namespace PortfolioManager.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.SignalAuditEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AnalysisSymbol")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("BasisClose")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("ContextJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Direction")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("EligibilityStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Unverified");
+
+                    b.Property<DateOnly?>("EpisodeEndedDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("EpisodeKey")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("LinkedTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("MyAction")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("MyActionNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("MyActionUpdatedUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Role")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RuleVersion")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(9,2)");
+
+                    b.Property<string>("SignalCategory")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateOnly>("SignalDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("SignalPrice")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<string>("SignalType")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "EpisodeKey")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "SignalDate")
+                        .IsDescending(false, true);
+
+                    b.HasIndex("UserId", "Symbol", "SignalType");
+
+                    b.ToTable("SignalAuditEvents");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.SinglePositionLimit", b =>
                 {
                     b.Property<int>("Id")

@@ -12,6 +12,7 @@ const TABS: { label: RegExp; heading: RegExp }[] = [
   { label: /Account Types/, heading: /^Account Types$/ },
   { label: /Allocation/, heading: /Allocation & Risk Management/ },
   { label: /Decision Sources/, heading: /Decision Source Picklist/ },
+  { label: /Signal Tracker/, heading: /Signal Tracker Settings/ },
   { label: /Portfolio History/, heading: /Portfolio History Reconstruction/ },
   { label: /Automation/, heading: /EOD Automation/ },
   { label: /Users/, heading: /User Management/ },

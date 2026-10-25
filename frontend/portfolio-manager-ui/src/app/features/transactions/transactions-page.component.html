@@ -385,6 +385,22 @@
                   <td mat-footer-cell *matFooterCellDef></td>
                 </ng-container>
 
+                <ng-container matColumnDef="tx_role">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>ROLE</th>
+                  <td mat-cell *matCellDef="let s">
+                    <span class="pg-dim">{{ s.item.holdingRole || '—' }}</span>
+                  </td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+
+                <ng-container matColumnDef="tx_industry">
+                  <th mat-header-cell *matHeaderCellDef mat-sort-header>INDUSTRY</th>
+                  <td mat-cell *matCellDef="let s">
+                    <span class="pg-dim">{{ stockIndustry(s) || '—' }}</span>
+                  </td>
+                  <td mat-footer-cell *matFooterCellDef></td>
+                </ng-container>
+
                 <ng-container matColumnDef="tx_age">
                   <th
                     mat-header-cell

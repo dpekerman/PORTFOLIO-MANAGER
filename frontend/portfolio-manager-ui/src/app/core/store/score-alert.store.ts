@@ -4,16 +4,12 @@ import { patchState, signalStore, withHooks, withMethods, withState } from '@ngr
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { pipe, switchMap } from 'rxjs';
 import { ValueScreenerResult } from '../models/portfolio.models';
-import { DecisionEngineService } from '../services/decision-engine.service';
 import { NotificationApiService } from '../services/notification-api.service';
 import { PortfolioApiService } from '../services/portfolio-api.service';
-import { buildEligibleCandidates, mergeRsiMaps } from '../services/priority-candidate-eligibility';
 import { AppRefreshStore } from './app-refresh.store';
 import { ConfigStore } from './config.store';
 import { DashboardStore } from './dashboard.store';
 import { onceAuthenticated } from './features/auth-gate';
-import { ScannerStore } from './scanner.store';
-import { WatchlistRsiStore } from './watchlist-rsi.store';
 
 interface ScoreAlertState {
   valueScreenerMap: Map<string, ValueScreenerResult>;
@@ -64,10 +60,7 @@ export const ScoreAlertStore = signalStore(
     onInit(store) {
       const config = inject(ConfigStore);
       const dashboard = inject(DashboardStore);
-      const scanner = inject(ScannerStore);
-      const watchlistRsi = inject(WatchlistRsiStore);
       const appRefresh = inject(AppRefreshStore);
-      const engine = inject(DecisionEngineService);
 
       onceAuthenticated(() => store.loadValueScreener());
 
@@ -82,21 +75,16 @@ export const ScoreAlertStore = signalStore(
       });
 
       effect(() => {
-        const scores = dashboard.actionScores();
+        const candidates = dashboard.priorityCandidates();
         const busy =
           appRefresh.isRefreshing() ||
           dashboard.actionScoresLoading() ||
-          watchlistRsi.rsiLoading() ||
-          scanner.loading();
+          dashboard.priorityCandidatesLoading();
         const threshold = config.scoreAlertThreshold();
-        if (busy || scores.length === 0) return;
+        if (busy || candidates.length === 0) return;
 
-        const rsiMap = mergeRsiMaps(watchlistRsi.rsiMap(), [
-          ...scanner.oversold(),
-          ...scanner.overbought(),
-        ]);
-        const symbols = buildEligibleCandidates(scores, rsiMap, store.valueScreenerMap(), engine)
-          .filter((row) => row.score.totalScore >= threshold)
+        const symbols = candidates
+          .filter((row) => row.eligibility.eligible && row.score.totalScore >= threshold)
           .map((row) => row.score.symbol.toUpperCase())
           .sort();
         if (symbols.length === 0) return;

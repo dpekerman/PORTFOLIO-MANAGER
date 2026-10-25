@@ -1,4 +1,4 @@
-:host {
+﻿:host {
   display: block;
 }
 .watchlist-symbol-field,
@@ -31,4 +31,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.exists-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 167, 38, 0.18);
+  color: #ffa726;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.exists-tag mat-icon {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+}
+.exists-hint {
+  color: #ffa726;
 }

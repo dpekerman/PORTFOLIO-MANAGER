@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -35,11 +36,10 @@ import {
 import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AuthStore } from '../../core/store/auth.store';
 import {
-  DecisionEngineService,
   GapStatus,
   PageDecision,
-  WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
+import { FinalActionStore } from '../../core/store/final-action.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -64,6 +64,7 @@ import {
 } from '../transactions/transaction-notes-dialog/transaction-notes-dialog.component';
 import {
   AddWatchlistDialogComponent,
+  AddWatchlistDialogData,
   AddWatchlistDialogResult,
 } from './add-watchlist-dialog.component';
 import { SecurityAnalysisMappingDialogComponent } from './security-analysis-mapping-dialog.component';
@@ -78,6 +79,8 @@ type SortColumn =
   | 'price'
   | 'change'
   | 'changePct'
+  | 'change5d'
+  | 'change1m'
   | 'sector'
   | 'rsi'
   | 'buyScore'
@@ -146,7 +149,7 @@ export class WatchlistPageComponent {
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
-  private readonly engine = inject(DecisionEngineService);
+  private readonly finalActions = inject(FinalActionStore);
   protected readonly rsiLoading = this.watchlistRsi.rsiLoading;
 
   protected readonly viewMode = signal<ViewMode>('grid');
@@ -182,6 +185,15 @@ export class WatchlistPageComponent {
         this.vsMap.set(map);
       },
       error: () => {}, // Non-critical
+    });
+
+    // Reload 5D / 1M change % only when the symbol set changes, not on every price refresh.
+    const symbolKey = computed(() =>
+      [...new Set(this.watchlist.items().map((w) => w.item.symbol.toUpperCase()))].sort().join(','),
+    );
+    effect(() => {
+      const key = symbolKey();
+      untracked(() => this.watchlist.loadPeriodChanges(key ? key.split(',') : []));
     });
 
     // Bridge the RSI enrichment loading state into the mini-popup (indeterminate — no ticker count).
@@ -316,17 +328,8 @@ export class WatchlistPageComponent {
       .join(' ');
   }
 
-  protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return null;
-    const vs = this.vsMap().get(symbol.toUpperCase());
-    const bs = this.buyScoreForSymbol(symbol);
-    const ctx: WatchlistValueContext = {
-      buyScore: bs?.score ?? null,
-      valueTrapWarning: vs?.actionTrigger === 'ValueTrapWarning',
-      valueScore: vs?.score ?? null,
-    };
-    return this.engine.translateForWatchlist(r, role, ctx);
+  protected decisionForSymbol(symbol: string, _role: string | null): PageDecision | null {
+    return this.finalActions.decisionForWatchlist(symbol);
   }
 
   protected valueDataForSymbol(symbol: string): {
@@ -461,6 +464,12 @@ export class WatchlistPageComponent {
     const r = this.rsiMap().get(symbol.toUpperCase());
     if (!r) return null;
     return { change: r.change ?? null, changePct: r.changePercent ?? null };
+  }
+
+  protected periodChangeFor(symbol: string, period: '5d' | '1m'): number | null {
+    const c = this.watchlist.periodChanges()[symbol.toUpperCase()];
+    if (!c) return null;
+    return (period === '5d' ? c.change5DPct : c.change1MPct) ?? null;
   }
 
   /**
@@ -650,6 +659,14 @@ export class WatchlistPageComponent {
           av = a.quote?.changePercent ?? 0;
           bv = b.quote?.changePercent ?? 0;
           break;
+        case 'change5d':
+          av = this.periodChangeFor(a.item.symbol, '5d') ?? -1e9;
+          bv = this.periodChangeFor(b.item.symbol, '5d') ?? -1e9;
+          break;
+        case 'change1m':
+          av = this.periodChangeFor(a.item.symbol, '1m') ?? -1e9;
+          bv = this.periodChangeFor(b.item.symbol, '1m') ?? -1e9;
+          break;
         case 'sector':
           av = a.quote?.sector ?? '';
           bv = b.quote?.sector ?? '';
@@ -797,7 +814,13 @@ export class WatchlistPageComponent {
 
   openAddDialog(): void {
     this.dialog
-      .open(AddWatchlistDialogComponent, { width: '420px', maxWidth: '95vw' })
+      .open(AddWatchlistDialogComponent, {
+        width: '420px',
+        maxWidth: '95vw',
+        data: {
+          existingSymbols: this.watchlist.items().map((w) => w.item.symbol),
+        } satisfies AddWatchlistDialogData,
+      })
       .afterClosed()
       .subscribe((result: AddWatchlistDialogResult | null) => {
         if (result) this.watchlist.addItem(result.symbol, result.role);

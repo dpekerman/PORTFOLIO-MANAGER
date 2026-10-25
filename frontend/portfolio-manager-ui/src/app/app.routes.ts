@@ -71,6 +71,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'signal-tracker',
+        loadChildren: () =>
+          import('./features/signal-tracker/signal-tracker.routes').then(
+            (m) => m.SIGNAL_TRACKER_ROUTES,
+          ),
+      },
+      {
         path: 'audit',
         loadChildren: () => import('./features/audit/audit.routes').then((m) => m.AUDIT_ROUTES),
       },

@@ -24,6 +24,7 @@ describe('WatchlistStore', () => {
     addWatchlistItem: vi.fn(),
     deleteWatchlistItem: vi.fn(),
     updateWatchlistFavorite: vi.fn(),
+    getPeriodChanges: vi.fn(),
   };
   const snackBar = { open: vi.fn() };
 
@@ -134,5 +135,21 @@ describe('WatchlistStore', () => {
     s.deleteItem(1, 'AAPL');
 
     expect(s.items().map((x) => x.item.symbol)).toEqual(['MSFT']);
+  });
+
+  it('merges 5D / 1M period changes by symbol and keeps prior values when a reload fails', () => {
+    const s = store();
+    api.getPeriodChanges.mockReturnValueOnce(
+      of([{ symbol: 'aapl', change5DPct: 1.5, change1MPct: null }]),
+    );
+    s.loadPeriodChanges(['AAPL']);
+    expect(s.periodChanges()['AAPL']).toEqual({ symbol: 'aapl', change5DPct: 1.5, change1MPct: null });
+
+    api.getPeriodChanges.mockReturnValueOnce(throwError(() => new Error('yahoo down')));
+    s.loadPeriodChanges(['AAPL', 'MSFT']);
+    expect(s.periodChanges()['AAPL'].change5DPct).toBe(1.5);
+
+    s.loadPeriodChanges([]);
+    expect(api.getPeriodChanges).toHaveBeenCalledTimes(2);
   });
 });
