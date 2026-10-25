@@ -367,3 +367,14 @@ a.mat-mdc-button-base mat-icon {
     color: #ef9a9a;
   }
 }
+
+// Top-bar navigation menus (Markets / Insights): the overlay lives outside the layout component.
+.nav-menu .mat-mdc-menu-item.nav-menu-active {
+  color: #64b5f6;
+  background: rgba(100, 181, 246, 0.1);
+  font-weight: 600;
+
+  .mat-icon {
+    color: #64b5f6;
+  }
+}

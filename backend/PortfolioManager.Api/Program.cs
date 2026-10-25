@@ -286,6 +286,9 @@ builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>(
 builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
+builder.Services.AddScoped<IPeriodChangeService, PeriodChangeService>();
+builder.Services.AddScoped<ISignalsAuditService, SignalsAuditService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.FinalAction.IFinalActionService, PortfolioManager.Api.Services.FinalAction.FinalActionService>();
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 // Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window

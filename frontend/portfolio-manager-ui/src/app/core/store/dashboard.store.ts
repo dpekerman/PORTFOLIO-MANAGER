@@ -18,8 +18,10 @@ import {
   MarketLeadershipResponse,
   PerformanceSummaryResponse,
   PortfolioActionDto,
+  PriorityCandidateRow,
 } from '../models/portfolio.models';
 import { DashboardApiService } from '../services/dashboard-api.service';
+import { PortfolioApiService } from '../services/portfolio-api.service';
 
 interface DashboardState {
   data: DashboardResponse | null;
@@ -35,6 +37,8 @@ interface DashboardState {
   marketLeadershipLoading: boolean;
   actionScores: ActionScoreDto[];
   actionScoresLoading: boolean;
+  priorityCandidates: PriorityCandidateRow[];
+  priorityCandidatesLoading: boolean;
   performanceSummary: PerformanceSummaryResponse | null;
   performanceSummaryLoading: boolean;
 }
@@ -53,6 +57,8 @@ const initialState: DashboardState = {
   marketLeadershipLoading: false,
   actionScores: [],
   actionScoresLoading: false,
+  priorityCandidates: [],
+  priorityCandidatesLoading: false,
   performanceSummary: null,
   performanceSummaryLoading: false,
 };
@@ -93,7 +99,7 @@ export const DashboardStore = signalStore(
     /** Legacy alias for {@link data}, kept so existing call sites keep compiling. */
     hasData: computed(() => data()),
   })),
-  withMethods((store, api = inject(DashboardApiService)) => {
+  withMethods((store, api = inject(DashboardApiService), portfolioApi = inject(PortfolioApiService)) => {
     const loadPortfolioActions = rxMethod<void>(
       pipe(
         tap(() => patchState(store, { actionsLoading: true })),
@@ -153,6 +159,32 @@ export const DashboardStore = signalStore(
       ),
     );
 
+    const loadPriorityCandidates = rxMethod<void>(
+      pipe(
+        tap(() => patchState(store, { priorityCandidatesLoading: true })),
+        switchMap(() =>
+          portfolioApi.getPriorityCandidates().pipe(
+            tapResponse({
+              next: (rows) =>
+                patchState(store, {
+                  priorityCandidates: rows.map((r) => ({
+                    score: r.score,
+                    eligibility: {
+                      eligible: r.eligible,
+                      finalAction: r.finalAction,
+                      priorityLevel: r.priorityLevel,
+                      reasonExcluded: r.reasonsExcluded,
+                    },
+                  })),
+                  priorityCandidatesLoading: false,
+                }),
+              error: () => patchState(store, { priorityCandidatesLoading: false }),
+            }),
+          ),
+        ),
+      ),
+    );
+
     const loadPerformanceSummary = rxMethod<void>(
       pipe(
         tap(() => patchState(store, { performanceSummaryLoading: true })),
@@ -181,6 +213,7 @@ export const DashboardStore = signalStore(
                 loadMarketLeadership();
                 patchState(store, { actionScores: [] });
                 loadActionScores();
+                loadPriorityCandidates();
                 loadPerformanceSummary();
               },
               error: () => patchState(store, { error: 'Dashboard refresh failed', loading: false }),
@@ -226,6 +259,7 @@ export const DashboardStore = signalStore(
       loadEodSummary,
       loadMarketLeadership,
       loadActionScores,
+      loadPriorityCandidates,
       loadPerformanceSummary,
 
       /** Loaded once and cached: the analytics query is expensive and the data is end-of-day. */

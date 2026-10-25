@@ -19,6 +19,7 @@ import { EodWindowTabComponent } from './tabs/eod-window/eod-window-tab.componen
 import { HistoryTabComponent } from './tabs/history/history-tab.component';
 import { ScannerTabComponent } from './tabs/scanner/scanner-tab.component';
 import { SectorsTabComponent } from './tabs/sectors/sectors-tab.component';
+import { SignalsAuditTabComponent } from './tabs/signals-audit/signals-audit-tab.component';
 import { UsersTabComponent } from './tabs/users/users-tab.component';
 import { ValueScreenerTabComponent } from './tabs/value-screener/value-screener-tab.component';
 
@@ -51,6 +52,7 @@ import { ValueScreenerTabComponent } from './tabs/value-screener/value-screener-
     HistoryTabComponent,
     ScannerTabComponent,
     SectorsTabComponent,
+    SignalsAuditTabComponent,
     UsersTabComponent,
     ValueScreenerTabComponent,
   ],
@@ -59,6 +61,7 @@ export class ConfigPageComponent {
   protected readonly demoMode = inject(DemoModeStore);
   protected readonly save = inject(ConfigSaveService);
   private readonly authState = inject(AuthStore);
+  protected readonly isAdmin = this.authState.isAdmin;
 
   protected readonly activeSection = signal<ConfigTabId>('scanner');
   private readonly visited = signal<ReadonlySet<ConfigTabId>>(new Set<ConfigTabId>(['scanner']));

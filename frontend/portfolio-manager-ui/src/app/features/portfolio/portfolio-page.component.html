@@ -225,15 +225,43 @@
                     subscriptSizing="dynamic"
                     class="gf-field gf-select"
                   >
-                    <mat-label>Sector</mat-label>
-                    <mat-select
-                      [ngModel]="filterSector()"
-                      (ngModelChange)="filterSector.set($event)"
-                    >
-                      <mat-option value="">All sectors</mat-option>
-                      @for (s of uniqueSectors(); track s) {
-                        <mat-option [value]="s">{{ s }}</mat-option>
+                    <mat-label>Role</mat-label>
+                    <mat-select [ngModel]="filterRole()" (ngModelChange)="filterRole.set($event)">
+                      <mat-option value="">All roles</mat-option>
+                      @for (r of uniqueRoles(); track r) {
+                        <mat-option [value]="r">{{ r }}</mat-option>
                       }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="gf-field gf-select"
+                  >
+                    <mat-label>Final Action</mat-label>
+                    <mat-select
+                      [ngModel]="filterFinalAction()"
+                      (ngModelChange)="filterFinalAction.set($event)"
+                    >
+                      <mat-option value="">All actions</mat-option>
+                      @for (fa of uniqueFinalActions(); track fa) {
+                        <mat-option [value]="fa">{{ fa }}</mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <mat-form-field
+                    appearance="outline"
+                    subscriptSizing="dynamic"
+                    class="gf-field gf-select"
+                  >
+                    <mat-label>Gain/Loss</mat-label>
+                    <mat-select
+                      [ngModel]="filterGainLoss()"
+                      (ngModelChange)="filterGainLoss.set($event)"
+                    >
+                      <mat-option value="">All</mat-option>
+                      <mat-option value="GAIN">Gain</mat-option>
+                      <mat-option value="LOSS">Loss</mat-option>
                     </mat-select>
                   </mat-form-field>
                   <mat-form-field

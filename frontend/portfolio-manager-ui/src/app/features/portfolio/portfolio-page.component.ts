@@ -46,12 +46,12 @@ import {
   accountTypeError,
   AccountTypesStore,
 } from '../../core/store/account-types.store';
-import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
+import { GapStatus } from '../../core/services/decision-engine.service';
+import { FinalActionStore } from '../../core/store/final-action.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
 import { PortfolioStore } from '../../core/store/portfolio.store';
 import { ScannerStore } from '../../core/store/scanner.store';
@@ -207,9 +207,8 @@ export class PortfolioPageComponent {
   protected readonly appRefresh = inject(AppRefreshStore);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
-  protected readonly engine = inject(DecisionEngineService);
   private readonly configService = inject(ConfigStore);
-  private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
+  private readonly finalActions = inject(FinalActionStore);
   private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 
   /** Returns masked value when fake mode is on, original value otherwise. */
@@ -240,8 +239,10 @@ export class PortfolioPageComponent {
   protected readonly viewMode = signal<ViewMode>('grid');
 
   protected readonly filterTicker = signal('');
-  protected readonly filterSector = signal('');
   protected readonly filterIndustry = signal('');
+  protected readonly filterRole = signal('');
+  protected readonly filterFinalAction = signal('');
+  protected readonly filterGainLoss = signal<'' | 'GAIN' | 'LOSS'>('');
   protected readonly filterMomentumShift = signal('');
   protected readonly filterAccount = signal('');
 
@@ -761,22 +762,10 @@ export class PortfolioPageComponent {
 
   protected decisionForPortfolio(
     symbol: string,
-    holdingRole: string | null | undefined,
+    _holdingRole: string | null | undefined,
     item?: import('../../core/models/portfolio.models').PortfolioItem,
   ): import('../../core/services/decision-engine.service').PageDecision | null {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return null;
-
-    const context = item
-      ? this.finalActionSync.buildContext(
-          item,
-          r,
-          this.portfolio.summaries(),
-          this.portfolioGrandTotal(),
-        )
-      : undefined;
-
-    return this.engine.translateForPortfolio(r, holdingRole ?? null, true, context);
+    return this.finalActions.decisionForPortfolio(symbol, item?.id);
   }
 
   protected readonly sortedSummaries = computed(() => {
@@ -793,11 +782,20 @@ export class PortfolioPageComponent {
   });
 
   // â”€â”€ Unique filter options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  protected readonly uniqueSectors = computed<string[]>(() => {
+  protected readonly uniqueRoles = computed<string[]>(() => {
     const set = new Set<string>();
     for (const s of this.portfolio.summaries()) {
-      const sector = s.item.sector || s.quote?.sector;
-      if (sector) set.add(sector);
+      if (s.item.transactionType !== 'CLOSE' && s.item.holdingRole) set.add(s.item.holdingRole);
+    }
+    return [...set].sort();
+  });
+
+  protected readonly uniqueFinalActions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const s of this.portfolio.summaries()) {
+      if (s.item.transactionType === 'CLOSE') continue;
+      const fa = this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction;
+      if (fa) set.add(fa);
     }
     return [...set].sort();
   });
@@ -828,7 +826,9 @@ export class PortfolioPageComponent {
   // -- Grid filtered + sorted rows ------------------------------------------
   protected readonly gridRows = computed<GridRow[]>(() => {
     const ticker = this.filterTicker().trim().toLowerCase();
-    const sector = this.filterSector();
+    const filterRole = this.filterRole();
+    const filterFinalAction = this.filterFinalAction();
+    const filterGainLoss = this.filterGainLoss();
     const industry = this.filterIndustry();
     const filterMomentum = this.filterMomentumShift();
     const filterAccount = this.filterAccount();
@@ -841,7 +841,16 @@ export class PortfolioPageComponent {
         !s.item.companyName.toLowerCase().includes(ticker)
       )
         return false;
-      if (sector && (s.item.sector || s.quote?.sector || '') !== sector) return false;
+      if (filterRole && (s.item.holdingRole ?? '') !== filterRole) return false;
+      if (filterFinalAction) {
+        const fa =
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '';
+        if (fa !== filterFinalAction) return false;
+      }
+      if (filterGainLoss) {
+        const gl = this.gridSortValue(s, 'gainLoss') as number;
+        if (filterGainLoss === 'GAIN' ? !(gl > 0) : !(gl < 0)) return false;
+      }
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
       if (filterAccount && (s.item.accountType ?? '') !== filterAccount) return false;
       if (filterMomentum) {
@@ -1110,7 +1119,9 @@ export class PortfolioPageComponent {
 
   clearGridFilters(): void {
     this.filterTicker.set('');
-    this.filterSector.set('');
+    this.filterRole.set('');
+    this.filterFinalAction.set('');
+    this.filterGainLoss.set('');
     this.filterIndustry.set('');
     this.filterMomentumShift.set('');
     this.filterAccount.set('');
@@ -1119,7 +1130,9 @@ export class PortfolioPageComponent {
   get hasActiveFilters(): boolean {
     return !!(
       this.filterTicker() ||
-      this.filterSector() ||
+      this.filterRole() ||
+      this.filterFinalAction() ||
+      this.filterGainLoss() ||
       this.filterIndustry() ||
       this.filterMomentumShift() ||
       this.filterAccount()

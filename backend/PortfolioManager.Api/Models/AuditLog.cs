@@ -38,6 +38,7 @@ public static class AuditCategories
     public const string Config = "Config";
     public const string User = "User";
     public const string Automation = "Automation";
+    public const string Signals = "Signals";
 }
 
 public static class AuditActions

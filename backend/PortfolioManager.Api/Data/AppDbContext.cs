@@ -49,6 +49,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<AutomationRunLog> AutomationRunLogs => Set<AutomationRunLog>();
     public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<SignalAuditEvent> SignalAuditEvents => Set<SignalAuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -488,6 +489,37 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => new { e.UserId, e.OccurredAtUtc }).IsDescending(false, true);
             entity.HasIndex(e => new { e.Category, e.OccurredAtUtc }).IsDescending(false, true);
             entity.HasIndex(e => new { e.Symbol, e.OccurredAtUtc }).IsDescending(false, true);
+        });
+
+        modelBuilder.Entity<SignalAuditEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.AnalysisSymbol).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Currency).HasMaxLength(10);
+            entity.Property(e => e.SignalType).IsRequired().HasMaxLength(60);
+            entity.Property(e => e.SignalCategory).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Direction).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.SignalDate).HasColumnType("date");
+            entity.Property(e => e.EpisodeEndedDate).HasColumnType("date");
+            entity.Property(e => e.CapturedAtUtc).HasColumnType("datetime2(3)");
+            entity.Property(e => e.MyActionUpdatedUtc).HasColumnType("datetime2(3)");
+            entity.Property(e => e.SignalPrice).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.Score).HasColumnType("decimal(9,2)");
+            entity.Property(e => e.Role).HasMaxLength(30);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Origin).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.RuleVersion).HasMaxLength(40);
+            entity.Property(e => e.EpisodeKey).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.MyAction).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.MyActionNote).HasMaxLength(1000);
+            entity.Property(e => e.EligibilityStatus).IsRequired().HasMaxLength(20).HasDefaultValue(SignalEligibility.Unverified);
+            entity.Property(e => e.BasisClose).HasColumnType("decimal(18,6)");
+            // Idempotency: one row per deterministic episode, even under concurrent EOD runs.
+            entity.HasIndex(e => new { e.UserId, e.EpisodeKey }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.SignalDate }).IsDescending(false, true);
+            entity.HasIndex(e => new { e.UserId, e.Symbol, e.SignalType });
         });
 
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written

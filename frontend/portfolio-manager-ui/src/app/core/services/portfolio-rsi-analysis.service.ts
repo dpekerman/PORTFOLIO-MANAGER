@@ -1,7 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
-import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
 import { PortfolioStore } from '../store/portfolio.store';
 import { ScannerStore } from '../store/scanner.store';
 
@@ -18,7 +17,6 @@ export class PortfolioRsiAnalysisService {
   private readonly api = inject(PortfolioApiService);
   private readonly portfolio = inject(PortfolioStore);
   private readonly scanner = inject(ScannerStore);
-  private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
 
   private readonly _resultMap = signal<Map<string, RsiScanResult>>(new Map());
 
@@ -67,6 +65,5 @@ export class PortfolioRsiAnalysisService {
 
   private onBatchComplete(merged: Map<string, RsiScanResult>): void {
     this._resultMap.set(new Map(merged));
-    this.finalActionSync.computeAndSync(this.fullMap());
   }
 }

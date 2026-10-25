@@ -16,7 +16,7 @@
     <mat-divider />
 
     <mat-nav-list>
-      @for (link of navLinks; track link.path) {
+      @for (link of primaryLinks; track link.path) {
         <a
           mat-list-item
           [routerLink]="link.path"
@@ -27,6 +27,30 @@
           <span matListItemTitle>{{ link.label }}</span>
         </a>
       }
+      @for (group of navGroups; track group.id) {
+        <div class="sidenav-section" role="presentation">{{ group.label }}</div>
+        @for (link of group.links; track link.path) {
+          <a
+            mat-list-item
+            [routerLink]="link.path"
+            routerLinkActive="sidenav-active"
+            (click)="closeSidenav()"
+          >
+            <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
+            <span matListItemTitle>{{ link.label }}</span>
+          </a>
+        }
+      }
+      <div class="sidenav-section" role="presentation">Settings</div>
+      <a
+        mat-list-item
+        [routerLink]="settingsLink.path"
+        routerLinkActive="sidenav-active"
+        (click)="closeSidenav()"
+      >
+        <mat-icon matListItemIcon>{{ settingsLink.icon }}</mat-icon>
+        <span matListItemTitle>{{ settingsLink.label }}</span>
+      </a>
     </mat-nav-list>
   </mat-sidenav>
 
@@ -52,7 +76,7 @@
 
       <!-- Desktop nav links -->
       <nav class="desktop-nav" aria-label="Main navigation">
-        @for (link of navLinks; track link.path) {
+        @for (link of primaryLinks; track link.path) {
           <a
             mat-button
             class="nav-link"
@@ -63,6 +87,28 @@
             <mat-icon>{{ link.icon }}</mat-icon>
             <span class="nav-link-text">{{ link.label }}</span>
           </a>
+        }
+        @for (group of navGroups; track group.id) {
+          <button
+            mat-button
+            type="button"
+            class="nav-link nav-group"
+            [class.nav-link-active]="isGroupActive(group)"
+            [matMenuTriggerFor]="groupMenu"
+            [attr.aria-label]="group.label + ' menu'"
+          >
+            <mat-icon>{{ group.icon }}</mat-icon>
+            <span class="nav-link-text">{{ group.label }}</span>
+            <mat-icon class="nav-caret" iconPositionEnd aria-hidden="true">arrow_drop_down</mat-icon>
+          </button>
+          <mat-menu #groupMenu="matMenu" class="nav-menu">
+            @for (link of group.links; track link.path) {
+              <a mat-menu-item [routerLink]="link.path" routerLinkActive="nav-menu-active">
+                <mat-icon>{{ link.icon }}</mat-icon>
+                <span>{{ link.label }}</span>
+              </a>
+            }
+          </mat-menu>
         }
       </nav>
 
@@ -81,6 +127,18 @@
           <span class="badge-text">Scanning…</span>
         </div>
       }
+
+      <!-- Settings (desktop; phones reach it from the drawer) -->
+      <a
+        mat-icon-button
+        class="settings-btn"
+        [routerLink]="settingsLink.path"
+        routerLinkActive="nav-link-active"
+        matTooltip="Configuration"
+        aria-label="Configuration"
+      >
+        <mat-icon>{{ settingsLink.icon }}</mat-icon>
+      </a>
 
       <!-- Theme toggle -->
       <button

@@ -1,0 +1,404 @@
+.signals-page {
+  padding: 0 0 48px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 12px;
+
+  @media (max-width: 600px) {
+    padding: 16px;
+    flex-wrap: wrap;
+  }
+}
+
+.page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.page-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 24px 16px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 8px 12px;
+  }
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.kpi-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.kpi-label {
+  font-size: 0.75rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.kpi-pending .kpi-value {
+  color: var(--mat-sys-primary);
+}
+
+.filters {
+  margin: 0 24px 16px;
+
+  @media (max-width: 600px) {
+    margin: 0 8px 12px;
+  }
+}
+
+.filter-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
+
+  mat-form-field {
+    min-width: 160px;
+  }
+
+  .search-field {
+    flex: 1 1 240px;
+  }
+
+  @media (max-width: 600px) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+
+    mat-form-field,
+    .search-field {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .span-all {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.clear-btn {
+  min-height: 44px;
+}
+
+.state-row {
+  margin: 0 24px 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-low);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.error {
+    color: var(--mat-sys-error);
+  }
+
+  &.empty {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  @media (max-width: 600px) {
+    margin: 0 8px 12px;
+  }
+}
+
+.table-wrap {
+  margin: 0 24px;
+  overflow-x: auto;
+
+  @media (max-width: 600px) {
+    margin: 0 8px;
+  }
+}
+
+.signals-table {
+  width: 100%;
+  background: var(--bg-surface) !important;
+
+  /* Same header and cell treatment as the Portfolio and Transactions grids. */
+  th.mat-mdc-header-cell {
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    background: var(--bg-elevated);
+    white-space: nowrap;
+  }
+
+  td.mat-mdc-cell {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    vertical-align: middle;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  tr.signal-row:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.signal-row {
+  cursor: pointer;
+
+  &:focus-visible {
+    background: var(--bg-hover);
+  }
+}
+
+.num {
+  text-align: center;
+  white-space: nowrap;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.78rem;
+}
+
+.dim {
+  color: var(--text-faint) !important;
+}
+
+.role {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+}
+.role-core {
+  color: #00bcd4;
+}
+.role-strategic {
+  color: #42a5f5;
+}
+.role-strategic-income {
+  color: #26a69a;
+}
+.role-swing {
+  color: #ffa726;
+}
+.role-speculative {
+  color: #ef5350;
+}
+.role-options {
+  color: #ab47bc;
+}
+
+.signals-table th.num ::ng-deep .mat-sort-header-container {
+  justify-content: center;
+}
+
+/* Same colours as the Final Action badges on the Watchlist. */
+.sig-type {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.sig-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+}
+
+.sig-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+.symbol {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.score,
+.tag,
+.ccy {
+  margin-left: 6px;
+  font-size: 0.72rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.pct {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pct-pos {
+  color: #43a047;
+}
+
+.pct-neg {
+  color: #e53935;
+}
+
+.muted {
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.85rem;
+}
+
+.anomaly {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--mat-sys-error);
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.act {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--mat-sys-surface-container-highest);
+}
+
+.act-actioned {
+  background: rgba(46, 125, 50, 0.18);
+  color: #2e7d32;
+}
+
+.act-partial {
+  background: rgba(237, 108, 2, 0.18);
+  color: #b85c00;
+}
+
+.act-not {
+  background: rgba(198, 40, 40, 0.14);
+  color: #c62828;
+}
+
+.act-pending {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.record-btn {
+  min-height: 36px;
+}
+
+.effectiveness {
+  margin: 24px 24px 0;
+
+  @media (max-width: 600px) {
+    margin: 20px 8px 0;
+  }
+}
+
+.section-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.section-note {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.eff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.eff-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+  border: 1px solid var(--mat-sys-outline-variant);
+}
+
+.eff-title {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.eff-count {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.eff-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  margin: 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  dt {
+    font-size: 0.72rem;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  small {
+    font-weight: 400;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}

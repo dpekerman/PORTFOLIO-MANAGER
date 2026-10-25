@@ -7,12 +7,11 @@ import { PortfolioActionDto } from '../../../core/models/portfolio.models';
 import { priceStructureLabel, priceStructureTooltip } from '../../../core/price-structure-display';
 import { DashboardStore } from '../../../core/store/dashboard.store';
 import {
-  DecisionEngineService,
   evaluateWatchlistEntry,
   WatchlistEntryDecision,
 } from '../../../core/services/decision-engine.service';
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { ScannerStore } from '../../../core/store/scanner.store';
+import { FinalActionStore } from '../../../core/store/final-action.store';
 import { formatTrendShift } from '../../../core/technical-display';
 
 export const ACTION_CENTER_FILTER_STORAGE_KEY = 'dashboard_action_center_filter';
@@ -38,8 +37,7 @@ export type ActionCenterSort = { column: ActionCenterSortColumn; direction: 1 | 
 export class PortfolioActionsWidgetComponent {
   private static readonly FILTER_STORAGE_KEY = ACTION_CENTER_FILTER_STORAGE_KEY;
   private readonly demoMode = inject(DemoModeStore);
-  private readonly decisionEngine = inject(DecisionEngineService);
-  private readonly scanner = inject(ScannerStore);
+  private readonly finalActions = inject(FinalActionStore);
   private readonly filter = signal<ActionCenterFilter>(this.loadFilter());
   private readonly holdingsSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
   private readonly watchlistSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
@@ -173,12 +171,17 @@ export class PortfolioActionsWidgetComponent {
   }
 
   private calculateWatchlistEntryDecision(action: PortfolioActionDto): WatchlistEntryDecision {
-    const scannerRow = [...this.scanner.oversold(), ...this.scanner.overbought()].find(
-      (row) => row.symbol.toUpperCase() === action.symbol.toUpperCase(),
-    );
-    if (scannerRow) {
-      const decision = this.decisionEngine.translateForWatchlist(scannerRow, action.holdingRole);
-      if (decision.watchlistDiagnostics) return decision.watchlistDiagnostics;
+    const canonical = this.finalActions.watchlistBySymbol().get(action.symbol.toUpperCase());
+    if (canonical?.diagnostics) {
+      return {
+        finalAction: canonical.finalAction,
+        finalActionReason: canonical.reason ?? '',
+        priceStructureState: canonical.diagnostics.priceStructureState,
+        momentumState: canonical.diagnostics.momentumState,
+        maStructure: canonical.diagnostics.maStructure,
+        buyScore: canonical.diagnostics.buyScore,
+        role: canonical.diagnostics.role,
+      } as unknown as WatchlistEntryDecision;
     }
     return evaluateWatchlistEntry({
       role: action.holdingRole,

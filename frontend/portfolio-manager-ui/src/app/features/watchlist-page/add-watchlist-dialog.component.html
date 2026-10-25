@@ -10,6 +10,11 @@
         [matAutocomplete]="auto"
         placeholder="Search symbol..."
       />
+      @if (isDuplicate()) {
+        <span matSuffix class="exists-tag" role="status">
+          <mat-icon>warning</mat-icon> Already exists
+        </span>
+      }
       @if (searching()) {
         <mat-progress-spinner matSuffix mode="indeterminate" diameter="20" />
       }
@@ -22,10 +27,16 @@
                 <span class="search-exch">{{ r.exchange }}</span>
               }
               <span class="search-desc">{{ r.description }}</span>
+              @if (isExisting(r.symbol)) {
+                <span class="exists-tag">Already exists</span>
+              }
             </span>
           </mat-option>
         }
       </mat-autocomplete>
+      @if (isDuplicate()) {
+        <mat-hint class="exists-hint">This ticker is already on your watchlist.</mat-hint>
+      }
     </mat-form-field>
 
     <mat-form-field appearance="outline" class="watchlist-role-field">
@@ -40,5 +51,7 @@
 </mat-dialog-content>
 <mat-dialog-actions align="end">
   <button mat-button (click)="cancel()">Cancel</button>
-  <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="confirm()">Add</button>
+  <button mat-flat-button color="primary" [disabled]="form.invalid || isDuplicate()" (click)="confirm()">
+    Add
+  </button>
 </mat-dialog-actions>

@@ -21,10 +21,13 @@ import {
   DataRefreshResultDto,
   EodSignalFilters,
   EodSignalsMeta,
+  FinalActionSnapshot,
   FinalActionSyncItem,
   MarketIndicesResponse,
   OptionItem,
   OptionTechnicalData,
+  PeriodChange,
+  PriorityCandidateApiRow,
   PortfolioBetaResult,
   PortfolioItem,
   PortfolioSummary,
@@ -297,6 +300,23 @@ export class PortfolioApiService {
       `${this.base}/stocks/batch-prices`,
       symbols,
     );
+  }
+
+  /** 5-trading-day and 1-month change % per symbol, derived server-side from Yahoo daily closes. */
+  getPeriodChanges(symbols: string[]): Observable<PeriodChange[]> {
+    return this.http.post<PeriodChange[]>(`${this.base}/stocks/period-changes`, symbols);
+  }
+
+  /** Canonical Final Action (backend engine) for every watchlist symbol and open holding. */
+  getFinalActions(fresh = false): Observable<FinalActionSnapshot> {
+    return this.http.get<FinalActionSnapshot>(`${this.base}/final-actions`, {
+      params: fresh ? { fresh: 'true' } : {},
+    });
+  }
+
+  /** Scored Priority Candidates with the backend's eligibility decision. */
+  getPriorityCandidates(): Observable<PriorityCandidateApiRow[]> {
+    return this.http.get<PriorityCandidateApiRow[]>(`${this.base}/analytics/priority-candidates`);
   }
 
   /** Invalidate all server-side RSI scan cache entries (call after config/threshold change). */

@@ -1,0 +1,145 @@
+import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
+import { SignalAuditRow } from '../models/portfolio.models';
+import { SignalsAuditApiService } from '../services/signals-audit-api.service';
+import { AuthStore } from './auth.store';
+import { SignalsAuditStore } from './signals-audit.store';
+
+describe('SignalsAuditStore', () => {
+  const isAuthenticated = signal(false);
+  const snack = { open: vi.fn() };
+  const horizon = { pct: null, evalDate: null, evalPrice: null, status: 'Pending' as const };
+  const row = (id: number, myAction: SignalAuditRow['myAction'] = 'Pending'): SignalAuditRow => ({
+    id,
+    symbol: 'LMT.TO',
+    role: 'Core',
+    signalDate: '2026-10-08',
+    daysSince: 3,
+    dateAnomaly: false,
+    signalType: 'PRIORITY_CANDIDATE',
+    signalTypeLabel: 'Priority Candidate',
+    category: 'Entry',
+    direction: 'Buy',
+    source: 'Watchlist',
+    signalPrice: 28.71,
+    currency: 'CAD',
+    score: 78,
+    return5D: horizon,
+    return20D: horizon,
+    return1M: horizon,
+    today: horizon,
+    myAction,
+    hasNote: false,
+    linkedTransactionId: null,
+    linkKind: 'None',
+    origin: 'Live',
+    episodeActive: true,
+    eligibilityStatus: 'Verified',
+    priceBasis: 'Verified',
+  });
+  const summary = { total: 1, priorityCandidate: 1, entryAdd: 1, trimExit: 0, actioned: 0, pendingReview: 1, effectiveness: [] };
+  const api = {
+    query: vi.fn(),
+    summary: vi.fn(),
+    getSignalTypes: vi.fn(),
+    getSettings: vi.fn(),
+    saveSettings: vi.fn(),
+    saveAction: vi.fn(),
+    detail: vi.fn(),
+    transactionCandidates: vi.fn(),
+  };
+
+  beforeEach(() => {
+    isAuthenticated.set(false);
+    vi.clearAllMocks();
+    api.query.mockReturnValue(of({ items: [row(1)], total: 1, page: 1, pageSize: 25 }));
+    api.summary.mockReturnValue(of(summary));
+    api.getSignalTypes.mockReturnValue(of([]));
+    api.getSettings.mockReturnValue(of({ priorityEnabled: true, priorityThreshold: 75, activatedAtUtc: null, baselineCount: 0 }));
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AuthStore, useValue: { isAuthenticated } },
+        { provide: SignalsAuditApiService, useValue: api },
+        { provide: MatSnackBar, useValue: snack },
+      ],
+    });
+  });
+
+  it('does not call the API before the user is authenticated, then loads settings once', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    TestBed.tick();
+    expect(api.getSettings).not.toHaveBeenCalled();
+
+    isAuthenticated.set(true);
+    TestBed.tick();
+    expect(api.getSettings).toHaveBeenCalledTimes(1);
+    expect(store.settings()?.priorityThreshold).toBe(75);
+  });
+
+  it('loads the page and its filter-matching summary together', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    store.load();
+    expect(store.items()).toHaveLength(1);
+    expect(store.summary()?.pendingReview).toBe(1);
+    expect(store.loading()).toBe(false);
+  });
+
+  it('a filter change returns to page 1 and refetches with the filter', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    store.setPage(3, 25);
+    store.setFilters({ source: 'Watchlist', myAction: 'Pending' });
+    expect(store.page()).toBe(1);
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'Watchlist', myAction: 'Pending', page: 1 }));
+    expect(api.summary).toHaveBeenLastCalledWith(expect.objectContaining({ source: 'Watchlist' }));
+    expect(store.hasActiveFilters()).toBe(true);
+  });
+
+  it('resetFilters restores defaults but keeps the sort', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    store.setSort('symbol', 'asc');
+    store.setFilters({ ticker: 'lmt', role: ['Core'] });
+    store.resetFilters();
+    expect(store.hasActiveFilters()).toBe(false);
+    expect(store.sortBy()).toBe('symbol');
+  });
+
+  it('surfaces a load failure as an error', () => {
+    api.query.mockReturnValue(throwError(() => new Error('boom')));
+    const store = TestBed.inject(SignalsAuditStore);
+    store.load();
+    expect(store.error()).toBe('Failed to load signals');
+    expect(store.loading()).toBe(false);
+  });
+
+  it('saveAction updates the row, refreshes the summary and reports success', async () => {
+    api.saveAction.mockReturnValue(of(row(1, 'Actioned')));
+    const store = TestBed.inject(SignalsAuditStore);
+    store.load();
+    api.query.mockClear();
+
+    await expect(store.saveAction(1, 'Actioned', 'followed', 42)).resolves.toBe(true);
+    expect(api.saveAction).toHaveBeenCalledWith(1, 'Actioned', 'followed', 42);
+    expect(api.query).toHaveBeenCalled();
+  });
+
+  it('saveAction reports the server message and returns false on failure', async () => {
+    api.saveAction.mockReturnValue(throwError(() => ({ error: { title: 'The selected transaction does not match this signal.' } })));
+    const store = TestBed.inject(SignalsAuditStore);
+    await expect(store.saveAction(1, 'Actioned', null, 9)).resolves.toBe(false);
+    expect(snack.open).toHaveBeenCalledWith('The selected transaction does not match this signal.', 'Close', expect.anything());
+  });
+
+  it('saveSettings stores the returned settings and signals failure', async () => {
+    api.saveSettings.mockReturnValueOnce(of({ priorityEnabled: false, priorityThreshold: 80, activatedAtUtc: null, baselineCount: 0 }));
+    const store = TestBed.inject(SignalsAuditStore);
+    await expect(store.saveSettings(false, 80)).resolves.toBe(true);
+    expect(store.settings()?.priorityThreshold).toBe(80);
+
+    api.saveSettings.mockReturnValueOnce(throwError(() => ({ error: { title: 'Priority score threshold must be between 0 and 100.' } })));
+    await expect(store.saveSettings(true, 500)).resolves.toBe(false);
+    expect(store.settingsSaving()).toBe(false);
+  });
+});

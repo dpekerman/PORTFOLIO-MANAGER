@@ -71,6 +71,8 @@ type StockTxCol =
   | 'tx_trans_date'
   | 'tx_decision_source'
   | 'tx_decision_source_closed'
+  | 'tx_role'
+  | 'tx_industry'
   | 'tx_age'
   | 'tx_actions';
 
@@ -324,6 +326,11 @@ export class TransactionsPageComponent {
     return item.openDate ?? null;
   }
 
+  /** Industry stored on the transaction, falling back to the live quote's industry. */
+  protected stockIndustry(s: PortfolioSummary): string {
+    return s.item.industry || s.quote?.industry || '';
+  }
+
   /** Export the current ALL-view stock transactions to CSV. */
   exportStocksCsv(): void {
     const rows = this.sortedStockTransactions();
@@ -344,6 +351,9 @@ export class TransactionsPageComponent {
       'Diff $',
       'Trans Date',
       'Decision Source',
+      'Decision Source - Closed',
+      'Role',
+      'Industry',
       'Age (days)',
     ];
     const fmtDate = (d: string | null | undefined) => (d ? d.substring(0, 10) : '');
@@ -378,6 +388,9 @@ export class TransactionsPageComponent {
           escape(dd != null ? dd.toFixed(2) : ''),
           escape(fmtDate(td)),
           escape(s.item.decisionSource ?? ''),
+          escape(s.item.decisionSourceClosed ?? ''),
+          escape(s.item.holdingRole ?? ''),
+          escape(this.stockIndustry(s)),
           escape(age ?? ''),
         ].join(','),
       );
@@ -475,6 +488,10 @@ export class TransactionsPageComponent {
         return s.item.decisionSource ?? '';
       case 'tx_decision_source_closed':
         return s.item.decisionSourceClosed ?? '';
+      case 'tx_role':
+        return s.item.holdingRole ?? '';
+      case 'tx_industry':
+        return this.stockIndustry(s);
       case 'tx_age':
         return this.stockTransactionAge(s.item) ?? 0;
       default:

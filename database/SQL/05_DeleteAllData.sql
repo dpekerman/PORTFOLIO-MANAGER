@@ -30,6 +30,7 @@ IF OBJECT_ID('dbo.AspNetRoleClaims', 'U') IS NOT NULL DELETE FROM [dbo].[AspNetR
 IF OBJECT_ID('dbo.AspNetUsers',      'U') IS NOT NULL DELETE FROM [dbo].[AspNetUsers];
 IF OBJECT_ID('dbo.AspNetRoles',      'U') IS NOT NULL DELETE FROM [dbo].[AspNetRoles];
 IF OBJECT_ID('dbo.AuditLogs',        'U') IS NOT NULL DELETE FROM [dbo].[AuditLogs];
+IF OBJECT_ID('dbo.SignalAuditEvents','U') IS NOT NULL DELETE FROM [dbo].[SignalAuditEvents];
 
 -- Re-enable constraints
 EXEC sp_MSforeachtable 'ALTER TABLE ? CHECK CONSTRAINT ALL';
