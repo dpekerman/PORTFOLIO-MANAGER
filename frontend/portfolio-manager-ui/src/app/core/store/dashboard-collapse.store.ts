@@ -9,7 +9,6 @@ const SECTIONS = [
   'market-indices',
   'allocation',
   'market-leadership',
-  'market-signals',
   'upcoming-earnings',
   'action-center',
   'signal-changes',

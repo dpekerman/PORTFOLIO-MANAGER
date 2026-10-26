@@ -244,6 +244,9 @@ public sealed class EodAutomationOrchestratorService(
                 new CaptureOptions(IsEodPass: true, EvaluationComplete: complete, RunStartedUtc: log.ActualStartUtc), ct);
             logger.LogInformation("[EodAutomation] Signals Audit: {Created} new, {Closed} closed{Skipped}.",
                 result.Created, result.Closed, result.Skipped ? $" (skipped: {result.Reason})" : "");
+            // A skipped pass (no evaluation / no data) must not leave an old "complete" marker standing as an all-clear.
+            if (result.Skipped && result.Reason?.StartsWith("Duplicate", StringComparison.Ordinal) != true)
+                await signalsAudit.RecordEvaluationFailureAsync(ownerId, ct);
         }
         catch (OperationCanceledException)
         {
@@ -252,6 +255,8 @@ public sealed class EodAutomationOrchestratorService(
         catch (Exception ex)
         {
             logger.LogError(ex, "[EodAutomation] Signals Audit capture failed; EOD run continues.");
+            try { await signalsAudit.RecordEvaluationFailureAsync(ownerId, CancellationToken.None); }
+            catch (Exception markEx) { logger.LogWarning(markEx, "[EodAutomation] Could not record the failed evaluation."); }
         }
     }
 

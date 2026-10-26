@@ -27,7 +27,8 @@ import { SIGNALS_EXPORT_HEADERS, signalsExportRows, signalsToCsv } from './signa
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { SignalAuditRow, SignalHorizon, SignalMyAction } from '../../core/models/portfolio.models';
+import { SignalAuditRow, SignalHorizon, SignalMyAction, SignalStatusFilter } from '../../core/models/portfolio.models';
+import { ActivatedRoute } from '@angular/router';
 import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
@@ -75,6 +76,7 @@ export class SignalTrackerPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly isHandset = inject(BreakpointStore).isHandset;
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('signals-audit');
 
@@ -95,6 +97,17 @@ export class SignalTrackerPageComponent implements OnInit {
     return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`;
   }
   protected readonly sources = ['All', 'Portfolio', 'Watchlist'] as const;
+  /** System lifecycle, separate from the investor's own My Action response. */
+  protected readonly statuses: { value: SignalStatusFilter; label: string }[] = [
+    { value: 'All', label: 'All statuses' },
+    { value: 'Open', label: 'Open (Active)' },
+    { value: 'Closed', label: 'Closed (any)' },
+    { value: 'Acted', label: 'Acted' },
+    { value: 'Dismissed', label: 'Dismissed' },
+    { value: 'Expired', label: 'Expired' },
+    { value: 'Invalidated', label: 'Invalidated' },
+    { value: 'Superseded', label: 'Superseded' },
+  ];
   protected readonly myActions: ('All' | SignalMyAction)[] = [
     'All',
     'Actioned',
@@ -112,7 +125,10 @@ export class SignalTrackerPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.store.load();
+    // Drill-down from the Action Center: show that ticker's recommendations, unaudited ones included.
+    const ticker = this.route.snapshot.queryParamMap.get('ticker');
+    if (ticker) this.store.setFilters({ ticker, includeUnaudited: true });
+    else this.store.load();
   }
 
   protected onTicker(value: string): void {
@@ -126,6 +142,11 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected onPage(event: PageEvent): void {
     this.store.setPage(event.pageIndex + 1, event.pageSize);
+  }
+
+  protected dismiss(row: SignalAuditRow, event: Event): void {
+    event.stopPropagation();
+    void this.store.dismiss(row.id);
   }
 
   protected openAction(row: SignalAuditRow, event: Event): void {

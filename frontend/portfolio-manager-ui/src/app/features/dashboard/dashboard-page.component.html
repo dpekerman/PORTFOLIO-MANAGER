@@ -450,259 +450,8 @@
           -->
         }
       </mat-card>
-      <!-- RSI signals -->
-      <mat-card class="db-panel db-rsi-panel">
-        <div class="db-panel-hd">
-          <div class="db-panel-hd-left">
-            <button
-              mat-icon-button
-              routerLink="/eod-signals"
-              matTooltip="Go to EOD Signals"
-              class="panel-nav-btn"
-              aria-label="EOD Signals"
-            >
-              <mat-icon class="db-panel-ico">radar</mat-icon>
-            </button>
-            <span class="db-panel-title">Market signals</span>
-          </div>
-          <button
-            mat-icon-button
-            (click)="toggleExpanded('market-signals')"
-            [matTooltip]="isExpanded('market-signals') ? 'Collapse' : 'Expand signals'"
-            class="db-toggle-btn"
-            [attr.aria-expanded]="isExpanded('market-signals')"
-            aria-label="Toggle signal details"
-            [style.display]="
-              data.rsiSection &&
-              (data.rsiSection.oversoldSignals.length > 0 ||
-                data.rsiSection.overboughtSignals.length > 0)
-                ? ''
-                : 'none'
-            "
-          >
-            <mat-icon>{{ isExpanded('market-signals') ? 'expand_less' : 'expand_more' }}</mat-icon>
-          </button>
-        </div>
-        @if (filteredRsiSection(); as rsi) {
-          <div class="db-signal-summary" [class.db-hide-collapsed]="!isExpanded('market-signals')">
-            <button
-              type="button"
-              class="db-sig oversold"
-              [class.active]="marketSignalFilter() === 'OVERSOLD'"
-              (click)="toggleMarketSignalFilter('OVERSOLD')"
-            >
-              <strong>{{ rsi.oversoldCount }}</strong
-              ><span>Oversold</span>
-            </button>
-            <div class="db-sig-divider"></div>
-            <button
-              type="button"
-              class="db-sig overbought"
-              [class.active]="marketSignalFilter() === 'OVERBOUGHT'"
-              (click)="toggleMarketSignalFilter('OVERBOUGHT')"
-            >
-              <strong>{{ rsi.overboughtCount }}</strong
-              ><span>Overbought</span>
-            </button>
-            <div class="db-sig-divider"></div>
-            <button
-              type="button"
-              class="db-sig new"
-              [class.active]="marketSignalFilter() === 'NEW_TODAY'"
-              (click)="toggleMarketSignalFilter('NEW_TODAY')"
-            >
-              <strong>{{ rsi.newTodayCount }}</strong
-              ><span>New today</span>
-            </button>
-            <div class="db-sig-divider"></div>
-            <button
-              type="button"
-              class="db-sig action"
-              [class.active]="marketSignalFilter() === 'ACTION_REQUIRED'"
-              (click)="toggleMarketSignalFilter('ACTION_REQUIRED')"
-            >
-              <strong>{{ rsi.actionRequiredCount }}</strong
-              ><span>Action req.</span>
-            </button>
-          </div>
-          @if (isExpanded('market-signals')) {
-            @if (rsi.oversoldSignals.length === 0 && rsi.overboughtSignals.length === 0) {
-              <div class="db-sig-no-data">
-                <mat-icon>radar</mat-icon>
-                <p>No active RSI signals in the current scanner snapshot.</p>
-                <a mat-stroked-button routerLink="/scanner" class="db-sig-scan-btn"
-                  >Run scanner &rarr;</a
-                >
-              </div>
-            }
-            @if (rsi.oversoldSignals.length > 0) {
-              <div class="db-sig-section-hd">
-                <span class="db-sig-dot os"></span>Oversold opportunities
-              </div>
-              <table class="db-sig-table" aria-label="Oversold signals">
-                <thead>
-                  <tr>
-                    <th>Ticker</th>
-                    <th>RSI</th>
-                    <th>Momentum</th>
-                    <th>Volume</th>
-                    <th>Chg%</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (s of rsi.oversoldSignals.slice(0, 8); track s.symbol) {
-                    <tr>
-                      <td class="st-sym">
-                        {{ s.symbol }}
-                        @if (s.isInPortfolio) {
-                          <span class="db-owner-badge portfolio">P</span>
-                        } @else if (s.isInWatchlist) {
-                          <span class="db-owner-badge watchlist">W</span>
-                        }
-                        @if (s.isNewToday) {
-                          <span class="db-row-badge db-new">NEW</span>
-                        }
-                      </td>
-                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
-                      <td class="st-ms">{{ s.momentumShift }}</td>
-                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
-                        {{
-                          s.volumeSignal === 'Validated'
-                            ? '✓ Valid'
-                            : s.volumeSignal === 'Low-Volume Trap'
-                              ? '⚠ Low'
-                              : s.volumeSignal
-                        }}
-                      </td>
-                      <td class="st-ret" [class]="signCls(s.returnPct)">
-                        {{ s.returnPct | number: '1.2-2' }}%
-                      </td>
-                      <td
-                        class="st-act"
-                        [class]="
-                          s.action === 'BUY WATCH'
-                            ? 'act-buy'
-                            : s.action === 'WAIT'
-                              ? 'act-wait'
-                              : 'act-watch'
-                        "
-                      >
-                        {{ s.action }}
-                        @if (s.isActionRequired) {
-                          <span class="db-row-badge db-req">REQ</span>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-              @if (rsi.oversoldSignals.length > 8) {
-                <a
-                  [routerLink]="
-                    marketSignalFilter() === 'ALL' || marketSignalFilter() === 'OVERSOLD'
-                      ? '/scanner'
-                      : '/eod-signals'
-                  "
-                  class="db-view-all"
-                  >{{ marketSignalFooter('OVERSOLD', rsi.oversoldSignals.length) }}</a
-                >
-              }
-            }
-            @if (rsi.overboughtSignals.length > 0) {
-              <div class="db-sig-section-hd">
-                <span class="db-sig-dot ob"></span>Overbought / trim watch
-              </div>
-              <table class="db-sig-table" aria-label="Overbought signals">
-                <thead>
-                  <tr>
-                    <th>Ticker</th>
-                    <th>RSI</th>
-                    <th>Momentum</th>
-                    <th>Volume</th>
-                    <th>Chg%</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (s of rsi.overboughtSignals.slice(0, 8); track s.symbol) {
-                    <tr>
-                      <td class="st-sym">
-                        {{ s.symbol }}
-                        @if (s.isInPortfolio) {
-                          <span class="db-owner-badge portfolio">P</span>
-                        } @else if (s.isInWatchlist) {
-                          <span class="db-owner-badge watchlist">W</span>
-                        }
-                        @if (s.isNewToday) {
-                          <span class="db-row-badge db-new">NEW</span>
-                        }
-                      </td>
-                      <td class="st-rsi">{{ s.rsi | number: '1.1-1' }}</td>
-                      <td class="st-ms">{{ s.momentumShift }}</td>
-                      <td class="st-vol" [class.vol-low]="s.volumeSignal === 'Low-Volume Trap'">
-                        {{
-                          s.volumeSignal === 'Validated'
-                            ? '✓ Valid'
-                            : s.volumeSignal === 'Low-Volume Trap'
-                              ? '⚠ Low'
-                              : s.volumeSignal
-                        }}
-                      </td>
-                      <td class="st-ret" [class]="signCls(s.returnPct)">
-                        {{ s.returnPct | number: '1.2-2' }}%
-                      </td>
-                      <td
-                        class="st-act"
-                        [class]="s.action === 'TRIM WATCH' ? 'act-trim' : 'act-watch'"
-                      >
-                        {{ s.action }}
-                        @if (s.isActionRequired) {
-                          <span class="db-row-badge db-req">REQ</span>
-                        }
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-              @if (rsi.overboughtSignals.length > 8) {
-                <a
-                  [routerLink]="
-                    marketSignalFilter() === 'ALL' || marketSignalFilter() === 'OVERBOUGHT'
-                      ? '/scanner'
-                      : '/eod-signals'
-                  "
-                  class="db-view-all"
-                  >{{ marketSignalFooter('OVERBOUGHT', rsi.overboughtSignals.length) }}</a
-                >
-              }
-            }
-          } @else {
-            <p class="db-sig-hint" [class.db-hide-collapsed]="!isExpanded('market-signals')">
-              From last scanner snapshot &middot;
-              <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
-            </p>
-          }
-        } @else {
-          <div class="db-signal-row" [class.db-hide-collapsed]="!isExpanded('market-signals')">
-            <div class="db-sig oversold">
-              <strong>{{ data.summary.oversoldCount }}</strong
-              ><span>Oversold</span>
-            </div>
-            <div class="db-sig-divider"></div>
-            <div class="db-sig overbought">
-              <strong>{{ data.summary.overboughtCount }}</strong
-              ><span>Overbought</span>
-            </div>
-          </div>
-          <p class="db-sig-hint" [class.db-hide-collapsed]="!isExpanded('market-signals')">
-            From last scanner snapshot &middot;
-            <a routerLink="/eod-signals" class="db-link">EOD Signals &rarr;</a>
-          </p>
-        }
-      </mat-card>
-      <!-- Allocation vs targets -->
-      <mat-card class="db-panel">
+      <!-- Allocation vs targets: full row now that it no longer shares one with Market signals -->
+      <mat-card class="db-panel db-span-2">
         <div class="db-panel-hd">
           <div class="db-panel-hd-left">
             <button
@@ -993,13 +742,28 @@
     }
     <!-- Scan now nav hidden — available via RSI Scanner page in nav -->
     <!-- ── Action Center ────────────────────────────────────────────── -->
-    <mat-card class="db-panel db-full-width-panel">
+    <mat-card id="action-center-panel" class="db-panel db-full-width-panel">
       <div class="db-panel-hd">
         <div class="db-panel-hd-left">
           <mat-icon class="db-panel-ico">hub</mat-icon>
           <span class="db-panel-title">Action Center</span>
-          @if (actionsCount() > 0) {
-            <span class="db-panel-badge">{{ actionsCount() }}</span>
+          @if (openDecisions.summary(); as s) {
+            <span
+              class="db-panel-badge"
+              data-testid="ac-total"
+              [attr.aria-label]="s.totalOpen + ' open decisions'"
+              matTooltip="Total open decisions"
+              >{{ s.totalOpen }}</span
+            >
+          }
+          @if (validationState() !== 'Validated') {
+            <mat-icon
+              class="ac-validation-ico"
+              data-testid="ac-validation-ico"
+              [matTooltip]="validationTooltip()"
+              [attr.aria-label]="validationTooltip()"
+              >{{ validationState() === 'Unavailable' ? 'warning_amber' : 'schedule' }}</mat-icon
+            >
           }
         </div>
         <button
@@ -1013,14 +777,31 @@
           <mat-icon>{{ isExpanded('action-center') ? 'expand_less' : 'expand_more' }}</mat-icon>
         </button>
       </div>
+      <!-- Category counters double as the category filters (no separate summary card or filter chips). -->
+      @if (openDecisions.summary(); as s) {
+        <div class="ac-counters" role="group" aria-label="Open decisions by category">
+          @for (c of actionCounters(s); track c.filter) {
+            <button
+              type="button"
+              class="ac-counter"
+              [class]="'ac-counter-' + c.tone"
+              [class.active]="openDecisions.filter() === c.filter"
+              [attr.aria-pressed]="openDecisions.filter() === c.filter"
+              [attr.data-testid]="'ac-counter-' + c.filter"
+              (click)="filterActionCenter(c.filter)"
+            >
+              <span class="ac-counter-label">{{ c.label }}</span>
+              <strong class="ac-counter-count">{{ c.count }}</strong>
+            </button>
+          }
+        </div>
+      }
       @if (isExpanded('action-center')) {
         <div class="db-how-to">
           <mat-icon class="db-how-to-ico">info_outline</mat-icon>
           <span
-            >Shows Portfolio and Active Watchlist securities with a meaningful technical,
-            structural, allocation, or risk condition. Holdings and watchlist items are evaluated
-            separately: REQUIRED = act now · DEVELOPING = monitor closely · INFORMATIONAL = no
-            immediate action.</span
+            >Current, validated decisions only. WATCH, AVOID, WAIT and generic REVIEW signals stay in
+            the RSI Scanner and EOD pages. Nothing here is executed automatically.</span
           >
         </div>
         <app-portfolio-actions-widget />

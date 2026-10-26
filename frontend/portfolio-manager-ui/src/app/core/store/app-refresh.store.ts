@@ -14,6 +14,7 @@ import { PortfolioRsiAnalysisService } from '../services/portfolio-rsi-analysis.
 import { ConfigStore } from './config.store';
 import { DashboardStore } from './dashboard.store';
 import { EodSignalsStore } from './eod-signals.store';
+import { OpenDecisionsStore } from './open-decisions.store';
 import { PortfolioStore } from './portfolio.store';
 import { WatchlistRsiStore } from './watchlist-rsi.store';
 import { WatchlistStore } from './watchlist.store';
@@ -128,6 +129,7 @@ export const AppRefreshStore = signalStore(
       portfolioState = inject(PortfolioStore),
       watchlistState = inject(WatchlistStore),
       dashboardState = inject(DashboardStore),
+      openDecisions = inject(OpenDecisionsStore),
       eodSignalsState = inject(EodSignalsStore),
       watchlistRsi = inject(WatchlistRsiStore),
     ) => {
@@ -193,6 +195,7 @@ export const AppRefreshStore = signalStore(
 
               // Force-reload action scores and performance summary after snapshot rebuild
               dashboardState.loadPortfolioActions();
+              openDecisions.load();
               dashboardState.loadEodSummary();
               dashboardState.loadMarketLeadership();
               dashboardState.loadActionScores();
@@ -215,6 +218,7 @@ export const AppRefreshStore = signalStore(
                 const dashboardDone = !dashboardState.loading();
                 const actionsDone =
                   !dashboardState.actionsLoading() &&
+                  !openDecisions.loading() &&
                   !dashboardState.eodSummaryLoading() &&
                   !dashboardState.marketLeadershipLoading() &&
                   !dashboardState.actionScoresLoading() &&

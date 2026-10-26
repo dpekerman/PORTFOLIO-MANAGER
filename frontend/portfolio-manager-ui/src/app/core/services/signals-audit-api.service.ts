@@ -80,6 +80,10 @@ export class SignalsAuditApiService {
     });
   }
 
+  dismiss(id: number, note: string | null): Observable<SignalAuditRow> {
+    return this.http.post<SignalAuditRow>(`${this.base}/${id}/dismiss`, { note });
+  }
+
   private toParams(p: SignalsAuditQueryParams, paging: boolean): HttpParams {
     let params = new HttpParams();
     if (p.ticker.trim()) params = params.set('ticker', p.ticker.trim());
@@ -89,6 +93,8 @@ export class SignalsAuditApiService {
     if (p.myAction !== 'All') params = params.set('myAction', p.myAction);
     if (p.origin !== 'All') params = params.set('origin', p.origin);
     if (p.includeBaselineInStats) params = params.set('includeBaselineInStats', true);
+    if (p.includeUnaudited) params = params.set('includeUnaudited', true);
+    if (p.status !== 'All') params = params.set('status', p.status);
     if (p.from) params = params.set('from', p.from);
     if (p.to) params = params.set('to', p.to);
     if (paging) {

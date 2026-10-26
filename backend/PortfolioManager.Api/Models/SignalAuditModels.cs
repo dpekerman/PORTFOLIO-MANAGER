@@ -234,6 +234,12 @@ public sealed record SignalsAuditSettings
     /// </summary>
     public bool LifecycleBaselineDone { get; init; }
 
+    /// <summary>When the latest EOD evaluation pass ran, and whether it was complete. Drives the Action Center validation state.</summary>
+    public DateTime? LastEodEvaluationUtc { get; init; }
+    public bool LastEodEvaluationComplete { get; init; }
+    /// <summary>Latest EOD pass that completed successfully; null until one has.</summary>
+    public DateTime? LastCompleteEvaluationUtc { get; init; }
+
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 }
 

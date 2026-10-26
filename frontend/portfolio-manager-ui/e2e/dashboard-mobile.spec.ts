@@ -13,7 +13,6 @@ const SECTIONS = [
   'market-indices',
   'allocation',
   'market-leadership',
-  'market-signals',
   'upcoming-earnings',
   'action-center',
   'signal-changes',
@@ -31,7 +30,7 @@ async function openExpandedDashboard(page: Page): Promise<void> {
   }, SECTIONS);
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
-  await expect(page.getByText('Market signals', { exact: true })).toBeVisible();
+  await expect(page.getByText('Action Center', { exact: true })).toBeVisible();
   await settle(page);
 }
 
@@ -91,12 +90,12 @@ test.describe('dashboard on small screens', () => {
     await openExpandedDashboard(page);
     const viewport = page.viewportSize()!.width;
 
-    const signalCard = page.locator('.db-sig-table tbody tr').first();
-    const actionCard = page.locator('app-portfolio-actions-widget .pa-table tbody tr').first();
+    const summaryCard = page.locator('#action-center-panel .ac-counter').first();
+    const actionCard = page.locator('app-portfolio-actions-widget .ac-row').first();
     const eodCard = page.locator('.db-eod-table tbody tr').first();
     const trackerCard = page.locator('app-market-leadership-widget .ml-row').first();
 
-    for (const card of [signalCard, actionCard, eodCard, trackerCard]) {
+    for (const card of [summaryCard, actionCard, eodCard, trackerCard]) {
       await card.scrollIntoViewIfNeeded();
       await expect(card).toBeVisible();
       const box = (await card.boundingBox())!;
@@ -112,14 +111,9 @@ test.describe('dashboard on small screens', () => {
   test('handset renders the dense tables as labelled cards', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'tablet', 'handset-only table layout');
     await openExpandedDashboard(page);
-    for (const selector of [
-      '.db-sig-table tbody tr',
-      '.db-eod-table tbody tr',
-      'app-portfolio-actions-widget .pa-table tbody tr',
-    ]) {
+    for (const selector of ['.db-eod-table tbody tr']) {
       const row = page.locator(selector).first();
       await expect(row).toHaveCSS('display', 'grid');
     }
-    await expect(page.locator('.db-sig-table thead').first()).toBeHidden();
   });
 });

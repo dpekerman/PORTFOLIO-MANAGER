@@ -19,6 +19,11 @@ public interface ISignalsAuditService
     /// supersede or expire; otherwise existing recommendations are preserved untouched.
     /// </summary>
     Task<SignalCaptureResultDto> CaptureAsync(string userId, FinalActionSnapshotDto snapshot, CaptureOptions options, CancellationToken ct = default);
+    /// <summary>
+    /// Records that the latest EOD evaluation failed or could not run, so the Action Center reports it as
+    /// unavailable instead of implying an all-clear. Never changes any recommendation.
+    /// </summary>
+    Task RecordEvaluationFailureAsync(string userId, CancellationToken ct = default);
     /// <summary>User command: Active -> Dismissed. Independent of MyAction. Null when not found; ArgumentException when not Active.</summary>
     Task<SignalAuditRowDto?> DismissAsync(string userId, long id, string? note, CancellationToken ct = default);
     Task<IReadOnlyList<SignalTypeOptionDto>> GetSignalTypesAsync(string userId, CancellationToken ct = default);
@@ -143,6 +148,10 @@ public sealed class SignalsAuditService(
             FinalActionBaseline = faBaseline,
             FinalActionBaselineNeeded = baselineNeeded,
             InitialBaselineDone = previous?.InitialBaselineDone ?? false,
+            LifecycleBaselineDone = previous?.LifecycleBaselineDone ?? false,
+            LastEodEvaluationUtc = previous?.LastEodEvaluationUtc,
+            LastEodEvaluationComplete = previous?.LastEodEvaluationComplete ?? false,
+            LastCompleteEvaluationUtc = previous?.LastCompleteEvaluationUtc,
         };
         await SaveSettingsRowAsync(userId, saved, ct);
 
@@ -184,6 +193,24 @@ public sealed class SignalsAuditService(
     }
 
     // ── Capture ───────────────────────────────────────────────────────────────
+
+    public async Task RecordEvaluationFailureAsync(string userId, CancellationToken ct = default)
+    {
+        await CaptureLock.WaitAsync(ct);
+        try
+        {
+            var settings = await LoadSettingsAsync(userId, ct) ?? new SignalsAuditSettings();
+            await SaveSettingsRowAsync(userId, settings with
+            {
+                LastEodEvaluationUtc = DateTime.UtcNow,
+                LastEodEvaluationComplete = false,
+            }, ct);
+        }
+        finally
+        {
+            CaptureLock.Release();
+        }
+    }
 
     public Task<SignalCaptureResultDto> CaptureAsync(string userId, CancellationToken ct = default) =>
         CaptureCoreAsync(userId, null, new CaptureOptions(IsEodPass: false), ct);
@@ -376,7 +403,7 @@ public sealed class SignalsAuditService(
             }
 
             var prunedFaBaseline = faBaseline.OrderBy(p => p).ToList();
-            var settingsChanged = firstRun || initializing
+            var settingsChanged = firstRun || initializing || options.IsEodPass
                 || !settings.LifecycleBaselineDone
                 || !settings.BaselineSymbols.OrderBy(s => s).SequenceEqual(prunedPcBaseline)
                 || settings.FinalActionBaselineNeeded
@@ -389,6 +416,9 @@ public sealed class SignalsAuditService(
                     FinalActionBaselineNeeded = false,
                     InitialBaselineDone = true,
                     LifecycleBaselineDone = true,
+                    LastEodEvaluationUtc = options.IsEodPass ? nowUtc : settings.LastEodEvaluationUtc,
+                    LastEodEvaluationComplete = options.IsEodPass ? passOk && !portfolioStale : settings.LastEodEvaluationComplete,
+                    LastCompleteEvaluationUtc = options.IsEodPass && passOk && !portfolioStale ? nowUtc : settings.LastCompleteEvaluationUtc,
                     Entries = settings.Entries ?? entries,
                 }, ct);
 

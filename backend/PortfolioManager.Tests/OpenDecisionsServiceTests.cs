@@ -64,6 +64,93 @@ public sealed class OpenDecisionsServiceTests
         Assert.DoesNotContain(r.Items, i => i.Symbol is "WATCH" or "AVD" or "WAIT" or "DNC" or "HREV" or "OLD" or "DONE" or "BASE" or "PC" or "OTHER");
     }
 
+    private static async Task SeedSettingsAsync(AppDbContext db, SignalsAuditSettings settings)
+    {
+        db.UserPreferences.Add(new UserPreference
+        {
+            UserId = User, PreferenceKey = SignalsAuditSettings.PreferenceKey,
+            PreferenceValue = System.Text.Json.JsonSerializer.Serialize(settings, SignalsAuditSettings.Json),
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>Rows built by <see cref="Row"/> are stamped "now"; the evaluation is placed a minute earlier so they count as confirmed by it.</summary>
+    private static SignalsAuditSettings Evaluated(DateTime completeAt, bool lastPassComplete = true, DateTime? attemptAt = null) =>
+        new()
+        {
+            InitialBaselineDone = true, LifecycleBaselineDone = true,
+            LastCompleteEvaluationUtc = completeAt.AddMinutes(-1), LastEodEvaluationUtc = attemptAt ?? completeAt, LastEodEvaluationComplete = lastPassComplete,
+        };
+
+    [Fact]
+    public async Task Validation_NeverEvaluated_IsPending_EvenWithNoRows_NeverAnAllClear()
+    {
+        var (_, empty) = await SeedAsync();
+        Assert.Equal("Pending", (await empty.GetAsync(User, null)).Validation.State);
+
+        var (_, withRows) = await SeedAsync(Row("OLD", "STARTER ENTRY", SignalSources.Watchlist, validated: false));
+        var r = await withRows.GetAsync(User, null);
+        Assert.Equal("Pending", r.Validation.State);
+        Assert.Equal(1, r.Validation.PendingCount);
+        Assert.Equal(0, r.Summary.TotalOpen);                  // unvalidated rows are hidden, not forced into the counts
+    }
+
+    [Fact]
+    public async Task Validation_CompleteRecentEvaluation_IsValidated_AndEmptyIsGenuine()
+    {
+        var (db, svc) = await SeedAsync(Row("OK", "STARTER ENTRY", SignalSources.Watchlist));
+        await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow));
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal("Validated", r.Validation.State);
+        Assert.Equal(0, r.Validation.PendingCount);
+
+        var (db2, none) = await SeedAsync();
+        await SeedSettingsAsync(db2, Evaluated(DateTime.UtcNow));
+        var empty = await none.GetAsync(User, null);
+        Assert.Equal("Validated", empty.Validation.State);
+        Assert.Equal(0, empty.Summary.TotalOpen);
+    }
+
+    [Fact]
+    public async Task Validation_RecommendationNotRevalidatedByTheLatestCompletePass_IsPending()
+    {
+        var stale = Row("MISS", "SMALL ADD", SignalSources.Portfolio);
+        stale.LastValidatedAtUtc = DateTime.UtcNow.AddHours(-30);
+        var (db, svc) = await SeedAsync(stale, Row("FRESH", "STARTER ENTRY", SignalSources.Watchlist));
+        await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow));
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal("Pending", r.Validation.State);
+        Assert.Equal(1, r.Validation.PendingCount);
+    }
+
+    [Fact]
+    public async Task Validation_FailedOrIncompleteLatestPass_IsUnavailable_AndKeepsExistingRows()
+    {
+        var (db, svc) = await SeedAsync(Row("KEEP", "TRIM/REVIEW", SignalSources.Portfolio));
+        await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow.AddHours(-20), lastPassComplete: false, attemptAt: DateTime.UtcNow));
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal("Unavailable", r.Validation.State);
+        Assert.Equal(1, r.Summary.TotalOpen);                  // a failed evaluation never hides an existing decision
+    }
+
+    [Fact]
+    public async Task Validation_StaleLastCompleteEvaluation_IsUnavailable()
+    {
+        var (db, svc) = await SeedAsync();
+        await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow.AddDays(-10)));
+        Assert.Equal("Unavailable", (await svc.GetAsync(User, null)).Validation.State);
+    }
+
+    [Fact]
+    public async Task Validation_UnauditedRecommendation_DoesNotChangeTheState()
+    {
+        var (db, svc) = await SeedAsync(Row("UNA", "TRIM/REVIEW", SignalSources.Portfolio, audited: false));
+        await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow));
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal("Validated", r.Validation.State);
+        Assert.Equal(1, r.Summary.TotalOpen);
+    }
+
     [Fact]
     public async Task UnauditedRecommendations_AreStillOpenDecisions()
     {

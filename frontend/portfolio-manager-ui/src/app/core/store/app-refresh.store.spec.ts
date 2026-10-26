@@ -8,6 +8,7 @@ import { AppRefreshStore } from './app-refresh.store';
 import { ConfigStore } from './config.store';
 import { DashboardStore } from './dashboard.store';
 import { EodSignalsStore } from './eod-signals.store';
+import { OpenDecisionsStore } from './open-decisions.store';
 import { PortfolioStore } from './portfolio.store';
 import { WatchlistRsiStore } from './watchlist-rsi.store';
 import { WatchlistStore } from './watchlist.store';
@@ -41,13 +42,14 @@ describe('AppRefreshStore', () => {
   };
   const eodSignals = { loadSignals: vi.fn(), loading: signal(false) };
   const watchlistRsi = { triggerRefresh: vi.fn() };
+  const openDecisions = { load: vi.fn(), loading: signal(false) };
 
   beforeEach(() => {
     vi.useFakeTimers();
     localStorage.clear();
     config.set({ appRefreshSeconds: 0 });
     api.refreshAll.mockReset().mockReturnValue(of(refreshResult));
-    [portfolio, watchlist, dashboard, eodSignals, watchlistRsi].forEach((dep) =>
+    [portfolio, watchlist, dashboard, eodSignals, watchlistRsi, openDecisions].forEach((dep) =>
       Object.values(dep).forEach((fn) => {
         if (typeof fn === 'function' && 'mockReset' in fn) fn.mockReset();
       }),
@@ -61,6 +63,7 @@ describe('AppRefreshStore', () => {
         { provide: PortfolioStore, useValue: portfolio },
         { provide: WatchlistStore, useValue: watchlist },
         { provide: DashboardStore, useValue: dashboard },
+        { provide: OpenDecisionsStore, useValue: openDecisions },
         { provide: EodSignalsStore, useValue: eodSignals },
         { provide: WatchlistRsiStore, useValue: watchlistRsi },
         { provide: PortfolioRsiAnalysisService, useValue: {} },

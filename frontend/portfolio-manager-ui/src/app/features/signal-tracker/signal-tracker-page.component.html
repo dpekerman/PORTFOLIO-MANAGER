@@ -96,6 +96,22 @@
           </mat-select>
         </mat-form-field>
 
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Status</mat-label>
+          <mat-select [value]="store.status()" (selectionChange)="store.setFilters({ status: $event.value })">
+            @for (s of statuses; track s.value) {
+              <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-checkbox
+          [checked]="store.includeUnaudited()"
+          (change)="store.setFilters({ includeUnaudited: $event.checked })"
+        >
+          Include unaudited recommendations
+        </mat-checkbox>
+
         <mat-checkbox
           [checked]="store.includeBaselineInStats()"
           (change)="store.setFilters({ includeBaselineInStats: $event.checked })"
@@ -229,6 +245,12 @@
               [class.sig-buy]="row.direction === 'Buy'"
               [class.sig-sell]="row.direction === 'Sell'"
             >{{ row.signalTypeLabel }}</span>
+            @if (row.status && row.status !== 'Active') {
+              <span class="tag" [matTooltip]="row.statusReason || row.status">{{ row.status }}</span>
+            }
+            @if (row.performanceAudited === false) {
+              <span class="tag" matTooltip="Recorded for the Action Center only; excluded from performance statistics.">Unaudited</span>
+            }
             @if (row.origin === 'Backfill') {
               <span class="tag" matTooltip="Recovered from original point-in-time records">Backfill</span>
             }
@@ -334,6 +356,17 @@
             >
               {{ row.myAction === 'Pending' ? 'Record' : 'Edit' }}
             </button>
+            @if (row.status === 'Active' && row.episodeActive) {
+              <button
+                mat-button
+                type="button"
+                class="dismiss-btn"
+                [attr.aria-label]="'Dismiss recommendation for ' + row.symbol"
+                (click)="dismiss(row, $event)"
+              >
+                Dismiss
+              </button>
+            }
           </td>
         </ng-container>
 

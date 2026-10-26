@@ -671,6 +671,54 @@ public sealed class SignalsAuditServiceTests
     }
 
     [Fact]
+    public async Task Eod_RecordsTheEvaluationMarkers_AndAnIncompletePassNeverCountsAsComplete()
+    {
+        var (h, _) = await OpenRecommendationAsync();
+        var s1 = await h.Service.GetSettingsAsync(User);
+        var raw = () => System.Text.Json.JsonSerializer.Deserialize<SignalsAuditSettings>(
+            h.Db.UserPreferences.AsNoTracking().Single(p => p.PreferenceKey == SignalsAuditSettings.PreferenceKey).PreferenceValue,
+            SignalsAuditSettings.Json)!;
+        var complete = raw();
+        Assert.True(complete.LastEodEvaluationComplete);
+        Assert.NotNull(complete.LastCompleteEvaluationUtc);
+
+        await Task.Delay(5);
+        await h.EodAsync(complete: false);
+        var after = raw();
+        Assert.False(after.LastEodEvaluationComplete);
+        Assert.Equal(complete.LastCompleteEvaluationUtc, after.LastCompleteEvaluationUtc);   // last good evaluation is kept
+        Assert.True(after.LastEodEvaluationUtc > complete.LastEodEvaluationUtc);
+        Assert.NotNull(s1);
+    }
+
+    [Fact]
+    public async Task RecordEvaluationFailure_MarksTheLatestPassIncomplete_WithoutTouchingRecommendations()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+        await h.Service.RecordEvaluationFailureAsync(User);
+        var settings = System.Text.Json.JsonSerializer.Deserialize<SignalsAuditSettings>(
+            h.Db.UserPreferences.AsNoTracking().Single(p => p.PreferenceKey == SignalsAuditSettings.PreferenceKey).PreferenceValue,
+            SignalsAuditSettings.Json)!;
+        Assert.False(settings.LastEodEvaluationComplete);
+        Assert.NotNull(settings.LastCompleteEvaluationUtc);
+        var row = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(SignalStatuses.Active, row.Status);
+        Assert.Equal(ev.LastValidatedAtUtc, row.LastValidatedAtUtc);
+    }
+
+    [Fact]
+    public async Task SaveSettings_KeepsEvaluationMarkersAndLifecycleBaseline()
+    {
+        var (h, _) = await OpenRecommendationAsync();
+        await h.Service.SaveSettingsAsync(User, new SaveSignalsAuditSettingsRequest(true, 80m));
+        var settings = System.Text.Json.JsonSerializer.Deserialize<SignalsAuditSettings>(
+            h.Db.UserPreferences.AsNoTracking().Single(p => p.PreferenceKey == SignalsAuditSettings.PreferenceKey).PreferenceValue,
+            SignalsAuditSettings.Json)!;
+        Assert.NotNull(settings.LastCompleteEvaluationUtc);
+        Assert.True(settings.LifecycleBaselineDone);
+    }
+
+    [Fact]
     public async Task Eod_ConfirmedRecommendation_IsRevalidated_NotDuplicated()
     {
         var (h, ev) = await OpenRecommendationAsync();
