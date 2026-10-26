@@ -121,7 +121,7 @@ public sealed class SignalsAuditServiceTests
         Assert.Null(first.EpisodeEndedDate);
 
         h.Scores.Items = [Score("NEW", 70m, 55m)];
-        var closed = await h.Service.CaptureAsync(User);
+        var closed = await h.EodAsync();
         Assert.Equal(1, closed.Closed);
         Assert.NotNull(h.Db.SignalAuditEvents.Single().EpisodeEndedDate);
 
@@ -155,12 +155,11 @@ public sealed class SignalsAuditServiceTests
         await h.Service.SaveSettingsAsync(User, new SaveSignalsAuditSettingsRequest(false, 75m));
 
         h.Scores.Items = [Score("NEW", 90m), Score("OTHER", 99m)];
-        var result = await h.Service.CaptureAsync(User);
+        var result = await h.EodAsync();
 
         Assert.Equal(0, result.Created);
         Assert.Equal(1, result.Closed);
-        var ev = Assert.Single(h.Db.SignalAuditEvents);
-        Assert.NotNull(ev.EpisodeEndedDate);
+        Assert.NotNull(Assert.Single(h.Db.SignalAuditEvents).EpisodeEndedDate);
     }
 
     [Fact]
@@ -495,9 +494,9 @@ public sealed class SignalsAuditServiceTests
     }
 
     [Fact]
-    public async Task FinalActionCapture_DisabledAction_CreatesNothing_AndHistoryIsKept()
+    public async Task FinalActionCapture_DisablingAuditedAction_DoesNotCloseTheRecommendation_AndItStaysOpen()
     {
-        var h = await WithFinalActionAsync("FOO", "WAIT FOR PULLBACK"); // not audited
+        var h = await WithFinalActionAsync("FOO", "WAIT FOR PULLBACK"); // not actionable, not audited
         await h.Service.CaptureAsync(User);
         Assert.Empty(h.Db.SignalAuditEvents);
 
@@ -508,24 +507,27 @@ public sealed class SignalsAuditServiceTests
         var entries = (await h.Service.GetSettingsAsync(User)).Entries
             .Select(e => new AuditedActionEntry(e.Id, e.Label, e.Id != "STARTER ENTRY" && e.Enabled, e.Custom)).ToList();
         await h.Service.SaveSettingsAsync(User, new SaveSignalsAuditSettingsRequest(true, 75m, true, entries));
-        await h.Service.CaptureAsync(User);
+        await h.EodAsync();
 
+        // Auditing is analytics configuration: the condition still holds, so the recommendation stays open.
         var ev = Assert.Single(h.Db.SignalAuditEvents);
-        Assert.NotNull(ev.EpisodeEndedDate);                           // open episode ended, record kept
+        Assert.Null(ev.EpisodeEndedDate);
+        Assert.Equal(SignalStatuses.Active, ev.Status);
+        Assert.True(ev.PerformanceAudited);                            // history flag is never rewritten
     }
 
     [Fact]
     public async Task FinalActionCapture_TransitionToAnotherEnabledAction_ClosesOldAndCreatesNew()
     {
         var h = await WithFinalActionAsync("HOLD", "STARTER ENTRY");
-        await h.Service.CaptureAsync(User);
+        await h.EodAsync();
 
         h.FinalActions.ExtraWatchlist[0] = Result("HOLD", "Small Add", SignalSources.Portfolio, 51m);
-        await h.Service.CaptureAsync(User);
+        await h.EodAsync();
         h.FinalActions.ExtraWatchlist[0] = Result("HOLD", "WAIT FOR PULLBACK", SignalSources.Portfolio, 52m);
-        await h.Service.CaptureAsync(User);
+        await h.EodAsync();
         h.FinalActions.ExtraWatchlist[0] = Result("HOLD", "STARTER ENTRY", SignalSources.Portfolio, 53m);
-        await h.Service.CaptureAsync(User);
+        await h.EodAsync();
 
         var events = h.Db.SignalAuditEvents.OrderBy(e => e.Id).ToList();
         Assert.Equal(["FA:STARTER ENTRY", "FA:SMALL ADD", "FA:STARTER ENTRY"], events.Select(e => e.SignalType));
@@ -659,6 +661,273 @@ public sealed class SignalsAuditServiceTests
         return list;
     }
 
+    // ── Lifecycle (Phase 1): evaluation outcomes, identity, status, audit flag ────────
+
+    private static async Task<(Harness H, SignalAuditEvent Ev)> OpenRecommendationAsync(string symbol = "FOO", string action = "STARTER ENTRY")
+    {
+        var h = await WithFinalActionAsync(symbol, action);
+        await h.EodAsync();
+        return (h, h.Db.SignalAuditEvents.Single(e => e.Symbol == symbol));
+    }
+
+    [Fact]
+    public async Task Eod_ConfirmedRecommendation_IsRevalidated_NotDuplicated()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+        Assert.NotNull(ev.LastValidatedAtUtc);
+        var first = ev.LastValidatedAtUtc;
+        await Task.Delay(5);
+        var again = await h.EodAsync();
+        Assert.Equal(0, again.Created);
+        Assert.Equal(0, again.Closed);
+        Assert.Single(h.Db.SignalAuditEvents);
+        Assert.True(h.Db.SignalAuditEvents.Single().LastValidatedAtUtc > first);
+    }
+
+    [Fact]
+    public async Task Eod_CompleteEvaluationThatNoLongerProducesTheAction_InvalidatesImmediately()
+    {
+        var (h, _) = await OpenRecommendationAsync();
+        h.FinalActions.ExtraWatchlist[0] = Result("FOO", "WAIT FOR PULLBACK", SignalSources.Watchlist, 50m);
+        await h.EodAsync();
+
+        var ev = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(SignalStatuses.Invalidated, ev.Status);
+        Assert.NotNull(ev.EpisodeEndedDate);
+        Assert.Equal(50m, ev.SignalPrice);
+    }
+
+    [Fact]
+    public async Task Eod_UnknownSymbol_PreservesRecommendation_NeverInvalidates()
+    {
+        var (h, _) = await OpenRecommendationAsync();
+        h.FinalActions.ExtraWatchlist.Clear();           // scan failed: no result for FOO
+        h.FinalActions.Unknown.Add("FOO");
+        var result = await h.EodAsync();
+
+        var ev = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(0, result.Closed);
+        Assert.Equal(SignalStatuses.Active, ev.Status);
+        Assert.Null(ev.EpisodeEndedDate);
+    }
+
+    [Fact]
+    public async Task Eod_PartialRun_OnlyEvaluatedSecuritiesChange()
+    {
+        var (h, _) = await OpenRecommendationAsync("AAA");
+        h.FinalActions.ExtraWatchlist.Add(Result("BBB", "STARTER ENTRY", SignalSources.Watchlist, 20m));
+        await h.EodAsync();
+
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("BBB", "WAIT FOR PULLBACK", SignalSources.Watchlist, 20m));
+        h.FinalActions.Unknown.Add("AAA");
+        await h.EodAsync();
+
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single(e => e.Symbol == "AAA").Status);
+        Assert.Equal(SignalStatuses.Invalidated, h.Db.SignalAuditEvents.Single(e => e.Symbol == "BBB").Status);
+    }
+
+    [Fact]
+    public async Task Eod_IncompletePass_AndManualCapture_NeverCloseOrRevalidate()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+        var validated = ev.LastValidatedAtUtc;
+        h.FinalActions.ExtraWatchlist[0] = Result("FOO", "WAIT FOR PULLBACK", SignalSources.Watchlist, 50m);
+
+        await h.EodAsync(complete: false);
+        await h.Service.CaptureAsync(User);
+
+        ev = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(SignalStatuses.Active, ev.Status);
+        Assert.Null(ev.EpisodeEndedDate);
+        Assert.Equal(validated, ev.LastValidatedAtUtc);
+    }
+
+    [Fact]
+    public async Task Eod_StalePortfolioSnapshot_DoesNotInvalidateHoldings()
+    {
+        var h = new Harness([Score("BASE", 10m)]);
+        await h.Service.CaptureAsync(User);
+        h.FinalActions.ExtraWatchlist.Add(Result("HLD", "Small Add", SignalSources.Portfolio, 30m));
+        await h.EodAsync();
+        h.FinalActions.ExtraWatchlist[0] = Result("HLD", "WAIT FOR PULLBACK", SignalSources.Portfolio, 30m);
+
+        var snap = await h.FinalActions.ComputeAsync(User);
+        var stale = snap with { Meta = snap.Meta! with { PortfolioSnapshotAtUtc = DateTime.UtcNow.AddHours(-30) } };
+        await h.Service.CaptureAsync(User, stale, new CaptureOptions(true, true, DateTime.UtcNow.AddHours(-1)));
+
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single().Status);
+    }
+
+    [Fact]
+    public async Task Eod_ChangedAction_SupersedesPredecessor_AndKeepsOriginalFacts()
+    {
+        var h = new Harness([Score("BASE", 10m)]);
+        await h.Service.CaptureAsync(User);
+        h.FinalActions.ExtraWatchlist.Add(Result("HLD", "Small Add", SignalSources.Portfolio, 30m));
+        await h.EodAsync();
+        h.FinalActions.ExtraWatchlist[0] = Result("HLD", "Cut Loss / Exit", SignalSources.Portfolio, 25m);
+        await h.EodAsync();
+
+        var all = h.Db.SignalAuditEvents.OrderBy(e => e.Id).ToList();
+        Assert.Equal(2, all.Count);
+        Assert.Equal(SignalStatuses.Superseded, all[0].Status);
+        Assert.Equal(all[1].Id, all[0].SupersededByEventId);
+        Assert.Equal(30m, all[0].SignalPrice);
+        Assert.Equal(SignalStatuses.Active, all[1].Status);
+        Assert.Null(all[1].EpisodeEndedDate);
+    }
+
+    [Fact]
+    public async Task Eod_HoldingAndWatchlistOfSameAction_AreDistinctContexts()
+    {
+        var h = new Harness([Score("BASE", 10m)]);
+        await h.Service.CaptureAsync(User);
+        h.FinalActions.ExtraWatchlist.Add(Result("DUP", "STARTER ENTRY", SignalSources.Watchlist, 10m));
+        h.FinalActions.ExtraWatchlist.Add(Result("DUP", "STARTER ENTRY", SignalSources.Portfolio, 10m));
+        await h.EodAsync();
+        await h.EodAsync();
+
+        Assert.Equal(2, h.Db.SignalAuditEvents.Count());
+    }
+
+    [Fact]
+    public async Task Eod_InitialBaselineRecord_IsRevalidatedInPlace_WithoutResettingHistory()
+    {
+        var h = new Harness([Score("BASE", 10m)]);
+        h.FinalActions.ExtraWatchlist.Add(Result("OLD", "STARTER ENTRY", SignalSources.Watchlist, 44m));
+        await h.Service.CaptureAsync(User);                      // first run => INITIAL_BASELINE
+        var baseline = h.Db.SignalAuditEvents.Single();
+        Assert.Null(baseline.LastValidatedAtUtc);                 // hidden from Action Center until revalidated
+        var (id, date, price) = (baseline.Id, baseline.SignalDate, baseline.SignalPrice);
+
+        await h.EodAsync();
+
+        var after = Assert.Single(h.Db.SignalAuditEvents);
+        Assert.Equal((id, date, price), (after.Id, after.SignalDate, after.SignalPrice));
+        Assert.Equal(SignalOrigins.InitialBaseline, after.Origin);
+        Assert.NotNull(after.LastValidatedAtUtc);
+    }
+
+    [Fact]
+    public async Task Capture_UnauditedActionableRecommendation_IsRecorded_ButExcludedFromPerformanceStats()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        // TRIM/REVIEW is a default audited action; remove it from the audited list.
+        var entries = (await h.Service.GetSettingsAsync(User)).Entries
+            .Select(e => new AuditedActionEntry(e.Id, e.Label, e.Id != "TRIM/REVIEW" && e.Enabled, e.Custom)).ToList();
+        await h.Service.SaveSettingsAsync(User, new SaveSignalsAuditSettingsRequest(true, 75m, true, entries));
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+
+        var ev = Assert.Single(h.Db.SignalAuditEvents);
+        Assert.False(ev.PerformanceAudited);
+        Assert.Equal(SignalStatuses.Active, ev.Status);
+        Assert.NotNull(ev.LastValidatedAtUtc);
+
+        Assert.Equal(0, (await h.Service.QueryAsync(User, new SignalsAuditQuery())).Total);
+        Assert.Equal(1, (await h.Service.QueryAsync(User, new SignalsAuditQuery(IncludeUnaudited: true))).Total);
+        Assert.Empty((await h.Service.GetSummaryAsync(User, new SignalsAuditQuery(IncludeUnaudited: true, IncludeBaselineInStats: true))).Effectiveness);
+    }
+
+    [Fact]
+    public async Task Dismiss_IsExplicit_AndNotActionedStaysActive()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+
+        await h.Service.SaveActionAsync(User, ev.Id, new SaveSignalActionRequest(SignalMyActions.NotActioned, null, null));
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single().Status);
+        await h.Service.SaveActionAsync(User, ev.Id, new SaveSignalActionRequest(SignalMyActions.Partial, null, null));
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single().Status);
+
+        await h.Service.DismissAsync(User, ev.Id, "not now");
+        Assert.Equal(SignalStatuses.Dismissed, h.Db.SignalAuditEvents.Single().Status);
+        Assert.Equal(SignalMyActions.Partial, h.Db.SignalAuditEvents.Single().MyAction);   // user response untouched
+        await Assert.ThrowsAsync<ArgumentException>(() => h.Service.DismissAsync(User, ev.Id, null));
+    }
+
+    [Fact]
+    public async Task SaveAction_Actioned_MovesActiveToActed_AndLaterEvaluationDoesNotOverwriteIt()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+        await h.Service.SaveActionAsync(User, ev.Id, new SaveSignalActionRequest(SignalMyActions.Actioned, null, null));
+        Assert.Equal(SignalStatuses.Acted, h.Db.SignalAuditEvents.Single().Status);
+
+        h.FinalActions.ExtraWatchlist[0] = Result("FOO", "WAIT FOR PULLBACK", SignalSources.Watchlist, 50m);
+        await h.EodAsync();
+
+        var after = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(SignalStatuses.Acted, after.Status);
+        Assert.Equal(SignalMyActions.Actioned, after.MyAction);
+        Assert.NotNull(after.EpisodeEndedDate);               // the condition ended; the user's status is kept
+    }
+
+    [Fact]
+    public async Task Expiry_OnlyAppliesToSecuritiesLeftUnevaluatedInACompletePass_AfterTheWindow()
+    {
+        var (h, ev) = await OpenRecommendationAsync();
+        ev.CapturedAtUtc = DateTime.UtcNow.AddDays(-20);
+        ev.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-20);
+        await h.Db.SaveChangesAsync();
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.Unknown.Add("FOO");
+
+        await h.EodAsync(complete: false);                    // outage: never expires
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single().Status);
+
+        await h.EodAsync();                                   // complete pass, FOO still unevaluated past 5 days
+        Assert.Equal(SignalStatuses.Expired, h.Db.SignalAuditEvents.Single().Status);
+    }
+
+    [Theory]
+    [InlineData("STARTER ENTRY", SignalSources.Watchlist, DecisionBucket.EntryAdd)]
+    [InlineData("Add / Staged Entry", SignalSources.Portfolio, DecisionBucket.EntryAdd)]
+    [InlineData("Small Add", SignalSources.Portfolio, DecisionBucket.EntryAdd)]
+    [InlineData("Trim / Review", SignalSources.Portfolio, DecisionBucket.TrimExit)]
+    [InlineData("Exit / Take Profit", SignalSources.Portfolio, DecisionBucket.TrimExit)]
+    [InlineData("Cut Loss / Exit", SignalSources.Portfolio, DecisionBucket.TrimExit)]
+    [InlineData("Cut Loss / Thesis Review", SignalSources.Portfolio, DecisionBucket.RiskReview)]
+    [InlineData("Close / Protect", SignalSources.Portfolio, DecisionBucket.RiskReview)]
+    [InlineData("Cut Loss / Exit", SignalSources.Watchlist, DecisionBucket.None)]
+    [InlineData("Trim / Exit Watch", SignalSources.Portfolio, DecisionBucket.None)]
+    [InlineData("BUY WATCH", SignalSources.Watchlist, DecisionBucket.None)]
+    [InlineData("AVOID", SignalSources.Watchlist, DecisionBucket.None)]
+    [InlineData("Avoid / Wait", SignalSources.Portfolio, DecisionBucket.None)]
+    [InlineData("Watch / Do Not Chase", SignalSources.Portfolio, DecisionBucket.None)]
+    [InlineData("Hold / Review", SignalSources.Portfolio, DecisionBucket.None)]
+    [InlineData("Hold / Risk Review", SignalSources.Portfolio, DecisionBucket.None)]
+    [InlineData("WAIT FOR PULLBACK", SignalSources.Watchlist, DecisionBucket.None)]
+    public void DecisionEligibility_ClassifiesFromTheCatalog(string action, string source, DecisionBucket expected) =>
+        Assert.Equal(expected, DecisionEligibility.Classify(Result("X", action, source, 10m)));
+
+    [Fact]
+    public void DecisionEligibility_NoPrice_IsNotActionable() =>
+        Assert.Equal(DecisionBucket.None, DecisionEligibility.Classify(Result("X", "STARTER ENTRY", SignalSources.Watchlist, 0m)));
+
+    [Theory]
+    [InlineData("Active", "Acted", true)]
+    [InlineData("Active", "Dismissed", true)]
+    [InlineData("Active", "Expired", true)]
+    [InlineData("Active", "Invalidated", true)]
+    [InlineData("Active", "Superseded", true)]
+    [InlineData("Active", "Active", false)]
+    [InlineData("Acted", "Invalidated", false)]
+    [InlineData("Dismissed", "Active", false)]
+    [InlineData("Expired", "Active", false)]
+    [InlineData("Invalidated", "Superseded", false)]
+    [InlineData("Superseded", "Expired", false)]
+    public void Lifecycle_TransitionMatrix(string from, string to, bool allowed) =>
+        Assert.Equal(allowed, RecommendationLifecycle.CanTransition(from, to));
+
+    [Fact]
+    public void Lifecycle_ExpiryWindows_AreFiveForEntryAndThreeForTrimExit()
+    {
+        Assert.Equal(5, RecommendationLifecycle.ExpiryWindowDays(SignalCategories.Entry));
+        Assert.Equal(3, RecommendationLifecycle.ExpiryWindowDays(SignalCategories.TrimExit));
+        Assert.Equal(5, RecommendationLifecycle.WeekdaysBetween(new DateOnly(2026, 10, 19), new DateOnly(2026, 10, 26)));
+    }
+
     // â”€â”€ Test doubles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private sealed class Harness
@@ -675,6 +944,12 @@ public sealed class SignalsAuditServiceTests
 
         public FakeFinalActions FinalActions { get; }
 
+        /// <summary>A complete EOD pass over the current fake evaluation.</summary>
+        public async Task<SignalCaptureResultDto> EodAsync(bool complete = true)
+        {
+            var snap = await FinalActions.ComputeAsync(User);
+            return await Service.CaptureAsync(User, snap, new CaptureOptions(IsEodPass: true, EvaluationComplete: complete));
+        }
         public Harness(List<ActionScoreDto> initial)
         {
             Scores = new FakeScores { Items = initial };
@@ -739,6 +1014,7 @@ public sealed class SignalsAuditServiceTests
         public List<FinalActionResultDto> ExtraWatchlist { get; } = [];
         public bool Fail { get; set; }
         public bool HardNegative { get; set; }
+        public HashSet<string> Unknown { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public Task<int> PublishPortfolioActionsAsync(string userId, FinalActionSnapshotDto snapshot, CancellationToken ct = default) =>
             Task.FromResult(snapshot.Portfolio.Count);
@@ -749,7 +1025,8 @@ public sealed class SignalsAuditServiceTests
             var watch = scores.Items
                 .Select(s => Result(s.Symbol, WatchlistAction.GetValueOrDefault(s.Symbol, "BUY WATCH"), SignalSources.Watchlist, s.CurrentPrice, HardNegative))
                 .Concat(ExtraWatchlist).ToList();
-            return Task.FromResult(new FinalActionSnapshotDto(watch, Portfolio.ToList(), DateTime.UtcNow));
+            var meta = new FinalActionEvaluationMeta(Unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), DateTime.UtcNow, true);
+            return Task.FromResult(new FinalActionSnapshotDto(watch, Portfolio.ToList(), DateTime.UtcNow, meta));
         }
     }
 

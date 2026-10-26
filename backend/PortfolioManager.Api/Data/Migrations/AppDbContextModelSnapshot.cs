@@ -1463,6 +1463,9 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<DateTime?>("LastValidatedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
                     b.Property<int?>("LinkedTransactionId")
                         .HasColumnType("int");
 
@@ -1482,6 +1485,11 @@ namespace PortfolioManager.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
+
+                    b.Property<bool>("PerformanceAudited")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("Role")
                         .HasMaxLength(30)
@@ -1515,6 +1523,23 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<DateTime?>("StatusChangedAtUtc")
+                        .HasColumnType("datetime2(3)");
+
+                    b.Property<string>("StatusReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<long?>("SupersededByEventId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Symbol")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -1527,13 +1552,22 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SupersededByEventId");
+
                     b.HasIndex("UserId", "EpisodeKey")
                         .IsUnique();
 
                     b.HasIndex("UserId", "SignalDate")
                         .IsDescending(false, true);
 
+                    b.HasIndex("UserId", "Status");
+
                     b.HasIndex("UserId", "Symbol", "SignalType");
+
+                    b.HasIndex("UserId", "Symbol", "SignalType", "Source")
+                        .IsUnique()
+                        .HasDatabaseName("UX_SignalAuditEvents_OpenIdentity")
+                        .HasFilter("[EpisodeEndedDate] IS NULL");
 
                     b.ToTable("SignalAuditEvents");
                 });
@@ -2066,6 +2100,16 @@ namespace PortfolioManager.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.SignalAuditEvent", b =>
+                {
+                    b.HasOne("PortfolioManager.Api.Models.SignalAuditEvent", "SupersededBy")
+                        .WithMany()
+                        .HasForeignKey("SupersededByEventId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("SupersededBy");
                 });
 #pragma warning restore 612, 618
         }

@@ -112,7 +112,7 @@ public sealed class EodAutomationOrchestratorService(
             await PollForCompletionAsync(log, tz, pollDeadlineUtc, ct);
             await RecordHeartbeatAsync(log, "CompletionObserved", ct);
 
-            await CaptureSignalsAsync(owner.Id, ct);
+            await CaptureSignalsAsync(owner.Id, log, ct);
             await RecordHeartbeatAsync(log, "SignalsAuditCaptured", ct);
             log.CompletedAtUtc = DateTime.UtcNow;
             log.OverallStatus = DeriveOverallStatus(log);
@@ -217,10 +217,17 @@ public sealed class EodAutomationOrchestratorService(
     }
 
     /// <summary>
-    /// Final Action evaluation, Action Center publication and Signals Audit capture are auxiliary to the EOD run:
-    /// a failure is logged and never fails it.
+    /// A run may drive recommendation lifecycle changes (confirm / invalidate / expire) only if the refresh really
+    /// succeeded and the EOD window was observed. "Window reached" alone is not proof that data was refreshed.
     /// </summary>
-    private async Task CaptureSignalsAsync(string ownerId, CancellationToken ct)
+    public static bool IsEvaluationComplete(AutomationRunLog log) =>
+        log.RefreshStatus == AutomationStatuses.Succeeded && log.RsiStatus == AutomationStatuses.Succeeded;
+
+    /// <summary>
+    /// Final Action evaluation, Action Center publication and Signals Audit capture are auxiliary to the EOD run:
+    /// a failure is logged and never fails it. ONE evaluation pass feeds both publication and capture.
+    /// </summary>
+    private async Task CaptureSignalsAsync(string ownerId, AutomationRunLog log, CancellationToken ct)
     {
         try
         {
@@ -229,7 +236,12 @@ public sealed class EodAutomationOrchestratorService(
             logger.LogInformation("[EodAutomation] Final Action: {Watchlist} watchlist and {Portfolio} portfolio decisions; {Published} published to Action Center.",
                 snapshot.Watchlist.Count, snapshot.Portfolio.Count, published);
 
-            var result = await signalsAudit.CaptureAsync(ownerId, ct);
+            var complete = IsEvaluationComplete(log);
+            if (!complete)
+                logger.LogWarning("[EodAutomation] Evaluation incomplete (refresh {Refresh}, RSI {Rsi}); existing recommendations are preserved, none will be closed.",
+                    log.RefreshStatus, log.RsiStatus);
+            var result = await signalsAudit.CaptureAsync(ownerId, snapshot,
+                new CaptureOptions(IsEodPass: true, EvaluationComplete: complete, RunStartedUtc: log.ActualStartUtc), ct);
             logger.LogInformation("[EodAutomation] Signals Audit: {Created} new, {Closed} closed{Skipped}.",
                 result.Created, result.Closed, result.Skipped ? $" (skipped: {result.Reason})" : "");
         }

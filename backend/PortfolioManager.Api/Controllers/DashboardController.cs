@@ -13,8 +13,19 @@ public sealed class DashboardController(
     IDashboardService dashboard,
     IPortfolioActionsService portfolioActions,
     IDashboardEodSummaryService eodSummary,
-    IMarketLeadershipService marketLeadership) : ControllerBase
+    IMarketLeadershipService marketLeadership,
+    IOpenDecisionsService openDecisions) : ControllerBase
 {
+    /// <summary>Counts for the Portfolio Action Summary; derived from the same set as the Action Center.</summary>
+    [HttpGet("action-summary")]
+    public async Task<ActionResult<ActionSummaryDto>> GetActionSummary(CancellationToken ct)
+        => Ok((await openDecisions.GetAsync(CurrentUserId(), null, ct)).Summary);
+
+    /// <summary>Current validated decisions. filter: All | Entry | ReduceExit | Risk | Holdings | Watchlist.</summary>
+    [HttpGet("action-center")]
+    public async Task<ActionResult<OpenDecisionsResponse>> GetActionCenter([FromQuery] string? filter, CancellationToken ct)
+        => Ok(await openDecisions.GetAsync(CurrentUserId(), filter, ct));
+
     [HttpGet]
     public async Task<ActionResult<DashboardResponse>> Get(CancellationToken ct)
     {

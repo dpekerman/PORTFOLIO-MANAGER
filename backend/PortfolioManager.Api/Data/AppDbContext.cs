@@ -520,6 +520,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => new { e.UserId, e.EpisodeKey }).IsUnique();
             entity.HasIndex(e => new { e.UserId, e.SignalDate }).IsDescending(false, true);
             entity.HasIndex(e => new { e.UserId, e.Symbol, e.SignalType });
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20).HasDefaultValue(SignalStatuses.Active);
+            entity.Property(e => e.StatusReason).HasMaxLength(200);
+            entity.Property(e => e.StatusChangedAtUtc).HasColumnType("datetime2(3)");
+            entity.Property(e => e.LastValidatedAtUtc).HasColumnType("datetime2(3)");
+            entity.Property(e => e.PerformanceAudited).HasDefaultValue(true);
+            entity.HasOne(e => e.SupersededBy).WithMany().HasForeignKey(e => e.SupersededByEventId).OnDelete(DeleteBehavior.NoAction);
+            // At most one open episode per recommendation identity, even under concurrent runs.
+            entity.HasIndex(e => new { e.UserId, e.Symbol, e.SignalType, e.Source }).IsUnique()
+                .HasFilter("[EpisodeEndedDate] IS NULL").HasDatabaseName("UX_SignalAuditEvents_OpenIdentity");
+            entity.HasIndex(e => new { e.UserId, e.Status });
         });
 
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
