@@ -33,6 +33,8 @@ interface SignalsAuditState extends SignalsAuditFilters {
   sortBy: string;
   sortDir: 'asc' | 'desc';
   summary: SignalAuditSummary | null;
+  /** Same filters minus signalType/myAction, so the KPI cards stay stable while a card filter is active. */
+  overview: SignalAuditSummary | null;
   signalTypes: SignalTypeOption[];
   settings: SignalsAuditSettings | null;
   finalActionCatalog: FinalActionCatalogItem[];
@@ -66,6 +68,7 @@ const initialState: SignalsAuditState = {
   sortBy: 'signalDate',
   sortDir: 'desc',
   summary: null,
+  overview: null,
   signalTypes: [],
   settings: null,
   finalActionCatalog: [],
@@ -127,10 +130,14 @@ export const SignalsAuditStore = signalStore(
       pipe(
         tap(() => patchState(store, setLoading())),
         switchMap(() =>
-          forkJoin({ page: api.query(params()), summary: api.summary(params()) }).pipe(
+          forkJoin({
+            page: api.query(params()),
+            summary: api.summary(params()),
+            overview: api.summary({ ...params(), signalType: [], myAction: 'All' }),
+          }).pipe(
             tapResponse({
-              next: ({ page, summary }) =>
-                patchState(store, { items: page.items, total: page.total, summary }, setLoaded()),
+              next: ({ page, summary, overview }) =>
+                patchState(store, { items: page.items, total: page.total, summary, overview }, setLoaded()),
               error: () => patchState(store, setError('Failed to load signals')),
             }),
           ),

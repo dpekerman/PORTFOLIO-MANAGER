@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -41,6 +42,8 @@ import { SignalActionDialogComponent } from './signal-action-dialog.component';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
 
 const TICKER_DEBOUNCE_MS = 350;
+const PRIORITY_CANDIDATE_KEY = 'PRIORITY_CANDIDATE';
+type SignalKpi = 'total' | 'priority' | 'entry' | 'trim' | 'actioned' | 'pending';
 
 @Component({
   selector: 'app-signal-tracker-page',
@@ -82,6 +85,45 @@ export class SignalTrackerPageComponent implements OnInit {
 
   /** Collapsed by default on handsets so the signals are visible without scrolling past the filters. */
   protected readonly filtersOpen = signal(!this.isHandset());
+
+  /** Which summary card (if any) matches the current signal type / My Action filters. */
+  protected readonly activeKpi = computed<SignalKpi | null>(() => {
+    const types = this.store.signalType();
+    const action = this.store.myAction();
+    if (types.length === 0) {
+      if (action === 'Actioned') return 'actioned';
+      if (action === 'Pending') return 'pending';
+      return action === 'All' ? 'total' : null;
+    }
+    if (action !== 'All') return null;
+    const same = (keys: string[]) => keys.length === types.length && keys.every((k) => types.includes(k));
+    if (same([PRIORITY_CANDIDATE_KEY])) return 'priority';
+    if (same(this.keysFor('Entry'))) return 'entry';
+    if (same(this.keysFor('TrimExit'))) return 'trim';
+    return null;
+  });
+
+  /** Card click = filter the table and (server-side, same query) the effectiveness cards. Click again to clear. */
+  protected selectKpi(kpi: SignalKpi): void {
+    if (kpi === 'total' || this.activeKpi() === kpi) {
+      this.store.setFilters({ signalType: [], myAction: 'All' });
+      return;
+    }
+    const types: Record<SignalKpi, string[]> = {
+      total: [],
+      priority: [PRIORITY_CANDIDATE_KEY],
+      entry: this.keysFor('Entry'),
+      trim: this.keysFor('TrimExit'),
+      actioned: [],
+      pending: [],
+    };
+    const myAction = kpi === 'actioned' ? 'Actioned' : kpi === 'pending' ? 'Pending' : 'All';
+    this.store.setFilters({ signalType: types[kpi], myAction });
+  }
+
+  private keysFor(category: 'Entry' | 'TrimExit'): string[] {
+    return this.store.signalTypes().filter((t) => t.category === category).map((t) => t.key);
+  }
 
   protected readonly roles = ['Core', 'Strategic', 'Strategic-Income', 'Swing', 'Speculative', 'Options'];
 

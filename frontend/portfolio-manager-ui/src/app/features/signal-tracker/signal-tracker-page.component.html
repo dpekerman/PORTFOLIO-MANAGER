@@ -26,14 +26,14 @@
     </div>
   </header>
 
-  @if (store.summary(); as s) {
+  @if (store.overview(); as s) {
     <section class="kpis" aria-label="Signal summary">
-      <div class="kpi"><span class="kpi-value">{{ s.total }}</span><span class="kpi-label">Total Signals</span></div>
-      <div class="kpi"><span class="kpi-value">{{ s.priorityCandidate }}</span><span class="kpi-label">Priority Candidate</span></div>
-      <div class="kpi"><span class="kpi-value">{{ s.entryAdd }}</span><span class="kpi-label">Entry / Add</span></div>
-      <div class="kpi"><span class="kpi-value">{{ s.trimExit }}</span><span class="kpi-label">Trim / Exit</span></div>
-      <div class="kpi" matTooltip="Actioned plus Partial"><span class="kpi-value">{{ s.actioned }}</span><span class="kpi-label">Actioned</span></div>
-      <div class="kpi kpi-pending"><span class="kpi-value">{{ s.pendingReview }}</span><span class="kpi-label">Pending Review</span></div>
+      <button type="button" class="kpi kpi-total" [class.kpi-active]="activeKpi() === 'total'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'total'" (click)="selectKpi('total')"><span class="kpi-value">{{ s.total }}</span><span class="kpi-label">Total Signals</span></button>
+      <button type="button" class="kpi kpi-priority" [class.kpi-active]="activeKpi() === 'priority'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'priority'" (click)="selectKpi('priority')"><span class="kpi-value">{{ s.priorityCandidate }}</span><span class="kpi-label">Priority Candidate</span></button>
+      <button type="button" class="kpi kpi-entry" [class.kpi-active]="activeKpi() === 'entry'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'entry'" (click)="selectKpi('entry')"><span class="kpi-value">{{ s.entryAdd }}</span><span class="kpi-label">Entry / Add</span></button>
+      <button type="button" class="kpi kpi-trim" [class.kpi-active]="activeKpi() === 'trim'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'trim'" (click)="selectKpi('trim')"><span class="kpi-value">{{ s.trimExit }}</span><span class="kpi-label">Trim / Exit</span></button>
+      <button type="button" class="kpi kpi-actioned" [class.kpi-active]="activeKpi() === 'actioned'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'actioned'" (click)="selectKpi('actioned')" matTooltip="Show signals marked Actioned"><span class="kpi-value">{{ s.actioned }}</span><span class="kpi-label">Actioned</span></button>
+      <button type="button" class="kpi kpi-pending" [class.kpi-active]="activeKpi() === 'pending'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'pending'" (click)="selectKpi('pending')"><span class="kpi-value">{{ s.pendingReview }}</span><span class="kpi-label">Pending Review</span></button>
     </section>
   }
 
