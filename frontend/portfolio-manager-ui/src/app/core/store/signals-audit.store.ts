@@ -133,7 +133,8 @@ export const SignalsAuditStore = signalStore(
           forkJoin({
             page: api.query(params()),
             summary: api.summary(params()),
-            overview: api.summary({ ...params(), signalType: [], myAction: 'All' }),
+            // The cards ignore the card-driven filters (type, My Action, status) so they stay put while you click them.
+            overview: api.summary({ ...params(), signalType: [], myAction: 'All', status: 'All' }),
           }).pipe(
             tapResponse({
               next: ({ page, summary, overview }) =>

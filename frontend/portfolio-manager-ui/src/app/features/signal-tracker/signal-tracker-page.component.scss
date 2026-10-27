@@ -344,10 +344,44 @@
   color: var(--mat-sys-on-surface-variant);
 }
 
+/* One flex item inside the mobile card row, so the badges wrap together instead of each being squeezed into a sliver. */
+.type-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+
+  .tag,
+  .score,
+  .sig-type {
+    margin-left: 0;
+  }
+}
+
+@media (min-width: 601px) {
+  .type-cell {
+    display: block;
+
+    .tag,
+    .score {
+      margin-left: 6px;
+    }
+  }
+}
+
 .tag {
   padding: 1px 6px;
   border-radius: 4px;
   background: var(--mat-sys-surface-container-highest);
+}
+
+/* Invalidated means the app no longer recommends this: it must stand out. */
+.tag.tag-invalidated {
+  background: #c62828;
+  color: #fff;
+  font-weight: 700;
 }
 
 .pct {

@@ -9,6 +9,8 @@ namespace PortfolioManager.Api.Services;
 public interface IWatchlistService
 {
     Task<IReadOnlyList<WatchlistItemDto>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Items visible to <paramref name="userId"/> (own + shared) for background jobs that have no HTTP user.</summary>
+    Task<IReadOnlyList<WatchlistItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default);
     Task<WatchlistItemDto> AddAsync(AddWatchlistItemRequest request, CancellationToken ct = default);
     Task<bool> DeleteAsync(int id, CancellationToken ct = default);
     Task<bool> UpdateRoleAsync(int id, string role, CancellationToken ct = default);
@@ -37,6 +39,16 @@ public sealed class WatchlistService(AppDbContext db, IHttpContextAccessor httpC
     {
         var items = await OwnedItems()
             .AsNoTracking()
+            .OrderBy(x => x.Symbol)
+            .ToListAsync(ct);
+        return items.Select(ToDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<WatchlistItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default)
+    {
+        var items = await db.WatchlistItems
+            .AsNoTracking()
+            .Where(x => x.UserId == userId || x.UserId == null)
             .OrderBy(x => x.Symbol)
             .ToListAsync(ct);
         return items.Select(ToDto).ToList();

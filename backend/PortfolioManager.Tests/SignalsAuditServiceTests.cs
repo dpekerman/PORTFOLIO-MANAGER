@@ -325,6 +325,44 @@ public sealed class SignalsAuditServiceTests
     }
 
     [Fact]
+    public async Task Summary_CategoryAndPendingCards_CountOpenRowsOnly_TotalAndActionedCountAllRows()
+    {
+        var h = new Harness([]);
+        var d = SignalsAuditService_TorontoToday();
+        h.AddEvent("OPEN1", d, "Core", SignalMyActions.Pending);
+        var closed = h.AddEvent("GONE", d, "Core", SignalMyActions.Pending);
+        closed.Status = SignalStatuses.Invalidated;
+        closed.EpisodeEndedDate = d;
+        var acted = h.AddEvent("DONE", d, "Core", SignalMyActions.Actioned);
+        acted.Status = SignalStatuses.Acted;
+        h.Db.SaveChanges();
+
+        var s = await h.Service.GetSummaryAsync(User, new SignalsAuditQuery());
+        Assert.Equal(3, s.Total);
+        Assert.Equal(1, s.PriorityCandidate);
+        Assert.Equal(1, s.EntryAdd);
+        Assert.Equal(0, s.TrimExit);
+        Assert.Equal(1, s.PendingReview);      // the invalidated Pending row is history, not a to-do
+        Assert.Equal(1, s.Actioned);
+    }
+
+    [Fact]
+    public async Task Query_OpenUnauditedRecommendation_IsListedByDefault_ClosedUnauditedNeedsTheToggle()
+    {
+        var h = new Harness([]);
+        var d = SignalsAuditService_TorontoToday();
+        h.AddEvent("OPEN", d, "Core", SignalMyActions.Pending).PerformanceAudited = false;
+        var closed = h.AddEvent("OLD", d, "Core", SignalMyActions.Pending);
+        closed.PerformanceAudited = false;
+        closed.Status = SignalStatuses.Invalidated;
+        closed.EpisodeEndedDate = d;
+        h.Db.SaveChanges();
+
+        Assert.Equal(["OPEN"], (await h.Service.QueryAsync(User, new SignalsAuditQuery())).Items.Select(i => i.Symbol));
+        Assert.Equal(2, (await h.Service.QueryAsync(User, new SignalsAuditQuery(IncludeUnaudited: true))).Total);
+    }
+
+    [Fact]
     public async Task SignalTypes_IncludeCatalogAndHistoricalDisabledTypes()
     {
         var h = new Harness([]);
@@ -858,6 +896,26 @@ public sealed class SignalsAuditServiceTests
     }
 
     [Fact]
+    public async Task Eod_HoldingRecommendation_IsNotInvalidatedByTheSameSymbolsWatchlistDecision()
+    {
+        var h = await WithFinalActionAsync("EFR", "WAIT FOR RECLAIM");
+        h.AddTransaction("EFR", "OPEN", new DateOnly(2026, 10, 15));
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("EFR", "CUT LOSS/EXIT", SignalSources.Portfolio, 50m));
+        await h.EodAsync();
+        Assert.Equal(SignalStatuses.Active, Assert.Single(h.Db.SignalAuditEvents).Status);
+
+        // The holding's own evaluation is missing; only the watchlist side produced a (non-actionable) result.
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("EFR", "WAIT FOR RECLAIM", SignalSources.Watchlist, 50m));
+        await h.EodAsync();
+
+        var ev = Assert.Single(h.Db.SignalAuditEvents);
+        Assert.Equal(SignalStatuses.Active, ev.Status);
+        Assert.Null(ev.EpisodeEndedDate);
+    }
+
+    [Fact]
     public async Task Capture_UnauditedActionableRecommendation_IsRecorded_ButExcludedFromPerformanceStats()
     {
         var h = await WithFinalActionAsync("TRM", "Trim / Review");
@@ -874,7 +932,7 @@ public sealed class SignalsAuditServiceTests
         Assert.Equal(SignalStatuses.Active, ev.Status);
         Assert.NotNull(ev.LastValidatedAtUtc);
 
-        Assert.Equal(0, (await h.Service.QueryAsync(User, new SignalsAuditQuery())).Total);
+        Assert.Equal(1, (await h.Service.QueryAsync(User, new SignalsAuditQuery())).Total);   // open, so always listed
         Assert.Equal(1, (await h.Service.QueryAsync(User, new SignalsAuditQuery(IncludeUnaudited: true))).Total);
         Assert.Empty((await h.Service.GetSummaryAsync(User, new SignalsAuditQuery(IncludeUnaudited: true, IncludeBaselineInStats: true))).Effectiveness);
     }

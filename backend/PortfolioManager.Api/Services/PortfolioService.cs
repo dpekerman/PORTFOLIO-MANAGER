@@ -9,6 +9,8 @@ namespace PortfolioManager.Api.Services;
 public interface IPortfolioService
 {
     Task<IReadOnlyList<PortfolioItemDto>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Items visible to <paramref name="userId"/> (own + shared) for background jobs that have no HTTP user.</summary>
+    Task<IReadOnlyList<PortfolioItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default);
     Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default);
     Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default);
@@ -43,6 +45,17 @@ public sealed class PortfolioService(
     {
         var items = await OwnedItems()
             .AsNoTracking()
+            .OrderBy(x => x.Symbol)
+            .ToListAsync(ct);
+
+        return items.Select(ToDto).ToList();
+    }
+
+    public async Task<IReadOnlyList<PortfolioItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default)
+    {
+        var items = await db.PortfolioItems
+            .AsNoTracking()
+            .Where(x => x.UserId == userId || x.UserId == null)
             .OrderBy(x => x.Symbol)
             .ToListAsync(ct);
 

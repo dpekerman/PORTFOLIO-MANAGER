@@ -112,6 +112,23 @@ public sealed class OpenDecisionsServiceTests
     }
 
     [Fact]
+    public async Task Validation_RowsStampedByTheSamePass_AreNotPending_DespiteMillisecondTruncation()
+    {
+        // SQL Server stores LastValidatedAtUtc as datetime2(3); the settings JSON keeps the full ticks of the same instant.
+        var passAt = new DateTime(2026, 10, 26, 20, 47, 39, DateTimeKind.Utc).AddTicks(1656731);
+        var row = Row("SAME", "TRIM/REVIEW", SignalSources.Portfolio);
+        row.LastValidatedAtUtc = new DateTime(2026, 10, 26, 20, 47, 39, 165, DateTimeKind.Utc);
+        var (db, svc) = await SeedAsync(row);
+        await SeedSettingsAsync(db, new SignalsAuditSettings
+        {
+            InitialBaselineDone = true, LifecycleBaselineDone = true,
+            LastCompleteEvaluationUtc = passAt, LastEodEvaluationUtc = passAt, LastEodEvaluationComplete = true,
+        });
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal(0, r.Validation.PendingCount);
+    }
+
+    [Fact]
     public async Task Validation_RecommendationNotRevalidatedByTheLatestCompletePass_IsPending()
     {
         var stale = Row("MISS", "SMALL ADD", SignalSources.Portfolio);

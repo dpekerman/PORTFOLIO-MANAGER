@@ -41,19 +41,26 @@ public sealed class ValueScreenerService(
 {
     public async Task<List<ValueScreenerResult>> RunAsync(
         ValueScreenerRequest request,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? userId = null)
     {
+        // Unattended callers have no HTTP user; they pass the owner explicitly so the owner's own rows are included.
+        async Task<IReadOnlyList<WatchlistItemDto>> WatchlistAsync() =>
+            userId is null ? await watchlistService.GetAllAsync(ct) : await watchlistService.GetAllForUserAsync(userId, ct);
+        async Task<IReadOnlyList<PortfolioItemDto>> PortfolioAsync() =>
+            userId is null ? await portfolioService.GetAllAsync(ct) : await portfolioService.GetAllForUserAsync(userId, ct);
+
         // 1. Collect symbols + origins
         var symbolsWithOrigin = new Dictionary<string, ValueOrigin>(StringComparer.OrdinalIgnoreCase);
 
         if (request.IncludeWatchlist)
         {
-            var wl = await watchlistService.GetAllAsync(ct);
+            var wl = await WatchlistAsync();
             foreach (var w in wl) symbolsWithOrigin.TryAdd(w.Symbol, ValueOrigin.Watchlist);
         }
         if (request.IncludePortfolio)
         {
-            var portfolio = await portfolioService.GetAllAsync(ct);
+            var portfolio = await PortfolioAsync();
             foreach (var p in portfolio.Where(x => !x.IsManual))
                 symbolsWithOrigin[p.Symbol] = ValueOrigin.Portfolio;
         }

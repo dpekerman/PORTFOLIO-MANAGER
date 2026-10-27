@@ -760,6 +760,9 @@ export class PortfolioPageComponent {
     return { price: r.analystTargetPrice, upside: r.analystTargetUpside };
   }
 
+  /** True while the first Final Action evaluation is still running, so a blank cell is not read as "no action". */
+  protected readonly finalActionsLoading = this.finalActions.loading;
+
   protected decisionForPortfolio(
     symbol: string,
     _holdingRole: string | null | undefined,

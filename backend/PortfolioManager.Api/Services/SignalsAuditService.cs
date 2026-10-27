@@ -377,6 +377,8 @@ public sealed class SignalsAuditService(
 
                 if (unknown)
                 {
+                    logger.LogWarning("[SignalsAudit] {Symbol} ({Source}) {Action} left unconfirmed: symbol not evaluated in this pass (passOk={PassOk}, listedUnknown={Listed}, portfolioStale={Stale}).",
+                        symbol, ev.Source, FaId(ev), passOk, meta?.UnknownSymbols.Contains(symbol) ?? false, portfolioStale);
                     // Failed or incomplete evaluation: keep the state and let the row show as stale. Only a complete pass
                     // in which this one security stayed unevaluated past its window may expire it (risk reviews never do).
                     if (passOk && !(ev.Source == SignalSources.Portfolio && portfolioStale) && ev.Status == SignalStatuses.Active
@@ -391,9 +393,15 @@ public sealed class SignalsAuditService(
                     continue;
                 }
 
-                // A symbol with no decision at all is left open unless it left the watchlist and portfolio.
-                var noDecision = !symbolsWithDecision.Contains(symbol);
-                if (noDecision && currentSymbols.Contains(symbol)) continue;
+                // A symbol with no decision in this recommendation's own context (holding vs watchlist) is left open
+                // unless it left the watchlist and portfolio; a decision from the other context proves nothing.
+                var noDecision = !symbolsWithDecision.Contains(SymSrc(symbol, ev.Source));
+                if (noDecision && currentSymbols.Contains(symbol))
+                {
+                    logger.LogWarning("[SignalsAudit] {Symbol} ({Source}) {Action} left unconfirmed: the pass produced no priced decision for this symbol.",
+                        symbol, ev.Source, FaId(ev));
+                    continue;
+                }
 
                 if (replacements.TryGetValue(SymSrc(symbol, ev.Source), out var newer))
                     CloseEpisode(ev, SignalStatuses.Superseded, "Replaced by a newer recommendation", today, nowUtc, newer);
@@ -665,13 +673,15 @@ public sealed class SignalsAuditService(
                 g.Count(r => SignalMyActions.IsFollowed(r.MyAction)));
         }).OrderBy(r => r.Label).ToList();
 
+        // The category and review cards describe what is open now; Total and Actioned describe the rows in view.
+        var open = rows.Where(r => r.Status == SignalStatuses.Active).ToList();
         return new SignalAuditSummaryDto(
             rows.Count,
-            rows.Count(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey),
-            rows.Count(r => r.Category == SignalCategories.Entry),
-            rows.Count(r => r.Category == SignalCategories.TrimExit),
+            open.Count(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey),
+            open.Count(r => r.Category == SignalCategories.Entry),
+            open.Count(r => r.Category == SignalCategories.TrimExit),
             rows.Count(r => SignalMyActions.IsFollowed(r.MyAction)),
-            rows.Count(r => r.MyAction == SignalMyActions.Pending),
+            open.Count(r => r.MyAction == SignalMyActions.Pending),
             effectiveness);
     }
 
@@ -790,8 +800,9 @@ public sealed class SignalsAuditService(
     {
         var query = db.SignalAuditEvents.AsNoTracking().Where(e => e.UserId == userId);
 
-        // Unaudited recommendations stay reachable through the toggle; they never feed performance analytics.
-        if (!q.IncludeUnaudited) query = query.Where(e => e.PerformanceAudited);
+        // Unaudited recommendations stay out of the history unless asked for, but an OPEN one is a live decision
+        // (it is in the Action Center), so it is always listed. They never feed performance analytics.
+        if (!q.IncludeUnaudited) query = query.Where(e => e.PerformanceAudited || e.Status == SignalStatuses.Active);
         if (string.Equals(q.Status, "Open", StringComparison.OrdinalIgnoreCase))
             query = query.Where(e => e.Status == SignalStatuses.Active);
         else if (string.Equals(q.Status, "Closed", StringComparison.OrdinalIgnoreCase))

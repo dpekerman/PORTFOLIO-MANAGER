@@ -106,7 +106,7 @@ export class SignalTrackerPageComponent implements OnInit {
   /** Card click = filter the table and (server-side, same query) the effectiveness cards. Click again to clear. */
   protected selectKpi(kpi: SignalKpi): void {
     if (kpi === 'total' || this.activeKpi() === kpi) {
-      this.store.setFilters({ signalType: [], myAction: 'All' });
+      this.store.setFilters({ signalType: [], myAction: 'All', status: 'All' });
       return;
     }
     const types: Record<SignalKpi, string[]> = {
@@ -118,7 +118,9 @@ export class SignalTrackerPageComponent implements OnInit {
       pending: [],
     };
     const myAction = kpi === 'actioned' ? 'Actioned' : kpi === 'pending' ? 'Pending' : 'All';
-    this.store.setFilters({ signalType: types[kpi], myAction });
+    // These cards count open recommendations only, so the table shows the same rows.
+    const status = kpi === 'actioned' ? 'All' : 'Open';
+    this.store.setFilters({ signalType: types[kpi], myAction, status });
   }
 
   private keysFor(category: 'Entry' | 'TrimExit'): string[] {

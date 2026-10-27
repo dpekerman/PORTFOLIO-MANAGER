@@ -127,10 +127,12 @@ public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsServic
         var lastComplete = settings?.LastCompleteEvaluationUtc;
         var lastAttempt = settings?.LastEodEvaluationUtc;
 
-        // Actionable recommendations that the latest complete evaluation has not confirmed.
+        // Actionable recommendations that the latest complete evaluation has not confirmed. Rows stamped by that same
+        // pass are stored with millisecond precision while the settings keep full ticks, so allow a 1s tolerance.
+        var confirmedSince = lastComplete?.AddSeconds(-1);
         var pending = open.Count(e =>
             DecisionEligibility.Classify(FaId(e), e.Source, 1m) != DecisionBucket.None
-            && (e.LastValidatedAtUtc is null || (lastComplete is not null && e.LastValidatedAtUtc < lastComplete)));
+            && (e.LastValidatedAtUtc is null || (confirmedSince is not null && e.LastValidatedAtUtc < confirmedSince)));
 
         string state;
         if (settings is not null && lastAttempt is not null && !settings.LastEodEvaluationComplete)

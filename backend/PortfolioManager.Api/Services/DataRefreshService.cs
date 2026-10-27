@@ -25,8 +25,10 @@ public sealed class DataRefreshService(
         var sw = Stopwatch.StartNew();
 
         // DB reads must be sequential — EF Core DbContext is not thread-safe
-        var portfolioItems = await portfolioService.GetAllAsync(ct);
-        var watchlistItems = await watchlistService.GetAllAsync(ct);
+        // Runs from the unattended scheduler with no HTTP user, so scope to the owner explicitly:
+        // GetAllAsync() would return only shared rows and drop the owner's own holdings and watchlist.
+        var portfolioItems = await portfolioService.GetAllForUserAsync(userId, ct);
+        var watchlistItems = await watchlistService.GetAllForUserAsync(userId, ct);
         var latestEodTradingDate = await db.DailySignals
             .Where(signal => signal.TradingDate != null)
             .MaxAsync(signal => signal.TradingDate, ct);
