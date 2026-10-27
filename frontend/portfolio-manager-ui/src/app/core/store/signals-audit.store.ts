@@ -22,7 +22,7 @@ import { setError, setLoaded, setLoading, withRequestStatus } from './features/r
 
 export type SignalsAuditFilters = Pick<
   SignalsAuditQueryParams,
-  'ticker' | 'signalType' | 'source' | 'role' | 'myAction' | 'origin' | 'includeBaselineInStats' | 'from' | 'to'
+  'ticker' | 'signalType' | 'source' | 'role' | 'myAction' | 'origin' | 'includeBaselineInStats' | 'includeUnaudited' | 'status' | 'from' | 'to'
 >;
 
 interface SignalsAuditState extends SignalsAuditFilters {
@@ -33,6 +33,8 @@ interface SignalsAuditState extends SignalsAuditFilters {
   sortBy: string;
   sortDir: 'asc' | 'desc';
   summary: SignalAuditSummary | null;
+  /** Same filters minus signalType/myAction, so the KPI cards stay stable while a card filter is active. */
+  overview: SignalAuditSummary | null;
   signalTypes: SignalTypeOption[];
   settings: SignalsAuditSettings | null;
   finalActionCatalog: FinalActionCatalogItem[];
@@ -51,6 +53,8 @@ export const DEFAULT_SIGNAL_FILTERS: SignalsAuditFilters = {
   myAction: 'All',
   origin: 'All',
   includeBaselineInStats: false,
+  includeUnaudited: false,
+  status: 'All',
   from: '',
   to: '',
 };
@@ -64,6 +68,7 @@ const initialState: SignalsAuditState = {
   sortBy: 'signalDate',
   sortDir: 'desc',
   summary: null,
+  overview: null,
   signalTypes: [],
   settings: null,
   finalActionCatalog: [],
@@ -93,6 +98,8 @@ export const SignalsAuditStore = signalStore(
         s.myAction() !== 'All' ||
         s.origin() !== 'All' ||
         s.includeBaselineInStats() ||
+        s.includeUnaudited() ||
+        s.status() !== 'All' ||
         s.from() !== '' ||
         s.to() !== '',
     ),
@@ -108,6 +115,8 @@ export const SignalsAuditStore = signalStore(
       myAction: store.myAction(),
       origin: store.origin(),
       includeBaselineInStats: store.includeBaselineInStats(),
+      includeUnaudited: store.includeUnaudited(),
+      status: store.status(),
       from: store.from(),
       to: store.to(),
       sortBy: store.sortBy(),
@@ -121,10 +130,15 @@ export const SignalsAuditStore = signalStore(
       pipe(
         tap(() => patchState(store, setLoading())),
         switchMap(() =>
-          forkJoin({ page: api.query(params()), summary: api.summary(params()) }).pipe(
+          forkJoin({
+            page: api.query(params()),
+            summary: api.summary(params()),
+            // The cards ignore the card-driven filters (type, My Action, status) so they stay put while you click them.
+            overview: api.summary({ ...params(), signalType: [], myAction: 'All', status: 'All' }),
+          }).pipe(
             tapResponse({
-              next: ({ page, summary }) =>
-                patchState(store, { items: page.items, total: page.total, summary }, setLoaded()),
+              next: ({ page, summary, overview }) =>
+                patchState(store, { items: page.items, total: page.total, summary, overview }, setLoaded()),
               error: () => patchState(store, setError('Failed to load signals')),
             }),
           ),
@@ -267,6 +281,21 @@ export const SignalsAuditStore = signalStore(
         } catch (err) {
           const title = (err as { error?: { title?: string } } | null)?.error?.title;
           notify(title ?? 'Failed to save action', 4500);
+          return false;
+        }
+      },
+
+      /** Explicit dismissal of an Active recommendation. Independent of the My Action response. */
+      async dismiss(id: number): Promise<boolean> {
+        try {
+          const row = await firstValueFrom(api.dismiss(id, null));
+          patchState(store, ({ items }) => ({ items: items.map((r) => (r.id === id ? row : r)) }));
+          load();
+          notify(`${row.symbol}: dismissed`);
+          return true;
+        } catch (err) {
+          const title = (err as { error?: { title?: string } } | null)?.error?.title;
+          notify(title ?? 'Failed to dismiss', 4500);
           return false;
         }
       },

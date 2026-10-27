@@ -11,6 +11,8 @@ import type {
   DashboardResponse,
   MarketLeadershipResponse,
   MarketLeadershipRow,
+  OpenDecision,
+  OpenDecisionsResponse,
   PerformanceSummaryResponse,
   PortfolioActionDto,
   PortfolioBetaResult,
@@ -333,6 +335,80 @@ export const portfolioActions: PortfolioActionDto[] = actionSeeds.map(
     latestEodIsInvalidated: false,
   }),
 );
+
+const decision = (
+  id: number,
+  symbol: string,
+  context: OpenDecision['context'],
+  actionId: string,
+  actionLabel: string,
+  bucket: OpenDecision['bucket'],
+  urgency: OpenDecision['urgency'],
+  overrides: Partial<OpenDecision> = {},
+): OpenDecision => ({
+  id,
+  symbol,
+  context,
+  role: context === 'Holding' ? 'Core' : 'Strategic',
+  actionLabel,
+  actionId,
+  bucket,
+  urgency,
+  rationale: 'Volume and momentum confirmed on the latest EOD evaluation',
+  evidence: 'Signal Tracker / EOD',
+  signalDate: isoDate(-1),
+  lastValidatedAtUtc: isoDateTime(-1, 21),
+  isStale: false,
+  status: 'Active',
+  myAction: 'Pending',
+  signalPrice: 100,
+  origin: 'Live',
+  ...overrides,
+});
+
+/** Current validated decisions: 1 risk review, 1 trim/exit, 2 entries (one stale baseline record). */
+export const openDecisionsResponse: OpenDecisionsResponse = {
+  summary: {
+    entryAdd: 2,
+    trimExit: 1,
+    riskReview: 1,
+    totalOpen: 4,
+    asOfUtc: isoDateTime(0, 9),
+    lastValidatedAtUtc: isoDateTime(-1, 21),
+  },
+  validation: { state: 'Validated', lastCompleteEvaluationUtc: isoDateTime(-1, 21), lastAttemptUtc: isoDateTime(-1, 21), pendingCount: 0 },
+  items: [
+    decision(1, 'ENB.TO', 'Holding', 'CUT LOSS/THESIS REVIEW', 'Cut Loss / Thesis Review', 'RiskReview', 'Urgent'),
+    decision(2, 'WMT.TO', 'Holding', 'TRIM/REVIEW', 'Trim / Review', 'TrimExit', 'High'),
+    decision(3, 'HPS-A.TO', 'Holding', 'ADD/STAGED ENTRY', 'Add / Staged Entry', 'EntryAdd', 'High', {
+      myAction: 'Not Actioned',
+    }),
+    decision(4, 'CP.TO', 'Watchlist', 'STARTER ENTRY', 'Starter Entry', 'EntryAdd', 'Normal', {
+      isStale: true,
+      origin: 'INITIAL_BASELINE',
+    }),
+  ],
+};
+
+export const emptyOpenDecisions: OpenDecisionsResponse = {
+  summary: { entryAdd: 0, trimExit: 0, riskReview: 0, totalOpen: 0, asOfUtc: isoDateTime(0, 9), lastValidatedAtUtc: null },
+  validation: { state: 'Validated', lastCompleteEvaluationUtc: isoDateTime(-1, 21), lastAttemptUtc: isoDateTime(-1, 21), pendingCount: 0 },
+  items: [],
+};
+
+/** What the live app showed after the migration: recommendations exist but no EOD evaluation has confirmed them yet. */
+export const pendingOpenDecisions: OpenDecisionsResponse = {
+  summary: { entryAdd: 0, trimExit: 0, riskReview: 0, totalOpen: 0, asOfUtc: isoDateTime(0, 9), lastValidatedAtUtc: null },
+  validation: { state: 'Pending', lastCompleteEvaluationUtc: null, lastAttemptUtc: null, pendingCount: 6 },
+  items: [],
+};
+
+/** The latest EOD evaluation failed or is incomplete. */
+export const unavailableOpenDecisions: OpenDecisionsResponse = {
+  summary: { entryAdd: 0, trimExit: 0, riskReview: 0, totalOpen: 0, asOfUtc: isoDateTime(0, 9), lastValidatedAtUtc: null },
+  validation: { state: 'Unavailable', lastCompleteEvaluationUtc: isoDateTime(-3, 21), lastAttemptUtc: isoDateTime(-1, 21), pendingCount: 2 },
+  items: [],
+};
 
 export const eodSummary: DashboardEodSummary = {
   tradingDate: isoDate(-1),

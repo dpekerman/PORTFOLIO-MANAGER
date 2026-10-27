@@ -10,14 +10,16 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import {
+  ActionCenterFilter,
+  ActionSummary,
   DashboardAllocation,
   DashboardEodSummaryRow,
-  DashboardRsiSection,
 } from '../../core/models/portfolio.models';
 import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { DashboardCollapseStore } from '../../core/store/dashboard-collapse.store';
 import { DashboardStore } from '../../core/store/dashboard.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { OpenDecisionsStore } from '../../core/store/open-decisions.store';
 import { AddMarketTrackerDialogComponent } from './add-market-tracker-dialog/add-market-tracker-dialog.component';
 import { MarketLeadershipWidgetComponent } from './market-leadership-widget/market-leadership-widget.component';
 import { PerformanceSummaryWidgetComponent } from './performance-summary-widget/performance-summary-widget.component';
@@ -111,10 +113,8 @@ export function chartIndexForKey(
   ],
 })
 export class DashboardPageComponent {
-  protected readonly marketSignalFilter = signal<
-    'ALL' | 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED'
-  >('ALL');
   protected readonly dashboard = inject(DashboardStore);
+  protected readonly openDecisions = inject(OpenDecisionsStore);
   protected readonly collapseState = inject(DashboardCollapseStore);
   private readonly dialog = inject(MatDialog);
   private readonly demoMode = inject(DemoModeStore);
@@ -128,37 +128,6 @@ export class DashboardPageComponent {
   /** Number of top/bottom movers to show (3, 5, 7, 10). */
   protected readonly moversCount = signal<number>(5);
   protected readonly moversOptions = [3, 5, 7, 10];
-  protected readonly filteredRsiSection = computed<DashboardRsiSection | null>(() => {
-    const section = this.snapshot()?.rsiSection;
-    if (!section) return null;
-    const filter = this.marketSignalFilter();
-    const include = (
-      row: DashboardRsiSection['oversoldSignals'][number],
-      type: 'OVERSOLD' | 'OVERBOUGHT',
-    ) =>
-      filter === 'ALL' ||
-      filter === type ||
-      (filter === 'NEW_TODAY' && row.isNewToday) ||
-      (filter === 'ACTION_REQUIRED' && row.isActionRequired);
-    return {
-      ...section,
-      oversoldSignals: section.oversoldSignals.filter((row) => include(row, 'OVERSOLD')),
-      overboughtSignals: section.overboughtSignals.filter((row) => include(row, 'OVERBOUGHT')),
-    };
-  });
-
-  protected toggleMarketSignalFilter(
-    filter: 'OVERSOLD' | 'OVERBOUGHT' | 'NEW_TODAY' | 'ACTION_REQUIRED',
-  ): void {
-    this.marketSignalFilter.update((current) => (current === filter ? 'ALL' : filter));
-  }
-
-  protected marketSignalFooter(type: 'OVERSOLD' | 'OVERBOUGHT', count: number): string {
-    const filter = this.marketSignalFilter();
-    return filter === 'ALL' || filter === type
-      ? `View all ${count} ${type.toLowerCase()} →`
-      : 'Open in EOD Signals →';
-  }
 
   /** Check if a section is expanded (uses DashboardCollapseStore). */
   protected isExpanded(sectionId: string): boolean {
@@ -223,7 +192,30 @@ export class DashboardPageComponent {
   );
 
   // ── Portfolio Action count ───────────────────────────────────────────────
-  protected readonly actionsCount = computed(() => this.dashboard.portfolioActions().length);
+  /** Whether the numbers can be trusted; anything but Validated must never read as an all-clear. */
+  protected readonly validationState = computed(() => this.openDecisions.validation()?.state ?? 'Pending');
+  protected readonly validationTooltip = computed(() => {
+    const v = this.openDecisions.validation();
+    if (!v || v.state === 'Validated') return '';
+    if (v.state === 'Unavailable') return 'Evaluation unavailable or stale: current decisions cannot be confirmed';
+    return v.pendingCount > 0
+      ? `Validation pending: ${v.pendingCount} recommendation(s) await the next completed EOD evaluation`
+      : 'Validation pending: no completed EOD evaluation yet';
+  });
+
+  /** The category counters double as the category filters. */
+  protected actionCounters(s: ActionSummary): { filter: ActionCenterFilter; label: string; count: number; tone: string }[] {
+    return [
+      { filter: 'Entry', label: 'Entry / Add', count: s.entryAdd, tone: 'entry' },
+      { filter: 'ReduceExit', label: 'Trim / Exit', count: s.trimExit, tone: 'exit' },
+      { filter: 'Risk', label: 'Risk Review', count: s.riskReview, tone: 'risk' },
+    ];
+  }
+
+  protected filterActionCenter(filter: ActionCenterFilter): void {
+    this.openDecisions.toggleFilter(filter);
+    this.collapseState.setCollapsed('action-center', false);
+  }
 
   protected readonly filteredChartPoints = computed(() => {
     const all = this.snapshot()?.valueHistory ?? [];

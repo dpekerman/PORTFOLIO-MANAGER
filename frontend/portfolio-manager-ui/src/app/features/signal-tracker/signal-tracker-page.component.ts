@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -27,7 +28,8 @@ import { SIGNALS_EXPORT_HEADERS, signalsExportRows, signalsToCsv } from './signa
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { SignalAuditRow, SignalHorizon, SignalMyAction } from '../../core/models/portfolio.models';
+import { SignalAuditRow, SignalHorizon, SignalMyAction, SignalStatusFilter } from '../../core/models/portfolio.models';
+import { ActivatedRoute } from '@angular/router';
 import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
@@ -40,6 +42,8 @@ import { SignalActionDialogComponent } from './signal-action-dialog.component';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
 
 const TICKER_DEBOUNCE_MS = 350;
+const PRIORITY_CANDIDATE_KEY = 'PRIORITY_CANDIDATE';
+type SignalKpi = 'total' | 'priority' | 'entry' | 'trim' | 'actioned' | 'pending';
 
 @Component({
   selector: 'app-signal-tracker-page',
@@ -75,11 +79,53 @@ export class SignalTrackerPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly isHandset = inject(BreakpointStore).isHandset;
+  private readonly route = inject(ActivatedRoute);
 
   protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('signals-audit');
 
   /** Collapsed by default on handsets so the signals are visible without scrolling past the filters. */
   protected readonly filtersOpen = signal(!this.isHandset());
+
+  /** Which summary card (if any) matches the current signal type / My Action filters. */
+  protected readonly activeKpi = computed<SignalKpi | null>(() => {
+    const types = this.store.signalType();
+    const action = this.store.myAction();
+    if (types.length === 0) {
+      if (action === 'Actioned') return 'actioned';
+      if (action === 'Pending') return 'pending';
+      return action === 'All' ? 'total' : null;
+    }
+    if (action !== 'All') return null;
+    const same = (keys: string[]) => keys.length === types.length && keys.every((k) => types.includes(k));
+    if (same([PRIORITY_CANDIDATE_KEY])) return 'priority';
+    if (same(this.keysFor('Entry'))) return 'entry';
+    if (same(this.keysFor('TrimExit'))) return 'trim';
+    return null;
+  });
+
+  /** Card click = filter the table and (server-side, same query) the effectiveness cards. Click again to clear. */
+  protected selectKpi(kpi: SignalKpi): void {
+    if (kpi === 'total' || this.activeKpi() === kpi) {
+      this.store.setFilters({ signalType: [], myAction: 'All', status: 'All' });
+      return;
+    }
+    const types: Record<SignalKpi, string[]> = {
+      total: [],
+      priority: [PRIORITY_CANDIDATE_KEY],
+      entry: this.keysFor('Entry'),
+      trim: this.keysFor('TrimExit'),
+      actioned: [],
+      pending: [],
+    };
+    const myAction = kpi === 'actioned' ? 'Actioned' : kpi === 'pending' ? 'Pending' : 'All';
+    // These cards count open recommendations only, so the table shows the same rows.
+    const status = kpi === 'actioned' ? 'All' : 'Open';
+    this.store.setFilters({ signalType: types[kpi], myAction, status });
+  }
+
+  private keysFor(category: 'Entry' | 'TrimExit'): string[] {
+    return this.store.signalTypes().filter((t) => t.category === category).map((t) => t.key);
+  }
 
   protected readonly roles = ['Core', 'Strategic', 'Strategic-Income', 'Swing', 'Speculative', 'Options'];
 
@@ -95,6 +141,17 @@ export class SignalTrackerPageComponent implements OnInit {
     return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`;
   }
   protected readonly sources = ['All', 'Portfolio', 'Watchlist'] as const;
+  /** System lifecycle, separate from the investor's own My Action response. */
+  protected readonly statuses: { value: SignalStatusFilter; label: string }[] = [
+    { value: 'All', label: 'All statuses' },
+    { value: 'Open', label: 'Open (Active)' },
+    { value: 'Closed', label: 'Closed (any)' },
+    { value: 'Acted', label: 'Acted' },
+    { value: 'Dismissed', label: 'Dismissed' },
+    { value: 'Expired', label: 'Expired' },
+    { value: 'Invalidated', label: 'Invalidated' },
+    { value: 'Superseded', label: 'Superseded' },
+  ];
   protected readonly myActions: ('All' | SignalMyAction)[] = [
     'All',
     'Actioned',
@@ -112,7 +169,10 @@ export class SignalTrackerPageComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    this.store.load();
+    // Drill-down from the Action Center: show that ticker's recommendations, unaudited ones included.
+    const ticker = this.route.snapshot.queryParamMap.get('ticker');
+    if (ticker) this.store.setFilters({ ticker, includeUnaudited: true });
+    else this.store.load();
   }
 
   protected onTicker(value: string): void {
@@ -126,6 +186,11 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected onPage(event: PageEvent): void {
     this.store.setPage(event.pageIndex + 1, event.pageSize);
+  }
+
+  protected dismiss(row: SignalAuditRow, event: Event): void {
+    event.stopPropagation();
+    void this.store.dismiss(row.id);
   }
 
   protected openAction(row: SignalAuditRow, event: Event): void {

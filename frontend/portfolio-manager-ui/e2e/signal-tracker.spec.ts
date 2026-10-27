@@ -1,4 +1,5 @@
 import { test, expect } from './support/test';
+import { signalState } from './fixtures/signals-audit';
 import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
 
 const isPhone = (name: string) => name.startsWith('mobile');
@@ -36,6 +37,14 @@ test.describe('signal tracker', () => {
     await page.goto('/audit/signals');
     await expect(page).toHaveURL(/\/signal-tracker$/);
     await expect(page.getByRole('heading', { level: 1, name: 'Signal Tracker' })).toBeVisible();
+  });
+
+  test('the future-dated and Invalidated tags: Invalidated is shown in red', async ({ page }) => {
+    signalState.rows[0] = { ...signalState.rows[0], status: 'Invalidated', statusReason: 'Condition no longer produced' };
+    await page.goto('/audit/signals');
+    const tag = page.locator('.tag-invalidated:visible').first();
+    await expect(tag).toHaveText('Invalidated');
+    await expect(tag).toHaveCSS('background-color', 'rgb(198, 40, 40)');
   });
 
   test('future-dated signals are flagged as anomalies', async ({ page }) => {

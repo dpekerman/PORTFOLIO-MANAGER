@@ -1,260 +1,92 @@
-import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PortfolioActionDto } from '../../../core/models/portfolio.models';
-import { priceStructureLabel, priceStructureTooltip } from '../../../core/price-structure-display';
-import { DashboardStore } from '../../../core/store/dashboard.store';
-import {
-  evaluateWatchlistEntry,
-  WatchlistEntryDecision,
-} from '../../../core/services/decision-engine.service';
-import { DemoModeStore } from '../../../core/store/demo-mode.store';
-import { FinalActionStore } from '../../../core/store/final-action.store';
-import { formatTrendShift } from '../../../core/technical-display';
+import { RouterLink } from '@angular/router';
+import { ActionCenterFilter, OpenDecision } from '../../../core/models/portfolio.models';
+import { filterDecisions, OpenDecisionsStore } from '../../../core/store/open-decisions.store';
 
-export const ACTION_CENTER_FILTER_STORAGE_KEY = 'dashboard_action_center_filter';
-export type ActionCenterFilter = 'ALL' | 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
-export type ActionCenterSortColumn =
-  | 'symbol'
-  | 'role'
-  | 'rsi'
-  | 'maStructure'
-  | 'momentum'
-  | 'priceStructure'
-  | 'allocation'
-  | 'action';
-export type ActionCenterSort = { column: ActionCenterSortColumn; direction: 1 | -1 };
+interface FilterChip {
+  filter: ActionCenterFilter;
+  label: string;
+  count: number;
+}
 
+/**
+ * Action Center: the queue of current, validated decisions (entry / add, trim / exit, risk review).
+ * It presents the recommendation and its evidence and opens the Signal Tracker; it never executes a trade.
+ */
 @Component({
   selector: 'app-portfolio-actions-widget',
   templateUrl: './portfolio-actions-widget.component.html',
   styleUrl: './portfolio-actions-widget.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, MatIconModule, MatProgressBarModule, MatTooltipModule],
+  imports: [DatePipe, MatButtonModule, MatIconModule, MatProgressBarModule, MatTooltipModule, RouterLink],
 })
 export class PortfolioActionsWidgetComponent {
-  private static readonly FILTER_STORAGE_KEY = ACTION_CENTER_FILTER_STORAGE_KEY;
-  private readonly demoMode = inject(DemoModeStore);
-  private readonly finalActions = inject(FinalActionStore);
-  private readonly filter = signal<ActionCenterFilter>(this.loadFilter());
-  private readonly holdingsSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
-  private readonly watchlistSort = signal<ActionCenterSort>({ column: 'symbol', direction: 1 });
-  protected readonly dashboard = inject(DashboardStore);
-  protected readonly actions = this.dashboard.portfolioActions;
-  protected readonly loading = this.dashboard.actionsLoading;
-  private readonly watchlistEntryDecisions = computed(() => {
-    const decisions = new Map<string, WatchlistEntryDecision>();
-    for (const action of this.actions().filter((row) => !row.isInPortfolio)) {
-      decisions.set(action.symbol.toUpperCase(), this.calculateWatchlistEntryDecision(action));
-    }
-    return decisions;
+  private readonly store = inject(OpenDecisionsStore);
+  private readonly datePipe = new DatePipe('en-US');
+
+  protected readonly items = this.store.items;
+  protected readonly loading = this.store.loading;
+  protected readonly error = this.store.error;
+  protected readonly activeFilter = this.store.filter;
+  protected readonly hasAny = computed(() => this.store.allItems().length > 0);
+
+  protected readonly chips = computed<FilterChip[]>(() => {
+    const all = this.store.allItems();
+    const count = (filter: ActionCenterFilter) => filterDecisions(all, filter).length;
+    return [
+      { filter: 'Holdings', label: 'Holdings', count: count('Holdings') },
+      { filter: 'Watchlist', label: 'Watchlist', count: count('Watchlist') },
+    ];
   });
 
-  protected readonly holdingActions = computed(() =>
-    this.sortActions(
-      this.filteredActions().filter((a) => a.isInPortfolio),
-      this.holdingsSort(),
-    ),
-  );
-  protected readonly watchlistActions = computed(() =>
-    this.sortActions(
-      this.filteredActions().filter((a) => !a.isInPortfolio),
-      this.watchlistSort(),
-    ),
-  );
-  protected readonly activeFilter = this.filter.asReadonly();
-  private readonly filteredActions = computed(() => {
-    const filter = this.filter();
-    return filter === 'ALL'
-      ? this.actions()
-      : this.actions().filter((a) => a.actionPriority === filter);
+  protected readonly validationState = computed(() => this.store.validation()?.state ?? 'Pending');
+  protected readonly pendingCount = computed(() => this.store.validation()?.pendingCount ?? 0);
+  protected readonly lastComplete = computed(() => {
+    const at = this.store.validation()?.lastCompleteEvaluationUtc;
+    return at ? this.datePipe.transform(at, 'MMM d, h:mm a') : 'never';
   });
 
-  protected readonly requiredCount = computed(
-    () => this.actions().filter((a) => a.actionPriority === 'REQUIRED').length,
-  );
-  protected readonly developingCount = computed(
-    () => this.actions().filter((a) => a.actionPriority === 'DEVELOPING').length,
-  );
-  protected readonly informationalCount = computed(
-    () => this.actions().filter((a) => a.actionPriority === 'INFORMATIONAL').length,
-  );
-
-  protected toggleFilter(filter: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL'): void {
-    this.setFilter(this.filter() === filter ? 'ALL' : filter);
-  }
-
-  protected resetFilter(): void {
-    this.setFilter('ALL');
-  }
-
-  protected toggleHoldingsSort(column: ActionCenterSortColumn): void {
-    this.holdingsSort.update((sort) => toggleSort(sort, column));
-  }
-
-  protected toggleWatchlistSort(column: ActionCenterSortColumn): void {
-    this.watchlistSort.update((sort) => toggleSort(sort, column));
-  }
-
-  protected holdingsSortIndicator(column: ActionCenterSortColumn): string {
-    return sortIndicator(this.holdingsSort(), column);
-  }
-
-  protected watchlistSortIndicator(column: ActionCenterSortColumn): string {
-    return sortIndicator(this.watchlistSort(), column);
-  }
-
-  protected severityCls(a: PortfolioActionDto): string {
-    return `action-${a.actionSeverity} priority-${a.actionPriority.toLowerCase()}`;
-  }
-  protected scanIcon(scanType: string): string {
-    return scanType === 'Oversold' ? 'trending_down' : 'trending_up';
-  }
-
-  protected structureLabel(action: PortfolioActionDto): string {
-    return priceStructureLabel(action.priceStructure, (value) => this.demoMode.maskValue(value));
-  }
-
-  protected structureTooltip(action: PortfolioActionDto): string {
-    return priceStructureTooltip(action.priceStructure, (value) => this.demoMode.maskValue(value));
-  }
-
-  protected entryStatus(action: PortfolioActionDto): string {
-    return this.watchlistEntryDecision(action).finalAction;
-  }
-
-  protected entryStatusTooltip(action: PortfolioActionDto): string {
-    const decision = this.watchlistEntryDecision(action);
-    return `${decision.finalAction}\n\n${decision.finalActionReason}\n\nStructure: ${decision.priceStructureState}\nMomentum: ${decision.momentumState}\nMA Structure: ${decision.maStructure}\nBuy Score: ${decision.buyScore ?? '—'}\nRole: ${decision.role}`;
-  }
-
-  protected hasEodSignal(action: PortfolioActionDto): boolean {
-    return !!action.latestEodSignalState;
-  }
-
-  protected eodBadgeLabel(action: PortfolioActionDto): string {
-    if (action.latestEodIsInvalidated) return 'EOD X';
-    if (action.latestEodSignalState === 'Active') return action.latestEodIsNew ? 'EOD NEW' : 'EOD';
-    return 'EOD DEV';
-  }
-
-  protected eodTooltip(action: PortfolioActionDto): string {
-    return `Latest EOD signal\nState: ${action.latestEodSignalState ?? 'n/a'}\nScan: ${action.latestEodScanType ?? 'n/a'}\nTrend: ${formatTrendShift(action.latestEodTrendShift, 'n/a')}`;
-  }
-
-  private setFilter(filter: ActionCenterFilter): void {
-    this.filter.set(filter);
-    saveActionCenterFilter(localStorage, filter);
-  }
-
-  private loadFilter(): ActionCenterFilter {
-    return loadActionCenterFilter(localStorage);
-  }
-
-  private sortActions(actions: PortfolioActionDto[], sort: ActionCenterSort): PortfolioActionDto[] {
-    return [...actions].sort((left, right) => {
-      const comparison =
-        sort.column === 'action' && !left.isInPortfolio && !right.isInPortfolio
-          ? this.entryStatus(left).localeCompare(this.entryStatus(right))
-          : compareActionCenterValues(left, right, sort.column);
-      return comparison * sort.direction || left.symbol.localeCompare(right.symbol);
-    });
-  }
-
-  private watchlistEntryDecision(action: PortfolioActionDto): WatchlistEntryDecision {
-    return (
-      this.watchlistEntryDecisions().get(action.symbol.toUpperCase()) ??
-      this.calculateWatchlistEntryDecision(action)
-    );
-  }
-
-  private calculateWatchlistEntryDecision(action: PortfolioActionDto): WatchlistEntryDecision {
-    const canonical = this.finalActions.watchlistBySymbol().get(action.symbol.toUpperCase());
-    if (canonical?.diagnostics) {
-      return {
-        finalAction: canonical.finalAction,
-        finalActionReason: canonical.reason ?? '',
-        priceStructureState: canonical.diagnostics.priceStructureState,
-        momentumState: canonical.diagnostics.momentumState,
-        maStructure: canonical.diagnostics.maStructure,
-        buyScore: canonical.diagnostics.buyScore,
-        role: canonical.diagnostics.role,
-      } as unknown as WatchlistEntryDecision;
+  /** The category chosen through the header counters (Holdings / Watchlist have their own chips). */
+  protected readonly categoryLabel = computed(() => {
+    switch (this.activeFilter()) {
+      case 'Entry':
+        return 'Entry / Add';
+      case 'ReduceExit':
+        return 'Trim / Exit';
+      case 'Risk':
+        return 'Risk Review';
+      default:
+        return null;
     }
-    return evaluateWatchlistEntry({
-      role: action.holdingRole,
-      rsi: action.rsi,
-      buyScore: null,
-      trendSetup: null,
-      momentumShift: action.trendShift,
-      momentumState: action.momentumState,
-      maStructure: action.maStructure,
-      priceStructure: action.priceStructure,
-      chaseRisk: !!action.chaseRisk,
-      trendDamage: action.fibZone === 'Trend Damage',
-    });
+  });
+
+  protected clearFilter(): void {
+    this.store.setFilter('All');
   }
-}
 
-export function isActionCenterFilter(value: string | null): value is ActionCenterFilter {
-  return (
-    value === 'ALL' || value === 'REQUIRED' || value === 'DEVELOPING' || value === 'INFORMATIONAL'
-  );
-}
+  protected select(filter: ActionCenterFilter): void {
+    this.store.toggleFilter(filter);
+  }
 
-export function loadActionCenterFilter(storage: Pick<Storage, 'getItem'>): ActionCenterFilter {
-  const stored = storage.getItem(ACTION_CENTER_FILTER_STORAGE_KEY);
-  return isActionCenterFilter(stored) ? stored : 'ALL';
-}
+  protected reload(): void {
+    this.store.load();
+  }
 
-export function saveActionCenterFilter(
-  storage: Pick<Storage, 'setItem'>,
-  filter: ActionCenterFilter,
-): void {
-  storage.setItem(ACTION_CENTER_FILTER_STORAGE_KEY, filter);
-}
+  protected bucketLabel(d: OpenDecision): string {
+    return d.bucket === 'EntryAdd' ? 'Entry / Add' : d.bucket === 'TrimExit' ? 'Trim / Exit' : 'Risk review';
+  }
 
-export function toggleSort(
-  sort: ActionCenterSort,
-  column: ActionCenterSortColumn,
-): ActionCenterSort {
-  return sort.column === column
-    ? { column, direction: sort.direction === 1 ? -1 : 1 }
-    : { column, direction: 1 };
-}
+  protected bucketTone(d: OpenDecision): string {
+    return d.bucket === 'EntryAdd' ? 'entry' : d.bucket === 'TrimExit' ? 'exit' : 'risk';
+  }
 
-function sortIndicator(sort: ActionCenterSort, column: ActionCenterSortColumn): string {
-  return sort.column !== column ? '' : sort.direction === 1 ? ' ▲' : ' ▼';
-}
-
-export function compareActionCenterValues(
-  left: PortfolioActionDto,
-  right: PortfolioActionDto,
-  column: ActionCenterSortColumn,
-): number {
-  const allocationRank: Record<string, number> = { over: 3, 'on-target': 2, under: 1, '': 0 };
-  switch (column) {
-    case 'symbol':
-      return left.symbol.localeCompare(right.symbol);
-    case 'role':
-      return left.holdingRole.localeCompare(right.holdingRole);
-    case 'rsi':
-      return (left.rsi ?? Number.POSITIVE_INFINITY) - (right.rsi ?? Number.POSITIVE_INFINITY);
-    case 'maStructure':
-      return (left.maStructure ?? '').localeCompare(right.maStructure ?? '');
-    case 'momentum':
-      return (left.momentumState ?? '').localeCompare(right.momentumState ?? '');
-    case 'priceStructure':
-      return priceStructureLabel(left.priceStructure).localeCompare(
-        priceStructureLabel(right.priceStructure),
-      );
-    case 'allocation':
-      return (
-        (allocationRank[left.allocationStatus] ?? 0) - (allocationRank[right.allocationStatus] ?? 0)
-      );
-    case 'action':
-      return left.actionLabel.localeCompare(right.actionLabel);
+  /** "Not Actioned" is the investor's own earlier choice, not a system status, so it is shown as recorded. */
+  protected responseLabel(d: OpenDecision): string {
+    return d.myAction === 'Pending' ? 'Pending review' : d.myAction;
   }
 }

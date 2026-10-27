@@ -1,6 +1,37 @@
 # Dashboard: Action Center & Priority Candidates — Logic Reference
 
-_Last updated: 2026-08-27_
+_Last updated: 2026-10-26_
+
+> **Superseded (2026-10-26): Action Center decision queue.** The Dashboard no longer shows the
+> RSI-only Market Signals counters or the Required / Developing / Informational list described in
+> the first section below. It now has:
+>
+> - **Action Center header** — Entry / Add, Trim / Exit and Risk Review counters (they are also the category
+>   filters) and a compact Total Open count beside the title. There is no separate summary card.
+> - **Action Center** — the queue of current, validated decisions behind those counters, with
+>   Holdings / Watchlist filters and a Signal Tracker link per row.
+>
+> The counters and the queue read one response, `GET /api/dashboard/action-center` (`OpenDecisionsService`), so
+> the total always equals the list; filters only narrow the list. The response also carries a **validation
+> state**: `Validated` (latest EOD evaluation complete, nothing awaiting revalidation), `Pending` (recommendations
+> await revalidation, or no evaluation has completed yet) and `Unavailable` (latest evaluation failed or is
+> incomplete, or the last complete one is stale). "No current actionable decisions" is shown only when `Validated`.
+>
+> **What counts as an open decision:** an `Active`, validated recommendation in the Signal Tracker
+> record (`SignalAuditEvents`) whose Final Action is an Entry or Trim/Exit per `FinalActionCatalog`
+> (`DecisionEligibility`). Risk Review = the catalog's explicit risk exits on holdings (Cut Loss /
+> Thesis Review, Close / Protect). WATCH, AVOID, WAIT, DO NOT CHASE, HOLD and generic REVIEW are not
+> decisions. `PerformanceAudited` never affects eligibility. No holding stop-breach rule exists in the
+> engine, so none is invented.
+>
+> **Lifecycle:** `Status` (Active, Acted, Dismissed, Expired, Invalidated, Superseded) is owned by
+> `SignalsAuditService` and is separate from the investor's `MyAction`. Only a complete EOD pass may
+> confirm, invalidate, supersede or expire a recommendation; failed or incomplete evaluations leave it
+> unchanged and it is shown as stale. Entry/Add expires after 5 and Trim/Exit after 3 weekdays unevaluated.
+> INITIAL_BASELINE records appear only after the latest EOD evaluation revalidates them.
+>
+> The legacy `/api/dashboard/portfolio-actions` endpoint and the tables below are kept for reference
+> and for the EOD summary; the Dashboard no longer renders them.
 
 ---
 

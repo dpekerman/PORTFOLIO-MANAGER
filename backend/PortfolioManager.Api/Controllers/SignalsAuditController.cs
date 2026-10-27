@@ -73,7 +73,19 @@ public sealed class SignalsAuditController(ISignalsAuditService service) : Contr
         catch (ArgumentException ex) { return BadRequest(new { title = ex.Message }); }
     }
 
-    /// <summary>Runs capture on demand (same code path the EOD automation uses). Admin only.</summary>
+    /// <summary>Explicit user dismissal of an Active recommendation. Separate from "Not Actioned".</summary>
+    [HttpPost("{id:long}/dismiss")]
+    public async Task<ActionResult<SignalAuditRowDto>> Dismiss(long id, [FromBody] DismissSignalRequest? request, CancellationToken ct)
+    {
+        try
+        {
+            var row = await service.DismissAsync(CurrentUserId(), id, request?.Note, ct);
+            return row is null ? NotFound() : Ok(row);
+        }
+        catch (ArgumentException ex) { return BadRequest(new { title = ex.Message }); }
+    }
+
+    /// <summary>Runs capture on demand. Non-EOD: can create missing recommendations but never close or revalidate. Admin only.</summary>
     [Authorize(Roles = "Admin")]
     [HttpPost("capture")]
     public async Task<ActionResult<SignalCaptureResultDto>> Capture(CancellationToken ct) =>

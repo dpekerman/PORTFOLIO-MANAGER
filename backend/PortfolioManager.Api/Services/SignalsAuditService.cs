@@ -13,6 +13,19 @@ public interface ISignalsAuditService
     Task<SignalsAuditSettingsDto> SaveSettingsAsync(string userId, SaveSignalsAuditSettingsRequest request, CancellationToken ct = default);
     /// <summary>Evaluates Priority Candidates and enabled Final Actions and records new / closed episodes. Idempotent.</summary>
     Task<SignalCaptureResultDto> CaptureAsync(string userId, CancellationToken ct = default);
+    /// <summary>
+    /// One authoritative EOD pass over an already computed Final Action snapshot. Only a complete EOD pass
+    /// (<see cref="CaptureOptions.IsEodPass"/> and <see cref="CaptureOptions.EvaluationComplete"/>) may confirm, invalidate,
+    /// supersede or expire; otherwise existing recommendations are preserved untouched.
+    /// </summary>
+    Task<SignalCaptureResultDto> CaptureAsync(string userId, FinalActionSnapshotDto snapshot, CaptureOptions options, CancellationToken ct = default);
+    /// <summary>
+    /// Records that the latest EOD evaluation failed or could not run, so the Action Center reports it as
+    /// unavailable instead of implying an all-clear. Never changes any recommendation.
+    /// </summary>
+    Task RecordEvaluationFailureAsync(string userId, CancellationToken ct = default);
+    /// <summary>User command: Active -> Dismissed. Independent of MyAction. Null when not found; ArgumentException when not Active.</summary>
+    Task<SignalAuditRowDto?> DismissAsync(string userId, long id, string? note, CancellationToken ct = default);
     Task<IReadOnlyList<SignalTypeOptionDto>> GetSignalTypesAsync(string userId, CancellationToken ct = default);
     Task<SignalAuditPagedResponse> QueryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default);
     Task<SignalAuditSummaryDto> GetSummaryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default);
@@ -35,7 +48,12 @@ public sealed record SignalsAuditQuery(
     int Page = 1,
     int PageSize = 25,
     string? Origin = null,
-    bool IncludeBaselineInStats = false);
+    bool IncludeBaselineInStats = false,
+    bool IncludeUnaudited = false,
+    string? Status = null);
+
+/// <summary>Per-pass context for the lifecycle-aware capture.</summary>
+public sealed record CaptureOptions(bool IsEodPass, bool EvaluationComplete = true, DateTime? RunStartedUtc = null);
 
 public sealed class SignalsAuditService(
     AppDbContext db,
@@ -130,6 +148,10 @@ public sealed class SignalsAuditService(
             FinalActionBaseline = faBaseline,
             FinalActionBaselineNeeded = baselineNeeded,
             InitialBaselineDone = previous?.InitialBaselineDone ?? false,
+            LifecycleBaselineDone = previous?.LifecycleBaselineDone ?? false,
+            LastEodEvaluationUtc = previous?.LastEodEvaluationUtc,
+            LastEodEvaluationComplete = previous?.LastEodEvaluationComplete ?? false,
+            LastCompleteEvaluationUtc = previous?.LastCompleteEvaluationUtc,
         };
         await SaveSettingsRowAsync(userId, saved, ct);
 
@@ -172,7 +194,33 @@ public sealed class SignalsAuditService(
 
     // ── Capture ───────────────────────────────────────────────────────────────
 
-    public async Task<SignalCaptureResultDto> CaptureAsync(string userId, CancellationToken ct = default)
+    public async Task RecordEvaluationFailureAsync(string userId, CancellationToken ct = default)
+    {
+        await CaptureLock.WaitAsync(ct);
+        try
+        {
+            var settings = await LoadSettingsAsync(userId, ct) ?? new SignalsAuditSettings();
+            await SaveSettingsRowAsync(userId, settings with
+            {
+                LastEodEvaluationUtc = DateTime.UtcNow,
+                LastEodEvaluationComplete = false,
+            }, ct);
+        }
+        finally
+        {
+            CaptureLock.Release();
+        }
+    }
+
+    public Task<SignalCaptureResultDto> CaptureAsync(string userId, CancellationToken ct = default) =>
+        CaptureCoreAsync(userId, null, new CaptureOptions(IsEodPass: false), ct);
+
+    public Task<SignalCaptureResultDto> CaptureAsync(
+        string userId, FinalActionSnapshotDto snapshot, CaptureOptions options, CancellationToken ct = default) =>
+        CaptureCoreAsync(userId, snapshot, options, ct);
+
+    private async Task<SignalCaptureResultDto> CaptureCoreAsync(
+        string userId, FinalActionSnapshotDto? provided, CaptureOptions options, CancellationToken ct)
     {
         await CaptureLock.WaitAsync(ct);
         try
@@ -180,12 +228,13 @@ public sealed class SignalsAuditService(
             var settings = await LoadSettingsAsync(userId, ct);
             var firstRun = settings is null;
             var today = SnapDate(TorontoToday());
+            var nowUtc = DateTime.UtcNow;
 
             var candidates = await scores.GetScoresAsync(userId, ct);
             FinalActionSnapshotDto snapshot;
             try
             {
-                snapshot = await finalActions.ComputeAsync(userId, fresh: false, ct);
+                snapshot = provided ?? await finalActions.ComputeAsync(userId, fresh: false, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -196,6 +245,16 @@ public sealed class SignalsAuditService(
             var allResults = AllResults(snapshot);
             if (candidates.Count == 0 && allResults.Count == 0)
                 return new SignalCaptureResultDto(0, 0, true, "No scored candidates or decisions available (no snapshot data).");
+
+            // Only a complete EOD pass may confirm, invalidate or expire. Manual captures and incomplete passes
+            // can create missing recommendations but never close or revalidate one.
+            var meta = snapshot.Meta;
+            var passOk = options.IsEodPass && options.EvaluationComplete && (meta?.PassComplete ?? true);
+            var portfolioStale = meta is not null && options.RunStartedUtc is { } runStart
+                && (meta.PortfolioSnapshotAtUtc ?? DateTime.MinValue) < runStart;
+            bool SymbolUnknown(string symbol, string source) =>
+                !passOk || (source == SignalSources.Portfolio && portfolioStale)
+                || (meta?.UnknownSymbols.Contains(symbol.ToUpperInvariant()) ?? false);
 
             var eligible = EligibleSymbols(snapshot.Watchlist, candidates);
             // The first successful capture records what already qualifies as INITIAL_BASELINE events.
@@ -217,9 +276,15 @@ public sealed class SignalsAuditService(
                     .GroupBy(s => s.Symbol.ToUpperInvariant()).ToDictionary(g => g.Key, g => g.First())
                 : new Dictionary<string, ActionScoreDto>();
 
-            foreach (var (_, ev) in activePc.Where(kv => !qualifying.ContainsKey(kv.Key)))
+            foreach (var (key, ev) in activePc)
             {
-                ev.EpisodeEndedDate = today;
+                if (qualifying.ContainsKey(key))
+                {
+                    if (passOk && !SymbolUnknown(ev.Symbol, ev.Source) && ev.Status == SignalStatuses.Active) ev.LastValidatedAtUtc = nowUtc;
+                    continue;
+                }
+                if (SymbolUnknown(ev.Symbol, ev.Source)) continue;
+                CloseEpisode(ev, SignalStatuses.Invalidated, "Priority condition no longer holds", today, nowUtc);
                 closed++;
             }
 
@@ -243,6 +308,8 @@ public sealed class SignalsAuditService(
             var prunedPcBaseline = pcBaseline.OrderBy(s => s).ToList();
 
             // ── Final Actions ────────────────────────────────────────────────
+            // Every actionable (Entry / TrimExit) recommendation is recorded; the audited list only decides whether
+            // it also counts in performance analytics (PerformanceAudited).
             var entries = ResolveEntries(settings);
             var enabledIds = settings.FinalActionEnabled
                 ? entries.Where(e => e.Enabled).Select(e => e.Id).ToHashSet()
@@ -250,59 +317,102 @@ public sealed class SignalsAuditService(
             var activeFa = events.Where(e => e.SignalType.StartsWith(SignalTypeCatalog.FinalActionPrefix, StringComparison.Ordinal)
                                              && e.EpisodeEndedDate is null).ToList();
 
-            // A symbol can be both held and watched with different Final Actions; each (symbol, action) pair is
-            // evaluated on its own, preferring the holding's decision when both lists produce the same action.
-            var priced = allResults.Where(r => r.AnalysisPrice > 0m)
-                .OrderBy(r => r.Source == SignalSources.Portfolio ? 0 : 1).ToList();
-            var byPair = priced.GroupBy(r => Pair(r.Symbol, r.FinalActionId)).ToDictionary(g => g.Key, g => g.First());
+            // Identity of a recommendation = symbol + action + source (a holding and a watchlist entry are distinct contexts).
+            var priced = allResults.Where(r => r.AnalysisPrice > 0m).ToList();
+            var bySrcPair = priced.GroupBy(r => SrcKey(r.Symbol, r.FinalActionId, r.Source)).ToDictionary(g => g.Key, g => g.First());
             var symbolsWithDecision = priced.Select(r => r.Symbol.ToUpperInvariant()).ToHashSet();
             var currentSymbols = await CurrentSymbolsAsync(userId, ct);
 
-            var produced = byPair.Values.Where(r => enabledIds.Contains(r.FinalActionId))
+            var produced = priced.Where(r => enabledIds.Contains(r.FinalActionId))
                 .Select(r => Pair(r.Symbol, r.FinalActionId)).ToHashSet();
-            var activePairs = activeFa.Select(e => Pair(e.Symbol, e.SignalType[SignalTypeCatalog.FinalActionPrefix.Length..])).ToHashSet();
+            var activePairs = activeFa.Select(e => Pair(e.Symbol, FaId(e))).ToHashSet();
             HashSet<string> faBaseline = initializing
                 ? []
                 : settings.FinalActionBaselineNeeded && settings.FinalActionEnabled
                     ? produced.Where(p => !activePairs.Contains(p)).ToHashSet()
                     : settings.FinalActionBaseline.Where(produced.Contains).ToHashSet();
 
+            var openKeys = activeFa.Select(e => SrcKey(e.Symbol, FaId(e), e.Source)).ToHashSet();
+            var replacements = new Dictionary<string, SignalAuditEvent>();
+            foreach (var r in bySrcPair.Values)
+            {
+                if (openKeys.Contains(SrcKey(r.Symbol, r.FinalActionId, r.Source))) continue;
+                // Never create from data the evaluation could not vouch for.
+                if ((meta?.UnknownSymbols.Contains(r.Symbol.ToUpperInvariant()) ?? false)
+                    || (r.Source == SignalSources.Portfolio && portfolioStale)) continue;
+
+                var audited = enabledIds.Contains(r.FinalActionId);
+                var actionable = DecisionEligibility.IsActionable(r);
+                var pair = Pair(r.Symbol, r.FinalActionId);
+                var suppressed = audited && faBaseline.Contains(pair);
+                var asAudited = audited && !suppressed;
+                if (!asAudited && !actionable) continue;
+
+                var origin = asAudited
+                    ? eventOrigin
+                    : initializing || !settings.LifecycleBaselineDone || suppressed ? SignalOrigins.InitialBaseline : SignalOrigins.Live;
+                var def = FinalActionCatalog.Describe(r.FinalActionId);
+                var type = new SignalTypeDefinition(SignalTypeCatalog.FinalActionKey(r.FinalActionId), def.Label, def.Category, def.Direction);
+                var ev = await NewEventAsync(userId, events, type, r.Symbol, today, r.AnalysisPrice, r.AnalysisCurrency, r.Role,
+                    r.Source, null, FinalActionRuleVersion, BuildFinalActionContext(r), ct, r.AnalysisTicker, origin);
+                ev.PerformanceAudited = asAudited;
+                if (passOk) ev.LastValidatedAtUtc = nowUtc;
+                db.SignalAuditEvents.Add(ev);
+                events.Add(ev);
+                replacements[SymSrc(r.Symbol, r.Source)] = ev;
+                created++;
+            }
+
             foreach (var ev in activeFa)
             {
                 var symbol = ev.Symbol.ToUpperInvariant();
-                var id = ev.SignalType[SignalTypeCatalog.FinalActionPrefix.Length..];
-                var stillQualifies = byPair.ContainsKey(Pair(symbol, id)) && enabledIds.Contains(id);
-                // A symbol with no decision at all is left open unless it left the watchlist and portfolio.
-                var noDecision = !symbolsWithDecision.Contains(symbol);
-                var vanished = noDecision && !currentSymbols.Contains(symbol);
-                if (stillQualifies || (noDecision && !vanished && settings.FinalActionEnabled)) continue;
-                ev.EpisodeEndedDate = today;
+                var unknown = SymbolUnknown(symbol, ev.Source);
+
+                if (bySrcPair.ContainsKey(SrcKey(symbol, FaId(ev), ev.Source)))
+                {
+                    // The same recommendation continues: revalidate it, never re-create it.
+                    if (!unknown && ev.Status == SignalStatuses.Active) ev.LastValidatedAtUtc = nowUtc;
+                    continue;
+                }
+
+                if (unknown)
+                {
+                    logger.LogWarning("[SignalsAudit] {Symbol} ({Source}) {Action} left unconfirmed: symbol not evaluated in this pass (passOk={PassOk}, listedUnknown={Listed}, portfolioStale={Stale}).",
+                        symbol, ev.Source, FaId(ev), passOk, meta?.UnknownSymbols.Contains(symbol) ?? false, portfolioStale);
+                    // Failed or incomplete evaluation: keep the state and let the row show as stale. Only a complete pass
+                    // in which this one security stayed unevaluated past its window may expire it (risk reviews never do).
+                    if (passOk && !(ev.Source == SignalSources.Portfolio && portfolioStale) && ev.Status == SignalStatuses.Active
+                        && DecisionEligibility.Classify(FaId(ev), ev.Source, 1m) != DecisionBucket.RiskReview
+                        && RecommendationLifecycle.WeekdaysBetween(
+                               DateOnly.FromDateTime(ev.LastValidatedAtUtc ?? ev.CapturedAtUtc), today)
+                           > RecommendationLifecycle.ExpiryWindowDays(ev.SignalCategory))
+                    {
+                        CloseEpisode(ev, SignalStatuses.Expired, "No successful revalidation within the window", today, nowUtc);
+                        closed++;
+                    }
+                    continue;
+                }
+
+                // A symbol with no decision in this recommendation's own context (holding vs watchlist) is left open
+                // unless it left the watchlist and portfolio; a decision from the other context proves nothing.
+                var noDecision = !symbolsWithDecision.Contains(SymSrc(symbol, ev.Source));
+                if (noDecision && currentSymbols.Contains(symbol))
+                {
+                    logger.LogWarning("[SignalsAudit] {Symbol} ({Source}) {Action} left unconfirmed: the pass produced no priced decision for this symbol.",
+                        symbol, ev.Source, FaId(ev));
+                    continue;
+                }
+
+                if (replacements.TryGetValue(SymSrc(symbol, ev.Source), out var newer))
+                    CloseEpisode(ev, SignalStatuses.Superseded, "Replaced by a newer recommendation", today, nowUtc, newer);
+                else
+                    CloseEpisode(ev, SignalStatuses.Invalidated, "Condition no longer produced by a complete evaluation", today, nowUtc);
                 closed++;
             }
 
-            if (settings.FinalActionEnabled)
-            {
-                var stillActive = events.Where(e => e.SignalType.StartsWith(SignalTypeCatalog.FinalActionPrefix, StringComparison.Ordinal)
-                                                    && e.EpisodeEndedDate is null)
-                    .Select(e => Pair(e.Symbol, e.SignalType[SignalTypeCatalog.FinalActionPrefix.Length..])).ToHashSet();
-                foreach (var r in byPair.Values)
-                {
-                    if (!enabledIds.Contains(r.FinalActionId)) continue;
-                    var pair = Pair(r.Symbol, r.FinalActionId);
-                    if (stillActive.Contains(pair) || faBaseline.Contains(pair)) continue;
-
-                    var def = FinalActionCatalog.Describe(r.FinalActionId);
-                    var type = new SignalTypeDefinition(SignalTypeCatalog.FinalActionKey(r.FinalActionId), def.Label, def.Category, def.Direction);
-                    var ev = await NewEventAsync(userId, events, type, r.Symbol, today, r.AnalysisPrice, r.AnalysisCurrency, r.Role,
-                        r.Source, null, FinalActionRuleVersion, BuildFinalActionContext(r), ct, r.AnalysisTicker, eventOrigin);
-                    db.SignalAuditEvents.Add(ev);
-                    events.Add(ev);
-                    created++;
-                }
-            }
-
             var prunedFaBaseline = faBaseline.OrderBy(p => p).ToList();
-            var settingsChanged = firstRun || initializing
+            var settingsChanged = firstRun || initializing || options.IsEodPass
+                || !settings.LifecycleBaselineDone
                 || !settings.BaselineSymbols.OrderBy(s => s).SequenceEqual(prunedPcBaseline)
                 || settings.FinalActionBaselineNeeded
                 || !settings.FinalActionBaseline.OrderBy(p => p).SequenceEqual(prunedFaBaseline);
@@ -313,6 +423,10 @@ public sealed class SignalsAuditService(
                     FinalActionBaseline = prunedFaBaseline,
                     FinalActionBaselineNeeded = false,
                     InitialBaselineDone = true,
+                    LifecycleBaselineDone = true,
+                    LastEodEvaluationUtc = options.IsEodPass ? nowUtc : settings.LastEodEvaluationUtc,
+                    LastEodEvaluationComplete = options.IsEodPass ? passOk && !portfolioStale : settings.LastEodEvaluationComplete,
+                    LastCompleteEvaluationUtc = options.IsEodPass && passOk && !portfolioStale ? nowUtc : settings.LastCompleteEvaluationUtc,
                     Entries = settings.Entries ?? entries,
                 }, ct);
 
@@ -409,6 +523,15 @@ public sealed class SignalsAuditService(
     private static List<FinalActionResultDto> AllResults(FinalActionSnapshotDto s) => [.. s.Watchlist, .. s.Portfolio];
 
     private static string Pair(string symbol, string actionId) => $"{symbol.ToUpperInvariant()}|{actionId}";
+    private static string SrcKey(string symbol, string actionId, string source) => $"{symbol.ToUpperInvariant()}|{actionId}|{source}";
+    private static string SymSrc(string symbol, string source) => $"{symbol.ToUpperInvariant()}|{source}";
+    private static string FaId(SignalAuditEvent e) => e.SignalType[SignalTypeCatalog.FinalActionPrefix.Length..];
+
+    private static void CloseEpisode(SignalAuditEvent ev, string status, string reason, DateOnly today, DateTime nowUtc, SignalAuditEvent? by = null)
+    {
+        // Acted / Dismissed keep their status; the episode simply ends.
+        if (!RecommendationLifecycle.TryTransition(ev, status, reason, today, nowUtc, by)) ev.EpisodeEndedDate ??= today;
+    }
 
     private async Task<HashSet<string>> CurrentSymbolsAsync(string userId, CancellationToken ct)
     {
@@ -529,9 +652,9 @@ public sealed class SignalsAuditService(
         var rows = await BuildRowsAsync(userId, query, ct);
 
         // Initial-baseline records are not genuine transitions, so they stay out of effectiveness unless asked for.
-        var statRows = query.IncludeBaselineInStats || string.Equals(query.Origin, SignalOrigins.InitialBaseline, StringComparison.OrdinalIgnoreCase)
+        var statRows = (query.IncludeBaselineInStats || string.Equals(query.Origin, SignalOrigins.InitialBaseline, StringComparison.OrdinalIgnoreCase)
             ? rows
-            : rows.Where(r => r.Origin != SignalOrigins.InitialBaseline).ToList();
+            : rows.Where(r => r.Origin != SignalOrigins.InitialBaseline)).Where(r => r.PerformanceAudited).ToList();
         var effectiveness = statRows.GroupBy(r => r.SignalType).Select(g =>
         {
             var def = SignalTypeCatalog.Find(g.Key);
@@ -550,13 +673,15 @@ public sealed class SignalsAuditService(
                 g.Count(r => SignalMyActions.IsFollowed(r.MyAction)));
         }).OrderBy(r => r.Label).ToList();
 
+        // The category and review cards describe what is open now; Total and Actioned describe the rows in view.
+        var open = rows.Where(r => r.Status == SignalStatuses.Active).ToList();
         return new SignalAuditSummaryDto(
             rows.Count,
-            rows.Count(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey),
-            rows.Count(r => r.Category == SignalCategories.Entry),
-            rows.Count(r => r.Category == SignalCategories.TrimExit),
+            open.Count(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey),
+            open.Count(r => r.Category == SignalCategories.Entry),
+            open.Count(r => r.Category == SignalCategories.TrimExit),
             rows.Count(r => SignalMyActions.IsFollowed(r.MyAction)),
-            rows.Count(r => r.MyAction == SignalMyActions.Pending),
+            open.Count(r => r.MyAction == SignalMyActions.Pending),
             effectiveness);
     }
 
@@ -643,6 +768,9 @@ public sealed class SignalsAuditService(
         ev.MyActionNote = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
         ev.LinkedTransactionId = link;
         ev.MyActionUpdatedUtc = DateTime.UtcNow;
+        // Only a full "Actioned" resolves an open recommendation; Partial / Not Actioned / Pending leave it Active.
+        if (request.MyAction == SignalMyActions.Actioned)
+            RecommendationLifecycle.TryTransition(ev, SignalStatuses.Acted, "Actioned by investor", TorontoToday(), DateTime.UtcNow);
         await db.SaveChangesAsync(ct);
 
         await audit.LogAsync(AuditCategories.Signals, AuditActions.Update,
@@ -652,12 +780,35 @@ public sealed class SignalsAuditService(
         return (await ToRowsAsync(userId, [ev], ct))[0];
     }
 
+    public async Task<SignalAuditRowDto?> DismissAsync(string userId, long id, string? note, CancellationToken ct = default)
+    {
+        if (note is { Length: > MaxNoteLength }) throw new ArgumentException($"Note cannot exceed {MaxNoteLength} characters.");
+        var ev = await db.SignalAuditEvents.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId, ct);
+        if (ev is null) return null;
+        if (!RecommendationLifecycle.TryTransition(ev, SignalStatuses.Dismissed, string.IsNullOrWhiteSpace(note) ? "Dismissed by investor" : note.Trim(),
+                TorontoToday(), DateTime.UtcNow))
+            throw new ArgumentException($"Only an Active recommendation can be dismissed (current status: {ev.Status}).");
+        await db.SaveChangesAsync(ct);
+        await audit.LogAsync(AuditCategories.Signals, AuditActions.Update,
+            $"Signal {ev.Symbol} {ev.SignalDate:yyyy-MM-dd}: dismissed", "SignalAuditEvent", ev.Symbol, ct);
+        return (await ToRowsAsync(userId, [ev], ct))[0];
+    }
+
     // ── Row building ──────────────────────────────────────────────────────────
 
     private async Task<List<SignalAuditRowDto>> BuildRowsAsync(string userId, SignalsAuditQuery q, CancellationToken ct)
     {
         var query = db.SignalAuditEvents.AsNoTracking().Where(e => e.UserId == userId);
 
+        // Unaudited recommendations stay out of the history unless asked for, but an OPEN one is a live decision
+        // (it is in the Action Center), so it is always listed. They never feed performance analytics.
+        if (!q.IncludeUnaudited) query = query.Where(e => e.PerformanceAudited || e.Status == SignalStatuses.Active);
+        if (string.Equals(q.Status, "Open", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(e => e.Status == SignalStatuses.Active);
+        else if (string.Equals(q.Status, "Closed", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(e => e.Status != SignalStatuses.Active);
+        else if (SignalStatuses.IsValid(q.Status))
+            query = query.Where(e => e.Status == q.Status);
         if (!string.IsNullOrWhiteSpace(q.Ticker))
         {
             var t = q.Ticker.Trim().ToUpper();
@@ -712,7 +863,7 @@ public sealed class SignalsAuditService(
                 e.SignalPrice, e.Currency, e.Score, r.Return5D, r.Return20D, r.Return1M, r.Today,
                 e.MyAction, !string.IsNullOrEmpty(e.MyActionNote), e.LinkedTransactionId,
                 LinkKind(e, linkedTx), e.Origin, e.EpisodeEndedDate is null, e.EligibilityStatus, basis,
-                actionedPrice, vsActioned);
+                actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId);
         }).ToList();
     }
 

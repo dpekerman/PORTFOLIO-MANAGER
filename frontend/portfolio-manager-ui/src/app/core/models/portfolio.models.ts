@@ -1601,6 +1601,12 @@ export interface SignalAuditRow {
   eligibilityStatus: 'Verified' | 'Unverified';
   /** Verified = history matches the recorded price basis; Adjusted = rebased (split) and corrected; Unverified = cannot be proven. */
   priceBasis: 'Verified' | 'Adjusted' | 'Unverified';
+  status?: RecommendationStatus;
+  /** False = recorded for the Action Center but excluded from performance analytics. */
+  performanceAudited?: boolean;
+  lastValidatedAtUtc?: string | null;
+  statusReason?: string | null;
+  supersededByEventId?: number | null;
 }
 
 export interface SignalAuditPagedResponse {
@@ -1706,6 +1712,63 @@ export interface SignalTransactionCandidate {
 
 export type SignalOriginFilter = 'All' | 'Live' | 'INITIAL_BASELINE';
 
+/** System lifecycle of a recommendation. Independent of the user's response (`SignalMyAction`). */
+export type RecommendationStatus = 'Active' | 'Acted' | 'Dismissed' | 'Expired' | 'Invalidated' | 'Superseded';
+export type SignalStatusFilter = 'All' | 'Open' | 'Closed' | RecommendationStatus;
+
+export type OpenDecisionBucket = 'EntryAdd' | 'TrimExit' | 'RiskReview';
+export type OpenDecisionUrgency = 'Urgent' | 'High' | 'Normal';
+export type ActionCenterFilter = 'All' | 'Entry' | 'ReduceExit' | 'Risk' | 'Holdings' | 'Watchlist';
+
+export interface OpenDecision {
+  id: number;
+  symbol: string;
+  context: 'Holding' | 'Watchlist';
+  role: string | null;
+  actionLabel: string;
+  actionId: string;
+  bucket: OpenDecisionBucket;
+  urgency: OpenDecisionUrgency;
+  rationale: string | null;
+  evidence: string;
+  signalDate: string;
+  lastValidatedAtUtc: string | null;
+  isStale: boolean;
+  status: RecommendationStatus;
+  myAction: SignalMyAction;
+  signalPrice: number;
+  origin: string;
+}
+
+export interface ActionSummary {
+  entryAdd: number;
+  trimExit: number;
+  riskReview: number;
+  totalOpen: number;
+  asOfUtc: string;
+  lastValidatedAtUtc: string | null;
+}
+
+export interface OpenDecisionsResponse {
+  summary: ActionSummary;
+  items: OpenDecision[];
+  validation: ValidationStatus;
+}
+
+/**
+ * Validated = the latest EOD evaluation completed and nothing awaits revalidation.
+ * Pending = recommendations await revalidation, or no evaluation has completed yet.
+ * Unavailable = the latest evaluation failed or is incomplete, or the last complete one is stale.
+ */
+export type ValidationState = 'Validated' | 'Pending' | 'Unavailable';
+
+export interface ValidationStatus {
+  state: ValidationState;
+  lastCompleteEvaluationUtc: string | null;
+  lastAttemptUtc: string | null;
+  pendingCount: number;
+}
+
 export interface SignalsAuditQueryParams {
   ticker: string;
   signalType: string[];
@@ -1716,6 +1779,9 @@ export interface SignalsAuditQueryParams {
   origin: SignalOriginFilter;
   /** Effectiveness excludes initial-baseline records unless this is set. */
   includeBaselineInStats: boolean;
+  /** Unaudited recommendations are hidden from the default list; they never count in performance statistics. */
+  includeUnaudited: boolean;
+  status: SignalStatusFilter;
   from: string;
   to: string;
   sortBy: string;

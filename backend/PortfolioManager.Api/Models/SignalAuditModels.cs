@@ -48,6 +48,61 @@ public class SignalAuditEvent
     public string EligibilityStatus { get; set; } = SignalEligibility.Unverified;
     /// <summary>The provider's close for <see cref="SignalDate"/> when captured; later compared to detect split/adjustment basis changes.</summary>
     public decimal? BasisClose { get; set; }
+
+    /// <summary>System lifecycle (see <see cref="SignalStatuses"/>); independent of <see cref="MyAction"/>.</summary>
+    public string Status { get; set; } = SignalStatuses.Active;
+    public DateTime? StatusChangedAtUtc { get; set; }
+    public string? StatusReason { get; set; }
+    /// <summary>The newer recommendation that replaced this one. The predecessor is found by querying this column.</summary>
+    public long? SupersededByEventId { get; set; }
+    public SignalAuditEvent? SupersededBy { get; set; }
+    /// <summary>Last complete, successful EOD evaluation that still produced this recommendation. Null = never revalidated.</summary>
+    public DateTime? LastValidatedAtUtc { get; set; }
+    /// <summary>Counts in performance analytics only. Never affects Action Center eligibility.</summary>
+    public bool PerformanceAudited { get; set; } = true;
+}
+
+public static class SignalStatuses
+{
+    public const string Active = "Active";
+    public const string Acted = "Acted";
+    public const string Dismissed = "Dismissed";
+    public const string Expired = "Expired";
+    public const string Invalidated = "Invalidated";
+    public const string Superseded = "Superseded";
+
+    public static readonly IReadOnlyList<string> All = [Active, Acted, Dismissed, Expired, Invalidated, Superseded];
+    public static bool IsValid(string? s) => s is not null && All.Contains(s);
+}
+
+/// <summary>The only place allowed to change <see cref="SignalAuditEvent.Status"/>. Terminal states never reopen.</summary>
+public static class RecommendationLifecycle
+{
+    public static bool CanTransition(string from, string to) =>
+        from == SignalStatuses.Active && to != SignalStatuses.Active && SignalStatuses.IsValid(to);
+
+    public static bool TryTransition(SignalAuditEvent ev, string to, string reason, DateOnly today, DateTime nowUtc, SignalAuditEvent? supersededBy = null)
+    {
+        if (!CanTransition(ev.Status, to)) return false;
+        ev.Status = to;
+        ev.StatusChangedAtUtc = nowUtc;
+        ev.StatusReason = reason.Length > 200 ? reason[..200] : reason;
+        if (to == SignalStatuses.Superseded) ev.SupersededBy = supersededBy;
+        // Acted / Dismissed are the user's call and keep the legacy "episode still running" semantics until the condition ends.
+        if (to is not (SignalStatuses.Acted or SignalStatuses.Dismissed)) ev.EpisodeEndedDate ??= today;
+        return true;
+    }
+
+    /// <summary>Entry/Add 5 and Trim/Exit/Risk 3 weekdays without a successful revalidation.</summary>
+    public static int ExpiryWindowDays(string category) => category == SignalCategories.Entry ? 5 : 3;
+
+    public static int WeekdaysBetween(DateOnly from, DateOnly to)
+    {
+        var n = 0;
+        for (var d = from.AddDays(1); d <= to; d = d.AddDays(1))
+            if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)) n++;
+        return n;
+    }
 }
 
 public static class SignalEligibility
@@ -173,6 +228,17 @@ public sealed record SignalsAuditSettings
     /// events. After that only genuine transitions are captured.
     /// </summary>
     public bool InitialBaselineDone { get; init; }
+    /// <summary>
+    /// False until the first lifecycle-aware EOD capture. Unaudited recommendations already present at that point
+    /// are recorded as INITIAL_BASELINE (not as new Live transitions).
+    /// </summary>
+    public bool LifecycleBaselineDone { get; init; }
+
+    /// <summary>When the latest EOD evaluation pass ran, and whether it was complete. Drives the Action Center validation state.</summary>
+    public DateTime? LastEodEvaluationUtc { get; init; }
+    public bool LastEodEvaluationComplete { get; init; }
+    /// <summary>Latest EOD pass that completed successfully; null until one has.</summary>
+    public DateTime? LastCompleteEvaluationUtc { get; init; }
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 }
@@ -231,7 +297,12 @@ public sealed record SignalAuditRowDto(
     string EligibilityStatus,
     string PriceBasis,
     decimal? ActionedPrice = null,
-    decimal? TodayVsActionedPct = null);
+    decimal? TodayVsActionedPct = null,
+    string Status = "Active",
+    bool PerformanceAudited = true,
+    DateTime? LastValidatedAtUtc = null,
+    string? StatusReason = null,
+    long? SupersededByEventId = null);
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,
@@ -297,5 +368,7 @@ public sealed record SignalTransactionCandidateDto(
     bool IsLinked);
 
 public sealed record SaveSignalActionRequest(string MyAction, string? Note, int? LinkedTransactionId);
+
+public sealed record DismissSignalRequest(string? Note);
 
 public sealed record SignalCaptureResultDto(int Created, int Closed, bool Skipped, string? Reason);

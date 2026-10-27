@@ -410,6 +410,13 @@ mat-card.db-panel {
   gap: 6px;
   line-height: 1;
 }
+// Header controls (tabs, selectors, chevron) sit on one row, vertically centred with the title.
+.db-panel-hd .db-panel-hd-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .db-panel-title {
   font-size: 0.8rem;
   font-weight: 600;
@@ -1124,6 +1131,82 @@ mat-card.db-panel {
   font-size: 0.7rem;
   font-weight: 700;
   line-height: 1;
+}
+
+/* ── Action Center header: validation state + category counters (also the category filters) ── */
+.ac-validation-ico {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  color: #e65100;
+}
+
+.ac-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.ac-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px 10px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mat-sys-surface-container);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+
+  &.active {
+    background: var(--mat-sys-secondary-container);
+    border-color: var(--mat-sys-primary);
+  }
+}
+
+.ac-counter-count {
+  font-variant-numeric: tabular-nums;
+}
+.ac-counter-entry .ac-counter-count {
+  color: #2e7d32;
+}
+.ac-counter-exit .ac-counter-count {
+  color: #e65100;
+}
+.ac-counter-risk .ac-counter-count {
+  color: #c62828;
+}
+
+@media (max-width: 599.98px) {
+  .ac-counters {
+    padding: 0 12px 8px;
+    gap: 4px;
+  }
+  .ac-counter {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+  }
+  // Keep the Allocation title on one row next to its tabs at 360px.
+  .db-alloc-tab {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
+  .db-panel-hd-right:has(.db-alloc-tabs) {
+    gap: 2px;
+  }
 }
 
 /* ── Misc ────────────────────────────────────────────────────────────────── */

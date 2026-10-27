@@ -30,6 +30,7 @@ import {
   decisionPerformance,
   eodSummary,
   marketLeadership,
+  openDecisionsResponse,
   performanceSummary,
   portfolioActions,
   portfolioBeta,
@@ -127,6 +128,7 @@ get(/^\/api\/automation\/timezone-diagnostics$/, automationTimezone);
 get(/^\/api\/dashboard$/, dashboardResponse);
 on('POST', /^\/api\/dashboard\/refresh$/, () => dashboardResponse);
 get(/^\/api\/dashboard\/portfolio-actions$/, portfolioActions);
+get(/^\/api\/dashboard\/action-center$/, openDecisionsResponse);
 get(/^\/api\/dashboard\/eod-summary$/, eodSummary);
 get(/^\/api\/dashboard\/market-leadership$/, marketLeadership);
 get(/^\/api\/analytics\/decision-performance$/, decisionPerformance);

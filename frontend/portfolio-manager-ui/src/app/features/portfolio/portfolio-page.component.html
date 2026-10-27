@@ -1071,7 +1071,7 @@
                           {{ dec.finalAction }}
                         </div>
                       } @else {
-                        <span class="pg-dim">—</span>
+                        <span class="pg-dim" [matTooltip]="finalActionsLoading() ? 'Final Actions are still being calculated' : 'No Final Action for this holding'">{{ finalActionsLoading() ? '…' : '—' }}</span>
                       }
                     </td>
                   </ng-container>

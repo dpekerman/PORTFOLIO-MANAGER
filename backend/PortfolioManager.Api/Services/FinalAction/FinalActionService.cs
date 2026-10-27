@@ -63,7 +63,8 @@ public sealed record FinalActionDiagnosticsDto(
 public sealed record FinalActionSnapshotDto(
     IReadOnlyList<FinalActionResultDto> Watchlist,
     IReadOnlyList<FinalActionResultDto> Portfolio,
-    DateTime ComputedAtUtc);
+    DateTime ComputedAtUtc,
+    FinalActionEvaluationMeta? Meta = null);
 
 public interface IFinalActionService
 {
@@ -112,6 +113,7 @@ public sealed class FinalActionService(
             .Select(s => s.ToUpperInvariant()).Distinct().ToList();
 
         var scans = new Dictionary<string, RsiScanResult>(StringComparer.OrdinalIgnoreCase);
+        var unknown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var batch in symbols.Chunk(BatchSize))
         {
             try
@@ -122,8 +124,13 @@ public sealed class FinalActionService(
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 logger.LogWarning(ex, "[FinalAction] Scan batch of {Count} symbols failed; those symbols get no decision.", batch.Length);
+                foreach (var s in batch) unknown.Add(s);
             }
         }
+
+        // A symbol with no scan or no usable price was not evaluated: it must never confirm or invalidate anything.
+        foreach (var s in symbols)
+            if (!scans.TryGetValue(s, out var sc) || sc.CurrentPrice <= 0m) unknown.Add(s);
 
         var valueByTicker = await LoadValueScreenerAsync(ct);
 
@@ -148,7 +155,9 @@ public sealed class FinalActionService(
             portfolio.Add(ToDto(decision, holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan));
         }
 
-        var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, DateTime.UtcNow);
+        var meta = new FinalActionEvaluationMeta(
+            unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), portfolioSnap?.UpdatedAt, portfolioSnap is not null);
+        var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, DateTime.UtcNow, meta);
         cache.Set(key, snapshot, CacheTtl);
         return snapshot;
     }

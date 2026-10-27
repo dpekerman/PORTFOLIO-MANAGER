@@ -49,8 +49,11 @@ test.describe('dashboard collapsed-first on phones', () => {
       const box = (await t.boundingBox())!;
       const label = await t.getAttribute('aria-label');
       expect(cardBox.x + cardBox.width - (box.x + box.width), label ?? '').toBeLessThanOrEqual(20);
-      // Collapsed cards are a single header row: the chevron never drops onto a second line.
-      expect(cardBox.height, label ?? '').toBeLessThanOrEqual(box.height + 40);
+      // Collapsed cards are a single header row: the chevron never drops onto a second line. The Action Center
+      // is the one card whose header also carries its category counters, so that row is allowed for.
+      const counters = card.locator('.ac-counters');
+      const countersHeight = (await counters.count()) > 0 ? ((await counters.first().boundingBox())?.height ?? 0) : 0;
+      expect(cardBox.height, label ?? '').toBeLessThanOrEqual(box.height + 40 + countersHeight);
     }
   });
 
@@ -71,12 +74,15 @@ test.describe('dashboard collapsed-first on phones', () => {
 
   test('keeps the range and mover controls out of the collapsed headers', async ({ page }) => {
     await openDashboard(page);
-    await expect(page.locator('.db-signal-summary, .db-signal-row')).toBeHidden();
     await expect(page.locator('.eod-ownership-legend')).toBeHidden();
-    await page.getByRole('button', { name: 'Toggle signal details' }).tap();
-    await expect(page.locator('.db-signal-summary')).toBeVisible();
     await expect(page.locator('.db-range-group')).toBeHidden();
     await expect(page.locator('.movers-count-sel')).toBeHidden();
+  });
+
+  test('shows the action counters in the Action Center header even while sections are collapsed', async ({ page }) => {
+    await openDashboard(page);
+    await expect(page.locator('#action-center-panel .ac-counter')).toHaveCount(3);
+    await expect(page.locator('#action-center-panel .ac-counter').first()).toBeVisible();
   });
 });
 
