@@ -16,7 +16,13 @@ public sealed record PortfolioEvidence(
     double? PositionLimitPct,
     bool SectorOverTarget,
     bool HardStructuralNegative,
-    string? DecisionSource);
+    string? DecisionSource,
+    /// <summary>The target lot's role has no configured limit while the symbol's other lots hold roles that do: the applicable policy is unclear.</summary>
+    bool RolePolicyAmbiguous = false,
+    string? RolePolicyDetail = null,
+    double? SectorPct = null,
+    double? SectorTargetPct = null,
+    bool SectorKnown = true);
 
 public sealed record GateOutcome(FinalActionDecision Decision, IReadOnlyList<string> ReasonCodes, string? OriginalAction);
 
@@ -31,6 +37,7 @@ public static class GateReasons
     public const string TechnicalExitPostEntry = "TECHNICAL_EXIT_POST_ENTRY";
     public const string AddBlockedPositionLimit = "ADD_BLOCKED_POSITION_LIMIT";
     public const string AddBlockedSectorOver = "ADD_BLOCKED_SECTOR_OVER";
+    public const string AddRolePolicyAmbiguous = "ADD_ROLE_POLICY_AMBIGUOUS";
 }
 
 /// <summary>
@@ -119,6 +126,21 @@ public static class PortfolioEvidenceGate
 
     private static GateOutcome ConditionAdd(FinalActionDecision d, PortfolioEvidence e)
     {
+        // The ADD belongs to the target lot's role: its limit applies to the symbol's total exposure. When that role has
+        // no configured policy but the symbol's other roles do, no limit is guessed — the result needs review instead.
+        if (e.RolePolicyAmbiguous)
+        {
+            const string review = "Add / Needs Review";
+            var needsReview = d with
+            {
+                FinalAction = review,
+                FinalActionClass = "ma-standby",
+                FinalActionReason = Join(d.FinalActionReason,
+                    $"The role policy for this addition is ambiguous ({e.RolePolicyDetail ?? "mixed roles"}). Not an instruction to buy; confirm the intended role. Original technical action: {d.FinalAction}."),
+            };
+            return new GateOutcome(needsReview, [GateReasons.AddRolePolicyAmbiguous], d.FinalAction);
+        }
+
         string? code = null;
         string? text = null;
         if (e.PositionSizePct is { } size && e.PositionLimitPct is { } limit && size >= limit)

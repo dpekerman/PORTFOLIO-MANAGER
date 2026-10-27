@@ -57,6 +57,7 @@ public sealed class FinalActionServiceTests
         RsiSignal = 54m, RsiSignalAvailable = true, MacdHistogram = 0.4m, MacdHistDelta = 0.1m,
         Ema9Price = 99m, Ema10Price = 98.5m, Ema20Price = 96m, Sma20Price = 95m, Sma50Price = 90m, Sma200 = 80m,
         Status = SignalStatus.Neutral, ScanType = ScanType.Neutral, Week52High = 110m,
+        TradingDate = TradingCalendar.LastCompletedSession(DateTime.UtcNow, MarketExchange.Nyse),
     };
 
     [Fact]

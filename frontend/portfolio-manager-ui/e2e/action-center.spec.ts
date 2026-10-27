@@ -240,6 +240,18 @@ test.describe('signal tracker lifecycle', () => {
     await expect.poll(() => queries.some((q) => q.includes('status=Open'))).toBe(true);
   });
 
+  test('landing view shows only the newest signal day', async ({ page }) => {
+    const queries: string[] = [];
+    page.on('request', (r) => {
+      if (/\/api\/signals-audit(\?|$)/.test(r.url())) queries.push(r.url());
+    });
+    await page.goto('/signal-tracker');
+    await expect(page.getByRole('heading', { level: 1, name: 'Signal Tracker' })).toBeVisible();
+    await expect
+      .poll(() => queries.some((q) => /from=(\d{4}-\d{2}-\d{2})&to=\1(&|$)/.test(q) && q.includes('pageSize=25')))
+      .toBe(true);
+  });
+
   test('drill-down from the Action Center filters by ticker and includes unaudited records', async ({ page }) => {
     const queries: string[] = [];
     page.on('request', (r) => {

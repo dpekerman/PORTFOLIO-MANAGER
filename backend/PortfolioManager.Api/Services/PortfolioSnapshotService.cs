@@ -25,8 +25,9 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
 
     public async Task SaveAsync(string userId, IReadOnlyList<PortfolioSummaryDto> data, CancellationToken ct = default)
     {
-        var json = JsonSerializer.Serialize(data, _json);
         var existing = await db.PortfolioSnapshots.FindAsync([userId], ct);
+        data = CarryForwardFinalActions(existing?.SnapshotJson, data);
+        var json = JsonSerializer.Serialize(data, _json);
         if (existing is null)
         {
             db.PortfolioSnapshots.Add(new PortfolioSnapshot
@@ -45,6 +46,37 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
         }
         await db.SaveChangesAsync(ct);
         logger.LogDebug("[PortfolioSnapshot] Saved {Count} items.", data.Count);
+    }
+
+    /// <summary>
+    /// A market-data refresh rebuilds every row from fresh quotes, which carry no Final Action. The last published action, its
+    /// evaluation time and session are persisted history: keep them for rows that have none, so a refresh (even a failed or
+    /// partial one) can never erase the last valid action or make it look newly evaluated.
+    /// </summary>
+    internal static IReadOnlyList<PortfolioSummaryDto> CarryForwardFinalActions(string? previousJson, IReadOnlyList<PortfolioSummaryDto> incoming)
+    {
+        if (string.IsNullOrWhiteSpace(previousJson)) return incoming;
+        List<PortfolioSummaryDto>? previous;
+        try { previous = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(previousJson, _json); }
+        catch (JsonException) { return incoming; }
+        if (previous is null || previous.Count == 0) return incoming;
+
+        var byId = previous.Where(p => !string.IsNullOrEmpty(p.Item.FinalAction)).GroupBy(p => p.Item.Id).ToDictionary(g => g.Key, g => g.First().Item);
+        if (byId.Count == 0) return incoming;
+        return incoming.Select(s =>
+            string.IsNullOrEmpty(s.Item.FinalAction) && byId.TryGetValue(s.Item.Id, out var old)
+                ? s with
+                {
+                    Item = s.Item with
+                    {
+                        FinalAction = old.FinalAction,
+                        FinalActionSeverity = old.FinalActionSeverity,
+                        FinalActionPriority = old.FinalActionPriority,
+                        FinalActionUpdatedAt = old.FinalActionUpdatedAt,
+                        FinalActionSession = old.FinalActionSession,
+                    },
+                }
+                : s).ToList();
     }
 
     public async Task<IReadOnlyList<PortfolioSummaryDto>?> GetLatestAsync(string userId, CancellationToken ct = default)
@@ -111,6 +143,7 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
                         FinalActionSeverity = old.FinalActionSeverity,
                         FinalActionPriority = old.FinalActionPriority,
                         FinalActionUpdatedAt = old.FinalActionUpdatedAt,
+                        FinalActionSession = old.FinalActionSession,
                     },
                 };
             }
@@ -160,6 +193,10 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
             for (var i = 0; i < list.Count; i++)
             {
                 if (!byId.TryGetValue(list[i].Item.Id, out var sync)) continue;
+                // The stamp is the symbol's own evaluation time, never the write time, and it never moves backwards,
+                // so republishing a cached evaluation cannot make an older action look newly evaluated.
+                var evaluatedAt = sync.EvaluatedAtUtc ?? now;
+                if (list[i].Item.FinalActionUpdatedAt is { } existing && existing > evaluatedAt) continue;
                 list[i] = list[i] with
                 {
                     Item = list[i].Item with
@@ -167,7 +204,8 @@ public class PortfolioSnapshotService(AppDbContext db, ILogger<PortfolioSnapshot
                         FinalAction = sync.FinalAction,
                         FinalActionSeverity = sync.Severity,
                         FinalActionPriority = sync.Priority,
-                        FinalActionUpdatedAt = now,
+                        FinalActionUpdatedAt = evaluatedAt,
+                        FinalActionSession = sync.Session ?? list[i].Item.FinalActionSession,
                     },
                 };
                 changed = true;

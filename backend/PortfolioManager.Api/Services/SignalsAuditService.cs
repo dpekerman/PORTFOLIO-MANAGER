@@ -384,8 +384,8 @@ public sealed class SignalsAuditService(
                     if (passOk && !(ev.Source == SignalSources.Portfolio && portfolioStale) && ev.Status == SignalStatuses.Active
                         && DecisionEligibility.Classify(FaId(ev), ev.Source, 1m) != DecisionBucket.RiskReview
                         && !IsLongHorizonHoldingExit(ev)
-                        && RecommendationLifecycle.WeekdaysBetween(
-                               DateOnly.FromDateTime(ev.LastValidatedAtUtc ?? ev.CapturedAtUtc), today)
+                        && TradingCalendar.TradingDaysBetween(
+                               TradingCalendar.TorontoDate(ev.LastValidatedAtUtc ?? ev.CapturedAtUtc), today, TradingCalendar.ExchangeFor(ev.Symbol))
                            > RecommendationLifecycle.ExpiryWindowDays(ev.SignalCategory))
                     {
                         CloseEpisode(ev, SignalStatuses.Expired, "No successful revalidation within the window", today, nowUtc);
@@ -406,6 +406,15 @@ public sealed class SignalsAuditService(
 
                 if (replacements.TryGetValue(SymSrc(symbol, ev.Source), out var newer))
                     CloseEpisode(ev, SignalStatuses.Superseded, "Replaced by a newer recommendation", today, nowUtc, newer);
+                else if (OriginatingRiskPersists(ev, priced.FirstOrDefault(r =>
+                             string.Equals(r.Symbol, symbol, StringComparison.OrdinalIgnoreCase) && r.Source == ev.Source)))
+                {
+                    // A successful evaluation alone does not resolve a long-horizon risk event: the condition that raised
+                    // it (e.g. a confirmed structural breakdown) must actually be gone. Stay open, uncounted if not actionable.
+                    logger.LogInformation("[SignalsAudit] {Symbol} ({Source}) {Action} stays open: the originating risk condition persists.",
+                        symbol, ev.Source, FaId(ev));
+                    continue;
+                }
                 else
                     CloseEpisode(ev, SignalStatuses.Invalidated, "Condition no longer produced by a complete evaluation", today, nowUtc);
                 closed++;
@@ -535,6 +544,27 @@ public sealed class SignalsAuditService(
     private static bool IsLongHorizonHoldingExit(SignalAuditEvent e) =>
         e.Source == SignalSources.Portfolio && e.SignalCategory == SignalCategories.TrimExit
         && !PortfolioEvidenceGate.IsShortHorizon(e.Role);
+
+    /// <summary>
+    /// For a Strategic/Core (long-horizon) exit or any holding Risk Review raised by a confirmed structural breakdown
+    /// (recorded in the event's reason codes), the breakdown still being present in a successful evaluation means the
+    /// risk is unresolved. Events without recorded reason codes keep the existing behaviour.
+    /// </summary>
+    private static bool OriginatingRiskPersists(SignalAuditEvent ev, FinalActionResultDto? current)
+    {
+        if (current is null || ev.Source != SignalSources.Portfolio) return false;
+        var isRisk = DecisionEligibility.Classify(FaId(ev), ev.Source, 1m) == DecisionBucket.RiskReview;
+        if (!isRisk && !IsLongHorizonHoldingExit(ev)) return false;
+        if (string.IsNullOrWhiteSpace(ev.ContextJson)) return false;
+        try
+        {
+            using var doc = JsonDocument.Parse(ev.ContextJson);
+            if (!doc.RootElement.TryGetProperty("reasonCodes", out var codes) || codes.ValueKind != JsonValueKind.Array) return false;
+            var raised = codes.EnumerateArray().Select(c => c.GetString()).Contains(GateReasons.StructuralBreakdown);
+            return raised && current.Technicals?.PriceStructure.HasHardStructuralNegative == true;
+        }
+        catch (JsonException) { return false; }
+    }
 
     private static void CloseEpisode(SignalAuditEvent ev, string status, string reason, DateOnly today, DateTime nowUtc, SignalAuditEvent? by = null)
     {
@@ -850,6 +880,13 @@ public sealed class SignalsAuditService(
         var series = await LoadSeriesAsync(events.Select(e => e.AnalysisSymbol).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), ct);
         var today = TorontoToday();
 
+        // Effective current state per Final Action recommendation: read-only, cache-only (never scans, publishes or touches a timestamp).
+        var nowUtc = DateTime.UtcNow;
+        var evalStatus = events.Any(e => e.SignalType.StartsWith(SignalTypeCatalog.FinalActionPrefix, StringComparison.Ordinal))
+            ? await EvaluationStatusReader.ReadAsync(db, userId, nowUtc, ct)
+            : EvaluationStatus.Unknown;
+        var cachedSnapshot = finalActions.TryGetCached(userId);
+
         var linkIds = events.Where(e => e.LinkedTransactionId is not null).Select(e => e.LinkedTransactionId!.Value).Distinct().ToList();
         var linkedTx = linkIds.Count == 0
             ? new Dictionary<int, PortfolioItem>()
@@ -870,13 +907,16 @@ public sealed class SignalsAuditService(
                 if (actionedPrice is > 0m && r.Today.EvalPrice is > 0m)
                     vsActioned = Math.Round((r.Today.EvalPrice.Value - actionedPrice.Value) / actionedPrice.Value * 100m, 2);
             }
+            var effective = EffectiveStateProvider.ForEvent(e, cachedSnapshot, evalStatus, nowUtc);
             return new SignalAuditRowDto(
                 e.Id, e.Symbol, e.Role, e.SignalDate.ToString("yyyy-MM-dd"), days, days < 0,
                 e.SignalType, def?.Label ?? e.SignalType, e.SignalCategory, e.Direction, e.Source,
                 e.SignalPrice, e.Currency, e.Score, r.Return5D, r.Return20D, r.Return1M, r.Today,
                 e.MyAction, !string.IsNullOrEmpty(e.MyActionNote), e.LinkedTransactionId,
                 LinkKind(e, linkedTx), e.Origin, e.EpisodeEndedDate is null, e.EligibilityStatus, basis,
-                actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId);
+                actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId,
+                effective?.Status.State.ToString(), effective?.Status.IsActionable, effective?.EvidenceHealth,
+                effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes);
         }).ToList();
     }
 

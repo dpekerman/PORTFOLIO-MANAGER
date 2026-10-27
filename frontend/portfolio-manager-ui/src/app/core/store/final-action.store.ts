@@ -57,7 +57,14 @@ export const FinalActionStore = signalStore(
   { providedIn: 'root' },
   withState<FinalActionState>({ watchlist: [], portfolio: [], computedAtUtc: null }),
   withRequestStatus(),
-  withComputed(({ watchlist, portfolio }) => ({
+  withComputed(({ watchlist, portfolio, loading, error, computedAtUtc }) => ({
+    /**
+     * What a Final Action cell without a result means: 'loading' (first evaluation pending), 'error' (the request failed) or
+     * 'ready' (loaded, so a missing result means that symbol was Not Evaluated). None of these is ever a trade decision.
+     */
+    uiState: computed<'loading' | 'error' | 'ready'>(() =>
+      error() ? 'error' : loading() || computedAtUtc() === null ? 'loading' : 'ready',
+    ),
     watchlistBySymbol: computed(() => new Map(watchlist().map((r) => [r.symbol.toUpperCase(), r]))),
     portfolioByItemId: computed(
       () => new Map(portfolio().filter((r) => r.itemId !== null).map((r) => [r.itemId as number, r])),
@@ -112,6 +119,10 @@ export const FinalActionStore = signalStore(
           store.portfolioBySymbol().get(symbol.toUpperCase()) ??
           null
         );
+      },
+      /** The watchlist evaluation of a symbol (never the holding's). */
+      resultForWatchlist(symbol: string): FinalActionResult | null {
+        return store.watchlistBySymbol().get(symbol.toUpperCase()) ?? null;
       },
       /** The result for a symbol on either list, preferring the holding. */
       resultForSymbol(symbol: string): FinalActionResult | null {

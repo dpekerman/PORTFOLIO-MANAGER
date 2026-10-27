@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
+using PortfolioManager.Api.Services.FinalAction;
 
 namespace PortfolioManager.Tests;
 
@@ -143,11 +144,17 @@ public sealed class OpenDecisionsServiceTests
     [Fact]
     public async Task Validation_FailedOrIncompleteLatestPass_IsUnavailable_AndKeepsExistingRows()
     {
-        var (db, svc) = await SeedAsync(Row("KEEP", "TRIM/REVIEW", SignalSources.Portfolio));
+        var (db, svc) = await SeedAsync(Row("KEEP", "TRIM/REVIEW", SignalSources.Portfolio), Row("ADD1", "ADD/STAGED ENTRY", SignalSources.Portfolio, role: "Swing"));
         await SeedSettingsAsync(db, Evaluated(DateTime.UtcNow.AddHours(-20), lastPassComplete: false, attemptAt: DateTime.UtcNow));
         var r = await svc.GetAsync(User, null);
         Assert.Equal("Unavailable", r.Validation.State);
-        Assert.Equal(1, r.Summary.TotalOpen);                  // a failed evaluation never hides an existing decision
+        // A failed evaluation cannot renew a decision: it is no longer counted as actionable, but nothing is hidden or deleted.
+        Assert.Equal(0, r.Summary.TotalOpen);
+        Assert.Equal(1, r.Summary.HistoricalWarnings);          // confirmed Strategic/Core risk stays visible as a historical warning
+        Assert.Equal(1, r.Summary.AwaitingData);
+        Assert.Equal(["ADD1", "KEEP"], r.NotActionable!.Select(i => i.Symbol).Order());
+        Assert.True(r.NotActionable!.Single(i => i.Symbol == "KEEP").IsHistoricalWarning);
+        Assert.Equal(2, (await db.SignalAuditEvents.CountAsync(e => e.Status == SignalStatuses.Active)));   // history intact
     }
 
     [Fact]
@@ -226,6 +233,128 @@ public sealed class OpenDecisionsServiceTests
         Assert.Equal(0, r.Summary.TotalOpen);
         Assert.Null(r.Summary.LastValidatedAtUtc);
         Assert.Empty(r.Items);
+    }
+
+    // ── Phase 2: effective states, Awaiting Data and counts ──
+
+    private sealed class CachedFinalActions(FinalActionSnapshotDto? snapshot) : PortfolioManager.Api.Services.FinalAction.IFinalActionService
+    {
+        public Task<FinalActionSnapshotDto> ComputeAsync(string userId, bool fresh = false, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> PublishPortfolioActionsAsync(string userId, FinalActionSnapshotDto snapshot, CancellationToken ct = default) => throw new NotSupportedException();
+        public FinalActionSnapshotDto? TryGetCached(string userId) => snapshot;
+    }
+
+    private static FinalActionResultDto Result(string symbol, string source, string action, string state, string health) =>
+        new(symbol, source, null, "Swing", action, FinalActionCatalog.CanonicalId(action), FinalActionCatalog.Describe(action).Category, "Buy",
+            "hold", "INFORMATIONAL", "ma-standby", "", "", "", "", "", null, false, 0m, symbol, null,
+            EvaluationState: state, EvidenceHealth: health, ReasonCodes: ["AWAITING_REFRESH_FAILED"]);
+
+    [Fact]
+    public async Task PriorSessionRecommendation_WithinItsWindow_StaysActionable_WithoutASameDayEvaluation()   // acceptance 1
+    {
+        var (_, svc) = await SeedAsync(Row("PRIOR", "SMALL ADD", SignalSources.Portfolio, role: "Swing"));
+        var r = await svc.GetAsync(User, null);
+        var item = Assert.Single(r.Items);
+        Assert.Equal("PriorSessionValid", item.EffectiveState);
+        Assert.Equal(1, r.Summary.TotalOpen);
+        Assert.Empty(r.NotActionable!);
+    }
+
+    [Fact]
+    public async Task RecommendationBeyondItsWindow_IsAwaitingData_Listed_NotCounted_AndNotDeleted()            // acceptance 5, 9
+    {
+        var row = Row("OLDADD", "SMALL ADD", SignalSources.Portfolio, role: "Swing");
+        row.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-30);
+        var (db, svc) = await SeedAsync(row, Row("OK", "STARTER ENTRY", SignalSources.Watchlist));
+        var r = await svc.GetAsync(User, null);
+        Assert.Equal(1, r.Summary.TotalOpen);
+        Assert.Equal(1, r.Summary.AwaitingData);
+        Assert.Equal(r.Summary.TotalOpen, r.Items.Count);
+        var awaiting = Assert.Single(r.NotActionable!);
+        Assert.Equal("OLDADD", awaiting.Symbol);
+        Assert.Equal("AwaitingData", awaiting.EffectiveState);
+        Assert.Contains("LIFECYCLE_WINDOW_ELAPSED", awaiting.ReasonCodes!);
+        Assert.Equal(SignalStatuses.Active, (await db.SignalAuditEvents.SingleAsync(e => e.Symbol == "OLDADD")).Status);   // history untouched
+    }
+
+    [Fact]
+    public async Task FailedRefreshForASymbol_MakesItAwaitingData_EvenInsideItsLifecycle_ButKeepsTheOthers()   // acceptance 3, 4
+    {
+        var bad = Result("BAD", SignalSources.Portfolio, "Awaiting Data", "AwaitingData", "Failed");
+        var snapshot = new FinalActionSnapshotDto([], [bad], DateTime.UtcNow);
+        var db = NewDb();
+        db.SignalAuditEvents.AddRange(Row("BAD", "SMALL ADD", SignalSources.Portfolio, role: "Swing"), Row("GOOD", "SMALL ADD", SignalSources.Portfolio, role: "Swing"));
+        await db.SaveChangesAsync();
+        var r = await new OpenDecisionsService(db, new CachedFinalActions(snapshot)).GetAsync(User, null);
+        Assert.Equal(["GOOD"], r.Items.Select(i => i.Symbol));
+        Assert.Equal(["BAD"], r.NotActionable!.Select(i => i.Symbol));
+        Assert.Equal(1, r.Summary.TotalOpen);
+    }
+
+    [Fact]
+    public async Task StrategicExit_HasNoCalendarExpiry_AndBecomesAHistoricalWarning_WhenEvidenceIsUnavailable()   // acceptance 10 / adj. 5
+    {
+        var row = Row("STRAT", "TRIM/REVIEW", SignalSources.Portfolio, role: "Strategic");
+        row.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-45);
+        var (_, svc) = await SeedAsync(row);
+        var counted = await svc.GetAsync(User, null);
+        Assert.Equal("PriorSessionValid", Assert.Single(counted.Items).EffectiveState);                 // no calendar expiry
+
+        var snapshot = new FinalActionSnapshotDto([], [Result("STRAT", SignalSources.Portfolio, "Awaiting Data", "AwaitingData", "Stale")], DateTime.UtcNow);
+        var db = NewDb();
+        db.SignalAuditEvents.Add(row);
+        await db.SaveChangesAsync();
+        var r = await new OpenDecisionsService(db, new CachedFinalActions(snapshot)).GetAsync(User, null);
+        Assert.Empty(r.Items);
+        var warning = Assert.Single(r.NotActionable!);
+        Assert.True(warning.IsHistoricalWarning);
+        Assert.Equal("HistoricalWarning", warning.EffectiveState);
+        Assert.Equal(1, r.Summary.HistoricalWarnings);
+        Assert.Equal(0, r.Summary.TotalOpen);
+    }
+
+    [Fact]
+    public async Task EvaluatingIsDeterministic_FreshHeartbeatEvaluates_StaleHeartbeatIsAwaitingNotStuck()   // adj. 7 / acceptance 22
+    {
+        var (db, svc) = await SeedAsync(Row("EV", "SMALL ADD", SignalSources.Portfolio, role: "Swing"));
+        var run = new AutomationRunLog
+        {
+            RunId = Guid.NewGuid(), TradingDate = "2026-10-27", OverallStatus = AutomationStatuses.Running,
+            ActualStartUtc = DateTime.UtcNow.AddMinutes(-50), LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-2),
+        };
+        db.AutomationRunLogs.Add(run);
+        await db.SaveChangesAsync();
+
+        // The row is valid as of the last completed session, but a fresh heartbeat means an evaluation is in progress:
+        // it is shown as Evaluating (never actionable) until the run finishes.
+        var running = await svc.GetAsync(User, null);
+        Assert.Equal("Evaluating", Assert.Single(running.NotActionable!).EffectiveState);
+        Assert.Equal(0, running.Summary.TotalOpen);
+
+        run.LastHeartbeatAtUtc = DateTime.UtcNow.AddMinutes(-40);
+        await db.SaveChangesAsync();
+        var interrupted = await svc.GetAsync(User, null);
+        var item = Assert.Single(interrupted.NotActionable!);
+        Assert.Equal("AwaitingData", item.EffectiveState);
+        Assert.Contains("EVALUATION_INTERRUPTED", item.ReasonCodes!);
+
+        run.OverallStatus = AutomationStatuses.Succeeded;
+        await db.SaveChangesAsync();
+        Assert.Equal(1, (await svc.GetAsync(User, null)).Summary.TotalOpen);                            // recovers by itself
+    }
+
+    [Fact]
+    public async Task Summary_AlwaysEqualsTheItemsList_AndFiltersNeverChangeIt()                          // acceptance 9, 13 / release 6
+    {
+        var old = Row("A1", "SMALL ADD", SignalSources.Portfolio, role: "Swing");
+        old.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-40);
+        var (_, svc) = await SeedAsync(old, Row("B1", "STARTER ENTRY", SignalSources.Watchlist), Row("C1", "CUT LOSS/EXIT", SignalSources.Portfolio, role: "Swing"));
+        foreach (var f in new[] { null, "Entry", "ReduceExit", "Holdings" })
+        {
+            var r = await svc.GetAsync(User, f);
+            Assert.Equal(2, r.Summary.TotalOpen);
+            Assert.Equal(r.Summary.EntryAdd + r.Summary.TrimExit + r.Summary.RiskReview, r.Summary.TotalOpen);
+        }
     }
 
     [Fact]

@@ -233,6 +233,15 @@ public sealed class EodAutomationOrchestratorService(
         {
             var snapshot = await finalActions.ComputeAsync(ownerId, fresh: true, ct);
             var published = await finalActions.PublishPortfolioActionsAsync(ownerId, snapshot, ct);
+            var awaiting = snapshot.Meta?.UnknownSymbols.OrderBy(s => s, StringComparer.Ordinal).ToList() ?? [];
+            if (awaiting.Count > 0)
+            {
+                // Independently valid symbols were published; the rest keep their previous record and timestamp. The run is
+                // reported as PartialSuccess with the affected symbols, never as a clean success.
+                log.ErrorStep = PartialEvaluationStep;
+                log.ErrorMessage = Truncate($"{published} holding(s) published; Awaiting Data (not evaluated): {string.Join(", ", awaiting)}", 2000);
+                logger.LogWarning("[EodAutomation] Partial evaluation: {Count} symbol(s) awaiting data: {Symbols}.", awaiting.Count, string.Join(", ", awaiting));
+            }
             logger.LogInformation("[EodAutomation] Final Action: {Watchlist} watchlist and {Portfolio} portfolio decisions; {Published} published to Action Center.",
                 snapshot.Watchlist.Count, snapshot.Portfolio.Count, published);
 
@@ -439,6 +448,9 @@ public sealed class EodAutomationOrchestratorService(
     /// by design, so its absence after the window fully closed is a genuine problem.
     /// Internal (not private) so PortfolioManager.Tests can exercise it directly — see InternalsVisibleTo
     /// in PortfolioManager.Api.csproj (same pattern already used elsewhere in this project).</summary>
+    /// <summary>Marks a run where some symbols could not be evaluated: the run is PartialSuccess, not Success.</summary>
+    internal const string PartialEvaluationStep = "FinalActionPartial";
+
     internal static string DeriveOverallStatus(AutomationRunLog log)
     {
         if (log.SnapshotStatus == AutomationStatuses.NotObserved)
@@ -446,7 +458,7 @@ public sealed class EodAutomationOrchestratorService(
 
         if (log.RefreshStatus == AutomationStatuses.Failed || log.SnapshotStatus == AutomationStatuses.Failed)
             return AutomationStatuses.Failed;
-        if (log.RsiStatus == AutomationStatuses.NotObserved)
+        if (log.RsiStatus == AutomationStatuses.NotObserved || log.ErrorStep == PartialEvaluationStep)
             return AutomationStatuses.PartialSuccess;
         return AutomationStatuses.Success;
     }

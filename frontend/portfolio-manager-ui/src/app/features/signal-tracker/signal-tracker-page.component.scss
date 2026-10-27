@@ -384,6 +384,19 @@
   font-weight: 700;
 }
 
+/* The current effective state is NOT the lifecycle: Awaiting Data / historical warning must read as "not actionable now". */
+.tag.tag-current {
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.tag.tag-current-warn {
+  border: 1px solid #b26a00;
+  color: #b26a00;
+  background: transparent;
+  font-weight: 600;
+}
+
 .pct {
   font-weight: 600;
   white-space: nowrap;

@@ -1,4 +1,5 @@
 import { SignalAuditRow, SignalHorizon } from '../../core/models/portfolio.models';
+import { stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 
 export const SIGNALS_EXPORT_HEADERS = [
   'Ticker',
@@ -20,6 +21,13 @@ export const SIGNALS_EXPORT_HEADERS = [
   'My Action',
   'Eligibility',
   'Price Basis',
+  'Lifecycle Status',
+  'Effective State',
+  'Actionable',
+  'Evidence Health',
+  'Last Evaluated (UTC)',
+  'Data As Of',
+  'Reason Codes',
 ] as const;
 
 type Cell = string | number | null;
@@ -48,6 +56,14 @@ export function signalsExportRows(rows: readonly SignalAuditRow[], maskValue: (v
     r.myAction,
     r.eligibilityStatus === 'Unverified' ? 'Score-qualified, eligibility unverified' : 'Verified',
     r.priceBasis,
+    // Lifecycle (history) and the current effective state are separate: Active can be Awaiting Data and not actionable now.
+    r.status ?? 'Active',
+    r.effectiveState ? stateLabel(r.effectiveState) : '',
+    r.isActionable == null ? '' : r.isActionable ? 'Yes' : 'No',
+    r.evidenceHealth ?? '',
+    r.lastValidatedAtUtc ?? '',
+    r.dataAsOfDate ?? '',
+    (r.reasonCodes ?? []).join('; '),
   ]);
 }
 

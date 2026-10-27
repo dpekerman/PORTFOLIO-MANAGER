@@ -1021,6 +1021,158 @@ public sealed class SignalsAuditServiceTests
         Assert.Single(h.Db.SignalAuditEvents);
     }
 
+    [Fact]
+    public async Task StrategicExit_StaysOpen_WhileTheOriginatingStructuralBreakdownPersists_AndClosesWhenItIsResolved()   // adj. 5 / C
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        var ev = Assert.Single(h.Db.SignalAuditEvents);
+        ev.ContextJson = "{\"reasonCodes\":[\"CONFIRMED_STRUCTURAL_BREAKDOWN\"]}";
+        await h.Db.SaveChangesAsync();
+        var created = ev.CapturedAtUtc;
+
+        FinalActionResultDto Hold(bool breakdown) => Result("TRM", "Hold / Monitor", SignalSources.Portfolio, 60m) with
+        {
+            Technicals = new FinalActionTechnicalsDto(40m, "", null, null,
+                breakdown ? PriceStructureResult.None with { PrimaryPatternType = "TIGHT_RISING_WEDGE", PrimaryPatternState = "BREAKDOWN" } : PriceStructureResult.None,
+                "", "", 0m, 0m),
+        };
+
+        // Successful evaluation, breakdown still present: the risk is unresolved, so the event is NOT invalidated.
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Hold(breakdown: true));
+        await h.EodAsync();
+        var still = h.Db.SignalAuditEvents.Single();
+        Assert.Equal(SignalStatuses.Active, still.Status);
+        Assert.Equal(created, still.CapturedAtUtc);                                  // creation time / initial evidence preserved
+
+        // The breakdown is gone: now the condition is genuinely resolved and the event is invalidated (history kept).
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Hold(breakdown: false));
+        await h.EodAsync();
+        Assert.Equal(SignalStatuses.Invalidated, h.Db.SignalAuditEvents.Single().Status);
+        Assert.Single(h.Db.SignalAuditEvents);
+    }
+
+    [Fact]
+    public async Task EventsWithoutRecordedReasonCodes_KeepTheExistingInvalidationBehaviour()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Hold / Monitor", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        Assert.Equal(SignalStatuses.Invalidated, h.Db.SignalAuditEvents.Single().Status);
+    }
+
+    [Fact]
+    public async Task AwaitingDataSymbol_NeverConfirmsRenewsOrInvalidatesARecommendation()                 // acceptance 3 / 8
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Cut Loss / Exit", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        var ev = Assert.Single(h.Db.SignalAuditEvents.Where(e => e.Symbol == "TRM"));
+        var stamp = ev.LastValidatedAtUtc;
+        await Task.Delay(20);
+
+        // The symbol could not be evaluated: it is listed as unknown, and its result is the non-actionable Awaiting Data.
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.Unknown.Add("TRM");
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Awaiting Data", SignalSources.Portfolio, 0m));
+        await h.EodAsync();
+
+        var after = Assert.Single(h.Db.SignalAuditEvents.Where(e => e.Symbol == "TRM"));
+        Assert.Equal(SignalStatuses.Active, after.Status);
+        Assert.Equal(stamp, after.LastValidatedAtUtc);                                  // not renewed
+        Assert.Null(after.EpisodeEndedDate);
+        Assert.Equal(1, h.Db.SignalAuditEvents.Count(e => e.Symbol == "TRM"));          // no duplicate, nothing deleted
+    }
+
+    [Fact]
+    public async Task Capture_NeverCreatesAnActionableRecommendation_FromAnAwaitingDataResult()
+    {
+        var h = await WithFinalActionAsync("NEW", "WAIT FOR PULLBACK");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.Unknown.Add("NEW");
+        h.FinalActions.ExtraWatchlist.Add(Result("NEW", "Awaiting Data", SignalSources.Portfolio, 0m));
+        await h.EodAsync();
+        Assert.DoesNotContain(h.Db.SignalAuditEvents, e => e.Symbol == "NEW" && e.SignalType.StartsWith("FA:"));
+    }
+
+    [Fact]
+    public async Task TrackerRows_ShowLifecycleAndEffectiveStateSeparately_WithoutScanningOrTouchingRecords()   // Signal Tracker parity
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Cut Loss / Exit", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        var ev = Assert.Single(h.Db.SignalAuditEvents.Where(e => e.Symbol == "TRM"));
+        ev.Role = "Swing";
+        ev.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-30);
+        await h.Db.SaveChangesAsync();
+        var created = ev.CapturedAtUtc;
+        var validated = ev.LastValidatedAtUtc;
+        var calls = h.FinalActions.ComputeCalls;
+
+        var row = Assert.Single((await h.Service.QueryAsync(User, new SignalsAuditQuery())).Items.Where(r => r.Symbol == "TRM"));
+        Assert.Equal(SignalStatuses.Active, row.Status);                    // lifecycle: still historically Active
+        Assert.Equal("AwaitingData", row.EffectiveState);                   // effective: not currently valid
+        Assert.False(row.IsActionable);
+        Assert.Contains("REVALIDATION_MISSED", row.ReasonCodes!);           // the complete pass that ran did not revalidate it
+        Assert.Equal("Unknown", row.EvidenceHealth);                        // nothing cached: never claimed as verified
+        Assert.Equal(validated, row.LastValidatedAtUtc);
+
+        Assert.Equal(calls, h.FinalActions.ComputeCalls);                   // a UI request never evaluates
+        var stored = h.Db.SignalAuditEvents.Single(e => e.Symbol == "TRM");
+        Assert.Equal(created, stored.CapturedAtUtc);                        // nothing renewed or rewritten
+        Assert.Equal(validated, stored.LastValidatedAtUtc);
+        Assert.Equal(SignalStatuses.Active, stored.Status);
+    }
+
+    [Fact]
+    public async Task TrackerRows_RecentRecommendation_IsPriorSessionValidAndActionable_AndClosedOnesHaveNoEffectiveState()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Cut Loss / Exit", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        h.Db.SignalAuditEvents.Single(e => e.Symbol == "TRM").Role = "Swing";
+        await h.Db.SaveChangesAsync();
+
+        var open = Assert.Single((await h.Service.QueryAsync(User, new SignalsAuditQuery())).Items.Where(r => r.Symbol == "TRM"));
+        Assert.Equal("PriorSessionValid", open.EffectiveState);
+        Assert.True(open.IsActionable);
+
+        // Close it (history stays): a closed lifecycle has no "current" state.
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "WAIT FOR PULLBACK", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        var closed = Assert.Single((await h.Service.QueryAsync(User, new SignalsAuditQuery())).Items.Where(r => r.Symbol == "TRM"));
+        Assert.Equal(SignalStatuses.Invalidated, closed.Status);
+        Assert.Null(closed.EffectiveState);
+        Assert.Null(closed.IsActionable);
+    }
+
+    [Fact]
+    public async Task StrategicHistoricalRisk_InTheTracker_IsAHistoricalWarning_NotActionable_AfterAFailedAttempt()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        await h.EodAsync(complete: false);                                    // a failed / incomplete pass
+        var settings = await h.Service.GetSettingsAsync(User);
+        var row = Assert.Single((await h.Service.QueryAsync(User, new SignalsAuditQuery())).Items.Where(r => r.Symbol == "TRM"));
+        Assert.Equal(SignalStatuses.Active, row.Status);
+        Assert.False(row.IsActionable);
+        Assert.Equal("HistoricalWarning", row.EffectiveState);
+    }
+
     [Theory]
     [InlineData("STARTER ENTRY", SignalSources.Watchlist, DecisionBucket.EntryAdd)]
     [InlineData("Add / Staged Entry", SignalSources.Portfolio, DecisionBucket.EntryAdd)]
@@ -1155,6 +1307,7 @@ public sealed class SignalsAuditServiceTests
         public List<FinalActionResultDto> ExtraWatchlist { get; } = [];
         public bool Fail { get; set; }
         public bool HardNegative { get; set; }
+        public int ComputeCalls { get; private set; }
         public HashSet<string> Unknown { get; } = new(StringComparer.OrdinalIgnoreCase);
 
         public Task<int> PublishPortfolioActionsAsync(string userId, FinalActionSnapshotDto snapshot, CancellationToken ct = default) =>
@@ -1162,6 +1315,7 @@ public sealed class SignalsAuditServiceTests
 
         public Task<FinalActionSnapshotDto> ComputeAsync(string userId, bool fresh = false, CancellationToken ct = default)
         {
+            ComputeCalls++;
             if (Fail) throw new InvalidOperationException("scan failed");
             var watch = scores.Items
                 .Select(s => Result(s.Symbol, WatchlistAction.GetValueOrDefault(s.Symbol, "BUY WATCH"), SignalSources.Watchlist, s.CurrentPrice, HardNegative))

@@ -252,6 +252,17 @@
             @if (row.status && row.status !== 'Active') {
               <span class="tag" [class.tag-invalidated]="row.status === 'Invalidated'" [matTooltip]="row.statusReason || row.status">{{ row.status }}</span>
             }
+            @if (row.effectiveState && row.status === 'Active') {
+              <span class="tag tag-current" data-testid="lifecycle-tag" matTooltip="Recommendation lifecycle: it has not been closed, expired or dismissed.">Lifecycle: Active</span>
+              <span
+                class="tag"
+                [class.tag-current-warn]="!row.isActionable"
+                [class.tag-current]="row.isActionable"
+                data-testid="effective-tag"
+                [matTooltip]="effectiveTooltip(row)"
+                [attr.aria-label]="effectiveTooltip(row)"
+              >Current: {{ row.effectiveState === 'CurrentValid' ? 'Current evaluation' : effectiveTag(row) }}@if (!row.isActionable) { · not actionable}</span>
+            }
             @if (row.performanceAudited === false) {
               <span class="tag" matTooltip="Recorded for the Action Center only; excluded from performance statistics.">Unaudited</span>
             }

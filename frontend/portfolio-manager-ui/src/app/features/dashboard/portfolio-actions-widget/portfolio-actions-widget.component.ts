@@ -7,6 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ActionCenterFilter, OpenDecision } from '../../../core/models/portfolio.models';
 import { filterDecisions, OpenDecisionsStore } from '../../../core/store/open-decisions.store';
+import { describeReasonCode } from '../../../shared/final-action-details-dialog/final-action-labels';
 
 interface FilterChip {
   filter: ActionCenterFilter;
@@ -34,6 +35,32 @@ export class PortfolioActionsWidgetComponent {
   protected readonly error = this.store.error;
   protected readonly activeFilter = this.store.filter;
   protected readonly hasAny = computed(() => this.store.allItems().length > 0);
+
+  /** Awaiting Data / Evaluating / unresolved historical warnings: always listed, never counted as decisions. */
+  protected readonly notActionable = this.store.notActionable;
+  protected readonly awaitingCount = computed(() => this.store.summary()?.awaitingData ?? 0);
+  protected readonly historicalCount = computed(() => this.store.summary()?.historicalWarnings ?? 0);
+
+  protected stateLabel(d: OpenDecision): string {
+    switch (d.effectiveState) {
+      case 'HistoricalWarning':
+        return 'Historical warning — unresolved, evidence stale';
+      case 'Evaluating':
+        return 'Evaluating';
+      case 'AwaitingData':
+        return 'Awaiting Data';
+      case 'PriorSessionValid':
+        return (d.ageTradingDays ?? 0) > 0
+          ? `Prior session · ${d.ageTradingDays} trading day${d.ageTradingDays === 1 ? '' : 's'} old`
+          : 'Prior session';
+      default:
+        return '';
+    }
+  }
+
+  protected reasonText(d: OpenDecision): string {
+    return (d.reasonCodes ?? []).map(describeReasonCode).join('; ');
+  }
 
   protected readonly chips = computed<FilterChip[]>(() => {
     const all = this.store.allItems();

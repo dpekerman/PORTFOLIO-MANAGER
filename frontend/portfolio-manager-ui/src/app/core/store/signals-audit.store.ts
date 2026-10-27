@@ -187,6 +187,27 @@ export const SignalsAuditStore = signalStore(
         load();
       },
 
+      /**
+       * Landing view: only the newest signal day. Before the day's EOD run that is the previous trading day;
+       * once EOD records new signals it moves to today. The user can change or clear the dates at any time.
+       */
+      async loadLatestDay(): Promise<void> {
+        if (store.from() !== '' || store.to() !== '') {
+          load();
+          return;
+        }
+        try {
+          const newest = await firstValueFrom(
+            api.query({ ...params(), from: '', to: '', sortBy: 'signalDate', sortDir: 'desc', page: 1, pageSize: 1 }),
+          );
+          const day = newest.items[0]?.signalDate;
+          if (day) patchState(store, { from: day, to: day, page: 1 });
+        } catch {
+          // fall through to an unfiltered load; the normal error handling reports a failing API
+        }
+        load();
+      },
+
       setSort(sortBy: string, sortDir: 'asc' | 'desc'): void {
         patchState(store, { sortBy, sortDir, page: 1 });
         load();

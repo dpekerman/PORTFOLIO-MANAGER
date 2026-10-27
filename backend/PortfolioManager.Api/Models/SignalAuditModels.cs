@@ -302,7 +302,16 @@ public sealed record SignalAuditRowDto(
     bool PerformanceAudited = true,
     DateTime? LastValidatedAtUtc = null,
     string? StatusReason = null,
-    long? SupersededByEventId = null);
+    long? SupersededByEventId = null,
+    /// <summary>
+    /// The CURRENT effective state of a Final Action recommendation (CurrentValid, PriorSessionValid, AwaitingData, Evaluating,
+    /// HistoricalWarning), independent of the lifecycle <c>Status</c>. Null for closed lifecycle states and non-Final-Action rows.
+    /// </summary>
+    string? EffectiveState = null,
+    bool? IsActionable = null,
+    string? EvidenceHealth = null,
+    string? DataAsOfDate = null,
+    IReadOnlyList<string>? ReasonCodes = null);
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,

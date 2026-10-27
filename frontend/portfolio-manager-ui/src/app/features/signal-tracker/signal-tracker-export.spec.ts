@@ -37,6 +37,37 @@ describe('signal tracker export', () => {
     expect(r[14]).toBe('N/A');
   });
 
+  it('exports lifecycle status and the current effective state as separate, non-actionable-aware columns', () => {
+    const awaiting = {
+      ...row,
+      status: 'Active',
+      effectiveState: 'AwaitingData',
+      isActionable: false,
+      evidenceHealth: 'Stale',
+      lastValidatedAtUtc: '2026-10-20T21:00:00Z',
+      dataAsOfDate: '2026-10-20',
+      reasonCodes: ['AWAITING_STALE_DATA', 'REVALIDATION_MISSED'],
+    } as unknown as SignalAuditRow;
+    const [r] = signalsExportRows([awaiting], (v) => v);
+    const col = (name: (typeof SIGNALS_EXPORT_HEADERS)[number]) => r[SIGNALS_EXPORT_HEADERS.indexOf(name)];
+    expect(col('Lifecycle Status')).toBe('Active');
+    expect(col('Effective State')).toBe('Awaiting Data');
+    expect(col('Actionable')).toBe('No');
+    expect(col('Evidence Health')).toBe('Stale');
+    expect(col('Last Evaluated (UTC)')).toBe('2026-10-20T21:00:00Z');
+    expect(col('Data As Of')).toBe('2026-10-20');
+    expect(col('Reason Codes')).toBe('AWAITING_STALE_DATA; REVALIDATION_MISSED');
+    // the original signal date/price columns are untouched by the effective state
+    expect(col('Signal Date')).toBe('2026-10-23');
+  });
+
+  it('leaves the effective columns blank for closed lifecycles and never claims actionability it does not know', () => {
+    const [r] = signalsExportRows([{ ...row, status: 'Invalidated' } as unknown as SignalAuditRow], (v) => v);
+    expect(r[SIGNALS_EXPORT_HEADERS.indexOf('Lifecycle Status')]).toBe('Invalidated');
+    expect(r[SIGNALS_EXPORT_HEADERS.indexOf('Effective State')]).toBe('');
+    expect(r[SIGNALS_EXPORT_HEADERS.indexOf('Actionable')]).toBe('');
+  });
+
   it('writes a BOM, quotes commas and applies the demo-mode mask', () => {
     const csv = signalsToCsv([{ ...row, symbol: 'A,B' }], () => 0);
     expect(csv.startsWith('\uFEFFTicker,')).toBe(true);

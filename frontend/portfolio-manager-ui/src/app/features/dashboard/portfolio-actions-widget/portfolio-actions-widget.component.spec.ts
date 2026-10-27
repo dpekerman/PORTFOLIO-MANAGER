@@ -32,6 +32,8 @@ describe('PortfolioActionsWidgetComponent (Action Center)', () => {
   const filter = signal<ActionCenterFilter>('All');
   const store = {
     allItems: all,
+    notActionable: signal<OpenDecision[]>([]),
+    summary: signal<{ awaitingData?: number; historicalWarnings?: number } | null>(null),
     filter,
     items: computed(() => filterDecisions(all(), filter())),
     validation: signal<ValidationStatus | null>(null),
@@ -49,6 +51,8 @@ describe('PortfolioActionsWidgetComponent (Action Center)', () => {
     store.setFilter.mockReset();
     store.load.mockReset();
     store.error.set(null);
+    store.notActionable.set([]);
+    store.summary.set(null);
     store.validation.set(validated);
     filter.set('All');
     all.set([
@@ -91,6 +95,42 @@ describe('PortfolioActionsWidgetComponent (Action Center)', () => {
 
   it('keeps a recorded "Not Actioned" response visible instead of relabelling it', () => {
     expect(render().textContent).toContain('Not Actioned');
+  });
+
+  it('lists Awaiting Data and historical warnings separately, labelled, and never as decisions', () => {
+    store.notActionable.set([
+      decision(10, 'BAD.TO', {
+        actionLabel: 'Add to Trade',
+        effectiveState: 'AwaitingData',
+        reasonCodes: ['AWAITING_STALE_DATA'],
+      }),
+      decision(11, 'STRAT.TO', {
+        role: 'Strategic',
+        actionLabel: 'Trim / Review',
+        effectiveState: 'HistoricalWarning',
+        isHistoricalWarning: true,
+      }),
+    ]);
+    store.summary.set({ awaitingData: 1, historicalWarnings: 1 });
+    const el = render();
+    expect(el.querySelectorAll('[data-testid="ac-row"]')).toHaveLength(3); // counted decisions unchanged
+    const section = el.querySelector('[data-testid="ac-not-actionable"]') as HTMLElement;
+    expect(section).not.toBeNull();
+    expect(section.textContent).toContain('1 awaiting data');
+    expect(section.textContent).toContain('1 historical warning');
+    expect(section.textContent).toContain('not counted as decisions');
+    const rows = Array.from(section.querySelectorAll('[data-testid="ac-na-row"]'));
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('Awaiting Data');
+    expect(rows[0].textContent).toContain('Last valid action: Add to Trade');
+    expect(rows[0].textContent).toContain('Market data is older than the last completed session');
+    expect(rows[1].textContent).toContain('Historical warning');
+    expect(rows[1].classList.contains('ac-warning')).toBe(true);
+  });
+
+  it('marks a valid prior-session recommendation with its age instead of presenting it as new', () => {
+    all.set([decision(1, 'OLD.TO', { effectiveState: 'PriorSessionValid', ageTradingDays: 2 })]);
+    expect(render().querySelector('[data-testid="ac-state"]')!.textContent).toContain('Prior session · 2 trading days old');
   });
 
   it('flags stale validation and initial-baseline provenance honestly', () => {

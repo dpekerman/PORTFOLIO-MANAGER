@@ -116,7 +116,13 @@ public sealed record PortfolioActionDto(
     string? LatestEodScanType = null,
     string? LatestEodTrendShift = null,
     bool LatestEodIsNew = false,
-    bool LatestEodIsInvalidated = false);
+    bool LatestEodIsInvalidated = false,
+    /// <summary>CurrentValid | PriorSessionValid | AwaitingData | Evaluating — the effective canonical state; Awaiting Data is never actionable.</summary>
+    string? EvaluationState = null,
+    bool IsActionable = false,
+    string? LastValidAction = null,
+    DateTime? LastEvaluatedAtUtc = null,
+    IReadOnlyList<string>? ReasonCodes = null);
 
 /// <summary>Latest completed EOD scanner session, reduced to one row per canonical ticker.</summary>
 public sealed record DashboardEodSummary(

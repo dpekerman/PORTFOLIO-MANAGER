@@ -1063,15 +1063,22 @@
                         decisionForPortfolio(faSym, faRole, faItem ?? undefined);
                         as dec
                       ) {
-                        <div
-                          class="pg-ma-badge"
-                          [class]="dec.finalActionClass"
+                        <button
+                          type="button"
+                          class="pg-ma-badge pg-ma-btn"
+                          [class]="'pg-ma-badge pg-ma-btn ' + dec.finalActionClass"
                           [matTooltip]="dec.hoverDescription"
+                          [attr.aria-label]="'Final Action details for ' + faSym + ': ' + dec.finalAction"
+                          (click)="openFinalActionDetails(faSym, faItem)"
                         >
                           {{ dec.finalAction }}
-                        </div>
+                        </button>
+                      } @else if (finalActionsUiState() === 'loading') {
+                        <span class="pg-dim" data-testid="fa-loading" matTooltip="Final Actions are still being calculated">…</span>
+                      } @else if (finalActionsUiState() === 'error') {
+                        <span class="pg-fa-state pg-fa-error" data-testid="fa-error" matTooltip="Final Actions could not be loaded (API error). No decision is shown, and nothing here is a Hold or a trade recommendation.">API error</span>
                       } @else {
-                        <span class="pg-dim" [matTooltip]="finalActionsLoading() ? 'Final Actions are still being calculated' : 'No Final Action for this holding'">{{ finalActionsLoading() ? '…' : '—' }}</span>
+                        <span class="pg-fa-state" data-testid="fa-not-evaluated" matTooltip="The evaluation returned no result for this holding. This is not a Hold and not a trade recommendation.">Not evaluated</span>
                       }
                     </td>
                   </ng-container>

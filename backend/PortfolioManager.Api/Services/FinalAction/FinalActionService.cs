@@ -46,7 +46,22 @@ public sealed record FinalActionResultDto(
     DateTime? EvidenceAsOfUtc = null,
     DateOnly? EntryDate = null,
     /// <summary>The technical action the portfolio gate replaced, if any.</summary>
-    string? OriginalAction = null);
+    string? OriginalAction = null,
+    /// <summary>CurrentValid | PriorSessionValid | AwaitingData | Evaluating | Expired | HistoricalWarning.</summary>
+    string? EvaluationState = null,
+    /// <summary>Fresh | Stale | Missing | Invalid | Failed — health of the market evidence, independent of any lifecycle.</summary>
+    string? EvidenceHealth = null,
+    /// <summary>Last valid published action, kept separately when this result is Awaiting Data (never refreshed by a UI load).</summary>
+    string? LastValidAction = null,
+    DateTime? LastSuccessfulEvaluationUtc = null,
+    DateOnly? DataAsOfDate = null,
+    DateOnly? ExpectedSession = null,
+    DateTime? QuoteTimestampUtc = null,
+    bool IsHistoricalWarning = false,
+    /// <summary>Verified = a source quote timestamp was checked against the expected session; Unavailable = none exists, so the scan's bar date is the only session-level evidence (freshness of the quote itself is NOT independently verified).</summary>
+    string? QuoteVerification = null,
+    /// <summary>How the exchange (which decides the session calendar) was resolved: Metadata | Suffix | Assumed (NYSE default when nothing identifies the market).</summary>
+    string? ExchangeBasis = null);
 
 /// <summary>Technical readings the decision was based on, kept with the audited signal for later review.</summary>
 public sealed record FinalActionTechnicalsDto(
@@ -87,6 +102,9 @@ public interface IFinalActionService
     /// reads, so it no longer depends on an open browser to sync them. Returns the number of holdings written.
     /// </summary>
     Task<int> PublishPortfolioActionsAsync(string userId, FinalActionSnapshotDto snapshot, CancellationToken ct = default);
+
+    /// <summary>The cached evaluation, if any. Never scans: read-only consumers (Dashboard, Action Center rows) use it so a page load cannot trigger market-data calls or renew a recommendation.</summary>
+    FinalActionSnapshotDto? TryGetCached(string userId) => null;
 }
 
 public sealed class FinalActionService(
@@ -103,6 +121,9 @@ public sealed class FinalActionService(
     private const int BatchSize = 100;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+
+    public FinalActionSnapshotDto? TryGetCached(string userId) =>
+        cache.TryGetValue($"final-actions:{userId}", out FinalActionSnapshotDto? hit) ? hit : null;
 
     public async Task<FinalActionSnapshotDto> ComputeAsync(string userId, bool fresh = false, CancellationToken ct = default)
     {
@@ -141,16 +162,68 @@ public sealed class FinalActionService(
             if (!scans.TryGetValue(s, out var sc) || sc.CurrentPrice <= 0m) unknown.Add(s);
 
         var valueByTicker = await LoadValueScreenerAsync(ct);
+        var nowUtc = DateTime.UtcNow;
+
+        // Watchlist quotes come from the already-stored Watchlist snapshot (same source holdings use): no new requests.
+        var watchQuoteUtc = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var watchSnap = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        foreach (var w in Deserialize<List<WatchlistSummaryDto>>(watchSnap?.SnapshotJson) ?? [])
+            if (w.Quote is { Timestamp: > 0 } wq) watchQuoteUtc[w.Item.Symbol] = DateTimeOffset.FromUnixTimeSeconds(wq.Timestamp).UtcDateTime;
+
+        // Evidence must be usable before any decision is kept: otherwise the symbol is "Awaiting Data" — a visible,
+        // non-actionable status — and is also listed as unknown so lifecycle never confirms, invalidates or expires on it.
+        EvidenceAssessment Assess(RsiScanResult? scan, string symbol, string category, DateTime? quoteUtc)
+        {
+            var tradingDate = scan is null || scan.TradingDate == default ? (DateOnly?)null : scan.TradingDate;
+            return FinalActionStatusResolver.AssessEvidence(
+                new EvidenceInput(tradingDate, quoteUtc, scan?.CurrentPrice ?? 0m, EvaluationFailed: scan is null,
+                    MissingRequired: scan is null ? null : FinalActionStatusResolver.MissingRequired(scan, category)),
+                TradingCalendar.ExchangeFor(symbol, scan?.AnalysisMarket), nowUtc);
+        }
+
+        static List<string> Codes(EvidenceAssessment a) =>
+            a.Codes.Where(c => c != FinalActionStatusResolver.QuoteTimestampUnavailable).ToList();
+
+        static string Basis(string symbol, RsiScanResult? scan) =>
+            TradingCalendar.Resolve(symbol, scan?.AnalysisMarket).Basis.ToString();
 
         var watchlist = new List<FinalActionResultDto>();
         foreach (var item in watchlistItems)
         {
-            if (!scans.TryGetValue(item.Symbol, out var scan)) continue;
-            valueByTicker.TryGetValue(item.Symbol, out var vs);
-            var ctx = vs is null ? null : new WatchlistValueContext((double)vs.Score, vs.ActionTrigger == ActionTrigger.ValueTrapWarning, null);
             var role = item.Role ?? "Strategic";
-            var decision = FinalActionEngine.TranslateForWatchlist(ToInput(scan), role, ctx);
-            watchlist.Add(ToDto(decision, item.Symbol, SignalSources.Watchlist, null, role, scan));
+            scans.TryGetValue(item.Symbol, out var scan);
+            FinalActionDecision? decision = null;
+            if (scan is not null)
+            {
+                valueByTicker.TryGetValue(item.Symbol, out var vs);
+                var ctx = vs is null ? null : new WatchlistValueContext((double)vs.Score, vs.ActionTrigger == ActionTrigger.ValueTrapWarning, null);
+                decision = FinalActionEngine.TranslateForWatchlist(ToInput(scan), role, ctx);
+            }
+            var category = decision is null ? "Advisory" : FinalActionCatalog.Describe(decision.FinalAction).Category;
+            DateTime? wlQuote = watchQuoteUtc.TryGetValue(item.Symbol, out var wq0) ? wq0 : null;
+            var assessment = Assess(scan, item.Symbol, category, wlQuote);
+            if (decision is null || assessment.Health != EvidenceHealth.Fresh)
+            {
+                unknown.Add(item.Symbol);
+                watchlist.Add(AwaitingDto(item.Symbol, SignalSources.Watchlist, null, role, scan, assessment, null, null) with
+                {
+                    QuoteTimestampUtc = wlQuote, QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
+                    ExchangeBasis = Basis(item.Symbol, scan),
+                });
+                continue;
+            }
+            watchlist.Add(ToDto(decision, item.Symbol, SignalSources.Watchlist, null, role, scan!) with
+            {
+                EvaluationState = nameof(EffectiveState.CurrentValid),
+                EvidenceHealth = assessment.Health.ToString(),
+                LastSuccessfulEvaluationUtc = nowUtc,
+                DataAsOfDate = assessment.DataAsOf,
+                ExpectedSession = assessment.ExpectedSession,
+                ReasonCodes = Codes(assessment),
+                QuoteTimestampUtc = wlQuote,
+                QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
+                ExchangeBasis = Basis(item.Symbol, scan),
+            });
         }
 
         var grandTotal = await GrandTotalAsync(userId, summaries, ct);
@@ -160,35 +233,107 @@ public sealed class FinalActionService(
         var portfolio = new List<FinalActionResultDto>();
         foreach (var holding in openHoldings)
         {
-            if (!scans.TryGetValue(holding.Item.Symbol, out var scan)) continue;
-            var context = BuildContext(holding, scan, summaries, grandTotal);
-            var decision = FinalActionEngine.TranslateForPortfolio(ToInput(scan), holding.Item.HoldingRole, context);
-            var evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context);
-            var gate = PortfolioEvidenceGate.Apply(decision, holding.Item.HoldingRole, evidence);
-            portfolio.Add(ToDto(gate.Decision, holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan)
+            scans.TryGetValue(holding.Item.Symbol, out var scan);
+            DateTime? quoteUtc = holding.Quote is { Timestamp: > 0 } q ? DateTimeOffset.FromUnixTimeSeconds(q.Timestamp).UtcDateTime : null;
+            FinalActionDecision? decision = null;
+            PortfolioEvidence? evidence = null;
+            GateOutcome? gate = null;
+            if (scan is not null)
+            {
+                var context = BuildContext(holding, scan, summaries, grandTotal);
+                decision = FinalActionEngine.TranslateForPortfolio(ToInput(scan), holding.Item.HoldingRole, context);
+                evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context);
+                gate = PortfolioEvidenceGate.Apply(decision, holding.Item.HoldingRole, evidence);
+            }
+            var category = gate is null ? "Advisory" : FinalActionCatalog.Describe(gate.Decision.FinalAction).Category;
+            var assessment = Assess(scan, holding.Item.Symbol, category, quoteUtc);
+            if (gate is null || evidence is null || assessment.Health != EvidenceHealth.Fresh)
+            {
+                unknown.Add(holding.Item.Symbol);
+                portfolio.Add(AwaitingDto(holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan, assessment,
+                    holding.Item.FinalAction, holding.Item.FinalActionUpdatedAt) with
+                {
+                    QuoteTimestampUtc = quoteUtc, QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
+                    ExchangeBasis = Basis(holding.Item.Symbol, scan),
+                });
+                continue;
+            }
+            var (explainCodes, rationale) = FinalActionExplainer.ExplainPortfolio(gate.Decision, gate, evidence, holding.Item.HoldingRole);
+            var finalDecision = gate.Decision.FinalActionReason is null && rationale is not null
+                ? gate.Decision with { FinalActionReason = rationale } : gate.Decision;
+            portfolio.Add(ToDto(finalDecision, holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan!)
                 with
                 {
-                    ReasonCodes = gate.ReasonCodes,
+                    ReasonCodes = explainCodes.Concat(Codes(assessment)).ToList(),
                     EvidenceAsOfUtc = evidence.EvidenceAsOfUtc,
                     EntryDate = evidence.EntryDate,
                     OriginalAction = gate.OriginalAction,
+                    EvaluationState = nameof(EffectiveState.CurrentValid),
+                    EvidenceHealth = assessment.Health.ToString(),
+                    LastSuccessfulEvaluationUtc = nowUtc,
+                    DataAsOfDate = assessment.DataAsOf,
+                    ExpectedSession = assessment.ExpectedSession,
+                    QuoteTimestampUtc = quoteUtc,
+                    QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
+                    ExchangeBasis = Basis(holding.Item.Symbol, scan),
                 });
         }
 
         var meta = new FinalActionEvaluationMeta(
             unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), portfolioSnap?.UpdatedAt, portfolioSnap is not null);
-        var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, DateTime.UtcNow, meta);
+        var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, nowUtc, meta);
         cache.Set(key, snapshot, CacheTtl);
         return snapshot;
+    }
+
+    /// <summary>
+    /// A symbol whose required evidence is missing, stale, invalid or failed. It is never actionable, never a Hold, and
+    /// carries the last published action separately as historical context.
+    /// </summary>
+    private static FinalActionResultDto AwaitingDto(
+        string symbol, string source, int? itemId, string? role, RsiScanResult? scan, EvidenceAssessment a,
+        string? lastValidAction, DateTime? lastEvaluatedUtc)
+    {
+        const string label = "Awaiting Data";
+        var def = FinalActionCatalog.Describe(label);
+        var reason = DescribeAwaiting(a, lastValidAction, lastEvaluatedUtc);
+        return new FinalActionResultDto(
+            symbol, source, itemId, role, label, def.Id, def.Category, def.Direction, "hold", "INFORMATIONAL",
+            "ma-standby", "", "", "", "", reason, reason, false,
+            0m, scan is null || string.IsNullOrEmpty(scan.AnalysisTicker) ? symbol : scan.AnalysisTicker, null,
+            IsActionable: false, ReasonCodes: a.Codes, EvidenceAsOfUtc: scan?.ScannedAt,
+            EvaluationState: nameof(EffectiveState.AwaitingData), EvidenceHealth: a.Health.ToString(),
+            LastValidAction: lastValidAction, LastSuccessfulEvaluationUtc: lastEvaluatedUtc,
+            DataAsOfDate: a.DataAsOf, ExpectedSession: a.ExpectedSession);
+    }
+
+    private static string DescribeAwaiting(EvidenceAssessment a, string? lastValidAction, DateTime? lastEvaluatedUtc)
+    {
+        var why = a.Health switch
+        {
+            EvidenceHealth.Failed => "the market-data refresh for this symbol failed",
+            EvidenceHealth.Invalid => "the price is missing or invalid",
+            EvidenceHealth.Missing => "required evidence is unavailable (" + string.Join(", ", a.Codes) + ")",
+            EvidenceHealth.Stale => a.DataAsOf is { } d
+                ? $"the latest data is from {d:yyyy-MM-dd}, older than the last completed session ({a.ExpectedSession:yyyy-MM-dd})"
+                : "the evidence is older than the last completed session",
+            _ => "evidence is unavailable",
+        };
+        var prior = string.IsNullOrEmpty(lastValidAction) ? ""
+            : $" Last valid action: {lastValidAction}" + (lastEvaluatedUtc is { } t ? $" (evaluated {t:yyyy-MM-dd HH:mm} UTC)." : ".");
+        return $"Awaiting Data: {why}. No decision is made until a successful evaluation.{prior}";
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     public async Task<int> PublishPortfolioActionsAsync(string userId, FinalActionSnapshotDto snapshot, CancellationToken ct = default)
     {
+        // Only symbols evaluated on fresh evidence are published, each stamped with its own evaluation time and session.
+        // Awaiting Data symbols keep their previous published action and timestamp untouched.
         var items = snapshot.Portfolio
-            .Where(p => p.ItemId is not null)
-            .Select(p => new FinalActionSyncItem(p.ItemId!.Value, p.FinalAction, p.Severity, p.Priority))
+            .Where(p => p.ItemId is not null && p.EvaluationState != nameof(EffectiveState.AwaitingData))
+            .Select(p => new FinalActionSyncItem(p.ItemId!.Value, p.FinalAction, p.Severity, p.Priority,
+                p.LastSuccessfulEvaluationUtc ?? snapshot.ComputedAtUtc, p.ExpectedSession?.ToString("yyyy-MM-dd")))
             .ToList();
         if (items.Count == 0) return 0;
         await portfolioSnapshot.PatchFinalActionsAsync(userId, items, ct);
@@ -215,7 +360,7 @@ public sealed class FinalActionService(
         return dto with { IsActionable = DecisionEligibility.IsActionable(dto), EvidenceAsOfUtc = scan.ScannedAt };
     }
 
-    private static PortfolioEvidence BuildEvidence(
+    internal static PortfolioEvidence BuildEvidence(
         PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> openHoldings,
         IReadOnlyList<PortfolioSummaryDto> all, double grandTotal, decimal stockTotal,
         IReadOnlyList<SinglePositionLimit> limits, IReadOnlyList<AllocationSectorTarget> sectorTargets, PortfolioItemContext context)
@@ -229,24 +374,40 @@ public sealed class FinalActionService(
             : DateTime.SpecifyKind(scan.ScannedAt, DateTimeKind.Utc);
         var evidenceDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(evidenceUtc, EasternZone()));
 
+        // Concentration is the symbol's TOTAL exposure (every lot, every account). The limit is the target lot's own role limit.
         double? positionSize = grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
-        var limit = limits.FirstOrDefault(l => string.Equals(l.Role, item.HoldingRole ?? "Strategic", StringComparison.OrdinalIgnoreCase));
+        string RoleOf(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
+        var targetRole = RoleOf(holding);
+        SinglePositionLimit? LimitFor(string role) => limits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
+        var limit = LimitFor(targetRole);
+        var lotRoles = lots.Select(RoleOf).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var ambiguous = limit is null && lotRoles.Count > 1 && lotRoles.Any(r => LimitFor(r) is not null);
+        var ambiguityDetail = ambiguous
+            ? string.Join(", ", lotRoles.Select(r => LimitFor(r) is { } l ? $"{r} limit {l.TargetPct:0.##}%" : $"{r} no limit configured"))
+            : null;
 
-        var sector = item.Sector ?? scan.Sector ?? "";
+        // The symbol's sector is resolved once (first lot that has one, else the scan), so a lot with a blank sector
+        // still counts toward the sector of its own symbol.
+        var sector = lots.Select(l => l.Item.Sector).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? scan.Sector ?? "";
         var target = string.IsNullOrEmpty(sector) ? null
             : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
         var sectorOver = false;
+        double? sectorPct = null;
         if (target is not null && stockTotal > 0)
         {
             var actual = all.Where(s => !IsClose(s.Item.TransactionType)
-                    && string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)).Sum(MarketValue) / stockTotal * 100m;
+                    && (string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)
+                        || (string.IsNullOrWhiteSpace(s.Item.Sector)
+                            && string.Equals(s.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)))).Sum(MarketValue) / stockTotal * 100m;
+            sectorPct = Dbl(actual);
             sectorOver = actual - target.TargetPct > 2m;
         }
 
         return new PortfolioEvidence(
             context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
             limit is null ? null : Dbl(limit.TargetPct), sectorOver,
-            scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource);
+            scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource,
+            ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector));
     }
 
     private static decimal MarketValue(PortfolioSummaryDto s) => s.Item.IsManual
@@ -305,7 +466,7 @@ public sealed class FinalActionService(
 
     // ── Portfolio context (port of PortfolioFinalActionSyncService) ──────────
 
-    private static PortfolioItemContext BuildContext(
+    internal static PortfolioItemContext BuildContext(
         PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> all, double grandTotal)
     {
         var item = holding.Item;

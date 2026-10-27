@@ -260,7 +260,7 @@ public sealed class DashboardService(
                     : DashboardSignalActionInterpreter.Resolve(r, false, false));
             var severity = canonicalAction?.ActionSeverity
                 ?? (hasCanonicalScope ? "review" : ActionSeverityMapper.Get(action));
-            var actionRequired = canonicalAction?.ActionPriority == "REQUIRED";
+            var actionRequired = canonicalAction is { IsActionable: true, ActionPriority: "REQUIRED" };
             var isNew = stagedBySymbol.TryGetValue(r.Symbol, out var staged)
                 && staged.StagedDate == DateOnly.FromDateTime(todayEt);
             if (isNew) newToday++;

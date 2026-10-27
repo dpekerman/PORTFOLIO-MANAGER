@@ -106,6 +106,40 @@ describe('SignalsAuditStore', () => {
     expect(store.sortBy()).toBe('symbol');
   });
 
+  it('loadLatestDay filters the landing view to the newest signal day', async () => {
+    api.query.mockImplementation((p: { pageSize: number }) =>
+      of({ items: [{ ...row(9), signalDate: '2026-10-26' }], total: 1, page: 1, pageSize: p.pageSize }),
+    );
+    const store = TestBed.inject(SignalsAuditStore);
+    await store.loadLatestDay();
+    expect(store.from()).toBe('2026-10-26');
+    expect(store.to()).toBe('2026-10-26');
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ from: '2026-10-26', to: '2026-10-26', pageSize: 25 }));
+  });
+
+  it('loadLatestDay moves to the new day once newer signals exist, and keeps user-chosen dates', async () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    api.query.mockReturnValue(of({ items: [{ ...row(1), signalDate: '2026-10-27' }], total: 1, page: 1, pageSize: 1 }));
+    await store.loadLatestDay();
+    expect(store.from()).toBe('2026-10-27');
+
+    store.setFilters({ from: '2026-10-01', to: '2026-10-05' });
+    await store.loadLatestDay();
+    expect(store.from()).toBe('2026-10-01');
+    expect(store.to()).toBe('2026-10-05');
+  });
+
+  it('loadLatestDay falls back to an unfiltered load when there are no signals or the lookup fails', async () => {
+    api.query.mockReturnValue(of({ items: [], total: 0, page: 1, pageSize: 1 }));
+    const store = TestBed.inject(SignalsAuditStore);
+    await store.loadLatestDay();
+    expect(store.from()).toBe('');
+
+    api.query.mockReturnValueOnce(throwError(() => new Error('boom')));
+    await store.loadLatestDay();
+    expect(store.from()).toBe('');
+  });
+
   it('surfaces a load failure as an error', () => {
     api.query.mockReturnValue(throwError(() => new Error('boom')));
     const store = TestBed.inject(SignalsAuditStore);

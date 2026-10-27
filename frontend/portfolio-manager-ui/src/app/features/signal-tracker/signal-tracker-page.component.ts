@@ -39,6 +39,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
 import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { SignalActionDialogComponent } from './signal-action-dialog.component';
+import { describeReasonCode, stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
 
 const TICKER_DEBOUNCE_MS = 350;
@@ -172,7 +173,7 @@ export class SignalTrackerPageComponent implements OnInit {
     // Drill-down from the Action Center: show that ticker's recommendations, unaudited ones included.
     const ticker = this.route.snapshot.queryParamMap.get('ticker');
     if (ticker) this.store.setFilters({ ticker, includeUnaudited: true });
-    else this.store.load();
+    else void this.store.loadLatestDay();
   }
 
   protected onTicker(value: string): void {
@@ -219,6 +220,17 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected price(row: SignalAuditRow): number {
     return this.demoMode.maskValue(row.signalPrice);
+  }
+
+  /** Current effective state tag (distinct from the lifecycle status). Empty for rows that have none. */
+  protected effectiveTag(row: SignalAuditRow): string {
+    return row.effectiveState && row.effectiveState !== 'CurrentValid' ? stateLabel(row.effectiveState) : '';
+  }
+
+  protected effectiveTooltip(row: SignalAuditRow): string {
+    const why = (row.reasonCodes ?? []).map(describeReasonCode).join('; ');
+    const asOf = row.dataAsOfDate ? ` Data as of ${row.dataAsOfDate}.` : '';
+    return `Lifecycle: ${row.status ?? 'Active'}. Current state: ${stateLabel(row.effectiveState)}${row.isActionable ? ' (actionable)' : ' (not actionable)'}. ${why}${asOf}`.trim();
   }
 
   protected horizonTip(h: SignalHorizon): string {

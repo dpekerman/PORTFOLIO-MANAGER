@@ -61,6 +61,8 @@ export const OpenDecisionsStore = signalStore(
     summary: computed(() => response()?.summary ?? null),
     validation: computed(() => response()?.validation ?? null),
     allItems: computed(() => response()?.items ?? []),
+    /** Awaiting Data and unresolved historical warnings: always visible, never counted as decisions. */
+    notActionable: computed(() => response()?.notActionable ?? []),
     items: computed(() => filterDecisions(response()?.items ?? [], filter())),
   })),
   withMethods((store, api = inject(DashboardApiService)) => ({
