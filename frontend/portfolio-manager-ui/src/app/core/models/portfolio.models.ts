@@ -1482,6 +1482,13 @@ export interface FinalActionResult {
   momentumShiftClass: string;
   gapScore: number;
   gapPct: number;
+  /** True for an Entry/Add, Trim/Exit or Risk Review decision; the one rule every screen and export uses. */
+  isActionable?: boolean;
+  reasonCodes?: string[] | null;
+  evidenceAsOfUtc?: string | null;
+  entryDate?: string | null;
+  /** The technical action the portfolio gate replaced (e.g. a stop-review reminder that is not a sell). */
+  originalAction?: string | null;
   /** Present on watchlist decisions: the structure / momentum / MA facts behind the entry status. */
   diagnostics?: {
     priceStructureState: string;

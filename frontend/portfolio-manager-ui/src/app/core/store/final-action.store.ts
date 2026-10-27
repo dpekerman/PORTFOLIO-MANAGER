@@ -105,6 +105,14 @@ export const FinalActionStore = signalStore(
           store.portfolioBySymbol().get(symbol.toUpperCase());
         return r ? toPageDecision(r) : null;
       },
+      /** The full canonical result for a holding (actionability, reason codes), for exports and tooltips. */
+      resultForPortfolio(symbol: string, itemId?: number | null): FinalActionResult | null {
+        return (
+          (itemId != null ? store.portfolioByItemId().get(itemId) : undefined) ??
+          store.portfolioBySymbol().get(symbol.toUpperCase()) ??
+          null
+        );
+      },
       /** The result for a symbol on either list, preferring the holding. */
       resultForSymbol(symbol: string): FinalActionResult | null {
         const key = symbol.toUpperCase();

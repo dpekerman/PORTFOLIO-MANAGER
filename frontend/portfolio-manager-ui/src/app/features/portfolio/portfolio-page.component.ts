@@ -1210,6 +1210,8 @@ export class PortfolioPageComponent {
         'Momentum Shift',
         'Price Structure',
         'Action',
+        'Actionable',
+        'Decision Reason Codes',
       ],
     ];
 
@@ -1248,6 +1250,8 @@ export class PortfolioPageComponent {
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
         this.priceStructureLabel(s.item.symbol, s),
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.isActionable ? 'Yes' : 'No',
+        (this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.reasonCodes ?? []).join('; '),
       ]);
     }
 
@@ -1274,6 +1278,8 @@ export class PortfolioPageComponent {
         pct,
         '0.00',
         '0.00',
+        '',
+        '',
         '',
         '',
         '',
@@ -1309,6 +1315,8 @@ export class PortfolioPageComponent {
         '',
         '',
         'Options',
+        '',
+        '',
         '',
         '',
         '',

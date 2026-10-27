@@ -38,7 +38,15 @@ public sealed record FinalActionResultDto(
     int GapScore = 0,
     double GapPct = 0,
     FinalActionDiagnosticsDto? Diagnostics = null,
-    FinalActionTechnicalsDto? Technicals = null);
+    FinalActionTechnicalsDto? Technicals = null,
+    /// <summary>True when the result is an Entry/Add, Trim/Exit or Risk Review decision (one rule for every consumer).</summary>
+    bool IsActionable = false,
+    IReadOnlyList<string>? ReasonCodes = null,
+    /// <summary>When the technical evidence was computed.</summary>
+    DateTime? EvidenceAsOfUtc = null,
+    DateOnly? EntryDate = null,
+    /// <summary>The technical action the portfolio gate replaced, if any.</summary>
+    string? OriginalAction = null);
 
 /// <summary>Technical readings the decision was based on, kept with the audited signal for later review.</summary>
 public sealed record FinalActionTechnicalsDto(
@@ -146,13 +154,25 @@ public sealed class FinalActionService(
         }
 
         var grandTotal = await GrandTotalAsync(userId, summaries, ct);
+        var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
+        var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
+        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
         var portfolio = new List<FinalActionResultDto>();
         foreach (var holding in openHoldings)
         {
             if (!scans.TryGetValue(holding.Item.Symbol, out var scan)) continue;
             var context = BuildContext(holding, scan, summaries, grandTotal);
             var decision = FinalActionEngine.TranslateForPortfolio(ToInput(scan), holding.Item.HoldingRole, context);
-            portfolio.Add(ToDto(decision, holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan));
+            var evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context);
+            var gate = PortfolioEvidenceGate.Apply(decision, holding.Item.HoldingRole, evidence);
+            portfolio.Add(ToDto(gate.Decision, holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan)
+                with
+                {
+                    ReasonCodes = gate.ReasonCodes,
+                    EvidenceAsOfUtc = evidence.EvidenceAsOfUtc,
+                    EntryDate = evidence.EntryDate,
+                    OriginalAction = gate.OriginalAction,
+                });
         }
 
         var meta = new FinalActionEvaluationMeta(
@@ -180,7 +200,7 @@ public sealed class FinalActionService(
     {
         var def = FinalActionCatalog.Describe(d.FinalAction);
         var (severity, priority) = FinalActionEngine.ActionCenterClassification(d.FinalActionClass);
-        return new FinalActionResultDto(
+        var dto = new FinalActionResultDto(
             symbol, source, itemId, role, d.FinalAction, def.Id, def.Category, def.Direction, severity, priority,
             d.FinalActionClass, d.TrendSetup, d.MomentumShift, d.BaseAction, d.GapStatus, d.HoverDescription,
             d.FinalActionReason, d.WatchlistDiagnostics?.HasHardStructuralNegative ?? false,
@@ -192,7 +212,49 @@ public sealed class FinalActionService(
                 : null,
             new FinalActionTechnicalsDto(scan.Rsi, scan.TrendShift, scan.MaStructure, scan.MaCrossState, scan.PriceStructure,
                 scan.FibZone, scan.FibStatus, scan.Fib61_8, scan.DynamicStopLoss));
+        return dto with { IsActionable = DecisionEligibility.IsActionable(dto), EvidenceAsOfUtc = scan.ScannedAt };
     }
+
+    private static PortfolioEvidence BuildEvidence(
+        PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> openHoldings,
+        IReadOnlyList<PortfolioSummaryDto> all, double grandTotal, decimal stockTotal,
+        IReadOnlyList<SinglePositionLimit> limits, IReadOnlyList<AllocationSectorTarget> sectorTargets, PortfolioItemContext context)
+    {
+        var item = holding.Item;
+        var lots = openHoldings.Where(h => string.Equals(h.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
+        var openDates = lots.Where(l => l.Item.OpenDate is not null).Select(l => DateOnly.FromDateTime(l.Item.OpenDate!.Value)).ToList();
+        DateOnly? entry = openDates.Count > 0 ? openDates.Max() : null;
+
+        var evidenceUtc = scan.ScannedAt.Kind == DateTimeKind.Local ? scan.ScannedAt.ToUniversalTime()
+            : DateTime.SpecifyKind(scan.ScannedAt, DateTimeKind.Utc);
+        var evidenceDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(evidenceUtc, EasternZone()));
+
+        double? positionSize = grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
+        var limit = limits.FirstOrDefault(l => string.Equals(l.Role, item.HoldingRole ?? "Strategic", StringComparison.OrdinalIgnoreCase));
+
+        var sector = item.Sector ?? scan.Sector ?? "";
+        var target = string.IsNullOrEmpty(sector) ? null
+            : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
+        var sectorOver = false;
+        if (target is not null && stockTotal > 0)
+        {
+            var actual = all.Where(s => !IsClose(s.Item.TransactionType)
+                    && string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)).Sum(MarketValue) / stockTotal * 100m;
+            sectorOver = actual - target.TargetPct > 2m;
+        }
+
+        return new PortfolioEvidence(
+            context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
+            limit is null ? null : Dbl(limit.TargetPct), sectorOver,
+            scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource);
+    }
+
+    private static decimal MarketValue(PortfolioSummaryDto s) => s.Item.IsManual
+        ? s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares
+        : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares;
+
+    private static TimeZoneInfo EasternZone() =>
+        TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
 
     /// <summary>Doubles are parsed from the decimal's text so values equal what the JSON API hands to JavaScript.</summary>
     private static double Dbl(decimal v) => double.Parse(v.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);

@@ -118,6 +118,58 @@ public sealed class FinalActionServiceTests
         Assert.NotNull(stored[0].Item.FinalActionUpdatedAt);
     }
 
+    private static RsiScanResult CoolingScan(string symbol)
+    {
+        var s = BullishScan(symbol);
+        s.Rsi = 50m; s.RsiSignalAvailable = false; s.Ema10Price = 98m; s.Ema20Price = 99m; s.Ema9Price = 100m; s.Sma50Price = 90m;
+        return s;
+    }
+
+    [Fact]
+    public async Task Compute_TechnicalOnlyExit_IsReconciledWithEntryDateAndPnl_ForEveryHolding()
+    {
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        var etToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York")).Date;
+
+        PortfolioSummaryDto Swing(int id, string sym, decimal cost, DateTime open, string? source) => new(
+            new PortfolioItemDto(id, sym, sym, 10m, cost, "", "", false, false, null, open, "OPEN", "Margin", open, null, null,
+                "Swing", null, source, null, null, null, null),
+            new StockQuote { Symbol = sym, CurrentPrice = 100m }, PriceStructureResult.None);
+
+        var rows = new[]
+        {
+            Swing(1, "NEWBUY", 98m, etToday, "Earnings Catalyst"),         // entry today, in profit
+            Swing(2, "OLDWIN", 98m, etToday.AddDays(-20), null),           // old position, in profit, no loss
+            Swing(3, "OLDLOSS", 120m, etToday.AddDays(-20), null),         // real loss
+            Swing(4, "NEWLOSS", 120m, etToday, "Earnings Catalyst"),       // bought today, already under cost
+        };
+        db.PortfolioSnapshots.Add(new PortfolioSnapshot { UserId = "u", SnapshotJson = System.Text.Json.JsonSerializer.Serialize(rows, new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)) });
+        await db.SaveChangesAsync();
+
+        var scanner = new FakeScanner(CoolingScan("NEWBUY"), CoolingScan("OLDWIN"), CoolingScan("OLDLOSS"), CoolingScan("NEWLOSS"));
+        var service = new FinalActionService(db, scanner, new PortfolioSnapshotService(db, NullLogger<PortfolioSnapshotService>.Instance),
+            new MemoryCache(new MemoryCacheOptions()), NullLogger<FinalActionService>.Instance);
+
+        var by = (await service.ComputeAsync("u")).Portfolio.ToDictionary(p => p.Symbol);
+        Assert.Equal("Hold / Catalyst Monitoring", by["NEWBUY"].FinalAction);
+        Assert.False(by["NEWBUY"].IsActionable);
+        Assert.Equal("Exit / Cut Loss", by["NEWBUY"].OriginalAction);
+        Assert.Contains("EVIDENCE_NOT_POST_ENTRY", by["NEWBUY"].ReasonCodes!);
+        Assert.NotNull(by["NEWBUY"].EvidenceAsOfUtc);
+
+        Assert.Equal("Hold / Monitor", by["OLDWIN"].FinalAction);
+        Assert.False(by["OLDWIN"].IsActionable);
+
+        foreach (var sym in new[] { "OLDLOSS", "NEWLOSS" })
+        {
+            Assert.Equal("Exit / Cut Loss", by[sym].FinalAction);
+            Assert.True(by[sym].IsActionable);
+            Assert.Contains("POST_ENTRY_LOSS", by[sym].ReasonCodes!);
+        }
+    }
+
     [Fact]
     public void PriorityEligibility_MirrorsTheActionCenterRules()
     {

@@ -383,6 +383,7 @@ public sealed class SignalsAuditService(
                     // in which this one security stayed unevaluated past its window may expire it (risk reviews never do).
                     if (passOk && !(ev.Source == SignalSources.Portfolio && portfolioStale) && ev.Status == SignalStatuses.Active
                         && DecisionEligibility.Classify(FaId(ev), ev.Source, 1m) != DecisionBucket.RiskReview
+                        && !IsLongHorizonHoldingExit(ev)
                         && RecommendationLifecycle.WeekdaysBetween(
                                DateOnly.FromDateTime(ev.LastValidatedAtUtc ?? ev.CapturedAtUtc), today)
                            > RecommendationLifecycle.ExpiryWindowDays(ev.SignalCategory))
@@ -527,6 +528,14 @@ public sealed class SignalsAuditService(
     private static string SymSrc(string symbol, string source) => $"{symbol.ToUpperInvariant()}|{source}";
     private static string FaId(SignalAuditEvent e) => e.SignalType[SignalTypeCatalog.FinalActionPrefix.Length..];
 
+    /// <summary>
+    /// A Strategic/Core (long-horizon) holding's exit recommendation is never expired by a calendar window alone: the
+    /// short Trim/Exit window is meant for short-horizon trades. It still closes when a complete evaluation no longer produces it.
+    /// </summary>
+    private static bool IsLongHorizonHoldingExit(SignalAuditEvent e) =>
+        e.Source == SignalSources.Portfolio && e.SignalCategory == SignalCategories.TrimExit
+        && !PortfolioEvidenceGate.IsShortHorizon(e.Role);
+
     private static void CloseEpisode(SignalAuditEvent ev, string status, string reason, DateOnly today, DateTime nowUtc, SignalAuditEvent? by = null)
     {
         // Acted / Dismissed keep their status; the episode simply ends.
@@ -585,6 +594,10 @@ public sealed class SignalsAuditService(
             priority = r.Priority,
             hasHardStructuralNegative = r.HasHardStructuralNegative,
             hover = r.HoverDescription,
+            reasonCodes = r.ReasonCodes,
+            evidenceAsOfUtc = r.EvidenceAsOfUtc,
+            entryDate = r.EntryDate,
+            isActionable = r.IsActionable,
             rsi = r.Technicals?.Rsi,
             technicalFacts = r.Technicals is null ? null : new
             {

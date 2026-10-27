@@ -986,6 +986,41 @@ public sealed class SignalsAuditServiceTests
         Assert.Equal(SignalStatuses.Expired, h.Db.SignalAuditEvents.Single().Status);
     }
 
+    [Fact]
+    public async Task Expiry_DoesNotApplyToStrategicTrimExit_ButStillAppliesToShortHorizonRoles()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        var ev = Assert.Single(h.Db.SignalAuditEvents);
+        ev.CapturedAtUtc = DateTime.UtcNow.AddDays(-20);
+        ev.LastValidatedAtUtc = DateTime.UtcNow.AddDays(-20);
+        await h.Db.SaveChangesAsync();
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.Unknown.Add("TRM");
+
+        await h.EodAsync();
+        Assert.Equal(SignalStatuses.Active, h.Db.SignalAuditEvents.Single().Status);   // Strategic: no calendar expiry
+
+        h.Db.SignalAuditEvents.Single().Role = "Swing";
+        await h.Db.SaveChangesAsync();
+        await h.EodAsync();
+        Assert.Equal(SignalStatuses.Expired, h.Db.SignalAuditEvents.Single().Status);
+    }
+
+    [Fact]
+    public async Task RepeatedEvaluation_OfTheSameRecommendation_DoesNotCreateDuplicates()
+    {
+        var h = await WithFinalActionAsync("TRM", "Trim / Review");
+        h.FinalActions.ExtraWatchlist.Clear();
+        h.FinalActions.ExtraWatchlist.Add(Result("TRM", "Trim / Review", SignalSources.Portfolio, 60m));
+        await h.EodAsync();
+        await h.EodAsync();
+        await h.EodAsync();
+        Assert.Single(h.Db.SignalAuditEvents);
+    }
+
     [Theory]
     [InlineData("STARTER ENTRY", SignalSources.Watchlist, DecisionBucket.EntryAdd)]
     [InlineData("Add / Staged Entry", SignalSources.Portfolio, DecisionBucket.EntryAdd)]
