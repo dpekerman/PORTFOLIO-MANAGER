@@ -48,6 +48,7 @@ import {
 } from '../../core/store/account-types.store';
 import { GapStatus } from '../../core/services/decision-engine.service';
 import { FinalActionStore } from '../../core/store/final-action.store';
+import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStore } from '../../core/store/option.store';
@@ -763,12 +764,29 @@ export class PortfolioPageComponent {
   /** True while the first Final Action evaluation is still running, so a blank cell is not read as "no action". */
   protected readonly finalActionsLoading = this.finalActions.loading;
 
+  /** loading | error | ready — decides what an empty Final Action cell means (never a decision). */
+  protected readonly finalActionsUiState = this.finalActions.uiState;
+
   protected decisionForPortfolio(
     symbol: string,
     _holdingRole: string | null | undefined,
     item?: import('../../core/models/portfolio.models').PortfolioItem,
   ): import('../../core/services/decision-engine.service').PageDecision | null {
     return this.finalActions.decisionForPortfolio(symbol, item?.id);
+  }
+
+  /** Opens the read-only Final Action explanation (decision, technical readings, reasons, evidence freshness). */
+  protected openFinalActionDetails(
+    symbol: string,
+    item?: import('../../core/models/portfolio.models').PortfolioItem | null,
+  ): void {
+    const result = this.finalActions.resultForPortfolio(symbol, item?.id);
+    if (!result) return;
+    this.dialog.open(FinalActionDetailsDialogComponent, {
+      data: { result },
+      autoFocus: 'dialog',
+      maxWidth: '95vw',
+    });
   }
 
   protected readonly sortedSummaries = computed(() => {
@@ -1206,10 +1224,15 @@ export class PortfolioPageComponent {
         'Daily Change %',
         'RSI (14)',
         'Role',
-        'Trend Setup',
-        'Momentum Shift',
+        'Technical Trend Setup',
+        'Technical Momentum Shift',
         'Price Structure',
-        'Action',
+        'Final Action (Portfolio Decision)',
+        'Actionable',
+        'Decision Reason Codes',
+        'Decision Status',
+        'Last Evaluated (UTC)',
+        'Data As Of',
       ],
     ];
 
@@ -1248,6 +1271,11 @@ export class PortfolioPageComponent {
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
         this.priceStructureLabel(s.item.symbol, s),
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.isActionable ? 'Yes' : 'No',
+        (this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.reasonCodes ?? []).join('; '),
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.evaluationState ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.lastSuccessfulEvaluationUtc ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.dataAsOfDate ?? '',
       ]);
     }
 
@@ -1274,6 +1302,8 @@ export class PortfolioPageComponent {
         pct,
         '0.00',
         '0.00',
+        '',
+        '',
         '',
         '',
         '',
@@ -1313,8 +1343,14 @@ export class PortfolioPageComponent {
         '',
         '',
         '',
+        '',
+        '',
       ]);
     }
+
+    // Cash and option rows carry no decision columns: pad every row to the header width.
+    const width = rows[0].length;
+    for (const r of rows) while (r.length < width) r.push('');
 
     this.downloadCsv(rows, 'portfolio.csv');
   }

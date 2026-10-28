@@ -43,6 +43,7 @@ import {
   resetSignalsAudit,
   signalCandidates,
   signalDetail,
+  signalEffectiveness,
   signalState,
   signalSummary,
   signalTypes,
@@ -266,6 +267,7 @@ get(/^\/api\/final-actions$/, { watchlist: [], portfolio: [], computedAtUtc: nul
 get(/^\/api\/analytics\/priority-candidates$/, []);
 get(/^\/api\/signals-audit\/signal-types$/, signalTypes);
 get(/^\/api\/signals-audit\/summary$/, (r) => signalSummary(filterSignalRows(r.query)));
+get(/^\/api\/signals-audit\/effectiveness$/, (r) => signalEffectiveness(r.query));
 get(/^\/api\/signals-audit$/, (r) => {
   const rows = filterSignalRows(r.query);
   return { items: rows, total: rows.length, page: 1, pageSize: Number(r.query.get('pageSize') ?? 25) };

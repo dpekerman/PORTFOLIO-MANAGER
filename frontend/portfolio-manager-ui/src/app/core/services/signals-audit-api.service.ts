@@ -8,6 +8,8 @@ import {
   SignalAuditPagedResponse,
   SignalAuditRow,
   SignalAuditSummary,
+  SignalEffectivenessQueryParams,
+  SignalEffectivenessResult,
   SignalMyAction,
   SignalsAuditQueryParams,
   SignalsAuditSettings,
@@ -54,9 +56,19 @@ export class SignalsAuditApiService {
   }
 
   summary(p: SignalsAuditQueryParams): Observable<SignalAuditSummary> {
+    // Effectiveness has its own endpoint and window; the summary skips that calculation.
     return this.http.get<SignalAuditSummary>(`${this.base}/summary`, {
-      params: this.toParams(p, false),
+      params: this.toParams(p, false).set('includeEffectiveness', false),
     });
+  }
+
+  effectiveness(p: SignalEffectivenessQueryParams): Observable<SignalEffectivenessResult> {
+    let params = new HttpParams().set('window', p.window);
+    for (const t of p.signalType) params = params.append('signalType', t);
+    if (p.source !== 'All') params = params.set('source', p.source);
+    for (const r of p.role) params = params.append('role', r);
+    if (p.includeBaselineInStats) params = params.set('includeBaselineInStats', true);
+    return this.http.get<SignalEffectivenessResult>(`${this.base}/effectiveness`, { params });
   }
 
   detail(id: number): Observable<SignalAuditDetail> {

@@ -88,6 +88,11 @@ public sealed class DashboardEodSummaryService(
         var (actionLabel, actionPriority, resolutionStatus, resolutionReason) = ownership switch
         {
             "Universe" => ("—", "INFORMATIONAL", "OwnershipActionNotApplicable", "No portfolio or watchlist action context."),
+            _ when isOwnedAction && action!.EvaluationState is "AwaitingData" or "Evaluating" =>
+                (action!.ActionLabel, "INFORMATIONAL", action.EvaluationState,
+                    action.LastValidAction is { Length: > 0 } last
+                        ? $"No current evaluation. Last valid action: {last}."
+                        : "No current evaluation: required evidence is unavailable."),
             _ when isOwnedAction => (action!.ActionLabel, action.ActionPriority, "Resolved", string.Empty),
             _ => ("—", "INFORMATIONAL", "OwnershipActionNotCalculated", "Ownership action not calculated; technical snapshot may be unavailable."),
         };

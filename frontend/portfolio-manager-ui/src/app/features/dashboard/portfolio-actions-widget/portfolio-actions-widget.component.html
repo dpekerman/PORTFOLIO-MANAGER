@@ -117,6 +117,9 @@
                 }
               </span>
             }
+            @if (stateLabel(d); as state) {
+              <span class="ac-state" data-testid="ac-state">{{ state }}</span>
+            }
             <span class="ac-status">{{ d.status }} &middot; {{ responseLabel(d) }}</span>
             @if (d.origin === 'INITIAL_BASELINE') {
               <span class="ac-origin" matTooltip="Recorded when tracking started; shown because the latest evaluation still confirms it">
@@ -136,5 +139,43 @@
         </li>
       }
     </ul>
+  }
+
+  @if (notActionable().length > 0) {
+    <section class="ac-na" aria-labelledby="ac-na-title" data-testid="ac-not-actionable">
+      <h3 id="ac-na-title" class="ac-na-title">
+        Not actionable
+        <span class="ac-na-sub">
+          {{ awaitingCount() }} awaiting data · {{ historicalCount() }} historical warning(s) — not counted as decisions
+        </span>
+      </h3>
+      <ul class="ac-list" aria-label="Awaiting data and historical warnings">
+        @for (d of notActionable(); track d.id) {
+          <li class="ac-row ac-na-row" [class.ac-warning]="d.isHistoricalWarning" data-testid="ac-na-row">
+            <div class="ac-main">
+              <div class="ac-symbol">
+                <strong>{{ d.symbol }}</strong>
+                <span class="ac-badge" [class.holding]="d.context === 'Holding'">{{ d.context }}</span>
+                @if (d.role) {
+                  <span class="ac-role">{{ d.role }}</span>
+                }
+              </div>
+              <div class="ac-action">
+                <span class="ac-pill">{{ stateLabel(d) }}</span>
+              </div>
+            </div>
+            <p class="ac-rationale">
+              Last valid action: {{ d.actionLabel }}
+              @if (d.lastValidatedAtUtc) {
+                (confirmed {{ d.lastValidatedAtUtc | date: 'MMM d, h:mm a' }})
+              }
+              @if (reasonText(d); as why) {
+                &middot; {{ why }}
+              }
+            </p>
+          </li>
+        }
+      </ul>
+    </section>
   }
 </div>

@@ -40,6 +40,7 @@ import {
   PageDecision,
 } from '../../core/services/decision-engine.service';
 import { FinalActionStore } from '../../core/store/final-action.store';
+import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -151,6 +152,8 @@ export class WatchlistPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
   private readonly finalActions = inject(FinalActionStore);
   protected readonly rsiLoading = this.watchlistRsi.rsiLoading;
+  /** loading | error | ready — decides what an empty Final Action cell means (never a decision). */
+  protected readonly finalActionsUiState = this.finalActions.uiState;
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
@@ -330,6 +333,17 @@ export class WatchlistPageComponent {
 
   protected decisionForSymbol(symbol: string, _role: string | null): PageDecision | null {
     return this.finalActions.decisionForWatchlist(symbol);
+  }
+
+  /** Opens the read-only Final Action explanation for a watchlist symbol. */
+  protected openFinalActionDetails(symbol: string): void {
+    const result = this.finalActions.resultForWatchlist(symbol);
+    if (!result) return;
+    this.dialog.open(FinalActionDetailsDialogComponent, {
+      data: { result },
+      autoFocus: 'dialog',
+      maxWidth: '95vw',
+    });
   }
 
   protected valueDataForSymbol(symbol: string): {
@@ -920,11 +934,16 @@ export class WatchlistPageComponent {
         Sector: w.quote?.sector ?? '',
         Industry: w.quote?.industry ?? '',
         'RSI (14)': this.rsiForSymbol(w.item.symbol) ?? '',
-        'Trend Setup': dec?.trendSetup ?? '',
-        'Momentum Shift': dec?.momentumShift ?? '',
+        'Technical Trend Setup': dec?.trendSetup ?? '',
+        'Technical Momentum Shift': dec?.momentumShift ?? '',
         'Price Structure': this.priceStructureLabel(w.item.symbol, w),
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
+        'Decision Status': this.finalActions.resultForWatchlist(w.item.symbol)?.evaluationState ?? '',
+        Actionable: this.finalActions.resultForWatchlist(w.item.symbol)?.isActionable ? 'Yes' : 'No',
+        'Decision Reason Codes': (this.finalActions.resultForWatchlist(w.item.symbol)?.reasonCodes ?? []).join('; '),
+        'Last Evaluated (UTC)': this.finalActions.resultForWatchlist(w.item.symbol)?.lastSuccessfulEvaluationUtc ?? '',
+        'Data As Of': this.finalActions.resultForWatchlist(w.item.symbol)?.dataAsOfDate ?? '',
         'Hover Note': dec?.hoverDescription ?? '',
         EMA9: r?.ema9Price ?? '',
         EMA10: r?.ema10Price ?? '',

@@ -871,17 +871,22 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
-                  <div
-                    class="wl-ma-badge"
-                    [class]="dec.finalActionClass"
+                  <button
+                    type="button"
+                    class="wl-ma-badge wl-ma-btn"
+                    [class]="'wl-ma-badge wl-ma-btn ' + dec.finalActionClass"
                     [matTooltip]="dec.hoverDescription"
+                    [attr.aria-label]="'Final Action details for ' + w.item.symbol + ': ' + dec.finalAction"
+                    (click)="openFinalActionDetails(w.item.symbol)"
                   >
                     {{ dec.finalAction }}
-                  </div>
-                } @else if (rsiLoading()) {
-                  <span class="wl-cell-shimmer wl-cell-shimmer--wide"></span>
+                  </button>
+                } @else if (rsiLoading() || finalActionsUiState() === 'loading') {
+                  <span class="wl-cell-shimmer wl-cell-shimmer--wide" data-testid="fa-loading"></span>
+                } @else if (finalActionsUiState() === 'error') {
+                  <span class="wl-fa-state wl-fa-error" data-testid="fa-error" matTooltip="Final Actions could not be loaded (API error). No decision is shown, and nothing here is a Hold or a trade recommendation.">API error</span>
                 } @else {
-                  <span class="grid-no-data">—</span>
+                  <span class="wl-fa-state" data-testid="fa-not-evaluated" matTooltip="The evaluation returned no result for this symbol. This is not a Hold and not a trade recommendation.">Not evaluated</span>
                 }
               </td>
             </ng-container>

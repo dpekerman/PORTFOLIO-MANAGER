@@ -43,6 +43,8 @@ export interface PortfolioItem {
   finalActionSeverity?: string | null;
   finalActionPriority?: string | null;
   finalActionUpdatedAt?: string | null;
+  /** Completed market session (yyyy-MM-dd) the published Final Action's evidence belongs to. */
+  finalActionSession?: string | null;
 }
 
 /** One Portfolio holding's computed Final Action, pushed to the backend after every recompute. */
@@ -1195,6 +1197,12 @@ export interface PortfolioActionDto {
   latestEodTrendShift?: string | null;
   latestEodIsNew?: boolean;
   latestEodIsInvalidated?: boolean;
+  /** CurrentValid | PriorSessionValid | AwaitingData | Evaluating — the effective canonical state. */
+  evaluationState?: string | null;
+  isActionable?: boolean;
+  lastValidAction?: string | null;
+  lastEvaluatedAtUtc?: string | null;
+  reasonCodes?: string[] | null;
 }
 
 export type ActionResolutionStatus =
@@ -1482,6 +1490,27 @@ export interface FinalActionResult {
   momentumShiftClass: string;
   gapScore: number;
   gapPct: number;
+  /** True for an Entry/Add, Trim/Exit or Risk Review decision; the one rule every screen and export uses. */
+  isActionable?: boolean;
+  reasonCodes?: string[] | null;
+  evidenceAsOfUtc?: string | null;
+  entryDate?: string | null;
+  /** The technical action the portfolio gate replaced (e.g. a stop-review reminder that is not a sell). */
+  originalAction?: string | null;
+  /** Part of the canonical contract: effective evaluation state and evidence health. */
+  evaluationState?: EffectiveState | null;
+  evidenceHealth?: 'Fresh' | 'Stale' | 'Missing' | 'Invalid' | 'Failed' | null;
+  /** The last valid published action, kept separately when this result is Awaiting Data. */
+  lastValidAction?: string | null;
+  lastSuccessfulEvaluationUtc?: string | null;
+  dataAsOfDate?: string | null;
+  expectedSession?: string | null;
+  quoteTimestampUtc?: string | null;
+  isHistoricalWarning?: boolean;
+  /** Verified = a source quote time was checked; Unavailable = only the scan's bar date backs the freshness. */
+  quoteVerification?: 'Verified' | 'Unavailable' | null;
+  /** Metadata | Suffix | Assumed — how the exchange (session calendar) was resolved. */
+  exchangeBasis?: 'Metadata' | 'Suffix' | 'Assumed' | null;
   /** Present on watchlist decisions: the structure / momentum / MA facts behind the entry status. */
   diagnostics?: {
     priceStructureState: string;
@@ -1607,6 +1636,15 @@ export interface SignalAuditRow {
   lastValidatedAtUtc?: string | null;
   statusReason?: string | null;
   supersededByEventId?: number | null;
+  /**
+   * The CURRENT effective state of a Final Action recommendation, separate from the lifecycle `status` above: a recommendation can
+   * be historically Active yet currently AwaitingData and non-actionable. Null for closed lifecycles and non-Final-Action rows.
+   */
+  effectiveState?: EffectiveState | null;
+  isActionable?: boolean | null;
+  evidenceHealth?: string | null;
+  dataAsOfDate?: string | null;
+  reasonCodes?: string[] | null;
 }
 
 export interface SignalAuditPagedResponse {
@@ -1639,7 +1677,59 @@ export interface SignalAuditSummary {
   trimExit: number;
   actioned: number;
   pendingReview: number;
+  /** Deprecated: the page loads effectiveness from its own endpoint; the summary sends an empty list. */
   effectiveness: SignalEffectivenessRow[];
+}
+
+export type EffectivenessWindow = '30' | '90' | '180' | 'all';
+
+/** Context filters for the effectiveness view. Ticker, date, status and My Action are deliberately absent. */
+export interface SignalEffectivenessQueryParams {
+  window: EffectivenessWindow;
+  signalType: string[];
+  source: string;
+  role: string[];
+  includeBaselineInStats: boolean;
+}
+
+/** Raw returns are the stock's price change; adjusted flips the sign for Sell signals and is null where direction is undefined. */
+export interface SignalEffectivenessResultRow {
+  signalType: string;
+  label: string;
+  direction: SignalDirection;
+  directionDefined: boolean;
+  eligible: number;
+  overlappingCount: number;
+  observations5D: number;
+  rawAvg5D: number | null;
+  adjustedAvg5D: number | null;
+  observations20D: number;
+  rawAvg20D: number | null;
+  adjustedAvg20D: number | null;
+  observations1M: number;
+  rawAvg1M: number | null;
+  adjustedAvg1M: number | null;
+  favourableObservations: number;
+  favourablePct: number | null;
+  actionedCount: number;
+}
+
+export interface SignalEffectivenessCoverage {
+  cohortEvents: number;
+  withPriceHistory: number;
+  noPriceHistory: number;
+  overlappingEvents: number;
+  complete: boolean;
+  batches: number;
+  note: string | null;
+}
+
+export interface SignalEffectivenessResult {
+  window: EffectivenessWindow;
+  windowStart: string | null;
+  windowEnd: string;
+  coverage: SignalEffectivenessCoverage;
+  rows: SignalEffectivenessResultRow[];
 }
 
 export interface SignalLinkedTransaction {
@@ -1738,7 +1828,21 @@ export interface OpenDecision {
   myAction: SignalMyAction;
   signalPrice: number;
   origin: string;
+  /** CurrentValid | PriorSessionValid | AwaitingData | Evaluating | HistoricalWarning. */
+  effectiveState?: EffectiveState | null;
+  ageTradingDays?: number | null;
+  isHistoricalWarning?: boolean;
+  reasonCodes?: string[] | null;
+  createdAtUtc?: string | null;
 }
+
+export type EffectiveState =
+  | 'CurrentValid'
+  | 'PriorSessionValid'
+  | 'AwaitingData'
+  | 'Evaluating'
+  | 'Expired'
+  | 'HistoricalWarning';
 
 export interface ActionSummary {
   entryAdd: number;
@@ -1747,12 +1851,17 @@ export interface ActionSummary {
   totalOpen: number;
   asOfUtc: string;
   lastValidatedAtUtc: string | null;
+  /** Recommendations without usable evidence; never part of totalOpen or the actionable counts. */
+  awaitingData?: number;
+  historicalWarnings?: number;
 }
 
 export interface OpenDecisionsResponse {
   summary: ActionSummary;
   items: OpenDecision[];
   validation: ValidationStatus;
+  /** Awaiting Data and historical-warning rows: listed so nothing is hidden, never counted. */
+  notActionable?: OpenDecision[];
 }
 
 /**

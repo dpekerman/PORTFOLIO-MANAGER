@@ -302,7 +302,16 @@ public sealed record SignalAuditRowDto(
     bool PerformanceAudited = true,
     DateTime? LastValidatedAtUtc = null,
     string? StatusReason = null,
-    long? SupersededByEventId = null);
+    long? SupersededByEventId = null,
+    /// <summary>
+    /// The CURRENT effective state of a Final Action recommendation (CurrentValid, PriorSessionValid, AwaitingData, Evaluating,
+    /// HistoricalWarning), independent of the lifecycle <c>Status</c>. Null for closed lifecycle states and non-Final-Action rows.
+    /// </summary>
+    string? EffectiveState = null,
+    bool? IsActionable = null,
+    string? EvidenceHealth = null,
+    string? DataAsOfDate = null,
+    IReadOnlyList<string>? ReasonCodes = null);
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,
@@ -333,6 +342,56 @@ public sealed record SignalAuditSummaryDto(
     int Actioned,
     int PendingReview,
     IReadOnlyList<SignalEffectivenessRowDto> Effectiveness);
+
+/// <summary>Query for the historical effectiveness view. Deliberately has no ticker, date, status or My Action filter.</summary>
+public sealed record SignalEffectivenessQuery(
+    string? Window = null,
+    string[]? SignalType = null,
+    string? Source = null,
+    string[]? Role = null,
+    bool IncludeBaselineInStats = false);
+
+/// <summary>
+/// One signal type in the effectiveness table. Raw returns are the stock's price change after the signal; the
+/// direction-adjusted figures flip the sign for Sell-direction signals (a fall is the favourable outcome) and are
+/// null where no direction is defined. Neither is a realized portfolio profit.
+/// </summary>
+public sealed record SignalEffectivenessResultRowDto(
+    string SignalType,
+    string Label,
+    string Direction,
+    bool DirectionDefined,
+    int Eligible,
+    int OverlappingCount,
+    int Observations5D,
+    decimal? RawAvg5D,
+    decimal? AdjustedAvg5D,
+    int Observations20D,
+    decimal? RawAvg20D,
+    decimal? AdjustedAvg20D,
+    int Observations1M,
+    decimal? RawAvg1M,
+    decimal? AdjustedAvg1M,
+    int FavourableObservations,
+    decimal? FavourablePct,
+    int ActionedCount);
+
+/// <summary>How complete the statistics are. Incomplete price coverage is reported, never hidden.</summary>
+public sealed record SignalEffectivenessCoverageDto(
+    int CohortEvents,
+    int WithPriceHistory,
+    int NoPriceHistory,
+    int OverlappingEvents,
+    bool Complete,
+    int Batches,
+    string? Note);
+
+public sealed record SignalEffectivenessResultDto(
+    string Window,
+    string? WindowStart,
+    string WindowEnd,
+    SignalEffectivenessCoverageDto Coverage,
+    IReadOnlyList<SignalEffectivenessResultRowDto> Rows);
 
 public sealed record SignalLinkedTransactionDto(
     int Id,

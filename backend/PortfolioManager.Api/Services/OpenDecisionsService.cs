@@ -23,9 +23,21 @@ public sealed record OpenDecisionDto(
     string Status,
     string MyAction,
     decimal SignalPrice,
-    string Origin);
+    string Origin,
+    /// <summary>CurrentValid | PriorSessionValid | AwaitingData | Evaluating | HistoricalWarning (see <see cref="EffectiveState"/>).</summary>
+    string? EffectiveState = null,
+    /// <summary>Completed trading sessions since the recommendation was last validated.</summary>
+    int? AgeTradingDays = null,
+    bool IsHistoricalWarning = false,
+    IReadOnlyList<string>? ReasonCodes = null,
+    /// <summary>When the recommendation first appeared; never moved by revalidation.</summary>
+    DateTime? CreatedAtUtc = null);
 
-public sealed record ActionSummaryDto(int EntryAdd, int TrimExit, int RiskReview, int TotalOpen, DateTime AsOfUtc, DateTime? LastValidatedAtUtc);
+public sealed record ActionSummaryDto(int EntryAdd, int TrimExit, int RiskReview, int TotalOpen, DateTime AsOfUtc, DateTime? LastValidatedAtUtc,
+    /// <summary>Recommendations without usable evidence right now. Never part of the actionable counts or <c>TotalOpen</c>.</summary>
+    int AwaitingData = 0,
+    /// <summary>Confirmed risk events kept visible as unresolved historical warnings. Not counted as actionable.</summary>
+    int HistoricalWarnings = 0);
 
 /// <summary>
 /// How far the current numbers can be trusted. <c>Validated</c>: the latest EOD evaluation completed and nothing
@@ -39,7 +51,9 @@ public sealed record ValidationStatusDto(
     DateTime? LastAttemptUtc,
     int PendingCount);
 
-public sealed record OpenDecisionsResponse(ActionSummaryDto Summary, IReadOnlyList<OpenDecisionDto> Items, ValidationStatusDto Validation);
+public sealed record OpenDecisionsResponse(ActionSummaryDto Summary, IReadOnlyList<OpenDecisionDto> Items, ValidationStatusDto Validation,
+    /// <summary>Awaiting Data and historical-warning rows: listed so nothing is silently hidden, but never counted.</summary>
+    IReadOnlyList<OpenDecisionDto>? NotActionable = null);
 
 public interface IOpenDecisionsService
 {
@@ -55,7 +69,7 @@ public interface IOpenDecisionsService
 /// comes from <see cref="DecisionEligibility"/>, lifecycle from <see cref="SignalsAuditService"/>. It ignores
 /// <c>PerformanceAudited</c> (analytics only).
 /// </summary>
-public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsService
+public sealed class OpenDecisionsService(AppDbContext db, IFinalActionService? finalActions = null) : IOpenDecisionsService
 {
     private static readonly string[] Filters = ["All", "Entry", "ReduceExit", "Risk", "Holdings", "Watchlist"];
 
@@ -68,21 +82,35 @@ public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsServic
             .ToListAsync(ct);
         var rows = open.Where(e => e.LastValidatedAtUtc != null).ToList();
 
+        var nowUtc = DateTime.UtcNow;
         var today = SignalsAuditService.TorontoToday();
         var validation = await BuildValidationAsync(userId, open, today, ct);
+        var eval = await EvaluationStatusReader.ReadAsync(db, userId, nowUtc, ct);
+        var snapshot = finalActions?.TryGetCached(userId);   // cache-only: opening the Dashboard never scans or renews anything
+
         var all = new List<OpenDecisionDto>();
+        var notActionable = new List<OpenDecisionDto>();
         foreach (var e in rows)
         {
             var id = FaId(e);
             var bucket = DecisionEligibility.Classify(id, e.Source, 1m);
             if (bucket == DecisionBucket.None) continue;
             var holding = e.Source == SignalSources.Portfolio;
-            var stale = RecommendationLifecycle.WeekdaysBetween(DateOnly.FromDateTime(e.LastValidatedAtUtc!.Value), today) > 1;
+
+            // The same read-only provider the Signal Tracker uses: one effective state for a stored recommendation everywhere.
+            var effective = EffectiveStateProvider.ForEvent(e, snapshot, eval, nowUtc)!;
+            var status = effective.Status;
+            if (status.State == EffectiveState.Expired) continue;
+
             var urgency = bucket == DecisionBucket.RiskReview ? "Urgent" : holding ? "High" : "Normal";
-            all.Add(new OpenDecisionDto(
+            var dto = new OpenDecisionDto(
                 e.Id, e.Symbol, holding ? "Holding" : "Watchlist", e.Role, FinalActionCatalog.Describe(id).Label, id,
                 bucket.ToString(), urgency, Rationale(e.ContextJson), "Signal Tracker / EOD",
-                e.SignalDate.ToString("yyyy-MM-dd"), e.LastValidatedAtUtc, stale, e.Status, e.MyAction, e.SignalPrice, e.Origin));
+                e.SignalDate.ToString("yyyy-MM-dd"), e.LastValidatedAtUtc, (status.AgeTradingDays ?? 0) > 0, e.Status, e.MyAction, e.SignalPrice, e.Origin,
+                status.State.ToString(), status.AgeTradingDays, status.IsHistoricalWarning, status.Codes, e.CapturedAtUtc);
+
+            // Only recommendations with a valid evaluation and usable evidence are decisions; the rest stay visible but uncounted.
+            if (status.IsActionable) all.Add(dto); else notActionable.Add(dto);
         }
 
         // Counts and list come from the same distinct set, so the summary always equals the Action Center total.
@@ -90,7 +118,9 @@ public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsServic
             all.Count(d => d.Bucket == nameof(DecisionBucket.EntryAdd)),
             all.Count(d => d.Bucket == nameof(DecisionBucket.TrimExit)),
             all.Count(d => d.Bucket == nameof(DecisionBucket.RiskReview)),
-            all.Count, DateTime.UtcNow, all.Count == 0 ? null : all.Max(d => d.LastValidatedAtUtc));
+            all.Count, nowUtc, all.Count == 0 ? null : all.Max(d => d.LastValidatedAtUtc),
+            notActionable.Count(d => !d.IsHistoricalWarning),
+            notActionable.Count(d => d.IsHistoricalWarning));
 
         var filtered = f switch
         {
@@ -109,7 +139,8 @@ public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsServic
             .ThenByDescending(d => d.SignalDate)
             .ThenBy(d => d.Symbol, StringComparer.OrdinalIgnoreCase)
             .ToList();
-        return new OpenDecisionsResponse(summary, ordered, validation);
+        return new OpenDecisionsResponse(summary, ordered, validation, notActionable
+            .OrderBy(d => d.IsHistoricalWarning ? 0 : 1).ThenBy(d => d.Symbol, StringComparer.OrdinalIgnoreCase).ToList());
     }
 
     private async Task<ValidationStatusDto> BuildValidationAsync(
@@ -139,7 +170,7 @@ public sealed class OpenDecisionsService(AppDbContext db) : IOpenDecisionsServic
             state = "Unavailable";                                   // the latest pass failed or was incomplete
         else if (lastComplete is null)
             state = "Pending";                                       // never validated: no basis for an all-clear
-        else if (RecommendationLifecycle.WeekdaysBetween(DateOnly.FromDateTime(lastComplete.Value), today) > 1)
+        else if (TradingCalendar.TradingDaysBetween(TradingCalendar.TorontoDate(lastComplete.Value), today, MarketExchange.Tsx) > 1)
             state = "Unavailable";                                   // the last good evaluation is stale
         else
             state = pending > 0 ? "Pending" : "Validated";

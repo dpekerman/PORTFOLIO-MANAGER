@@ -24,6 +24,7 @@ public static class PriorityCandidateEligibility
         ["WAIT FOR RECLAIM"] = "FINAL_ACTION_WAIT_FOR_RECLAIM",
         ["AVOID"] = "FINAL_ACTION_AVOID",
         ["WATCH"] = "FINAL_ACTION_WATCH",
+        ["AWAITING DATA"] = "AWAITING_DATA",
     };
 
     /// <param name="decision">The candidate's canonical watchlist decision, or null when it has no technical data.</param>

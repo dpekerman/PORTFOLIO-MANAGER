@@ -53,7 +53,10 @@ public static partial class FinalActionCatalog
         ("Hold / Technical Caution", Advisory, Neutral, "Portfolio"),
         ("Hold / Trail Stop", Advisory, Neutral, "Portfolio"),
         ("Hold", Advisory, Neutral, "Portfolio"),
-        ("Hold Swing", Advisory, Neutral, "Portfolio"),
+        ("Hold / Monitor", Advisory, Neutral, "Portfolio"),
+        ("Add / Needs Review", Advisory, Neutral, "Portfolio"),
+        ("Hold / Catalyst Monitoring", Advisory, Neutral, "Portfolio"),
+        ("Hold Swing",  Advisory, Neutral, "Portfolio"),
         ("Hold Swing / Watch", Advisory, Neutral, "Portfolio"),
         ("Hold Spec", Advisory, Neutral, "Portfolio"),
         ("Hold Spec / Watch", Advisory, Neutral, "Portfolio"),
@@ -73,6 +76,9 @@ public static partial class FinalActionCatalog
         ("Close / Protect", TrimExit, Sell, "Portfolio"),
         ("Roll / Extend", Advisory, Neutral, "Portfolio"),
         ("Trail / Protect Gains", Advisory, Neutral, "Portfolio"),
+
+        // Evaluation status (never a trading decision)
+        ("Awaiting Data", Advisory, Neutral, "Status"),
 
         // Profit-taking and risk-control overrides
         ("Take Partial Profit / No Chase", TrimExit, Sell, "Profit-taking"),

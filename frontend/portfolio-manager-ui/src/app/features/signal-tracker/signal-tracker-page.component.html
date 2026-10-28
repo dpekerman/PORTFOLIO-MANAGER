@@ -41,7 +41,7 @@
     <mat-expansion-panel class="filters-panel" [(expanded)]="filtersOpen">
       <mat-expansion-panel-header>
         <mat-panel-title>Filters</mat-panel-title>
-        <mat-panel-description>{{ store.total() }} signals</mat-panel-description>
+        <mat-panel-description>{{ store.total() }} {{ store.total() === 1 ? 'signal' : 'signals' }}</mat-panel-description>
       </mat-expansion-panel-header>
 
       <div class="filter-grid">
@@ -252,6 +252,17 @@
             @if (row.status && row.status !== 'Active') {
               <span class="tag" [class.tag-invalidated]="row.status === 'Invalidated'" [matTooltip]="row.statusReason || row.status">{{ row.status }}</span>
             }
+            @if (row.effectiveState && row.status === 'Active') {
+              <span class="tag tag-current" data-testid="lifecycle-tag" matTooltip="Recommendation lifecycle: it has not been closed, expired or dismissed.">Lifecycle: Active</span>
+              <span
+                class="tag"
+                [class.tag-current-warn]="!row.isActionable"
+                [class.tag-current]="row.isActionable"
+                data-testid="effective-tag"
+                [matTooltip]="effectiveTooltip(row)"
+                [attr.aria-label]="effectiveTooltip(row)"
+              >Current: {{ row.effectiveState === 'CurrentValid' ? 'Current evaluation' : effectiveTag(row) }}@if (!row.isActionable) { · not actionable}</span>
+            }
             @if (row.performanceAudited === false) {
               <span class="tag" matTooltip="Recorded for the Action Center only; excluded from performance statistics.">Unaudited</span>
             }
@@ -405,56 +416,194 @@
     />
   }
 
-  @if (store.summary(); as s) {
-    @if (s.effectiveness.length > 0) {
-      <section class="effectiveness" aria-label="Signal effectiveness">
-        <h2 class="section-title">Signal effectiveness</h2>
-        <p class="section-note">
-          Raw stock returns after each signal, averaged over completed periods only (counts shown).
-          Overlapping signals on the same ticker are not independent trades, and this is not your realized P/L.
+  @if (showEffectiveness) {
+  <section class="effectiveness" aria-label="Signal effectiveness" data-testid="effectiveness">
+    <div class="eff-head">
+      <h2 class="section-title">Signal effectiveness</h2>
+      <mat-button-toggle-group
+        class="eff-window"
+        aria-label="Evaluation window, by original signal date"
+        hideSingleSelectionIndicator
+        [value]="store.effectivenessWindow()"
+        (change)="store.setEffectivenessWindow($event.value)"
+      >
+        @for (w of effectivenessWindows; track w.value) {
+          <mat-button-toggle [value]="w.value" [attr.data-testid]="'eff-window-' + w.value">{{ w.label }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </div>
+
+    @if (store.effectiveness(); as eff) {
+      <p class="eff-window-note" data-testid="eff-window-note">
+        {{ eff.windowStart ? 'Signals dated ' + eff.windowStart + ' to ' + eff.windowEnd : 'All history through ' + eff.windowEnd }}.
+        <span class="muted">
+          Independent of the table's ticker, date, status and My Action filters; Signal Type, Role, Source and the baseline option apply.
+        </span>
+      </p>
+      <p class="eff-coverage" data-testid="eff-coverage">
+        {{ eff.coverage.cohortEvents }} {{ eff.coverage.cohortEvents === 1 ? 'signal' : 'signals' }} in this window ·
+        {{ eff.coverage.withPriceHistory }} with price history
+        @if (eff.coverage.overlappingEvents > 0) {
+          · {{ eff.coverage.overlappingEvents }} overlapping
+        }
+      </p>
+      @if (eff.coverage.note) {
+        <p class="eff-warning" role="status" data-testid="eff-incomplete">
+          <mat-icon aria-hidden="true">warning</mat-icon>{{ eff.coverage.note }}
         </p>
-        <div class="eff-grid">
-          @for (e of s.effectiveness; track e.signalType) {
-            <article class="eff-card">
-              <h3 class="eff-title">{{ e.label }} <span class="eff-count">{{ e.count }} signals</span></h3>
-              <dl class="eff-stats">
-                <div>
-                  <dt>5D avg</dt>
-                  <dd>
-                    {{ e.avg5D === null ? '—' : (e.avg5D > 0 ? '+' : '') + (e.avg5D | number: '1.2-2') + '%' }}
-                    <small>n={{ e.observations5D }}</small>
-                  </dd>
+      }
+
+      @if (eff.rows.length === 0) {
+        <p class="state-row" data-testid="eff-empty">
+          Insufficient history: no completed signals in this window yet. Choose a longer window to include older signals.
+        </p>
+      } @else {
+        @let chart = effChart();
+        <figure class="eff-chart" data-testid="eff-chart" [class.eff-loading]="store.effectivenessLoading()">
+          <figcaption class="eff-chart-head">
+            <span class="eff-chart-title">Average return after signal, by period</span>
+            <span class="eff-legend" aria-hidden="true">
+              @for (l of effLegend; track l.key) {
+                <span class="eff-legend-item"><i class="eff-swatch" [class]="'eff-swatch ' + l.cls"></i>{{ l.key }}</span>
+              }
+            </span>
+          </figcaption>
+          <div class="eff-chart-body" role="group" aria-label="Average return by signal type and period. Sell-direction signals are direction-adjusted.">
+            <div class="eff-y-axis" aria-hidden="true">
+              @for (t of chart.ticks; track t.value) {
+                <span class="eff-y-tick" [style.bottom.%]="t.bottomPct">{{ t.label }}</span>
+              }
+            </div>
+            <div class="eff-plot">
+              <div class="eff-bars-area">
+                @for (t of chart.ticks; track t.value) {
+                  <span class="eff-grid-line" [class.eff-zero-line]="t.value === 0" [style.bottom.%]="t.bottomPct" aria-hidden="true"></span>
+                }
+                <div class="eff-groups">
+                  @for (g of chart.groups; track g.signalType) {
+                    <div class="eff-group" tabindex="0" role="img" [attr.aria-label]="g.ariaLabel" [attr.data-testid]="'eff-group-' + g.signalType">
+                      @for (b of g.bars; track b.key) {
+                        <div class="eff-bar-slot">
+                          @if (b.value === null) {
+                            <span class="eff-bar-na" [style.bottom.%]="chart.zeroPct" title="Insufficient history">–</span>
+                          } @else {
+                            <div
+                              class="eff-bar"
+                              [class]="'eff-bar eff-h-' + b.key.toLowerCase()"
+                              [class.eff-bar-neg]="b.negative"
+                              [style.bottom.%]="b.bottomPct"
+                              [style.height.%]="b.heightPct"
+                              [matTooltip]="g.label + ' · ' + b.key + ': ' + b.label + (b.adjusted && b.raw !== null ? ' (raw ' + signed(b.raw) + ')' : '') + ' · n=' + b.n"
+                            >
+                              <span class="eff-bar-val" [class.eff-neg]="b.negative" aria-hidden="true"><span class="eff-v-long">{{ b.label }}</span><span class="eff-v-short">{{ b.shortLabel }}</span></span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
                 </div>
-                <div>
-                  <dt>20D avg</dt>
-                  <dd>
-                    {{ e.avg20D === null ? '—' : (e.avg20D > 0 ? '+' : '') + (e.avg20D | number: '1.2-2') + '%' }}
-                    <small>n={{ e.observations20D }}</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>1M avg</dt>
-                  <dd>
-                    {{ e.avg1M === null ? '—' : (e.avg1M > 0 ? '+' : '') + (e.avg1M | number: '1.2-2') + '%' }}
-                    <small>n={{ e.observations1M }}</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Favourable (20D)</dt>
-                  <dd>
-                    {{ e.favourablePct === null ? '—' : (e.favourablePct | number: '1.0-1') + '%' }}
-                    <small>n={{ e.favourableObservations }}</small>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Actioned</dt>
-                  <dd>{{ e.actionedCount }}</dd>
-                </div>
-              </dl>
-            </article>
+              </div>
+              <div class="eff-x-labels" aria-hidden="true">
+                @for (g of chart.groups; track g.signalType) {
+                  <span class="eff-x-label">{{ g.label }}<small>{{ g.direction === 'Sell' ? 'direction-adjusted' : g.direction === 'Neutral' ? 'raw' : '' }}</small></span>
+                }
+              </div>
+            </div>
+          </div>
+          @if (!chart.hasData) {
+            <p class="eff-chart-note">No period has completed for these signals yet, so there is nothing to plot.</p>
           }
+        </figure>
+
+        <div class="eff-table-wrap" [class.eff-loading]="store.effectivenessLoading()" [attr.aria-busy]="store.effectivenessLoading()">
+          <table mat-table appResponsiveTable [dataSource]="eff.rows" class="eff-table" aria-label="Signal effectiveness by signal type">
+            <ng-container matColumnDef="label">
+              <th mat-header-cell *matHeaderCellDef>Signal Type</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="eff-type">{{ r.label }}</span>
+                <span class="tag eff-dir" [matTooltip]="directionTip(r)">{{ r.direction }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="eligible">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Signals in the window that count toward the figures: audited, not initial baseline unless included. Closed (Invalidated, Superseded, Expired) recommendations count too.">Eligible Signals</th>
+              <td mat-cell *matCellDef="let r" class="num">
+                {{ r.eligible }} {{ r.eligible === 1 ? 'signal' : 'signals' }}
+                @if (r.overlappingCount > 0) {
+                  <small class="eff-overlap" matTooltip="Informational only: these signals follow an earlier same-ticker, same-direction signal within 20 trading sessions, so their outcomes are not independent. All of them are still counted.">{{ r.overlappingCount }} overlapping</small>
+                }
+              </td>
+            </ng-container>
+
+            @for (h of effHorizons; track h.key) {
+              <ng-container [matColumnDef]="'avg' + h.key">
+                <th mat-header-cell *matHeaderCellDef class="num" [matTooltip]="h.tip">{{ h.key }} Avg</th>
+                <td mat-cell *matCellDef="let r" class="num">
+                  @let c = effCell(r, h.key);
+                  @if (c.n === 0) {
+                    <span class="muted">Insufficient history</span>
+                  } @else {
+                    <span class="eff-val" [class.eff-pos]="c.main > 0" [class.eff-neg]="c.main < 0">{{ signed(c.main) }}</span>
+                    <small>n={{ c.n }}</small>
+                    @if (c.showRaw) {
+                      <small class="eff-raw" matTooltip="Raw stock return. The figure above is direction-adjusted: a fall counts as positive after a Sell-direction signal. Neither is realized portfolio profit.">raw {{ signed(c.raw) }}</small>
+                    }
+                  }
+                </td>
+              </ng-container>
+            }
+
+            <ng-container matColumnDef="favourable">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Share of completed 20-session outcomes that moved in the signal's direction (up after Buy, down after Sell). Not available where no direction is defined.">Favourable 20D %</th>
+              <td mat-cell *matCellDef="let r" class="num">
+                @if (!r.directionDefined) {
+                  <span class="muted">Direction not defined</span>
+                } @else if (r.favourableObservations === 0) {
+                  <span class="muted">Insufficient history</span>
+                } @else {
+                  {{ r.favourablePct | number: '1.0-1' }}% <small>n={{ r.favourableObservations }}</small>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actioned">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Signals where you recorded Actioned or Partial in My Action.">Actioned</th>
+              <td mat-cell *matCellDef="let r" class="num">{{ r.actionedCount }}</td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="effColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: effColumns"></tr>
+          </table>
         </div>
-      </section>
+      }
+    } @else if (store.effectivenessError()) {
+      <p class="state-row error" role="alert">{{ store.effectivenessError() }}</p>
+    } @else {
+      <p class="state-row" role="status">Loading effectiveness…</p>
     }
+
+    <button
+      type="button"
+      mat-button
+      class="eff-help-toggle"
+      data-testid="eff-help-toggle"
+      [attr.aria-expanded]="effHelpOpen()"
+      aria-controls="eff-help-panel"
+      (click)="effHelpOpen.set(!effHelpOpen())"
+    >
+      <mat-icon aria-hidden="true">{{ effHelpOpen() ? 'expand_less' : 'help_outline' }}</mat-icon>
+      How these figures are calculated
+    </button>
+    @if (effHelpOpen()) {
+      <ul class="eff-help" id="eff-help-panel">
+        <li><strong>Window:</strong> selects signals by their original signal date. Outcomes always use all available price history after each signal.</li>
+        <li><strong>5D / 20D:</strong> the 5th and 20th trading session after the signal date. <strong>1M:</strong> the first session on or after one calendar month later (about 21–23 sessions), so it is related to, but not the same as, 20D.</li>
+        <li><strong>Completed periods only:</strong> a signal enters an average once its period has finished. Missing results are never treated as zero.</li>
+        <li><strong>Direction:</strong> Buy-direction signals gain when the price rises; Sell-direction signals gain when it falls. Raw stock returns are kept alongside. These are not your realized P/L.</li>
+        <li><strong>Overlap:</strong> signals on the same ticker and direction within 20 trading sessions are statistically dependent. They are flagged but never excluded.</li>
+      </ul>
+    }
+  </section>
   }
 </div>

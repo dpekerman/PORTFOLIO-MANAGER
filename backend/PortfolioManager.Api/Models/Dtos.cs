@@ -68,7 +68,9 @@ public record PortfolioItemDto(
     string? FinalAction = null,
     string? FinalActionSeverity = null,
     string? FinalActionPriority = null,
-    DateTime? FinalActionUpdatedAt = null);
+    DateTime? FinalActionUpdatedAt = null,
+    /// <summary>Completed market session (yyyy-MM-dd) the published Final Action's evidence belongs to.</summary>
+    string? FinalActionSession = null);
 
 /// <summary>Result of PUT /api/portfolio/{id}. NewOpenItem is populated only when the edit was a
 /// partial close (TransactionType changed to CLOSE with Shares less than the position's prior
@@ -83,7 +85,11 @@ public record PortfolioSummaryDto(
     SharedTechnicalFacts? TechnicalFacts = null);
 
 /// <summary>One Portfolio holding's Final Action, computed client-side and pushed after every recompute.</summary>
-public record FinalActionSyncItem(int ItemId, string FinalAction, string Severity, string Priority);
+public record FinalActionSyncItem(int ItemId, string FinalAction, string Severity, string Priority,
+    /// <summary>When this symbol was successfully evaluated (not when it was written); null for legacy callers.</summary>
+    DateTime? EvaluatedAtUtc = null,
+    /// <summary>The completed market session (yyyy-MM-dd) the evaluation's evidence belongs to.</summary>
+    string? Session = null);
 
 public record SyncFinalActionsRequest(IReadOnlyList<FinalActionSyncItem> Items);
 
