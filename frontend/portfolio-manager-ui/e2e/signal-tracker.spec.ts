@@ -142,7 +142,8 @@ test.describe('signal tracker', () => {
 
 });
 
-test.describe('signal effectiveness', () => {
+// Re-enable together with `showEffectiveness` in signal-tracker-page.component.ts.
+test.describe.skip('signal effectiveness', () => {
   const eff = (page: import('@playwright/test').Page) => page.getByRole('region', { name: 'Signal effectiveness' });
 
   test('defaults to the 90-day cohort with sample counts, window dates and an accessible selector', async ({ page }) => {
