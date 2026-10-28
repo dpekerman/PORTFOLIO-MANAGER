@@ -361,6 +361,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
             Sector        = sector ?? "",
             Industry      = q.Industry ?? "",
             MarketState   = q.MarketState ?? "",
+            Currency      = string.IsNullOrWhiteSpace(q.Currency) ? null : q.Currency.Trim().ToUpperInvariant(),
             Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             Week52High    = q.FiftyTwoWeekHigh,
             Week52Low     = q.FiftyTwoWeekLow,

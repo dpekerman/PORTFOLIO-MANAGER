@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services.Risk;
 using System.Security.Claims;
 
 namespace PortfolioManager.Api.Services;
@@ -89,6 +90,7 @@ public sealed class PortfolioService(
             HoldingRole      = request.HoldingRole
         };
 
+        await TradeEpisodeAssigner.AssignOnOpenAsync(db, item, ct);
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
         mutationClock.Touch();
@@ -186,6 +188,10 @@ public sealed class PortfolioService(
             };
             db.PortfolioItems.Add(remainderItem);
         }
+
+        if (remainderItem is not null) TradeEpisodeAssigner.PropagateToRemainder(item, remainderItem);
+        if (!isPartialClose)
+            await TradeEpisodeAssigner.RetireOnFullExitAsync(db, item, new RiskUserContext(httpCtx), ct);
 
         await db.SaveChangesAsync(ct);
         mutationClock.Touch();

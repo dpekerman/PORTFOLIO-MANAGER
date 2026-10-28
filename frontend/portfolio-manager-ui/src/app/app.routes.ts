@@ -33,6 +33,11 @@ export const routes: Routes = [
           import('./features/transactions/transactions.routes').then((m) => m.TRANSACTION_ROUTES),
       },
       {
+        path: 'swing-trading',
+        loadChildren: () =>
+          import('./features/swing-trading/swing-trading.routes').then((m) => m.SWING_TRADING_ROUTES),
+      },
+      {
         path: 'scanner',
         loadChildren: () =>
           import('./features/scanner/scanner.routes').then((m) => m.SCANNER_ROUTES),

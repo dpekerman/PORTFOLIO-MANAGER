@@ -1,0 +1,178 @@
+<app-swing-filter-bar />
+
+<div class="st-toolbar">
+  <span class="st-count" role="status" aria-live="polite" data-testid="risk-count">
+    {{ rows().length }} of {{ store.rows().length }} Swing trades · {{ store.attentionCount() }} need attention
+  </span>
+  <button
+    mat-stroked-button
+    type="button"
+    [matMenuTriggerFor]="exportMenu"
+    [disabled]="rows().length === 0 || demo.isDemoMode()"
+    [matTooltip]="demo.isDemoMode() ? 'Export is unavailable in demo mode' : 'Exports the filtered, sorted rows'"
+    data-testid="risk-export"
+  >
+    <mat-icon aria-hidden="true">download</mat-icon> Export
+  </button>
+  <mat-menu #exportMenu="matMenu">
+    <button mat-menu-item type="button" (click)="exportCsv()" data-testid="risk-export-csv">CSV</button>
+    <button mat-menu-item type="button" (click)="exportXlsx()">Excel</button>
+  </mat-menu>
+</div>
+
+@if (breached().length > 0) {
+  <section class="rm-alert" role="status" aria-label="Positions at or below a recorded stop" data-testid="risk-breach-banner">
+    <strong>{{ breached().length }} {{ breached().length === 1 ? 'position is' : 'positions are' }} at or below a recorded stop.</strong>
+    This is a market observation, not proof a broker order triggered or filled. Check your broker.
+    <ul>
+      @for (b of breached(); track b.key) {
+        <li>{{ b.observation }}</li>
+      }
+    </ul>
+  </section>
+}
+
+@if (store.loading() && store.rows().length === 0) {
+  <p class="st-empty" role="status">Loading risk…</p>
+} @else if (store.error(); as err) {
+  <p class="st-empty st-neg" role="alert">{{ err }}</p>
+} @else if (store.rows().length === 0) {
+  <p class="st-empty" data-testid="risk-empty">No open Swing positions to monitor.</p>
+} @else if (rows().length === 0) {
+  <p class="st-empty">No Swing trades match these filters.</p>
+} @else {
+  <app-mobile-table-controls [sort]="sortRef" gridId="swing-risk-monitor" label="Risk Monitor" />
+  <div class="st-table-wrapper">
+    <table
+      mat-table
+      appResponsiveTable
+      matSort
+      #sortRef="matSort"
+      [dataSource]="rows()"
+      (matSortChange)="onSort($event)"
+      class="st-table"
+      aria-label="Swing trade risk monitor"
+      data-testid="risk-table"
+    >
+      <ng-container matColumnDef="symbol">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Symbol</th>
+        <td mat-cell *matCellDef="let r">
+          <strong>{{ r.symbol }}</strong>
+          <span class="st-sub">{{ r.account }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="account">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="account">Account</th>
+        <td mat-cell *matCellDef="let r">{{ r.account }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="price">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="price">Price</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.currentPrice !== null) { {{ r.currentPrice | number: '1.2-4' }} } @else { <span class="st-dim">—</span> }
+          <span class="st-chip" [class.st-warn]="r.priceBasis === 'Stale' || r.priceBasis === 'Unavailable'">{{ basisLabel(r.priceBasis) }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="asOf">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="asOf">Price As Of</th>
+        <td mat-cell *matCellDef="let r">{{ r.priceAsOfUtc ? (r.priceAsOfUtc | date: 'yyyy-MM-dd HH:mm') : 'Unavailable' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="plannedStop">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="plannedStop">Planned Stop</th>
+        <td mat-cell *matCellDef="let r">
+          {{ r.plannedStop === null ? 'Not set' : (r.plannedStop | number: '1.2-4') }}
+          @if (r.plannedStop !== null) { <span class="st-sub">alert only</span> }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="brokerStop">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="brokerStop">Broker Stop</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.brokerStopTrigger !== null) {
+            {{ r.brokerStopTrigger | number: '1.2-4' }}
+            <span class="st-sub">user-reported, unverified</span>
+          } @else {
+            <span class="st-dim">None recorded</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="distance">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="distance">Distance To Stop</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.distancePct !== null) {
+            <span [class.st-neg]="r.distancePct <= 0">{{ r.distancePct | number: '1.2-2' }}%</span>
+            <span class="st-sub">{{ r.distanceAbs | number: '1.2-4' }} {{ r.currency }}</span>
+          } @else {
+            <span class="st-dim">—</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="covered">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="covered">Covered Qty</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.coveredQuantity === null) { <span class="st-dim">Unknown</span> } @else { {{ r.coveredQuantity | number: '1.0-6' }} }
+          <span class="st-sub">of {{ r.totalQuantity | number: '1.0-6' }} · {{ r.coverageState }}</span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="protection">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="protection">Protection</th>
+        <td mat-cell *matCellDef="let r"><span class="st-chip" [class.st-warn]="r.coverageState !== 'Full'">{{ r.protection }}</span></td>
+      </ng-container>
+
+      <ng-container matColumnDef="severity">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="severity">Risk Severity</th>
+        <td mat-cell *matCellDef="let r">
+          <div class="st-status-stack">
+            <span [class]="'st-chip ' + severityClass(r.severity)" data-testid="severity-chip">{{ r.severity }}</span>
+            @if (r.riskStatuses.length > 0) {
+              <span class="st-status-chips">
+                @for (s of r.riskStatuses; track s) {
+                  <span class="st-chip st-dim">{{ riskLabel(s) }}</span>
+                }
+              </span>
+            }
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="finalAction">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="finalAction">Final Action</th>
+        <td mat-cell *matCellDef="let r">
+          @if (store.finalActionOf(r); as fa) {
+            <button mat-button type="button" class="st-row-btn" (click)="showFinalAction(r)" [attr.aria-label]="'Final Action details for ' + r.symbol">{{ fa }}</button>
+          } @else {
+            <span class="st-dim">—</span>
+          }
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let r">
+          <button mat-flat-button type="button" class="st-row-btn" (click)="manage(r)" [attr.aria-label]="'Manage risk for ' + r.symbol + ' in ' + r.account" data-testid="manage-risk-btn">
+            <mat-icon aria-hidden="true">shield</mat-icon> Manage Risk
+          </button>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="colConfig" stickyEnd>
+        <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="swing-risk-monitor" /></th>
+        <td mat-cell *matCellDef="let r"></td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns(); sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns()" [attr.data-severity]="row.severity"></tr>
+    </table>
+  </div>
+}
+
+<p class="st-foot">
+  Risk reflects the market price against stops you recorded. Final Action is the app's single canonical recommendation and is
+  not changed by stop status. Approaching-stop threshold: {{ store.thresholdPct() }}% (advisory only).
+</p>

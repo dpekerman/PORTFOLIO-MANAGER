@@ -19,6 +19,8 @@ public class StockQuote
     /// <summary>Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST.</summary>
     public string MarketState { get; set; } = string.Empty;
     public long Timestamp { get; set; }
+    /// <summary>Trading currency reported by the market-data provider (ISO code); null when the provider did not supply it.</summary>
+    public string? Currency { get; set; }
     /// <summary>52-week high price.</summary>
     public decimal Week52High { get; set; }
     /// <summary>52-week low price.</summary>

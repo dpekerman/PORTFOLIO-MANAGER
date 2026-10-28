@@ -41,10 +41,13 @@ __screenshots__/
 
 # Playwright
 /test-results/
+/test-results-live/
 /playwright-report/
+/playwright-report-live/
 /blob-report/
 /playwright/.cache/
 
 # System files
 .DS_Store
 Thumbs.db
+/.auth/

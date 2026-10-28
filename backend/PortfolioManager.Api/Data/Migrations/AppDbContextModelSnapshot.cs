@@ -679,6 +679,121 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("AutomationRunLogs");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.BrokerStopRecord", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<bool>("BrokerCancellationUnverified")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("BrokerOrderRef")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("BrokerVerificationStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("ConfirmationSource")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal?>("CoveredQuantity")
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime?>("EpisodeOpenDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImportKey")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LastUserVerifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("LimitPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("OrderIdentity")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OrderType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime?>("PlacedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ReplacedByRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid?>("TradeEpisodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TriggerPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserStatus")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportKey")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BrokerStopRecords_ImportKey")
+                        .HasFilter("[ImportKey] IS NOT NULL");
+
+                    b.HasIndex("OrderIdentity")
+                        .IsUnique();
+
+                    b.HasIndex("AccountType", "Symbol", "UserStatus");
+
+                    b.ToTable("BrokerStopRecords");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.CashItem", b =>
                 {
                     b.Property<int>("Id")
@@ -1152,6 +1267,9 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<Guid?>("TradeEpisodeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("TransactionType")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
@@ -1163,6 +1281,9 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("Symbol");
+
+                    b.HasIndex("TradeEpisodeId")
+                        .HasDatabaseName("IX_PortfolioItems_TradeEpisodeId");
 
                     b.ToTable("PortfolioItems");
                 });
@@ -1265,6 +1386,148 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.RiskAuditEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("BrokerStopRecordId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ChangesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int?>("RiskPlanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BrokerStopRecordId");
+
+                    b.HasIndex("RiskPlanId");
+
+                    b.HasIndex("AccountType", "Symbol", "OccurredAtUtc");
+
+                    b.ToTable("RiskAuditEvents");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.RiskPlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .HasMaxLength(3)
+                        .HasColumnType("nvarchar(3)");
+
+                    b.Property<DateTime?>("EpisodeOpenDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("PlannedStopPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<string>("RiskNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("StopRationale")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("StopType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<decimal?>("TargetPrice")
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid?>("TradeEpisodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TradeRationale")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "AccountType", "Symbol")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL");
+
+                    b.ToTable("RiskPlans");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.RsiScanSnapshot", b =>
@@ -1752,6 +2015,52 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.ToTable("TechnicalChannels");
                 });
 
+            modelBuilder.Entity("PortfolioManager.Api.Models.TradeEpisode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AccountType")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime?>("ClosedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("OpenDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountType", "Symbol", "Status");
+
+                    b.ToTable("TradeEpisodes");
+                });
+
             modelBuilder.Entity("PortfolioManager.Api.Models.TransactionContextSnapshot", b =>
                 {
                     b.Property<int>("Id")
@@ -2100,6 +2409,23 @@ namespace PortfolioManager.Api.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("PortfolioManager.Api.Models.RiskAuditEvent", b =>
+                {
+                    b.HasOne("PortfolioManager.Api.Models.BrokerStopRecord", "BrokerStopRecord")
+                        .WithMany()
+                        .HasForeignKey("BrokerStopRecordId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("PortfolioManager.Api.Models.RiskPlan", "RiskPlan")
+                        .WithMany()
+                        .HasForeignKey("RiskPlanId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("BrokerStopRecord");
+
+                    b.Navigation("RiskPlan");
                 });
 
             modelBuilder.Entity("PortfolioManager.Api.Models.SignalAuditEvent", b =>

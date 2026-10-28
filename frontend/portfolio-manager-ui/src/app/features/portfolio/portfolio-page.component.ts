@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
+import { openManageRiskDialog } from '../../shared/manage-risk-dialog/manage-risk-dialog.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -1364,6 +1365,42 @@ export class PortfolioPageComponent {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Opens the shared Manage Risk dialog for this holding. The dialog works per account + symbol, so the figures it
+   * shows are summed across that account's open lots of the security, not just the clicked row.
+   */
+  openManageRisk(s: PortfolioSummary): void {
+    const account = s.item.accountType;
+    if (!account || s.item.isManual) return;
+    const lots = this.portfolio
+      .summaries()
+      .filter(
+        (x) =>
+          x.item.transactionType === 'OPEN' &&
+          x.item.accountType === account &&
+          x.item.symbol.toUpperCase() === s.item.symbol.toUpperCase(),
+      );
+    const shares = lots.reduce((sum, x) => sum + x.item.shares, 0);
+    const cost = lots.reduce((sum, x) => sum + x.item.averageCostBasis * x.item.shares, 0);
+    const quote = s.quote;
+    const price = quote && quote.currentPrice > 0 ? quote.currentPrice : null;
+    const avg = shares > 0 ? cost / shares : null;
+    const roles = new Set(lots.map((x) => x.item.holdingRole ?? 'Strategic'));
+    openManageRiskDialog(this.dialog, {
+      account,
+      symbol: s.item.symbol,
+      companyName: s.item.companyName,
+      role: roles.size === 1 ? [...roles][0] : 'Mixed roles',
+      averageCost: avg,
+      currentPrice: price,
+      priceBasis: price === null ? 'Unavailable' : quote?.marketState === 'REGULAR' ? 'Live' : 'EOD',
+      priceAsOfUtc: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null,
+      marketValue: price === null ? null : price * shares,
+      unrealizedPnl: price === null || avg === null ? null : (price - avg) * shares,
+      unrealizedPnlPct: price === null || avg === null || avg <= 0 ? null : ((price - avg) / avg) * 100,
+    });
   }
 
   openEditGridRow(s: PortfolioSummary): void {

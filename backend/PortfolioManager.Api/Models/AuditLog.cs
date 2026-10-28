@@ -39,6 +39,7 @@ public static class AuditCategories
     public const string User = "User";
     public const string Automation = "Automation";
     public const string Signals = "Signals";
+    public const string Risk = "Risk";
 }
 
 public static class AuditActions

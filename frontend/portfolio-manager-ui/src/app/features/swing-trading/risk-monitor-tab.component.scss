@@ -1,0 +1,41 @@
+@use 'swing-shared';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.st-table {
+  width: 100%;
+
+  td,
+  th {
+    padding: 6px 10px;
+    vertical-align: top;
+  }
+}
+
+.st-count {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.st-foot {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+.rm-alert {
+  margin: 6px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--mat-sys-error);
+  color: var(--mat-sys-error);
+  border-radius: 8px;
+  font-size: 0.85rem;
+
+  ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+  }
+}
