@@ -310,6 +310,7 @@ describe('GridColumnStore', () => {
         'tx_avg_cost',
         'tx_open_date',
         'tx_gain_loss',
+        'tx_diff_dollar',
         'tx_actions',
       ]);
     });
@@ -336,7 +337,7 @@ describe('GridColumnStore', () => {
       );
 
       s.setShowAllColumnsOnHandset(false);
-      expect(s.getResponsiveColumnKeys(GRID)()).toHaveLength(7);
+      expect(s.getResponsiveColumnKeys(GRID)()).toHaveLength(8);
     });
 
     it('honours columns the user hid on desktop', () => {
