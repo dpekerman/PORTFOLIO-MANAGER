@@ -46,6 +46,15 @@ public sealed class SignalsAuditController(ISignalsAuditService service) : Contr
     public async Task<ActionResult<SignalAuditSummaryDto>> GetSummary([FromQuery] SignalsAuditQuery query, CancellationToken ct) =>
         Ok(await service.GetSummaryAsync(CurrentUserId(), query, ct));
 
+    /// <summary>Rolling-cohort effectiveness, independent of the table's ticker / date / status / My Action filters.</summary>
+    [HttpGet("effectiveness")]
+    public async Task<ActionResult<SignalEffectivenessResultDto>> GetEffectiveness(
+        [FromQuery] SignalEffectivenessQuery query, CancellationToken ct)
+    {
+        try { return Ok(await service.GetEffectivenessAsync(CurrentUserId(), query, ct)); }
+        catch (ArgumentException ex) { return BadRequest(new { title = ex.Message }); }
+    }
+
     [HttpGet("{id:long}")]
     public async Task<ActionResult<SignalAuditDetailDto>> GetById(long id, CancellationToken ct)
     {

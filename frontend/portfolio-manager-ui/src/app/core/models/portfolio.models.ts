@@ -1677,7 +1677,59 @@ export interface SignalAuditSummary {
   trimExit: number;
   actioned: number;
   pendingReview: number;
+  /** Deprecated: the page loads effectiveness from its own endpoint; the summary sends an empty list. */
   effectiveness: SignalEffectivenessRow[];
+}
+
+export type EffectivenessWindow = '30' | '90' | '180' | 'all';
+
+/** Context filters for the effectiveness view. Ticker, date, status and My Action are deliberately absent. */
+export interface SignalEffectivenessQueryParams {
+  window: EffectivenessWindow;
+  signalType: string[];
+  source: string;
+  role: string[];
+  includeBaselineInStats: boolean;
+}
+
+/** Raw returns are the stock's price change; adjusted flips the sign for Sell signals and is null where direction is undefined. */
+export interface SignalEffectivenessResultRow {
+  signalType: string;
+  label: string;
+  direction: SignalDirection;
+  directionDefined: boolean;
+  eligible: number;
+  overlappingCount: number;
+  observations5D: number;
+  rawAvg5D: number | null;
+  adjustedAvg5D: number | null;
+  observations20D: number;
+  rawAvg20D: number | null;
+  adjustedAvg20D: number | null;
+  observations1M: number;
+  rawAvg1M: number | null;
+  adjustedAvg1M: number | null;
+  favourableObservations: number;
+  favourablePct: number | null;
+  actionedCount: number;
+}
+
+export interface SignalEffectivenessCoverage {
+  cohortEvents: number;
+  withPriceHistory: number;
+  noPriceHistory: number;
+  overlappingEvents: number;
+  complete: boolean;
+  batches: number;
+  note: string | null;
+}
+
+export interface SignalEffectivenessResult {
+  window: EffectivenessWindow;
+  windowStart: string | null;
+  windowEnd: string;
+  coverage: SignalEffectivenessCoverage;
+  rows: SignalEffectivenessResultRow[];
 }
 
 export interface SignalLinkedTransaction {

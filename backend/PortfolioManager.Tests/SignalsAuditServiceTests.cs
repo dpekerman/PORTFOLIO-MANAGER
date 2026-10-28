@@ -688,6 +688,327 @@ public sealed class SignalsAuditServiceTests
         Assert.Equal(new DateOnly(2026, 3, 9), SignalsAuditService.SnapDate(new DateOnly(2026, 3, 9)));
     }
 
+    // ── Signal effectiveness (rolling cohort, independent of the table) ─────────────
+
+    private static DateOnly Day(int daysAgo) => SignalsAuditService.SnapDate(SignalsAuditService.TorontoToday().AddDays(-daysAgo));
+
+    /// <summary>Weekday closes from <paramref name="start"/> through <paramref name="end"/>; history never extends past "today".</summary>
+    private static List<MarketDailyClose> SeriesUntil(DateOnly start, DateOnly end, Func<int, decimal> price)
+    {
+        var list = new List<MarketDailyClose>();
+        for (var d = start; d <= end; d = d.AddDays(1))
+            if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+                list.Add(new MarketDailyClose(d, price(list.Count)));
+        return list;
+    }
+
+    private static readonly string SellKey = SignalTypeCatalog.FinalActionKey(FinalActionCatalog.Describe("Cut Loss / Exit").Id);
+    private static readonly string NeutralKey = SignalTypeCatalog.FinalActionKey(FinalActionCatalog.Describe("BUY WATCH").Id);
+
+    private static SignalAuditEvent Eff(Harness h, string symbol, DateOnly date, string type = SignalTypeCatalog.PriorityCandidateKey,
+        string myAction = SignalMyActions.Pending, string status = SignalStatuses.Active, bool audited = true,
+        string origin = SignalOrigins.Live, string source = SignalSources.Watchlist, string role = "Core", bool save = true)
+    {
+        var def = SignalTypeCatalog.Find(type)!;
+        var ev = new SignalAuditEvent
+        {
+            UserId = User, Symbol = symbol, AnalysisSymbol = symbol, SignalType = type, SignalCategory = def.Category,
+            Direction = def.Direction, SignalDate = date, SignalPrice = 100m, Role = role, Source = source, Origin = origin,
+            PerformanceAudited = audited, Status = status, MyAction = myAction,
+            EpisodeKey = $"{type}|{symbol}|{date:yyyyMMdd}|{Guid.NewGuid():N}",
+        };
+        h.Db.SignalAuditEvents.Add(ev);
+        if (save) h.Db.SaveChanges();
+        return ev;
+    }
+
+    private static void Rising(Harness h, string symbol, DateOnly from) =>
+        h.Market.Series[symbol] = SeriesUntil(from, SignalsAuditService.TorontoToday(), i => 100m + i);
+
+    private static void Falling(Harness h, string symbol, DateOnly from) =>
+        h.Market.Series[symbol] = SeriesUntil(from, SignalsAuditService.TorontoToday(), i => 100m - i);
+
+    [Fact]
+    public async Task Effectiveness_WindowSelectsOriginalSignalDates_AndNeverTruncatesOutcomes()
+    {
+        var h = new Harness([]);
+        foreach (var (symbol, ago) in new[] { ("A", 20), ("B", 60), ("C", 120), ("D", 400) })
+        {
+            Eff(h, symbol, Day(ago));
+            Rising(h, symbol, Day(ago));
+        }
+
+        var w30 = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "30"));
+        var w90 = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        var w180 = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "180"));
+        var all = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "ALL"));
+
+        Assert.Equal(new[] { 1, 2, 3, 4 }, new[] { w30, w90, w180, all }.Select(r => Assert.Single(r.Rows).Eligible));
+        Assert.Equal("90", w90.Window);
+        Assert.Equal(SignalsAuditService.TorontoToday().AddDays(-90).ToString("yyyy-MM-dd"), w90.WindowStart);
+        Assert.Null(all.WindowStart);
+
+        // A is 20 days old: 5D is complete, 20D is still pending (excluded, never zero) because history ends today.
+        var r30 = Assert.Single(w30.Rows);
+        Assert.Equal(1, r30.Observations5D);
+        Assert.Equal(0, r30.Observations20D);
+        Assert.Null(r30.RawAvg20D);
+        // B (inside the 90D window) completed its 20D horizon: the window selects signal dates, not outcome dates.
+        var r90 = Assert.Single(w90.Rows);
+        Assert.Equal(1, r90.Observations20D);
+        Assert.Equal(20m, r90.RawAvg20D);
+    }
+
+    [Fact]
+    public async Task Effectiveness_EntryFollowedByDecline_IsNegativeAndUnfavourable()
+    {
+        var h = new Harness([]);
+        Eff(h, "DROP", Day(60));
+        Falling(h, "DROP", Day(60));
+
+        var row = Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+        Assert.Equal(SignalDirections.Buy, row.Direction);
+        Assert.Equal(-20m, row.RawAvg20D);
+        Assert.Equal(-20m, row.AdjustedAvg20D);
+        Assert.Equal(0m, row.FavourablePct);
+    }
+
+    [Fact]
+    public async Task Effectiveness_ExitFollowedByDecline_KeepsRawNegative_AdjustedPositive_AndFavourable()
+    {
+        Assert.Equal(SignalDirections.Sell, SignalTypeCatalog.Find(SellKey)!.Direction);
+        var h = new Harness([]);
+        Eff(h, "DROP", Day(60), SellKey, source: SignalSources.Portfolio);
+        Falling(h, "DROP", Day(60));
+        Eff(h, "RISE", Day(60), SellKey, source: SignalSources.Portfolio);
+        Rising(h, "RISE", Day(60));
+
+        var row = Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+        Assert.Equal(SignalDirections.Sell, row.Direction);
+        Assert.Equal(2, row.Eligible);
+        Assert.Equal(0m, row.RawAvg20D);            // -20% and +20%
+        Assert.Equal(50m, row.FavourablePct);       // only the exit followed by a decline was favourable
+        Assert.Equal(2, row.FavourableObservations);
+
+        // A single exit followed by a decline shows the sign flip directly.
+        var h2 = new Harness([]);
+        Eff(h2, "DROP", Day(60), SellKey, source: SignalSources.Portfolio);
+        Falling(h2, "DROP", Day(60));
+        var only = Assert.Single((await h2.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+        Assert.Equal(-20m, only.RawAvg20D);
+        Assert.Equal(20m, only.AdjustedAvg20D);
+        Assert.Equal(100m, only.FavourablePct);
+    }
+
+    [Fact]
+    public async Task Effectiveness_NeutralSignal_HasRawReturnsButNoDirectionalOutcome()
+    {
+        var h = new Harness([]);
+        Eff(h, "NEUT", Day(60), NeutralKey);
+        Rising(h, "NEUT", Day(60));
+
+        var row = Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+        Assert.Equal(SignalDirections.Neutral, row.Direction);
+        Assert.False(row.DirectionDefined);
+        Assert.Equal(20m, row.RawAvg20D);
+        Assert.Null(row.AdjustedAvg20D);
+        Assert.Null(row.FavourablePct);
+        Assert.Equal(0, row.FavourableObservations);
+    }
+
+    [Fact]
+    public async Task Effectiveness_CountsInvalidatedSupersededAndExpired_ButNotUnauditedOrBaseline()
+    {
+        var h = new Harness([]);
+        var i = 0;
+        foreach (var status in new[] { SignalStatuses.Invalidated, SignalStatuses.Superseded, SignalStatuses.Expired, SignalStatuses.Acted, SignalStatuses.Dismissed })
+        {
+            var s = $"S{i++}";
+            Eff(h, s, Day(60), status: status);
+            Rising(h, s, Day(60));
+        }
+        Eff(h, "UNAUD", Day(60), audited: false); Rising(h, "UNAUD", Day(60));
+        Eff(h, "BASE", Day(60), origin: SignalOrigins.InitialBaseline); Rising(h, "BASE", Day(60));
+
+        var normal = Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+        Assert.Equal(5, normal.Eligible);
+        var withBaseline = Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(IncludeBaselineInStats: true))).Rows);
+        Assert.Equal(6, withBaseline.Eligible);
+    }
+
+    [Fact]
+    public async Task Effectiveness_MissingPriceHistory_IsReportedAsIncompleteCoverage_NotCountedAsZero()
+    {
+        var h = new Harness([]);
+        Eff(h, "OK", Day(60)); Rising(h, "OK", Day(60));
+        Eff(h, "NOHIST", Day(60)); // no series at all
+
+        var result = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(2, row.Eligible);
+        Assert.Equal(1, row.Observations20D);   // only the evaluable signal is in the average
+        Assert.Equal(20m, row.RawAvg20D);
+        Assert.Equal(2, result.Coverage.CohortEvents);
+        Assert.Equal(1, result.Coverage.WithPriceHistory);
+        Assert.Equal(1, result.Coverage.NoPriceHistory);
+        Assert.True(result.Coverage.Complete);
+        Assert.Contains("no usable price history", result.Coverage.Note);
+    }
+
+    [Fact]
+    public async Task Effectiveness_ActionedMeansRecordedMyAction_NotLifecycleStatus()
+    {
+        var h = new Harness([]);
+        Eff(h, "A", Day(60), status: SignalStatuses.Acted, myAction: SignalMyActions.Pending); Rising(h, "A", Day(60));
+        Eff(h, "B", Day(60), status: SignalStatuses.Active, myAction: SignalMyActions.Actioned); Rising(h, "B", Day(60));
+        Eff(h, "C", Day(60), status: SignalStatuses.Active, myAction: SignalMyActions.Partial); Rising(h, "C", Day(60));
+
+        Assert.Equal(2, Assert.Single((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows).ActionedCount);
+    }
+
+    [Fact]
+    public async Task Effectiveness_ContextFiltersApply_ButTheQueryHasNoTickerDateStatusOrMyActionFilter()
+    {
+        var h = new Harness([]);
+        Eff(h, "P", Day(60), source: SignalSources.Portfolio, role: "Swing"); Rising(h, "P", Day(60));
+        Eff(h, "W", Day(60), source: SignalSources.Watchlist, role: "Core"); Rising(h, "W", Day(60));
+        Eff(h, "X", Day(60), SellKey, source: SignalSources.Portfolio, role: "Core"); Rising(h, "X", Day(60));
+
+        int Eligible(SignalEffectivenessQuery q) => h.Service.GetEffectivenessAsync(User, q).Result.Rows.Sum(r => r.Eligible);
+        Assert.Equal(3, Eligible(new SignalEffectivenessQuery()));
+        Assert.Equal(1, Eligible(new SignalEffectivenessQuery(Source: SignalSources.Watchlist)));
+        Assert.Equal(1, Eligible(new SignalEffectivenessQuery(Role: ["Swing"])));
+        Assert.Equal(1, Eligible(new SignalEffectivenessQuery(SignalType: [SellKey])));
+
+        var names = typeof(SignalEffectivenessQuery).GetProperties().Select(p => p.Name).ToHashSet();
+        Assert.DoesNotContain("Ticker", names);
+        Assert.DoesNotContain("From", names);
+        Assert.DoesNotContain("To", names);
+        Assert.DoesNotContain("Status", names);
+        Assert.DoesNotContain("MyAction", names);
+    }
+
+    [Fact]
+    public async Task Effectiveness_Overlap_IsInformational_NeverExcludesAndNeverChangesDenominators()
+    {
+        var h = new Harness([]);
+        // Two same-symbol, same-direction signals ten sessions apart: both counted, the later one flagged.
+        Eff(h, "DUP", Day(70)); Eff(h, "DUP", Day(56));
+        Rising(h, "DUP", Day(70));
+        // Far apart (well over 20 sessions): independent, not flagged.
+        Eff(h, "FAR", Day(85)); Eff(h, "FAR", Day(30));
+        Rising(h, "FAR", Day(85));
+        // Opposite direction on the same symbol is not an overlap.
+        Eff(h, "MIX", Day(60)); Eff(h, "MIX", Day(58), SellKey);
+        Rising(h, "MIX", Day(60));
+
+        var result = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        var buy = result.Rows.Single(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey);
+        Assert.Equal(5, buy.Eligible);
+        Assert.Equal(1, buy.OverlappingCount);
+        Assert.Equal(1, result.Rows.Single(r => r.SignalType == SellKey).Eligible);
+        Assert.Equal(1, result.Coverage.OverlappingEvents);
+        // Overlap is informational: every eligible signal still contributes to the averages.
+        Assert.Equal(buy.Eligible, buy.Observations5D);
+    }
+
+    [Fact]
+    public async Task Effectiveness_Overlap_SeesEarlierEventsOutsideTheWindow_SoTheCohortBoundaryAddsNoBias()
+    {
+        var h = new Harness([]);
+        Eff(h, "EDGE", Day(50));  // outside the 30D window
+        Eff(h, "EDGE", Day(25));  // inside; ~17 sessions after the earlier one
+        Rising(h, "EDGE", Day(50));
+
+        var result = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "30"));
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(1, row.Eligible);        // only the in-window signal is counted
+        Assert.Equal(1, row.OverlappingCount); // flagged because of the earlier, out-of-window event
+    }
+
+    [Fact]
+    public async Task Effectiveness_SameDaySameSymbol_IsOrderedDeterministicallyById()
+    {
+        var h = new Harness([]);
+        Eff(h, "TWIN", Day(60)); Eff(h, "TWIN", Day(60));
+        Rising(h, "TWIN", Day(60));
+
+        var first = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        var second = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        Assert.Equal(2, Assert.Single(first.Rows).Eligible);
+        Assert.Equal(1, first.Rows[0].OverlappingCount);
+        Assert.Equal(first.Rows, second.Rows);
+    }
+
+    [Fact]
+    public async Task Effectiveness_AggregatesMoreThanFiveThousandEvents_CompletelyInBatches()
+    {
+        var h = new Harness([]);
+        const int symbols = 20, perSymbol = 270; // 5,400 events > the 5,000-row table cap
+        for (var s = 0; s < symbols; s++)
+        {
+            var symbol = $"BULK{s}";
+            Rising(h, symbol, Day(80));
+            for (var e = 0; e < perSymbol; e++)
+                Eff(h, symbol, Day(60 + e % 15), save: false);
+        }
+        await h.Db.SaveChangesAsync();
+
+        var result = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "all"));
+        var row = Assert.Single(result.Rows);
+        Assert.Equal(symbols * perSymbol, row.Eligible);
+        Assert.Equal(symbols * perSymbol, result.Coverage.CohortEvents);
+        Assert.True(result.Coverage.Complete);
+        Assert.True(result.Coverage.Batches >= 6);
+        Assert.Null(result.Coverage.Note);
+    }
+
+    [Fact]
+    public async Task Effectiveness_NoHistory_ReturnsAnEmptyCompleteResult()
+    {
+        var h = new Harness([]);
+        var result = await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery());
+        Assert.Empty(result.Rows);
+        Assert.Equal(0, result.Coverage.CohortEvents);
+        Assert.True(result.Coverage.Complete);
+        Assert.Null(result.Coverage.Note);
+    }
+
+    [Fact]
+    public async Task Effectiveness_RejectsAnUnknownWindow_AndNeverReadsAnotherUsersSignals()
+    {
+        var h = new Harness([]);
+        await Assert.ThrowsAsync<ArgumentException>(() => h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "45")));
+
+        h.AddEvent("OTHER", Day(60), "Core", SignalMyActions.Pending, user: "someone-else");
+        Assert.Empty((await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery())).Rows);
+    }
+
+    [Fact]
+    public async Task Summary_StillIncludesEffectivenessByDefault_AndSkipsItWhenTheCallerLoadsItSeparately()
+    {
+        var h = new Harness([]);
+        Eff(h, "UP", Day(60)); Rising(h, "UP", Day(60));
+
+        Assert.NotEmpty((await h.Service.GetSummaryAsync(User, new SignalsAuditQuery())).Effectiveness);
+        var skipped = await h.Service.GetSummaryAsync(User, new SignalsAuditQuery(IncludeEffectiveness: false));
+        Assert.Empty(skipped.Effectiveness);
+        Assert.Equal(1, skipped.Total);
+    }
+
+    [Fact]
+    public async Task Effectiveness_IsReadOnly_NoSignalEventIsModified()
+    {
+        var h = new Harness([]);
+        Eff(h, "RO", Day(60), status: SignalStatuses.Invalidated); Rising(h, "RO", Day(60));
+        var before = h.Db.SignalAuditEvents.AsNoTracking().Select(e => new { e.Id, e.SignalDate, e.Status, e.MyAction, e.PerformanceAudited }).ToList();
+
+        await h.Service.GetEffectivenessAsync(User, new SignalEffectivenessQuery(Window: "all"));
+
+        var after = h.Db.SignalAuditEvents.AsNoTracking().Select(e => new { e.Id, e.SignalDate, e.Status, e.MyAction, e.PerformanceAudited }).ToList();
+        Assert.Equal(before, after);
+    }
+
     private static DateOnly SignalsAuditService_TorontoToday() => SignalsAuditService.TorontoToday();
 
     private static List<MarketDailyClose> Series(DateOnly start, int count, Func<int, decimal> price)

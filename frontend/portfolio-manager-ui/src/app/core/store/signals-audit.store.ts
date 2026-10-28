@@ -5,9 +5,11 @@ import { patchState, signalStore, withComputed, withHooks, withMethods, withStat
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { firstValueFrom, forkJoin, pipe, switchMap, tap } from 'rxjs';
 import {
+  EffectivenessWindow,
   SignalAuditDetail,
   SignalAuditRow,
   SignalAuditSummary,
+  SignalEffectivenessResult,
   SignalMyAction,
   SignalsAuditQueryParams,
   SignalsAuditSettings,
@@ -25,6 +27,11 @@ export type SignalsAuditFilters = Pick<
   'ticker' | 'signalType' | 'source' | 'role' | 'myAction' | 'origin' | 'includeBaselineInStats' | 'includeUnaudited' | 'status' | 'from' | 'to'
 >;
 
+/** The only table filters that also shape the effectiveness view (documented on the page). */
+const EFFECTIVENESS_FILTER_KEYS: (keyof SignalsAuditFilters)[] = ['signalType', 'source', 'role', 'includeBaselineInStats'];
+
+export const DEFAULT_EFFECTIVENESS_WINDOW: EffectivenessWindow = '90';
+
 interface SignalsAuditState extends SignalsAuditFilters {
   items: SignalAuditRow[];
   total: number;
@@ -35,6 +42,11 @@ interface SignalsAuditState extends SignalsAuditFilters {
   summary: SignalAuditSummary | null;
   /** Same filters minus signalType/myAction, so the KPI cards stay stable while a card filter is active. */
   overview: SignalAuditSummary | null;
+  /** Rolling-cohort effectiveness: independent of the table's ticker, date, status and My Action filters. */
+  effectiveness: SignalEffectivenessResult | null;
+  effectivenessWindow: EffectivenessWindow;
+  effectivenessLoading: boolean;
+  effectivenessError: string | null;
   signalTypes: SignalTypeOption[];
   settings: SignalsAuditSettings | null;
   finalActionCatalog: FinalActionCatalogItem[];
@@ -69,6 +81,10 @@ const initialState: SignalsAuditState = {
   sortDir: 'desc',
   summary: null,
   overview: null,
+  effectiveness: null,
+  effectivenessWindow: DEFAULT_EFFECTIVENESS_WINDOW,
+  effectivenessLoading: false,
+  effectivenessError: null,
   signalTypes: [],
   settings: null,
   finalActionCatalog: [],
@@ -172,19 +188,57 @@ export const SignalsAuditStore = signalStore(
       ),
     );
 
+    const loadEffectiveness = rxMethod<void>(
+      pipe(
+        tap(() => patchState(store, { effectivenessLoading: true, effectivenessError: null })),
+        switchMap(() =>
+          api
+            .effectiveness({
+              window: store.effectivenessWindow(),
+              signalType: store.signalType(),
+              source: store.source(),
+              role: store.role(),
+              includeBaselineInStats: store.includeBaselineInStats(),
+            })
+            .pipe(
+              tapResponse({
+                next: (effectiveness) => patchState(store, { effectiveness, effectivenessLoading: false }),
+                error: () =>
+                  patchState(store, { effectivenessLoading: false, effectivenessError: 'Failed to load signal effectiveness' }),
+              }),
+            ),
+        ),
+      ),
+    );
+
+    const contextKey = (): string =>
+      JSON.stringify(EFFECTIVENESS_FILTER_KEYS.map((k) => store[k]()));
+
     return {
       load,
+      loadEffectiveness,
       loadSignalTypes,
       loadSettings,
 
       setFilters(changes: Partial<SignalsAuditFilters>): void {
+        const before = contextKey();
         patchState(store, { ...changes, page: 1 });
         load();
+        // Only the documented context filters (type, role, source, baseline) reach effectiveness.
+        if (contextKey() !== before) loadEffectiveness();
       },
 
       resetFilters(): void {
+        const before = contextKey();
         patchState(store, { ...DEFAULT_SIGNAL_FILTERS, page: 1 });
         load();
+        if (contextKey() !== before) loadEffectiveness();
+      },
+
+      setEffectivenessWindow(effectivenessWindow: EffectivenessWindow): void {
+        if (effectivenessWindow === store.effectivenessWindow()) return;
+        patchState(store, { effectivenessWindow });
+        loadEffectiveness();
       },
 
       /**

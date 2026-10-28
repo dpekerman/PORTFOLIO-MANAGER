@@ -157,6 +157,83 @@ export function signalSummary(rows: Row[]) {
   };
 }
 
+const effRow = (over: Record<string, unknown>) => ({
+  directionDefined: true,
+  overlappingCount: 0,
+  observations5D: 0,
+  rawAvg5D: null,
+  adjustedAvg5D: null,
+  observations20D: 0,
+  rawAvg20D: null,
+  adjustedAvg20D: null,
+  observations1M: 0,
+  rawAvg1M: null,
+  adjustedAvg1M: null,
+  favourableObservations: 0,
+  favourablePct: null,
+  actionedCount: 0,
+  ...over,
+});
+
+const coverage = (cohortEvents: number, noPriceHistory = 0) => ({
+  cohortEvents,
+  withPriceHistory: cohortEvents - noPriceHistory,
+  noPriceHistory,
+  overlappingEvents: 1,
+  complete: true,
+  batches: 1,
+  note: noPriceHistory
+    ? `${noPriceHistory} of ${cohortEvents} signals have no usable price history and are not evaluated; the figures use the rest.`
+    : null,
+});
+
+/**
+ * Deterministic historical effectiveness: depends ONLY on the window and the context filters (role, source,
+ * signal type), mirroring the server. The Priority Candidate row is an Entry followed by declines; the exit row is
+ * a Sell signal followed by declines (raw negative, adjusted positive); the watch row has no defined direction.
+ */
+export function signalEffectiveness(q: URLSearchParams) {
+  const window = q.get('window') ?? '90';
+  const roles = q.getAll('role');
+  const end = isoDate(0);
+  const start = window === 'all' ? null : isoDate(-Number(window));
+  const base = { window, windowStart: start, windowEnd: end };
+
+  if (roles.length > 0 && !roles.some((r) => ['Core', 'Strategic', 'Swing'].includes(r))) {
+    return { ...base, coverage: { ...coverage(0), overlappingEvents: 0 }, rows: [] };
+  }
+  if (window === '30') {
+    return {
+      ...base,
+      coverage: coverage(2),
+      rows: [effRow({ signalType: 'PRIORITY_CANDIDATE', label: 'Priority Candidate', direction: 'Buy', eligible: 2, observations5D: 2, rawAvg5D: 1.2, adjustedAvg5D: 1.2 })],
+    };
+  }
+  const entry = effRow({
+    signalType: 'PRIORITY_CANDIDATE', label: 'Priority Candidate', direction: 'Buy', eligible: 6, overlappingCount: 1,
+    observations5D: 6, rawAvg5D: 2.1, adjustedAvg5D: 2.1,
+    observations20D: 4, rawAvg20D: -3.2, adjustedAvg20D: -3.2,
+    observations1M: 3, rawAvg1M: 0.4, adjustedAvg1M: 0.4,
+    favourableObservations: 4, favourablePct: 25, actionedCount: 2,
+  });
+  const exit = effRow({
+    signalType: 'FA:CUT LOSS / EXIT', label: 'Cut Loss / Exit', direction: 'Sell', eligible: 3,
+    observations5D: 3, rawAvg5D: -1.5, adjustedAvg5D: 1.5,
+    observations20D: 3, rawAvg20D: -4.5, adjustedAvg20D: 4.5,
+    observations1M: 2, rawAvg1M: -6, adjustedAvg1M: 6,
+    favourableObservations: 3, favourablePct: 100,
+  });
+  const watch = effRow({
+    signalType: 'FA:BUY WATCH', label: 'Buy Watch', direction: 'Neutral', directionDefined: false, eligible: 2,
+    observations5D: 2, rawAvg5D: 0.8, observations20D: 1, rawAvg20D: 2.4,
+  });
+  return {
+    ...base,
+    coverage: coverage(window === '180' || window === 'all' ? 14 : 11, window === '180' ? 2 : 0),
+    rows: [entry, exit, watch],
+  };
+}
+
 export const signalCandidates = [
   {
     id: 21,

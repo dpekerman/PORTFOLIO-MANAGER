@@ -29,6 +29,11 @@ public interface ISignalsAuditService
     Task<IReadOnlyList<SignalTypeOptionDto>> GetSignalTypesAsync(string userId, CancellationToken ct = default);
     Task<SignalAuditPagedResponse> QueryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default);
     Task<SignalAuditSummaryDto> GetSummaryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default);
+    /// <summary>
+    /// Historical effectiveness over a rolling cohort of ORIGINAL signal dates. Independent of the table's ticker, date,
+    /// status and My Action filters. Read-only; evaluates outcomes from stored price history, never scans or publishes.
+    /// </summary>
+    Task<SignalEffectivenessResultDto> GetEffectivenessAsync(string userId, SignalEffectivenessQuery query, CancellationToken ct = default);
     Task<SignalAuditDetailDto?> GetDetailAsync(string userId, long id, CancellationToken ct = default);
     Task<IReadOnlyList<SignalTransactionCandidateDto>?> GetTransactionCandidatesAsync(string userId, long id, CancellationToken ct = default);
     /// <summary>Null when the signal does not exist; throws <see cref="ArgumentException"/> on invalid input.</summary>
@@ -50,7 +55,9 @@ public sealed record SignalsAuditQuery(
     string? Origin = null,
     bool IncludeBaselineInStats = false,
     bool IncludeUnaudited = false,
-    string? Status = null);
+    string? Status = null,
+    /// <summary>The page loads effectiveness separately; it sets this false so the summary skips that calculation.</summary>
+    bool IncludeEffectiveness = true);
 
 /// <summary>Per-pass context for the lifecycle-aware capture.</summary>
 public sealed record CaptureOptions(bool IsEodPass, bool EvaluationComplete = true, DateTime? RunStartedUtc = null);
@@ -698,7 +705,7 @@ public sealed class SignalsAuditService(
         var statRows = (query.IncludeBaselineInStats || string.Equals(query.Origin, SignalOrigins.InitialBaseline, StringComparison.OrdinalIgnoreCase)
             ? rows
             : rows.Where(r => r.Origin != SignalOrigins.InitialBaseline)).Where(r => r.PerformanceAudited).ToList();
-        var effectiveness = statRows.GroupBy(r => r.SignalType).Select(g =>
+        var effectiveness = !query.IncludeEffectiveness ? [] : statRows.GroupBy(r => r.SignalType).Select(g =>
         {
             var def = SignalTypeCatalog.Find(g.Key);
             var direction = def?.Direction ?? SignalDirections.Neutral;
@@ -726,6 +733,155 @@ public sealed class SignalsAuditService(
             rows.Count(r => SignalMyActions.IsFollowed(r.MyAction)),
             open.Count(r => r.MyAction == SignalMyActions.Pending),
             effectiveness);
+    }
+
+    private const int EffectivenessBatchSize = 1000;
+    private const int MaxEffectivenessEvents = 250_000;
+    private const int OverlapSessions = 20;
+    // 20 trading sessions never span more than ~32 calendar days; beyond this the exact calendar walk is skipped.
+    private const int OverlapCalendarCeilingDays = 45;
+
+    private static (string Key, int? Days) ParseWindow(string? window)
+    {
+        switch ((window ?? "90").Trim().ToLowerInvariant())
+        {
+            case "30": return ("30", 30);
+            case "90": return ("90", 90);
+            case "180": return ("180", 180);
+            case "all": return ("all", null);
+            default: throw new ArgumentException("Window must be 30, 90, 180 or all.");
+        }
+    }
+
+    private sealed class EffectivenessAccumulator
+    {
+        public int Eligible, Overlapping, N5, N20, N1M, Favourable, Actioned;
+        public decimal Sum5, Sum20, Sum1M;
+    }
+
+    /// <summary>
+    /// Informational only: ids of events with an earlier same-symbol, same-direction event within the previous 20 trading
+    /// sessions of that symbol's exchange. It looks at ALL audited history (not just the window), orders deterministically
+    /// by (date, id), and never removes an event from any statistic.
+    /// </summary>
+    private async Task<HashSet<long>> OverlappingEventIdsAsync(string userId, CancellationToken ct)
+    {
+        var all = await db.SignalAuditEvents.AsNoTracking()
+            .Where(e => e.UserId == userId && e.PerformanceAudited)
+            .Select(e => new { e.Id, e.Symbol, e.Direction, e.SignalDate })
+            .ToListAsync(ct);
+        var overlapping = new HashSet<long>();
+        foreach (var group in all.GroupBy(e => (Symbol: e.Symbol.ToUpperInvariant(), e.Direction)))
+        {
+            var ordered = group.OrderBy(e => e.SignalDate).ThenBy(e => e.Id).ToList();
+            var exchange = TradingCalendar.ExchangeFor(group.Key.Symbol);
+            for (var i = 1; i < ordered.Count; i++)
+            {
+                var gapDays = ordered[i].SignalDate.DayNumber - ordered[i - 1].SignalDate.DayNumber;
+                if (gapDays > OverlapCalendarCeilingDays) continue;
+                if (TradingCalendar.TradingDaysBetween(ordered[i - 1].SignalDate, ordered[i].SignalDate, exchange) <= OverlapSessions)
+                    overlapping.Add(ordered[i].Id);
+            }
+        }
+        return overlapping;
+    }
+
+    public async Task<SignalEffectivenessResultDto> GetEffectivenessAsync(
+        string userId, SignalEffectivenessQuery query, CancellationToken ct = default)
+    {
+        var (windowKey, days) = ParseWindow(query.Window);
+        var today = TorontoToday();
+        DateOnly? windowStart = days is { } d ? today.AddDays(-d) : null;
+
+        // Initial-baseline records are not genuine transitions, so they stay out unless asked for.
+        IQueryable<SignalAuditEvent> cohort = db.SignalAuditEvents.AsNoTracking()
+            .Where(e => e.UserId == userId && e.PerformanceAudited && e.SignalDate <= today);
+        if (!query.IncludeBaselineInStats) cohort = cohort.Where(e => e.Origin != SignalOrigins.InitialBaseline);
+        if (windowStart is { } from) cohort = cohort.Where(e => e.SignalDate >= from);
+        if (query.SignalType is { Length: > 0 }) cohort = cohort.Where(e => query.SignalType.Contains(e.SignalType));
+        if (!string.IsNullOrWhiteSpace(query.Source) && !query.Source.Equals("All", StringComparison.OrdinalIgnoreCase))
+            cohort = cohort.Where(e => e.Source == query.Source);
+        if (query.Role is { Length: > 0 }) cohort = cohort.Where(e => e.Role != null && query.Role.Contains(e.Role));
+
+        var overlapIds = await OverlappingEventIdsAsync(userId, ct);
+        var series = new Dictionary<string, IReadOnlyList<MarketDailyClose>?>();
+        var byType = new Dictionary<string, EffectivenessAccumulator>();
+        long lastId = 0;
+        int cohortEvents = 0, withPrice = 0, noPrice = 0, overlapping = 0, batches = 0;
+        var complete = true;
+
+        while (complete)
+        {
+            var batch = await cohort.Where(e => e.Id > lastId).OrderBy(e => e.Id)
+                .Take(EffectivenessBatchSize).ToListAsync(ct);
+            if (batch.Count == 0) break;
+            batches++;
+            lastId = batch[^1].Id;
+            if (cohortEvents + batch.Count > MaxEffectivenessEvents)
+            {
+                batch = batch.Take(MaxEffectivenessEvents - cohortEvents).ToList();
+                complete = false;
+            }
+
+            // Each distinct symbol's history is fetched once per request (and cached across requests).
+            var missing = batch.Select(e => e.AnalysisSymbol).Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(s => !series.ContainsKey(s.ToUpperInvariant())).ToList();
+            if (missing.Count > 0)
+                foreach (var kv in await LoadSeriesAsync(missing, ct)) series[kv.Key] = kv.Value;
+
+            foreach (var e in batch)
+            {
+                var closes = series.GetValueOrDefault(e.AnalysisSymbol.ToUpperInvariant());
+                var (referencePrice, _) = ResolveBasis(e, closes);
+                var r = SignalReturnCalculator.Compute(e.SignalDate, referencePrice, closes);
+                cohortEvents++;
+                if (r.Return5D.Status == SignalReturnCalculator.NotAvailable) noPrice++; else withPrice++;
+
+                var acc = byType.TryGetValue(e.SignalType, out var existing) ? existing : byType[e.SignalType] = new();
+                acc.Eligible++;
+                if (overlapIds.Contains(e.Id)) { acc.Overlapping++; overlapping++; }
+                if (SignalMyActions.IsFollowed(e.MyAction)) acc.Actioned++;
+                if (r.Return5D.Pct is { } p5) { acc.N5++; acc.Sum5 += p5; }
+                if (r.Return20D.Pct is { } p20)
+                {
+                    acc.N20++; acc.Sum20 += p20;
+                    var direction = SignalTypeCatalog.Find(e.SignalType)?.Direction ?? SignalDirections.Neutral;
+                    if (direction == SignalDirections.Buy ? p20 > 0m : direction == SignalDirections.Sell && p20 < 0m) acc.Favourable++;
+                }
+                if (r.Return1M.Pct is { } p1) { acc.N1M++; acc.Sum1M += p1; }
+            }
+        }
+
+        static decimal? Mean(decimal sum, int n) => n == 0 ? null : Math.Round(sum / n, 2);
+        static decimal? Signed(decimal? value, int sign) => value is null || sign == 0 ? null : sign * value;
+
+        var rows = byType.Select(kv =>
+        {
+            var def = SignalTypeCatalog.Find(kv.Key);
+            var direction = def?.Direction ?? SignalDirections.Neutral;
+            var sign = direction == SignalDirections.Buy ? 1 : direction == SignalDirections.Sell ? -1 : 0;
+            var a = kv.Value;
+            var raw5 = Mean(a.Sum5, a.N5);
+            var raw20 = Mean(a.Sum20, a.N20);
+            var raw1 = Mean(a.Sum1M, a.N1M);
+            return new SignalEffectivenessResultRowDto(
+                kv.Key, def?.Label ?? kv.Key, direction, sign != 0, a.Eligible, a.Overlapping,
+                a.N5, raw5, Signed(raw5, sign), a.N20, raw20, Signed(raw20, sign), a.N1M, raw1, Signed(raw1, sign),
+                sign == 0 ? 0 : a.N20,
+                sign == 0 || a.N20 == 0 ? null : Math.Round(a.Favourable * 100m / a.N20, 1),
+                a.Actioned);
+        }).OrderBy(r => r.Label, StringComparer.Ordinal).ThenBy(r => r.SignalType, StringComparer.Ordinal).ToList();
+
+        string? note = null;
+        if (!complete)
+            note = $"Statistics are incomplete: only the first {MaxEffectivenessEvents:N0} signals in this window were evaluated.";
+        else if (noPrice > 0)
+            note = $"{noPrice} of {cohortEvents} signals have no usable price history and are not evaluated; the figures use the rest.";
+
+        return new SignalEffectivenessResultDto(
+            windowKey, windowStart?.ToString("yyyy-MM-dd"), today.ToString("yyyy-MM-dd"),
+            new SignalEffectivenessCoverageDto(cohortEvents, withPrice, noPrice, overlapping, complete, batches, note),
+            rows);
     }
 
     public async Task<SignalAuditDetailDto?> GetDetailAsync(string userId, long id, CancellationToken ct = default)

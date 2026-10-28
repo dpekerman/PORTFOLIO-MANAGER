@@ -11,6 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -28,7 +29,7 @@ import { SIGNALS_EXPORT_HEADERS, signalsExportRows, signalsToCsv } from './signa
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { SignalAuditRow, SignalHorizon, SignalMyAction, SignalStatusFilter } from '../../core/models/portfolio.models';
+import { SignalAuditRow, SignalEffectivenessResultRow, SignalHorizon, SignalMyAction, SignalStatusFilter } from '../../core/models/portfolio.models';
 import { ActivatedRoute } from '@angular/router';
 import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
@@ -41,6 +42,7 @@ import { ResponsiveTableDirective } from '../../shared/responsive-table/responsi
 import { SignalActionDialogComponent } from './signal-action-dialog.component';
 import { describeReasonCode, stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
+import { buildEffectivenessChart } from './signal-effectiveness-chart';
 
 const TICKER_DEBOUNCE_MS = 350;
 const PRIORITY_CANDIDATE_KEY = 'PRIORITY_CANDIDATE';
@@ -60,6 +62,7 @@ type SignalKpi = 'total' | 'priority' | 'entry' | 'trim' | 'actioned' | 'pending
     MobileTableControlsComponent,
     ResponsiveTableDirective,
     MatButtonModule,
+    MatButtonToggleModule,
     MatExpansionModule,
     MatFormFieldModule,
     MatIconModule,
@@ -130,6 +133,54 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected readonly roles = ['Core', 'Strategic', 'Strategic-Income', 'Swing', 'Speculative', 'Options'];
 
+  protected readonly effectivenessWindows = [
+    { value: '30', label: '30D' },
+    { value: '90', label: '90D' },
+    { value: '180', label: '180D' },
+    { value: 'all', label: 'All history' },
+  ] as const;
+
+  protected readonly effHorizons = [
+    { key: '5D', tip: 'Average return 5 trading sessions after the signal, over signals that have completed that period.' },
+    { key: '20D', tip: 'Average return 20 trading sessions after the signal, over signals that have completed that period.' },
+    { key: '1M', tip: 'Average return at the first session on or after one calendar month (about 21–23 sessions) later. Related to 20D, but a distinct measurement.' },
+  ] as const;
+
+  protected readonly effColumns = ['label', 'eligible', 'avg5D', 'avg20D', 'avg1M', 'favourable', 'actioned'];
+  protected readonly effHelpOpen = signal(false);
+  // Hidden until enough price history has accumulated for the section to be meaningful.
+  protected readonly showEffectiveness = false;
+  protected readonly effChart = computed(() => buildEffectivenessChart(this.store.effectiveness()?.rows ?? []));
+  protected readonly effLegend = [
+    { key: '5D', cls: 'eff-h-5d' },
+    { key: '20D', cls: 'eff-h-20d' },
+    { key: '1M', cls: 'eff-h-1m' },
+  ] as const;
+
+  /** Directional types show the direction-adjusted figure with the raw stock return beside it; neutral types show raw only. */
+  protected effCell(r: SignalEffectivenessResultRow, key: '5D' | '20D' | '1M') {
+    const n = key === '5D' ? r.observations5D : key === '20D' ? r.observations20D : r.observations1M;
+    const raw = (key === '5D' ? r.rawAvg5D : key === '20D' ? r.rawAvg20D : r.rawAvg1M) ?? 0;
+    const adjusted = key === '5D' ? r.adjustedAvg5D : key === '20D' ? r.adjustedAvg20D : r.adjustedAvg1M;
+    const main = adjusted ?? raw;
+    return { n, raw, main, showRaw: adjusted !== null && r.direction === 'Sell' };
+  }
+
+  protected signed(value: number): string {
+    return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
+  }
+
+  protected directionTip(r: SignalEffectivenessResultRow): string {
+    switch (r.direction) {
+      case 'Buy':
+        return 'Buy direction: a later price rise is the favourable outcome.';
+      case 'Sell':
+        return 'Sell direction: a later price fall is the favourable outcome. Raw returns are shown beside the adjusted figure.';
+      default:
+        return 'No direction is defined for this signal type, so only raw stock returns are shown.';
+    }
+  }
+
   /** Filters hold yyyy-mm-dd text; the picker works with local Dates. */
   protected toDate(value: string): Date | null {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -174,6 +225,8 @@ export class SignalTrackerPageComponent implements OnInit {
     const ticker = this.route.snapshot.queryParamMap.get('ticker');
     if (ticker) this.store.setFilters({ ticker, includeUnaudited: true });
     else void this.store.loadLatestDay();
+    // Effectiveness has its own rolling window and does not follow the table's date filters.
+    this.store.loadEffectiveness();
   }
 
   protected onTicker(value: string): void {
