@@ -11,6 +11,8 @@ import {
 import { form, FormField } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatNativeDateModule } from '@angular/material/core';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -54,12 +56,26 @@ interface StopModel {
   triggerPrice: number | null;
   limitPrice: number | null;
   coveredQuantity: number | null;
-  placedDate: string;
+  placedDate: Date | null;
   brokerOrderRef: string;
-  lastUserVerifiedDate: string;
+  lastUserVerifiedDate: Date | null;
   notes: string;
   reason: string;
   allowOverCoverage: boolean;
+}
+
+function dateFromString(value: string | null): Date | null {
+  if (!value) return null;
+  const [year, month, day] = value.substring(0, 10).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function dateToString(value: Date | null): string | null {
+  if (!value) return null;
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 const emptyStop = (): StopModel => ({
@@ -67,9 +83,9 @@ const emptyStop = (): StopModel => ({
   triggerPrice: null,
   limitPrice: null,
   coveredQuantity: null,
-  placedDate: '',
+  placedDate: null,
   brokerOrderRef: '',
-  lastUserVerifiedDate: '',
+  lastUserVerifiedDate: null,
   notes: '',
   reason: '',
   allowOverCoverage: false,
@@ -100,10 +116,12 @@ export function openManageRiskDialog(dialog: MatDialog, data: ManageRiskDialogDa
     FormField,
     MatButtonModule,
     MatCheckboxModule,
+    MatDatepickerModule,
     MatDialogModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatNativeDateModule,
     MatProgressSpinnerModule,
     MatSelectModule,
     MatTabsModule,
@@ -269,9 +287,9 @@ export class ManageRiskDialogComponent {
       triggerPrice: s.triggerPrice,
       limitPrice: s.limitPrice,
       coveredQuantity: s.coveredQuantity,
-      placedDate: s.placedDate?.substring(0, 10) ?? '',
+      placedDate: dateFromString(s.placedDate),
       brokerOrderRef: s.brokerOrderRef ?? '',
-      lastUserVerifiedDate: s.lastUserVerifiedDate?.substring(0, 10) ?? '',
+      lastUserVerifiedDate: dateFromString(s.lastUserVerifiedDate),
       notes: s.notes ?? '',
       reason: '',
       allowOverCoverage: false,
@@ -298,9 +316,9 @@ export class ManageRiskDialogComponent {
       triggerPrice: m.triggerPrice,
       limitPrice: m.orderType === 'StopLimit' ? m.limitPrice : null,
       coveredQuantity: m.coveredQuantity,
-      placedDate: m.placedDate || null,
+      placedDate: dateToString(m.placedDate),
       brokerOrderRef: m.brokerOrderRef.trim() || null,
-      lastUserVerifiedDate: m.lastUserVerifiedDate || null,
+      lastUserVerifiedDate: dateToString(m.lastUserVerifiedDate),
       notes: m.notes.trim() || null,
       reason: m.reason.trim() || null,
       allowOverCoverage: m.allowOverCoverage,

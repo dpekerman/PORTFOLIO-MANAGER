@@ -142,6 +142,7 @@ describe('ManageRiskDialogComponent', () => {
     expect(q('[data-testid="mr-no-stops"]')).not.toBeNull();
     (q<HTMLButtonElement>('[data-testid="mr-add-stop"]')!).click();
     fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelectorAll('mat-datepicker-toggle').length).toBe(2);
     setInput('[data-testid="mr-stop-trigger"]', '16.2');
     setInput('[data-testid="mr-stop-covered"]', '900');
     expect(q<HTMLButtonElement>('[data-testid="mr-stop-save"]')!.disabled).toBe(true);
@@ -153,6 +154,45 @@ describe('ManageRiskDialogComponent', () => {
     await fixture.whenStable();
     expect(store['saveBrokerStop']).toHaveBeenCalledWith(
       expect.objectContaining({ id: null, triggerPrice: 16.2, coveredQuantity: 600, orderType: 'StopMarket', allowOverCoverage: false }),
+    );
+  });
+
+  it('opens a calendar from each broker-stop date field', async () => {
+    await create(position({ brokerStops: [] }));
+    await openTab('Broker stops');
+    (q<HTMLButtonElement>('[data-testid="mr-add-stop"]')!).click();
+    fixture.detectChanges();
+
+    const toggles = (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'mat-datepicker-toggle button',
+    );
+    expect(toggles).toHaveLength(2);
+    toggles[0].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.body.querySelector('[role="grid"]')).not.toBeNull();
+    toggles[0].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    toggles[1].click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(document.body.querySelector('[role="grid"]')).not.toBeNull();
+  });
+
+  it('saves calendar dates as date-only values without shifting the day', async () => {
+    await create(position({ brokerStops: [] }));
+    await openTab('Broker stops');
+    (q<HTMLButtonElement>('[data-testid="mr-add-stop"]')!).click();
+    fixture.detectChanges();
+    setInput('[data-testid="mr-stop-trigger"]', '16.2');
+    setInput('[data-testid="mr-stop-placed-date"]', '10/28/2026');
+    setInput('[data-testid="mr-stop-verified-date"]', '10/29/2026');
+    (q<HTMLFormElement>('[data-testid="mr-stop-form"]')!).dispatchEvent(new Event('submit'));
+    await fixture.whenStable();
+
+    expect(store['saveBrokerStop']).toHaveBeenCalledWith(
+      expect.objectContaining({ placedDate: '2026-10-28', lastUserVerifiedDate: '2026-10-29' }),
     );
   });
 

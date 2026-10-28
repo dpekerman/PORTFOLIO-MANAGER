@@ -297,11 +297,15 @@
               }
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Order placed on (if known)</mat-label>
-                <input matInput type="date" [formField]="stopForm.placedDate" />
+                <input matInput [matDatepicker]="placedDatePicker" [formField]="stopForm.placedDate" data-testid="mr-stop-placed-date" />
+                <mat-datepicker-toggle matSuffix [for]="placedDatePicker" aria-label="Choose order placed date" />
+                <mat-datepicker #placedDatePicker />
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Last verified by you</mat-label>
-                <input matInput type="date" [formField]="stopForm.lastUserVerifiedDate" />
+                <input matInput [matDatepicker]="verifiedDatePicker" [formField]="stopForm.lastUserVerifiedDate" data-testid="mr-stop-verified-date" />
+                <mat-datepicker-toggle matSuffix [for]="verifiedDatePicker" aria-label="Choose last verified date" />
+                <mat-datepicker #verifiedDatePicker />
               </mat-form-field>
               <mat-form-field appearance="outline" subscriptSizing="dynamic">
                 <mat-label>Broker order reference (optional)</mat-label>
