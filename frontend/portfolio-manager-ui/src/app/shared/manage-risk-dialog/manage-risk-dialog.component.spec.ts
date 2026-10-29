@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { BrokerStop, ManageRiskDialogData, RiskPosition } from '../../core/models/swing-trading.models';
 import { SwingTradingStore } from '../../core/store/swing-trading.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { ManageRiskDialogComponent } from './manage-risk-dialog.component';
 
 const stop = (over: Partial<BrokerStop> = {}): BrokerStop => ({
@@ -83,6 +84,45 @@ describe('ManageRiskDialogComponent', () => {
     expect(text()).toContain('TFSA_D_TD');
     expect(text()).toContain('EOD close');
     expect(text()).toContain('never places, changes or cancels an order');
+  });
+
+  it('PM033 finding 12: demo mode masks the read-only average cost', async () => {
+    await create();
+    const demo = TestBed.inject(DemoModeStore);
+    demo.enable();
+    try {
+      await fixture.whenStable();
+      const label = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('dt'))
+        .find((element) => element.textContent?.trim() === 'Account average cost');
+      expect(label).toBeDefined();
+      expect(label!.nextElementSibling!.textContent?.trim()).toBe(
+        demo.maskValue(data.averageCost!).toFixed(2),
+      );
+      expect(q('[data-testid="mr-demo-readonly"]')).not.toBeNull();
+      expect(q('[data-testid="mr-plan-save"]')).toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelectorAll('input')).toHaveLength(0);
+    } finally {
+      demo.disable();
+    }
+  });
+
+  it('uses authoritative API account and Swing facts instead of conflicting caller values', async () => {
+    await create(position({
+      mixedRole: true, totalQuantity: 200, swingQuantity: 100,
+      facts: {
+        averageCost: 41, swingAverageCost: 30, currentPrice: 50, priceBasis: 'Stale',
+        priceAsOfUtc: null, marketValue: 10000, unrealizedPnl: 1800, unrealizedPnlPct: 21.95,
+        swingMarketValue: 5000, swingUnrealizedPnl: 2000,
+      },
+    }));
+    const valueFor = (name: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('dt'))
+      .find((element) => element.textContent?.trim() === name)?.nextElementSibling?.textContent?.trim();
+    expect(valueFor('Account average cost')).toBe('41.00');
+    expect(valueFor('Swing average cost')).toBe('30.00');
+    expect(valueFor('Account market value')).toBe('10,000.00');
+    expect(valueFor('Swing market value')).toBe('5,000.00');
+    expect(valueFor('Current price')).toContain('50.00');
+    expect(valueFor('Current price')).toContain('Stale');
   });
 
   it('shows an unknown covered quantity as Unknown, not zero, and flags coverage as unknown', async () => {
@@ -214,9 +254,14 @@ describe('ManageRiskDialogComponent', () => {
     buttons.find((b) => b.textContent!.includes('It filled'))!.click();
     fixture.detectChanges();
     expect(q('[data-testid="mr-transition"]')!.textContent).toContain('not verified with the broker');
+    expect(q<HTMLButtonElement>('[data-testid="mr-transition-confirm"]')!.disabled).toBe(true);
+    setInput('[data-testid="mr-transition"] input', 'Confirmed on broker statement');
+    fixture.detectChanges();
     (q<HTMLButtonElement>('[data-testid="mr-transition-confirm"]')!).click();
     await fixture.whenStable();
-    expect(store['transitionBrokerStop']).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'UserReportedFilled', rowVersion: 'v1' }));
+    expect(store['transitionBrokerStop']).toHaveBeenCalledWith(1, expect.objectContaining({
+      status: 'UserReportedFilled', rowVersion: 'v1', reason: 'Confirmed on broker statement',
+    }));
   });
 
   it('shows a reload action after a concurrency conflict', async () => {

@@ -21,7 +21,14 @@ public sealed record RiskAuditEventDto(
 public sealed record RiskPositionDto(
     string AccountType, string Symbol, bool HasOpenPosition, decimal TotalQuantity, decimal SwingQuantity, bool MixedRole,
     string EpisodeResolution, string? EpisodeNote, DateTime? EpisodeOpenDate, string Currency, string CurrencyBasis,
-    RiskPlanDto? Plan, IReadOnlyList<BrokerStopDto> BrokerStops, IReadOnlyList<RiskAuditEventDto> History);
+    RiskPlanDto? Plan, IReadOnlyList<BrokerStopDto> BrokerStops, IReadOnlyList<RiskAuditEventDto> History)
+{
+    public RiskPositionFactsDto? Facts { get; init; }
+}
+
+public sealed record RiskPositionFactsDto(decimal? AverageCost, decimal? SwingAverageCost,
+    decimal? CurrentPrice, string PriceBasis, DateTime? PriceAsOfUtc, decimal? MarketValue,
+    decimal? UnrealizedPnl, decimal? UnrealizedPnlPct, decimal? SwingMarketValue, decimal? SwingUnrealizedPnl);
 
 public sealed record SaveRiskPlanRequest(
     string AccountType, string Symbol, decimal? PlannedStopPrice, decimal? TargetPrice, string? StopType,

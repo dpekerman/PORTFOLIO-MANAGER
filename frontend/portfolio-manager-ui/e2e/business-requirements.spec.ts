@@ -52,7 +52,7 @@ test.describe('watchlist: duplicates and 5D / 1M change', () => {
     await page.goto('/watchlist');
     await page.locator('button').filter({ hasText: /Add Symbol/ }).first().click();
     const dialog = page.getByRole('dialog');
-    await dialog.getByLabel(/Symbol/).fill('SHOP');
+    await dialog.getByRole('combobox', { name: /Symbol/ }).fill('SHOP');
     const option = page.getByRole('option', { name: /SHOP/ });
     await expect(option).toContainText('Already exists');
     await option.click();
@@ -79,7 +79,18 @@ test.describe('portfolio stock filters', () => {
     await page.goto('/portfolio');
     const rows = page.locator('table.portfolio-grid-table tr.mat-mdc-row');
     await expect(rows.first()).toBeAttached();
-    const before = await rows.count();
+    let before = 0;
+    await expect
+      .poll(
+        async () => {
+          const count = await rows.count();
+          const stable = count > 0 && count === before;
+          before = count;
+          return stable;
+        },
+        { intervals: [250] },
+      )
+      .toBe(true);
 
     await page.getByRole('button', { name: /^Filters/ }).first().click();
     await page.locator('.grid-filters-bar').getByLabel('Gain/Loss').click();

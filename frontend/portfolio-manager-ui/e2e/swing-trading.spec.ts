@@ -28,6 +28,26 @@ async function tab(page: Page, name: string) {
 }
 
 test.describe('PM-033 Swing Trading workspace', () => {
+  test('keeps previous-episode broker reminders visible and requires an audited resolution', async ({ page, errors }) => {
+    retireStopsAsPreviousTrade('TFSA_L_TD', 'DIS.TO');
+    await openSwing(page);
+    await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
+    const reminders = page.getByTestId('broker-order-reminders');
+    await expect(reminders).toContainText('DIS.TO');
+    await expect(reminders).toContainText('not protection for a new Swing episode');
+    await reminders.getByRole('button', { name: 'Review broker order' }).click();
+    await tab(page, 'Broker stops');
+    await dialog(page).locator('summary').filter({ hasText: 'Inactive and previous-trade records' }).click();
+    await dialog(page).getByRole('button', { name: 'I cancelled it', exact: true }).click();
+    await expect(dialog(page).getByTestId('mr-transition-confirm')).toBeDisabled();
+    await dialog(page).getByTestId('mr-transition').getByRole('textbox').fill('Synthetic broker cancellation confirmation');
+    await dialog(page).getByTestId('mr-transition-confirm').click();
+    await expect(dialog(page).getByTestId('mr-saved')).toContainText('Status recorded as reported by you');
+    await dialog(page).getByTestId('mr-close').click();
+    await expect(reminders).toHaveCount(0);
+    await expectNoHorizontalPageOverflow(page);
+    expect(errors).toEqual([]);
+  });
   test('refreshes quotes first, shows progress, reloads trades and journal, and keeps completion feedback', async ({ page, errors }) => {
     await openSwing(page);
     await page.getByRole('tab', { name: 'Trade Journal', exact: true }).click();
@@ -123,7 +143,11 @@ test.describe('PM-033 Swing Trading workspace', () => {
     await expect(rows(page).first().getByTestId('severity-chip')).toHaveText('Critical');
     await expect(page.getByText('Fully Protected')).toHaveCount(0);
     await expect(rowFor(page, 'TA.TO')).toContainText('Mixed');
-    if (isPhone(info.project.name)) await page.getByLabel('Show all fields on each card').check();
+    if (isPhone(info.project.name)) {
+      const showAll = page.getByLabel('Show all fields on each card');
+      await showAll.click();
+      await expect(showAll).toHaveAttribute('aria-checked', 'true');
+    }
     await expect(rowFor(page, 'WELL.TO')).toContainText('Unresolved');
     await expect(rowFor(page, 'EMP-A.TO')).toContainText('Stale');
     await expect(rowFor(page, 'EFR.TO')).toContainText('No Stop');
@@ -420,6 +444,9 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await tab(page, 'Broker stops');
     await dialog(page).getByRole('button', { name: 'It filled' }).click();
     await expect(dialog(page).getByTestId('mr-transition')).toContainText('not verified with the broker');
+    await expect(dialog(page).getByTestId('mr-transition-confirm')).toBeDisabled();
+    await dialog(page).getByTestId('mr-transition').getByRole('textbox').fill('Confirmed on synthetic broker statement');
+    await expect(dialog(page).getByTestId('mr-transition-confirm')).toBeEnabled();
     await dialog(page).getByTestId('mr-transition-confirm').click();
     await expect(dialog(page).getByTestId('mr-saved')).toContainText('not verified');
     await expect(dialog(page).getByTestId('mr-no-stops')).toBeVisible();

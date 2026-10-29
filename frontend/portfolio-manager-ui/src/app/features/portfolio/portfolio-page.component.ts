@@ -1374,32 +1374,11 @@ export class PortfolioPageComponent {
   openManageRisk(s: PortfolioSummary): void {
     const account = s.item.accountType;
     if (!account || s.item.isManual) return;
-    const lots = this.portfolio
-      .summaries()
-      .filter(
-        (x) =>
-          x.item.transactionType === 'OPEN' &&
-          x.item.accountType === account &&
-          x.item.symbol.toUpperCase() === s.item.symbol.toUpperCase(),
-      );
-    const shares = lots.reduce((sum, x) => sum + x.item.shares, 0);
-    const cost = lots.reduce((sum, x) => sum + x.item.averageCostBasis * x.item.shares, 0);
-    const quote = s.quote;
-    const price = quote && quote.currentPrice > 0 ? quote.currentPrice : null;
-    const avg = shares > 0 ? cost / shares : null;
-    const roles = new Set(lots.map((x) => x.item.holdingRole ?? 'Strategic'));
     openManageRiskDialog(this.dialog, {
       account,
       symbol: s.item.symbol,
       companyName: s.item.companyName,
-      role: roles.size === 1 ? [...roles][0] : 'Mixed roles',
-      averageCost: avg,
-      currentPrice: price,
-      priceBasis: price === null ? 'Unavailable' : quote?.marketState === 'REGULAR' ? 'Live' : 'EOD',
-      priceAsOfUtc: quote?.timestamp ? new Date(quote.timestamp * 1000).toISOString() : null,
-      marketValue: price === null ? null : price * shares,
-      unrealizedPnl: price === null || avg === null ? null : (price - avg) * shares,
-      unrealizedPnlPct: price === null || avg === null || avg <= 0 ? null : ((price - avg) / avg) * 100,
+      role: s.item.holdingRole,
     });
   }
 

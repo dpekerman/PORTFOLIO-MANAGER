@@ -6,6 +6,7 @@ import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { Observable, pipe, switchMap, tap } from 'rxjs';
 import {
   BrokerStopTransitionRequest,
+  BrokerOrderReminder,
   JournalRow,
   OpenTradesSummary,
   RiskPosition,
@@ -20,6 +21,7 @@ import {
   SwingFilters,
   distinctSorted,
   filterSwingRows,
+  aggregateFinalActions,
 } from '../../features/swing-trading/swing-trading-logic';
 import { FinalActionStore } from './final-action.store';
 import { AppRefreshStore } from './app-refresh.store';
@@ -27,6 +29,7 @@ import { onceAuthenticated } from './features/auth-gate';
 import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
 
 interface SwingTradingState {
+  brokerOrderReminders: BrokerOrderReminder[];
   rows: SwingTradeRow[];
   summary: OpenTradesSummary | null;
   thresholdPct: number;
@@ -49,6 +52,7 @@ interface SwingTradingState {
 }
 
 const initialState: SwingTradingState = {
+  brokerOrderReminders: [],
   rows: [],
   summary: null,
   thresholdPct: 5,
@@ -88,11 +92,7 @@ export const SwingTradingStore = signalStore(
   withComputed((store, finalActions = inject(FinalActionStore), appRefresh = inject(AppRefreshStore)) => {
     const finalActionOf = (row: SwingTradeRow): string | null => {
       const byId = finalActions.portfolioByItemId();
-      for (const id of row.lotIds) {
-        const hit = byId.get(id);
-        if (hit) return hit.finalAction;
-      }
-      return null;
+      return aggregateFinalActions(row.lotIds.map((id) => byId.get(id)?.finalAction));
     };
     const filteredRows = computed(() => filterSwingRows(store.rows(), store.filters(), finalActionOf));
     return {
@@ -105,16 +105,11 @@ export const SwingTradingStore = signalStore(
     };
   }),
   withMethods((store, api = inject(SwingTradingApiService), finalActions = inject(FinalActionStore), appRefresh = inject(AppRefreshStore)) => {
-    /** The canonical Final Action result for a trade: the first of its lots the engine evaluated. */
+    const finalActionOf = (row: SwingTradeRow): string | null =>
+      aggregateFinalActions(row.lotIds.map((id) => finalActions.portfolioByItemId().get(id)?.finalAction));
     const finalActionResultFor = (row: SwingTradeRow): FinalActionResult | null => {
-      const byId = finalActions.portfolioByItemId();
-      for (const id of row.lotIds) {
-        const hit = byId.get(id);
-        if (hit) return hit;
-      }
-      return null;
+      return row.lotIds.length === 1 ? finalActions.portfolioByItemId().get(row.lotIds[0]) ?? null : null;
     };
-    const finalActionOf = (row: SwingTradeRow): string | null => finalActionResultFor(row)?.finalAction ?? null;
 
     const loadOpenTrades = rxMethod<void>(
       pipe(
@@ -127,6 +122,7 @@ export const SwingTradingStore = signalStore(
                   store,
                   {
                     rows: res.rows,
+                    brokerOrderReminders: res.brokerOrderReminders ?? [],
                     summary: res.summary,
                     thresholdPct: res.approachingThresholdPct,
                     thresholdNote: res.thresholdNote,
@@ -212,6 +208,7 @@ export const SwingTradingStore = signalStore(
           next: (position) => {
             patchState(store, { position, saving: false });
             loadOpenTrades();
+            if (store.journalLoaded()) loadJournal();
             resolve(true);
           },
           error: (err: unknown) => {
@@ -228,6 +225,7 @@ export const SwingTradingStore = signalStore(
 
     return {
       finalActionResultFor,
+      finalActionResultForLot: (id: number): FinalActionResult | null => finalActions.portfolioByItemId().get(id) ?? null,
       finalActionOf,
       loadOpenTrades,
       loadJournal,

@@ -1,6 +1,8 @@
 # PM-033 — Swing Trading Management Workspace: Delivery Summary
 
-Branch: `feature/pm-033-swing-trading-workspace` (created from `develop`). **Nothing is committed or pushed.** Review with `git status` / `git diff`.
+Branch: `feature/pm-033-swing-trading-workspace` (created from `develop`). The original delivery is already in existing commits, including `7163706`; **the remediation remains uncommitted and unpushed**.
+
+> **REMEDIATION STATUS:** See [the remediation and recovery report](pm-033-remediation-recovery-report.md) for current test results, backup evidence, the twelve-finding matrix and restart gates. The original migration/import below are historical operations; do not rerun them. The single corrective migration has been tested on an isolated restore only and is **not applied to `PortfolioManagerLocal`**. Development startup now refuses while that corrective migration is pending. PM-033 remains In Progress pending live-migration approval and manual UAT.
 
 > **STATUS UPDATE (2026-10-28, after your approval):** G1 and G2 have been **applied to `PortfolioManagerLocal`**.
 > Fresh verified backup: `D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\PortfolioManagerLocal_PrePM033_Apply_*.bak`. Migration `20261028145833` applied; episode backfill applied
@@ -21,8 +23,8 @@ Branch: `feature/pm-033-swing-trading-workspace` (created from `develop`). **Not
 | Trade episodes | Persistent `TradeEpisodeId` on `PortfolioItems` + `TradeEpisode` table; assigned on new trades, propagated on partial-close splits, closed on full exit, new episode on reopen |
 | Stop lifecycle | Additions/partial sales never change recorded covered quantity; full exit retires orders as `EpisodeClosed` + "broker cancellation unverified" reminder; reopen never inherits old orders |
 | Risk evaluation | Pure `StopRiskEvaluator`: breach / approaching (advisory 5%) / missing plan / no broker stop / partial / unknown / ambiguous / over-covered / mismatch / stale; severity ordering |
-| Initial 8 stops | Idempotent, transactional, dry-run-first import service + endpoint (**not executed on the live DB**) |
-| Migration | Unapplied EF migration + idempotent SQL script + guarded rollback script; proven on an isolated restored copy |
+| Initial 8 stops | Previously imported; preserved with their identities, prices, import keys and audit history. No remediation reimport. |
+| Migration | Original migration applied historically; one corrective migration tested on an isolated restore, pending on the real database. |
 | Exports | CSV + Excel for Open Trades, Risk Monitor, Trade Journal (filtered/sorted rows; unknown coverage stays blank) |
 | Tests | Backend, Angular unit, mocked Playwright on 4 projects, opt-in scratch-DB integration test, read-only live Playwright suite |
 
@@ -59,12 +61,12 @@ The Swing Trading **Refresh** button runs the existing app-wide quote refresh (b
 
 ## 3. Key design decisions (as approved)
 
-- **Stop scope = account + symbol**, tied to a trade episode. Lots are never individually assigned an order.
+- **Stop scope = owner + account + symbol**, with historical episode attribution. The actual broker order is not exclusively a Swing-lot order. Closing the last Swing lot while other roles remain preserves the order; old orders are visible as reminders but never inherited as protection by a new Swing episode.
 - **Mixed roles:** Open Trades shows Swing quantity and total account quantity separately; coverage becomes **Ambiguous** and is never allocated to Swing only.
 - **Episode integrity:** an episode is only inferred when unambiguous (zero-open gap or an unbroken same-role lot chain). A same-day/same-date remainder, an overlapping CLOSE, a CLOSE in another account, or mixed roles ⇒ **Unresolved** (shown, flagged, never guessed from dates alone). Unresolved positions stay fully manageable (TA.TO, WELL.TO).
 - **Broker status honesty:** user-confirmed ≠ verified. `Fully Protected` is only reachable for *verified + fully covered* orders, which cannot occur in this release. `CoveredQuantity = NULL` means unknown (never 0, never full). Cancel/Fill/Replace are explicit user reports, never inferred from price.
 - **Breach wording:** "Price at/below recorded stop as of <date> (EOD) … a market observation, not proof a broker order triggered or filled. Verify with your broker."
-- **Freshness:** reuses the existing trading-calendar session rules (`TradingCalendar.LastCompletedSession`); a captured completed-session close supports an **EOD-labelled** assessment; no quote ⇒ *Unavailable*, old snapshot ⇒ *Stale* (never a fabricated breach).
+- **Freshness:** reuses the existing trading calendar, including its evidence grace. Live/EOD evidence requires Yahoo's regular-price source timestamp and session checks. Capture-only legacy snapshots are *Stale*, not fabricated completed closes; missing quotes are *Unavailable*.
 - **Approaching-stop threshold:** 5%, configurable (`Risk:ApproachingStopThresholdPct`), labelled everywhere *"advisory alert threshold, not a broker order level"* and written into exports.
 - **Currency:** provider-reported currency (new `StockQuote.Currency`, populated from the Yahoo quote you already fetch) wins; otherwise a labelled suffix fallback. The analysis-security (DIS/NVDA US underlyings) is never used as the trading currency.
 - **Concurrency/atomicity:** `RowVersion` on plans and broker records, 409 with "Reload latest" in the dialog; record + audit event commit together.
@@ -140,16 +142,12 @@ Done so far (no change to the live database):
 
 Schema change (additive only): new tables `TradeEpisodes`, `RiskPlans`, `BrokerStopRecords`, `RiskAuditEvents`; one nullable column `PortfolioItems.TradeEpisodeId` + index. **No existing value, date, quantity or formula changes.** (This corrects the earlier "PortfolioItems untouched" wording.)
 
-Proposed G1 steps (after your approval):
-1. Stop the API. Take a **fresh** backup right before applying (data may have changed since 10:59):
-   `sqlcmd -S localhost -E -C -Q "BACKUP DATABASE [PortfolioManagerLocal] TO DISK=N'D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\PortfolioManagerLocal_PrePM033_<yyyyMMdd-HHmmss>.bak' WITH COPY_ONLY, CHECKSUM, INIT"` then `RESTORE VERIFYONLY … WITH CHECKSUM`.
-2. Apply: `sqlcmd -S localhost -d PortfolioManagerLocal -E -C -I -b -i database\SQL\27_AddTradeEpisodesAndRiskTracking.sql` (`-I` is required for the filtered index), **or** simply start the new API (it migrates on startup).
-3. Verify the 4 tables/column exist and counts are unchanged.
-4. Episode backfill (separate approval): `POST /api/risk/episodes/backfill?dryRun=true` (Admin). Review, then `dryRun=false`.
-   Latest dry run on the restored copy: **80 episodes planned (33 open, 47 closed), 82 lots assigned, 48 records left unresolved** (e.g. TA.TO #506/#541, WELL.TO #595/#637, MAL.TO #528). Full JSON: `artifacts\pm033-reports\g1-backfill-dry-run.json`.
-5. Rollback: **non-destructive once data exists.** `27_Rollback_TradeEpisodesAndRiskTracking.sql` throws `51033` if any episode/plan/stop/audit data exists — recovery then is *restore from the backup*. The scratch database `PortfolioManagerPM033Test` is still on your SQL Server for review (`DROP DATABASE [PortfolioManagerPM033Test]` when finished).
+G1 was applied historically. The former deployment/backfill commands are superseded, not instructions to rerun them.
+For remediation, use only the separately approved corrective migration procedure in the [recovery report](pm-033-remediation-recovery-report.md).
+Do not use API startup as migration approval, overwrite a backup, rerun backfill, downgrade EF directly or drop an existing scratch database without explicit authorization.
+The original and corrective guarded rollback SQL scripts refuse populated PM-033 data; populated recovery requires the verified native backup.
 
-## 7. Gate G2 — initial stop import mapping (NOT imported)
+## 7. Gate G2 — historical initial stop import mapping (already imported; do not rerun)
 
 Source: your stop sheet; quantities/accounts from the read-only audit (restored-copy dry run of `StopSheetImportService`). All rows: **Stop Market · User Confirmed — Established · source "user-supplied stop sheet" · broker verification Unverified · Covered Quantity NULL · Coverage Unknown**. Quantities below are *holdings*, not proven order quantities.
 
@@ -166,7 +164,7 @@ Source: your stop sheet; quantities/accounts from the read-only audit (restored-
 
 Currency basis shows `AssumedFromSuffix` until the next quote refresh stores the provider currency; the sheet currency (CAD) matches in all 8 rows. Dry-run totals: 8 to import, 0 skipped, 0 blocked. JSON: `artifacts\pm033-reports\g2-stop-import-dry-run.json`.
 
-Proposed G2 steps (after G1 and your approval; Admin token required): `POST /api/risk/import-stop-sheet` with
+Historical G2 request shape (retained for traceability, **not an instruction to reimport**): `POST /api/risk/import-stop-sheet` with
 ```json
 { "sheetId": "user-stop-sheet", "sheetVersion": "2026-10-28", "dryRun": true,
   "rows": [
@@ -179,17 +177,17 @@ Proposed G2 steps (after G1 and your approval; Admin token required): `POST /api
     {"symbol":"WELL.TO","triggerPrice":3.95,"orderType":"StopMarket","currency":"CAD","rowNumber":7},
     {"symbol":"MAL.TO","triggerPrice":32.40,"orderType":"StopMarket","currency":"CAD","rowNumber":8} ] }
 ```
-Review the response, re-send with `"dryRun": false` to apply (one transaction; any blocked row ⇒ nothing is written). Re-running is a no-op.
+The eight original records already exist. Remediation does not execute this request or infer fresh order quantities/statuses.
 
 ## 8. Known limitations / follow-ups
 
 - "Days until/after stop breach" is not shown: only the observation date of the latest price is reliable without intraday history (no fabricated monitoring).
 - Journal does not show the Final Action recorded at close (it is not stored per trade today).
-- Episode hooks cover add/edit/partial-close/full-close through `PortfolioService`. Deleting a lot, the backup *Restore*, and manual positions do not assign episodes or retire stops (such records stay `Unresolved`/active until reviewed).
+- Episode hooks cover add/edit/partial-close/full-close. Protected lot deletion, ambiguous history edits, and destructive application-level replacement restore are now refused explicitly. Manual positions remain outside PM-033.
 - Trailing stops are stored/displayed as a label only; no ratcheting math.
 - Provider currency appears only after the next quote refresh (snapshots written before this change lack it); until then the suffix fallback is used and labelled.
 - Risk records are owner-scoped; a non-admin user will not see risk records written by another user.
-- Portfolio entry point: the dialog shows figures summed across the account's open lots of that security (not just the clicked row) and the button appears only for OPEN stock rows and users who can write.
+- Both dialog entry points load the same authoritative API facts, explicitly separating account and Swing values. Demo mode is masked/read-only and exports are disabled.
 - No automated axe/screen-reader audit was run; semantics were verified by role/label/keyboard tests only (dialog labelled, `role=alert` errors, aria-live status, tab roles, 44px targets).
 - The pre-existing e2e TypeScript project has Node-typing errors (`node:fs`) unrelated to this work; Playwright itself runs fine.
 - Production build keeps the repo's existing SCSS budget warnings; none come from PM-033 files.

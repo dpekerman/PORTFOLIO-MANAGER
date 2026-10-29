@@ -62,7 +62,7 @@ export class OpenTradesTabComponent {
   private readonly dialog = inject(MatDialog);
 
   protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys('swing-open-trades');
-  protected readonly sort = signal<Sort>({ active: 'openDate', direction: 'desc' });
+  protected readonly sort = signal<Sort>({ active: 'risk', direction: 'asc' });
   protected readonly severityClass = severityClass;
   protected readonly riskLabel = riskStatusLabel;
   protected readonly basisLabel = priceBasisLabel;
@@ -72,7 +72,10 @@ export class OpenTradesTabComponent {
     const data = this.store.filteredRows();
     if (!active || !direction) return data;
     const dir = direction === 'asc' ? 1 : -1;
-    return [...data].sort((a, b) => dir * compareNullable(this.sortValue(a, active), this.sortValue(b, active)));
+    return [...data].sort((a, b) =>
+      dir * compareNullable(this.sortValue(a, active), this.sortValue(b, active)) ||
+      compareNullable(a.distancePct, b.distancePct) || a.symbol.localeCompare(b.symbol) ||
+      a.account.localeCompare(b.account) || a.key.localeCompare(b.key));
   });
 
   protected onSort(s: Sort): void {
@@ -115,17 +118,19 @@ export class OpenTradesTabComponent {
     openManageRiskDialog(this.dialog, manageRiskDataFor(row));
   }
 
-  protected showFinalAction(row: SwingTradeRow): void {
-    const result = this.store.finalActionResultFor(row);
+  protected showFinalAction(row: SwingTradeRow, lotId?: number): void {
+    const result = this.store.finalActionResultFor(lotId === undefined ? row : { ...row, lotIds: [lotId] });
     if (result) this.dialog.open(FinalActionDetailsDialogComponent, { data: { result }, autoFocus: 'dialog', maxWidth: '95vw' });
   }
 
   protected exportCsv(): void {
+    if (this.demo.isDemoMode()) return;
     const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
     downloadTextFile(`swing-open-trades-${torontoDateString()}.csv`, txRowsToCsv(OPEN_TRADES_EXPORT_COLUMNS, rows));
   }
 
   protected exportXlsx(): void {
+    if (this.demo.isDemoMode()) return;
     const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, txSheet(OPEN_TRADES_EXPORT_COLUMNS, rows), 'Open Trades');

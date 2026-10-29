@@ -17,10 +17,24 @@ public class Pm033RiskTests
     private static AppDbContext NewDb()
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        SimulateRowVersions(db);
         foreach (var n in new[] { "A", "B", "Corp_TD", "Margin_L_TD", "TFSA_D_TD", "TFSA_L_TD" })
             db.AccountTypes.Add(new AccountType { Name = n, NormalizedName = n.ToUpperInvariant() });
         db.SaveChanges();
         return db;
+    }
+
+    internal static void SimulateRowVersions(AppDbContext db)
+    {
+        db.SavingChanges += (_, _) =>
+        {
+            foreach (var entry in db.ChangeTracker.Entries()
+                .Where(e => e.State is EntityState.Added or EntityState.Modified))
+            {
+                if (entry.Entity is RiskPlan plan) plan.RowVersion = Guid.NewGuid().ToByteArray()[..8];
+                if (entry.Entity is BrokerStopRecord stop) stop.RowVersion = Guid.NewGuid().ToByteArray()[..8];
+            }
+        };
     }
 
     private sealed class FixedAccessor : IHttpContextAccessor { public HttpContext? HttpContext { get; set; } }
@@ -159,7 +173,8 @@ public class Pm033RiskTests
         // Close everything, then reopen.
         foreach (var id in new[] { add.Id, res.NewOpenItem.Id })
             await svc.UpdateAsync(id, new UpdatePortfolioItemRequest("ABC", (await db.PortfolioItems.FindAsync(id))!.Shares, 10, TransactionType: "CLOSE",
-                AccountType: "A", OpenDate: new DateTime(2026, 9, 1), CloseDate: new DateTime(2026, 10, 1), ClosingPrice: 13, HoldingRole: "Swing"));
+                AccountType: "A", OpenDate: (await db.PortfolioItems.FindAsync(id))!.OpenDate,
+                CloseDate: new DateTime(2026, 10, 1), ClosingPrice: 13, HoldingRole: "Swing"));
         (await db.TradeEpisodes.FindAsync(epId.Value))!.Status.Should().Be(EpisodeStatuses.Closed);
 
         var reopened = await svc.AddAsync(new AddPortfolioItemRequest("ABC.TO", "ABC", 70, 14, "OPEN", "A", new DateTime(2026, 10, 15), HoldingRole: "Swing"));
@@ -169,13 +184,16 @@ public class Pm033RiskTests
     }
 
     [Fact]
-    public async Task Addition_in_a_mixed_role_account_is_left_unlinked()
+    public async Task Swing_addition_in_a_mixed_role_account_gets_its_own_episode()
     {
         await using var db = NewDb();
         db.PortfolioItems.Add(Lot(1, "MIX.TO", "A", 300, "OPEN", "2026-08-01", role: "Strategic", ep: Guid.NewGuid()));
         await db.SaveChangesAsync();
         var add = await Svc(db).AddAsync(new AddPortfolioItemRequest("MIX.TO", "MIX", 100, 10, "OPEN", "A", new DateTime(2026, 9, 1), HoldingRole: "Swing"));
-        (await db.PortfolioItems.FindAsync(add.Id))!.TradeEpisodeId.Should().BeNull();
+        var newEpisode = (await db.PortfolioItems.FindAsync(add.Id))!.TradeEpisodeId;
+        newEpisode.Should().NotBeNull();
+        (newEpisode == db.PortfolioItems.Single(x => x.Id == 1).TradeEpisodeId).Should().BeFalse();
+        (await db.TradeEpisodes.FindAsync(newEpisode))!.Symbol.Should().Be("MIX.TO");
     }
 
     // â”€â”€ 3. Stop-risk evaluation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -441,7 +459,8 @@ public class Pm033RiskTests
         await using var _ = db;
         var pos = await svc.SaveBrokerStopAsync(new SaveBrokerStopRequest(null, "A", "ABC.TO", null, 9m, null, 100m, null, null, null, null, null, false, null));
         var id = pos.BrokerStops.Single().Id;
-        var filled = await svc.TransitionBrokerStopAsync(id, new BrokerStopTransitionRequest(BrokerUserStatuses.UserReportedFilled, null, "saw fill on statement", null));
+        var filled = await svc.TransitionBrokerStopAsync(id, new BrokerStopTransitionRequest(BrokerUserStatuses.UserReportedFilled,
+            null, "saw fill on statement", pos.BrokerStops.Single().RowVersion));
         filled.BrokerStops.Single().UserStatus.Should().Be(BrokerUserStatuses.UserReportedFilled);
         filled.BrokerStops.Single().BrokerVerificationStatus.Should().Be(BrokerVerification.Unverified, "a user report is not broker verification");
         (await db.BrokerStopRecords.CountAsync()).Should().Be(1);

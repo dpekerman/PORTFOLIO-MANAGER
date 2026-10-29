@@ -77,6 +77,14 @@ export class RiskMonitorTabComponent {
 
   protected readonly breached = computed(() => this.rows().filter((r) => r.riskStatuses.includes('StopBreached')));
 
+  protected mv(value: number | null): number | null {
+    return value === null ? null : this.demo.maskValue(value);
+  }
+
+  protected mp(value: number | null): number | null {
+    return value === null ? null : this.demo.maskPercent(value);
+  }
+
   protected onSort(s: Sort): void {
     this.sort.set(s);
   }
@@ -102,17 +110,23 @@ export class RiskMonitorTabComponent {
     openManageRiskDialog(this.dialog, manageRiskDataFor(row));
   }
 
-  protected showFinalAction(row: SwingTradeRow): void {
-    const result = this.store.finalActionResultFor(row);
+  protected reviewOrder(account: string, symbol: string): void {
+    openManageRiskDialog(this.dialog, { account, symbol });
+  }
+
+  protected showFinalAction(row: SwingTradeRow, lotId?: number): void {
+    const result = this.store.finalActionResultFor(lotId === undefined ? row : { ...row, lotIds: [lotId] });
     if (result) this.dialog.open(FinalActionDetailsDialogComponent, { data: { result }, autoFocus: 'dialog', maxWidth: '95vw' });
   }
 
   protected exportCsv(): void {
+    if (this.demo.isDemoMode()) return;
     const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
     downloadTextFile(`swing-risk-monitor-${torontoDateString()}.csv`, txRowsToCsv(OPEN_TRADES_EXPORT_COLUMNS, rows));
   }
 
   protected exportXlsx(): void {
+    if (this.demo.isDemoMode()) return;
     const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, txSheet(OPEN_TRADES_EXPORT_COLUMNS, rows), 'Risk Monitor');

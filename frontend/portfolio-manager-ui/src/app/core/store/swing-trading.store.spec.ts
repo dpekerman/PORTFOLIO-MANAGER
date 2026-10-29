@@ -221,6 +221,21 @@ describe('SwingTradingStore', () => {
     expect(store.finalActionOptions()).toEqual(['Hold Swing']);
   });
 
+  it('PM033 finding 1: differing lot actions must not be presented as one lot recommendation', () => {
+    const store = TestBed.inject(SwingTradingStore);
+    finalActions.set(1, { finalAction: 'Hold Swing' });
+    finalActions.set(2, { finalAction: 'Exit / Sell' });
+    const mixed = row({ lotIds: [1, 2] });
+    expect(store.finalActionOf(mixed)).toBe('Mixed Actions / Review Lots');
+    expect(store.finalActionOf({ ...mixed, lotIds: [2, 1] })).toBe('Mixed Actions / Review Lots');
+  });
+
+  it('PM033 finding 1: an unevaluated lot must not silently disappear from the assessment', () => {
+    const store = TestBed.inject(SwingTradingStore);
+    finalActions.set(1, { finalAction: 'Hold Swing' });
+    expect(store.finalActionOf(row({ lotIds: [1, 2] }))).not.toBe('Hold Swing');
+  });
+
   it('saves a plan, shows the returned position and refreshes the grid', async () => {
     const store = TestBed.inject(SwingTradingStore);
     const saved = await store.savePlan({ accountType: 'A', symbol: 'X', plannedStopPrice: 9, targetPrice: null, stopType: 'Fixed', stopRationale: null, tradeRationale: null, riskNotes: null, reason: null, rowVersion: null });

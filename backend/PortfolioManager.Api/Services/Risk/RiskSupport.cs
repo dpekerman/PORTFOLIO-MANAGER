@@ -49,7 +49,11 @@ public static class RiskSupport
     /// <summary>Optimistic concurrency that also works on providers that do not generate row versions.</summary>
     public static void CheckVersion(byte[]? current, string? supplied, string what)
     {
-        if (supplied is null) return;
+        if (string.IsNullOrWhiteSpace(supplied))
+            throw new RiskValidationException($"{what} requires its current row version. Reload before saving.");
+        Span<byte> decoded = stackalloc byte[64];
+        if (!Convert.TryFromBase64String(supplied, decoded, out var length) || length == 0)
+            throw new RiskValidationException($"{what} has an invalid row version. Reload before saving.");
         if (!string.Equals(Version(current), supplied, StringComparison.Ordinal))
             throw new RiskConcurrencyException($"{what} was changed by someone else. Reload and review before saving again.");
     }
@@ -88,7 +92,7 @@ public static class RiskSupport
         {
             UserId = user.UserId, UserName = user.UserName, Source = source, EventType = eventType,
             Symbol = symbol, AccountType = account, ChangesJson = json, Reason = reason, CorrelationId = correlationId,
-            RiskPlan = plan, BrokerStopRecord = stop,
+            RiskPlan = plan, BrokerStopRecord = stop, TradeEpisodeId = plan?.TradeEpisodeId ?? stop?.TradeEpisodeId,
         };
         db.RiskAuditEvents.Add(ev);
         db.AuditLogs.Add(new AuditLog
@@ -117,7 +121,8 @@ public static class TradeEpisodeAssigner
         var account = item.AccountType ?? string.Empty;
 
         var open = await db.PortfolioItems.AsNoTracking()
-            .Where(x => x.Id != item.Id && x.Symbol == symbol && x.AccountType == account
+            .Where(x => x.Id != item.Id && x.UserId == item.UserId && x.Symbol == symbol && x.AccountType == account
+                        && x.HoldingRole == item.HoldingRole
                         && x.TransactionType == "OPEN" && x.Shares > 0)
             .Select(x => new { x.TradeEpisodeId, x.HoldingRole }).ToListAsync(ct);
 
@@ -135,7 +140,16 @@ public static class TradeEpisodeAssigner
 
         var ids = open.Select(o => o.TradeEpisodeId).Distinct().ToList();
         var roles = open.Select(o => (o.HoldingRole ?? string.Empty).ToUpperInvariant()).Append((item.HoldingRole ?? string.Empty).ToUpperInvariant()).Distinct().Count();
-        if (ids.Count == 1 && ids[0].HasValue && roles == 1) item.TradeEpisodeId = ids[0];
+        if (ids.Count == 1 && ids[0].HasValue && roles == 1)
+        {
+            var episode = await db.TradeEpisodes.SingleOrDefaultAsync(e => e.Id == ids[0] && e.UserId == item.UserId
+                && e.AccountType == account && e.Symbol == symbol && e.Status == EpisodeStatuses.Open, ct);
+            if (episode is null)
+                throw new RiskValidationException("The existing open lot has inconsistent episode history. Resolve it before adding a linked lot.");
+            if (item.OpenDate?.Date < episode.OpenDate.Date)
+                throw new RiskValidationException("An addition cannot predate the existing episode. Record or correct its history separately.");
+            item.TradeEpisodeId = episode.Id;
+        }
     }
 
     /// <summary>Partial close splits the remainder into a new lot: it keeps the episode of the lot it came from.</summary>
@@ -151,18 +165,25 @@ public static class TradeEpisodeAssigner
         var symbol = TradeEpisodeResolver.NormSymbol(closedItem.Symbol);
         var account = closedItem.AccountType ?? string.Empty;
 
-        var stillOpen = await db.PortfolioItems.AnyAsync(x => x.Id != closedItem.Id && x.Symbol == symbol
+        var stillOpen = await db.PortfolioItems.AnyAsync(x => x.Id != closedItem.Id && x.UserId == closedItem.UserId && x.Symbol == symbol
             && x.AccountType == account && x.TransactionType == "OPEN" && x.Shares > 0, ct);
-        if (stillOpen) return;
+        var episodeStillOpen = closedItem.TradeEpisodeId is { } episodeId
+            && await db.PortfolioItems.AnyAsync(x => x.Id != closedItem.Id && x.UserId == closedItem.UserId
+                && x.TradeEpisodeId == episodeId && x.TransactionType == "OPEN" && x.Shares > 0
+                && x.HoldingRole == closedItem.HoldingRole, ct);
 
-        if (closedItem.TradeEpisodeId is { } eid)
+        if (!episodeStillOpen && closedItem.TradeEpisodeId is { } eid)
         {
-            var ep = await db.TradeEpisodes.FirstOrDefaultAsync(e => e.Id == eid, ct);
+            var ep = await db.TradeEpisodes.FirstOrDefaultAsync(e => e.Id == eid && e.UserId == closedItem.UserId, ct);
             if (ep is not null) { ep.Status = EpisodeStatuses.Closed; ep.ClosedDate = (closedItem.CloseDate ?? DateTime.UtcNow).Date; }
         }
+        if (stillOpen) return;
 
         var stops = await db.BrokerStopRecords
-            .Where(s => s.Symbol == symbol && s.AccountType == account
+            .Where(s => (s.UserId == closedItem.UserId ||
+                        (closedItem.UserId == null && s.UserId == user.UserId && closedItem.TradeEpisodeId != null
+                            && s.TradeEpisodeId == closedItem.TradeEpisodeId))
+                        && s.Symbol == symbol && s.AccountType == account
                         && s.UserStatus != BrokerUserStatuses.UserReportedCancelled
                         && s.UserStatus != BrokerUserStatuses.UserReportedFilled
                         && s.UserStatus != BrokerUserStatuses.Superseded

@@ -207,6 +207,8 @@ export const openTradesResponse = () => {
     return acc;
   }, {});
   return {
+    brokerOrderReminders: retired.filter(({ stop }) => stop.brokerCancellationUnverified || stop.isActive)
+      .map(({ key, stop }) => ({ account: key.split('|')[0], symbol: key.split('|')[1], stop })),
     summary: {
       openTrades: rows.length,
       needsAttention: rows.filter((r) => r.needsAttention).length,
@@ -235,6 +237,13 @@ function positionFor(account: string, symbol: string): RiskPosition | null {
     accountType: account, symbol, hasOpenPosition: true, totalQuantity: r.totalQuantity, swingQuantity: r.swingQuantity, mixedRole: r.mixedRole,
     episodeResolution: r.episodeResolution, episodeNote: r.episodeNote, episodeOpenDate: r.episodeOpenDate, currency: r.currency, currencyBasis: r.currencyBasis,
     plan, brokerStops: stops, history: swingState.history[k] ?? [],
+    facts: {
+      averageCost: r.averageCost, swingAverageCost: r.averageCost, currentPrice: r.currentPrice,
+      priceBasis: r.priceBasis, priceAsOfUtc: r.priceAsOfUtc,
+      marketValue: r.currentPrice === null ? null : r.currentPrice * r.totalQuantity,
+      unrealizedPnl: r.currentPrice === null ? null : (r.currentPrice - r.averageCost) * r.totalQuantity,
+      unrealizedPnlPct: r.unrealizedPnlPct, swingMarketValue: r.marketValue, swingUnrealizedPnl: r.unrealizedPnl,
+    },
   };
 }
 
@@ -333,15 +342,22 @@ export function handleRisk(req: MockRequest): unknown {
 
   const tr = /^\/api\/risk\/broker-stops\/(\d+)\/status$/.exec(path);
   if (method === 'POST' && tr) {
-    const target = swingState.rows.flatMap((x) => x.brokerStops.map((s) => ({ x, s }))).find((t) => t.s.id === Number(tr[1]));
+    const previous = retired.find((entry) => entry.stop.id === Number(tr[1]));
+    const previousRow = previous && swingState.rows.find((row) => keyOf(row.account, row.symbol) === previous.key);
+    const target = swingState.rows.flatMap((x) => x.brokerStops.map((s) => ({ x, s }))).find((t) => t.s.id === Number(tr[1]))
+      ?? (previous && previousRow ? { x: previousRow, s: previous.stop } : undefined);
     if (!target) return { status: 404, body: { error: 'Broker stop record not found.' } };
+    if (!String(b['reason'] ?? '').trim()) return bad('A broker confirmation reason is required.');
+    if (b['rowVersion'] !== target.s.rowVersion) return { status: 409, body: { error: 'Reload the broker record before saving.' } };
     const status = String(b['status']) as BrokerStop['userStatus'];
     const kk = keyOf(target.x.account, target.x.symbol);
     logEvent(kk, 'BrokerStatusChanged', [{ field: 'UserStatus', old: target.s.userStatus, new: status }], (b['reason'] as string | null) ?? null, target.s.id);
     target.s.userStatus = status;
     target.s.isActive = false;
+    target.s.brokerCancellationUnverified = false;
+    target.s.rowVersion += '+';
     target.x.brokerStops = target.x.brokerStops.filter((s) => s.id !== target.s.id);
-    retired.push({ key: kk, stop: target.s });
+    if (!previous) retired.push({ key: kk, stop: target.s });
     recompute(target.x);
     return positionFor(target.x.account, target.x.symbol);
   }

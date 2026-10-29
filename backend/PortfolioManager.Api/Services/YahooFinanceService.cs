@@ -363,6 +363,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
             MarketState   = q.MarketState ?? "",
             Currency      = string.IsNullOrWhiteSpace(q.Currency) ? null : q.Currency.Trim().ToUpperInvariant(),
             Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            SourcePriceTimestamp = q.RegularMarketTime,
             Week52High    = q.FiftyTwoWeekHigh,
             Week52Low     = q.FiftyTwoWeekLow,
             TargetMeanPrice = q.TargetMeanPrice,
@@ -708,4 +709,3 @@ public sealed class YahooFinanceService : IMarketDataProvider
         return result;
     }
 }
-

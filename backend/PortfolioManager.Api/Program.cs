@@ -319,6 +319,18 @@ builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    using var safetyScope = app.Services.CreateScope();
+    var safetyDb = safetyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var pending = await safetyDb.Database.GetPendingMigrationsAsync();
+    if (pending.Contains("20261028213913_CorrectPm033EpisodeIntegrity"))
+    {
+        app.Logger.LogCritical("PM-033 corrective migration is pending. Startup refused; review and apply the migration explicitly before restarting.");
+        throw new InvalidOperationException("PM-033 migration approval is required. Automatic development migration is blocked.");
+    }
+}
+
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 // Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)
 try

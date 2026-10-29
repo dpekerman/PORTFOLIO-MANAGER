@@ -11,8 +11,7 @@ public static class PriceBases
 }
 
 /// <summary>
-/// The market observation a risk assessment rests on. AsOf is when the app captured the quote (the provider does not
-/// expose an independently verified quote time), so Live/EOD are labels, not guarantees.
+/// A provider-timestamped market observation. Legacy capture-only quotes cannot prove session freshness.
 /// </summary>
 public sealed record PriceEvidence(decimal? Price, DateTime? AsOfUtc, DateOnly? SessionDate, string Basis, string Source)
 {
@@ -20,26 +19,42 @@ public sealed record PriceEvidence(decimal? Price, DateTime? AsOfUtc, DateOnly? 
     public static PriceEvidence Unavailable(string source = "none") => new(null, null, null, PriceBases.Unavailable, source);
 
     /// <summary>Builds evidence from a captured quote using the existing session calendar. No external call.</summary>
-    public static PriceEvidence FromQuote(decimal price, long unixSeconds, string? marketState, string symbol, DateTime utcNow)
+    public static PriceEvidence FromQuote(decimal price, long unixSeconds, string? marketState, string symbol, DateTime utcNow,
+        long? sourceUnixSeconds = null)
     {
-        if (price <= 0 || unixSeconds <= 0) return Unavailable("quote");
+        if (price <= 0 || unixSeconds <= 0 || unixSeconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds()) return Unavailable("quote");
         var captured = DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime;
+        if (sourceUnixSeconds is not > 0 || sourceUnixSeconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+            return new(price, captured, null, PriceBases.Stale, "quote lacks provider price timestamp");
+        var source = DateTimeOffset.FromUnixTimeSeconds(sourceUnixSeconds.Value).UtcDateTime;
+        if (source > utcNow || captured > utcNow)
+            return new(price, source, null, PriceBases.Stale, "quote timestamp is in the future");
         var exchange = TradingCalendar.ExchangeFor(symbol);
         var state = (marketState ?? string.Empty).ToUpperInvariant();
-        var sessionAtCapture = TradingCalendar.LastCompletedSession(captured, exchange);
 
         if (state == "REGULAR")
         {
-            var age = utcNow - captured;
-            return age <= TimeSpan.FromMinutes(30)
-                ? new PriceEvidence(price, captured, TradingCalendar.TorontoDate(captured), PriceBases.Live, "snapshot quote (not independently timestamped)")
-                : new PriceEvidence(price, captured, TradingCalendar.TorontoDate(captured), PriceBases.Stale, "snapshot quote");
+            var age = utcNow - source;
+            var localNow = TradingCalendar.TorontoNow(utcNow);
+            var session = DateOnly.FromDateTime(localNow);
+            var sourceTime = TimeOnly.FromDateTime(TradingCalendar.TorontoNow(source));
+            var regular = TradingCalendar.IsTradingDay(session, exchange) && TradingCalendar.TorontoDate(source) == session
+                && sourceTime >= new TimeOnly(9, 30) && sourceTime < TradingCalendar.CloseTime(session, exchange)
+                && TimeOnly.FromDateTime(localNow) < TradingCalendar.CloseTime(session, exchange);
+            return age <= TimeSpan.FromMinutes(30) && regular
+                ? new PriceEvidence(price, source, session, PriceBases.Live, "provider regular-session quote")
+                : new PriceEvidence(price, source, session, PriceBases.Stale, "provider quote outside current regular session");
         }
 
         var expected = TradingCalendar.LastCompletedSession(utcNow, exchange);
-        return sessionAtCapture >= expected
-            ? new PriceEvidence(price, captured, sessionAtCapture, PriceBases.Eod, "completed-session close from snapshot quote")
-            : new PriceEvidence(price, captured, sessionAtCapture, PriceBases.Stale, "snapshot quote older than the last completed session");
+        var sourceSession = TradingCalendar.TorontoDate(source);
+        // A regular-market timestamp near the session close is needed; capture time alone proves nothing.
+        var sourceLocal = TradingCalendar.TorontoNow(source);
+        var completed = sourceSession == expected && TimeOnly.FromDateTime(sourceLocal) >= TradingCalendar.CloseTime(sourceSession, exchange)
+            && state is "CLOSED" or "POST" or "POSTPOST" or "PRE" or "PREPRE";
+        return completed
+            ? new PriceEvidence(price, source, sourceSession, PriceBases.Eod, "provider regular-session close")
+            : new PriceEvidence(price, source, sourceSession, PriceBases.Stale, "quote does not prove the latest completed-session close");
     }
 }
 
@@ -113,8 +128,8 @@ public static class StopRiskEvaluator
         if (!usable) statuses.Add(RiskStatuses.StaleEvidence);
         if (breached) statuses.Add(RiskStatuses.StopBreached);
         if (approaching) statuses.Add(RiskStatuses.ApproachingStop);
-        if (i.PlannedStop is null && active.Count == 0) statuses.Add(RiskStatuses.MissingRiskPlan);
-        if (i.PlannedStop is not null && active.Count == 0) statuses.Add(RiskStatuses.NoBrokerProtection);
+        if (i.PlannedStop is null) statuses.Add(RiskStatuses.MissingRiskPlan);
+        if (active.Count == 0) statuses.Add(RiskStatuses.NoBrokerProtection);
         switch (coverage)
         {
             case CoverageStates.Partial: statuses.Add(RiskStatuses.PartialProtection); break;
@@ -123,6 +138,8 @@ public static class StopRiskEvaluator
             case CoverageStates.OverCovered: statuses.Add(RiskStatuses.OverCovered); break;
         }
         if (i.PlannedStop is not null && active.Any(s => s.TriggerPrice != i.PlannedStop)) statuses.Add(RiskStatuses.StopMismatch);
+        if (active.Sum(s => s.CoveredQuantity ?? 0) > i.TotalQuantity && !statuses.Contains(RiskStatuses.OverCovered))
+            statuses.Add(RiskStatuses.OverCovered);
 
         var weakCoverage = coverage is CoverageStates.None or CoverageStates.Unknown or CoverageStates.Partial or CoverageStates.Ambiguous;
         string severity; int rank;
@@ -155,7 +172,7 @@ public static class StopRiskEvaluator
                 + "it does not show that a broker order triggered or filled. Verify with your broker.";
         }
 
-        var attention = rank <= 3 || statuses.Contains(RiskStatuses.MissingRiskPlan) || statuses.Contains(RiskStatuses.NoBrokerProtection);
+        var attention = statuses.Count > 0;
         return new RiskEvaluation(statuses, protection, coverage, covered, severity, rank, governing, governingSource,
             distAbs, distPct, attention, observation);
     }

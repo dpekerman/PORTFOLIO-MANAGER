@@ -24,7 +24,12 @@ public sealed record OpenTradesSummaryDto(
     int OpenTrades, int NeedsAttention, IReadOnlyList<CurrencyTotalDto> Totals, DateTime? AsOfUtc, bool AnyStale, bool AnyUnavailable);
 
 public sealed record OpenTradesResponse(
-    OpenTradesSummaryDto Summary, IReadOnlyList<SwingTradeRowDto> Rows, decimal ApproachingThresholdPct, string ThresholdNote);
+    OpenTradesSummaryDto Summary, IReadOnlyList<SwingTradeRowDto> Rows, decimal ApproachingThresholdPct, string ThresholdNote)
+{
+    public IReadOnlyList<BrokerOrderReminderDto> BrokerOrderReminders { get; init; } = [];
+}
+
+public sealed record BrokerOrderReminderDto(string Account, string Symbol, BrokerStopDto Stop);
 
 public sealed record JournalHistoryItemDto(DateTime OccurredAtUtc, string EventType, string Summary);
 
@@ -57,9 +62,9 @@ public sealed class SwingTradingService(
         if (_user.IsAdmin) return q;
         var uid = _user.UserId;
         return typeof(T) == typeof(RiskPlan)
-            ? (IQueryable<T>)((IQueryable<RiskPlan>)q).Where(x => x.UserId == uid)
+            ? (IQueryable<T>)((IQueryable<RiskPlan>)q).Where(x => x.UserId == uid || x.UserId == null)
             : typeof(T) == typeof(BrokerStopRecord)
-                ? (IQueryable<T>)((IQueryable<BrokerStopRecord>)q).Where(x => x.UserId == uid)
+                ? (IQueryable<T>)((IQueryable<BrokerStopRecord>)q).Where(x => x.UserId == uid || x.UserId == null)
                 : q;
     }
 
@@ -67,13 +72,9 @@ public sealed class SwingTradingService(
     {
         var map = new Dictionary<string, StockQuote>(StringComparer.OrdinalIgnoreCase);
         if (snapshots is null || _user.UserId is null) return map;
-        try
-        {
-            var snap = await snapshots.GetLatestAsync(_user.UserId, ct);
-            foreach (var s in snap ?? [])
-                if (s.Quote is not null) map[s.Item.Symbol] = s.Quote;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException) { /* no snapshot: evidence becomes Unavailable */ }
+        var snap = await snapshots.GetLatestAsync(_user.UserId, ct);
+        foreach (var s in snap ?? [])
+            if (s.Quote is not null) map[s.Item.Symbol] = s.Quote;
         return map;
     }
 
@@ -99,13 +100,16 @@ public sealed class SwingTradingService(
             var swingLots = pos.OpenLots.Where(l => l.IsSwing).ToList();
             quotes.TryGetValue(pos.Symbol, out var quote);
             var evidence = quote is null ? PriceEvidence.Unavailable("no quote in portfolio snapshot")
-                : PriceEvidence.FromQuote(quote.CurrentPrice, quote.Timestamp, quote.MarketState, pos.Symbol, now);
+                : PriceEvidence.FromQuote(quote.CurrentPrice, quote.Timestamp, quote.MarketState, pos.Symbol, now, quote.SourcePriceTimestamp);
             var (currency, basis) = TradingCurrency.Resolve(pos.Symbol, quote?.Currency);
 
-            var plan = plans.Where(p => p.AccountType == pos.Account && p.Symbol == pos.Symbol)
-                .OrderByDescending(p => p.UpdatedAtUtc).FirstOrDefault();
+            var owner = pos.OpenLots[0].UserId;
+            var scopePlans = plans.Where(p => p.UserId == owner && p.AccountType == pos.Account && p.Symbol == pos.Symbol)
+                .OrderByDescending(p => p.UpdatedAtUtc).ToList();
+            var plan = scopePlans.FirstOrDefault(p => RiskService.BelongsToEpisode(p.TradeEpisodeId, p.EpisodeOpenDate, pos))
+                ?? scopePlans.FirstOrDefault();
             var planCurrent = plan is not null && RiskService.BelongsToEpisode(plan.TradeEpisodeId, plan.EpisodeOpenDate, pos);
-            var active = stops.Where(s => s.AccountType == pos.Account && s.Symbol == pos.Symbol
+            var active = stops.Where(s => (s.UserId == owner || (owner == null && s.UserId == _user.UserId)) && s.AccountType == pos.Account && s.Symbol == pos.Symbol
                     && BrokerUserStatuses.IsActive(s.UserStatus) && RiskService.BelongsToEpisode(s.TradeEpisodeId, s.EpisodeOpenDate, pos))
                 .OrderByDescending(s => s.TriggerPrice).ToList();
 
@@ -123,7 +127,7 @@ public sealed class SwingTradingService(
             var company = lots.FirstOrDefault(l => l.Id == anchor.Id)?.CompanyName ?? pos.Symbol;
 
             rows.Add(new SwingTradeRowDto(
-                $"{pos.Account}|{pos.Symbol}", pos.Symbol, company, pos.Account, anchor.Id, swingLots.Select(l => l.Id).ToList(),
+                $"{owner ?? "legacy"}|{pos.Account}|{pos.Symbol}", pos.Symbol, company, pos.Account, anchor.Id, swingLots.Select(l => l.Id).ToList(),
                 anchor.DecisionSource, pos.EpisodeOpenDate, pos.FirstPurchaseDate, pos.LastExecutionDate,
                 pos.EpisodeOpenDate is null ? null : TradeEpisodeResolver.DaysHeld(pos.EpisodeOpenDate, now),
                 pos.Resolution, pos.ResolutionNote, pos.SwingQuantity, pos.TotalQuantity, pos.MixedRole, Math.Round(avg, 4),
@@ -146,9 +150,16 @@ public sealed class SwingTradingService(
         }).ToList();
         var asOf = ordered.Where(r => r.PriceAsOfUtc.HasValue).Select(r => r.PriceAsOfUtc).Min();
 
+        var reminders = stops.Where(s => s.BrokerCancellationUnverified ||
+                (BrokerUserStatuses.IsActive(s.UserStatus) && !positions.Any(p =>
+                    (p.OpenLots[0].UserId == s.UserId || (p.OpenLots[0].UserId == null && s.UserId == _user.UserId))
+                    && p.Account == s.AccountType && p.Symbol == s.Symbol
+                    && RiskService.BelongsToEpisode(s.TradeEpisodeId, s.EpisodeOpenDate, p))))
+            .OrderBy(s => s.AccountType).ThenBy(s => s.Symbol).ThenBy(s => s.Id)
+            .Select(s => new BrokerOrderReminderDto(s.AccountType, s.Symbol, RiskService.ToDto(s, null))).ToList();
         return new OpenTradesResponse(new OpenTradesSummaryDto(ordered.Count, ordered.Count(r => r.NeedsAttention), totals, asOf,
             ordered.Any(r => r.PriceBasis == PriceBases.Stale), ordered.Any(r => r.PriceBasis == PriceBases.Unavailable)),
-            ordered, threshold, ThresholdNote);
+            ordered, threshold, ThresholdNote) { BrokerOrderReminders = reminders };
     }
 
     public async Task<IReadOnlyList<JournalRowDto>> GetJournalAsync(CancellationToken ct = default)
@@ -158,7 +169,9 @@ public sealed class SwingTradingService(
         var closes = lots.Where(l => l.IsClose && l.IsSwing).ToList();
         var quotes = await QuotesAsync(ct);
         var plans = await Mine(db.RiskPlans.AsNoTracking()).ToListAsync(ct);
-        var events = await db.RiskAuditEvents.AsNoTracking().OrderBy(e => e.OccurredAtUtc).ToListAsync(ct);
+        var events = await db.RiskAuditEvents.AsNoTracking()
+            .Where(e => _user.IsAdmin || e.UserId == _user.UserId || e.UserId == null)
+            .OrderBy(e => e.OccurredAtUtc).ToListAsync(ct);
         var episodeIds = closes.Where(c => c.TradeEpisodeId.HasValue).Select(c => c.TradeEpisodeId!.Value).Distinct().ToList();
         var episodes = episodeIds.Count == 0 ? new Dictionary<Guid, TradeEpisode>()
             : await db.TradeEpisodes.AsNoTracking().Where(e => episodeIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
@@ -191,10 +204,9 @@ public sealed class SwingTradingService(
 
             quotes.TryGetValue(symbol, out var q);
             var (currency, _) = TradingCurrency.Resolve(symbol, q?.Currency);
-            var plan = plans.FirstOrDefault(p => p.AccountType == account && p.Symbol == symbol
-                && p.EpisodeOpenDate.HasValue && open.HasValue && p.EpisodeOpenDate.Value.Date == open.Value);
-            var history = events.Where(e => e.AccountType == account && e.Symbol == symbol
-                    && (open is null || e.OccurredAtUtc.Date >= open.Value) && (lastClose is null || stillOpen || e.OccurredAtUtc.Date <= lastClose.Value.AddDays(1)))
+            var plan = id is null ? null : plans.FirstOrDefault(p => p.UserId == first.UserId
+                && p.AccountType == account && p.Symbol == symbol && p.TradeEpisodeId == id);
+            var history = events.Where(e => id.HasValue && e.TradeEpisodeId == id)
                 .Select(e => new JournalHistoryItemDto(e.OccurredAtUtc, e.EventType, HistoryLine(e))).ToList();
 
             result.Add(new JournalRowDto(

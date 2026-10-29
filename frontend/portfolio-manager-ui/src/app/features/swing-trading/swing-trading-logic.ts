@@ -28,6 +28,12 @@ export const EMPTY_SWING_FILTERS: SwingFilters = {
   attentionOnly: false,
 };
 
+export function aggregateFinalActions(actions: readonly (string | null | undefined)[]): string | null {
+  if (!actions.some(Boolean)) return null;
+  if (actions.some((action) => !action)) return 'Incomplete Actions / Review Lots';
+  return new Set(actions).size === 1 ? actions[0] ?? null : 'Mixed Actions / Review Lots';
+}
+
 export const RISK_STATUS_LABELS: Record<RiskStatus, string> = {
   StopBreached: 'At/below stop',
   ApproachingStop: 'Approaching stop',
@@ -354,20 +360,13 @@ export function journalExportRows(rows: readonly JournalRow[]): ExportCell[][] {
   ]);
 }
 
-/** The caller-side facts the shared Manage Risk dialog shows read-only. */
+/** Identity only: account and Swing facts come from the shared risk-position API. */
 export function manageRiskDataFor(row: SwingTradeRow): ManageRiskDialogData {
   return {
     account: row.account,
     symbol: row.symbol,
     companyName: row.companyName,
     role: 'Swing',
-    averageCost: row.averageCost,
-    currentPrice: row.currentPrice,
-    priceBasis: row.priceBasis,
-    priceAsOfUtc: row.priceAsOfUtc,
-    marketValue: row.marketValue,
-    unrealizedPnl: row.unrealizedPnl,
-    unrealizedPnlPct: row.unrealizedPnlPct,
   };
 }
 

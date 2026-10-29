@@ -7,8 +7,8 @@
     <div><dt>Closed</dt><dd>{{ row.finalCloseDate ? (row.finalCloseDate | date: 'yyyy-MM-dd') : (row.episodeStillOpen ? 'Still open' : '—') }}</dd></div>
     <div><dt>Days held</dt><dd>{{ row.daysHeld ?? '—' }}</dd></div>
     <div><dt>Closed quantity</dt><dd>{{ row.closedQuantity | number: '1.0-6' }}</dd></div>
-    <div><dt>Entry</dt><dd>{{ row.entryPrice === null ? '—' : (row.entryPrice | number: '1.2-4') }}</dd></div>
-    <div><dt>Exit</dt><dd>{{ row.exitPrice === null ? '—' : (row.exitPrice | number: '1.2-4') }}</dd></div>
+    <div><dt>Entry</dt><dd>{{ row.entryPrice === null ? '—' : (value(row.entryPrice) | number: '1.2-4') }}</dd></div>
+    <div><dt>Exit</dt><dd>{{ row.exitPrice === null ? '—' : (value(row.exitPrice) | number: '1.2-4') }}</dd></div>
     <div><dt>Realized P/L ({{ row.currency }})</dt><dd>{{ pnl() === null ? '—' : (pnl() | number: '1.2-2') }}</dd></div>
     <div><dt>Original source</dt><dd>{{ row.originalDecisionSource ?? '—' }}</dd></div>
     <div><dt>Closing source</dt><dd>{{ row.closingDecisionSource ?? '—' }}</dd></div>
@@ -38,10 +38,10 @@
         <li>
           <strong>{{ h.eventType }}</strong>
           <span class="jd-sub">{{ h.occurredAtUtc | date: 'yyyy-MM-dd HH:mm' }}</span>
-          <div class="jd-sub">{{ h.summary }}</div>
+          <div class="jd-sub">{{ demo.isDemoMode() ? 'History details hidden in demo mode' : h.summary }}</div>
         </li>
       } @empty {
-        <li class="jd-sub">No stop or target changes were recorded for this trade.</li>
+        <li class="jd-sub">No episode-attributed stop or target changes are available. Legacy account history may still exist in Manage Risk.</li>
       }
     </ol>
   </section>

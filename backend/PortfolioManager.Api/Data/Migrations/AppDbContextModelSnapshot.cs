@@ -1436,6 +1436,9 @@ namespace PortfolioManager.Api.Data.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<Guid?>("TradeEpisodeId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("UserId")
                         .HasMaxLength(450)
                         .HasColumnType("nvarchar(450)");
@@ -1451,6 +1454,8 @@ namespace PortfolioManager.Api.Data.Migrations
                     b.HasIndex("RiskPlanId");
 
                     b.HasIndex("AccountType", "Symbol", "OccurredAtUtc");
+
+                    b.HasIndex("UserId", "TradeEpisodeId", "OccurredAtUtc");
 
                     b.ToTable("RiskAuditEvents");
                 });
@@ -1523,9 +1528,8 @@ namespace PortfolioManager.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "AccountType", "Symbol")
-                        .IsUnique()
-                        .HasFilter("[UserId] IS NOT NULL");
+                    b.HasIndex("UserId", "AccountType", "Symbol", "TradeEpisodeId")
+                        .IsUnique();
 
                     b.ToTable("RiskPlans");
                 });

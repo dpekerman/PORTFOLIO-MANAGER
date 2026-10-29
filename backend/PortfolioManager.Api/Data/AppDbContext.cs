@@ -566,7 +566,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.Property(e => e.RiskNotes).HasMaxLength(2000);
             entity.Property(e => e.Currency).HasMaxLength(3);
             entity.Property(e => e.RowVersion).IsRowVersion();
-            entity.HasIndex(e => new { e.UserId, e.AccountType, e.Symbol }).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.AccountType, e.Symbol, e.TradeEpisodeId })
+                .IsUnique().HasFilter(null);
         });
 
         modelBuilder.Entity<BrokerStopRecord>(entity =>
@@ -607,6 +608,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasOne(e => e.RiskPlan).WithMany().HasForeignKey(e => e.RiskPlanId).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.BrokerStopRecord).WithMany().HasForeignKey(e => e.BrokerStopRecordId).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => new { e.AccountType, e.Symbol, e.OccurredAtUtc });
+            entity.HasIndex(e => new { e.UserId, e.TradeEpisodeId, e.OccurredAtUtc });
         });
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
         // with DateTime.UtcNow; stamp Kind=Utc on read so JSON emits a trailing "Z" for Angular.

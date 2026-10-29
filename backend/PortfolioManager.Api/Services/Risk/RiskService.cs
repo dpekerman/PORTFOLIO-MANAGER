@@ -25,9 +25,9 @@ public sealed class RiskService(
         if (_user.IsAdmin) return q;
         var uid = _user.UserId;
         return typeof(T) == typeof(RiskPlan)
-            ? (IQueryable<T>)((IQueryable<RiskPlan>)q).Where(x => x.UserId == uid)
+            ? (IQueryable<T>)((IQueryable<RiskPlan>)q).Where(x => x.UserId == uid || x.UserId == null)
             : typeof(T) == typeof(BrokerStopRecord)
-                ? (IQueryable<T>)((IQueryable<BrokerStopRecord>)q).Where(x => x.UserId == uid)
+                ? (IQueryable<T>)((IQueryable<BrokerStopRecord>)q).Where(x => x.UserId == uid || x.UserId == null)
                 : q;
     }
 
@@ -50,6 +50,7 @@ public sealed class RiskService(
     {
         if (pos is null) return false;
         if (recordEpisodeId is not null) return pos.EpisodeId == recordEpisodeId;
+        if (pos.EpisodeId is not null) return false;
         return recordOpenDate is not null && pos.EpisodeOpenDate is not null
             && recordOpenDate.Value.Date == pos.EpisodeOpenDate.Value.Date;
     }
@@ -57,38 +58,65 @@ public sealed class RiskService(
     private async Task<string?> ProviderCurrencyAsync(string symbol, CancellationToken ct)
     {
         if (snapshots is null || _user.UserId is null) return null;
-        try
-        {
-            var snap = await snapshots.GetLatestAsync(_user.UserId, ct);
-            return snap?.FirstOrDefault(s => string.Equals(s.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase))?.Quote?.Currency;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException) { return null; }
+        var snap = await snapshots.GetLatestAsync(_user.UserId, ct);
+        return snap?.FirstOrDefault(s => string.Equals(s.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase))?.Quote?.Currency;
     }
 
     public async Task<RiskPositionDto> GetPositionAsync(string account, string symbol, CancellationToken ct = default)
     {
+        account = TradeEpisodeResolver.NormAccount(account);
         var sym = TradeEpisodeResolver.NormSymbol(symbol);
         var (_, pos) = await LoadPositionAsync(account, sym, ct);
+        account = pos?.Account ?? account;
         var (currency, basis) = TradingCurrency.Resolve(sym, await ProviderCurrencyAsync(sym, ct));
 
-        var plan = await Mine(db.RiskPlans.AsNoTracking()).Where(p => p.AccountType == account && p.Symbol == sym)
-            .OrderByDescending(p => p.UpdatedAtUtc).FirstOrDefaultAsync(ct);
+        var plans = await Mine(db.RiskPlans.AsNoTracking()).Where(p => p.AccountType == account && p.Symbol == sym)
+            .OrderByDescending(p => p.UpdatedAtUtc).ToListAsync(ct);
+        if (pos is not null) plans = plans.Where(p => p.UserId == pos.OpenLots[0].UserId).ToList();
+        var plan = plans.FirstOrDefault(p => BelongsToEpisode(p.TradeEpisodeId, p.EpisodeOpenDate, pos))
+            ?? plans.FirstOrDefault();
         var stops = await Mine(db.BrokerStopRecords.AsNoTracking()).Where(s => s.AccountType == account && s.Symbol == sym)
             .OrderByDescending(s => s.CreatedAtUtc).ToListAsync(ct);
-        var events = await db.RiskAuditEvents.AsNoTracking().Where(e => e.AccountType == account && e.Symbol == sym)
+        if (pos is not null)
+            stops = stops.Where(s => s.UserId == pos.OpenLots[0].UserId ||
+                (pos.OpenLots[0].UserId == null && s.UserId == _user.UserId && s.TradeEpisodeId == pos.EpisodeId)).ToList();
+        var planIds = plans.Select(p => p.Id).ToList();
+        var stopIds = stops.Select(s => s.Id).ToList();
+        var events = await db.RiskAuditEvents.AsNoTracking().Where(e =>
+                ((e.AccountType == account && e.Symbol == sym) ||
+                    (e.RiskPlanId.HasValue && planIds.Contains(e.RiskPlanId.Value)) ||
+                    (e.BrokerStopRecordId.HasValue && stopIds.Contains(e.BrokerStopRecordId.Value)))
+                && (_user.IsAdmin || e.UserId == _user.UserId || e.UserId == null))
             .OrderByDescending(e => e.OccurredAtUtc).ThenByDescending(e => e.Id).Take(100).ToListAsync(ct);
 
+        var snapshot = snapshots is null || _user.UserId is null ? null : await snapshots.GetLatestAsync(_user.UserId, ct);
+        var quote = snapshot?.FirstOrDefault(s => string.Equals(s.Item.Symbol, sym, StringComparison.OrdinalIgnoreCase))?.Quote;
+        var evidence = quote is null ? PriceEvidence.Unavailable("no snapshot quote") :
+            PriceEvidence.FromQuote(quote.CurrentPrice, quote.Timestamp, quote.MarketState, sym, DateTime.UtcNow, quote.SourcePriceTimestamp);
+        decimal? average = pos?.TotalQuantity > 0 ? pos.OpenLots.Sum(l => l.Shares * l.AverageCostBasis) / pos.TotalQuantity : null;
+        decimal? swingAverage = pos?.SwingQuantity > 0 ?
+            pos.OpenLots.Where(l => l.IsSwing).Sum(l => l.Shares * l.AverageCostBasis) / pos.SwingQuantity : null;
+        var pnl = (evidence.Price - average) * pos?.TotalQuantity;
         return new RiskPositionDto(account, sym, pos is not null, pos?.TotalQuantity ?? 0, pos?.SwingQuantity ?? 0,
             pos?.MixedRole ?? false, pos?.Resolution ?? EpisodeResolutions.Unresolved,
             pos is null ? "No open position in this account." : pos.ResolutionNote, pos?.EpisodeOpenDate, currency, basis,
-            plan is null ? null : ToDto(plan, pos), stops.Select(s => ToDto(s, pos)).ToList(), events.Select(ToDto).ToList());
+            plan is null ? null : ToDto(plan, pos), stops.Select(s => ToDto(s, pos)).ToList(), events.Select(ToDto).ToList())
+        {
+            Facts = new(average, swingAverage, evidence.Price, evidence.Basis, evidence.AsOfUtc,
+                evidence.Price * pos?.TotalQuantity, pnl,
+                average is > 0 ? (evidence.Price - average) / average * 100 : null,
+                evidence.Price * pos?.SwingQuantity, (evidence.Price - swingAverage) * pos?.SwingQuantity),
+        };
     }
 
     public async Task<RiskPositionDto> SavePlanAsync(SaveRiskPlanRequest r, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct) : null;
         var sym = TradeEpisodeResolver.NormSymbol(r.Symbol);
         var (_, pos) = await LoadPositionAsync(r.AccountType, sym, ct);
         if (pos is null) throw new RiskNotFoundException("No open position in this account for that symbol.");
+        var account = pos.Account;
 
         decimal? stop = r.PlannedStopPrice is null ? null : RiskSupport.RequirePrice(r.PlannedStopPrice, "Planned stop");
         decimal? target = r.TargetPrice is null ? null : RiskSupport.RequirePrice(r.TargetPrice, "Target price");
@@ -98,14 +126,16 @@ public sealed class RiskService(
             throw new RiskValidationException("A text field is too long.");
 
         var (currency, _) = TradingCurrency.Resolve(sym, await ProviderCurrencyAsync(sym, ct));
-        var plan = await Mine(db.RiskPlans).FirstOrDefaultAsync(p => p.AccountType == r.AccountType && p.Symbol == sym
-            && (_user.IsAdmin || p.UserId == _user.UserId), ct);
+        var owner = pos.OpenLots[0].UserId;
+        var plan = await db.RiskPlans.FirstOrDefaultAsync(p => p.AccountType == account && p.Symbol == sym
+            && p.UserId == owner && p.TradeEpisodeId == pos.EpisodeId
+            && (pos.EpisodeId != null || p.EpisodeOpenDate == pos.EpisodeOpenDate), ct);
 
         var changes = new List<AuditChangeDto>();
         var creating = plan is null;
         if (creating)
         {
-            plan = new RiskPlan { UserId = _user.UserId, AccountType = r.AccountType, Symbol = sym };
+            plan = new RiskPlan { UserId = owner, AccountType = account, Symbol = sym };
             db.RiskPlans.Add(plan);
         }
         else
@@ -114,15 +144,13 @@ public sealed class RiskService(
             if (r.RowVersion is not null) db.Entry(plan).Property(p => p.RowVersion).OriginalValue = plan.RowVersion;
         }
 
-        var priorEpisode = !creating && !BelongsToEpisode(plan!.TradeEpisodeId, plan.EpisodeOpenDate, pos);
         RiskSupport.Diff(changes, "PlannedStopPrice", plan!.PlannedStopPrice, stop);
         RiskSupport.Diff(changes, "TargetPrice", plan.TargetPrice, target);
         RiskSupport.Diff(changes, "StopType", creating ? null : plan.StopType, stopType);
         RiskSupport.Diff(changes, "StopRationale", plan.StopRationale, r.StopRationale);
         RiskSupport.Diff(changes, "TradeRationale", plan.TradeRationale, r.TradeRationale);
         RiskSupport.Diff(changes, "RiskNotes", plan.RiskNotes, r.RiskNotes);
-        if (priorEpisode) RiskSupport.Diff(changes, "EpisodeOpenDate", plan.EpisodeOpenDate, pos.EpisodeOpenDate);
-        if (!creating && changes.Count == 0) return await GetPositionAsync(r.AccountType, sym, ct);
+        if (!creating && changes.Count == 0) return await GetPositionAsync(account, sym, ct);
 
         plan.PlannedStopPrice = stop; plan.TargetPrice = target; plan.StopType = stopType;
         plan.StopRationale = r.StopRationale; plan.TradeRationale = r.TradeRationale; plan.RiskNotes = r.RiskNotes;
@@ -130,16 +158,20 @@ public sealed class RiskService(
         plan.UpdatedAtUtc = DateTime.UtcNow;
 
         RiskSupport.StageAudit(db, _user, RiskAuditSources.User, creating ? "PlanCreated" : "PlanUpdated",
-            r.AccountType, sym, changes, r.Reason, null, plan: plan);
+            account, sym, changes, r.Reason, null, plan: plan);
         await SaveAsync(ct);
-        return await GetPositionAsync(r.AccountType, sym, ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return await GetPositionAsync(account, sym, ct);
     }
 
     public async Task<RiskPositionDto> SaveBrokerStopAsync(SaveBrokerStopRequest r, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct) : null;
         var sym = TradeEpisodeResolver.NormSymbol(r.Symbol);
         var (_, pos) = await LoadPositionAsync(r.AccountType, sym, ct);
         if (pos is null) throw new RiskNotFoundException("No open position in this account for that symbol.");
+        var account = pos.Account;
 
         var trigger = RiskSupport.RequirePrice(r.TriggerPrice, "Trigger price");
         var orderType = string.IsNullOrWhiteSpace(r.OrderType) ? BrokerOrderTypes.StopMarket : r.OrderType.Trim();
@@ -159,7 +191,7 @@ public sealed class RiskService(
         {
             rec = new BrokerStopRecord
             {
-                UserId = _user.UserId, AccountType = r.AccountType, Symbol = sym, Currency = currency,
+                UserId = pos.OpenLots[0].UserId, AccountType = account, Symbol = sym, Currency = currency,
                 TradeEpisodeId = pos.EpisodeId, EpisodeOpenDate = pos.EpisodeOpenDate,
                 ConfirmationSource = ConfirmationSources.ManualEntry,
             };
@@ -171,12 +203,15 @@ public sealed class RiskService(
         }
         else
         {
-            rec = await Mine(db.BrokerStopRecords).FirstOrDefaultAsync(s => s.Id == r.Id && s.AccountType == r.AccountType && s.Symbol == sym, ct)
+            rec = await Mine(db.BrokerStopRecords).FirstOrDefaultAsync(s => s.Id == r.Id && s.AccountType == account && s.Symbol == sym, ct)
                 ?? throw new RiskNotFoundException("Broker stop record not found.");
             if (!BrokerUserStatuses.IsActive(rec.UserStatus))
                 throw new RiskValidationException("This broker stop is no longer active and cannot be edited.");
             if (!BelongsToEpisode(rec.TradeEpisodeId, rec.EpisodeOpenDate, pos))
                 throw new RiskValidationException("This broker stop belongs to a previous trade episode.");
+            if (rec.UserId != pos.OpenLots[0].UserId &&
+                !(pos.OpenLots[0].UserId == null && rec.UserId == _user.UserId && rec.TradeEpisodeId == pos.EpisodeId))
+                throw new RiskValidationException("The broker stop and position have different owners.");
             RiskSupport.CheckVersion(rec.RowVersion, r.RowVersion, "The broker stop");
             if (r.RowVersion is not null) db.Entry(rec).Property(p => p.RowVersion).OriginalValue = rec.RowVersion;
             RiskSupport.Diff(changes, "TriggerPrice", rec.TriggerPrice, trigger);
@@ -187,7 +222,7 @@ public sealed class RiskService(
             RiskSupport.Diff(changes, "BrokerOrderRef", rec.BrokerOrderRef, r.BrokerOrderRef);
             RiskSupport.Diff(changes, "LastUserVerifiedDate", rec.LastUserVerifiedDate, r.LastUserVerifiedDate);
             RiskSupport.Diff(changes, "Notes", rec.Notes, r.Notes);
-            if (changes.Count == 0) return await GetPositionAsync(r.AccountType, sym, ct);
+            if (changes.Count == 0) return await GetPositionAsync(account, sym, ct);
             eventType = changes.All(c => c.Field == "CoveredQuantity") ? "CoverageAdjusted" : "BrokerStopUpdated";
         }
 
@@ -195,9 +230,10 @@ public sealed class RiskService(
         rec.PlacedDate = r.PlacedDate; rec.BrokerOrderRef = r.BrokerOrderRef; rec.LastUserVerifiedDate = r.LastUserVerifiedDate;
         rec.Notes = r.Notes; rec.UpdatedAtUtc = DateTime.UtcNow;
 
-        RiskSupport.StageAudit(db, _user, RiskAuditSources.User, eventType, r.AccountType, sym, changes, r.Reason, null, stop: rec);
+        RiskSupport.StageAudit(db, _user, RiskAuditSources.User, eventType, account, sym, changes, r.Reason, null, stop: rec);
         await SaveAsync(ct);
-        return await GetPositionAsync(r.AccountType, sym, ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return await GetPositionAsync(account, sym, ct);
     }
 
     public async Task<RiskPositionDto> TransitionBrokerStopAsync(int id, BrokerStopTransitionRequest r, CancellationToken ct = default)
@@ -206,8 +242,10 @@ public sealed class RiskService(
             ?? throw new RiskNotFoundException("Broker stop record not found.");
         if (r.Status is not (BrokerUserStatuses.UserReportedCancelled or BrokerUserStatuses.UserReportedFilled or BrokerUserStatuses.Superseded))
             throw new RiskValidationException("Status must be UserReportedCancelled, UserReportedFilled or Superseded.");
-        if (!BrokerUserStatuses.IsActive(rec.UserStatus))
+        if (!BrokerUserStatuses.IsActive(rec.UserStatus) && !(rec.UserStatus == BrokerUserStatuses.EpisodeClosed && rec.BrokerCancellationUnverified))
             throw new RiskValidationException("This broker stop is already inactive.");
+        if (string.IsNullOrWhiteSpace(r.Reason))
+            throw new RiskValidationException("A reason describing the broker confirmation is required.");
         RiskSupport.CheckVersion(rec.RowVersion, r.RowVersion, "The broker stop");
         if (r.RowVersion is not null) db.Entry(rec).Property(p => p.RowVersion).OriginalValue = rec.RowVersion;
 
@@ -215,7 +253,7 @@ public sealed class RiskService(
         {
             var replacement = r.ReplacedByRecordId is null ? null
                 : await Mine(db.BrokerStopRecords).FirstOrDefaultAsync(s => s.Id == r.ReplacedByRecordId
-                    && s.AccountType == rec.AccountType && s.Symbol == rec.Symbol, ct);
+                    && s.UserId == rec.UserId && s.AccountType == rec.AccountType && s.Symbol == rec.Symbol, ct);
             if (replacement is null || replacement.Id == rec.Id) throw new RiskValidationException("A replacement record in the same account and symbol is required.");
         }
 
@@ -262,6 +300,10 @@ public sealed class RiskService(
         catch (DbUpdateConcurrencyException)
         {
             throw new RiskConcurrencyException("The record was changed by someone else. Reload and review before saving again.");
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+        {
+            throw new RiskConcurrencyException("A risk record was created concurrently. Reload and review before saving again.");
         }
     }
 

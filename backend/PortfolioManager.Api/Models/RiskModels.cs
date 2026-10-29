@@ -86,6 +86,7 @@ public class RiskAuditEvent
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public string? UserId { get; set; }
     public string? UserName { get; set; }
+    public Guid? TradeEpisodeId { get; set; }
     /// <summary>User | Import | System</summary>
     public string Source { get; set; } = RiskAuditSources.User;
     public string Symbol { get; set; } = string.Empty;

@@ -85,6 +85,7 @@ export interface RiskAuditEvent {
 }
 
 export interface RiskPosition {
+  facts?: RiskPositionFacts | null;
   accountType: string;
   symbol: string;
   hasOpenPosition: boolean;
@@ -99,6 +100,25 @@ export interface RiskPosition {
   plan: RiskPlan | null;
   brokerStops: BrokerStop[];
   history: RiskAuditEvent[];
+}
+
+export interface RiskPositionFacts {
+  averageCost: number | null;
+  swingAverageCost: number | null;
+  currentPrice: number | null;
+  priceBasis: PriceBasis;
+  priceAsOfUtc: string | null;
+  marketValue: number | null;
+  unrealizedPnl: number | null;
+  unrealizedPnlPct: number | null;
+  swingMarketValue: number | null;
+  swingUnrealizedPnl: number | null;
+}
+
+export interface BrokerOrderReminder {
+  account: string;
+  symbol: string;
+  stop: BrokerStop;
 }
 
 export interface SaveRiskPlanRequest {
@@ -205,6 +225,7 @@ export interface OpenTradesSummary {
 }
 
 export interface OpenTradesResponse {
+  brokerOrderReminders?: BrokerOrderReminder[];
   summary: OpenTradesSummary;
   rows: SwingTradeRow[];
   approachingThresholdPct: number;

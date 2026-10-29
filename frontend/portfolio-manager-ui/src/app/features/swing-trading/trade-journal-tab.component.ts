@@ -123,6 +123,7 @@ export class TradeJournalTabComponent {
   }
 
   protected exportCsv(): void {
+    if (this.demo.isDemoMode()) return;
     downloadTextFile(
       `swing-trade-journal-${torontoDateString()}.csv`,
       txRowsToCsv(JOURNAL_EXPORT_COLUMNS, journalExportRows(this.rows())),
@@ -130,6 +131,7 @@ export class TradeJournalTabComponent {
   }
 
   protected exportXlsx(): void {
+    if (this.demo.isDemoMode()) return;
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, txSheet(JOURNAL_EXPORT_COLUMNS, journalExportRows(this.rows())), 'Trade Journal');
     XLSX.writeFile(book, `swing-trade-journal-${torontoDateString()}.xlsx`);

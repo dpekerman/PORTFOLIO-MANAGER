@@ -83,7 +83,7 @@ public static class TradeEpisodeResolver
     {
         var result = new List<ResolvedPosition>();
         var groups = allLots.Where(l => l.IsOpen)
-            .GroupBy(l => (Account: NormAccount(l.AccountType).ToUpperInvariant(), Symbol: NormSymbol(l.Symbol)));
+            .GroupBy(l => (l.UserId, Account: NormAccount(l.AccountType).ToUpperInvariant(), Symbol: NormSymbol(l.Symbol)));
 
         foreach (var g in groups)
         {
@@ -98,6 +98,8 @@ public static class TradeEpisodeResolver
         IReadOnlyList<LotRef> allLots, IReadOnlyList<LotRef> open, IReadOnlyDictionary<Guid, TradeEpisode>? episodes)
     {
         var first = open[0];
+        if (open.Any(l => l.UserId != first.UserId))
+            throw new RiskValidationException("Several ownership partitions share this account and symbol. Select an unambiguous owner before changing risk records.");
         var account = NormAccount(first.AccountType);
         var symbol = NormSymbol(first.Symbol);
         var total = open.Sum(l => l.Shares);
@@ -109,11 +111,13 @@ public static class TradeEpisodeResolver
         DateTime? lastExec = dated.Count > 0 ? dated.Max() : null;
 
         Guid? episodeId = null;
-        DateTime? episodeOpen = firstPurchase;
+        var swingDates = open.Where(l => l.IsSwing && l.OpenDate.HasValue).Select(l => l.OpenDate!.Value.Date).ToList();
+        DateTime? episodeOpen = swingDates.Count > 0 ? swingDates.Min() : firstPurchase;
         string resolution;
         string? note = null;
 
-        var ids = open.Select(l => l.TradeEpisodeId).Distinct().ToList();
+        var episodeLots = open.Any(l => l.IsSwing) ? open.Where(l => l.IsSwing).ToList() : open.ToList();
+        var ids = episodeLots.Select(l => l.TradeEpisodeId).Distinct().ToList();
         if (ids.Count == 1 && ids[0].HasValue)
         {
             episodeId = ids[0];
@@ -138,7 +142,7 @@ public static class TradeEpisodeResolver
         else
         {
             var overlapping = allLots.FirstOrDefault(l =>
-                l.IsClose && NormSymbol(l.Symbol) == symbol
+                l.UserId == first.UserId && l.IsClose && NormSymbol(l.Symbol) == symbol
                 && (l.CloseDate is null || l.CloseDate.Value.Date >= firstPurchase.Value));
             if (overlapping is not null)
             {
@@ -169,7 +173,7 @@ public static class TradeEpisodeResolver
         var unresolved = new List<BackfillUnresolved>();
         var lots = allLots.Where(l => l.TradeEpisodeId is null && (l.IsOpen || l.IsClose)).ToList();
 
-        foreach (var g in lots.GroupBy(l => (Account: NormAccount(l.AccountType).ToUpperInvariant(), Symbol: NormSymbol(l.Symbol))))
+        foreach (var g in lots.GroupBy(l => (l.UserId, Account: NormAccount(l.AccountType).ToUpperInvariant(), Symbol: NormSymbol(l.Symbol))))
         {
             var rows = g.ToList();
             var opens = rows.Where(l => l.IsOpen).ToList();
@@ -178,7 +182,7 @@ public static class TradeEpisodeResolver
 
             if (opens.Count > 0)
             {
-                var reason = OpenChainAmbiguity(allLots, opens, g.Key.Symbol);
+                var reason = OpenChainAmbiguity(allLots.Where(l => l.UserId == g.Key.UserId).ToList(), opens, g.Key.Symbol);
                 if (reason is null)
                 {
                     var open = opens.Min(l => l.OpenDate!.Value.Date);
@@ -194,7 +198,7 @@ public static class TradeEpisodeResolver
 
             if (closes.Count == 0) continue;
 
-            var scopeOpen = allLots.Where(l => l.IsOpen && NormSymbol(l.Symbol) == g.Key.Symbol
+            var scopeOpen = allLots.Where(l => l.UserId == g.Key.UserId && l.IsOpen && NormSymbol(l.Symbol) == g.Key.Symbol
                 && NormAccount(l.AccountType).Equals(account, StringComparison.OrdinalIgnoreCase)).ToList();
             var scopeMinOpen = scopeOpen.Where(l => l.OpenDate.HasValue).Select(l => (DateTime?)l.OpenDate!.Value.Date).Min();
             var withDates = closes.Where(l => l.OpenDate.HasValue && l.CloseDate.HasValue).OrderBy(l => l.OpenDate).ToList();
@@ -219,7 +223,7 @@ public static class TradeEpisodeResolver
                     continue;
                 }
                 // Same symbol active in another account over the same dates may be an account transfer; not linked.
-                var otherAccount = allLots.Any(o => o.Id != l.Id && NormSymbol(o.Symbol) == g.Key.Symbol
+                var otherAccount = allLots.Any(o => o.UserId == g.Key.UserId && o.Id != l.Id && NormSymbol(o.Symbol) == g.Key.Symbol
                     && !NormAccount(o.AccountType).Equals(account, StringComparison.OrdinalIgnoreCase)
                     && o.OpenDate.HasValue && o.OpenDate.Value.Date <= l.CloseDate!.Value.Date
                     && (o.IsOpen || (o.CloseDate.HasValue && o.CloseDate.Value.Date >= l.OpenDate!.Value.Date)));

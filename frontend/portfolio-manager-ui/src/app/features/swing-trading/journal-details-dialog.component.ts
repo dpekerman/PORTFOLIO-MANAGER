@@ -16,7 +16,11 @@ import { DemoModeStore } from '../../core/store/demo-mode.store';
 })
 export class JournalDetailsDialogComponent {
   protected readonly row = inject<{ row: JournalRow }>(MAT_DIALOG_DATA).row;
-  private readonly demo = inject(DemoModeStore);
+  protected readonly demo = inject(DemoModeStore);
+
+  protected value(value: number | null): number | null {
+    return value === null ? null : this.demo.maskValue(value);
+  }
 
   protected pnl(): number | null {
     return this.row.realizedPnl === null ? null : this.demo.maskValue(this.row.realizedPnl);

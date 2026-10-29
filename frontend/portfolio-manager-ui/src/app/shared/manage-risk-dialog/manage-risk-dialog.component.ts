@@ -141,8 +141,12 @@ export class ManageRiskDialogComponent {
   protected readonly selectedTab = signal(0);
 
   protected readonly position = this.store.position;
+  protected readonly display = computed<ManageRiskDialogData>(() => {
+    const facts = this.position()?.facts;
+    return facts ? { ...this.data, ...facts } : this.data;
+  });
   protected readonly priceUsable = computed(
-    () => this.data.currentPrice != null && (this.data.priceBasis === 'Live' || this.data.priceBasis === 'EOD'),
+    () => this.display().currentPrice != null && (this.display().priceBasis === 'Live' || this.display().priceBasis === 'EOD'),
   );
 
   // ── Risk plan form ─────────────────────────────────────────────────────────────────────
@@ -158,7 +162,7 @@ export class ManageRiskDialogComponent {
   protected readonly planForm = form(this.planModel);
   protected readonly planValidation = computed(() =>
     validateRiskPlan(this.planModel(), {
-      currentPrice: this.data.currentPrice ?? null,
+      currentPrice: this.display().currentPrice ?? null,
       priceUsable: this.priceUsable(),
     }),
   );
@@ -173,7 +177,7 @@ export class ManageRiskDialogComponent {
   protected readonly stopValidation = computed(() =>
     validateBrokerStop(this.stopModel(), {
       totalQuantity: this.position()?.totalQuantity ?? 0,
-      currentPrice: this.data.currentPrice ?? null,
+      currentPrice: this.display().currentPrice ?? null,
       priceUsable: this.priceUsable(),
     }),
   );
@@ -224,7 +228,7 @@ export class ManageRiskDialogComponent {
   }
 
   protected basisLabel(): string {
-    return priceBasisLabel(this.data.priceBasis ?? 'Unavailable');
+    return priceBasisLabel(this.display().priceBasis ?? 'Unavailable');
   }
 
   protected statusLabel(s: BrokerStop): string {
@@ -341,6 +345,7 @@ export class ManageRiskDialogComponent {
   }
 
   protected async confirmTransition(): Promise<void> {
+    if (!this.transitionReason().trim()) return;
     const t = this.transition();
     if (!t) return;
     if (t.status === 'Superseded' && this.replacedBy() === null) return;
