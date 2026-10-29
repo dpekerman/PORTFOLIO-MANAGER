@@ -12,6 +12,7 @@ import { SwingTradingApiService } from '../services/swing-trading-api.service';
 import { AuthStore } from './auth.store';
 import { AppRefreshStore } from './app-refresh.store';
 import { FinalActionStore } from './final-action.store';
+import { PortfolioStore } from './portfolio.store';
 import { SwingTradingStore } from './swing-trading.store';
 
 const row = (over: Partial<SwingTradeRow>): SwingTradeRow =>
@@ -47,6 +48,7 @@ describe('SwingTradingStore', () => {
     transitionBrokerStop: ReturnType<typeof vi.fn>;
   };
   const finalActions = new Map<number, { finalAction: string }>();
+  const roleChangeVersion = signal(0);
   const appRefresh = {
     isRefreshing: signal(false),
     error: signal<string | null>(null),
@@ -55,6 +57,7 @@ describe('SwingTradingStore', () => {
   };
 
   beforeEach(() => {
+    roleChangeVersion.set(0);
     finalActions.clear();
     appRefresh.isRefreshing.set(false);
     appRefresh.error.set(null);
@@ -75,8 +78,26 @@ describe('SwingTradingStore', () => {
         { provide: AuthStore, useValue: { isAuthenticated: signal(false) } },
         { provide: FinalActionStore, useValue: { portfolioByItemId: () => finalActions } },
         { provide: AppRefreshStore, useValue: appRefresh },
+        { provide: PortfolioStore, useValue: { roleChangeVersion } },
       ],
     });
+  });
+
+  it('reloads open trades (and an opened journal) after a Role correction, once per change', () => {
+    const store = TestBed.inject(SwingTradingStore);
+    TestBed.tick();
+    expect(api.getOpenTrades).not.toHaveBeenCalled();
+    store.loadJournal();
+    api.getOpenTrades.mockClear();
+    api.getJournal.mockClear();
+
+    roleChangeVersion.set(1);
+    TestBed.tick();
+    expect(api.getOpenTrades).toHaveBeenCalledTimes(1);
+    expect(api.getJournal).toHaveBeenCalledTimes(1);
+
+    TestBed.tick();
+    expect(api.getOpenTrades).toHaveBeenCalledTimes(1);
   });
 
   it('does not load before the user is authenticated', () => {

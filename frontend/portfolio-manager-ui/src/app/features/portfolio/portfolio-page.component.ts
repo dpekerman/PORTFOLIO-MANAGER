@@ -81,6 +81,7 @@ import {
 } from './edit-option-dialog/edit-option-dialog.component';
 import {
   EditPositionDialogComponent,
+  EditPositionDialogData,
   EditPositionDialogResult,
 } from './edit-position-dialog/edit-position-dialog.component';
 import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
@@ -1383,33 +1384,37 @@ export class PortfolioPageComponent {
   }
 
   openEditGridRow(s: PortfolioSummary): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: s.item },
-        width: '620px',
-        maxWidth: '95vw',
-        maxHeight: '95vh',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (!result) return;
-        this.portfolio.updateItem(s.item.id, {
-          companyName: result.companyName,
-          shares: result.shares,
-          averageCostBasis: result.averageCostBasis,
-          sector: result.sector,
-          industry: result.industry,
-          overrideSector: result.overrideSector,
-          transactionType: result.transactionType,
-          accountType: result.accountType,
-          openDate: result.openDate,
-          closeDate: result.closeDate,
-          closingPrice: result.closingPrice,
-          decisionSource: result.decisionSource,
-          decisionSourceClosed: result.decisionSourceClosed,
-          holdingRole: result.holdingRole,
-        });
-      });
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: s.item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.portfolio.updateItem(
+              s.item.id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   openSecurityAnalysisMapping(s: PortfolioSummary): void {

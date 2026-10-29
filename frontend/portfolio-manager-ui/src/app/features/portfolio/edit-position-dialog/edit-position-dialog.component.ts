@@ -25,6 +25,11 @@ export const HOLDING_ROLES = [
 
 export interface EditPositionDialogData {
   item: PortfolioItem;
+  /**
+   * When provided the dialog saves itself: it stays open (form intact) until this resolves, and shows
+   * the returned message on failure. Resolve null on success. Without it the dialog just returns its result.
+   */
+  submit?: (result: EditPositionDialogResult) => Promise<string | null>;
 }
 
 export interface EditPositionDialogResult {
@@ -71,6 +76,8 @@ export class EditPositionDialogComponent implements OnInit {
   protected readonly data: EditPositionDialogData = inject(MAT_DIALOG_DATA);
 
   protected readonly sectors = signal<string[]>([]);
+  protected readonly saving = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
   protected readonly industries = signal<string[]>([]);
   protected readonly holdingRoles = HOLDING_ROLES;
   protected readonly decisionSources = this.configService.config().decisionSources;
@@ -129,7 +136,7 @@ export class EditPositionDialogComponent implements OnInit {
   }
 
   save(): void {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.saving()) return;
     const newSector = this.form.value.sector ?? '';
     const newIndustry = this.form.value.industry ?? '';
     const sectorChanged =
@@ -151,10 +158,21 @@ export class EditPositionDialogComponent implements OnInit {
       decisionSourceClosed: this.form.value.decisionSourceClosed ?? null,
       holdingRole: this.form.value.holdingRole ?? null,
     };
-    this.dialogRef.close(result);
+    if (!this.data.submit) {
+      this.dialogRef.close(result);
+      return;
+    }
+    this.saving.set(true);
+    this.errorMessage.set(null);
+    void this.data.submit(result).then((error) => {
+      this.saving.set(false);
+      if (error === null) this.dialogRef.close();
+      else this.errorMessage.set(error);
+    });
   }
 
   cancel(): void {
+    if (this.saving()) return;
     this.dialogRef.close();
   }
 }
