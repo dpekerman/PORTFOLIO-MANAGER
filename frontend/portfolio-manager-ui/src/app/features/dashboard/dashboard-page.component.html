@@ -720,7 +720,7 @@
         </div>
         @if (isExpanded('upcoming-earnings')) {
           <div class="db-earnings-list">
-            @for (e of data.nextSevenDayEarnings; track e.symbol) {
+            @for (e of data.nextSevenDayEarnings; track $index) {
               <div class="db-earn-chip">
                 <span class="earn-sym">{{ e.symbol }}</span
                 ><span class="earn-name">{{ e.companyName }}</span

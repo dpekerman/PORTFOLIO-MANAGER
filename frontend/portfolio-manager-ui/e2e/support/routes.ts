@@ -83,6 +83,14 @@ export const APP_ROUTES: RouteSpec[] = [
     inLayout: true,
   },
   {
+    path: '/swing-trading',
+    navLabel: 'Swing Trading',
+    landmark: heading(1, /^Swing Trading$/),
+    hasMatTable: true,
+    primaryControls: (p) => [btn(p, /Refresh/), p.getByRole('tab', { name: 'Risk Monitor' })],
+    inLayout: true,
+  },
+  {
     path: '/allocation',
     navLabel: 'Allocation',
     landmark: heading(1, /PORTFOLIO ALLOCATION/),

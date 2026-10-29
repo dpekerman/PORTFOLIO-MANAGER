@@ -39,6 +39,13 @@ import {
 import { isoDate, isoDateTime, makeStockQuote } from '../fixtures/factories';
 import { auditFilters, auditResponse } from '../fixtures/audit';
 import {
+  handleRisk,
+  journalResponse,
+  openTradesResponse,
+  resetSwing,
+  swingFinalActions,
+} from '../fixtures/swing';
+import {
   finalActionCatalog,
   resetSignalsAudit,
   signalCandidates,
@@ -263,7 +270,16 @@ on('PUT', /^\/api\/signals-audit\/settings$/, (r) => {
   return signalState.settings;
 });
 get(/^\/api\/signals-audit\/final-action-catalog$/, finalActionCatalog);
-get(/^\/api\/final-actions$/, { watchlist: [], portfolio: [], computedAtUtc: null });
+get(/^\/api\/final-actions$/, () => ({
+  watchlist: [],
+  portfolio: swingFinalActions(),
+  computedAtUtc: '2026-10-28T20:05:00Z',
+}));
+get(/^\/api\/swing-trading\/open-trades$/, () => openTradesResponse());
+get(/^\/api\/swing-trading\/journal$/, () => journalResponse());
+on('GET', /^\/api\/risk\/position$/, handleRisk);
+on('PUT', /^\/api\/risk\/.+$/, handleRisk);
+on('POST', /^\/api\/risk\/.+$/, handleRisk);
 get(/^\/api\/analytics\/priority-candidates$/, []);
 get(/^\/api\/signals-audit\/signal-types$/, signalTypes);
 get(/^\/api\/signals-audit\/summary$/, (r) => signalSummary(filterSignalRows(r.query)));
@@ -380,6 +396,7 @@ const FONT_HOSTS = /^https:\/\/fonts\.(googleapis|gstatic)\.com\//;
 export async function installApiMocks(page: Page): Promise<ApiMocks> {
   const mocks: ApiMocks = { unmocked: [], requests: [] };
   resetSignalsAudit();
+  resetSwing();
 
   await page.route(
     (url) => url.pathname.startsWith('/api/') && url.hostname === 'localhost',

@@ -78,6 +78,7 @@ export interface StockQuote {
   /** Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST */
   marketState: string;
   timestamp: number;
+  sourcePriceTimestamp?: number | null;
   week52High: number;
   week52Low: number;
   targetMeanPrice: number;

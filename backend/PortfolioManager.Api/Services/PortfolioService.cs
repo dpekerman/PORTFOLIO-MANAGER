@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services.Risk;
 using System.Security.Claims;
 
 namespace PortfolioManager.Api.Services;
@@ -70,6 +71,8 @@ public sealed class PortfolioService(
 
     public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = new PortfolioItem
         {
             UserId           = CurrentUserId(),
@@ -89,8 +92,10 @@ public sealed class PortfolioService(
             HoldingRole      = request.HoldingRole
         };
 
+        await TradeEpisodeAssigner.AssignOnOpenAsync(db, item, ct);
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return ToDto(item);
@@ -125,8 +130,21 @@ public sealed class PortfolioService(
 
     public async Task<UpdatePortfolioItemResponse?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
+        if (string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && request.OpenDate.HasValue && request.CloseDate.HasValue && request.CloseDate.Value.Date < request.OpenDate.Value.Date)
+            throw new RiskValidationException("A trade cannot close before its opening date.");
+        if (await HasRiskHistoryAsync(item, ct)
+            && (!string.Equals(item.AccountType, request.AccountType, StringComparison.Ordinal)
+                || item.OpenDate?.Date != request.OpenDate?.Date
+                || (request.HoldingRole is not null && item.HoldingRole != request.HoldingRole)
+                || (string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+                    && (item.TransactionType != request.TransactionType || item.Shares != request.Shares
+                        || item.CloseDate?.Date != request.CloseDate?.Date))))
+            throw new RiskValidationException("This change would make existing trade-episode/risk history ambiguous. Keep its account, role and dates; a new trade must be recorded separately.");
 
         // Partial close: user is closing fewer shares than the position currently holds. Rather than
         // silently losing track of the remainder (previously required a manual second "Add Stock"),
@@ -187,7 +205,14 @@ public sealed class PortfolioService(
             db.PortfolioItems.Add(remainderItem);
         }
 
+        if (remainderItem is not null) TradeEpisodeAssigner.PropagateToRemainder(item, remainderItem);
+        if (!string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase) && item.TradeEpisodeId is null)
+            await TradeEpisodeAssigner.AssignOnOpenAsync(db, item, ct);
+        if (!isPartialClose)
+            await TradeEpisodeAssigner.RetireOnFullExitAsync(db, item, new RiskUserContext(httpCtx), ct);
+
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return new UpdatePortfolioItemResponse(ToDto(item), remainderItem is null ? null : ToDto(remainderItem));
@@ -195,10 +220,15 @@ public sealed class PortfolioService(
 
     public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
+        if (item.HoldingRole != holdingRole && await HasRiskHistoryAsync(item, ct))
+            throw new RiskValidationException("Changing this role would disconnect existing trade-episode/risk history. Record a separate trade instead.");
         item.HoldingRole = holdingRole;
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         return true;
     }
 
@@ -213,11 +243,16 @@ public sealed class PortfolioService(
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
 
+        if (await HasRiskHistoryAsync(item, ct))
+            throw new RiskValidationException("This transaction has trade-episode/risk history and cannot be deleted. Its history and broker records must be preserved.");
         db.PortfolioItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return true;
@@ -251,6 +286,13 @@ public sealed class PortfolioService(
 
     public async Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        if (await db.TradeEpisodes.AnyAsync(ct) || await db.RiskPlans.AnyAsync(ct)
+            || await db.BrokerStopRecords.AnyAsync(ct) || await db.RiskAuditEvents.AnyAsync(ct))
+            throw new RiskValidationException("Portfolio JSON replacement cannot preserve existing trade episodes, broker orders and risk audit history. Use the approved full SQL database recovery procedure instead. No data was replaced.");
+        if (!IsAdmin() && await db.PortfolioItems.AnyAsync(x => x.UserId != CurrentUserId(), ct))
+            throw new RiskValidationException("Replacement restore cannot replace other ownership partitions.");
         var existing = await db.PortfolioItems.ToListAsync(ct);
         db.PortfolioItems.RemoveRange(existing);
 
@@ -278,8 +320,15 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.AddRange(newItems);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         return newItems.Count;
     }
+
+    private async Task<bool> HasRiskHistoryAsync(PortfolioItem item, CancellationToken ct) =>
+        item.TradeEpisodeId is not null
+        || await db.RiskPlans.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct)
+        || await db.BrokerStopRecords.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct)
+        || await db.RiskAuditEvents.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

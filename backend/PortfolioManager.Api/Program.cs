@@ -147,6 +147,9 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IRiskService, PortfolioManager.Api.Services.Risk.RiskService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IStopSheetImportService, PortfolioManager.Api.Services.Risk.StopSheetImportService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.ISwingTradingService, PortfolioManager.Api.Services.Risk.SwingTradingService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
@@ -315,6 +318,18 @@ builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinato
 builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var safetyScope = app.Services.CreateScope();
+    var safetyDb = safetyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var pending = await safetyDb.Database.GetPendingMigrationsAsync();
+    if (pending.Contains("20261028213913_CorrectPm033EpisodeIntegrity"))
+    {
+        app.Logger.LogCritical("PM-033 corrective migration is pending. Startup refused; review and apply the migration explicitly before restarting.");
+        throw new InvalidOperationException("PM-033 migration approval is required. Automatic development migration is blocked.");
+    }
+}
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 // Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)

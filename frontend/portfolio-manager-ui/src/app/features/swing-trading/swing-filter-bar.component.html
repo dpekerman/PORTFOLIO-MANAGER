@@ -1,0 +1,60 @@
+<div class="sfb" role="search" aria-label="Filter Swing trades">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sfb-search">
+    <mat-label>Search symbol or company</mat-label>
+    <input matInput type="search" [value]="store.filters().search" (input)="onSearch($event)" data-testid="swing-search" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Account</mat-label>
+    <mat-select [value]="store.filters().account" (valueChange)="store.setFilters({ account: $event })" data-testid="swing-account">
+      <mat-option value="">All accounts</mat-option>
+      @for (a of store.accounts(); track a) {
+        <mat-option [value]="a">{{ a }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Protection</mat-label>
+    <mat-select [value]="store.filters().protection" (valueChange)="store.setFilters({ protection: $event })" data-testid="swing-protection">
+      <mat-option value="">All</mat-option>
+      @for (p of protectionOptions; track p) {
+        <mat-option [value]="p">{{ p }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Risk status</mat-label>
+    <mat-select [value]="store.filters().risk" (valueChange)="store.setFilters({ risk: $event })" data-testid="swing-risk">
+      <mat-option value="">All</mat-option>
+      @for (r of riskOptions; track r.key) {
+        <mat-option [value]="r.key">{{ r.label }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Final Action</mat-label>
+    <mat-select [value]="store.filters().finalAction" (valueChange)="store.setFilters({ finalAction: $event })" data-testid="swing-final-action">
+      <mat-option value="">All</mat-option>
+      @for (f of store.finalActionOptions(); track f) {
+        <mat-option [value]="f">{{ f }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-slide-toggle
+    [checked]="store.filters().attentionOnly"
+    (change)="store.setFilters({ attentionOnly: $event.checked })"
+    data-testid="swing-attention"
+  >
+    Needs attention only
+  </mat-slide-toggle>
+
+  @if (store.hasFilters()) {
+    <button mat-stroked-button type="button" (click)="store.resetFilters()" data-testid="swing-reset">
+      <mat-icon aria-hidden="true">filter_alt_off</mat-icon> Clear filters
+    </button>
+  }
+</div>

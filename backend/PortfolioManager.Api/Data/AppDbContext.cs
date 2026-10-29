@@ -50,6 +50,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<AutomationNotificationRecord> AutomationNotificationRecords => Set<AutomationNotificationRecord>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<SignalAuditEvent> SignalAuditEvents => Set<SignalAuditEvent>();
+    public DbSet<TradeEpisode> TradeEpisodes => Set<TradeEpisode>();
+    public DbSet<RiskPlan> RiskPlans => Set<RiskPlan>();
+    public DbSet<BrokerStopRecord> BrokerStopRecords => Set<BrokerStopRecord>();
+    public DbSet<RiskAuditEvent> RiskAuditEvents => Set<RiskAuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -532,6 +536,80 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasIndex(e => new { e.UserId, e.Status });
         });
 
+        modelBuilder.Entity<PortfolioItem>(entity =>
+        {
+            entity.HasIndex(e => e.TradeEpisodeId).HasDatabaseName("IX_PortfolioItems_TradeEpisodeId");
+        });
+
+        modelBuilder.Entity<TradeEpisode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.AccountType).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(20);
+            entity.HasIndex(e => new { e.AccountType, e.Symbol, e.Status });
+        });
+
+        modelBuilder.Entity<RiskPlan>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.AccountType).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.PlannedStopPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.TargetPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.StopType).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.StopRationale).HasMaxLength(1000);
+            entity.Property(e => e.TradeRationale).HasMaxLength(1000);
+            entity.Property(e => e.RiskNotes).HasMaxLength(2000);
+            entity.Property(e => e.Currency).HasMaxLength(3);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.HasIndex(e => new { e.UserId, e.AccountType, e.Symbol, e.TradeEpisodeId })
+                .IsUnique().HasFilter(null);
+        });
+
+        modelBuilder.Entity<BrokerStopRecord>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ImportKey).HasMaxLength(200);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.AccountType).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.OrderType).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.TriggerPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.LimitPrice).HasColumnType("decimal(18,4)");
+            entity.Property(e => e.Currency).IsRequired().HasMaxLength(3);
+            entity.Property(e => e.UserStatus).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.BrokerVerificationStatus).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CoveredQuantity).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.BrokerOrderRef).HasMaxLength(100);
+            entity.Property(e => e.ConfirmationSource).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.RowVersion).IsRowVersion();
+            entity.HasIndex(e => e.OrderIdentity).IsUnique();
+            entity.HasIndex(e => e.ImportKey).IsUnique().HasFilter("[ImportKey] IS NOT NULL")
+                .HasDatabaseName("UX_BrokerStopRecords_ImportKey");
+            entity.HasIndex(e => new { e.AccountType, e.Symbol, e.UserStatus });
+        });
+
+        modelBuilder.Entity<RiskAuditEvent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.UserName).HasMaxLength(256);
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.AccountType).IsRequired().HasMaxLength(120);
+            entity.Property(e => e.EventType).IsRequired().HasMaxLength(40);
+            entity.Property(e => e.Reason).HasMaxLength(1000);
+            entity.Property(e => e.CorrelationId).HasMaxLength(64);
+            entity.HasOne(e => e.RiskPlan).WithMany().HasForeignKey(e => e.RiskPlanId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.BrokerStopRecord).WithMany().HasForeignKey(e => e.BrokerStopRecordId).OnDelete(DeleteBehavior.NoAction);
+            entity.HasIndex(e => new { e.AccountType, e.Symbol, e.OccurredAtUtc });
+            entity.HasIndex(e => new { e.UserId, e.TradeEpisodeId, e.OccurredAtUtc });
+        });
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
         // with DateTime.UtcNow; stamp Kind=Utc on read so JSON emits a trailing "Z" for Angular.
         var utcConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(

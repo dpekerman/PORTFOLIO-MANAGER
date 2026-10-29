@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
+import { openManageRiskDialog } from '../../shared/manage-risk-dialog/manage-risk-dialog.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -1364,6 +1365,21 @@ export class PortfolioPageComponent {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Opens the shared Manage Risk dialog for this holding. The dialog works per account + symbol, so the figures it
+   * shows are summed across that account's open lots of the security, not just the clicked row.
+   */
+  openManageRisk(s: PortfolioSummary): void {
+    const account = s.item.accountType;
+    if (!account || s.item.isManual) return;
+    openManageRiskDialog(this.dialog, {
+      account,
+      symbol: s.item.symbol,
+      companyName: s.item.companyName,
+      role: s.item.holdingRole,
+    });
   }
 
   openEditGridRow(s: PortfolioSummary): void {

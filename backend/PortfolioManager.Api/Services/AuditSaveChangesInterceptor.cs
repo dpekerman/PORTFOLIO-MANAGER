@@ -46,7 +46,7 @@ public sealed class AuditSaveChangesInterceptor(
     // UI preferences (grid columns, filters) are not portfolio operations; timestamp columns are derived.
     private static readonly HashSet<string> IgnoredFields = new(StringComparer.OrdinalIgnoreCase)
     {
-        "PasswordHash", "SecurityStamp", "ConcurrencyStamp", "Version", "UserId",
+        "PasswordHash", "SecurityStamp", "ConcurrencyStamp", "Version", "UserId", "TradeEpisodeId",
         "NormalizedName", "NormalizedUserName", "NormalizedEmail", "LockoutEnd", "AccessFailedCount",
         "UpdatedAt", "ModifiedAt", "LastModifiedAt",
     };

@@ -101,6 +101,7 @@ export class LayoutComponent {
     { path: '/portfolio', label: 'Portfolio', icon: 'account_balance_wallet' },
     { path: '/watchlist', label: 'Watchlist', icon: 'visibility' },
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
+    { path: '/swing-trading', label: 'Swing Trading', icon: 'swap_vert' },
   ];
 
   protected readonly navGroups: readonly NavGroup[] = [

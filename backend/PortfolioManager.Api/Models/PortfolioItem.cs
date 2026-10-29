@@ -32,4 +32,6 @@ public class PortfolioItem
     public string? DecisionSource { get; set; }
     /// <summary>Decision source recorded at the time of position close.</summary>
     public string? DecisionSourceClosed { get; set; }
+    /// <summary>Trade episode this lot belongs to. Null = not assigned (legacy history or an ambiguous relationship left for review).</summary>
+    public Guid? TradeEpisodeId { get; set; }
 }

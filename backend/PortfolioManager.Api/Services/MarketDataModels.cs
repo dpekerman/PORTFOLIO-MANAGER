@@ -112,8 +112,10 @@ public sealed class YahooQuoteItem
     [JsonPropertyName("industry")]                      public string? Industry                     { get; set; }
     [JsonPropertyName("quoteType")]                     public string? QuoteType                    { get; set; }
     [JsonPropertyName("marketState")]                   public string? MarketState                  { get; set; }
+    [JsonPropertyName("regularMarketTime")]             public long? RegularMarketTime              { get; set; }
+    [JsonPropertyName("currency")]                      public string? Currency                     { get; set; }
     [JsonPropertyName("marketCap")]                     public long?   MarketCap                    { get; set; }
-    [JsonPropertyName("fiftyTwoWeekHigh")]              public decimal FiftyTwoWeekHigh             { get; set; }
+    [JsonPropertyName("fiftyTwoWeekHigh")]               public decimal FiftyTwoWeekHigh             { get; set; }
     [JsonPropertyName("fiftyTwoWeekLow")]               public decimal FiftyTwoWeekLow              { get; set; }
     [JsonPropertyName("targetMeanPrice")]               public decimal TargetMeanPrice              { get; set; }
     [JsonPropertyName("trailingPE")]                    public decimal TrailingPE                   { get; set; }

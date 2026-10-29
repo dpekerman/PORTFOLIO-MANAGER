@@ -1,0 +1,53 @@
+@use 'swing-shared';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.tj-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 8px 0;
+
+  mat-form-field {
+    flex: 1 1 150px;
+    min-width: 0;
+    max-width: 240px;
+  }
+
+  .tj-search {
+    flex: 2 1 200px;
+    max-width: 320px;
+  }
+}
+
+.st-table {
+  width: 100%;
+
+  td,
+  th {
+    padding: 6px 10px;
+    vertical-align: top;
+  }
+}
+
+.tj-count {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.tj-foot {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
+@media (max-width: 599.98px) {
+  .tj-filters mat-form-field,
+  .tj-filters .tj-search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}

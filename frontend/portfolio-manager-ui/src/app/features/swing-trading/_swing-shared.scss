@@ -1,0 +1,108 @@
+@use 'sass:color';
+
+// Severity and status chips shared by every Swing Trading tab (no ::ng-deep, Material system tokens only).
+.st-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.sev-critical {
+  color: var(--mat-sys-error);
+  font-weight: 700;
+}
+
+.sev-high {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.sev-medium {
+  color: #b26a00;
+}
+
+.sev-low,
+.sev-none {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.st-warn {
+  color: #b26a00;
+}
+
+.st-pos {
+  color: #1b7f3a;
+}
+
+.st-neg {
+  color: var(--mat-sys-error);
+}
+
+.st-dim {
+  opacity: 0.65;
+}
+
+.st-sub {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.st-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.st-empty {
+  padding: 24px 8px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.st-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.st-status-stack,
+.st-status-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+.st-status-stack .st-chip {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+  .st-table {
+    .mat-column-protection,
+    .mat-column-risk,
+    .mat-column-severity {
+      min-width: 160px;
+    }
+  }
+}
+
+@media (max-width: 599.98px) {
+  .st-toolbar button,
+  .st-row-btn {
+    min-height: 44px;
+  }
+}

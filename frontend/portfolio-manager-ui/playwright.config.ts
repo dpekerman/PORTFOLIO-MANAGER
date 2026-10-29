@@ -7,6 +7,9 @@ import { defineConfig, devices } from '@playwright/test';
  * Four viewports guard the mobile-first refactor: a desktop baseline, a tablet, and two phones
  * (Chromium/Android and WebKit/iOS) because Safari layout quirks differ from Blink.
  */
+const PORT = process.env['E2E_PORT'] ?? '4200';
+const BASE_URL = process.env['E2E_BASE_URL'] ?? `http://localhost:${PORT}`;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -17,7 +20,7 @@ export default defineConfig({
   timeout: 45_000,
   expect: { timeout: 10_000 },
   use: {
-    baseURL: 'http://localhost:4200',
+    baseURL: BASE_URL,
     trace: 'on-first-retry',
   },
   projects: [
@@ -55,8 +58,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx ng serve --port 4200',
-    url: 'http://localhost:4200',
+    command: `npx ng serve --port ${PORT}`,
+    url: BASE_URL,
     reuseExistingServer: !process.env['CI'],
     timeout: 180_000,
   },
