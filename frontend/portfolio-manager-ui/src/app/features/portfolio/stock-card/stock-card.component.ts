@@ -13,6 +13,7 @@ import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import {
   EditPositionDialogComponent,
+  EditPositionDialogData,
   EditPositionDialogResult,
 } from '../edit-position-dialog/edit-position-dialog.component';
 
@@ -80,34 +81,38 @@ export class StockCardComponent {
   }
 
   edit(): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: this.summary().item },
-        width: '460px',
-        maxWidth: '95vw',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (result) {
-          this.state.updateItem(this.summary().item.id, {
-            companyName: result.companyName,
-            shares: result.shares,
-            averageCostBasis: result.averageCostBasis,
-            sector: result.sector,
-            industry: result.industry,
-            overrideSector: result.overrideSector,
-            // The API overwrites every transaction field, so omitting these would null them out.
-            transactionType: result.transactionType,
-            accountType: result.accountType,
-            openDate: result.openDate,
-            closeDate: result.closeDate,
-            closingPrice: result.closingPrice,
-            decisionSource: result.decisionSource,
-            decisionSourceClosed: result.decisionSourceClosed,
-            holdingRole: result.holdingRole,
-          });
-        }
-      });
+    const id = this.summary().item.id;
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: this.summary().item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.state.updateItem(
+              id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                // The API overwrites every transaction field, so omitting these would null them out.
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '460px',
+      maxWidth: '95vw',
+    });
   }
 
   remove(): void {

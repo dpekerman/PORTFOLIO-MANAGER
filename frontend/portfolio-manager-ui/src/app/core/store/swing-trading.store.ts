@@ -25,6 +25,7 @@ import {
 } from '../../features/swing-trading/swing-trading-logic';
 import { FinalActionStore } from './final-action.store';
 import { AppRefreshStore } from './app-refresh.store';
+import { PortfolioStore } from './portfolio.store';
 import { onceAuthenticated } from './features/auth-gate';
 import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
 
@@ -104,7 +105,7 @@ export const SwingTradingStore = signalStore(
       hasFilters: computed(() => JSON.stringify(store.filters()) !== JSON.stringify(EMPTY_SWING_FILTERS)),
     };
   }),
-  withMethods((store, api = inject(SwingTradingApiService), finalActions = inject(FinalActionStore), appRefresh = inject(AppRefreshStore)) => {
+  withMethods((store, api = inject(SwingTradingApiService), finalActions = inject(FinalActionStore), appRefresh = inject(AppRefreshStore), portfolio = inject(PortfolioStore)) => {
     const finalActionOf = (row: SwingTradeRow): string | null =>
       aggregateFinalActions(row.lotIds.map((id) => finalActions.portfolioByItemId().get(id)?.finalAction));
     const finalActionResultFor = (row: SwingTradeRow): FinalActionResult | null => {
@@ -150,6 +151,18 @@ export const SwingTradingStore = signalStore(
         ),
       ),
     );
+
+    let seenRoleVersion = untracked(() => portfolio.roleChangeVersion());
+    effect(() => {
+      const version = portfolio.roleChangeVersion();
+      untracked(() => {
+        if (version === seenRoleVersion) return;
+        seenRoleVersion = version;
+        // Swing membership is derived server-side from lot roles, so a Role correction must reload it.
+        loadOpenTrades();
+        if (store.journalLoaded()) loadJournal();
+      });
+    });
 
     let refreshBaseline: Date | null = null;
     let refreshJournal = false;

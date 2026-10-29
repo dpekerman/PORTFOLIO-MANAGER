@@ -28,6 +28,20 @@ interface PortfolioState {
   selectedIds: Set<number>;
   /** True when the current data was loaded from the DB snapshot (not a live Yahoo call). */
   fromSnapshot: boolean;
+  /** Bumped after every successful Role correction so dependent views (Swing Trading) reload. */
+  roleChangeVersion: number;
+}
+
+/** The backend returns `{ error }` (400/409) for risk/episode rejections; show that reason verbatim. */
+export const backendErrorMessage = (err: unknown, fallback: string): string => {
+  const body = (err as { error?: { error?: unknown } } | null)?.error;
+  return typeof body?.error === 'string' && body.error ? body.error : fallback;
+};
+
+export interface UpdateItemCallbacks {
+  success?: () => void;
+  /** Receives the backend's reason (or a generic fallback). */
+  failure?: (message: string) => void;
 }
 
 /**
@@ -45,6 +59,7 @@ export const PortfolioStore = signalStore(
     error: null,
     selectedIds: new Set<number>(),
     fromSnapshot: false,
+    roleChangeVersion: 0,
   }),
   withComputed(({ summaries, selectedIds }, demoMode = inject(DemoModeStore)) => {
     const totalValue = computed(() =>
@@ -229,7 +244,7 @@ export const PortfolioStore = signalStore(
           });
         },
 
-        updateItem(id: number, request: UpdatePortfolioItemRequest): void {
+        updateItem(id: number, request: UpdatePortfolioItemRequest, callbacks?: UpdateItemCallbacks): void {
           const prev = store.summaries().find((s) => s.item.id === id)?.item ?? null;
           api.updateItem(id, request).subscribe({
             next: (response) => {
@@ -241,6 +256,7 @@ export const PortfolioStore = signalStore(
                         ...s,
                         item: {
                           ...s.item,
+                          holdingRole: updated.holdingRole ?? s.item.holdingRole,
                           companyName: updated.companyName,
                           shares: updated.shares,
                           averageCostBasis: updated.averageCostBasis,
@@ -272,20 +288,33 @@ export const PortfolioStore = signalStore(
               );
               if (response.newOpenItem) tradeCashLink.onPartialClose();
               if (prev) void tradeCashLink.offerForStock(prev, updated);
+              if (prev && (prev.holdingRole ?? null) !== (updated.holdingRole ?? null)) {
+                patchState(store, ({ roleChangeVersion }) => ({ roleChangeVersion: roleChangeVersion + 1 }));
+              }
+              callbacks?.success?.();
             },
-            error: () => snackBar.open('Failed to update position', 'Close', { duration: 4000 }),
+            error: (err: unknown) => {
+              const message = backendErrorMessage(err, 'Failed to update position');
+              snackBar.open(message, 'Close', { duration: 6000 });
+              callbacks?.failure?.(message);
+            },
           });
         },
 
         updateHoldingRole(id: number, holdingRole: string): void {
+          const previousRole = store.summaries().find((s) => s.item.id === id)?.item.holdingRole ?? null;
           // Optimistic update
           updateSummaries((items) =>
             items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, holdingRole } } : s)),
           );
           api.updatePortfolioHoldingRole(id, holdingRole).subscribe({
-            error: () => {
-              snackBar.open('Failed to update holding role', 'Close', { duration: 4000 });
-              refresh(); // revert by reloading
+            next: () => patchState(store, ({ roleChangeVersion }) => ({ roleChangeVersion: roleChangeVersion + 1 })),
+            error: (err: unknown) => {
+              snackBar.open(backendErrorMessage(err, 'Failed to update holding role'), 'Close', { duration: 6000 });
+              // Revert only this row; no full reload needed because the server rejected the change.
+              updateSummaries((items) =>
+                items.map((s) => (s.item.id === id ? { ...s, item: { ...s.item, holdingRole: previousRole } } : s)),
+              );
             },
           });
         },

@@ -9,6 +9,13 @@ public sealed class AccountTypeExceptionHandler(ILogger<AccountTypeExceptionHand
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken ct)
     {
+        if (exception is RiskConflictException conflict)
+        {
+            logger.LogWarning("Portfolio risk-history conflict: {Reason}", conflict.Message);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await context.Response.WriteAsJsonAsync(new { error = conflict.Message }, ct);
+            return true;
+        }
         if (exception is RiskValidationException riskError)
         {
             logger.LogWarning("Portfolio risk-history operation rejected: {Reason}", riskError.Message);

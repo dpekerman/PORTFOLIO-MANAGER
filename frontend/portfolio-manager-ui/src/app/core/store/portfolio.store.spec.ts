@@ -19,6 +19,7 @@ interface PositionOptions {
   manualMarketValue?: number | null;
   transactionType?: string | null;
   accountType?: string | null;
+  holdingRole?: string | null;
 }
 
 let nextId = 1;
@@ -34,6 +35,7 @@ const position = (o: PositionOptions): PortfolioSummary =>
       manualMarketValue: o.manualMarketValue ?? null,
       transactionType: o.transactionType ?? 'OPEN',
       accountType: o.accountType ?? 'TFSA',
+      holdingRole: o.holdingRole ?? null,
     },
     quote: o.price === undefined ? { currentPrice: 100 } : o.price === null ? null : { currentPrice: o.price },
   }) as unknown as PortfolioSummary;
@@ -325,16 +327,66 @@ describe('PortfolioStore', () => {
       );
     });
 
-    it('updateHoldingRole updates optimistically and reloads on failure', () => {
+    it('updateHoldingRole updates optimistically and reverts only that row on failure', () => {
       api.updatePortfolioHoldingRole.mockReturnValue(throwError(() => new Error('boom')));
-      const s = withPositions([position({ shares: 1, averageCostBasis: 1 })]);
+      const s = withPositions([position({ shares: 1, averageCostBasis: 1, holdingRole: 'Swing' })]);
 
       s.updateHoldingRole(1, 'Core');
 
       expect(snackBar.open).toHaveBeenCalledWith('Failed to update holding role', 'Close', {
-        duration: 4000,
+        duration: 6000,
       });
-      expect(api.getAllQuotes).toHaveBeenCalledOnce();
+      expect(s.summaries()[0].item.holdingRole).toBe('Swing');
+      expect(api.getAllQuotes).not.toHaveBeenCalled();
+      expect(s.roleChangeVersion()).toBe(0);
+    });
+
+    it('updateHoldingRole success bumps roleChangeVersion and shows the backend reason on rejection', () => {
+      api.updatePortfolioHoldingRole.mockReturnValue(of(void 0));
+      const s = withPositions([position({ shares: 1, averageCostBasis: 1, holdingRole: 'Swing' })]);
+      s.updateHoldingRole(1, 'Speculative');
+      expect(s.summaries()[0].item.holdingRole).toBe('Speculative');
+      expect(s.roleChangeVersion()).toBe(1);
+
+      api.updatePortfolioHoldingRole.mockReturnValue(
+        throwError(() => ({ status: 409, error: { error: 'Other open lots have different roles.' } })),
+      );
+      s.updateHoldingRole(1, 'Core');
+      expect(snackBar.open).toHaveBeenCalledWith('Other open lots have different roles.', 'Close', {
+        duration: 6000,
+      });
+      expect(s.summaries()[0].item.holdingRole).toBe('Speculative');
+    });
+
+    it('updateItem patches holdingRole on success and reports success to the caller', () => {
+      api.updateItem.mockReturnValue(
+        of({ updated: { symbol: 'HUN.TO', shares: 10, averageCostBasis: 5, holdingRole: 'Speculative' }, newOpenItem: null }),
+      );
+      const s = withPositions([position({ shares: 10, averageCostBasis: 5, holdingRole: 'Swing' })]);
+      const success = vi.fn();
+      const failure = vi.fn();
+
+      s.updateItem(1, {} as never, { success, failure });
+
+      expect(s.summaries()[0].item.holdingRole).toBe('Speculative');
+      expect(s.roleChangeVersion()).toBe(1);
+      expect(success).toHaveBeenCalledOnce();
+      expect(failure).not.toHaveBeenCalled();
+    });
+
+    it('updateItem surfaces the exact backend message and leaves the row untouched on failure', () => {
+      api.updateItem.mockReturnValue(
+        throwError(() => ({ status: 409, error: { error: 'This lot has no trade episode.' } })),
+      );
+      const s = withPositions([position({ shares: 10, averageCostBasis: 5, holdingRole: 'Speculative' })]);
+      const failure = vi.fn();
+
+      s.updateItem(1, {} as never, { failure });
+
+      expect(failure).toHaveBeenCalledWith('This lot has no trade episode.');
+      expect(snackBar.open).toHaveBeenCalledWith('This lot has no trade episode.', 'Close', { duration: 6000 });
+      expect(s.summaries()[0].item.holdingRole).toBe('Speculative');
+      expect(s.roleChangeVersion()).toBe(0);
     });
 
     it('patchItemNotes updates one row only', () => {

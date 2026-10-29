@@ -131,21 +131,24 @@
           <mat-option [value]="r">{{ r }}</mat-option>
         }
       </mat-select>
-      <mat-hint>Investment role for this position</mat-hint>
+      <mat-hint>Investment role for this position. Changing it does not change quantity, cost, transactions or broker orders.</mat-hint>
     </mat-form-field>
+
+    @if (errorMessage(); as message) {
+      <p class="save-error" role="alert">{{ message }}</p>
+    }
   </form>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+  <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel()">Cancel</button>
   <button
     mat-flat-button
-    type="submit"
-    form="edit-form"
-    [disabled]="form.invalid || form.pristine"
+    type="button"
+    [disabled]="form.invalid || form.pristine || saving()"
     (click)="save()"
   >
     <mat-icon>save</mat-icon>
-    Save Changes
+    {{ saving() ? 'Saving…' : 'Save Changes' }}
   </button>
 </mat-dialog-actions>

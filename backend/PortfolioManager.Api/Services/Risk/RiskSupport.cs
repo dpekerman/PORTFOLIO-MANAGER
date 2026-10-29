@@ -7,6 +7,8 @@ using PortfolioManager.Api.Models;
 namespace PortfolioManager.Api.Services.Risk;
 
 public sealed class RiskValidationException(string message) : Exception(message);
+/// <summary>A well-formed request that conflicts with existing trade-episode integrity (HTTP 409).</summary>
+public sealed class RiskConflictException(string message) : Exception(message);
 public sealed class RiskNotFoundException(string message) : Exception(message);
 public sealed class RiskConcurrencyException(string message) : Exception(message);
 
@@ -85,14 +87,14 @@ public static class RiskSupport
     /// <summary>Stages the typed risk event and its AuditLog mirror in the caller's unit of work, so both commit or neither does.</summary>
     public static RiskAuditEvent StageAudit(AppDbContext db, RiskUserContext user, string source, string eventType,
         string account, string symbol, IReadOnlyList<AuditChangeDto> changes, string? reason, string? correlationId,
-        RiskPlan? plan = null, BrokerStopRecord? stop = null)
+        RiskPlan? plan = null, BrokerStopRecord? stop = null, Guid? episodeId = null)
     {
         var json = changes.Count == 0 ? null : JsonSerializer.Serialize(changes, Json);
         var ev = new RiskAuditEvent
         {
             UserId = user.UserId, UserName = user.UserName, Source = source, EventType = eventType,
             Symbol = symbol, AccountType = account, ChangesJson = json, Reason = reason, CorrelationId = correlationId,
-            RiskPlan = plan, BrokerStopRecord = stop, TradeEpisodeId = plan?.TradeEpisodeId ?? stop?.TradeEpisodeId,
+            RiskPlan = plan, BrokerStopRecord = stop, TradeEpisodeId = plan?.TradeEpisodeId ?? stop?.TradeEpisodeId ?? episodeId,
         };
         db.RiskAuditEvents.Add(ev);
         db.AuditLogs.Add(new AuditLog
@@ -101,7 +103,7 @@ public static class RiskSupport
             Source = source == RiskAuditSources.User ? AuditSources.User : AuditSources.System,
             Category = AuditCategories.Risk,
             Action = eventType.Contains("Created") || eventType.Contains("Recorded") || eventType.Contains("Imported") ? AuditActions.Create : AuditActions.Update,
-            EntityType = plan is not null ? nameof(RiskPlan) : nameof(BrokerStopRecord),
+            EntityType = plan is not null ? nameof(RiskPlan) : stop is not null ? nameof(BrokerStopRecord) : nameof(PortfolioItem),
             Symbol = symbol, AccountType = account,
             Summary = $"{eventType} — {symbol} ({account})",
             ChangesJson = json, CorrelationId = correlationId,

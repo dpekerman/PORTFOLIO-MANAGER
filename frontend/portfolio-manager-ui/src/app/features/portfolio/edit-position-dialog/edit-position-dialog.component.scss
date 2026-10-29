@@ -46,3 +46,10 @@ h2[mat-dialog-title] {
     grid-template-columns: 1fr;
   }
 }
+
+.save-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--mat-sys-error, #b3261e);
+  font-size: 0.85rem;
+}
