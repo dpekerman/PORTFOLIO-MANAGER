@@ -7,6 +7,8 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { SignalHorizon } from '../../core/models/portfolio.models';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { SignalsAuditStore } from '../../core/store/signals-audit.store';
+import { describeReasonCode, stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
+import { signalEvidenceSummary, signalEvidenceWarning, signalStatusMeta } from './signal-status';
 
 export interface SignalDetailsDialogData {
   id: number;
@@ -91,5 +93,26 @@ export class SignalDetailsDialogComponent {
 
   protected close(): void {
     this.store.clearDetail();
+  }
+
+  protected readonly statusMeta = signalStatusMeta;
+  protected readonly evidenceSummary = signalEvidenceSummary;
+  protected readonly evidenceWarning = signalEvidenceWarning;
+  protected readonly stateLabel = stateLabel;
+
+  protected reasons(codes: string[] | null | undefined): string {
+    return (codes ?? []).map(describeReasonCode).join('; ') || 'None';
+  }
+
+  protected utc(value: string | null | undefined): string {
+    return value ? `${value.substring(0, 16).replace('T', ' ')} UTC` : 'Not Available';
+  }
+
+  protected originLabel(origin: string): string {
+    return origin === 'INITIAL_BASELINE' ? 'Initial baseline (already qualifying when auditing first ran)' : origin === 'Backfill' ? 'Backfill (recovered from original point-in-time records)' : 'New signal';
+  }
+
+  protected basisLabel(basis: string): string {
+    return basis === 'Adjusted' ? 'Adjusted (rescaled to split-adjusted history)' : basis === 'Unverified' ? 'Unverified (returns not verified against history)' : 'Verified';
   }
 }

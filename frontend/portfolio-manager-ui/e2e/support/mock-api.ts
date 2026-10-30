@@ -61,12 +61,37 @@ function filterSignalRows(q: URLSearchParams) {
   const ticker = (q.get('ticker') ?? '').toLowerCase();
   const action = q.get('myAction');
   const roles = q.getAll('role');
+  const status = q.get('status');
+  const statusOf = (r: { status?: unknown }) => String(r.status ?? 'Active');
+  const from = q.get('from');
+  const to = q.get('to');
   return signalState.rows.filter(
     (r) =>
       (!ticker || String(r['symbol']).toLowerCase().includes(ticker)) &&
-      (!action || r.myAction === action) &&
-      (roles.length === 0 || roles.includes(String(r['role']))),
+      (!action || action === 'All' || r.myAction === action) &&
+      (roles.length === 0 || roles.includes(String(r['role']))) &&
+      (!status || status === 'All' || (status === 'Open' ? statusOf(r) === 'Active' : status === 'Closed' ? statusOf(r) !== 'Active' : statusOf(r) === status)) &&
+      (!from || String(r['signalDate']) >= from) &&
+      (!to || String(r['signalDate']) <= to),
   );
+}
+
+/** Server-side sort; the default is Signal Date descending with a stable id tie-break, like the real endpoint. */
+function sortSignalRows<T extends Record<string, unknown> & { id: number }>(rows: T[], q: URLSearchParams): T[] {
+  const sortBy = q.get('sortBy') ?? 'signalDate';
+  const dir = q.get('sortDir') === 'asc' ? 1 : -1;
+  const key = (r: T): string | number =>
+    sortBy === 'lifecycleStatus' ? String(r['status'] ?? 'Active')
+      : sortBy === 'symbol' ? String(r['symbol'])
+      : sortBy === 'myAction' ? String(r['myAction'])
+      : String(r['signalDate']);
+  return [...rows].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    if (ka < kb) return -dir;
+    if (ka > kb) return dir;
+    return b.id - a.id;
+  });
 }
 
 /** Request as seen by a handler. `path` excludes the query string. */
@@ -282,11 +307,24 @@ on('PUT', /^\/api\/risk\/.+$/, handleRisk);
 on('POST', /^\/api\/risk\/.+$/, handleRisk);
 get(/^\/api\/analytics\/priority-candidates$/, []);
 get(/^\/api\/signals-audit\/signal-types$/, signalTypes);
-get(/^\/api\/signals-audit\/summary$/, (r) => signalSummary(filterSignalRows(r.query)));
+get(/^\/api\/signals-audit\/summary$/, (r) => signalSummary(filterSignalRows(r.query), signalState.largeTotal));
 get(/^\/api\/signals-audit\/effectiveness$/, (r) => signalEffectiveness(r.query));
 get(/^\/api\/signals-audit$/, (r) => {
-  const rows = filterSignalRows(r.query);
-  return { items: rows, total: rows.length, page: 1, pageSize: Number(r.query.get('pageSize') ?? 25) };
+  const rows = sortSignalRows(filterSignalRows(r.query), r.query);
+  const page = Number(r.query.get('page') ?? 1);
+  const pageSize = Number(r.query.get('pageSize') ?? 25);
+  const computed = ['signalType', 'return5D', 'return20D', 'return1M', 'today', 'todayVsActioned'].includes(r.query.get('sortBy') ?? '');
+  const large = signalState.largeTotal;
+  const partial = !!large && large > 5000 && computed;
+  return {
+    items: rows.slice((page - 1) * pageSize, page * pageSize),
+    total: large ?? rows.length,
+    page,
+    pageSize,
+    evaluated: large ? (partial ? 5000 : large) : rows.length,
+    evaluationLimit: 5000,
+    partial,
+  };
 });
 get(/^\/api\/signals-audit\/(\d+)$/, (r) => {
   const id = Number(r.path.split('/').pop());

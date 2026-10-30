@@ -425,6 +425,85 @@
   font-weight: 600;
 }
 
+/* Lifecycle status: one compact badge per row. Colours are distinct from the Final Action buy/sell palette. */
+.life-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.life-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+}
+
+.life-active {
+  background: rgba(33, 150, 243, 0.16);
+  border-color: rgba(33, 150, 243, 0.55);
+  color: var(--mat-sys-on-surface);
+}
+
+.life-acted {
+  background: rgba(0, 150, 136, 0.18);
+  border-color: rgba(0, 150, 136, 0.55);
+}
+
+.life-closed {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+/* Invalidated means the app no longer recommends this: it must stand out. */
+.life-invalid {
+  background: #c62828;
+  border-color: #c62828;
+  color: #fff;
+  font-weight: 700;
+}
+
+.evidence-warn {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  color: #b26a00;
+  cursor: help;
+}
+
+.partial-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0;
+  padding: 6px 10px;
+  border: 1px solid #b26a00;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface);
+  background: var(--mat-sys-surface-container-low);
+
+  mat-icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    color: #b26a00;
+  }
+}
+
+.kpi.kpi-partial {
+  border-style: dashed;
+}
+
 .pct {
   font-weight: 600;
   white-space: nowrap;

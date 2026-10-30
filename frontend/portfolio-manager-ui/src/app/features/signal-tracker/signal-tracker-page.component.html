@@ -29,12 +29,18 @@
   @if (store.overview(); as s) {
     <section class="kpis" aria-label="Signal summary">
       <button type="button" class="kpi kpi-total" [class.kpi-active]="activeKpi() === 'total'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'total'" (click)="selectKpi('total')"><span class="kpi-value">{{ s.total }}</span><span class="kpi-label">Total Signals</span></button>
-      <button type="button" class="kpi kpi-priority" [class.kpi-active]="activeKpi() === 'priority'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'priority'" (click)="selectKpi('priority')" matTooltip="Open Priority Candidates only"><span class="kpi-value">{{ s.priorityCandidate }}</span><span class="kpi-label">Priority Candidate</span></button>
-      <button type="button" class="kpi kpi-entry" [class.kpi-active]="activeKpi() === 'entry'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'entry'" (click)="selectKpi('entry')" matTooltip="Open Entry / Add recommendations only"><span class="kpi-value">{{ s.entryAdd }}</span><span class="kpi-label">Entry / Add</span></button>
-      <button type="button" class="kpi kpi-trim" [class.kpi-active]="activeKpi() === 'trim'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'trim'" (click)="selectKpi('trim')" matTooltip="Open Trim / Exit recommendations only"><span class="kpi-value">{{ s.trimExit }}</span><span class="kpi-label">Trim / Exit</span></button>
-      <button type="button" class="kpi kpi-actioned" [class.kpi-active]="activeKpi() === 'actioned'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'actioned'" (click)="selectKpi('actioned')" matTooltip="Show signals marked Actioned"><span class="kpi-value">{{ s.actioned }}</span><span class="kpi-label">Actioned</span></button>
-      <button type="button" class="kpi kpi-pending" [class.kpi-active]="activeKpi() === 'pending'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'pending'" (click)="selectKpi('pending')" matTooltip="Open recommendations waiting for your response"><span class="kpi-value">{{ s.pendingReview }}</span><span class="kpi-label">Pending Review</span></button>
+      <button type="button" class="kpi kpi-priority" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'priority'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'priority'" (click)="selectKpi('priority')" matTooltip="Open Priority Candidates only"><span class="kpi-value">{{ s.priorityCandidate }}</span><span class="kpi-label">Priority Candidate</span></button>
+      <button type="button" class="kpi kpi-entry" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'entry'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'entry'" (click)="selectKpi('entry')" matTooltip="Open Entry / Add recommendations only"><span class="kpi-value">{{ s.entryAdd }}</span><span class="kpi-label">Entry / Add</span></button>
+      <button type="button" class="kpi kpi-trim" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'trim'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'trim'" (click)="selectKpi('trim')" matTooltip="Open Trim / Exit recommendations only"><span class="kpi-value">{{ s.trimExit }}</span><span class="kpi-label">Trim / Exit</span></button>
+      <button type="button" class="kpi kpi-actioned" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'actioned'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'actioned'" (click)="selectKpi('actioned')" matTooltip="Show signals marked Actioned"><span class="kpi-value">{{ s.actioned }}</span><span class="kpi-label">Actioned</span></button>
+      <button type="button" class="kpi kpi-pending" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'pending'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'pending'" (click)="selectKpi('pending')" matTooltip="Open recommendations waiting for your response"><span class="kpi-value">{{ s.pendingReview }}</span><span class="kpi-label">Pending Review</span></button>
     </section>
+    @if (s.partial) {
+      <p class="partial-note" role="status" data-testid="kpi-partial">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span><strong>Partial</strong> — {{ s.evaluated | number }} of {{ s.total | number }} evaluated. Priority, Entry / Add, Trim / Exit, Actioned and Pending Review count only the newest {{ s.evaluated | number }} matching signals; Total Signals is exact.</span>
+      </p>
+    }
   }
 
   <section class="filters" aria-label="Signal filters">
@@ -190,6 +196,12 @@
       </span>
     </div>
   } @else {
+    @if (store.gridPartial()) {
+      <p class="partial-note" role="status" data-testid="grid-partial">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span><strong>Partial</strong> — ranked within the newest {{ store.gridEvaluated() | number }} of {{ store.total() | number }} matching signals. Sort by Signal Date, Ticker, Lifecycle Status, Role, Source, Price or My Action for a complete, fully paged result.</span>
+      </p>
+    }
     <app-mobile-table-controls [sort]="signalSort" gridId="signals-audit" label="Signals" />
     <div class="table-wrap">
       <table
@@ -249,39 +261,25 @@
               [class.sig-buy]="row.direction === 'Buy'"
               [class.sig-sell]="row.direction === 'Sell'"
             >{{ row.signalTypeLabel }}</span>
-            @if (row.status && row.status !== 'Active') {
-              <span class="tag" [class.tag-invalidated]="row.status === 'Invalidated'" [matTooltip]="row.statusReason || row.status">{{ row.status }}</span>
-            }
-            @if (row.effectiveState && row.status === 'Active') {
-              <span class="tag tag-current" data-testid="lifecycle-tag" matTooltip="Recommendation lifecycle: it has not been closed, expired or dismissed.">Lifecycle: Active</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="lifecycleStatus">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Lifecycle Status</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="life-cell">
               <span
-                class="tag"
-                [class.tag-current-warn]="!row.isActionable"
-                [class.tag-current]="row.isActionable"
-                data-testid="effective-tag"
-                [matTooltip]="effectiveTooltip(row)"
-                [attr.aria-label]="effectiveTooltip(row)"
-              >Current: {{ row.effectiveState === 'CurrentValid' ? 'Current evaluation' : effectiveTag(row) }}@if (!row.isActionable) { · not actionable}</span>
-            }
-            @if (row.performanceAudited === false) {
-              <span class="tag" matTooltip="Recorded for the Action Center only; excluded from performance statistics.">Unaudited</span>
-            }
-            @if (row.origin === 'Backfill') {
-              <span class="tag" matTooltip="Recovered from original point-in-time records">Backfill</span>
-            }
-            @if (row.origin === 'INITIAL_BASELINE') {
-              <span class="tag" matTooltip="Already qualifying when auditing first ran. Dated with the capture date; it is not a new transition and does not show when the recommendation first appeared.">Initial baseline</span>
-            }
-            @if (row.eligibilityStatus === 'Unverified') {
-              <span class="tag" matTooltip="Score-qualified, but it was never checked against the Action Center eligibility rules, so it is not a confirmed recommendation.">Score-qualified · eligibility unverified</span>
-            }
-            @if (row.priceBasis === 'Adjusted') {
-              <span class="tag" matTooltip="The signal price was rescaled to match split-adjusted market history.">Price adjusted</span>
-            } @else if (row.priceBasis === 'Unverified') {
-              <span class="tag" matTooltip="The signal price could not be compared with market history on the same basis (for example after a split), so returns are not verified.">Returns unverified</span>
-            }
-                          </div>
-                        </td>
+                class="life-badge"
+                [class]="'life-badge ' + statusMeta(row.status).cls"
+                data-testid="lifecycle-badge"
+                [matTooltip]="statusTooltip(row)"
+              >{{ statusMeta(row.status).label }}</span>
+              @if (evidenceWarning(row); as warning) {
+                <mat-icon class="evidence-warn" data-testid="evidence-warning" role="img" [attr.aria-label]="warning" [matTooltip]="warning">warning_amber</mat-icon>
+              }
+            </div>
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="source">
@@ -406,7 +404,7 @@
     </div>
 
     <mat-paginator
-      [length]="store.total()"
+      [length]="store.gridPartial() ? store.gridEvaluated() : store.total()"
       [pageIndex]="store.page() - 1"
       [pageSize]="store.pageSize()"
       [pageSizeOptions]="[10, 25, 50, 100]"

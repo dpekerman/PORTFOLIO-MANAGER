@@ -156,8 +156,8 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
   });
 });
 
-test.describe('signal tracker badges on phones (PM-035 mobile fix)', () => {
-  test('long badges wrap inside the value column without overlapping the label or each other', async ({
+test.describe('signal tracker badges on phones (PM-035 mobile fix, compacted by PM-015)', () => {
+  test('Signal Type is one label and the Lifecycle badge stays inside its card value column without overlap', async ({
     page,
   }, testInfo) => {
     test.skip(!isPhone(testInfo.project.name), 'phone card layout only');
@@ -170,33 +170,25 @@ test.describe('signal tracker badges on phones (PM-035 mobile fix)', () => {
     };
     await page.goto('/audit/signals');
     const cell = page.locator('td.mat-column-signalType:visible').first();
-    await expect(cell.getByTestId('effective-tag')).toContainText('Valid prior-session recommendation');
+    await expect(cell.locator('.sig-type')).toHaveCount(1);
+    await expect(cell.locator('.tag')).toHaveCount(0);
     await settle(page);
 
+    const life = page.locator('td.mat-column-lifecycleStatus:visible').first();
+    await expect(life.getByTestId('lifecycle-badge')).toHaveText('Active');
     const box = async (loc: import('@playwright/test').Locator) => (await loc.boundingBox())!;
     const cellBox = await box(cell);
-    const tags = cell.locator('.tag');
-    const n = await tags.count();
-    expect(n).toBeGreaterThanOrEqual(3);
-    const rects = [];
-    for (let i = 0; i < n; i++) rects.push(await box(tags.nth(i)));
+    const label = await box(cell.locator('.sig-type'));
+    const lifeBox = await box(life);
+    const badge = await box(life.getByTestId('lifecycle-badge'));
 
-    // inside the cell, and clear of the left-hand SIGNAL TYPE label (min label width 5.5rem ≈ 88px)
-    for (const r of rects) {
-      expect(r.x + r.width).toBeLessThanOrEqual(cellBox.x + cellBox.width + 0.5);
-      expect(r.x).toBeGreaterThan(cellBox.x + 60);
-    }
-    // no two badges intersect
-    for (let i = 0; i < rects.length; i++) {
-      for (let j = i + 1; j < rects.length; j++) {
-        const a = rects[i];
-        const b = rects[j];
-        const overlap = a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-        expect(overlap, `badge ${i} overlaps badge ${j}`).toBe(false);
-      }
-    }
+    // inside the cells, and clear of the left-hand label column (min label width 5.5rem ≈ 88px)
+    expect(label.x + label.width).toBeLessThanOrEqual(cellBox.x + cellBox.width + 0.5);
+    expect(label.x).toBeGreaterThan(cellBox.x + 60);
+    expect(badge.x + badge.width).toBeLessThanOrEqual(lifeBox.x + lifeBox.width + 0.5);
+    expect(badge.x).toBeGreaterThan(lifeBox.x + 60);
+    // the two cards rows do not intersect vertically
+    expect(lifeBox.y).toBeGreaterThanOrEqual(cellBox.y + cellBox.height - 1);
     await expectNoHorizontalPageOverflow(page);
-    // the tooltip/aria text is untouched
-    await expect(cell.getByTestId('effective-tag')).toHaveAttribute('aria-label', /Lifecycle: Active/);
   });
 });

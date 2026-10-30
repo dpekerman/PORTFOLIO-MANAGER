@@ -28,6 +28,15 @@ const row = {
 } as unknown as SignalAuditRow;
 
 describe('signal tracker export', () => {
+  it('PM-015: CSV schema is fixed — first line is the header row, no comment or notice lines', () => {
+    const csv = signalsToCsv([row], (v) => v).replace('\uFEFF', '');
+    const lines = csv.split('\r\n');
+    expect(lines[0]).toBe(SIGNALS_EXPORT_HEADERS.join(','));
+    expect(lines).toHaveLength(2);
+    expect(csv).not.toMatch(/^#|PARTIAL/m);
+    expect(SIGNALS_EXPORT_HEADERS).toContain('Lifecycle Status');
+  });
+
   it('has one value per header and labels baseline records', () => {
     const [r] = signalsExportRows([row], (v) => v);
     expect(r.length).toBe(SIGNALS_EXPORT_HEADERS.length);

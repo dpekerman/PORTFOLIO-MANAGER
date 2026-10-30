@@ -114,22 +114,61 @@ export const finalActionCatalog = [
 ];
 
 /** Mutable mock state (properties, not rebindable exports, so every importer sees updates). */
-export const signalState = { rows: freshRows(), settings: freshSettings() };
+export const signalState = {
+  rows: freshRows(),
+  settings: freshSettings(),
+  /** When set, the API reports this many matching rows (PM-015: more than the 5,000-row evaluation limit). */
+  largeTotal: null as number | null,
+};
 
 /** Re-seeds mutable signal state so one test's saves never leak into another. */
 export function resetSignalsAudit(): void {
   signalState.rows = freshRows();
   signalState.settings = freshSettings();
+  signalState.largeTotal = null;
+}
+
+/** PM-015: adds an old Active recommendation plus Acted / Dismissed / Invalidated history (opt-in so older specs keep 3 rows). */
+export function seedLifecycleHistory(): void {
+  const fa = (over: Record<string, unknown>) =>
+    baseRow({
+      signalType: 'FINAL_ACTION:STARTER ENTRY',
+      signalTypeLabel: 'Starter Entry',
+      source: 'Portfolio',
+      score: null,
+      return5D: pending,
+      return20D: pending,
+      return1M: pending,
+      today: pending,
+      myAction: 'Pending',
+      status: 'Active',
+      effectiveState: 'PriorSessionValid',
+      isActionable: true,
+      evidenceHealth: 'Unknown',
+      ...over,
+    });
+  signalState.rows.push(
+    // Weeks old but still Active and still actionable from a prior completed session: must be listed, with no warning.
+    fa({ id: 10, symbol: 'WMT.TO', signalDate: isoDate(-25), daysSince: 25, signalPrice: 80 }),
+    // Active but its evidence is stale and it is not currently actionable: the single compact warning applies.
+    fa({ id: 11, symbol: 'BMO.TO', signalDate: isoDate(-2), daysSince: 2, signalPrice: 120, effectiveState: 'AwaitingData', isActionable: false, evidenceHealth: 'Stale', reasonCodes: ['AWAITING_STALE_DATA'] }),
+    fa({ id: 12, symbol: 'ACT.TO', signalDate: isoDate(-30), daysSince: 30, signalPrice: 55, status: 'Acted', myAction: 'Actioned', effectiveState: null, isActionable: null, evidenceHealth: null }),
+    fa({ id: 13, symbol: 'DIS.TO', signalDate: isoDate(-12), daysSince: 12, signalPrice: 31, status: 'Dismissed', effectiveState: null, isActionable: null, evidenceHealth: null }),
+    fa({ id: 14, symbol: 'INV.TO', signalDate: isoDate(-8), daysSince: 8, signalPrice: 22, status: 'Invalidated', statusReason: 'Condition no longer produced', effectiveState: null, isActionable: null, evidenceHealth: null }),
+  );
 }
 
 export const signalTypes = [
   { key: 'PRIORITY_CANDIDATE', label: 'Priority Candidate', category: 'Entry', direction: 'Buy' },
 ];
 
-export function signalSummary(rows: Row[]) {
+export function signalSummary(rows: Row[], largeTotal: number | null = null) {
   const followed = (r: Row) => r.myAction === 'Actioned' || r.myAction === 'Partial';
   return {
-    total: rows.length,
+    total: largeTotal ?? rows.length,
+    evaluated: largeTotal ? 5000 : rows.length,
+    evaluationLimit: 5000,
+    partial: !!largeTotal && largeTotal > 5000,
     priorityCandidate: rows.length,
     entryAdd: rows.length,
     trimExit: 0,

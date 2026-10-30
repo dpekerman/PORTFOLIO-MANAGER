@@ -55,7 +55,17 @@ interface SignalsAuditState extends SignalsAuditFilters {
   detailLoading: boolean;
   candidates: SignalTransactionCandidate[];
   candidatesLoading: boolean;
+  /**
+   * True when the current page was ranked by a computed sort (returns, signal type) over only the newest
+   * `evaluated` of `total` rows. Always false for SQL-backed sorts, which page the complete filtered set.
+   */
+  gridPartial: boolean;
+  gridEvaluated: number;
+  evaluationLimit: number;
 }
+
+/** Sort keys the server pages in SQL over the complete filtered set; every other key is a bounded computed sort. */
+export const SQL_SORT_KEYS = ['signalDate', 'daysSince', 'symbol', 'role', 'source', 'signalPrice', 'myAction', 'lifecycleStatus'] as const;
 
 export const DEFAULT_SIGNAL_FILTERS: SignalsAuditFilters = {
   ticker: '',
@@ -66,7 +76,7 @@ export const DEFAULT_SIGNAL_FILTERS: SignalsAuditFilters = {
   origin: 'All',
   includeBaselineInStats: false,
   includeUnaudited: false,
-  status: 'All',
+  status: 'Active',
   from: '',
   to: '',
 };
@@ -93,6 +103,9 @@ const initialState: SignalsAuditState = {
   detailLoading: false,
   candidates: [],
   candidatesLoading: false,
+  gridPartial: false,
+  gridEvaluated: 0,
+  evaluationLimit: 5000,
 };
 
 /**
@@ -115,7 +128,7 @@ export const SignalsAuditStore = signalStore(
         s.origin() !== 'All' ||
         s.includeBaselineInStats() ||
         s.includeUnaudited() ||
-        s.status() !== 'All' ||
+        s.status() !== DEFAULT_SIGNAL_FILTERS.status ||
         s.from() !== '' ||
         s.to() !== '',
     ),
@@ -154,7 +167,19 @@ export const SignalsAuditStore = signalStore(
           }).pipe(
             tapResponse({
               next: ({ page, summary, overview }) =>
-                patchState(store, { items: page.items, total: page.total, summary, overview }, setLoaded()),
+                patchState(
+                  store,
+                  {
+                    items: page.items,
+                    total: page.total,
+                    summary,
+                    overview,
+                    gridPartial: page.partial ?? false,
+                    gridEvaluated: page.evaluated ?? page.total,
+                    evaluationLimit: page.evaluationLimit ?? 5000,
+                  },
+                  setLoaded(),
+                ),
               error: () => patchState(store, setError('Failed to load signals')),
             }),
           ),
@@ -242,23 +267,10 @@ export const SignalsAuditStore = signalStore(
       },
 
       /**
-       * Landing view: only the newest signal day. Before the day's EOD run that is the previous trading day;
-       * once EOD records new signals it moves to today. The user can change or clear the dates at any time.
+       * Landing view: every Active recommendation (the default status), newest first, with NO implicit date window.
+       * Dates are only applied when the user chooses them.
        */
-      async loadLatestDay(): Promise<void> {
-        if (store.from() !== '' || store.to() !== '') {
-          load();
-          return;
-        }
-        try {
-          const newest = await firstValueFrom(
-            api.query({ ...params(), from: '', to: '', sortBy: 'signalDate', sortDir: 'desc', page: 1, pageSize: 1 }),
-          );
-          const day = newest.items[0]?.signalDate;
-          if (day) patchState(store, { from: day, to: day, page: 1 });
-        } catch {
-          // fall through to an unfiltered load; the normal error handling reports a failing API
-        }
+      loadInitial(): void {
         load();
       },
 
@@ -294,16 +306,26 @@ export const SignalsAuditStore = signalStore(
         }
       },
 
-      /** Every row matching the current filters and sort (not just the visible page), for export. */
-      async fetchAllRows(): Promise<SignalAuditRow[]> {
+      /**
+       * Every row matching the current filters and sort (not just the visible page), for export.
+       * `partial` is true when the server could only rank the newest `evaluated` of `total` rows (computed sort);
+       * such a result must never be presented as a complete export.
+       */
+      async fetchAllRows(): Promise<{ rows: SignalAuditRow[]; total: number; partial: boolean; evaluated: number }> {
         const rows: SignalAuditRow[] = [];
         const pageSize = 200;
-        for (let page = 1; page <= 50; page++) {
+        let total = 0;
+        let partial = false;
+        let evaluated = 0;
+        for (let page = 1; ; page++) {
           const res = await firstValueFrom(api.query({ ...params(), page, pageSize }));
+          total = res.total;
+          partial = res.partial ?? false;
+          evaluated = res.evaluated ?? res.total;
           rows.push(...res.items);
           if (rows.length >= res.total || res.items.length === 0) break;
         }
-        return rows;
+        return { rows, total, partial: partial || rows.length < total, evaluated };
       },
 
       loadFinalActionCatalog(): void {

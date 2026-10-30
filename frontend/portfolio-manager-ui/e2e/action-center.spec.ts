@@ -236,20 +236,19 @@ test.describe('signal tracker lifecycle', () => {
     await expect.poll(() => queries.some((q) => q.includes('includeUnaudited=true'))).toBe(true);
 
     await page.getByRole('combobox', { name: 'Status' }).click();
-    await page.getByRole('option', { name: 'Open (Active)' }).click();
-    await expect.poll(() => queries.some((q) => q.includes('status=Open'))).toBe(true);
+    await page.getByRole('option', { name: 'Acted', exact: true }).click();
+    await expect.poll(() => queries.some((q) => q.includes('status=Acted'))).toBe(true);
   });
 
-  test('landing view shows only the newest signal day', async ({ page }) => {
+  test('landing view is Active-first with no implicit date window (PM-015 replaces the newest-day-only landing)', async ({ page }) => {
     const queries: string[] = [];
     page.on('request', (r) => {
       if (/\/api\/signals-audit(\?|$)/.test(r.url())) queries.push(r.url());
     });
     await page.goto('/signal-tracker');
     await expect(page.getByRole('heading', { level: 1, name: 'Signal Tracker' })).toBeVisible();
-    await expect
-      .poll(() => queries.some((q) => /from=(\d{4}-\d{2}-\d{2})&to=\1(&|$)/.test(q) && q.includes('pageSize=25')))
-      .toBe(true);
+    await expect.poll(() => queries.some((q) => q.includes('status=Active') && q.includes('pageSize=25'))).toBe(true);
+    expect(queries.filter((q) => /[?&](from|to)=\d/.test(q))).toEqual([]);
   });
 
   test('drill-down from the Action Center filters by ticker and includes unaudited records', async ({ page }) => {
