@@ -100,6 +100,78 @@ describe('resolveEditablePrefs', () => {
   });
 });
 
+describe('insertAfter (PM-015 saved-layout reconciliation)', () => {
+  const g: GridDef = {
+    ...grid,
+    columns: [
+      { key: 'a', label: 'A' },
+      { key: 'type', label: 'Type' },
+      { key: 'life', label: 'Life', insertAfter: 'type' },
+      { key: 'x', label: 'X' },
+      { key: 'myAction', label: 'My action' },
+      { key: 'actions', label: 'Actions', pinned: true },
+    ],
+  };
+
+  it('inserts the new column right after its anchor in a saved custom layout, keeping everything else', () => {
+    const prefs: ColumnPreference[] = [
+      { key: 'myAction', visible: true },
+      { key: 'x', visible: false },
+      { key: 'type', visible: true },
+      { key: 'a', visible: true },
+    ];
+    expect(resolveKeys(g, prefs)).toEqual(['myAction', 'type', 'life', 'a', 'actions']);
+    expect(resolveEditablePrefs(g, prefs)).toEqual([
+      { key: 'myAction', visible: true },
+      { key: 'x', visible: false },
+      { key: 'type', visible: true },
+      { key: 'life', visible: true },
+      { key: 'a', visible: true },
+    ]);
+  });
+
+  it('still places it after a HIDDEN anchor in the config list and leaves the anchor hidden', () => {
+    const prefs: ColumnPreference[] = [
+      { key: 'a', visible: true },
+      { key: 'type', visible: false },
+      { key: 'x', visible: true },
+      { key: 'myAction', visible: true },
+    ];
+    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual(['a', 'type', 'life', 'x', 'myAction']);
+    expect(resolveKeys(g, prefs)).toEqual(['a', 'life', 'x', 'myAction', 'actions']);
+  });
+
+  it('appends when the anchor is absent from the saved layout', () => {
+    const prefs: ColumnPreference[] = [{ key: 'a', visible: true }];
+    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual(['a', 'type', 'life', 'x', 'myAction']);
+  });
+
+  it('does not move or reset a column the user already has saved', () => {
+    const prefs: ColumnPreference[] = [
+      { key: 'life', visible: false },
+      { key: 'a', visible: true },
+      { key: 'type', visible: true },
+    ];
+    expect(resolveEditablePrefs(g, prefs).slice(0, 3)).toEqual(prefs);
+  });
+
+  it('columns without insertAfter are still appended (unchanged behaviour)', () => {
+    expect(resolveKeys(grid, [{ key: 'b', visible: true }])).toEqual(['b', 'a', 'c', 'actions']);
+  });
+
+  it('the real Signal Tracker grid shows Lifecycle immediately after Signal Type, before My Action, by default and for old layouts', () => {
+    const def = GRID_REGISTRY.find((d) => d.id === 'signals-audit')!;
+    const keys = resolveKeys(def, undefined);
+    expect(keys.indexOf('lifecycleStatus')).toBe(keys.indexOf('signalType') + 1);
+    expect(keys.indexOf('lifecycleStatus')).toBeLessThan(keys.indexOf('myAction'));
+
+    const oldLayout: ColumnPreference[] = ['symbol', 'signalDate', 'signalType', 'source', 'myAction'].map((key) => ({ key, visible: true }));
+    const old = resolveKeys(def, oldLayout);
+    expect(old.slice(0, 4)).toEqual(['symbol', 'signalDate', 'signalType', 'lifecycleStatus']);
+    expect(old.indexOf('lifecycleStatus')).toBeLessThan(old.indexOf('myAction'));
+  });
+});
+
 describe('resolveHandsetKeys', () => {
   const visible = ['a', 'b', 'c', 'actions', 'colConfig'];
 

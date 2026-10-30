@@ -29,7 +29,7 @@ import { SIGNALS_EXPORT_HEADERS, signalsExportRows, signalsToCsv } from './signa
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
-import { SignalAuditRow, SignalEffectivenessResultRow, SignalHorizon, SignalMyAction, SignalStatusFilter } from '../../core/models/portfolio.models';
+import { SignalAuditRow, SignalEffectivenessResultRow, SignalHorizon, SignalMyAction } from '../../core/models/portfolio.models';
 import { ActivatedRoute } from '@angular/router';
 import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
@@ -40,6 +40,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
 import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { SignalActionDialogComponent } from './signal-action-dialog.component';
+import { SIGNAL_STATUS_FILTER_OPTIONS, signalEvidenceWarning, signalStatusMeta } from './signal-status';
 import { describeReasonCode, stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
 import { buildEffectivenessChart } from './signal-effectiveness-chart';
@@ -97,7 +98,8 @@ export class SignalTrackerPageComponent implements OnInit {
     if (types.length === 0) {
       if (action === 'Actioned') return 'actioned';
       if (action === 'Pending') return 'pending';
-      return action === 'All' ? 'total' : null;
+      // Total Signals counts every status, so it is only "selected" when the table shows every status too.
+      return action === 'All' && this.store.status() === 'All' ? 'total' : null;
     }
     if (action !== 'All') return null;
     const same = (keys: string[]) => keys.length === types.length && keys.every((k) => types.includes(k));
@@ -122,8 +124,8 @@ export class SignalTrackerPageComponent implements OnInit {
       pending: [],
     };
     const myAction = kpi === 'actioned' ? 'Actioned' : kpi === 'pending' ? 'Pending' : 'All';
-    // These cards count open recommendations only, so the table shows the same rows.
-    const status = kpi === 'actioned' ? 'All' : 'Open';
+    // These cards count Active recommendations only, so the table shows the same rows.
+    const status = kpi === 'actioned' ? 'All' : 'Active';
     this.store.setFilters({ signalType: types[kpi], myAction, status });
   }
 
@@ -193,17 +195,8 @@ export class SignalTrackerPageComponent implements OnInit {
     return `${value.getFullYear()}-${p(value.getMonth() + 1)}-${p(value.getDate())}`;
   }
   protected readonly sources = ['All', 'Portfolio', 'Watchlist'] as const;
-  /** System lifecycle, separate from the investor's own My Action response. */
-  protected readonly statuses: { value: SignalStatusFilter; label: string }[] = [
-    { value: 'All', label: 'All statuses' },
-    { value: 'Open', label: 'Open (Active)' },
-    { value: 'Closed', label: 'Closed (any)' },
-    { value: 'Acted', label: 'Acted' },
-    { value: 'Dismissed', label: 'Dismissed' },
-    { value: 'Expired', label: 'Expired' },
-    { value: 'Invalidated', label: 'Invalidated' },
-    { value: 'Superseded', label: 'Superseded' },
-  ];
+  /** System lifecycle, separate from the investor's own My Action response. Active is the default. */
+  protected readonly statuses = SIGNAL_STATUS_FILTER_OPTIONS;
   protected readonly myActions: ('All' | SignalMyAction)[] = [
     'All',
     'Actioned',
@@ -223,8 +216,8 @@ export class SignalTrackerPageComponent implements OnInit {
   ngOnInit(): void {
     // Drill-down from the Action Center: show that ticker's recommendations, unaudited ones included.
     const ticker = this.route.snapshot.queryParamMap.get('ticker');
-    if (ticker) this.store.setFilters({ ticker, includeUnaudited: true });
-    else void this.store.loadLatestDay();
+    if (ticker) this.store.setFilters({ ticker, includeUnaudited: true, status: 'All' });
+    else this.store.loadInitial();
     // Effectiveness has its own rolling window and does not follow the table's date filters.
     this.store.loadEffectiveness();
   }
@@ -276,6 +269,15 @@ export class SignalTrackerPageComponent implements OnInit {
   }
 
   /** Current effective state tag (distinct from the lifecycle status). Empty for rows that have none. */
+  protected readonly statusMeta = signalStatusMeta;
+  protected readonly evidenceWarning = signalEvidenceWarning;
+
+  protected statusTooltip(row: SignalAuditRow): string {
+    const meta = signalStatusMeta(row.status);
+    const reason = row.statusReason ? ` ${row.statusReason}.` : '';
+    return `${meta.label}: ${meta.meaning}${reason}`;
+  }
+
   protected effectiveTag(row: SignalAuditRow): string {
     return row.effectiveState && row.effectiveState !== 'CurrentValid' ? stateLabel(row.effectiveState) : '';
   }
@@ -293,29 +295,49 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected readonly exporting = signal(false);
 
+  /** Shown when a computed sort ranked only the newest rows, so an export would be incomplete. */
+  protected partialMessage(): string {
+    return `This result is incomplete: only the newest ${this.store.gridEvaluated().toLocaleString()} of ${this.store.total().toLocaleString()} matching signals were ranked. Narrow the filters, or sort by Signal Date, Ticker, Lifecycle Status, Role, Source, Price or My Action for a complete result.`;
+  }
+
+  /** CSV has a fixed schema that downstream tools read, so an incomplete result is never written. */
   protected async exportCsv(): Promise<void> {
-    await this.runExport((rows) => {
+    if (this.store.gridPartial()) {
+      this.snackBar.open(`CSV export blocked. ${this.partialMessage()}`, 'Close', { duration: 10000 });
+      return;
+    }
+    await this.runExport((rows, partial) => {
+      if (partial) {
+        this.snackBar.open(`CSV export blocked. ${this.partialMessage()}`, 'Close', { duration: 10000 });
+        return;
+      }
       const csv = signalsToCsv(rows, (v) => this.demoMode.maskValue(v));
       this.download(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'csv');
     });
   }
 
+  /** A partial Excel export keeps the normal data sheet and adds a separate Notice sheet; the file name says -partial. */
   protected async exportExcel(): Promise<void> {
-    await this.runExport((rows) => {
+    await this.runExport((rows, partial) => {
       const sheet = XLSX.utils.aoa_to_sheet([
         [...SIGNALS_EXPORT_HEADERS],
         ...signalsExportRows(rows, (v) => this.demoMode.maskValue(v)),
       ]);
       const book = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(book, sheet, 'Signal Tracker');
-      XLSX.writeFile(book, this.exportName('xlsx'));
+      if (partial) {
+        XLSX.utils.book_append_sheet(book, XLSX.utils.aoa_to_sheet([['Notice'], ['PARTIAL EXPORT'], [this.partialMessage()]]), 'Notice');
+        this.snackBar.open('Partial Excel export created. See the Notice sheet.', 'Close', { duration: 8000 });
+      }
+      XLSX.writeFile(book, this.exportName('xlsx', partial));
     });
   }
 
-  private async runExport(write: (rows: SignalAuditRow[]) => void): Promise<void> {
+  private async runExport(write: (rows: SignalAuditRow[], partial: boolean) => void): Promise<void> {
     this.exporting.set(true);
     try {
-      write(await this.store.fetchAllRows());
+      const { rows, partial } = await this.store.fetchAllRows();
+      write(rows, partial);
     } catch {
       this.snackBar.open('Export failed', 'Close', { duration: 4000 });
     } finally {
@@ -323,8 +345,8 @@ export class SignalTrackerPageComponent implements OnInit {
     }
   }
 
-  private exportName(ext: string): string {
-    return `signals-audit-${new Date().toISOString().slice(0, 10)}.${ext}`;
+  private exportName(ext: string, partial = false): string {
+    return `signals-audit-${new Date().toISOString().slice(0, 10)}${partial ? '-partial' : ''}.${ext}`;
   }
 
   private download(blob: Blob, ext: string): void {

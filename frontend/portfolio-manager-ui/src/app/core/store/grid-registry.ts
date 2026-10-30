@@ -16,6 +16,11 @@ export interface ColumnDef {
   /** When true, this column is hidden by default for users who have not saved a preference. */
   defaultHidden?: boolean;
   /**
+   * Opt-in placement for a column added after users saved their layout: it is inserted right after this
+   * column (even if that column is hidden) instead of at the end. Ignored when the anchor is unknown.
+   */
+  insertAfter?: string;
+  /**
    * Controls **MOBILE visibility only; never affects desktop**.
    *
    * On a handset a 20-40 column grid is rendered as one card per row, so only the few columns a
@@ -383,6 +388,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'signalDate', label: 'Signal Date', priority: 'primary' },
       { key: 'daysSince', label: 'Days Since', priority: 'primary' },
       { key: 'signalType', label: 'Signal Type', priority: 'primary' },
+      { key: 'lifecycleStatus', label: 'Lifecycle Status', priority: 'primary', insertAfter: 'signalType' },
       { key: 'source', label: 'Source' },
       { key: 'signalPrice', label: 'Signal Price' },
       { key: 'return5D', label: '5D %' },

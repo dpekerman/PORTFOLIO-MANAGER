@@ -322,22 +322,22 @@ test.describe('Signal Tracker — lifecycle vs effective state', () => {
     signalState.rows[1] = { ...signalState.rows[1], status: 'Active', effectiveState: 'PriorSessionValid', isActionable: true, evidenceHealth: 'Unknown', reasonCodes: [] };
   });
 
-  test('shows the lifecycle (Active) and the current state (Awaiting Data, not actionable) as separate tags; history stays', async ({ page }, testInfo) => {
+  test('shows lifecycle (Active) in its own column and the Awaiting Data / not-actionable state as one compact warning; Signal Type stays a single label', async ({ page }, testInfo) => {
     await page.goto('/signal-tracker');
     const lmt = page.locator('tr.signal-row:visible', { hasText: 'LMT.TO' });
     await expect(lmt).toBeVisible();
-    await expect(lmt.locator('[data-testid="lifecycle-tag"]')).toHaveText('Lifecycle: Active');
-    await expect(lmt.locator('[data-testid="effective-tag"]')).toContainText('Current: Awaiting Data');
-    await expect(lmt.locator('[data-testid="effective-tag"]')).toContainText('not actionable');
-    await expect(lmt.locator('[data-testid="effective-tag"]')).toHaveAttribute('aria-label', /Lifecycle: Active\. Current state: Awaiting Data \(not actionable\)/);
+    await expect(lmt.getByTestId('lifecycle-badge')).toHaveText('Active');
+    await expect(lmt.getByTestId('evidence-warning')).toHaveAttribute('aria-label', /Not currently actionable: Awaiting Data/);
+    await expect(lmt.locator('td.mat-column-signalType')).not.toContainText(/Lifecycle:|Current:/);
     // the historical record is untouched: original signal type, date and price remain.
     await expect(lmt).toContainText('Add / Staged Entry');
     if (!isPhone(testInfo.project.name)) await expect(lmt).toContainText('28.71');   // price is a secondary field on phone cards
     await expect(lmt).toContainText(/\d{4}-\d{2}-\d{2}/);                              // original signal date still shown
 
+    // Active + Unknown evidence + still actionable (valid prior session) is not flagged.
     const msft = page.locator('tr.signal-row:visible', { hasText: 'MSFT' });
-    await expect(msft.locator('[data-testid="effective-tag"]')).toContainText('prior-session');
-    await expect(msft.locator('[data-testid="effective-tag"]')).not.toContainText('not actionable');
+    await expect(msft.getByTestId('lifecycle-badge')).toHaveText('Active');
+    await expect(msft.getByTestId('evidence-warning')).toHaveCount(0);
     await settle(page);
     await expectNoHorizontalPageOverflow(page);
   });
@@ -369,6 +369,6 @@ test.describe('Signal Tracker — lifecycle vs effective state', () => {
     const table = page.locator('table.signals-table');
     if (isPhone(testInfo.project.name)) await expect(table).toHaveAttribute('data-responsive', 'cards');
     await expect(page.locator('tr.signal-row:visible', { hasText: 'LMT.TO' })).toBeVisible();
-    await expect(page.locator('[data-testid="effective-tag"]:visible', { hasText: 'not actionable' })).toHaveCount(1);
+    await expect(page.locator('[data-testid="evidence-warning"]:visible')).toHaveCount(1);
   });
 });

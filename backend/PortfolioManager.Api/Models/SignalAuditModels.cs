@@ -311,13 +311,19 @@ public sealed record SignalAuditRowDto(
     bool? IsActionable = null,
     string? EvidenceHealth = null,
     string? DataAsOfDate = null,
-    IReadOnlyList<string>? ReasonCodes = null);
+    IReadOnlyList<string>? ReasonCodes = null,
+    DateTime? StatusChangedAtUtc = null);
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,
     int Total,
     int Page,
-    int PageSize);
+    int PageSize,
+    /// <summary>Rows actually evaluated for this response (the whole filtered set for SQL-backed sorts).</summary>
+    int Evaluated = 0,
+    int EvaluationLimit = 5000,
+    /// <summary>True only when a computed sort could evaluate fewer rows than <c>Total</c>; rankings then cover the newest Evaluated rows only.</summary>
+    bool Partial = false);
 
 public sealed record SignalEffectivenessRowDto(
     string SignalType,
@@ -341,7 +347,11 @@ public sealed record SignalAuditSummaryDto(
     int TrimExit,
     int Actioned,
     int PendingReview,
-    IReadOnlyList<SignalEffectivenessRowDto> Effectiveness);
+    IReadOnlyList<SignalEffectivenessRowDto> Effectiveness,
+    /// <summary>KPIs and effectiveness are computed over the newest Evaluated rows; Total is the exact matching count.</summary>
+    int Evaluated = 0,
+    int EvaluationLimit = 5000,
+    bool Partial = false);
 
 /// <summary>Query for the historical effectiveness view. Deliberately has no ticker, date, status or My Action filter.</summary>
 public sealed record SignalEffectivenessQuery(

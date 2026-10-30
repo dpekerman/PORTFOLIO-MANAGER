@@ -1646,13 +1646,21 @@ export interface SignalAuditRow {
   evidenceHealth?: string | null;
   dataAsOfDate?: string | null;
   reasonCodes?: string[] | null;
+  /** When the lifecycle status last changed (UTC). Only the current status is stored, not a full transition history. */
+  statusChangedAtUtc?: string | null;
 }
 
 export interface SignalAuditPagedResponse {
   items: SignalAuditRow[];
+  /** Exact count of every matching authorized record, independent of page size and the evaluation limit. */
   total: number;
   page: number;
   pageSize: number;
+  /** Rows actually evaluated for this response. Equals `total` for SQL-backed sorts. */
+  evaluated?: number;
+  evaluationLimit?: number;
+  /** True only when a computed sort (returns, signal type) ranked just the newest `evaluated` of `total` rows. */
+  partial?: boolean;
 }
 
 export interface SignalEffectivenessRow {
@@ -1680,6 +1688,10 @@ export interface SignalAuditSummary {
   pendingReview: number;
   /** Deprecated: the page loads effectiveness from its own endpoint; the summary sends an empty list. */
   effectiveness: SignalEffectivenessRow[];
+  /** KPIs are computed over the newest `evaluated` rows; `total` is the exact matching count. */
+  evaluated?: number;
+  evaluationLimit?: number;
+  partial?: boolean;
 }
 
 export type EffectivenessWindow = '30' | '90' | '180' | 'all';

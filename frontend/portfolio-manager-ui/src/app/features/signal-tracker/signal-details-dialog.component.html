@@ -32,6 +32,33 @@
       </dl>
     </section>
 
+    <section class="block" aria-label="Lifecycle and current evidence" data-testid="lifecycle-evidence">
+      <h3>Lifecycle &amp; current evidence</h3>
+      <dl class="grid">
+        <div>
+          <dt>Lifecycle status</dt>
+          <dd>{{ statusMeta(r.status).label }} <small>{{ statusMeta(r.status).meaning }}</small></dd>
+        </div>
+        <div><dt>Status changed</dt><dd>{{ utc(r.statusChangedAtUtc) }}</dd></div>
+        <div class="wide"><dt>Status reason</dt><dd>{{ text(r.statusReason) }}</dd></div>
+        <div><dt>My Action</dt><dd>{{ r.myAction }}</dd></div>
+        <div><dt>Effective state</dt><dd>{{ r.effectiveState ? stateLabel(r.effectiveState) : 'Not applicable' }}</dd></div>
+        <div><dt>Actionable now</dt><dd>{{ r.isActionable == null ? 'Not applicable' : r.isActionable ? 'Yes' : 'No' }}</dd></div>
+        <div><dt>Evidence health</dt><dd>{{ r.evidenceHealth || (r.effectiveState ? 'Unknown' : 'Not applicable') }}</dd></div>
+        <div class="wide"><dt>Evidence note</dt><dd>{{ evidenceSummary(r) }}</dd></div>
+        @if (evidenceWarning(r); as warning) {
+          <div class="wide" data-testid="evidence-warning-text"><dt>Warning</dt><dd>{{ warning }}</dd></div>
+        }
+        <div><dt>Last evaluated</dt><dd>{{ utc(r.lastValidatedAtUtc) }}</dd></div>
+        <div><dt>Data as of</dt><dd>{{ text(r.dataAsOfDate) }}</dd></div>
+        <div class="wide"><dt>Reason codes</dt><dd>{{ reasons(r.reasonCodes) }}</dd></div>
+        <div><dt>Record type</dt><dd>{{ originLabel(r.origin) }}</dd></div>
+        <div><dt>Eligibility</dt><dd>{{ r.eligibilityStatus === 'Unverified' ? 'Score-qualified, eligibility unverified' : 'Verified' }}</dd></div>
+        <div><dt>Price basis</dt><dd>{{ basisLabel(r.priceBasis) }}</dd></div>
+        <div><dt>Performance audited</dt><dd>{{ r.performanceAudited === false ? 'No (Action Center only)' : 'Yes' }}</dd></div>
+      </dl>
+    </section>
+
     @if (context()?.finalAction) {
       <section class="block" aria-label="Final Action">
         <h3>Final Action at capture</h3>

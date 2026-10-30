@@ -688,18 +688,59 @@ public sealed class SignalsAuditService(
 
     public async Task<SignalAuditPagedResponse> QueryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default)
     {
-        var rows = await BuildRowsAsync(userId, query, ct);
-        rows = Sort(rows, query.SortBy, query.SortDir);
-
         var pageSize = Math.Clamp(query.PageSize, 1, MaxPageSize);
         var page = Math.Max(1, query.Page);
+        var filtered = FilteredEvents(userId, query);
+        // Exact count of every matching authorized record, independent of page size and of the evaluation limit.
+        var total = await filtered.CountAsync(ct);
+
+        // Persisted-column sorts are paged in SQL over the COMPLETE filtered set. Enrichment below only decorates the page,
+        // so it cannot move page boundaries. Ties end in the unique Id, making the order total and stable.
+        if (SqlOrdered(filtered, query.SortBy, query.SortDir) is { } ordered)
+        {
+            var events = await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+            return new SignalAuditPagedResponse(await ToRowsAsync(userId, events, ct), total, page, pageSize, total, MaxEvaluatedRows, false);
+        }
+
+        // Computed sorts (returns, signal type label) need price series: bounded to the newest MaxEvaluatedRows and flagged Partial.
+        var rows = await BuildRowsAsync(userId, filtered, ct);
+        rows = Sort(rows, query.SortBy, query.SortDir);
         return new SignalAuditPagedResponse(
-            rows.Skip((page - 1) * pageSize).Take(pageSize).ToList(), rows.Count, page, pageSize);
+            rows.Skip((page - 1) * pageSize).Take(pageSize).ToList(), total, page, pageSize, rows.Count, MaxEvaluatedRows, total > rows.Count);
     }
+
+    /// <summary>Server-side ordering for sort keys backed by persisted columns; null when the sort needs computed values.</summary>
+    private static IOrderedQueryable<SignalAuditEvent>? SqlOrdered(IQueryable<SignalAuditEvent> q, string? sortBy, string? sortDir)
+    {
+        var desc = !string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        IOrderedQueryable<SignalAuditEvent> By<TKey>(System.Linq.Expressions.Expression<Func<SignalAuditEvent, TKey>> key) =>
+            desc ? q.OrderByDescending(key) : q.OrderBy(key);
+
+        switch ((sortBy ?? "signalDate").ToLowerInvariant())
+        {
+            case "symbol": return By(e => e.Symbol).ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            case "role": return By(e => e.Role ?? "").ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            case "source": return By(e => e.Source).ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            case "signalprice": return By(e => e.SignalPrice).ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            case "myaction": return By(e => e.MyAction).ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            case "lifecyclestatus":
+            case "status": return By(e => e.Status).ThenByDescending(e => e.SignalDate).ThenByDescending(e => e.Id);
+            // Days since grows as the date gets older, so its direction is the inverse of the date's.
+            case "dayssince": return (desc ? q.OrderBy(e => e.SignalDate) : q.OrderByDescending(e => e.SignalDate)).ThenByDescending(e => e.Id);
+            case "signaldate": return By(e => e.SignalDate).ThenByDescending(e => e.Id);
+            default:
+                return IsComputedSort(sortBy) ? null : By(e => e.SignalDate).ThenByDescending(e => e.Id);
+        }
+    }
+
+    private static bool IsComputedSort(string? sortBy) =>
+        (sortBy ?? "").ToLowerInvariant() is "signaltype" or "return5d" or "return20d" or "return1m" or "today" or "todayvsactioned";
 
     public async Task<SignalAuditSummaryDto> GetSummaryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default)
     {
-        var rows = await BuildRowsAsync(userId, query, ct);
+        var filtered = FilteredEvents(userId, query);
+        var total = await filtered.CountAsync(ct);
+        var rows = await BuildRowsAsync(userId, filtered, ct);
 
         // Initial-baseline records are not genuine transitions, so they stay out of effectiveness unless asked for.
         var statRows = (query.IncludeBaselineInStats || string.Equals(query.Origin, SignalOrigins.InitialBaseline, StringComparison.OrdinalIgnoreCase)
@@ -726,13 +767,14 @@ public sealed class SignalsAuditService(
         // The category and review cards describe what is open now; Total and Actioned describe the rows in view.
         var open = rows.Where(r => r.Status == SignalStatuses.Active).ToList();
         return new SignalAuditSummaryDto(
-            rows.Count,
+            total,
             open.Count(r => r.SignalType == SignalTypeCatalog.PriorityCandidateKey),
             open.Count(r => r.Category == SignalCategories.Entry),
             open.Count(r => r.Category == SignalCategories.TrimExit),
             rows.Count(r => SignalMyActions.IsFollowed(r.MyAction)),
             open.Count(r => r.MyAction == SignalMyActions.Pending),
-            effectiveness);
+            effectiveness,
+            rows.Count, MaxEvaluatedRows, total > rows.Count);
     }
 
     private const int EffectivenessBatchSize = 1000;
@@ -995,7 +1037,7 @@ public sealed class SignalsAuditService(
 
     // ── Row building ──────────────────────────────────────────────────────────
 
-    private async Task<List<SignalAuditRowDto>> BuildRowsAsync(string userId, SignalsAuditQuery q, CancellationToken ct)
+    private IQueryable<SignalAuditEvent> FilteredEvents(string userId, SignalsAuditQuery q)
     {
         var query = db.SignalAuditEvents.AsNoTracking().Where(e => e.UserId == userId);
 
@@ -1025,7 +1067,12 @@ public sealed class SignalsAuditService(
             query = query.Where(e => e.Origin == SignalOrigins.InitialBaseline);
         if (DateOnly.TryParse(q.From, out var from)) query = query.Where(e => e.SignalDate >= from);
         if (DateOnly.TryParse(q.To, out var to)) query = query.Where(e => e.SignalDate <= to);
+        return query;
+    }
 
+    /// <summary>Newest <see cref="MaxEvaluatedRows"/> rows of the filtered set, fully enriched (for computed sorts and the summary).</summary>
+    private async Task<List<SignalAuditRowDto>> BuildRowsAsync(string userId, IQueryable<SignalAuditEvent> query, CancellationToken ct)
+    {
         var events = await query.OrderByDescending(e => e.SignalDate).ThenByDescending(e => e.Id)
             .Take(MaxEvaluatedRows).ToListAsync(ct);
         return await ToRowsAsync(userId, events, ct);
@@ -1072,7 +1119,7 @@ public sealed class SignalsAuditService(
                 LinkKind(e, linkedTx), e.Origin, e.EpisodeEndedDate is null, e.EligibilityStatus, basis,
                 actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId,
                 effective?.Status.State.ToString(), effective?.Status.IsActionable, effective?.EvidenceHealth,
-                effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes);
+                effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes, e.StatusChangedAtUtc);
         }).ToList();
     }
 

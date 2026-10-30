@@ -50,6 +50,27 @@ function nonPinnedColumns(gridDef: GridDef): ColumnDef[] {
  * registry since the preference was saved are appended (forward-compat), and pinned columns are
  * always appended last.
  */
+/**
+ * Saved preferences (valid columns only, in saved order) plus any registry columns the user has never seen.
+ * A new column with `insertAfter` lands right after its anchor; otherwise it is appended. Nothing is rewritten:
+ * saved order, visibility and hidden columns are preserved.
+ */
+function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (ColumnPreference & { added: boolean })[] {
+  const validKeys = new Set(nonPinned.map((c) => c.key));
+  const list = prefs
+    .filter((p) => validKeys.has(p.key))
+    .map((p) => ({ ...p, added: false }));
+  const known = new Set(prefs.map((p) => p.key));
+  for (const col of nonPinned) {
+    if (known.has(col.key)) continue;
+    const entry = { key: col.key, visible: !col.defaultHidden, added: true };
+    const anchor = col.insertAfter ? list.findIndex((p) => p.key === col.insertAfter) : -1;
+    if (anchor >= 0) list.splice(anchor + 1, 0, entry);
+    else list.push(entry);
+  }
+  return list;
+}
+
 export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefined): string[] {
   if (!prefs) {
     // No customisation — return all defaults
@@ -57,24 +78,10 @@ export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefi
   }
 
   const pinnedKeys = gridDef.columns.filter((c) => c.pinned).map((c) => c.key);
-  const nonPinned = nonPinnedColumns(gridDef);
-  const validKeys = new Set(nonPinned.map((c) => c.key));
-  const prefKeys = new Set(prefs.map((p) => p.key));
-  const result: string[] = [];
-
-  // Restore saved order & visibility
-  for (const pref of prefs) {
-    if (validKeys.has(pref.key) && pref.visible) {
-      result.push(pref.key);
-    }
-  }
-
-  // Forward-compat: append any NEW default columns not yet in storage
-  for (const col of nonPinned) {
-    if (!prefKeys.has(col.key)) {
-      result.push(col.key);
-    }
-  }
+  // Newly registered columns have always been shown regardless of `defaultHidden` here; keep that behaviour.
+  const result = withNewColumns(nonPinnedColumns(gridDef), prefs)
+    .filter((p) => p.added || p.visible)
+    .map((p) => p.key);
 
   // Pinned columns always come last
   result.push(...pinnedKeys);
@@ -96,25 +103,7 @@ export function resolveEditablePrefs(
     return nonPinned.map((c) => ({ key: c.key, visible: true }));
   }
 
-  const validKeys = new Set(nonPinned.map((c) => c.key));
-  const result: ColumnPreference[] = [];
-
-  // Respect stored order; skip removed columns
-  for (const pref of prefs) {
-    if (validKeys.has(pref.key)) {
-      result.push({ ...pref });
-    }
-  }
-
-  // Append any NEW default columns not yet in storage (forward-compat)
-  const prefKeys = new Set(prefs.map((p) => p.key));
-  for (const col of nonPinned) {
-    if (!prefKeys.has(col.key)) {
-      result.push({ key: col.key, visible: !col.defaultHidden });
-    }
-  }
-
-  return result;
+  return withNewColumns(nonPinned, prefs).map(({ key, visible }) => ({ key, visible }));
 }
 
 function loadFromStorage(): StoredPrefs {

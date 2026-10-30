@@ -8,7 +8,7 @@ using PortfolioManager.Api.Services.FinalAction;
 
 namespace PortfolioManager.Tests;
 
-public sealed class SignalsAuditServiceTests
+public sealed partial class SignalsAuditServiceTests
 {
     private const string User = "user-1";
 

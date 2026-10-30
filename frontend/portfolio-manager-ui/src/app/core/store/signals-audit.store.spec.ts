@@ -115,38 +115,75 @@ describe('SignalsAuditStore', () => {
     expect(store.sortBy()).toBe('symbol');
   });
 
-  it('loadLatestDay filters the landing view to the newest signal day', async () => {
-    api.query.mockImplementation((p: { pageSize: number }) =>
-      of({ items: [{ ...row(9), signalDate: '2026-10-26' }], total: 1, page: 1, pageSize: p.pageSize }),
+  it('PM-015: the landing load is Active-first and newest-first with NO implicit date window', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    expect(store.status()).toBe('Active');
+    expect(store.sortBy()).toBe('signalDate');
+    expect(store.sortDir()).toBe('desc');
+    expect(store.hasActiveFilters()).toBe(false);
+
+    store.loadInitial();
+    // A single request: the old behaviour first asked for the newest day and then restricted from/to to it.
+    expect(api.query).toHaveBeenCalledTimes(1);
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'Active', from: '', to: '', sortBy: 'signalDate', sortDir: 'desc', page: 1 }));
+    expect(store.from()).toBe('');
+    expect(store.to()).toBe('');
+  });
+
+  it('PM-015: explicit user dates are still honoured and Reset returns to Active', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    store.setFilters({ from: '2026-10-01', to: '2026-10-05', status: 'All' });
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ from: '2026-10-01', to: '2026-10-05', status: 'All' }));
+    expect(store.hasActiveFilters()).toBe(true);
+    store.resetFilters();
+    expect(store.status()).toBe('Active');
+    expect(store.from()).toBe('');
+    expect(store.hasActiveFilters()).toBe(false);
+  });
+
+  it('PM-015: changing the lifecycle filter or sort returns to page 1 and refetches', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    store.setPage(4, 25);
+    store.setFilters({ status: 'Acted' });
+    expect(store.page()).toBe(1);
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'Acted', page: 1 }));
+    store.setPage(3, 25);
+    store.setSort('lifecycleStatus', 'asc');
+    expect(store.page()).toBe(1);
+    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ sortBy: 'lifecycleStatus', sortDir: 'asc', page: 1 }));
+  });
+
+  it('PM-015: truncation metadata comes from the response, only flags computed sorts, and clears on a SQL-backed sort', () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    api.query.mockReturnValue(of({ items: [row(1)], total: 5100, page: 1, pageSize: 25, evaluated: 5000, evaluationLimit: 5000, partial: true }));
+    store.setSort('return20D', 'desc');
+    expect(store.gridPartial()).toBe(true);
+    expect(store.gridEvaluated()).toBe(5000);
+    expect(store.total()).toBe(5100);
+
+    api.query.mockReturnValue(of({ items: [row(1)], total: 5100, page: 1, pageSize: 25, evaluated: 5100, evaluationLimit: 5000, partial: false }));
+    store.setSort('signalDate', 'desc');
+    expect(store.gridPartial()).toBe(false);
+    expect(store.gridEvaluated()).toBe(5100);
+  });
+
+  it('PM-015: fetchAllRows has no page cap, reports complete results, and reports partial ones', async () => {
+    const store = TestBed.inject(SignalsAuditStore);
+    // 60 pages of 200 = 12,000 rows: more than the old 50-page (10,000 row) limit.
+    api.query.mockImplementation((p: { page: number }) =>
+      of({ items: Array.from({ length: 200 }, (_, i) => row(p.page * 1000 + i)), total: 12000, page: p.page, pageSize: 200, evaluated: 12000, partial: false }),
     );
-    const store = TestBed.inject(SignalsAuditStore);
-    await store.loadLatestDay();
-    expect(store.from()).toBe('2026-10-26');
-    expect(store.to()).toBe('2026-10-26');
-    expect(api.query).toHaveBeenLastCalledWith(expect.objectContaining({ from: '2026-10-26', to: '2026-10-26', pageSize: 25 }));
-  });
+    const complete = await store.fetchAllRows();
+    expect(complete.rows).toHaveLength(12000);
+    expect(complete.partial).toBe(false);
 
-  it('loadLatestDay moves to the new day once newer signals exist, and keeps user-chosen dates', async () => {
-    const store = TestBed.inject(SignalsAuditStore);
-    api.query.mockReturnValue(of({ items: [{ ...row(1), signalDate: '2026-10-27' }], total: 1, page: 1, pageSize: 1 }));
-    await store.loadLatestDay();
-    expect(store.from()).toBe('2026-10-27');
-
-    store.setFilters({ from: '2026-10-01', to: '2026-10-05' });
-    await store.loadLatestDay();
-    expect(store.from()).toBe('2026-10-01');
-    expect(store.to()).toBe('2026-10-05');
-  });
-
-  it('loadLatestDay falls back to an unfiltered load when there are no signals or the lookup fails', async () => {
-    api.query.mockReturnValue(of({ items: [], total: 0, page: 1, pageSize: 1 }));
-    const store = TestBed.inject(SignalsAuditStore);
-    await store.loadLatestDay();
-    expect(store.from()).toBe('');
-
-    api.query.mockReturnValueOnce(throwError(() => new Error('boom')));
-    await store.loadLatestDay();
-    expect(store.from()).toBe('');
+    api.query.mockImplementation((p: { page: number }) =>
+      of({ items: p.page <= 25 ? Array.from({ length: 200 }, (_, i) => row(p.page * 1000 + i)) : [], total: 5100, page: p.page, pageSize: 200, evaluated: 5000, partial: true }),
+    );
+    const partial = await store.fetchAllRows();
+    expect(partial.rows).toHaveLength(5000);
+    expect(partial.partial).toBe(true);
+    expect(partial.total).toBe(5100);
   });
 
   it('effectiveness defaults to a 90-day window and loads independently of the table filters', () => {

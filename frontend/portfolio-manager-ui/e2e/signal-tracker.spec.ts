@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { signalState } from './fixtures/signals-audit';
+import { seedLifecycleHistory } from './fixtures/signals-audit';
 import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
 
 const isPhone = (name: string) => name.startsWith('mobile');
@@ -39,12 +39,17 @@ test.describe('signal tracker', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Signal Tracker' })).toBeVisible();
   });
 
-  test('the future-dated and Invalidated tags: Invalidated is shown in red', async ({ page }) => {
-    signalState.rows[0] = { ...signalState.rows[0], status: 'Invalidated', statusReason: 'Condition no longer produced' };
+  test('Invalidated is shown in red in the Lifecycle Status column (and only appears once the filter allows it)', async ({ page }, testInfo) => {
+    seedLifecycleHistory();
     await page.goto('/audit/signals');
-    const tag = page.locator('.tag-invalidated:visible').first();
-    await expect(tag).toHaveText('Invalidated');
-    await expect(tag).toHaveCSS('background-color', 'rgb(198, 40, 40)');
+    await expect(page.locator('tr.signal-row:visible').first()).toBeVisible();
+    await expect(page.locator('.life-invalid')).toHaveCount(0); // default Active view excludes it
+    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('combobox', { name: 'Status' }).click();
+    await page.getByRole('option', { name: 'Invalidated', exact: true }).click();
+    const badge = page.locator('.life-invalid:visible').first();
+    await expect(badge).toHaveText('Invalidated');
+    await expect(badge).toHaveCSS('background-color', 'rgb(198, 40, 40)');
   });
 
   test('future-dated signals are flagged as anomalies', async ({ page }) => {
