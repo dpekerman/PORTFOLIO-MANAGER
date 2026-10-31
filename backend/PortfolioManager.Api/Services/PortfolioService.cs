@@ -142,7 +142,7 @@ public sealed class PortfolioService(
                 || item.OpenDate?.Date != request.OpenDate?.Date
                 || (string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
                     && (item.TransactionType != request.TransactionType || item.Shares != request.Shares
-                        || item.CloseDate?.Date != request.CloseDate?.Date))))
+                        || (item.CloseDate.HasValue && item.CloseDate.Value.Date != request.CloseDate?.Date)))))
             throw new RiskValidationException("This change would make existing trade-episode/risk history ambiguous. Keep its account, role and dates; a new trade must be recorded separately.");
         if (request.HoldingRole is not null) await ApplyRoleCorrectionAsync(item, request.HoldingRole, ct);
 
