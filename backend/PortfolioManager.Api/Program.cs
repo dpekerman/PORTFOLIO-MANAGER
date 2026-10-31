@@ -278,6 +278,7 @@ builder.Services.AddScoped<IRsiSnapshotService, RsiSnapshotService>();
 builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
 builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
+builder.Services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDataRefreshService, DataRefreshService>();
 builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();

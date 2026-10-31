@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -172,12 +172,15 @@ type OptionSortCol =
 
 type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
 
+import { PortfolioPerformanceComponent } from '../../shared/portfolio-performance/portfolio-performance.component';
+
 @Component({
   selector: 'app-portfolio-page',
   templateUrl: './portfolio-page.component.html',
   styleUrl: './portfolio-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PortfolioPerformanceComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,

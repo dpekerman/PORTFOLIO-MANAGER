@@ -131,6 +131,12 @@ export const dashboardResponse: DashboardResponse = {
     monthChangePercent: -0.66,
     oversoldCount: 6,
     overboughtCount: 4,
+    performance: [
+      { period: 'Day', status: 'Available', reason: null, baselineDate: '2026-10-29', valueChange: 11_842.3, netExternalFlow: 10_000, investmentGainLoss: 1_842.3, investmentGainLossPercent: null },
+      { period: 'Week', status: 'Available', reason: null, baselineDate: '2026-10-23', valueChange: 4_210.55, netExternalFlow: 0, investmentGainLoss: 4_210.55, investmentGainLossPercent: 1.34 },
+      { period: 'Month', status: 'Unavailable', reason: 'A USD or non-reporting-currency cash flow is not converted.', baselineDate: '2026-09-30', valueChange: null, netExternalFlow: null, investmentGainLoss: null, investmentGainLossPercent: null },
+      { period: 'YTD', status: 'Updating', reason: 'Snapshot reseal is pending.', baselineDate: null, valueChange: null, netExternalFlow: null, investmentGainLoss: null, investmentGainLossPercent: null },
+    ],
   },
   topMovers: [
     {
