@@ -1039,6 +1039,24 @@ export interface DashboardSummary {
   monthChangePercent: number;
   oversoldCount: number;
   overboughtCount: number;
+  /** Flow-adjusted performance (PM-022). Absent on snapshots saved before the field existed. */
+  performance?: PeriodPerformance[] | null;
+}
+
+export type PerformancePeriod = 'Day' | 'Week' | 'Month' | 'YTD';
+export type PerformanceStatus = 'Available' | 'Updating' | 'Unavailable';
+
+/** Investment Gain/Loss = Value Change - Net External Flow. Dollar fields are null unless status is Available. */
+export interface PeriodPerformance {
+  period: PerformancePeriod;
+  status: PerformanceStatus;
+  reason: string | null;
+  baselineDate: string | null;
+  valueChange: number | null;
+  netExternalFlow: number | null;
+  investmentGainLoss: number | null;
+  /** Null (N/A) whenever an external flow occurred. */
+  investmentGainLossPercent: number | null;
 }
 
 export interface DashboardMover {

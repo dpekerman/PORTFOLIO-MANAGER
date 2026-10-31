@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -89,12 +89,15 @@ export function chartIndexForKey(
   }
 }
 
+import { PortfolioPerformanceComponent } from '../../shared/portfolio-performance/portfolio-performance.component';
+
 @Component({
   selector: 'app-dashboard-page',
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PortfolioPerformanceComponent,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,

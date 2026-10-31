@@ -15,7 +15,8 @@ public interface IDashboardService
 public sealed class DashboardService(
     AppDbContext db,
     IMarketDataProvider marketData,
-    IPortfolioActionsService portfolioActions) : IDashboardService
+    IPortfolioActionsService portfolioActions,
+    IPortfolioPerformanceService performance) : IDashboardService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly (string Symbol, string Name)[] IndexSymbols =
@@ -123,6 +124,7 @@ public sealed class DashboardService(
         var (weekBase, monthBase) = ResolvePeriodBaselines(values, weekStartDate, monthFirstDay);
         var weekChange = weekBase is not null ? summaryTotal - weekBase.TotalValue : 0m;
         var monthChange = monthBase is not null ? summaryTotal - monthBase.TotalValue : 0m;
+        var periodPerformance = await performance.BuildAsync(userId, values, summaryTotal, DateOnly.FromDateTime(todayEt), ct);
 
         // Exclude closed positions so CLOSE transactions don't appear as active portfolio movers
         var moverSources = portfolio
@@ -315,7 +317,8 @@ public sealed class DashboardService(
                     .Count(r => r.Status != SignalStatus.Neutral),
                 scanner.OverboughtChain
                     .DistinctBy(r => r.Symbol, StringComparer.OrdinalIgnoreCase)
-                    .Count(r => r.Status != SignalStatus.Neutral)),
+                    .Count(r => r.Status != SignalStatus.Neutral),
+                periodPerformance),
             movers.Take(50).ToList(),
             movers.OrderBy(m => m.ChangePercent).Take(50).ToList(),
             values.Select(h => new DashboardChartPoint(h.RecordedDate, h.TotalValue)).ToList(),

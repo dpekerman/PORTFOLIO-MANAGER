@@ -31,7 +31,20 @@ public sealed record DashboardSummary(
     decimal MonthChange,
     decimal MonthChangePercent,
     int OversoldCount,
-    int OverboughtCount);
+    int OverboughtCount,
+    IReadOnlyList<PeriodPerformanceDto>? Performance = null);
+
+/// <summary>Flow-adjusted performance for one period. Dollar fields are null unless Status is Available;
+/// InvestmentGainLossPercent is null (N/A) whenever an external flow occurred.</summary>
+public sealed record PeriodPerformanceDto(
+    string Period,
+    string Status,
+    string? Reason,
+    string? BaselineDate,
+    decimal? ValueChange,
+    decimal? NetExternalFlow,
+    decimal? InvestmentGainLoss,
+    decimal? InvestmentGainLossPercent);
 
 public sealed record DashboardMover(
     string Symbol,
