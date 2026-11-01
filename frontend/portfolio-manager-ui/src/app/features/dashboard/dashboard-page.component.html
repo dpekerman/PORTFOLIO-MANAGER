@@ -77,7 +77,6 @@
         }
       </div>
     </div>
-    <app-portfolio-performance />
     <!-- ── Chart ─────────────────────────────────────────────────────────── -->
     <mat-card class="db-chart-card">
       <div class="db-card-header">
@@ -969,6 +968,28 @@
           Click <mat-icon class="db-inline-ico">expand_more</mat-icon> to view YTD performance.
         </p>
         -->
+      }
+    </mat-card>
+
+    <mat-card class="db-panel db-full-width-panel">
+      <div class="db-panel-hd">
+        <div class="db-panel-hd-left">
+          <mat-icon class="db-panel-ico">swap_vert</mat-icon>
+          <span class="db-panel-title">Performance (cash in/out adjusted)</span>
+        </div>
+        <button
+          mat-icon-button
+          (click)="toggleExpanded('cash-adjusted-performance')"
+          [matTooltip]="isExpanded('cash-adjusted-performance') ? 'Collapse' : 'Expand performance'"
+          class="db-toggle-btn"
+          [attr.aria-expanded]="isExpanded('cash-adjusted-performance')"
+          aria-label="Toggle cash adjusted performance"
+        >
+          <mat-icon>{{ isExpanded('cash-adjusted-performance') ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </button>
+      </div>
+      @if (isExpanded('cash-adjusted-performance')) {
+        <app-portfolio-performance />
       }
     </mat-card>
   }

@@ -1,6 +1,5 @@
 @if (periods().length > 0) {
   <section class="pp" aria-label="Portfolio performance excluding cash in and out" data-testid="portfolio-performance">
-    <h3 class="pp-title">Performance (cash in/out adjusted)</h3>
     <div class="pp-grid">
       @for (p of periods(); track p.period) {
         <div class="pp-card" [attr.data-testid]="'pp-' + p.period">

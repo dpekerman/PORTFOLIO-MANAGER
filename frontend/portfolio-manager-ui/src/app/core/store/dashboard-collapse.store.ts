@@ -15,6 +15,7 @@ const SECTIONS = [
   'priority-candidates',
   'ytd-performance',
   'latest-eod-signals',
+  'cash-adjusted-performance',
 ];
 
 /** Phones keep their own keys so a desktop "expanded" snapshot never overrides the phone default. */
