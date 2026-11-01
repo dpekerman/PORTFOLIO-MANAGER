@@ -18,6 +18,9 @@
 <div class="st-toolbar">
   <span class="st-count" role="status" aria-live="polite" data-testid="risk-count">
     {{ rows().length }} of {{ store.rows().length }} Swing trades · {{ store.attentionCount() }} need attention
+    @if (store.filters().plannedStopBreached && store.plannedStopUnverifiedCount() > 0) {
+      · {{ store.plannedStopUnverifiedCount() }} more with an unverified price are not counted as breached
+    }
   </span>
   <button
     mat-stroked-button
@@ -54,7 +57,16 @@
 } @else if (store.rows().length === 0) {
   <p class="st-empty" data-testid="risk-empty">No open Swing positions to monitor.</p>
 } @else if (rows().length === 0) {
-  <p class="st-empty">No Swing trades match these filters.</p>
+  <p class="st-empty" data-testid="risk-no-match">
+    @if (store.filters().plannedStopBreached) {
+      No Swing position has a confirmed breached Planned Stop with these filters.
+      @if (store.plannedStopUnverifiedCount() > 0) {
+        {{ store.plannedStopUnverifiedCount() }} with a stale or unavailable price cannot be verified.
+      }
+    } @else {
+      No Swing trades match these filters.
+    }
+  </p>
 } @else {
   <app-mobile-table-controls [sort]="sortRef" gridId="swing-risk-monitor" label="Risk Monitor" />
   <div class="st-table-wrapper">
@@ -85,8 +97,15 @@
       <ng-container matColumnDef="price">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="price">Price</th>
         <td mat-cell *matCellDef="let r">
-          @if (r.currentPrice !== null) { {{ mv(r.currentPrice) | number: '1.2-4' }} } @else { <span class="st-dim">—</span> }
-          <span class="st-chip" [class.st-warn]="r.priceBasis === 'Stale' || r.priceBasis === 'Unavailable'">{{ basisLabel(r.priceBasis) }}</span>
+          @let pv = priceOf(r);
+          @if (r.currentPrice !== null) {
+            <span class="st-price" tabindex="0" [matTooltip]="pv.tooltip" [attr.aria-label]="mv(r.currentPrice) + '. ' + pv.tooltip" data-testid="price-value">{{ mv(r.currentPrice) | number: '1.2-4' }}</span>
+          } @else {
+            <span class="st-dim">—</span>
+          }
+          @if (pv.warning) {
+            <app-swing-detail-chip [label]="pv.warning" [detail]="pv.tooltip" tone="warn" icon="schedule" testId="price-warning" />
+          }
         </td>
       </ng-container>
 
@@ -97,21 +116,15 @@
 
       <ng-container matColumnDef="plannedStop">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="plannedStop">Planned Stop</th>
-        <td mat-cell *matCellDef="let r">
-          {{ r.plannedStop === null ? 'Not set' : (mv(r.plannedStop) | number: '1.2-4') }}
-          @if (r.plannedStop !== null) { <span class="st-sub">alert only</span> }
-        </td>
+        <td mat-cell *matCellDef="let r"><app-swing-planned-stop-cell [row]="r" /></td>
       </ng-container>
 
       <ng-container matColumnDef="brokerStop">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="brokerStop">Broker Stop</th>
         <td mat-cell *matCellDef="let r">
-          @if (r.brokerStopTrigger !== null) {
-            {{ mv(r.brokerStopTrigger) | number: '1.2-4' }}
-            <span class="st-sub">user-reported, unverified</span>
-          } @else {
-            <span class="st-dim">None recorded</span>
-          }
+          @let bs = brokerStopOf(r);
+          @if (r.brokerStopTrigger !== null) { {{ mv(r.brokerStopTrigger) | number: '1.2-4' }} }
+          <app-swing-detail-chip [label]="bs.label" [detail]="bs.detail" [tone]="bs.tone" testId="broker-stop-chip" />
         </td>
       </ng-container>
 
@@ -137,30 +150,30 @@
 
       <ng-container matColumnDef="protection">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="protection">Protection</th>
-        <td mat-cell *matCellDef="let r"><span class="st-chip" [class.st-warn]="r.coverageState !== 'Full'">{{ r.protection }}</span></td>
+        <td mat-cell *matCellDef="let r">
+          @let pr = protectionOf(r);
+          <app-swing-detail-chip [label]="pr.label" [detail]="pr.detail" [tone]="pr.tone" testId="protection-chip" />
+        </td>
       </ng-container>
 
       <ng-container matColumnDef="severity">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="severity">Risk Severity</th>
-        <td mat-cell *matCellDef="let r">
-          <div class="st-status-stack">
-            <span [class]="'st-chip ' + severityClass(r.severity)" data-testid="severity-chip">{{ r.severity }}</span>
-            @if (r.riskStatuses.length > 0) {
-              <span class="st-status-chips">
-                @for (s of r.riskStatuses; track s) {
-                  <span class="st-chip st-dim">{{ riskLabel(s) }}</span>
-                }
-              </span>
-            }
-          </div>
-        </td>
+        <td mat-cell *matCellDef="let r"><app-swing-risk-cell [row]="r" /></td>
       </ng-container>
 
       <ng-container matColumnDef="finalAction">
         <th mat-header-cell *matHeaderCellDef mat-sort-header="finalAction">Final Action</th>
         <td mat-cell *matCellDef="let r">
           @if (store.finalActionOf(r); as fa) {
-            <button mat-button type="button" class="st-row-btn" (click)="showFinalAction(r)" [disabled]="!store.finalActionResultFor(r)" [attr.aria-label]="'Final Action details for ' + r.symbol">{{ fa }}</button>
+            @let res = store.finalActionResultFor(r);
+            <app-final-action-badge
+              [label]="fa"
+              [bucket]="res?.finalActionClass ?? null"
+              [tooltip]="res?.hoverDescription ?? 'The lots of this trade have different or incomplete Final Actions. Open each lot for its details.'"
+              [ariaLabel]="'Final Action details for ' + r.symbol + ': ' + fa"
+              [disabled]="!res"
+              (activated)="showFinalAction(r)"
+            />
             @if (r.lotIds.length > 1) {
               @for (id of r.lotIds; track id) {
                 <button mat-button type="button" class="st-row-btn" (click)="showFinalAction(r, id)"

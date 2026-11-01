@@ -14,20 +14,22 @@ import { GridColumnStore } from '../../core/store/grid-column.store';
 import { SwingTradingStore } from '../../core/store/swing-trading.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
 import { openManageRiskDialog } from '../../shared/manage-risk-dialog/manage-risk-dialog.component';
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
 import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { torontoDateString, txRowsToCsv, txSheet } from '../transactions/transactions-logic';
+import { SwingDetailChipComponent } from './swing-detail-chip.component';
 import { SwingFilterBarComponent } from './swing-filter-bar.component';
+import { SwingPlannedStopCellComponent } from './swing-planned-stop-cell.component';
+import { SwingRiskCellComponent } from './swing-risk-cell.component';
+import { brokerStopView, priceView, protectionView } from './swing-presenters';
 import {
   OPEN_TRADES_EXPORT_COLUMNS,
   compareNullable,
   downloadTextFile,
   manageRiskDataFor,
   openTradesExportRows,
-  priceBasisLabel,
-  riskStatusLabel,
-  severityClass,
 } from './swing-trading-logic';
 
 /**
@@ -41,6 +43,7 @@ import {
   imports: [
     DatePipe,
     DecimalPipe,
+    FinalActionBadgeComponent,
     GridColumnButtonComponent,
     MatButtonModule,
     MatIconModule,
@@ -50,7 +53,10 @@ import {
     MatTooltipModule,
     MobileTableControlsComponent,
     ResponsiveTableDirective,
+    SwingDetailChipComponent,
     SwingFilterBarComponent,
+    SwingPlannedStopCellComponent,
+    SwingRiskCellComponent,
   ],
   templateUrl: './risk-monitor-tab.component.html',
   styleUrl: './risk-monitor-tab.component.scss',
@@ -62,9 +68,9 @@ export class RiskMonitorTabComponent {
 
   protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys('swing-risk-monitor');
   protected readonly sort = signal<Sort>({ active: '', direction: '' });
-  protected readonly severityClass = severityClass;
-  protected readonly riskLabel = riskStatusLabel;
-  protected readonly basisLabel = priceBasisLabel;
+  protected readonly priceOf = priceView;
+  protected readonly brokerStopOf = brokerStopView;
+  protected readonly protectionOf = protectionView;
 
   /** Server order is already highest risk first (breached + unprotected, then breached, approaching, gaps, stale). */
   protected readonly rows = computed(() => {

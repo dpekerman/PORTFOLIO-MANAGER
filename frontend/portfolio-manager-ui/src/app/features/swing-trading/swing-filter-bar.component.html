@@ -52,6 +52,20 @@
     Needs attention only
   </mat-slide-toggle>
 
+  <button
+    mat-stroked-button
+    type="button"
+    class="sfb-quick"
+    [class.sfb-quick-on]="store.filters().plannedStopBreached"
+    [attr.aria-pressed]="store.filters().plannedStopBreached"
+    matTooltip="Shows only positions whose Planned Stop is breached by a usable price. Broker-stop breaches and stale prices are not included."
+    (click)="store.setFilters({ plannedStopBreached: !store.filters().plannedStopBreached })"
+    data-testid="swing-breached-planned"
+  >
+    <mat-icon aria-hidden="true">error</mat-icon>
+    Breached Planned Stops ({{ store.plannedStopBreachedCount() }})
+  </button>
+
   @if (store.hasFilters()) {
     <button mat-stroked-button type="button" (click)="store.resetFilters()" data-testid="swing-reset">
       <mat-icon aria-hidden="true">filter_alt_off</mat-icon> Clear filters

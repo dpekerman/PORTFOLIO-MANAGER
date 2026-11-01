@@ -1,0 +1,93 @@
+:host {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.fa-badge {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  &.fa-badge-inert {
+    cursor: default;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .fa-badge {
+    min-height: 32px;
+    padding: 4px 10px;
+  }
+}
+
+// One palette for every page (the former Watchlist palette, which covers every bucket the engine emits).
+.ma-confirmed-buy {
+  background: rgba(0, 200, 83, 0.82);
+  color: #000;
+  border-color: rgba(0, 200, 83, 0.9);
+}
+.ma-confirmed-sell {
+  background: rgba(255, 23, 68, 0.14);
+  color: #ff5252;
+  border-color: rgba(255, 23, 68, 0.3);
+}
+.ma-early-warning {
+  background: rgba(255, 167, 38, 0.82);
+  color: #000;
+  border-color: rgba(255, 167, 38, 0.9);
+}
+.ma-avoid {
+  background: rgba(255, 235, 59, 0.82);
+  color: #333;
+  border-color: rgba(255, 235, 59, 0.9);
+}
+.ma-hold {
+  background: rgba(33, 150, 243, 0.72);
+  color: #000;
+  border-color: rgba(33, 150, 243, 0.82);
+}
+.ma-accumulate {
+  background: rgba(0, 188, 212, 0.78);
+  color: #000;
+  border-color: rgba(0, 188, 212, 0.88);
+}
+.ma-reduce {
+  background: rgba(255, 87, 34, 0.82);
+  color: #000;
+  border-color: rgba(255, 87, 34, 0.9);
+}
+.ma-standby {
+  background: rgba(255, 235, 59, 0.35);
+  color: #555;
+  border-color: rgba(255, 235, 59, 0.55);
+}
+.ma-standby-no-add {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.95);
+  font-weight: 600;
+}
+.ma-tfsa-profit {
+  background: rgba(255, 193, 7, 0.82);
+  color: #000;
+  border-color: rgba(255, 193, 7, 0.9);
+  font-weight: 600;
+}

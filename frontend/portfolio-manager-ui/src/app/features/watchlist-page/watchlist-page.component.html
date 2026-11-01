@@ -871,16 +871,13 @@
               </th>
               <td mat-cell *matCellDef="let w">
                 @if (decisionForSymbol(w.item.symbol, w.item.role); as dec) {
-                  <button
-                    type="button"
-                    class="wl-ma-badge wl-ma-btn"
-                    [class]="'wl-ma-badge wl-ma-btn ' + dec.finalActionClass"
-                    [matTooltip]="dec.hoverDescription"
-                    [attr.aria-label]="'Final Action details for ' + w.item.symbol + ': ' + dec.finalAction"
-                    (click)="openFinalActionDetails(w.item.symbol)"
-                  >
-                    {{ dec.finalAction }}
-                  </button>
+                  <app-final-action-badge
+                    [label]="dec.finalAction"
+                    [bucket]="dec.finalActionClass"
+                    [tooltip]="dec.hoverDescription"
+                    [ariaLabel]="'Final Action details for ' + w.item.symbol + ': ' + dec.finalAction"
+                    (activated)="openFinalActionDetails(w.item.symbol)"
+                  />
                 } @else if (rsiLoading() || finalActionsUiState() === 'loading') {
                   <span class="wl-cell-shimmer wl-cell-shimmer--wide" data-testid="fa-loading"></span>
                 } @else if (finalActionsUiState() === 'error') {

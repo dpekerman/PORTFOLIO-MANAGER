@@ -68,11 +68,38 @@ function row(over: Partial<SwingTradeRow> = {}): SwingTradeRow {
     distancePct: 10,
     governingStopSource: 'Broker stop (user-recorded)',
     observation: null,
+    plannedStopState: 'NoPlan',
     ...over,
   };
 }
 
 const fa = (r: SwingTradeRow): string | null => (r.symbol === 'NOVO.TO' ? 'Hold Swing' : 'Buy / Accumulate');
+
+describe('Breached Planned Stops filter', () => {
+  const rows = [
+    row({ key: 'A', symbol: 'AAA', account: 'TFSA_D_TD', plannedStopState: 'Breached', riskStatuses: ['StopBreached'] }),
+    row({ key: 'B', symbol: 'BBB', account: 'Corp_TD', plannedStopState: 'Breached', riskStatuses: ['StopBreached'] }),
+    // broker-stop-only breach: StopBreached status but the Planned Stop is not breached
+    row({ key: 'C', symbol: 'CCC', plannedStopState: 'Clear', riskStatuses: ['StopBreached'] }),
+    row({ key: 'D', symbol: 'DDD', plannedStopState: 'Unverified', priceBasis: 'Stale', riskStatuses: ['StaleEvidence'] }),
+    row({ key: 'E', symbol: 'EEE', plannedStopState: 'NoPlan' }),
+  ];
+  const on = { ...EMPTY_SWING_FILTERS, plannedStopBreached: true };
+
+  it('uses only the backend PlannedStopState: broker-only breaches, stale and no-plan rows are excluded', () => {
+    expect(filterSwingRows(rows, on, fa).map((r) => r.symbol)).toEqual(['AAA', 'BBB']);
+  });
+
+  it('honours the other filters', () => {
+    expect(filterSwingRows(rows, { ...on, account: 'Corp_TD' }, fa).map((r) => r.symbol)).toEqual(['BBB']);
+    expect(filterSwingRows(rows, { ...on, search: 'aaa' }, fa).map((r) => r.symbol)).toEqual(['AAA']);
+    expect(filterSwingRows(rows, { ...on, account: 'Nope' }, fa)).toEqual([]);
+  });
+
+  it('is off by default', () => {
+    expect(filterSwingRows(rows, EMPTY_SWING_FILTERS, fa)).toHaveLength(5);
+  });
+});
 
 describe('filterSwingRows', () => {
   const rows = [

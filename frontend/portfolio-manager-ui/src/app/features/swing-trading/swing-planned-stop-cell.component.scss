@@ -1,0 +1,24 @@
+@use 'swing-shared';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.ps {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.ps-breached {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border-left: 4px solid var(--mat-sys-error);
+  background: color-mix(in srgb, var(--mat-sys-error) 14%, transparent);
+  color: var(--mat-sys-error);
+  font-weight: 700;
+}

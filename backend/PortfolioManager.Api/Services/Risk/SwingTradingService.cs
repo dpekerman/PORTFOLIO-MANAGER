@@ -16,9 +16,10 @@ public sealed record SwingTradeRowDto(
     decimal? BrokerStopTrigger, string? BrokerOrderType, string? BrokerStatus, string? BrokerVerification,
     IReadOnlyList<BrokerStopDto> BrokerStops, decimal? CoveredQuantity, string CoverageState,
     string Protection, IReadOnlyList<string> RiskStatuses, string Severity, int SeverityRank, bool NeedsAttention,
-    decimal? DistanceAbs, decimal? DistancePct, string? GoverningStopSource, string? Observation);
+    decimal? DistanceAbs, decimal? DistancePct, string?     GoverningStopSource, string? Observation,
+        string PlannedStopState);
 
-public sealed record CurrencyTotalDto(string Currency, decimal MarketValue, decimal UnrealizedPnl, decimal UnrealizedPnlPct);
+    public sealed record CurrencyTotalDto(string Currency, decimal MarketValue, decimal UnrealizedPnl, decimal UnrealizedPnlPct);
 
 public sealed record OpenTradesSummaryDto(
     int OpenTrades, int NeedsAttention, IReadOnlyList<CurrencyTotalDto> Totals, DateTime? AsOfUtc, bool AnyStale, bool AnyUnavailable);
@@ -137,7 +138,7 @@ public sealed class SwingTradingService(
                 top?.TriggerPrice, top?.OrderType, top?.UserStatus, top?.BrokerVerificationStatus,
                 active.Select(s => RiskService.ToDto(s, pos)).ToList(), eval.CoveredQuantity, eval.CoverageState,
                 eval.Protection, eval.Statuses, eval.Severity, eval.Rank, eval.NeedsAttention,
-                eval.DistanceAbs, eval.DistancePct, eval.GoverningStopSource, eval.Observation));
+                eval.DistanceAbs, eval.DistancePct, eval.GoverningStopSource, eval.Observation, eval.PlannedStopState));
         }
 
         var ordered = rows.OrderBy(r => r.SeverityRank).ThenBy(r => r.DistancePct ?? decimal.MaxValue).ThenBy(r => r.Symbol).ToList();

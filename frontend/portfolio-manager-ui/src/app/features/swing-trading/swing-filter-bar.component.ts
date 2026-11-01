@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { RiskStatus } from '../../core/models/swing-trading.models';
 import { SwingTradingStore } from '../../core/store/swing-trading.store';
 import { PROTECTION_OPTIONS, RISK_STATUS_LABELS } from './swing-trading-logic';
@@ -13,7 +14,7 @@ import { PROTECTION_OPTIONS, RISK_STATUS_LABELS } from './swing-trading-logic';
 @Component({
   selector: 'app-swing-filter-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule],
+  imports: [MatButtonModule, MatFormFieldModule, MatIconModule, MatInputModule, MatSelectModule, MatSlideToggleModule, MatTooltipModule],
   templateUrl: './swing-filter-bar.component.html',
   styleUrl: './swing-filter-bar.component.scss',
 })

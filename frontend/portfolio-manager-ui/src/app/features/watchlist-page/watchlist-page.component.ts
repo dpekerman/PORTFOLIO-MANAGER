@@ -41,6 +41,7 @@ import {
 } from '../../core/services/decision-engine.service';
 import { FinalActionStore } from '../../core/store/final-action.store';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -110,6 +111,7 @@ type SortDir = 'asc' | 'desc';
   styleUrl: './watchlist-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FinalActionBadgeComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,
