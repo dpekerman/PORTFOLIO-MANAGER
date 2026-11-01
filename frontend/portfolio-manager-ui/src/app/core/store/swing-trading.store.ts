@@ -102,6 +102,19 @@ export const SwingTradingStore = signalStore(
       accounts: computed(() => distinctSorted(store.rows().map((r) => r.account))),
       finalActionOptions: computed(() => distinctSorted(store.rows().map(finalActionOf))),
       attentionCount: computed(() => filteredRows().filter((r) => r.needsAttention).length),
+      /** Rows matching every other active filter whose Planned Stop cannot be verified (stale or unavailable price); never counted as breached. */
+      plannedStopUnverifiedCount: computed(
+        () =>
+          filterSwingRows(store.rows(), { ...store.filters(), plannedStopBreached: false }, finalActionOf).filter(
+            (r) => r.plannedStopState === 'Unverified',
+          ).length,
+      ),
+      plannedStopBreachedCount: computed(
+        () =>
+          filterSwingRows(store.rows(), { ...store.filters(), plannedStopBreached: false }, finalActionOf).filter(
+            (r) => r.plannedStopState === 'Breached',
+          ).length,
+      ),
       hasFilters: computed(() => JSON.stringify(store.filters()) !== JSON.stringify(EMPTY_SWING_FILTERS)),
     };
   }),

@@ -83,6 +83,7 @@ function row(over: RowOver): SwingTradeRow {
     distancePct: null,
     governingStopSource: stops.length ? 'Broker stop (user-recorded)' : null,
     observation: null,
+    plannedStopState: 'NoPlan',
     ...over,
   } as SwingTradeRow;
 }
@@ -106,11 +107,13 @@ function buildRows(): SwingTradeRow[] {
       symbol: 'NOVO.TO', account: 'TFSA_D_TD', lotIds: [9003], companyName: 'Novo Nordisk A/S', plannedStop: 16.5, targetPrice: 21, stopType: 'Fixed',
       brokerStops: [stop(3, 16.2, { coveredQuantity: 300 })], coveredQuantity: 300, coverageState: 'Partial', protection: 'Partially Covered',
       riskStatuses: ['PartialProtection', 'StopMismatch'], severity: 'Medium', severityRank: 4, needsAttention: false, distanceAbs: 1.8, distancePct: 10,
+      plannedStopState: 'Clear',
     }),
     row({
       symbol: 'EMP-A.TO', account: 'TFSA_L_TD', lotIds: [9004], companyName: 'Empire Company Limited', swingQuantity: 200, totalQuantity: 200,
       averageCost: 51.15, currentPrice: 49.9, priceBasis: 'Stale', marketValue: 9980, unrealizedPnl: -250, unrealizedPnlPct: -2.44,
-      priceAsOfUtc: '2026-10-20T20:00:00Z', brokerStops: [stop(4, 48.25)], riskStatuses: ['StaleEvidence', 'UnknownCoverage', 'MissingRiskPlan'],
+      priceAsOfUtc: '2026-10-20T20:00:00Z', brokerStops: [stop(4, 48.25)], riskStatuses: ['StaleEvidence', 'UnknownCoverage'],
+      plannedStop: 50, stopType: 'Fixed', plannedStopState: 'Unverified',
       severity: 'Medium', severityRank: 4,
     }),
     row({
@@ -127,8 +130,9 @@ function buildRows(): SwingTradeRow[] {
       symbol: 'WELL.TO', account: 'Corp_TD', lotIds: [9007], companyName: 'WELL Health Technologies Corp.', swingQuantity: 2000, totalQuantity: 2000,
       averageCost: 4.4, currentPrice: 4.6, marketValue: 9200, unrealizedPnl: 400, unrealizedPnlPct: 4.55, episodeResolution: 'Unresolved',
       episodeNote: 'A CLOSE record (#637) in this account overlaps the open period; it cannot be proven to belong to this trade.',
-      plannedStop: 4.0, stopType: 'Fixed', protection: 'Alert-Only Stop (no broker order)', riskStatuses: ['NoBrokerProtection'], severity: 'Medium',
-      severityRank: 4, needsAttention: true, distanceAbs: 0.6, distancePct: 13.04, governingStopSource: 'Planned stop (alert only)',
+      plannedStop: 4.7, stopType: 'Fixed', protection: 'Alert-Only Stop (no broker order)', riskStatuses: ['StopBreached', 'NoBrokerProtection'], severity: 'Critical',
+      severityRank: 1, needsAttention: true, distanceAbs: -0.1, distancePct: -2.17, governingStopSource: 'Planned stop (alert only)', plannedStopState: 'Breached',
+      observation: 'Price 4.6 is at/below the recorded stop 4.7 as of 2026-10-28 (EOD). This is a market observation only; it does not show that a broker order triggered or filled. Verify with your broker.',
     }),
     row({
       symbol: 'MAL.TO', account: 'TFSA_D_TD', lotIds: [9008], companyName: 'Magellan Aerospace Corporation', swingQuantity: 200, totalQuantity: 200,
@@ -268,6 +272,10 @@ function recompute(r: SwingTradeRow): void {
   r.coveredQuantity = covered;
   r.coverageState = active.length === 0 ? 'None' : r.mixedRole ? 'Ambiguous' : !known ? 'Unknown' : covered! > r.totalQuantity ? 'OverCovered' : covered === r.totalQuantity ? 'Full' : 'Partial';
   r.protection = active.length === 0 ? (r.plannedStop !== null ? 'Alert-Only Stop (no broker order)' : 'No Stop') : r.coverageState === 'Partial' ? 'Partially Covered' : 'Broker Stop Recorded';
+  // Mirrors the backend rule for the mock: same usable-price requirement, comparison happens here only because there is no server.
+  r.plannedStopState = r.plannedStop === null ? 'NoPlan'
+    : r.priceBasis === 'Stale' || r.priceBasis === 'Unavailable' || r.currentPrice === null ? 'Unverified'
+    : r.currentPrice <= r.plannedStop ? 'Breached' : 'Clear';
 }
 
 export function handleRisk(req: MockRequest): unknown {

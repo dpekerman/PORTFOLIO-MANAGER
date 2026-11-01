@@ -141,6 +141,15 @@ public static class CoverageStates
     public const string Ambiguous = "Ambiguous";
 }
 
+/// <summary>Planned Stop (alert-only) breach evaluation. Unverified = a plan exists but there is no usable price to compare.</summary>
+public static class PlannedStopStates
+{
+    public const string Breached = "Breached";
+    public const string Clear = "Clear";
+    public const string Unverified = "Unverified";
+    public const string NoPlan = "NoPlan";
+}
+
 public static class RiskStatuses
 {
     public const string StopBreached = "StopBreached";

@@ -50,6 +50,7 @@ import {
 import { GapStatus } from '../../core/services/decision-engine.service';
 import { FinalActionStore } from '../../core/store/final-action.store';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStore } from '../../core/store/option.store';
@@ -181,6 +182,7 @@ import { PortfolioPerformanceComponent } from '../../shared/portfolio-performanc
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PortfolioPerformanceComponent,
+    FinalActionBadgeComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,

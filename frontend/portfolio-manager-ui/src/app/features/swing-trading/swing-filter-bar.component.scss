@@ -16,6 +16,12 @@
     flex: 2 1 200px;
     max-width: 320px;
   }
+
+  .sfb-quick-on {
+    background: color-mix(in srgb, var(--mat-sys-error) 14%, transparent);
+    color: var(--mat-sys-error);
+    border-color: var(--mat-sys-error);
+  }
 }
 
 @media (max-width: 599.98px) {

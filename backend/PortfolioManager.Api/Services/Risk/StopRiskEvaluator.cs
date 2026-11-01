@@ -80,7 +80,8 @@ public sealed record RiskEvaluation(
     decimal? DistanceAbs,
     decimal? DistancePct,
     bool NeedsAttention,
-    string? Observation);
+    string? Observation,
+    string PlannedStopState);
 
 /// <summary>
 /// Pure stop-risk classification. Advisory only: it describes recorded stops against a market observation and never
@@ -172,8 +173,13 @@ public static class StopRiskEvaluator
                 + "it does not show that a broker order triggered or filled. Verify with your broker.";
         }
 
+        var plannedState = i.PlannedStop is not > 0 ? PlannedStopStates.NoPlan
+            : !usable ? PlannedStopStates.Unverified
+            : price <= i.PlannedStop ? PlannedStopStates.Breached
+            : PlannedStopStates.Clear;
+
         var attention = statuses.Count > 0;
         return new RiskEvaluation(statuses, protection, coverage, covered, severity, rank, governing, governingSource,
-            distAbs, distPct, attention, observation);
+            distAbs, distPct, attention, observation, plannedState);
     }
 }

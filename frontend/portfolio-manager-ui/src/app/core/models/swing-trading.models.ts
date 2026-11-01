@@ -3,6 +3,8 @@
 export type RiskSeverity = 'Critical' | 'High' | 'Medium' | 'Low' | 'None';
 export type PriceBasis = 'Live' | 'EOD' | 'Stale' | 'Unavailable';
 export type CoverageState = 'Unknown' | 'None' | 'Partial' | 'Full' | 'OverCovered' | 'Ambiguous';
+/** Backend verdict for the Planned Stop only. Unverified = a plan exists but there is no usable price to compare against it. */
+export type PlannedStopState = 'Breached' | 'Clear' | 'Unverified' | 'NoPlan';
 export type EpisodeResolution = 'Persisted' | 'Derived' | 'Unresolved';
 export type BrokerOrderType = 'StopMarket' | 'StopLimit' | 'Other';
 export type StopType = 'Fixed' | 'Trailing';
@@ -206,6 +208,7 @@ export interface SwingTradeRow {
   distancePct: number | null;
   governingStopSource: string | null;
   observation: string | null;
+  plannedStopState: PlannedStopState;
 }
 
 export interface CurrencyTotal {

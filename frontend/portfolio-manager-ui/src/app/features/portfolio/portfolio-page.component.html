@@ -1064,16 +1064,13 @@
                         decisionForPortfolio(faSym, faRole, faItem ?? undefined);
                         as dec
                       ) {
-                        <button
-                          type="button"
-                          class="pg-ma-badge pg-ma-btn"
-                          [class]="'pg-ma-badge pg-ma-btn ' + dec.finalActionClass"
-                          [matTooltip]="dec.hoverDescription"
-                          [attr.aria-label]="'Final Action details for ' + faSym + ': ' + dec.finalAction"
-                          (click)="openFinalActionDetails(faSym, faItem)"
-                        >
-                          {{ dec.finalAction }}
-                        </button>
+                        <app-final-action-badge
+                          [label]="dec.finalAction"
+                          [bucket]="dec.finalActionClass"
+                          [tooltip]="dec.hoverDescription"
+                          [ariaLabel]="'Final Action details for ' + faSym + ': ' + dec.finalAction"
+                          (activated)="openFinalActionDetails(faSym, faItem)"
+                        />
                       } @else if (finalActionsUiState() === 'loading') {
                         <span class="pg-dim" data-testid="fa-loading" matTooltip="Final Actions are still being calculated">…</span>
                       } @else if (finalActionsUiState() === 'error') {

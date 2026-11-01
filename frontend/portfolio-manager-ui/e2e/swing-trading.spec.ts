@@ -150,8 +150,11 @@ test.describe('PM-033 Swing Trading workspace', () => {
     }
     await expect(rowFor(page, 'WELL.TO')).toContainText('Unresolved');
     await expect(rowFor(page, 'EMP-A.TO')).toContainText('Stale');
-    await expect(rowFor(page, 'EFR.TO')).toContainText('No Stop');
-    await expect(rowFor(page, 'WELL.TO')).toContainText('Alert-Only Stop');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('None');
+    await expect(rowFor(page, 'WELL.TO').getByTestId('protection-chip')).toHaveText('Planned only');
+    await expect(rowFor(page, 'TA.TO').getByTestId('protection-chip')).toHaveText('Ambiguous');
+    await expect(rowFor(page, 'NOVO.TO').getByTestId('protection-chip')).toHaveText('Partial');
+    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('Unknown');
   });
 
   test('shows Stop Loss, Current Price, Protection and Manage Risk on every card/row', async ({ page }, info) => {
@@ -168,14 +171,16 @@ test.describe('PM-033 Swing Trading workspace', () => {
     }
   });
 
-  test('aligns protection details and risk badges with consistent spacing', async ({ page }, info) => {
+  test('aligns protection and risk badges with consistent spacing and no overflow', async ({ page }, info) => {
     await openSwing(page);
     await settle(page);
     const first = rowFor(page, 'DIS.TO');
-    const protection = first.locator('.mat-column-protection .st-status-stack');
+    const protection = first.getByTestId('protection-chip');
     const risk = first.locator('.mat-column-risk .st-status-stack');
     await expect(protection).toBeVisible();
     await expect(risk).toBeVisible();
+    const protectionFits = await protection.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+    expect(protectionFits).toBe(true);
     const checkStack = async (stack: ReturnType<Page['locator']>) => {
       const measurements = await stack.evaluate((el) => {
         const children = Array.from(el.children).map((child) => child.getBoundingClientRect());
@@ -192,11 +197,7 @@ test.describe('PM-033 Swing Trading workspace', () => {
       expect(measurements.contained).toBe(true);
       for (const gap of measurements.chipGaps) expect(gap).toBeCloseTo(4, 0);
     };
-    await checkStack(protection);
     await checkStack(risk);
-    if (!isPhone(info.project.name)) {
-      expect((await protection.boundingBox())!.y).toBe((await risk.boundingBox())!.y);
-    }
     await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
     const monitorRisk = page.getByTestId('risk-table').locator('tr.mat-mdc-row').first().locator('.mat-column-severity .st-status-stack');
     await expect(monitorRisk).toBeVisible();
@@ -332,7 +333,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await dialog(page).getByTestId('mr-close').click();
     await expect(dialog(page)).toHaveCount(0);
     await expect(rowFor(page, 'EFR.TO')).toContainText('12.50');
-    await expect(rowFor(page, 'EFR.TO')).toContainText('Alert-Only Stop');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Planned only');
   });
 
   test('keeps risk plan notes single-line and preserves their saved values', async ({ page }) => {
@@ -413,7 +414,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await expect(dialog(page).getByTestId('mr-coverage')).toContainText('Partial');
     await expect(dialog(page).getByTestId('mr-stop')).toContainText('Not broker-verified');
     await dialog(page).getByTestId('mr-close').click();
-    await expect(rowFor(page, 'EFR.TO')).toContainText('Partially Covered');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Partial');
     await expect(rowFor(page, 'EFR.TO')).not.toContainText('Fully Protected');
   });
 
@@ -455,7 +456,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
   test('a previous trade\'s order is not active and prompts a broker check', async ({ page }) => {
     retireStopsAsPreviousTrade('TFSA_L_TD', 'DIS.TO');
     await openSwing(page);
-    await expect(rowFor(page, 'DIS.TO')).toContainText('No Stop');
+    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('None');
     await openManage(page, 'DIS.TO');
     await expect(dialog(page).getByTestId('mr-closed-warning')).toContainText('may still be open');
   });
@@ -521,6 +522,166 @@ test.describe('PM-033 Trade Journal', () => {
     expect(csv).toHaveLength(4);
     expect(csv[0]).toContain('Realized P/L');
     expect(csv.find((l) => l.startsWith('ABC.TO,TFSA_D_TD,2026-06-01'))).toContain('140.00');
+  });
+});
+
+async function showAllFields(page: Page, name: string) {
+  if (!isPhone(name)) return;
+  const showAll = page.getByLabel('Show all fields on each card').first();
+  if ((await showAll.getAttribute('aria-checked')) !== 'true') await showAll.click();
+}
+
+test.describe('PM-016 Swing grid cleanup', () => {
+  test('price shows no repeated basis label; EOD basis, as-of and source live in the details; stale keeps a visible warning', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    await expect(page.getByText('EOD close')).toHaveCount(0);
+    await expect(page.getByText('Live', { exact: true })).toHaveCount(0);
+    const dis = rowFor(page, 'DIS.TO');
+    await expect(dis.getByTestId('price-warning')).toHaveCount(0);
+    const label = await dis.getByTestId('price-value').getAttribute('aria-label');
+    expect(label).toContain('End-of-day close (not a live intraday quote)');
+    expect(label).toContain('2026-10-28 20:00 UTC');
+    const stale = rowFor(page, 'EMP-A.TO').getByTestId('price-warning');
+    await expect(stale).toBeVisible();
+    await expect(stale).toContainText('Stale');
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test('a breached Planned Stop is red with one flag, a full explanation and no broker-execution claim', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    const cell = rowFor(page, 'WELL.TO').getByTestId('planned-stop-cell');
+    await expect(cell).toHaveAttribute('data-state', 'Breached');
+    await expect(cell.getByTestId('planned-stop-flag')).toHaveCount(1);
+    await expect(cell).toContainText('4.70');
+    const red = await cell.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(red).not.toBe('rgba(0, 0, 0, 0)');
+    const flag = cell.getByTestId('planned-stop-flag');
+    const name = (await flag.getAttribute('aria-label'))!;
+    expect(name).toContain('Planned Stop 4.70');
+    expect(name).toContain('4.60');
+    expect(name).toContain('2026-10-28 20:00 UTC');
+    expect(name).toContain('BREACHED');
+    expect(name).toContain('does not show that a broker order triggered or filled');
+    await flag.click();
+    await expect(cell.locator('[role="note"]')).toContainText('BREACHED');
+    // The whole row is not painted red, and a clear stop has no flag.
+    await expect(rowFor(page, 'NOVO.TO').getByTestId('planned-stop-flag')).toHaveCount(0);
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test('the breach detail opens from the keyboard', async ({ page }, info) => {
+    test.skip(isPhone(info.project.name), 'Keyboard interaction is covered on desktop and tablet');
+    await openSwing(page);
+    const flag = rowFor(page, 'WELL.TO').getByTestId('planned-stop-flag');
+    await flag.focus();
+    await expect(flag).toBeFocused();
+    await expect(flag).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('Enter');
+    await expect(flag).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('stale prices show Unverified instead of a breach or an all-clear', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    const cell = rowFor(page, 'EMP-A.TO').getByTestId('planned-stop-cell');
+    await expect(cell).toHaveAttribute('data-state', 'Unverified');
+    await expect(cell.getByTestId('planned-stop-flag')).toContainText('Unverified');
+    expect(await cell.evaluate((el) => el.classList.contains('ps-breached'))).toBe(false);
+    expect(await cell.getByTestId('planned-stop-flag').getAttribute('aria-label')).toContain('neither confirmed nor ruled out');
+  });
+
+  test('a broker-stop-only breach keeps its risk flag but does not colour the Planned Stop', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    const dis = rowFor(page, 'DIS.TO');
+    await expect(dis).toContainText('At/below stop');
+    await expect(dis.getByTestId('planned-stop-cell')).toHaveCount(0);
+    await expect(dis.getByTestId('broker-stop-chip')).toContainText('Unknown');
+  });
+
+  test('broker stop and protection states stay distinct', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    await expect(rowFor(page, 'WELL.TO').getByTestId('broker-stop-chip')).toHaveText('Planned only');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('broker-stop-chip')).toHaveText('Missing');
+    await expect(rowFor(page, 'NOVO.TO').getByTestId('broker-stop-chip')).toHaveText('Partial');
+    await expect(rowFor(page, 'MAL.TO').getByTestId('broker-stop-chip')).toHaveText('Unknown');
+    await expect(page.getByText('Fully Protected')).toHaveCount(0);
+  });
+
+  test('Final Action uses the shared badge and still opens its details', async ({ page }, info) => {
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    const badge = rowFor(page, 'DIS.TO').getByTestId('final-action-badge');
+    await expect(badge).toContainText('Hold Swing');
+    await expect(badge).toHaveAttribute('aria-label', /Final Action details for DIS\.TO: Hold Swing/);
+    await badge.click();
+    await expect(dialog(page)).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog(page)).toHaveCount(0);
+  });
+
+  test('Manage Risk still opens from the cleaned-up row', async ({ page }) => {
+    await openSwing(page);
+    await openManage(page, 'WELL.TO');
+  });
+
+  test('Breached Planned Stops quick filter shows confirmed breaches only and works with other filters', async ({ page }, info) => {
+    await openSwing(page);
+    await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
+    const monitorRows = page.getByTestId('risk-table').locator('tr.mat-mdc-row');
+    await expect(monitorRows).toHaveCount(8);
+    const quick = page.getByTestId('swing-breached-planned');
+    await expect(quick).toContainText('Breached Planned Stops (1)');
+    await expect(quick).toHaveAttribute('aria-pressed', 'false');
+
+    await quick.click();
+    await expect(quick).toHaveAttribute('aria-pressed', 'true');
+    await expect(monitorRows).toHaveCount(1);
+    await expect(monitorRows.first()).toContainText('WELL.TO');
+    await expect(page.getByTestId('risk-count')).toContainText('1 of 8');
+    await expect(page.getByTestId('risk-count')).toContainText('1 more with an unverified price are not counted as breached');
+
+    // Broker-only breach (DIS.TO) and the stale row are not included; compatible filters still apply.
+    await page.getByTestId('swing-account').click();
+    await page.getByRole('option', { name: 'TFSA_L_TD' }).click();
+    await expect(page.getByTestId('risk-no-match')).toContainText('No Swing position has a confirmed breached Planned Stop');
+    await expect(page.getByTestId('risk-no-match')).toContainText('1 with a stale or unavailable price cannot be verified');
+
+    await page.getByTestId('swing-reset').click();
+    await expect(monitorRows).toHaveCount(8);
+    await expect(quick).toHaveAttribute('aria-pressed', 'false');
+    await expectNoHorizontalPageOverflow(page);
+  });
+
+  test('the quick filter also applies to Open Trades because the filter bar is shared', async ({ page }) => {
+    await openSwing(page);
+    await page.getByTestId('swing-breached-planned').click();
+    await expect(rows(page)).toHaveCount(1);
+    await expect(rows(page).first()).toContainText('WELL.TO');
+    await expect(page.getByTestId('swing-count')).toContainText('1 of 8');
+    await page.getByTestId('swing-search').fill('zzz');
+    await expect(page.getByTestId('swing-no-match')).toContainText('No Swing position has a confirmed breached Planned Stop');
+  });
+
+  test('fits the phone width with no badge overflow and keeps touch targets usable', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name), 'Phone-only layout check');
+    await openSwing(page);
+    await showAllFields(page, info.project.name);
+    const flag = rowFor(page, 'WELL.TO').getByTestId('planned-stop-flag');
+    await expect(flag).toBeVisible();
+    expect((await flag.boundingBox())!.height).toBeGreaterThanOrEqual(32);
+    const quick = page.getByTestId('swing-breached-planned');
+    expect((await quick.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const overflow = await page.locator('[data-testid="open-trades-table"]').evaluate((table) =>
+      Array.from(table.querySelectorAll('.st-chip, app-final-action-badge')).some((el) => {
+        const r = el.getBoundingClientRect();
+        return r.right > window.innerWidth + 1 || r.left < -1;
+      }));
+    expect(overflow).toBe(false);
+    await expectNoHorizontalPageOverflow(page);
   });
 });
 

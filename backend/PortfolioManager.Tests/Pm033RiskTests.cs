@@ -223,6 +223,61 @@ public class Pm033RiskTests
         }
     }
 
+    [Theory]
+    [InlineData(11.86, 11.85, "Clear")]
+    [InlineData(11.85, 11.85, "Breached")]
+    [InlineData(11.70, 11.85, "Breached")]
+    public void PlannedStopState_compares_usable_price_to_planned_stop(double price, double stop, string expected)
+    {
+        var e = StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod((decimal)price), (decimal)stop, [], 100, 100, 5));
+        e.PlannedStopState.Should().Be(expected);
+    }
+
+    [Fact]
+    public void PlannedStopState_gap_through_is_breached_without_assuming_fill_at_stop()
+    {
+        var e = StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod(9m), 10m, [], 100, 100, 5));
+        e.PlannedStopState.Should().Be(PlannedStopStates.Breached);
+        e.Observation.Should().Contain("does not show that a broker order triggered or filled");
+    }
+
+    [Fact]
+    public void PlannedStopState_is_NoPlan_without_a_valid_planned_stop()
+    {
+        StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod(5m), null, [], 100, 100, 5)).PlannedStopState.Should().Be(PlannedStopStates.NoPlan);
+        StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod(5m), 0m, [], 100, 100, 5)).PlannedStopState.Should().Be(PlannedStopStates.NoPlan);
+    }
+
+    [Fact]
+    public void PlannedStopState_is_Unverified_for_stale_or_unavailable_prices()
+    {
+        foreach (var basis in new[] { PriceBases.Stale, PriceBases.Unavailable })
+        {
+            var ev = new PriceEvidence(9m, DateTime.UtcNow, null, basis, "t");
+            StopRiskEvaluator.Evaluate(new RiskEvalInput(ev, 10m, [], 100, 100, 5)).PlannedStopState.Should().Be(PlannedStopStates.Unverified);
+        }
+        StopRiskEvaluator.Evaluate(new RiskEvalInput(PriceEvidence.Unavailable(), 10m, [], 100, 100, 5))
+            .PlannedStopState.Should().Be(PlannedStopStates.Unverified);
+    }
+
+    [Fact]
+    public void Broker_only_breach_keeps_StopBreached_but_planned_stop_stays_Clear()
+    {
+        var e = StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod(10m), 9m, [Stop(10.5m, 100)], 100, 100, 5));
+        e.Statuses.Should().Contain(RiskStatuses.StopBreached);
+        e.PlannedStopState.Should().Be(PlannedStopStates.Clear);
+    }
+
+    [Fact]
+    public void Planned_breach_with_broker_stop_recorded_never_implies_execution_or_full_protection()
+    {
+        var e = StopRiskEvaluator.Evaluate(new RiskEvalInput(Eod(9m), 10m, [Stop(9.5m, 40)], 100, 100, 5));
+        e.PlannedStopState.Should().Be(PlannedStopStates.Breached);
+        e.CoverageState.Should().Be(CoverageStates.Partial);
+        e.Protection.Should().Be("Partially Covered");
+        e.Observation!.ToLowerInvariant().Should().NotContain("executed");
+    }
+
     [Fact]
     public void Approaching_uses_the_advisory_threshold()
     {

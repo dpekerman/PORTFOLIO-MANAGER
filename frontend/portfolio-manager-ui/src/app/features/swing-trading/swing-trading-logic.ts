@@ -17,6 +17,8 @@ export interface SwingFilters {
   risk: RiskStatus | '';
   finalAction: string;
   attentionOnly: boolean;
+  /** Planned Stop breaches only (the backend PlannedStopState); broker-stop-only breaches are not included. */
+  plannedStopBreached: boolean;
 }
 
 export const EMPTY_SWING_FILTERS: SwingFilters = {
@@ -26,6 +28,7 @@ export const EMPTY_SWING_FILTERS: SwingFilters = {
   risk: '',
   finalAction: '',
   attentionOnly: false,
+  plannedStopBreached: false,
 };
 
 export function aggregateFinalActions(actions: readonly (string | null | undefined)[]): string | null {
@@ -98,6 +101,7 @@ export function matchesSwingFilters(
   if (f.risk && !row.riskStatuses.includes(f.risk)) return false;
   if (f.finalAction && (finalActionOf(row) ?? '') !== f.finalAction) return false;
   if (f.attentionOnly && !row.needsAttention) return false;
+  if (f.plannedStopBreached && row.plannedStopState !== 'Breached') return false;
   return true;
 }
 

@@ -13,21 +13,23 @@ import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { SwingTradingStore } from '../../core/store/swing-trading.store';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { openManageRiskDialog } from '../../shared/manage-risk-dialog/manage-risk-dialog.component';
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
 import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { torontoDateString, txRowsToCsv, txSheet } from '../transactions/transactions-logic';
+import { SwingDetailChipComponent } from './swing-detail-chip.component';
 import { SwingFilterBarComponent } from './swing-filter-bar.component';
+import { SwingPlannedStopCellComponent } from './swing-planned-stop-cell.component';
+import { SwingRiskCellComponent } from './swing-risk-cell.component';
+import { brokerStopView, priceView, protectionView } from './swing-presenters';
 import {
   OPEN_TRADES_EXPORT_COLUMNS,
   compareNullable,
   downloadTextFile,
   manageRiskDataFor,
   openTradesExportRows,
-  priceBasisLabel,
-  riskStatusLabel,
-  severityClass,
 } from './swing-trading-logic';
 
 type SortKey = string;
@@ -42,6 +44,7 @@ type SortKey = string;
   imports: [
     DatePipe,
     DecimalPipe,
+    FinalActionBadgeComponent,
     GridColumnButtonComponent,
     MatButtonModule,
     MatIconModule,
@@ -51,7 +54,10 @@ type SortKey = string;
     MatTooltipModule,
     MobileTableControlsComponent,
     ResponsiveTableDirective,
+    SwingDetailChipComponent,
     SwingFilterBarComponent,
+    SwingPlannedStopCellComponent,
+    SwingRiskCellComponent,
   ],
   templateUrl: './open-trades-tab.component.html',
   styleUrl: './open-trades-tab.component.scss',
@@ -63,9 +69,9 @@ export class OpenTradesTabComponent {
 
   protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys('swing-open-trades');
   protected readonly sort = signal<Sort>({ active: 'risk', direction: 'asc' });
-  protected readonly severityClass = severityClass;
-  protected readonly riskLabel = riskStatusLabel;
-  protected readonly basisLabel = priceBasisLabel;
+  protected readonly priceOf = priceView;
+  protected readonly brokerStopOf = brokerStopView;
+  protected readonly protectionOf = protectionView;
 
   protected readonly rows = computed(() => {
     const { active, direction } = this.sort();

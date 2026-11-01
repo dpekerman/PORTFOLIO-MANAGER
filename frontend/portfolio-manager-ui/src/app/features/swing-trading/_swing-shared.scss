@@ -46,6 +46,13 @@
   opacity: 0.65;
 }
 
+.st-price {
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
 .st-sub {
   display: block;
   font-size: 0.72rem;
