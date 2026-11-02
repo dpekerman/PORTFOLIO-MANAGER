@@ -7,8 +7,8 @@
       [formControl]="fromControl"
       (dateChange)="onFromChange($event.value)"
     />
-    <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
-    <mat-datepicker #fromPicker></mat-datepicker>
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+    <mat-datepicker #fromPicker />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="filter-field">
@@ -19,8 +19,8 @@
       [formControl]="toControl"
       (dateChange)="onToChange($event.value)"
     />
-    <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
-    <mat-datepicker #toPicker></mat-datepicker>
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+    <mat-datepicker #toPicker />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="filter-field">

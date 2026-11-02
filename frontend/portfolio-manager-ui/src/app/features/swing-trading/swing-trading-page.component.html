@@ -1,0 +1,85 @@
+<section class="sw-page">
+  <header class="sw-head">
+    <h1>Swing Trading</h1>
+    <div class="sw-refresh">
+      <span class="sw-refresh-status" role="status" aria-live="polite" data-testid="swing-refresh-status">
+        @if (store.refreshing()) {
+          {{ store.refreshPhase() === 'trades' ? 'Reloading Swing Trading…' : 'Refreshing quotes…' }}
+        } @else if (store.lastRefreshedAt()) {
+          Last refreshed {{ store.lastRefreshedAt() | date: 'HH:mm:ss' }}
+        }
+      </span>
+      <button mat-stroked-button type="button" (click)="refresh()" [disabled]="store.refreshing() || store.loading() || store.journalLoading()" [attr.aria-busy]="store.refreshing()" data-testid="swing-refresh">
+        <mat-icon aria-hidden="true" [class.sw-spinning]="store.refreshing()">refresh</mat-icon>
+        {{ store.refreshing() ? 'Refreshing…' : 'Refresh' }}
+      </button>
+    </div>
+  </header>
+
+  @if (store.refreshError(); as error) {
+    <p class="sw-refresh-error" role="alert" data-testid="swing-refresh-error">{{ error }} Please try Refresh again.</p>
+  }
+
+  <div class="sw-summary" role="group" aria-label="Swing trading summary" data-testid="swing-summary">
+    <div class="sw-tile sw-tile-total">
+      <strong class="sw-value" data-testid="sum-open">{{ summary()?.openTrades ?? '—' }}</strong>
+      <span class="sw-label">Open Swing trades</span>
+    </div>
+    <div class="sw-tile sw-tile-market">
+      @if (totals().length === 0) {
+        <strong class="sw-value" data-testid="sum-mv">—</strong>
+      } @else {
+        @for (t of totals(); track t.currency) {
+          <strong class="sw-value" data-testid="sum-mv">{{ t.marketValue | number: '1.2-2' }} <span class="sw-cur">{{ t.currency }}</span></strong>
+        }
+      }
+      <span class="sw-label">Current market value</span>
+    </div>
+    <div class="sw-tile sw-tile-pnl">
+      @if (totals().length === 0) {
+        <strong class="sw-value" data-testid="sum-pnl">—</strong>
+      } @else {
+        @for (t of totals(); track t.currency) {
+          <strong class="sw-value" [class.sw-pos]="t.positive" [class.sw-neg]="t.negative" data-testid="sum-pnl">
+            {{ t.pnl | number: '1.2-2' }} <span class="sw-cur">{{ t.currency }}</span> ({{ t.pnlPct | number: '1.2-2' }}%)
+          </strong>
+        }
+      }
+      <span class="sw-label">Unrealized P/L</span>
+    </div>
+    <div class="sw-tile sw-tile-attention">
+      <strong class="sw-value" data-testid="sum-attention">{{ summary()?.needsAttention ?? '—' }}</strong>
+      <span class="sw-label">Needing attention</span>
+    </div>
+  </div>
+
+  <p class="sw-asof" role="status" data-testid="swing-asof">
+    @if (summary()?.asOfUtc; as asOf) {
+      Market data as of {{ asOf | date: 'yyyy-MM-dd HH:mm' }}
+    } @else {
+      Market data unavailable
+    }
+    @if (summary()?.anyStale) { <span class="sw-chip sw-warn">Some prices are stale</span> }
+    @if (summary()?.anyUnavailable) { <span class="sw-chip sw-warn">Some prices are unavailable</span> }
+    <span class="sw-sub">EOD-based: no intraday monitoring.</span>
+  </p>
+
+  <mat-tab-group
+    class="sw-tabs"
+    animationDuration="0ms"
+    mat-stretch-tabs="false"
+    [selectedIndex]="tab()"
+    (selectedTabChange)="onTabChange($event)"
+    aria-label="Swing trading sections"
+  >
+    <mat-tab label="Open Trades">
+      <ng-template matTabContent><app-open-trades-tab /></ng-template>
+    </mat-tab>
+    <mat-tab label="Risk Monitor">
+      <ng-template matTabContent><app-risk-monitor-tab /></ng-template>
+    </mat-tab>
+    <mat-tab label="Trade Journal">
+      <ng-template matTabContent><app-trade-journal-tab /></ng-template>
+    </mat-tab>
+  </mat-tab-group>
+</section>

@@ -1,0 +1,607 @@
+<div class="signals-page">
+  <header class="page-header">
+    <div class="title-block">
+      <h1 class="page-title">Signal Tracker</h1>
+      <p class="page-sub">What the app recommended, how it played out, and what you did.</p>
+    </div>
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        type="button"
+        [disabled]="exporting() || store.total() === 0"
+        [matMenuTriggerFor]="exportMenu"
+        aria-label="Export signals"
+      >
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="exportExcel()">
+          <mat-icon>table_view</mat-icon><span>Export to Excel</span>
+        </button>
+        <button mat-menu-item type="button" (click)="exportCsv()">
+          <mat-icon>description</mat-icon><span>Export to CSV</span>
+        </button>
+      </mat-menu>
+      <app-refresh-button />
+    </div>
+  </header>
+
+  @if (store.overview(); as s) {
+    <section class="kpis" aria-label="Signal summary">
+      <button type="button" class="kpi kpi-total" [class.kpi-active]="activeKpi() === 'total'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'total'" (click)="selectKpi('total')"><span class="kpi-value">{{ s.total }}</span><span class="kpi-label">Total Signals</span></button>
+      <button type="button" class="kpi kpi-priority" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'priority'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'priority'" (click)="selectKpi('priority')" matTooltip="Open Priority Candidates only"><span class="kpi-value">{{ s.priorityCandidate }}</span><span class="kpi-label">Priority Candidate</span></button>
+      <button type="button" class="kpi kpi-entry" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'entry'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'entry'" (click)="selectKpi('entry')" matTooltip="Open Entry / Add recommendations only"><span class="kpi-value">{{ s.entryAdd }}</span><span class="kpi-label">Entry / Add</span></button>
+      <button type="button" class="kpi kpi-trim" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'trim'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'trim'" (click)="selectKpi('trim')" matTooltip="Open Trim / Exit recommendations only"><span class="kpi-value">{{ s.trimExit }}</span><span class="kpi-label">Trim / Exit</span></button>
+      <button type="button" class="kpi kpi-actioned" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'actioned'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'actioned'" (click)="selectKpi('actioned')" matTooltip="Show signals marked Actioned"><span class="kpi-value">{{ s.actioned }}</span><span class="kpi-label">Actioned</span></button>
+      <button type="button" class="kpi kpi-pending" [class.kpi-partial]="s.partial" [class.kpi-active]="activeKpi() === 'pending'" [class.kpi-dimmed]="activeKpi() !== null && activeKpi() !== 'pending'" (click)="selectKpi('pending')" matTooltip="Open recommendations waiting for your response"><span class="kpi-value">{{ s.pendingReview }}</span><span class="kpi-label">Pending Review</span></button>
+    </section>
+    @if (s.partial) {
+      <p class="partial-note" role="status" data-testid="kpi-partial">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span><strong>Partial</strong> — {{ s.evaluated | number }} of {{ s.total | number }} evaluated. Priority, Entry / Add, Trim / Exit, Actioned and Pending Review count only the newest {{ s.evaluated | number }} matching signals; Total Signals is exact.</span>
+      </p>
+    }
+  }
+
+  <section class="filters" aria-label="Signal filters">
+    <mat-expansion-panel class="filters-panel" [(expanded)]="filtersOpen">
+      <mat-expansion-panel-header>
+        <mat-panel-title>Filters</mat-panel-title>
+        <mat-panel-description>{{ store.total() }} {{ store.total() === 1 ? 'signal' : 'signals' }}</mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <div class="filter-grid">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field span-all">
+          <mat-label>Ticker</mat-label>
+          <input matInput autocomplete="off" [ngModel]="store.ticker()" (ngModelChange)="onTicker($event)" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Signal Type</mat-label>
+          <mat-select multiple [value]="store.signalType()" (selectionChange)="store.setFilters({ signalType: $event.value })">
+            @for (t of store.signalTypes(); track t.key) {
+              <mat-option [value]="t.key">{{ t.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Source</mat-label>
+          <mat-select [value]="store.source()" (selectionChange)="store.setFilters({ source: $event.value })">
+            @for (s of sources; track s) {
+              <mat-option [value]="s">{{ s }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Investment Role</mat-label>
+          <mat-select multiple [value]="store.role()" (selectionChange)="store.setFilters({ role: $event.value })">
+            @for (r of roles; track r) {
+              <mat-option [value]="r">{{ r }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>My Action</mat-label>
+          <mat-select [value]="store.myAction()" (selectionChange)="store.setFilters({ myAction: $event.value })">
+            @for (a of myActions; track a) {
+              <mat-option [value]="a">{{ a }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Record type</mat-label>
+          <mat-select [value]="store.origin()" (selectionChange)="store.setFilters({ origin: $event.value })">
+            <mat-option value="All">All records</mat-option>
+            <mat-option value="Live">New signals only</mat-option>
+            <mat-option value="INITIAL_BASELINE">Initial baseline only</mat-option>
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Status</mat-label>
+          <mat-select [value]="store.status()" (selectionChange)="store.setFilters({ status: $event.value })">
+            @for (s of statuses; track s.value) {
+              <mat-option [value]="s.value">{{ s.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-checkbox
+          [checked]="store.includeUnaudited()"
+          (change)="store.setFilters({ includeUnaudited: $event.checked })"
+          matTooltip="Open recommendations are always listed. Tick this to also list closed ones whose type is not on the audited list (history only)."
+        >
+          Include unaudited recommendations
+        </mat-checkbox>
+
+        <mat-checkbox
+          [checked]="store.includeBaselineInStats()"
+          (change)="store.setFilters({ includeBaselineInStats: $event.checked })"
+        >
+          Include initial baseline in effectiveness
+        </mat-checkbox>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>From</mat-label>
+          <input matInput [matDatepicker]="fromPicker" placeholder="yyyy-mm-dd" [value]="toDate(store.from())" (dateChange)="store.setFilters({ from: fromDate($event.value) })" />
+          <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+          <mat-datepicker #fromPicker />
+          @if (store.from()) {
+            <button matIconSuffix mat-icon-button type="button" aria-label="Clear From date" (click)="store.setFilters({ from: '' })">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>To</mat-label>
+          <input matInput [matDatepicker]="toPicker" placeholder="yyyy-mm-dd" [value]="toDate(store.to())" (dateChange)="store.setFilters({ to: fromDate($event.value) })" />
+          <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+          <mat-datepicker #toPicker />
+          @if (store.to()) {
+            <button matIconSuffix mat-icon-button type="button" aria-label="Clear To date" (click)="store.setFilters({ to: '' })">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </mat-form-field>
+
+        @if (store.hasActiveFilters()) {
+          <button mat-button type="button" class="clear-btn span-all" (click)="store.resetFilters()">
+            <mat-icon>filter_alt_off</mat-icon> Reset filters
+          </button>
+        }
+      </div>
+    </mat-expansion-panel>
+  </section>
+
+  @if (store.error(); as error) {
+    <div class="state-row error" role="alert">{{ error }}</div>
+  }
+
+  <ng-template #pctCell let-h>
+    @if (h.status === 'Complete') {
+      <span
+        class="pct"
+        [class.pct-pos]="h.pct > 0"
+        [class.pct-neg]="h.pct < 0"
+        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+        [matTooltip]="horizonTip(h)"
+      >
+        <span aria-hidden="true">{{ h.pct > 0 ? '▲' : h.pct < 0 ? '▼' : '' }}</span>
+        {{ pct(h) > 0 ? '+' : '' }}{{ pct(h) | number: '1.2-2' }}%
+      </span>
+    } @else if (h.status === 'Pending') {
+      <span class="muted" [matTooltip]="horizonTip(h)">Pending</span>
+    } @else {
+      <span class="muted" [matTooltip]="horizonTip(h)">N/A</span>
+    }
+  </ng-template>
+
+  @if (store.loading() && store.items().length === 0) {
+    <div class="state-row" role="status">Loading signals…</div>
+  } @else if (store.items().length === 0) {
+    <div class="state-row empty" role="status">
+      <mat-icon>insights</mat-icon>
+      <span>
+        @if (store.hasActiveFilters()) {
+          No signals match the current filters.
+        } @else {
+          No signals captured yet. Current recommendations are recorded as the initial baseline after the next EOD run; later changes are recorded as new signals.
+        }
+      </span>
+    </div>
+  } @else {
+    @if (store.gridPartial()) {
+      <p class="partial-note" role="status" data-testid="grid-partial">
+        <mat-icon aria-hidden="true">info</mat-icon>
+        <span><strong>Partial</strong> — ranked within the newest {{ store.gridEvaluated() | number }} of {{ store.total() | number }} matching signals. Sort by Signal Date, Ticker, Lifecycle Status, Role, Source, Price or My Action for a complete, fully paged result.</span>
+      </p>
+    }
+    <app-mobile-table-controls [sort]="signalSort" gridId="signals-audit" label="Signals" />
+    <div class="table-wrap">
+      <table
+        mat-table
+        appResponsiveTable
+        [dataSource]="store.items()"
+        matSort
+        #signalSort="matSort"
+        [matSortActive]="store.sortBy()"
+        [matSortDirection]="store.sortDir()"
+        [matSortDisableClear]="true"
+        matSortStart="desc"
+        (matSortChange)="onSort($event)"
+        class="signals-table"
+      >
+        <ng-container matColumnDef="symbol">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Ticker</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="type-cell">
+              <span class="symbol">{{ row.symbol }}</span>
+              @if (row.score !== null) {
+                <span class="score" matTooltip="Priority score at signal time">{{ row.score | number: '1.0-1' }}</span>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="role">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
+          <td mat-cell *matCellDef="let row"><span class="role" [class]="'role ' + roleClass(row.role)">{{ row.role || '—' }}</span></td>
+        </ng-container>
+
+        <ng-container matColumnDef="signalDate">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Signal Date</th>
+          <td mat-cell *matCellDef="let row" class="dim">{{ row.signalDate }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="daysSince">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Days Since</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            @if (row.dateAnomaly) {
+              <span class="anomaly" matTooltip="Signal is dated in the future (Toronto date)">
+                <mat-icon aria-hidden="true">warning</mat-icon> {{ row.daysSince }}
+              </span>
+            } @else {
+              {{ row.daysSince }}
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="signalType">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Signal Type</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="type-cell">
+            <span
+              class="sig-type"
+              [class.sig-buy]="row.direction === 'Buy'"
+              [class.sig-sell]="row.direction === 'Sell'"
+            >{{ row.signalTypeLabel }}</span>
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="lifecycleStatus">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Lifecycle Status</th>
+          <td mat-cell *matCellDef="let row">
+            <div class="life-cell">
+              <span
+                class="life-badge"
+                [class]="'life-badge ' + statusMeta(row.status).cls"
+                data-testid="lifecycle-badge"
+                [matTooltip]="statusTooltip(row)"
+              >{{ statusMeta(row.status).label }}</span>
+              @if (evidenceWarning(row); as warning) {
+                <mat-icon class="evidence-warn" data-testid="evidence-warning" role="img" [attr.aria-label]="warning" [matTooltip]="warning">warning_amber</mat-icon>
+              }
+            </div>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="source">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Source</th>
+          <td mat-cell *matCellDef="let row" class="dim">{{ row.source }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="signalPrice">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Signal Price</th>
+          <td
+            mat-cell
+            *matCellDef="let row"
+            class="num"
+            [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          >
+            {{ price(row) | number: '1.2-2' }}
+            @if (row.currency) {
+              <span class="ccy">{{ row.currency }}</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="return5D">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">5D %</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            <ng-container *ngTemplateOutlet="pctCell; context: { $implicit: row.return5D }" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="return20D">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">20D %</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            <ng-container *ngTemplateOutlet="pctCell; context: { $implicit: row.return20D }" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="return1M">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">1M %</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            <ng-container *ngTemplateOutlet="pctCell; context: { $implicit: row.return1M }" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="today">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Today vs Signal %</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            <ng-container *ngTemplateOutlet="pctCell; context: { $implicit: row.today }" />
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="todayVsActioned">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header="todayVsActioned" class="num">Today vs Actioned %</th>
+          <td mat-cell *matCellDef="let row" class="num">
+            @if (row.todayVsActionedPct !== null && row.todayVsActionedPct !== undefined) {
+              <span
+                class="pct"
+                [class.pct-pos]="row.todayVsActionedPct > 0"
+                [class.pct-neg]="row.todayVsActionedPct < 0"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+                matTooltip="Change since the price of the linked transaction"
+              >
+                {{ row.todayVsActionedPct > 0 ? '+' : '' }}{{ row.todayVsActionedPct | number: '1.2-2' }}%
+              </span>
+            } @else {
+              <span class="muted" matTooltip="Link a transaction in My Action to compare against what you actually paid or received">N/A</span>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="myAction">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>My Action</th>
+          <td mat-cell *matCellDef="let row">
+            <span class="act" [class]="'act ' + actionClass(row.myAction)" [matTooltip]="linkLabel(row)">
+              {{ row.myAction }}
+            </span>
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="rowActions">
+          <th mat-header-cell *matHeaderCellDef>Record / Edit</th>
+          <td mat-cell *matCellDef="let row">
+            <button
+              mat-stroked-button
+              type="button"
+              class="record-btn"
+              [attr.aria-label]="(row.myAction === 'Pending' ? 'Record action for ' : 'Edit action for ') + row.symbol"
+              (click)="openAction(row, $event)"
+            >
+              {{ row.myAction === 'Pending' ? 'Record' : 'Edit' }}
+            </button>
+            @if (row.status === 'Active' && row.episodeActive) {
+              <button
+                mat-button
+                type="button"
+                class="dismiss-btn"
+                [attr.aria-label]="'Dismiss recommendation for ' + row.symbol"
+                (click)="dismiss(row, $event)"
+              >
+                Dismiss
+              </button>
+            }
+          </td>
+        </ng-container>
+
+        <ng-container matColumnDef="colConfig">
+          <th mat-header-cell *matHeaderCellDef class="col-config-th">
+            <app-grid-column-btn gridId="signals-audit" />
+          </th>
+          <td mat-cell *matCellDef="let row"></td>
+        </ng-container>
+
+        <tr mat-header-row *matHeaderRowDef="displayedColumns(); sticky: true"></tr>
+        <tr
+          mat-row
+          *matRowDef="let row; columns: displayedColumns()"
+          class="signal-row"
+          tabindex="0"
+          (click)="openDetails(row)"
+          (keydown.enter)="openDetails(row)"
+        ></tr>
+      </table>
+    </div>
+
+    <mat-paginator
+      [length]="store.gridPartial() ? store.gridEvaluated() : store.total()"
+      [pageIndex]="store.page() - 1"
+      [pageSize]="store.pageSize()"
+      [pageSizeOptions]="[10, 25, 50, 100]"
+      showFirstLastButtons
+      (page)="onPage($event)"
+      aria-label="Signals pages"
+    />
+  }
+
+  @if (showEffectiveness) {
+  <section class="effectiveness" aria-label="Signal effectiveness" data-testid="effectiveness">
+    <div class="eff-head">
+      <h2 class="section-title">Signal effectiveness</h2>
+      <mat-button-toggle-group
+        class="eff-window"
+        aria-label="Evaluation window, by original signal date"
+        hideSingleSelectionIndicator
+        [value]="store.effectivenessWindow()"
+        (change)="store.setEffectivenessWindow($event.value)"
+      >
+        @for (w of effectivenessWindows; track w.value) {
+          <mat-button-toggle [value]="w.value" [attr.data-testid]="'eff-window-' + w.value">{{ w.label }}</mat-button-toggle>
+        }
+      </mat-button-toggle-group>
+    </div>
+
+    @if (store.effectiveness(); as eff) {
+      <p class="eff-window-note" data-testid="eff-window-note">
+        {{ eff.windowStart ? 'Signals dated ' + eff.windowStart + ' to ' + eff.windowEnd : 'All history through ' + eff.windowEnd }}.
+        <span class="muted">
+          Independent of the table's ticker, date, status and My Action filters; Signal Type, Role, Source and the baseline option apply.
+        </span>
+      </p>
+      <p class="eff-coverage" data-testid="eff-coverage">
+        {{ eff.coverage.cohortEvents }} {{ eff.coverage.cohortEvents === 1 ? 'signal' : 'signals' }} in this window ·
+        {{ eff.coverage.withPriceHistory }} with price history
+        @if (eff.coverage.overlappingEvents > 0) {
+          · {{ eff.coverage.overlappingEvents }} overlapping
+        }
+      </p>
+      @if (eff.coverage.note) {
+        <p class="eff-warning" role="status" data-testid="eff-incomplete">
+          <mat-icon aria-hidden="true">warning</mat-icon>{{ eff.coverage.note }}
+        </p>
+      }
+
+      @if (eff.rows.length === 0) {
+        <p class="state-row" data-testid="eff-empty">
+          Insufficient history: no completed signals in this window yet. Choose a longer window to include older signals.
+        </p>
+      } @else {
+        @let chart = effChart();
+        <figure class="eff-chart" data-testid="eff-chart" [class.eff-loading]="store.effectivenessLoading()">
+          <figcaption class="eff-chart-head">
+            <span class="eff-chart-title">Average return after signal, by period</span>
+            <span class="eff-legend" aria-hidden="true">
+              @for (l of effLegend; track l.key) {
+                <span class="eff-legend-item"><i class="eff-swatch" [class]="'eff-swatch ' + l.cls"></i>{{ l.key }}</span>
+              }
+            </span>
+          </figcaption>
+          <div class="eff-chart-body" role="group" aria-label="Average return by signal type and period. Sell-direction signals are direction-adjusted.">
+            <div class="eff-y-axis" aria-hidden="true">
+              @for (t of chart.ticks; track t.value) {
+                <span class="eff-y-tick" [style.bottom.%]="t.bottomPct">{{ t.label }}</span>
+              }
+            </div>
+            <div class="eff-plot">
+              <div class="eff-bars-area">
+                @for (t of chart.ticks; track t.value) {
+                  <span class="eff-grid-line" [class.eff-zero-line]="t.value === 0" [style.bottom.%]="t.bottomPct" aria-hidden="true"></span>
+                }
+                <div class="eff-groups">
+                  @for (g of chart.groups; track g.signalType) {
+                    <div class="eff-group" tabindex="0" role="img" [attr.aria-label]="g.ariaLabel" [attr.data-testid]="'eff-group-' + g.signalType">
+                      @for (b of g.bars; track b.key) {
+                        <div class="eff-bar-slot">
+                          @if (b.value === null) {
+                            <span class="eff-bar-na" [style.bottom.%]="chart.zeroPct" title="Insufficient history">–</span>
+                          } @else {
+                            <div
+                              class="eff-bar"
+                              [class]="'eff-bar eff-h-' + b.key.toLowerCase()"
+                              [class.eff-bar-neg]="b.negative"
+                              [style.bottom.%]="b.bottomPct"
+                              [style.height.%]="b.heightPct"
+                              [matTooltip]="g.label + ' · ' + b.key + ': ' + b.label + (b.adjusted && b.raw !== null ? ' (raw ' + signed(b.raw) + ')' : '') + ' · n=' + b.n"
+                            >
+                              <span class="eff-bar-val" [class.eff-neg]="b.negative" aria-hidden="true"><span class="eff-v-long">{{ b.label }}</span><span class="eff-v-short">{{ b.shortLabel }}</span></span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+              <div class="eff-x-labels" aria-hidden="true">
+                @for (g of chart.groups; track g.signalType) {
+                  <span class="eff-x-label">{{ g.label }}<small>{{ g.direction === 'Sell' ? 'direction-adjusted' : g.direction === 'Neutral' ? 'raw' : '' }}</small></span>
+                }
+              </div>
+            </div>
+          </div>
+          @if (!chart.hasData) {
+            <p class="eff-chart-note">No period has completed for these signals yet, so there is nothing to plot.</p>
+          }
+        </figure>
+
+        <div class="eff-table-wrap" [class.eff-loading]="store.effectivenessLoading()" [attr.aria-busy]="store.effectivenessLoading()">
+          <table mat-table appResponsiveTable [dataSource]="eff.rows" class="eff-table" aria-label="Signal effectiveness by signal type">
+            <ng-container matColumnDef="label">
+              <th mat-header-cell *matHeaderCellDef>Signal Type</th>
+              <td mat-cell *matCellDef="let r">
+                <span class="eff-type">{{ r.label }}</span>
+                <span class="tag eff-dir" [matTooltip]="directionTip(r)">{{ r.direction }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="eligible">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Signals in the window that count toward the figures: audited, not initial baseline unless included. Closed (Invalidated, Superseded, Expired) recommendations count too.">Eligible Signals</th>
+              <td mat-cell *matCellDef="let r" class="num">
+                {{ r.eligible }} {{ r.eligible === 1 ? 'signal' : 'signals' }}
+                @if (r.overlappingCount > 0) {
+                  <small class="eff-overlap" matTooltip="Informational only: these signals follow an earlier same-ticker, same-direction signal within 20 trading sessions, so their outcomes are not independent. All of them are still counted.">{{ r.overlappingCount }} overlapping</small>
+                }
+              </td>
+            </ng-container>
+
+            @for (h of effHorizons; track h.key) {
+              <ng-container [matColumnDef]="'avg' + h.key">
+                <th mat-header-cell *matHeaderCellDef class="num" [matTooltip]="h.tip">{{ h.key }} Avg</th>
+                <td mat-cell *matCellDef="let r" class="num">
+                  @let c = effCell(r, h.key);
+                  @if (c.n === 0) {
+                    <span class="muted">Insufficient history</span>
+                  } @else {
+                    <span class="eff-val" [class.eff-pos]="c.main > 0" [class.eff-neg]="c.main < 0">{{ signed(c.main) }}</span>
+                    <small>n={{ c.n }}</small>
+                    @if (c.showRaw) {
+                      <small class="eff-raw" matTooltip="Raw stock return. The figure above is direction-adjusted: a fall counts as positive after a Sell-direction signal. Neither is realized portfolio profit.">raw {{ signed(c.raw) }}</small>
+                    }
+                  }
+                </td>
+              </ng-container>
+            }
+
+            <ng-container matColumnDef="favourable">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Share of completed 20-session outcomes that moved in the signal's direction (up after Buy, down after Sell). Not available where no direction is defined.">Favourable 20D %</th>
+              <td mat-cell *matCellDef="let r" class="num">
+                @if (!r.directionDefined) {
+                  <span class="muted">Direction not defined</span>
+                } @else if (r.favourableObservations === 0) {
+                  <span class="muted">Insufficient history</span>
+                } @else {
+                  {{ r.favourablePct | number: '1.0-1' }}% <small>n={{ r.favourableObservations }}</small>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actioned">
+              <th mat-header-cell *matHeaderCellDef class="num" matTooltip="Signals where you recorded Actioned or Partial in My Action.">Actioned</th>
+              <td mat-cell *matCellDef="let r" class="num">{{ r.actionedCount }}</td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="effColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: effColumns"></tr>
+          </table>
+        </div>
+      }
+    } @else if (store.effectivenessError()) {
+      <p class="state-row error" role="alert">{{ store.effectivenessError() }}</p>
+    } @else {
+      <p class="state-row" role="status">Loading effectiveness…</p>
+    }
+
+    <button
+      type="button"
+      mat-button
+      class="eff-help-toggle"
+      data-testid="eff-help-toggle"
+      [attr.aria-expanded]="effHelpOpen()"
+      aria-controls="eff-help-panel"
+      (click)="effHelpOpen.set(!effHelpOpen())"
+    >
+      <mat-icon aria-hidden="true">{{ effHelpOpen() ? 'expand_less' : 'help_outline' }}</mat-icon>
+      How these figures are calculated
+    </button>
+    @if (effHelpOpen()) {
+      <ul class="eff-help" id="eff-help-panel">
+        <li><strong>Window:</strong> selects signals by their original signal date. Outcomes always use all available price history after each signal.</li>
+        <li><strong>5D / 20D:</strong> the 5th and 20th trading session after the signal date. <strong>1M:</strong> the first session on or after one calendar month later (about 21–23 sessions), so it is related to, but not the same as, 20D.</li>
+        <li><strong>Completed periods only:</strong> a signal enters an average once its period has finished. Missing results are never treated as zero.</li>
+        <li><strong>Direction:</strong> Buy-direction signals gain when the price rises; Sell-direction signals gain when it falls. Raw stock returns are kept alongside. These are not your realized P/L.</li>
+        <li><strong>Overlap:</strong> signals on the same ticker and direction within 20 trading sessions are statistically dependent. They are flagged but never excluded.</li>
+      </ul>
+    }
+  </section>
+  }
+</div>

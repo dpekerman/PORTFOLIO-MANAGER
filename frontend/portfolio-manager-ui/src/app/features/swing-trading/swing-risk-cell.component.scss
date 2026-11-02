@@ -1,0 +1,39 @@
+@use 'swing-shared';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.st-tone-bad {
+  color: var(--mat-sys-error);
+  font-weight: 600;
+}
+
+.st-tone-warn {
+  color: #b26a00;
+}
+
+.st-tone-dim,
+.st-tone-ok {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.st-more {
+  background: transparent;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .st-more {
+    min-height: 32px;
+    padding: 4px 10px;
+  }
+}

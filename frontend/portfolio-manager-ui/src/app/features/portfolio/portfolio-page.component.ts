@@ -1,4 +1,4 @@
-﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
+import { openManageRiskDialog } from '../../shared/manage-risk-dialog/manage-risk-dialog.component';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -38,24 +39,28 @@ import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
-import { CashStateService } from '../../core/services/cash-state.service';
-import { ConfigService } from '../../core/services/config.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
+import { AuthStore } from '../../core/store/auth.store';
+import { CashStore } from '../../core/store/cash.store';
+import { ConfigStore } from '../../core/store/config.store';
 import {
   accountTypeError,
-  AccountTypesStateService,
-} from '../../core/services/account-types-state.service';
-import { DecisionEngineService, GapStatus } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+  AccountTypesStore,
+} from '../../core/store/account-types.store';
+import { GapStatus } from '../../core/services/decision-engine.service';
+import { FinalActionStore } from '../../core/store/final-action.store';
+import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioFinalActionSyncService } from '../../core/services/portfolio-final-action-sync.service';
 import { PortfolioRsiAnalysisService } from '../../core/services/portfolio-rsi-analysis.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { StockCardSkeletonComponent } from '../../shared/skeleton/stock-card-skeleton.component';
 import { SecurityAnalysisMappingDialogComponent } from '../watchlist-page/security-analysis-mapping-dialog.component';
@@ -77,6 +82,7 @@ import {
 } from './edit-option-dialog/edit-option-dialog.component';
 import {
   EditPositionDialogComponent,
+  EditPositionDialogData,
   EditPositionDialogResult,
 } from './edit-position-dialog/edit-position-dialog.component';
 import { ImportStocksDialogComponent } from './import-stocks-dialog/import-stocks-dialog.component';
@@ -167,12 +173,14 @@ type OptionSortCol =
 
 type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
 
+
 @Component({
   selector: 'app-portfolio-page',
   templateUrl: './portfolio-page.component.html',
   styleUrl: './portfolio-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FinalActionBadgeComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,
@@ -190,22 +198,23 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
     PortfolioSummaryBarComponent,
     StockCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class PortfolioPageComponent {
   private readonly accountTypeSnackBar = inject(MatSnackBar);
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly optionState = inject(OptionStateService);
-  protected readonly scanner = inject(ScannerStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly appRefresh = inject(AppRefreshService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly optionState = inject(OptionStore);
+  protected readonly scanner = inject(ScannerStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly appRefresh = inject(AppRefreshStore);
   private readonly api = inject(PortfolioApiService);
   private readonly dialog = inject(MatDialog);
-  protected readonly engine = inject(DecisionEngineService);
-  private readonly configService = inject(ConfigService);
-  private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
+  private readonly configService = inject(ConfigStore);
+  private readonly finalActions = inject(FinalActionStore);
   private readonly rsiAnalysis = inject(PortfolioRsiAnalysisService);
 
   /** Returns masked value when fake mode is on, original value otherwise. */
@@ -236,8 +245,10 @@ export class PortfolioPageComponent {
   protected readonly viewMode = signal<ViewMode>('grid');
 
   protected readonly filterTicker = signal('');
-  protected readonly filterSector = signal('');
   protected readonly filterIndustry = signal('');
+  protected readonly filterRole = signal('');
+  protected readonly filterFinalAction = signal('');
+  protected readonly filterGainLoss = signal<'' | 'GAIN' | 'LOSS'>('');
   protected readonly filterMomentumShift = signal('');
   protected readonly filterAccount = signal('');
 
@@ -245,7 +256,7 @@ export class PortfolioPageComponent {
   protected readonly gridSortDir = signal<SortDir>('desc');
 
   protected readonly gridDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-stocks');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-stocks');
 
   // Track which multi-account groups are collapsed (default: all expanded)
   protected readonly collapsedSymbols = signal<Set<string>>(new Set<string>());
@@ -311,9 +322,9 @@ export class PortfolioPageComponent {
   }
 
   protected readonly optionDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-options');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-options');
   protected readonly cashDisplayedColumns =
-    inject(GridColumnService).getColumnKeys('portfolio-cash');
+    inject(GridColumnStore).getResponsiveColumnKeys('portfolio-cash');
 
   protected readonly totalDayGain = computed<number>(() =>
     this.portfolio.summaries().reduce((sum, s) => {
@@ -423,7 +434,7 @@ export class PortfolioPageComponent {
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
 
   constructor() {
-    const accountTypes = inject(AccountTypesStateService);
+    const accountTypes = inject(AccountTypesStore);
     effect(() => {
       const rename = accountTypes.renamed();
       if (rename && this.filterAccount() === rename.oldName) this.filterAccount.set(rename.newName);
@@ -755,24 +766,32 @@ export class PortfolioPageComponent {
     return { price: r.analystTargetPrice, upside: r.analystTargetUpside };
   }
 
+  /** True while the first Final Action evaluation is still running, so a blank cell is not read as "no action". */
+  protected readonly finalActionsLoading = this.finalActions.loading;
+
+  /** loading | error | ready — decides what an empty Final Action cell means (never a decision). */
+  protected readonly finalActionsUiState = this.finalActions.uiState;
+
   protected decisionForPortfolio(
     symbol: string,
-    holdingRole: string | null | undefined,
+    _holdingRole: string | null | undefined,
     item?: import('../../core/models/portfolio.models').PortfolioItem,
   ): import('../../core/services/decision-engine.service').PageDecision | null {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return null;
+    return this.finalActions.decisionForPortfolio(symbol, item?.id);
+  }
 
-    const context = item
-      ? this.finalActionSync.buildContext(
-          item,
-          r,
-          this.portfolio.summaries(),
-          this.portfolioGrandTotal(),
-        )
-      : undefined;
-
-    return this.engine.translateForPortfolio(r, holdingRole ?? null, true, context);
+  /** Opens the read-only Final Action explanation (decision, technical readings, reasons, evidence freshness). */
+  protected openFinalActionDetails(
+    symbol: string,
+    item?: import('../../core/models/portfolio.models').PortfolioItem | null,
+  ): void {
+    const result = this.finalActions.resultForPortfolio(symbol, item?.id);
+    if (!result) return;
+    this.dialog.open(FinalActionDetailsDialogComponent, {
+      data: { result },
+      autoFocus: 'dialog',
+      maxWidth: '95vw',
+    });
   }
 
   protected readonly sortedSummaries = computed(() => {
@@ -789,11 +808,20 @@ export class PortfolioPageComponent {
   });
 
   // â”€â”€ Unique filter options â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  protected readonly uniqueSectors = computed<string[]>(() => {
+  protected readonly uniqueRoles = computed<string[]>(() => {
     const set = new Set<string>();
     for (const s of this.portfolio.summaries()) {
-      const sector = s.item.sector || s.quote?.sector;
-      if (sector) set.add(sector);
+      if (s.item.transactionType !== 'CLOSE' && s.item.holdingRole) set.add(s.item.holdingRole);
+    }
+    return [...set].sort();
+  });
+
+  protected readonly uniqueFinalActions = computed<string[]>(() => {
+    const set = new Set<string>();
+    for (const s of this.portfolio.summaries()) {
+      if (s.item.transactionType === 'CLOSE') continue;
+      const fa = this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction;
+      if (fa) set.add(fa);
     }
     return [...set].sort();
   });
@@ -824,7 +852,9 @@ export class PortfolioPageComponent {
   // -- Grid filtered + sorted rows ------------------------------------------
   protected readonly gridRows = computed<GridRow[]>(() => {
     const ticker = this.filterTicker().trim().toLowerCase();
-    const sector = this.filterSector();
+    const filterRole = this.filterRole();
+    const filterFinalAction = this.filterFinalAction();
+    const filterGainLoss = this.filterGainLoss();
     const industry = this.filterIndustry();
     const filterMomentum = this.filterMomentumShift();
     const filterAccount = this.filterAccount();
@@ -837,7 +867,16 @@ export class PortfolioPageComponent {
         !s.item.companyName.toLowerCase().includes(ticker)
       )
         return false;
-      if (sector && (s.item.sector || s.quote?.sector || '') !== sector) return false;
+      if (filterRole && (s.item.holdingRole ?? '') !== filterRole) return false;
+      if (filterFinalAction) {
+        const fa =
+          this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '';
+        if (fa !== filterFinalAction) return false;
+      }
+      if (filterGainLoss) {
+        const gl = this.gridSortValue(s, 'gainLoss') as number;
+        if (filterGainLoss === 'GAIN' ? !(gl > 0) : !(gl < 0)) return false;
+      }
       if (industry && (s.item.industry || s.quote?.industry || '') !== industry) return false;
       if (filterAccount && (s.item.accountType ?? '') !== filterAccount) return false;
       if (filterMomentum) {
@@ -1106,7 +1145,9 @@ export class PortfolioPageComponent {
 
   clearGridFilters(): void {
     this.filterTicker.set('');
-    this.filterSector.set('');
+    this.filterRole.set('');
+    this.filterFinalAction.set('');
+    this.filterGainLoss.set('');
     this.filterIndustry.set('');
     this.filterMomentumShift.set('');
     this.filterAccount.set('');
@@ -1115,7 +1156,9 @@ export class PortfolioPageComponent {
   get hasActiveFilters(): boolean {
     return !!(
       this.filterTicker() ||
-      this.filterSector() ||
+      this.filterRole() ||
+      this.filterFinalAction() ||
+      this.filterGainLoss() ||
       this.filterIndustry() ||
       this.filterMomentumShift() ||
       this.filterAccount()
@@ -1186,10 +1229,15 @@ export class PortfolioPageComponent {
         'Daily Change %',
         'RSI (14)',
         'Role',
-        'Trend Setup',
-        'Momentum Shift',
+        'Technical Trend Setup',
+        'Technical Momentum Shift',
         'Price Structure',
-        'Action',
+        'Final Action (Portfolio Decision)',
+        'Actionable',
+        'Decision Reason Codes',
+        'Decision Status',
+        'Last Evaluated (UTC)',
+        'Data As Of',
       ],
     ];
 
@@ -1228,6 +1276,11 @@ export class PortfolioPageComponent {
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.momentumShift ?? '',
         this.priceStructureLabel(s.item.symbol, s),
         this.decisionForPortfolio(s.item.symbol, s.item.holdingRole, s.item)?.finalAction ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.isActionable ? 'Yes' : 'No',
+        (this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.reasonCodes ?? []).join('; '),
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.evaluationState ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.lastSuccessfulEvaluationUtc ?? '',
+        this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.dataAsOfDate ?? '',
       ]);
     }
 
@@ -1254,6 +1307,8 @@ export class PortfolioPageComponent {
         pct,
         '0.00',
         '0.00',
+        '',
+        '',
         '',
         '',
         '',
@@ -1293,8 +1348,14 @@ export class PortfolioPageComponent {
         '',
         '',
         '',
+        '',
+        '',
       ]);
     }
+
+    // Cash and option rows carry no decision columns: pad every row to the header width.
+    const width = rows[0].length;
+    for (const r of rows) while (r.length < width) r.push('');
 
     this.downloadCsv(rows, 'portfolio.csv');
   }
@@ -1310,34 +1371,53 @@ export class PortfolioPageComponent {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Opens the shared Manage Risk dialog for this holding. The dialog works per account + symbol, so the figures it
+   * shows are summed across that account's open lots of the security, not just the clicked row.
+   */
+  openManageRisk(s: PortfolioSummary): void {
+    const account = s.item.accountType;
+    if (!account || s.item.isManual) return;
+    openManageRiskDialog(this.dialog, {
+      account,
+      symbol: s.item.symbol,
+      companyName: s.item.companyName,
+      role: s.item.holdingRole,
+    });
+  }
+
   openEditGridRow(s: PortfolioSummary): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: s.item },
-        width: '620px',
-        maxWidth: '95vw',
-        maxHeight: '95vh',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (!result) return;
-        this.portfolio.updateItem(s.item.id, {
-          companyName: result.companyName,
-          shares: result.shares,
-          averageCostBasis: result.averageCostBasis,
-          sector: result.sector,
-          industry: result.industry,
-          overrideSector: result.overrideSector,
-          transactionType: result.transactionType,
-          accountType: result.accountType,
-          openDate: result.openDate,
-          closeDate: result.closeDate,
-          closingPrice: result.closingPrice,
-          decisionSource: result.decisionSource,
-          decisionSourceClosed: result.decisionSourceClosed,
-          holdingRole: result.holdingRole,
-        });
-      });
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: s.item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.portfolio.updateItem(
+              s.item.id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   openSecurityAnalysisMapping(s: PortfolioSummary): void {

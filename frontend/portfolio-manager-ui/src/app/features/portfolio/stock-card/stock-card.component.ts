@@ -7,12 +7,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioSummary } from '../../../core/models/portfolio.models';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../../core/technical-display';
 import { ConfirmDialogComponent } from '../../../shared/confirm-dialog/confirm-dialog.component';
 import {
   EditPositionDialogComponent,
+  EditPositionDialogData,
   EditPositionDialogResult,
 } from '../edit-position-dialog/edit-position-dialog.component';
 
@@ -35,8 +36,8 @@ export class StockCardComponent {
   readonly summary = input.required<PortfolioSummary>();
   /** RSI(14) value from the scanner — null when this symbol is not in the scanner results. */
   readonly rsi = input<number | null>(null);
-  protected readonly state = inject(PortfolioStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly state = inject(PortfolioStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
 
   protected readonly currentPrice = computed(() => {
@@ -80,34 +81,38 @@ export class StockCardComponent {
   }
 
   edit(): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: this.summary().item },
-        width: '460px',
-        maxWidth: '95vw',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (result) {
-          this.state.updateItem(this.summary().item.id, {
-            companyName: result.companyName,
-            shares: result.shares,
-            averageCostBasis: result.averageCostBasis,
-            sector: result.sector,
-            industry: result.industry,
-            overrideSector: result.overrideSector,
-            // The API overwrites every transaction field, so omitting these would null them out.
-            transactionType: result.transactionType,
-            accountType: result.accountType,
-            openDate: result.openDate,
-            closeDate: result.closeDate,
-            closingPrice: result.closingPrice,
-            decisionSource: result.decisionSource,
-            decisionSourceClosed: result.decisionSourceClosed,
-            holdingRole: result.holdingRole,
-          });
-        }
-      });
+    const id = this.summary().item.id;
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: this.summary().item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.state.updateItem(
+              id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                // The API overwrites every transaction field, so omitting these would null them out.
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '460px',
+      maxWidth: '95vw',
+    });
   }
 
   remove(): void {

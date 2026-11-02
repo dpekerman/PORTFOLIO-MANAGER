@@ -6,41 +6,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
  */
 @Component({
   selector: 'app-skeleton',
-  template: `
-    <div
-      class="skeleton-block"
-      [class.skeleton-circle]="circle()"
-      [style.width]="width()"
-      [style.height]="height()"
-      [style.border-radius]="circle() ? '50%' : borderRadius()"
-      role="status"
-      aria-label="Loading…"
-    ></div>
-  `,
-  styles: [
-    `
-      .skeleton-block {
-        background: linear-gradient(
-          90deg,
-          var(--skeleton-base, #1e1e1e) 25%,
-          var(--skeleton-shine, #2a2a2a) 50%,
-          var(--skeleton-base, #1e1e1e) 75%
-        );
-        background-size: 200% 100%;
-        animation: skeleton-shimmer 1.4s ease-in-out infinite;
-        border-radius: 6px;
-        display: block;
-      }
-      @keyframes skeleton-shimmer {
-        0% {
-          background-position: 200% 0;
-        }
-        100% {
-          background-position: -200% 0;
-        }
-      }
-    `,
-  ],
+  templateUrl: './skeleton.component.html',
+  styleUrl: './skeleton.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SkeletonComponent {

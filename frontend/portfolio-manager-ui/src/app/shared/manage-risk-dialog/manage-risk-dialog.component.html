@@ -1,0 +1,409 @@
+<h2 mat-dialog-title id="mr-title">
+  <mat-icon aria-hidden="true">shield</mat-icon>
+  Manage Risk — {{ data.symbol }}
+</h2>
+
+<mat-dialog-content class="mr" aria-labelledby="mr-title">
+  <p class="mr-note" data-testid="mr-note">
+    Stops here are your <strong>plan</strong> and the broker orders <strong>you report</strong> placing. Portfolio Manager does not
+    contact your broker, cannot confirm an order is still active, and never places, changes or cancels an order.
+  </p>
+
+  @if (store.positionLoading() && !position()) {
+    <div class="mr-loading" role="status"><mat-spinner diameter="28" /> Loading risk details…</div>
+  }
+
+  @if (store.positionError(); as err) {
+    <div class="mr-banner mr-banner-error" role="alert" data-testid="mr-error">
+      <span>{{ err }}</span>
+      @if (store.conflict()) {
+        <button mat-stroked-button type="button" (click)="reload()">Reload latest</button>
+      }
+    </div>
+  }
+
+  <p class="mr-saved" role="status" aria-live="polite" data-testid="mr-saved">{{ savedMessage() }}</p>
+
+  @if (position(); as p) {
+    <section class="mr-section" aria-labelledby="mr-pos-h">
+      <h3 id="mr-pos-h">Position</h3>
+      <dl class="mr-grid">
+        <div><dt>Security</dt><dd>{{ data.symbol }}@if (data.companyName) { · {{ data.companyName }} }</dd></div>
+        <div><dt>Account</dt><dd>{{ data.account }}</dd></div>
+        <div><dt>Investment role</dt><dd>{{ p.mixedRole ? 'Mixed roles' : (data.role ?? 'Swing') }}</dd></div>
+        <div>
+          <dt>Quantity</dt>
+          <dd>
+            {{ p.totalQuantity | number: '1.0-6' }}
+            @if (p.mixedRole) {
+              <span class="mr-sub">(Swing {{ p.swingQuantity | number: '1.0-6' }})</span>
+            }
+          </dd>
+        </div>
+        <div><dt>Account average cost</dt><dd>{{ value(display().averageCost) == null ? '—' : (value(display().averageCost) | number: '1.2-4') }}</dd></div>
+        <div>
+          <dt>Current price</dt>
+          <dd>
+            {{ value(display().currentPrice) == null ? '—' : (value(display().currentPrice) | number: '1.2-4') }}
+            <span class="mr-chip" [class.mr-chip-warn]="!priceUsable()">{{ basisLabel() }}</span>
+          </dd>
+        </div>
+        <div><dt>Account market value</dt><dd>{{ value(display().marketValue) == null ? '—' : (value(display().marketValue) | number: '1.2-2') }}</dd></div>
+        <div>
+          <dt>Unrealized P/L</dt>
+          <dd>
+            {{ value(display().unrealizedPnl) == null ? '—' : (value(display().unrealizedPnl) | number: '1.2-2') }}
+            @if (display().unrealizedPnlPct != null) { ({{ pct(display().unrealizedPnlPct) | number: '1.2-2' }}%) }
+          </dd>
+        </div>
+        <div>
+          <dt>Market data as of</dt>
+          <dd>{{ display().priceAsOfUtc ? (display().priceAsOfUtc | date: 'yyyy-MM-dd HH:mm') : 'Unavailable' }}</dd>
+        </div>
+        <div><dt>Currency</dt><dd>{{ p.currency }}</dd></div>
+        @if (p.mixedRole && p.facts; as facts) {
+          <div><dt>Swing average cost</dt><dd>{{ value(facts.swingAverageCost) | number: '1.2-4' }}</dd></div>
+          <div><dt>Swing market value</dt><dd>{{ value(facts.swingMarketValue) | number: '1.2-2' }}</dd></div>
+          <div><dt>Swing unrealized P/L</dt><dd>{{ value(facts.swingUnrealizedPnl) | number: '1.2-2' }}</dd></div>
+        }
+      </dl>
+      @if (!p.hasOpenPosition) {
+        <p class="mr-banner mr-banner-error" role="alert">This account no longer holds an open position in {{ data.symbol }}.</p>
+      }
+      @if (p.episodeResolution === 'Unresolved' && p.episodeNote) {
+        <p class="mr-banner mr-banner-info" data-testid="mr-episode-note">
+          Trade history for this holding is not fully resolved: {{ p.episodeNote }}
+          Broker orders remain account records; only matched records count as this episode's protection.
+        </p>
+      }
+    </section>
+
+    @if (mismatch(); as m) {
+      <p class="mr-banner mr-banner-warn" role="status" data-testid="mr-mismatch">
+        Planned stop {{ value(m.planned) | number: '1.2-4' }} differs from the recorded broker stop {{ value(m.broker) | number: '1.2-4' }}.
+        Saving the plan does not change the broker order — update the order at your broker, then record it here.
+      </p>
+    }
+    @if (retiredNeedingCheck().length > 0) {
+      <p class="mr-banner mr-banner-warn" role="status" data-testid="mr-closed-warning">
+        A previous trade in this account closed in Portfolio Manager. Its broker stop order(s) may still be open.
+        Verify their account coverage and status at your broker. They are not automatically applied to the current Swing episode.
+      </p>
+    }
+
+    @if (demo.isDemoMode()) {
+      <section aria-label="Masked risk records" data-testid="mr-demo-readonly">
+        <p>Demo mode is read-only. Disable demo mode to edit risk records or review audit details.</p>
+        <p>Planned stop: {{ value(p.plan?.plannedStopPrice) | number: '1.2-4' }}</p>
+        <p>Target: {{ value(p.plan?.targetPrice) | number: '1.2-4' }}</p>
+        @for (stop of p.brokerStops; track stop.id) {
+          <p>Broker stop: {{ value(stop.triggerPrice) | number: '1.2-4' }} {{ stop.currency }} · {{ statusLabel(stop) }}</p>
+        }
+      </section>
+    } @else {
+    <mat-tab-group animationDuration="0ms" class="mr-tabs" aria-label="Risk sections" (selectedIndexChange)="selectedTab.set($event)">
+      <mat-tab label="Risk plan">
+        <form id="mr-plan-form" class="mr-form" (submit)="$event.preventDefault(); savePlan()" aria-label="Risk plan">
+          @if (planFromPriorEpisode()) {
+            <p class="mr-banner mr-banner-info">A plan from a previous trade of this security exists; it is not applied to this trade.</p>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Planned stop loss</mat-label>
+            <input
+              matInput
+              type="number"
+              inputmode="decimal"
+              step="0.0001"
+              [formField]="planForm.plannedStopPrice"
+              [attr.aria-invalid]="planValidation().errors['plannedStopPrice'] ? 'true' : null"
+              aria-describedby="mr-plan-stop-err mr-plan-hint"
+              data-testid="mr-plan-stop"
+            />
+          </mat-form-field>
+          @if (planValidation().errors['plannedStopPrice']; as e) {
+            <div class="mr-err" id="mr-plan-stop-err" role="alert">{{ e }}</div>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Target price</mat-label>
+            <input
+              matInput
+              type="number"
+              inputmode="decimal"
+              step="0.0001"
+              [formField]="planForm.targetPrice"
+              [attr.aria-invalid]="planValidation().errors['targetPrice'] ? 'true' : null"
+              data-testid="mr-plan-target"
+            />
+          </mat-form-field>
+          @if (planValidation().errors['targetPrice']; as e) {
+            <div class="mr-err" role="alert">{{ e }}</div>
+          }
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Stop type</mat-label>
+            <mat-select [formField]="planForm.stopType" data-testid="mr-plan-type">
+              @for (t of stopTypes; track t) {
+                <mat-option [value]="t">{{ t }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+            <mat-label>Stop rationale</mat-label>
+            <input matInput [formField]="planForm.stopRationale" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+            <mat-label>Trade rationale / catalyst</mat-label>
+            <input matInput [formField]="planForm.tradeRationale" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+            <mat-label>Risk notes</mat-label>
+            <input matInput [formField]="planForm.riskNotes" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+            <mat-label>Reason for this change (audit)</mat-label>
+            <input matInput [formField]="planForm.reason" />
+          </mat-form-field>
+          @if (planValidation().warnings.length > 0) {
+            <ul class="mr-warn" data-testid="mr-plan-warnings">
+              @for (w of planValidation().warnings; track w) {
+                <li>{{ w }}</li>
+              }
+            </ul>
+          }
+          <p class="mr-hint" id="mr-plan-hint">
+            The planned stop is an advisory level in Portfolio Manager (alert only). It is not a broker order.
+          </p>
+        </form>
+      </mat-tab>
+
+      <mat-tab label="Broker stops">
+        <div class="mr-form-col">
+          <p class="mr-cov" data-testid="mr-coverage">
+            Coverage: <strong>{{ coverage() ? coverageLabels[coverage()!.state] : '—' }}</strong>
+            @if (coverage()?.state === 'Unknown') {
+              <span class="mr-sub">— covered quantity not provided; not assumed to be zero or full.</span>
+            }
+            @if (coverage()?.state === 'Ambiguous') {
+              <span class="mr-sub">— the account also holds non-Swing lots, so an order cannot be allocated to Swing only.</span>
+            }
+            @if (coverage()?.state === 'Full') {
+              <span class="mr-sub">— based on the quantity you entered; not verified with the broker.</span>
+            }
+          </p>
+
+          @for (s of activeStops(); track s.id) {
+            <article class="mr-stop" [attr.aria-label]="'Broker stop at ' + value(s.triggerPrice)" data-testid="mr-stop">
+              <header>
+                <strong>{{ value(s.triggerPrice) | number: '1.2-4' }} {{ s.currency }}</strong>
+                <span class="mr-chip">{{ s.orderType }}</span>
+                <span class="mr-chip">{{ statusLabel(s) }}</span>
+                <span class="mr-chip mr-chip-warn">{{ s.brokerVerificationStatus === 'Verified' ? 'Broker-verified' : 'Not broker-verified' }}</span>
+              </header>
+              <dl class="mr-grid mr-grid-tight">
+                <div>
+                  <dt>Covered quantity</dt>
+                  <dd>
+                    @if (s.coveredQuantity === null) { Unknown } @else { {{ s.coveredQuantity | number: '1.0-6' }} }
+                  </dd>
+                </div>
+                <div><dt>Placed</dt><dd>{{ s.placedDate ? (s.placedDate | date: 'yyyy-MM-dd') : 'Not recorded' }}</dd></div>
+                <div><dt>Last verified by you</dt><dd>{{ s.lastUserVerifiedDate ? (s.lastUserVerifiedDate | date: 'yyyy-MM-dd') : 'Never' }}</dd></div>
+                <div><dt>Reference</dt><dd>{{ s.brokerOrderRef ?? '—' }}</dd></div>
+                @if (s.limitPrice !== null) {
+                  <div><dt>Limit</dt><dd>{{ value(s.limitPrice) | number: '1.2-4' }}</dd></div>
+                }
+              </dl>
+              <div class="mr-row-actions">
+                <button mat-stroked-button type="button" (click)="startEditStop(s)" [attr.aria-label]="'Edit broker stop ' + value(s.triggerPrice)">Edit</button>
+                <button mat-stroked-button type="button" (click)="beginTransition(s, 'UserReportedCancelled')">I cancelled it</button>
+                <button mat-stroked-button type="button" (click)="beginTransition(s, 'UserReportedFilled')">It filled</button>
+                <button mat-stroked-button type="button" (click)="beginTransition(s, 'Superseded')">Replaced</button>
+              </div>
+            </article>
+          } @empty {
+            <p class="mr-empty" data-testid="mr-no-stops">No broker stop is recorded for this trade.</p>
+          }
+
+          @if (transition(); as t) {
+            <section class="mr-transition" aria-label="Record status change" data-testid="mr-transition">
+              <p>
+                Record that the order at {{ value(t.stop.triggerPrice) | number: '1.2-4' }} was
+                <strong>{{ t.status === 'UserReportedCancelled' ? 'cancelled' : t.status === 'UserReportedFilled' ? 'filled' : 'replaced' }}</strong>
+                (your report; not verified with the broker).
+              </p>
+              @if (t.status === 'Superseded') {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Replaced by</mat-label>
+                  <mat-select [value]="replacedBy()" (valueChange)="replacedBy.set($event)">
+                    @for (o of otherActiveStops(); track o.id) {
+                      <mat-option [value]="o.id">{{ value(o.triggerPrice) | number: '1.2-4' }} ({{ o.orderType }})</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                @if (otherActiveStops().length === 0) {
+                  <p class="mr-hint">Add the replacement order first, then mark this one as replaced.</p>
+                }
+              }
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+                <mat-label>Reason / notes (required)</mat-label>
+                <input matInput [value]="transitionReason()" (input)="transitionReason.set($any($event.target).value)" />
+              </mat-form-field>
+              <div class="mr-actions">
+                <button mat-stroked-button type="button" (click)="cancelTransition()">Cancel</button>
+                <button
+                  mat-flat-button
+                  type="button"
+                  (click)="confirmTransition()"
+                  [disabled]="store.saving() || !transitionReason().trim() || (t.status === 'Superseded' && replacedBy() === null)"
+                  data-testid="mr-transition-confirm"
+                >
+                  Record
+                </button>
+              </div>
+            </section>
+          }
+
+          @if (editingStopId() !== null) {
+            <form class="mr-form" (submit)="$event.preventDefault(); saveStop()" aria-label="Broker stop record" data-testid="mr-stop-form">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Order type</mat-label>
+                <mat-select [formField]="stopForm.orderType">
+                  @for (t of orderTypes; track t) {
+                    <mat-option [value]="t">{{ t }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Trigger price ({{ p.currency }})</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="decimal"
+                  step="0.0001"
+                  [formField]="stopForm.triggerPrice"
+                  [attr.aria-invalid]="stopValidation().errors['triggerPrice'] ? 'true' : null"
+                  data-testid="mr-stop-trigger"
+                />
+              </mat-form-field>
+              @if (stopValidation().errors['triggerPrice']; as e) {
+                <div class="mr-err" role="alert">{{ e }}</div>
+              }
+              @if (stopModel().orderType === 'StopLimit') {
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Limit price</mat-label>
+                  <input matInput type="number" inputmode="decimal" step="0.0001" [formField]="stopForm.limitPrice" />
+                </mat-form-field>
+                @if (stopValidation().errors['limitPrice']; as e) {
+                  <div class="mr-err" role="alert">{{ e }}</div>
+                }
+              }
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Covered quantity (blank = unknown)</mat-label>
+                <input
+                  matInput
+                  type="number"
+                  inputmode="decimal"
+                  [formField]="stopForm.coveredQuantity"
+                  [attr.aria-invalid]="stopValidation().errors['coveredQuantity'] ? 'true' : null"
+                  data-testid="mr-stop-covered"
+                />
+              </mat-form-field>
+              @if (stopValidation().errors['coveredQuantity']; as e) {
+                <div class="mr-err" role="alert" data-testid="mr-stop-covered-err">{{ e }}</div>
+                <mat-checkbox [formField]="stopForm.allowOverCoverage">Unusual case (explain in the reason)</mat-checkbox>
+              }
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Order placed on (if known)</mat-label>
+                <input matInput [matDatepicker]="placedDatePicker" [formField]="stopForm.placedDate" data-testid="mr-stop-placed-date" />
+                <mat-datepicker-toggle matSuffix [for]="placedDatePicker" aria-label="Choose order placed date" />
+                <mat-datepicker #placedDatePicker />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Last verified by you</mat-label>
+                <input matInput [matDatepicker]="verifiedDatePicker" [formField]="stopForm.lastUserVerifiedDate" data-testid="mr-stop-verified-date" />
+                <mat-datepicker-toggle matSuffix [for]="verifiedDatePicker" aria-label="Choose last verified date" />
+                <mat-datepicker #verifiedDatePicker />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Broker order reference (optional)</mat-label>
+                <input matInput [formField]="stopForm.brokerOrderRef" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+                <mat-label>Notes</mat-label>
+                <input matInput [formField]="stopForm.notes" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mr-wide">
+                <mat-label>Reason for this change (audit)</mat-label>
+                <input matInput [formField]="stopForm.reason" />
+              </mat-form-field>
+              @if (stopValidation().warnings.length > 0) {
+                <ul class="mr-warn" data-testid="mr-stop-warnings">
+                  @for (w of stopValidation().warnings; track w) {
+                    <li>{{ w }}</li>
+                  }
+                </ul>
+              }
+              <div class="mr-actions">
+                <button mat-stroked-button type="button" (click)="cancelStopEdit()">Cancel</button>
+                <button mat-flat-button type="submit" [disabled]="stopInvalid() || store.saving()" data-testid="mr-stop-save">Save record</button>
+              </div>
+            </form>
+          }
+
+          @if (priorStops().length > 0) {
+            <details class="mr-prior">
+              <summary>Inactive and previous-trade records ({{ priorStops().length }})</summary>
+              <ul>
+                @for (s of priorStops(); track s.id) {
+                  <li>
+                    {{ value(s.triggerPrice) | number: '1.2-4' }} {{ s.orderType }} — {{ statusLabel(s) }}
+                    @if (!s.belongsToCurrentEpisode) { <span class="mr-sub">(previous trade)</span> }
+                    @if (s.brokerCancellationUnverified || s.isActive) {
+                      <button mat-stroked-button type="button" (click)="beginTransition(s, 'UserReportedCancelled')">I cancelled it</button>
+                      <button mat-stroked-button type="button" (click)="beginTransition(s, 'UserReportedFilled')">It filled</button>
+                    }
+                  </li>
+                }
+              </ul>
+            </details>
+          }
+        </div>
+      </mat-tab>
+
+      <mat-tab label="History">
+        <ol class="mr-history" aria-label="Risk change history" data-testid="mr-history">
+          @for (e of p.history; track e.id) {
+            <li>
+              <div class="mr-hist-head">
+                <strong>{{ e.eventType }}</strong>
+                <span class="mr-sub">{{ e.occurredAtUtc | date: 'yyyy-MM-dd HH:mm' }} · {{ e.userName ?? e.source }}</span>
+              </div>
+              @for (c of e.changes; track c.field) {
+                <div class="mr-change">{{ c.field }}: {{ demo.isDemoMode() ? 'Hidden in demo mode' : (c.old ?? '—') }} → {{ demo.isDemoMode() ? 'Hidden in demo mode' : (c.new ?? '—') }}</div>
+              }
+              @if (e.reason) { <div class="mr-sub">Reason: {{ demo.isDemoMode() ? 'Hidden in demo mode' : e.reason }}</div> }
+            </li>
+          } @empty {
+            <li class="mr-empty">No risk changes recorded yet.</li>
+          }
+        </ol>
+      </mat-tab>
+    </mat-tab-group>
+    }
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end" class="mr-footer">
+  @if (position(); as p) {
+    @if (!demo.isDemoMode() && selectedTab() === 0) {
+      <button mat-flat-button type="submit" form="mr-plan-form" [disabled]="planInvalid() || store.saving() || !p.hasOpenPosition" data-testid="mr-plan-save">
+        Save plan
+      </button>
+    }
+    @if (!demo.isDemoMode() && selectedTab() === 1 && editingStopId() === null) {
+      <button mat-flat-button type="button" (click)="startAddStop()" [disabled]="!p.hasOpenPosition" data-testid="mr-add-stop">
+        <mat-icon aria-hidden="true">add</mat-icon> Record a broker stop
+      </button>
+    }
+  }
+  <button mat-stroked-button type="button" (click)="close()" data-testid="mr-close">Close</button>
+</mat-dialog-actions>

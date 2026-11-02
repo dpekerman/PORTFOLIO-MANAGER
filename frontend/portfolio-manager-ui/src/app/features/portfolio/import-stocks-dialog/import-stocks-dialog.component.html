@@ -93,11 +93,7 @@
     </div>
 
     @if (importing()) {
-      <mat-progress-bar
-        mode="determinate"
-        [value]="progress()"
-        class="import-progress"
-      ></mat-progress-bar>
+      <mat-progress-bar mode="determinate" [value]="progress()" class="import-progress" />
       <p class="progress-label">{{ progress() }}% complete</p>
     }
   }

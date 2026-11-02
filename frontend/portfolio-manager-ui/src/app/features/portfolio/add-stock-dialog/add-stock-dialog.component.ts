@@ -13,9 +13,10 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../../core/models/portfolio.models';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { backendErrorMessage, PortfolioStore } from '../../../core/store/portfolio.store';
+import { closeDateValidator, revalidateCloseDateOn, sortDecisionSources, torontoTodayDate } from '../../../core/close-date.util';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -42,14 +43,15 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 export class AddStockDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
-  private readonly state = inject(PortfolioStateService);
+  private readonly state = inject(PortfolioStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
   protected readonly saving = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly today = new Date();
 
@@ -63,7 +65,7 @@ export class AddStockDialogComponent {
   ] as const;
 
   protected get decisionSources(): string[] {
-    return this.configService.config().decisionSources ?? [];
+    return sortDecisionSources(this.configService.config().decisionSources);
   }
 
   private readonly searchSubject = new Subject<string>();
@@ -75,7 +77,7 @@ export class AddStockDialogComponent {
     shares: [null as number | null, [Validators.required, Validators.min(0.0001)]],
     averageCostBasis: [null as number | null, [Validators.required, Validators.min(0.01)]],
     openDate: [new Date() as Date | null],
-    closeDate: [new Date() as Date | null],
+    closeDate: [null as Date | null, [closeDateValidator]],
     closingPrice: [null as number | null, [Validators.min(0)]],
     accountType: [null as string | null],
     holdingRole: [null as string | null],
@@ -83,6 +85,13 @@ export class AddStockDialogComponent {
   });
 
   constructor() {
+    revalidateCloseDateOn(this.form);
+    this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed()).subscribe((t) => {
+      if (t === 'CLOSE' && !this.form.controls.closeDate.value) {
+        this.form.controls.closeDate.setValue(torontoTodayDate());
+      }
+    });
+
     this.searchSubject
       .pipe(
         takeUntilDestroyed(),
@@ -126,8 +135,10 @@ export class AddStockDialogComponent {
   }
 
   async submit(): Promise<void> {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.saving()) return;
     this.saving.set(true);
+    this.errorMessage.set(null);
+    const isClose = this.form.value.transactionType === 'CLOSE';
     try {
       const created = await this.state.addItem({
         symbol: this.form.value.symbol!,
@@ -137,13 +148,16 @@ export class AddStockDialogComponent {
         transactionType: this.form.value.transactionType,
         accountType: this.form.value.accountType,
         openDate: this.formatDate(this.form.value.openDate),
-        closeDate: this.formatDate(this.form.value.closeDate),
+        closeDate: isClose ? this.formatDate(this.form.value.closeDate) : null,
         closingPrice: this.form.value.closingPrice,
         holdingRole: this.form.value.holdingRole,
         decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
       void this.tradeCashLink.offerForStock(null, created);
+    } catch (err) {
+      // The dialog stays open with every entered value intact.
+      this.errorMessage.set(backendErrorMessage(err, 'Failed to add stock'));
     } finally {
       this.saving.set(false);
     }

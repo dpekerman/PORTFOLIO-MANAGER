@@ -1,0 +1,160 @@
+<div class="tj-filters" role="search" aria-label="Filter Trade Journal">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tj-search">
+    <mat-label>Search symbol, thesis or notes</mat-label>
+    <input matInput type="search" [value]="search()" (input)="search.set($any($event.target).value)" data-testid="journal-search" />
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Account</mat-label>
+    <mat-select [value]="account()" (valueChange)="account.set($event)" data-testid="journal-account">
+      <mat-option value="">All accounts</mat-option>
+      @for (a of accounts(); track a) {
+        <mat-option [value]="a">{{ a }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Outcome</mat-label>
+    <mat-select [value]="outcome()" (valueChange)="outcome.set($event)" data-testid="journal-outcome">
+      <mat-option value="">All</mat-option>
+      @for (o of outcomes; track o) {
+        <mat-option [value]="o">{{ o }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+<div class="st-toolbar">
+  <span class="tj-count" role="status" aria-live="polite" data-testid="journal-count">
+    {{ rows().length }} of {{ store.journal().length }} {{ store.journal().length === 1 ? 'trade' : 'trades' }}
+  </span>
+  <button
+    mat-stroked-button
+    type="button"
+    [matMenuTriggerFor]="exportMenu"
+    [disabled]="rows().length === 0 || demo.isDemoMode()"
+    [matTooltip]="demo.isDemoMode() ? 'Export is unavailable in demo mode' : 'Exports the filtered, sorted rows'"
+    data-testid="journal-export"
+  >
+    <mat-icon aria-hidden="true">download</mat-icon> Export
+  </button>
+  <mat-menu #exportMenu="matMenu">
+    <button mat-menu-item type="button" (click)="exportCsv()" data-testid="journal-export-csv">CSV</button>
+    <button mat-menu-item type="button" (click)="exportXlsx()">Excel</button>
+  </mat-menu>
+</div>
+
+@if (store.journalLoading() && store.journal().length === 0) {
+  <p class="st-empty" role="status">Loading Trade Journal…</p>
+} @else if (store.journalError(); as err) {
+  <p class="st-empty st-neg" role="alert">{{ err }}</p>
+} @else if (store.journal().length === 0) {
+  <p class="st-empty" data-testid="journal-empty">No closed Swing trades yet. Completed trades appear here after a Swing lot is closed.</p>
+} @else if (rows().length === 0) {
+  <p class="st-empty">No trades match these filters.</p>
+} @else {
+  <app-mobile-table-controls [sort]="sortRef" gridId="swing-journal" label="Trade Journal" />
+  <div class="st-table-wrapper">
+    <table
+      mat-table
+      appResponsiveTable
+      matSort
+      #sortRef="matSort"
+      [dataSource]="rows()"
+      (matSortChange)="onSort($event)"
+      class="st-table"
+      aria-label="Swing trade journal"
+      data-testid="journal-table"
+    >
+      <ng-container matColumnDef="symbol">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Symbol</th>
+        <td mat-cell *matCellDef="let r">
+          <strong>{{ r.symbol }}</strong>
+          @if (r.episodeResolution === 'Unresolved') {
+            <span class="st-chip st-warn" matTooltip="This record is not linked to a trade episode, so it is shown on its own and not merged with other records.">Unlinked</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="account">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="account">Account</th>
+        <td mat-cell *matCellDef="let r">{{ r.account }}</td>
+      </ng-container>
+      <ng-container matColumnDef="openDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="openDate">Opened</th>
+        <td mat-cell *matCellDef="let r">{{ r.openDate ? (r.openDate | date: 'yyyy-MM-dd') : '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="closeDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="closeDate">Closed</th>
+        <td mat-cell *matCellDef="let r">{{ r.finalCloseDate ? (r.finalCloseDate | date: 'yyyy-MM-dd') : (r.episodeStillOpen ? 'Still open' : '—') }}</td>
+      </ng-container>
+      <ng-container matColumnDef="daysHeld">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="daysHeld">Days Held</th>
+        <td mat-cell *matCellDef="let r">{{ r.daysHeld ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="entry">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="entry">Entry</th>
+        <td mat-cell *matCellDef="let r">{{ r.entryPrice === null ? '—' : (r.entryPrice | number: '1.2-4') }}</td>
+      </ng-container>
+      <ng-container matColumnDef="exit">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="exit">Exit</th>
+        <td mat-cell *matCellDef="let r">{{ r.exitPrice === null ? '—' : (r.exitPrice | number: '1.2-4') }}</td>
+      </ng-container>
+      <ng-container matColumnDef="pnl">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="pnl">Realized P/L</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.realizedPnl === null) {
+            —
+          } @else {
+            <span [class.st-pos]="r.realizedPnl > 0" [class.st-neg]="r.realizedPnl < 0">{{ mv(r.realizedPnl) | number: '1.2-2' }}</span>
+            <span class="st-sub">{{ r.currency }}</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="pnlPct">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="pnlPct">Realized %</th>
+        <td mat-cell *matCellDef="let r">
+          @if (r.realizedPnlPct === null) { — } @else {
+            <span [class.st-pos]="r.realizedPnlPct > 0" [class.st-neg]="r.realizedPnlPct < 0">{{ mp(r.realizedPnlPct) | number: '1.2-2' }}%</span>
+          }
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="outcome">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="outcome">Outcome</th>
+        <td mat-cell *matCellDef="let r"><span class="st-chip" [class.st-pos]="r.outcome === 'Win'" [class.st-neg]="r.outcome === 'Loss'">{{ r.outcome }}</span></td>
+      </ng-container>
+      <ng-container matColumnDef="originalSource">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="originalSource">Original Source</th>
+        <td mat-cell *matCellDef="let r">{{ r.originalDecisionSource ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="closingSource">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="closingSource">Closing Source</th>
+        <td mat-cell *matCellDef="let r">{{ r.closingDecisionSource ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="thesis">
+        <th mat-header-cell *matHeaderCellDef>Thesis</th>
+        <td mat-cell *matCellDef="let r">{{ r.thesis ?? '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="notes">
+        <th mat-header-cell *matHeaderCellDef>Notes</th>
+        <td mat-cell *matCellDef="let r">{{ r.notes || '—' }}</td>
+      </ng-container>
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Details</th>
+        <td mat-cell *matCellDef="let r">
+          <button mat-stroked-button type="button" class="st-row-btn" (click)="details(r)" [attr.aria-label]="'Trade details for ' + r.symbol" data-testid="journal-details-btn">Details</button>
+        </td>
+      </ng-container>
+      <ng-container matColumnDef="colConfig" stickyEnd>
+        <th mat-header-cell *matHeaderCellDef class="col-config-th"><app-grid-column-btn gridId="swing-journal" /></th>
+        <td mat-cell *matCellDef="let r"></td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns(); sticky: true"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns()"></tr>
+    </table>
+  </div>
+}
+
+<p class="tj-foot">
+  Realized P/L uses the existing transaction records: (closing price − average cost) × shares. Records that cannot be linked
+  to a single trade are shown separately and never merged.
+</p>

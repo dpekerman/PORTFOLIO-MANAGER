@@ -25,13 +25,15 @@ import {
   GapStatus,
   PageDecision,
 } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import {
   currencyCodeForAnalysis,
   formatTrendShift,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 @Component({
   selector: 'app-rsi-scanner-table',
@@ -50,10 +52,12 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
     DecimalPipe,
     CurrencyPipe,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class RsiScannerTableComponent {
-  private readonly demoMode = inject(DemoModeService);
+  private readonly demoMode = inject(DemoModeStore);
   readonly results = input.required<RsiScanResult[]>();
   readonly scanType = input.required<ScanType>();
   readonly logicMode = input<LogicMode>('Legacy');
@@ -128,7 +132,7 @@ export class RsiScannerTableComponent {
   }
 
   private readonly engine = inject(DecisionEngineService);
-  private readonly _serviceColumns = inject(GridColumnService).getColumnKeys('scanner');
+  private readonly _serviceColumns = inject(GridColumnStore).getResponsiveColumnKeys('scanner');
 
   /** Effective displayed columns: service order/visibility, minus signalHistory when showHistory=false. */
   protected readonly displayedColumns = computed(() => {

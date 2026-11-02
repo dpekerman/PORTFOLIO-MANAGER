@@ -1,0 +1,15 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+}
+.gcb-btn {
+  opacity: 0.65;
+  transition: opacity 150ms;
+}
+.gcb-btn:hover {
+  opacity: 1;
+}
+.gcb-btn.gcb-customised {
+  opacity: 1;
+  color: var(--mat-sys-primary);
+}

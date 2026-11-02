@@ -18,22 +18,7 @@
       <span>No watchlist candidates scored yet — ensure scanner has run recently</span>
     </div>
   }
-  @if (!loading() && scores().length > 0 && technicalDataPending()) {
-    <div class="pc-empty">
-      <mat-icon>hourglass_empty</mat-icon>
-      <span
-        >Technical data hasn't been loaded yet for this watchlist.<br />Visit the Watchlist page
-        once, or use the app Refresh action, to populate it — Priority Candidates never triggers a
-        scan on its own.</span
-      >
-    </div>
-  }
-  @if (
-    !loading() &&
-    scores().length > 0 &&
-    !technicalDataPending() &&
-    eligibleCandidates().length === 0
-  ) {
+  @if (!loading() && scores().length > 0 && eligibleCandidates().length === 0) {
     <div class="pc-empty">
       <mat-icon>playlist_add_check</mat-icon>
       <span

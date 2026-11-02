@@ -1,5 +1,12 @@
 import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -11,21 +18,24 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import * as XLSX from 'xlsx';
 import {
   OptionAnalysis,
   OptionItem,
   PortfolioItem,
   PortfolioSummary,
 } from '../../core/models/portfolio.models';
-import { AuthStateService } from '../../core/services/auth-state.service';
-import { DashboardStateService } from '../../core/services/dashboard-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { AuthStore } from '../../core/store/auth.store';
+import { DashboardStore } from '../../core/store/dashboard.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -45,11 +55,32 @@ import {
   TransactionNotesDialogResult,
 } from './transaction-notes-dialog/transaction-notes-dialog.component';
 
-type SortDir = 'asc' | 'desc';
-type TxTypeFilter = 'ALL' | 'OPEN' | 'CLOSE';
+import {
+  ExportCell,
+  TX_NONE,
+  TX_OPTION_EXPORT_COLUMNS,
+  TX_STOCK_EXPORT_COLUMNS,
+  TxExportColumn,
+  TxFilterState,
+  TxTotalsRow,
+  TxTypeFilter,
+  dateRangeInvalid,
+  activeFilterSummary,
+  closeFilterApplies,
+  compareSortValues,
+  computeTxTotals,
+  dateOnly,
+  daysSinceClose,
+  distinctValues,
+  isFutureClose,
+  matchesTx,
+  msUntilTorontoMidnight,
+  torontoDateString,
+  txRowsToCsv,
+  txSheet,
+} from './transactions-logic';
 
-/** Show OPEN records opened after this date (inclusive day after). */
-const OPEN_DATE_THRESHOLD = '2026-06-01';
+type SortDir = 'asc' | 'desc';
 
 type StockTxCol =
   | 'tx_type'
@@ -69,7 +100,10 @@ type StockTxCol =
   | 'tx_trans_date'
   | 'tx_decision_source'
   | 'tx_decision_source_closed'
+  | 'tx_role'
+  | 'tx_industry'
   | 'tx_age'
+  | 'tx_since_close'
   | 'tx_actions';
 
 type OptionTxCol =
@@ -89,7 +123,10 @@ type OptionTxCol =
   | 'otx_mkt_value'
   | 'otx_decision_source'
   | 'otx_age'
+  | 'otx_since_close'
   | 'otx_actions';
+
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
 
 @Component({
   selector: 'app-transactions-page',
@@ -97,6 +134,7 @@ type OptionTxCol =
   styleUrl: './transactions-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AppRefreshButtonComponent,
     CurrencyPipe,
     DatePipe,
     DecimalPipe,
@@ -111,14 +149,16 @@ type OptionTxCol =
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class TransactionsPageComponent {
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly optionState = inject(OptionStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly dashboardState = inject(DashboardStateService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly optionState = inject(OptionStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly dashboardState = inject(DashboardStore);
   private readonly api = inject(PortfolioApiService);
 
   protected readonly activeTab = signal<'transactions' | 'analytics'>('transactions');
@@ -145,6 +185,112 @@ export class TransactionsPageComponent {
 
   // ── Extra filters ───────────────────────────────────────────────────────────
   protected readonly filterDecisionSource = signal('');
+  protected readonly filterRole = signal('');
+  protected readonly filterSourceClosed = signal('');
+  protected readonly filterAccount = signal('');
+  protected readonly filterDateFrom = signal('');
+  protected readonly filterDateTo = signal('');
+  protected readonly TX_NONE = TX_NONE;
+
+  /** Toronto calendar date; refreshed at midnight so SINCE CLOSE stays correct on a long-lived page. */
+  protected readonly todayToronto = signal(torontoDateString());
+
+  constructor() {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      // Capped so a DST shift can never delay the refresh by more than the cap.
+      timer = setTimeout(
+        () => {
+          this.refreshToday();
+          arm();
+        },
+        Math.min(msUntilTorontoMidnight(), 30 * 60_000),
+      );
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') this.refreshToday();
+    };
+    arm();
+    document.addEventListener('visibilitychange', onVisible);
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    });
+  }
+
+  private refreshToday(): void {
+    const today = torontoDateString();
+    if (today !== this.todayToronto()) this.todayToronto.set(today);
+  }
+
+  /** Active filters; the close filter is ignored on OPEN rather than silently hiding them. */
+  protected readonly filterState = computed<TxFilterState>(() => ({
+    tab: this.txTypeFilter(),
+    role: this.filterRole(),
+    source: this.filterDecisionSource(),
+    sourceClosed: this.filterSourceClosed(),
+    account: this.filterAccount(),
+    dateFrom: this.filterDateFrom(),
+    dateTo: this.filterDateTo(),
+  }));
+
+  protected readonly closeFilterEnabled = computed(() => closeFilterApplies(this.txTypeFilter()));
+
+  protected readonly dateRangeInvalid = computed(() => dateRangeInvalid(this.filterState()));
+
+  protected readonly hasActiveFilters = computed(
+    () =>
+      !!(
+        this.filterDecisionSource() ||
+        this.filterRole() ||
+        this.filterSourceClosed() ||
+        this.filterAccount() ||
+        this.filterDateFrom() ||
+        this.filterDateTo()
+      ),
+  );
+
+  private readonly stockTxSource = computed(() =>
+    this.portfolio.summaries().filter((s) => !s.item.isManual),
+  );
+
+  protected readonly roleOptions = computed(() =>
+    distinctValues(this.stockTxSource().map((s) => s.item.holdingRole)),
+  );
+
+  protected readonly hasRoleless = computed(() =>
+    this.stockTxSource().some((s) => !(s.item.holdingRole ?? '').trim()),
+  );
+
+  protected readonly accountOptions = computed(() =>
+    distinctValues([
+      ...this.stockTxSource().map((s) => s.item.accountType),
+      ...this.optionState.analyses().map((a) => a.item.accountType),
+    ]),
+  );
+
+  protected readonly sourceOptions = computed(() =>
+    distinctValues([
+      ...this.stockTxSource().map((s) => s.item.decisionSource),
+      ...this.optionState.analyses().map((a) => a.item.decisionSource),
+    ]),
+  );
+
+  protected readonly sourceClosedOptions = computed(() =>
+    distinctValues([
+      ...this.stockTxSource().map((s) => s.item.decisionSourceClosed),
+      ...this.optionState.analyses().map((a) => a.item.decisionSourceClosed),
+    ]),
+  );
+
+  protected resetFilters(): void {
+    this.filterDecisionSource.set('');
+    this.filterRole.set('');
+    this.filterSourceClosed.set('');
+    this.filterAccount.set('');
+    this.filterDateFrom.set('');
+    this.filterDateTo.set('');
+  }
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
   protected readonly stockSortCol = signal<StockTxCol>('tx_open_date');
@@ -154,72 +300,65 @@ export class TransactionsPageComponent {
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
   protected readonly optionSortDir = signal<SortDir>('desc');
 
-  protected readonly stockColumns = inject(GridColumnService).getColumnKeys('transactions-stocks');
+  /**
+   * Stock table columns, projected for the current breakpoint.
+   *
+   * Desktop and tablet get exactly the saved layout; a handset gets the primary columns only,
+   * because `appResponsiveTable` renders the table as cards there. The MatSort instance is handed
+   * to `<app-mobile-table-controls>` through the `#stockSort` template reference, since the header
+   * row that normally offers sorting is hidden in card mode.
+   */
+  protected readonly stockColumns =
+    inject(GridColumnStore).getResponsiveColumnKeys('transactions-stocks');
 
-  protected readonly optionColumns =
-    inject(GridColumnService).getColumnKeys('transactions-options');
+  protected readonly optionColumns = inject(GridColumnStore).getColumnKeys('transactions-options');
 
   protected readonly sortedStockTransactions = computed(() => {
     const col = this.stockSortCol();
     const dir = this.stockSortDir() === 'asc' ? 1 : -1;
-    const filter = this.txTypeFilter();
-    const filterDs = this.filterDecisionSource().toLowerCase();
-    return [...this.portfolio.summaries()]
-      .filter((s) => {
-        if (s.item.isManual) return false;
-        const type = s.item.transactionType;
-        if (filter === 'CLOSE') {
-          if (type !== 'CLOSE') return false;
-        } else if (filter === 'OPEN') {
-          if (!(type === 'OPEN' && (s.item.openDate ?? '') > OPEN_DATE_THRESHOLD)) return false;
-        } else {
-          if (type === 'CLOSE') {
-            /* ok */
-          } else if (type === 'OPEN') {
-            if ((s.item.openDate ?? '') <= OPEN_DATE_THRESHOLD) return false;
-          } else return false;
-        }
-        if (filterDs && !(s.item.decisionSource ?? '').toLowerCase().includes(filterDs))
-          return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const av = this.stockSortValue(a, col);
-        const bv = this.stockSortValue(b, col);
-        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-        return String(av ?? '').localeCompare(String(bv ?? '')) * dir;
-      });
+    const state = this.filterState();
+    return this.stockTxSource()
+      .filter((s) =>
+        matchesTx(
+          {
+            type: s.item.transactionType,
+            openDate: s.item.openDate,
+            closeDate: s.item.closeDate,
+            account: s.item.accountType,
+            role: s.item.holdingRole,
+            source: s.item.decisionSource,
+            sourceClosed: s.item.decisionSourceClosed,
+          },
+          state,
+        ),
+      )
+      .sort((a, b) =>
+        compareSortValues(this.stockSortValue(a, col), this.stockSortValue(b, col), dir),
+      );
   });
 
   protected readonly sortedOptionTransactions = computed(() => {
     const col = this.optionSortCol();
     const dir = this.optionSortDir() === 'asc' ? 1 : -1;
-    const filter = this.txTypeFilter();
-    const filterDs = this.filterDecisionSource().toLowerCase();
+    const state = this.filterState();
     return [...this.optionState.analyses()]
-      .filter((a) => {
-        const type = a.item.transactionType;
-        if (filter === 'CLOSE') {
-          if (type !== 'CLOSE') return false;
-        } else if (filter === 'OPEN') {
-          if (!(type === 'OPEN' && (a.item.openDate ?? '') > OPEN_DATE_THRESHOLD)) return false;
-        } else {
-          if (type === 'CLOSE') {
-            /* ok */
-          } else if (type === 'OPEN') {
-            if ((a.item.openDate ?? '') <= OPEN_DATE_THRESHOLD) return false;
-          } else return false;
-        }
-        if (filterDs && !(a.item.decisionSource ?? '').toLowerCase().includes(filterDs))
-          return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const av = this.optionTxSortValue(a, col);
-        const bv = this.optionTxSortValue(b, col);
-        if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-        return String(av ?? '').localeCompare(String(bv ?? '')) * dir;
-      });
+      .filter((a) =>
+        matchesTx(
+          {
+            type: a.item.transactionType,
+            openDate: a.item.openDate,
+            closeDate: a.item.closeDate,
+            account: a.item.accountType,
+            source: a.item.decisionSource,
+            sourceClosed: a.item.decisionSourceClosed,
+          },
+          state,
+          false, // options carry no role, so the Role filter does not apply to them
+        ),
+      )
+      .sort((a, b) =>
+        compareSortValues(this.optionTxSortValue(a, col), this.optionTxSortValue(b, col), dir),
+      );
   });
 
   /** Gain/Loss for a stock row: (closingPrice - avgCost) * shares */
@@ -255,6 +394,15 @@ export class TransactionsPageComponent {
         ? new Date(item.closeDate).getTime()
         : Date.now();
     return Math.floor((end - open) / (1000 * 60 * 60 * 24));
+  }
+
+  /** Calendar days since the position was closed (Toronto date); null when not applicable. */
+  protected sinceClose(item: PortfolioItem | OptionItem): number | null {
+    return daysSinceClose(item.transactionType, item.closeDate, this.todayToronto());
+  }
+
+  protected futureClose(item: PortfolioItem | OptionItem): boolean {
+    return isFutureClose(item.transactionType, item.closeDate, this.todayToronto());
   }
 
   /** Gain% for a stock row: gainLoss / (avgCost * shares) */
@@ -309,71 +457,131 @@ export class TransactionsPageComponent {
     return item.openDate ?? null;
   }
 
-  /** Export the current ALL-view stock transactions to CSV. */
+  /** Industry stored on the transaction, falling back to the live quote's industry. */
+  protected stockIndustry(s: PortfolioSummary): string {
+    return s.item.industry || s.quote?.industry || '';
+  }
+
+  /** Export the filtered stock transactions (the same rows as the grid) to CSV. */
   exportStocksCsv(): void {
-    const rows = this.sortedStockTransactions();
-    const headers = [
-      'Type',
-      'Account',
-      'Ticker',
-      'Company',
-      'Shares',
-      'Avg Cost',
-      'Open Date',
-      'Close Date',
-      'Closing Price',
-      'Gain/Loss',
-      'Gain %',
-      'Last Price',
-      'Price Diff',
-      'Diff $',
-      'Trans Date',
-      'Decision Source',
-      'Age (days)',
-    ];
-    const fmtDate = (d: string | null | undefined) => (d ? d.substring(0, 10) : '');
-    const csvLines = [headers.join(',')];
-    for (const s of rows) {
-      const gl = this.stockGainLoss(s);
-      const gp = this.stockGainPct(s);
-      const pd = this.stockPriceDiff(s);
-      const dd = this.stockDiffDollar(s);
-      const lp = this.stockLastPrice(s);
-      const age = this.stockTransactionAge(s.item);
-      const td = this.stockTransDate(s.item);
-      const escape = (v: unknown) => {
-        const str = v == null ? '' : String(v);
-        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str;
-      };
-      csvLines.push(
-        [
-          escape(s.item.transactionType ?? ''),
-          escape(s.item.accountType ?? ''),
-          escape(s.item.symbol),
-          escape(s.item.companyName),
-          escape(s.item.shares),
-          escape(s.item.averageCostBasis),
-          escape(fmtDate(s.item.openDate)),
-          escape(fmtDate(s.item.closeDate)),
-          escape(s.item.closingPrice ?? ''),
-          escape(gl != null ? gl.toFixed(2) : ''),
-          escape(gp != null ? gp.toFixed(2) : ''),
-          escape(lp != null ? lp.toFixed(2) : ''),
-          escape(pd != null ? pd.toFixed(2) : ''),
-          escape(dd != null ? dd.toFixed(2) : ''),
-          escape(fmtDate(td)),
-          escape(s.item.decisionSource ?? ''),
-          escape(age ?? ''),
-        ].join(','),
+    this.downloadCsv(
+      TX_STOCK_EXPORT_COLUMNS,
+      this.sortedStockTransactions().map((s) => this.stockExportRow(s)),
+      'transactions',
+    );
+  }
+
+  /** Export the filtered option transactions to CSV. */
+  exportOptionsCsv(): void {
+    this.downloadCsv(
+      TX_OPTION_EXPORT_COLUMNS,
+      this.sortedOptionTransactions().map((a) => this.optionExportRow(a)),
+      'option-transactions',
+    );
+  }
+
+  /** Export stocks, options and the applied filters/totals to a single .xlsx workbook. */
+  exportExcel(): void {
+    const book = XLSX.utils.book_new();
+    const stockRows = this.sortedStockTransactions().map((s) => this.stockExportRow(s));
+    XLSX.utils.book_append_sheet(
+      book,
+      txSheet(TX_STOCK_EXPORT_COLUMNS, stockRows),
+      'Stocks',
+    );
+    const optionRows = this.sortedOptionTransactions().map((a) => this.optionExportRow(a));
+    if (optionRows.length > 0) {
+      XLSX.utils.book_append_sheet(
+        book,
+        txSheet(TX_OPTION_EXPORT_COLUMNS, optionRows),
+        'Options',
       );
     }
-    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    XLSX.utils.book_append_sheet(book, this.summarySheet(), 'Filters & Totals');
+    XLSX.writeFile(book, `transactions-${this.todayToronto()}.xlsx`);
+  }
+
+  private summarySheet(): XLSX.WorkSheet {
+    const aoa: ExportCell[][] = [['Transactions export'], ...activeFilterSummary(this.filterState())];
+    const addTotals = (title: string, t: ReturnType<typeof computeTxTotals>) => {
+      aoa.push([], [title], ['Records', t.count], ['Closed records', t.closedCount], ['Open records', t.openCount]);
+      for (const c of t.closedGainLoss) aoa.push([`Realized Gain/Loss (${c.currency})`, c.amount]);
+      for (const c of t.closedDiff) aoa.push([`Closed DIFF $ (${c.currency})`, c.amount]);
+      for (const c of t.openDiff) aoa.push([`Open DIFF $ (${c.currency})`, c.amount]);
+    };
+    addTotals('Stocks', this.stockTotals());
+    addTotals('Options', this.optionTotals());
+    aoa.push([], ['Totals are per currency; CAD and USD are never added together.']);
+    const sheet = XLSX.utils.aoa_to_sheet(aoa);
+    sheet['!cols'] = [{ wch: 38 }, { wch: 22 }];
+    return sheet;
+  }
+
+  private downloadCsv(
+    columns: readonly TxExportColumn[],
+    rows: ExportCell[][],
+    name: string,
+  ): void {
+    const blob = new Blob([txRowsToCsv(columns, rows)], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `${name}-${this.todayToronto()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  private stockExportRow(s: PortfolioSummary): ExportCell[] {
+    const i = s.item;
+    return [
+      i.transactionType ?? '',
+      i.accountType ?? '',
+      i.symbol,
+      i.companyName,
+      i.shares,
+      i.averageCostBasis,
+      dateOnly(i.openDate),
+      dateOnly(i.closeDate),
+      i.closingPrice ?? null,
+      this.stockGainLoss(s),
+      this.stockGainPct(s),
+      this.stockLastPrice(s),
+      this.stockPriceDiff(s),
+      this.stockDiffDollar(s),
+      dateOnly(this.stockTransDate(i)),
+      i.decisionSource ?? '',
+      i.decisionSourceClosed ?? '',
+      i.holdingRole ?? '',
+      this.stockIndustry(s),
+      this.stockTransactionAge(i),
+      this.sinceClose(i),
+      this.stockCurrency(i.symbol),
+    ];
+  }
+
+  private optionExportRow(a: OptionAnalysis): ExportCell[] {
+    const i = a.item;
+    return [
+      i.transactionType ?? '',
+      i.accountType ?? '',
+      i.underlyingTicker,
+      i.positionType,
+      dateOnly(i.expirationDate),
+      i.strike,
+      i.premium,
+      i.numberOfContracts,
+      dateOnly(i.openDate),
+      dateOnly(i.closeDate),
+      i.closingPrice ?? null,
+      this.optionGainLoss(a),
+      this.optionGainPct(a),
+      this.optionMktValue(a),
+      i.decisionSource ?? '',
+      i.decisionSourceClosed ?? '',
+      this.optionTransactionAge(i),
+      this.sinceClose(i),
+      this.stockCurrency(i.underlyingTicker),
+    ];
   }
 
   /** Gain/Loss for an option row: (closingPrice - premium) * contracts * 100 */
@@ -396,21 +604,32 @@ export class TransactionsPageComponent {
     return a.item.numberOfContracts * 100 * a.item.marketPrice;
   }
 
-  // ── Totals row computed signals (always based on CLOSE records only) ────────
-  protected readonly stockTotalGainLoss = computed(() =>
-    this.sortedStockTransactions()
-      .filter((s) => s.item.transactionType === 'CLOSE')
-      .reduce((sum, s) => sum + (this.stockGainLoss(s) ?? 0), 0),
+  // ── Totals: every filtered record (the grid is not paginated), per currency ─────────────
+  protected readonly stockTotals = computed(() =>
+    computeTxTotals(
+      this.sortedStockTransactions().map(
+        (s): TxTotalsRow => ({
+          type: s.item.transactionType,
+          currency: this.stockCurrency(s.item.symbol),
+          gainLoss: this.stockGainLoss(s),
+          diffDollar: this.stockDiffDollar(s),
+        }),
+      ),
+    ),
   );
 
-  protected readonly optionTotalGainLoss = computed(() =>
-    this.sortedOptionTransactions()
-      .filter((a) => a.item.transactionType === 'CLOSE')
-      .reduce((sum, a) => sum + (this.optionGainLoss(a) ?? 0), 0),
+  protected readonly optionTotals = computed(() =>
+    computeTxTotals(
+      this.sortedOptionTransactions().map(
+        (a): TxTotalsRow => ({
+          type: a.item.transactionType,
+          currency: this.stockCurrency(a.item.underlyingTicker),
+          gainLoss: this.optionGainLoss(a),
+          diffDollar: null, // DIFF $ is a stock-only metric
+        }),
+      ),
+    ),
   );
-
-  /** Whether the current filter includes CLOSE records (show totals row). */
-  protected readonly showTotalsRow = computed(() => this.txTypeFilter() !== 'OPEN');
 
   onStockSortChange(sort: Sort): void {
     if (!sort.active || sort.direction === '') return;
@@ -460,8 +679,14 @@ export class TransactionsPageComponent {
         return s.item.decisionSource ?? '';
       case 'tx_decision_source_closed':
         return s.item.decisionSourceClosed ?? '';
+      case 'tx_role':
+        return s.item.holdingRole ?? '';
+      case 'tx_industry':
+        return this.stockIndustry(s);
       case 'tx_age':
         return this.stockTransactionAge(s.item) ?? 0;
+      case 'tx_since_close':
+        return this.sinceClose(s.item);
       default:
         return 0;
     }
@@ -501,6 +726,8 @@ export class TransactionsPageComponent {
         return a.item.decisionSource ?? '';
       case 'otx_age':
         return this.optionTransactionAge(a.item) ?? 0;
+      case 'otx_since_close':
+        return this.sinceClose(a.item);
       default:
         return 0;
     }
@@ -508,32 +735,37 @@ export class TransactionsPageComponent {
 
   // ── Stock Edit / Remove ────────────────────────────────────────────────────
   openEditStockTransaction(s: PortfolioSummary): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: s.item } satisfies EditPositionDialogData,
-        width: '620px',
-        maxWidth: '95vw',
-        maxHeight: '95vh',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (!result) return;
-        this.portfolio.updateItem(s.item.id, {
-          companyName: result.companyName,
-          shares: result.shares,
-          averageCostBasis: result.averageCostBasis,
-          sector: result.sector,
-          industry: result.industry,
-          overrideSector: result.overrideSector,
-          transactionType: result.transactionType,
-          accountType: result.accountType,
-          openDate: result.openDate,
-          closeDate: result.closeDate,
-          closingPrice: result.closingPrice,
-          decisionSource: result.decisionSource,
-          decisionSourceClosed: result.decisionSourceClosed,
-        });
-      });
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: s.item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.portfolio.updateItem(
+              s.item.id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   confirmRemoveStockTransaction(s: PortfolioSummary): void {

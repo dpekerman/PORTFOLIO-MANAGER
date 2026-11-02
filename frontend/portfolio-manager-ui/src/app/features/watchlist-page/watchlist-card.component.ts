@@ -6,7 +6,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { WatchlistSummary } from '../../core/models/portfolio.models';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { WatchlistStore } from '../../core/store/watchlist.store';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import {
   ConfirmDialogComponent,
@@ -29,7 +29,7 @@ import {
 })
 export class WatchlistCardComponent {
   readonly summary = input.required<WatchlistSummary>();
-  private readonly watchlist = inject(WatchlistStateService);
+  private readonly watchlist = inject(WatchlistStore);
   private readonly dialog = inject(MatDialog);
 
   protected readonly quote = computed(() => this.summary().quote);

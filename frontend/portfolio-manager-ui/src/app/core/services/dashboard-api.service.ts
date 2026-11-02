@@ -7,6 +7,7 @@ import {
   DashboardEodSummary,
   DashboardResponse,
   MarketLeadershipResponse,
+  OpenDecisionsResponse,
   PerformanceSummaryResponse,
   PortfolioActionDto,
 } from '../models/portfolio.models';
@@ -27,6 +28,11 @@ export class DashboardApiService {
 
   getPortfolioActions(): Observable<PortfolioActionDto[]> {
     return this.http.get<PortfolioActionDto[]>('/api/dashboard/portfolio-actions');
+  }
+
+  /** Current validated decisions plus the summary counts (always for the full set). */
+  getActionCenter(): Observable<OpenDecisionsResponse> {
+    return this.http.get<OpenDecisionsResponse>('/api/dashboard/action-center');
   }
 
   getEodSummary(): Observable<DashboardEodSummary> {

@@ -1,0 +1,46 @@
+@if (periods().length > 0) {
+  <section class="pp" aria-label="Portfolio performance excluding cash in and out" data-testid="portfolio-performance">
+    <div class="pp-grid">
+      @for (p of periods(); track p.period) {
+        <div class="pp-card" [attr.data-testid]="'pp-' + p.period">
+          <span class="pp-period">{{ label(p) }}</span>
+          @if (p.status === 'Available') {
+            <dl class="pp-rows">
+              <div>
+                <dt>Value change</dt>
+                <dd>{{ value(p.valueChange!) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</dd>
+              </div>
+              <div>
+                <dt>Net cash in/out</dt>
+                <dd>{{ value(p.netExternalFlow!) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}</dd>
+              </div>
+              <div class="pp-gain">
+                <dt>Investment gain/loss</dt>
+                <dd [class]="signCls(p.investmentGainLoss!)" data-testid="pp-gain">
+                  {{ value(p.investmentGainLoss!) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+                </dd>
+              </div>
+              <div>
+                <dt>Return</dt>
+                <dd data-testid="pp-pct">
+                  @if (p.investmentGainLossPercent !== null) {
+                    {{ percent(p.investmentGainLossPercent) | number: '1.2-2' }}%
+                  } @else {
+                    N/A
+                  }
+                </dd>
+              </div>
+            </dl>
+          } @else {
+            <span class="pp-state" data-testid="pp-state">
+              {{ p.status === 'Updating' ? 'Updating…' : 'Unavailable' }}
+            </span>
+            @if (p.reason) {
+              <span class="pp-reason">{{ p.reason }}</span>
+            }
+          }
+        </div>
+      }
+    </div>
+  </section>
+}

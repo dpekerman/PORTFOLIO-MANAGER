@@ -34,6 +34,9 @@ public sealed class EodAutomationOrchestratorService(
     AutomationRuntimeConfig automationConfig,
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
+    IHostApplicationLifetime appLifetime,
+    ISignalsAuditService signalsAudit,
+    PortfolioManager.Api.Services.FinalAction.IFinalActionService finalActions,
     ILogger<EodAutomationOrchestratorService> logger) : IEodAutomationOrchestratorService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
@@ -109,8 +112,20 @@ public sealed class EodAutomationOrchestratorService(
             await PollForCompletionAsync(log, tz, pollDeadlineUtc, ct);
             await RecordHeartbeatAsync(log, "CompletionObserved", ct);
 
+            await CaptureSignalsAsync(owner.Id, log, ct);
+            await RecordHeartbeatAsync(log, "SignalsAuditCaptured", ct);
             log.CompletedAtUtc = DateTime.UtcNow;
             log.OverallStatus = DeriveOverallStatus(log);
+            db.AuditLogs.Add(new AuditLog
+            {
+                Source = AuditSources.System,
+                Category = AuditCategories.Automation,
+                Action = AuditActions.Other,
+                EntityType = nameof(AutomationRunLog),
+                EntityId = runId.ToString(),
+                Summary = $"EOD automation ({triggerType}) {log.TradingDate}: {log.OverallStatus}; refresh {log.RefreshStatus}, RSI {log.RsiStatus}, snapshot {log.SnapshotStatus}",
+                CorrelationId = triggerCorrelationId,
+            });
             await db.SaveChangesAsync(ct);
             logger.LogInformation("[EodAutomation] Run {RunId} finished with status {Status}.", runId, log.OverallStatus);
         }
@@ -198,6 +213,59 @@ public sealed class EodAutomationOrchestratorService(
         {
             log.PowerRequestReleasedAtUtc = DateTime.UtcNow;
             try { await db.SaveChangesAsync(CancellationToken.None); } catch { /* best effort */ }
+        }
+    }
+
+    /// <summary>
+    /// A run may drive recommendation lifecycle changes (confirm / invalidate / expire) only if the refresh really
+    /// succeeded and the EOD window was observed. "Window reached" alone is not proof that data was refreshed.
+    /// </summary>
+    public static bool IsEvaluationComplete(AutomationRunLog log) =>
+        log.RefreshStatus == AutomationStatuses.Succeeded && log.RsiStatus == AutomationStatuses.Succeeded;
+
+    /// <summary>
+    /// Final Action evaluation, Action Center publication and Signals Audit capture are auxiliary to the EOD run:
+    /// a failure is logged and never fails it. ONE evaluation pass feeds both publication and capture.
+    /// </summary>
+    private async Task CaptureSignalsAsync(string ownerId, AutomationRunLog log, CancellationToken ct)
+    {
+        try
+        {
+            var snapshot = await finalActions.ComputeAsync(ownerId, fresh: true, ct);
+            var published = await finalActions.PublishPortfolioActionsAsync(ownerId, snapshot, ct);
+            var awaiting = snapshot.Meta?.UnknownSymbols.OrderBy(s => s, StringComparer.Ordinal).ToList() ?? [];
+            if (awaiting.Count > 0)
+            {
+                // Independently valid symbols were published; the rest keep their previous record and timestamp. The run is
+                // reported as PartialSuccess with the affected symbols, never as a clean success.
+                log.ErrorStep = PartialEvaluationStep;
+                log.ErrorMessage = Truncate($"{published} holding(s) published; Awaiting Data (not evaluated): {string.Join(", ", awaiting)}", 2000);
+                logger.LogWarning("[EodAutomation] Partial evaluation: {Count} symbol(s) awaiting data: {Symbols}.", awaiting.Count, string.Join(", ", awaiting));
+            }
+            logger.LogInformation("[EodAutomation] Final Action: {Watchlist} watchlist and {Portfolio} portfolio decisions; {Published} published to Action Center.",
+                snapshot.Watchlist.Count, snapshot.Portfolio.Count, published);
+
+            var complete = IsEvaluationComplete(log);
+            if (!complete)
+                logger.LogWarning("[EodAutomation] Evaluation incomplete (refresh {Refresh}, RSI {Rsi}); existing recommendations are preserved, none will be closed.",
+                    log.RefreshStatus, log.RsiStatus);
+            var result = await signalsAudit.CaptureAsync(ownerId, snapshot,
+                new CaptureOptions(IsEodPass: true, EvaluationComplete: complete, RunStartedUtc: log.ActualStartUtc), ct);
+            logger.LogInformation("[EodAutomation] Signals Audit: {Created} new, {Closed} closed{Skipped}.",
+                result.Created, result.Closed, result.Skipped ? $" (skipped: {result.Reason})" : "");
+            // A skipped pass (no evaluation / no data) must not leave an old "complete" marker standing as an all-clear.
+            if (result.Skipped && result.Reason?.StartsWith("Duplicate", StringComparison.Ordinal) != true)
+                await signalsAudit.RecordEvaluationFailureAsync(ownerId, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "[EodAutomation] Signals Audit capture failed; EOD run continues.");
+            try { await signalsAudit.RecordEvaluationFailureAsync(ownerId, CancellationToken.None); }
+            catch (Exception markEx) { logger.LogWarning(markEx, "[EodAutomation] Could not record the failed evaluation."); }
         }
     }
 
@@ -380,6 +448,9 @@ public sealed class EodAutomationOrchestratorService(
     /// by design, so its absence after the window fully closed is a genuine problem.
     /// Internal (not private) so PortfolioManager.Tests can exercise it directly — see InternalsVisibleTo
     /// in PortfolioManager.Api.csproj (same pattern already used elsewhere in this project).</summary>
+    /// <summary>Marks a run where some symbols could not be evaluated: the run is PartialSuccess, not Success.</summary>
+    internal const string PartialEvaluationStep = "FinalActionPartial";
+
     internal static string DeriveOverallStatus(AutomationRunLog log)
     {
         if (log.SnapshotStatus == AutomationStatuses.NotObserved)
@@ -387,7 +458,7 @@ public sealed class EodAutomationOrchestratorService(
 
         if (log.RefreshStatus == AutomationStatuses.Failed || log.SnapshotStatus == AutomationStatuses.Failed)
             return AutomationStatuses.Failed;
-        if (log.RsiStatus == AutomationStatuses.NotObserved)
+        if (log.RsiStatus == AutomationStatuses.NotObserved || log.ErrorStep == PartialEvaluationStep)
             return AutomationStatuses.PartialSuccess;
         return AutomationStatuses.Success;
     }
@@ -396,7 +467,9 @@ public sealed class EodAutomationOrchestratorService(
     {
         log.OverallStatus = AutomationStatuses.Cancelled;
         log.ErrorStep = null;
-        log.ErrorMessage = "Cancelled by admin.";
+        log.ErrorMessage = appLifetime.ApplicationStopping.IsCancellationRequested
+            ? "Interrupted: the API was stopped or restarted while the run was in progress."
+            : "Cancelled by admin.";
         log.CompletedAtUtc = DateTime.UtcNow;
         logger.LogInformation("[EodAutomation] Run {RunId} was cancelled.", log.RunId);
         try { await db.SaveChangesAsync(CancellationToken.None); } catch { /* best effort */ }

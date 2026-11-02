@@ -1,4 +1,8 @@
 @use '@angular/material' as mat;
+@use 'styles/responsive-table';
+@use 'styles/responsive-pages';
+@use 'styles/responsive-dashboard';
+@use 'styles/responsive-dashboard-cards';
 
 // ── Dark theme (default) — Angular Material ───────────────────────────────────
 html {
@@ -9,7 +13,7 @@ html {
         tertiary: mat.$blue-palette,
         theme-type: dark,
       ),
-      typography: Roboto,
+      typography: Inter,
       density: 0,
     )
   );
@@ -24,7 +28,7 @@ body.light-theme {
         tertiary: mat.$blue-palette,
         theme-type: light,
       ),
-      typography: Roboto,
+      typography: Inter,
       density: 0,
     )
   );
@@ -70,6 +74,11 @@ body {
   background-color: var(--bg-page);
   color: var(--text-primary);
   font: var(--mat-sys-body-medium);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  // Equal-width digits keep money columns aligned and easier to scan.
+  font-variant-numeric: tabular-nums;
   margin: 0;
   height: 100%;
 }
@@ -78,8 +87,37 @@ html {
   height: 100%;
 }
 
+// Handsets: most sizes in the app are rem-based, so raising the root size enlarges text
+// (16px -> 18px) without touching desktop/tablet.
+@media (max-width: 599.98px) {
+  html {
+    font-size: 112.5%;
+  }
+
+  // Slightly heavier body text reads sharper on small, dense screens.
+  body {
+    font-weight: 500;
+  }
+}
+
 .mat-mdc-tooltip .mdc-tooltip__surface {
   white-space: pre-line;
+}
+
+// Multi-line tooltips on the Value Screener (matTooltipClass="value-screener-tooltip").
+.mat-mdc-tooltip.value-screener-tooltip {
+  max-width: 380px;
+}
+
+// Dashboard "Top movers" count select (panelClass="movers-count-panel"): the overlay panel lives
+// outside the component, so its compact sizing is set here.
+.mat-mdc-select-panel.movers-count-panel {
+  --mat-option-label-text-size: 0.8rem;
+  min-width: 70px;
+
+  .mat-mdc-option {
+    min-height: 36px;
+  }
 }
 
 // ── Skeleton shimmer CSS variables ────────────────────────────────────────────
@@ -97,8 +135,11 @@ body.light-theme {
   width: 100%;
 }
 
+.mat-mdc-dialog-container {
+  --mat-dialog-container-shape: 12px;
+}
+
 .mat-mdc-dialog-surface {
-  border-radius: 12px !important;
   display: flex !important;
   flex-direction: column !important;
   // Allow overflow so floating labels are not clipped at the top
@@ -124,8 +165,12 @@ body.light-theme {
   box-sizing: border-box !important;
   // Extra top padding so outline form-field floating labels aren't clipped
   padding: 16px 24px 16px !important;
-  max-height: 65vh !important;
-  min-width: min(340px, 90vw);
+  // `dvh` tracks the *visible* viewport, so a phone with its URL bar showing cannot push the
+  // action buttons off screen the way a plain `65vh` would.
+  max-height: min(65vh, calc(100dvh - 168px)) !important;
+  // `min()` keeps the comfortable desktop width but lets the dialog shrink on a phone instead of
+  // forcing the surface wider than the screen.
+  min-width: min(340px, 100%);
 
   // Ensure form fields inside dialogs fill width
   mat-form-field {
@@ -143,6 +188,37 @@ body.light-theme {
 .mat-mdc-dialog-actions {
   padding: 8px 24px 16px !important;
   min-height: unset !important;
+}
+
+// ── Dialogs on a handset ──────────────────────────────────────────────────────
+// Material caps a dialog at 80vw, which on a 390px phone leaves 312px — narrower than every form
+// in this app. Phones get the full width minus a small gutter, tighter padding, and wrapping
+// actions so the confirm button is always reachable. Desktop sizing is untouched.
+@media (max-width: 599.98px) {
+  .cdk-overlay-pane.mat-mdc-dialog-panel {
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px) !important;
+  }
+
+  .mat-mdc-dialog-surface {
+    max-width: 100%;
+  }
+
+  .mat-mdc-dialog-title {
+    padding: 16px 16px 8px !important;
+  }
+
+  .mat-mdc-dialog-content {
+    padding: 12px 16px !important;
+    min-width: 0;
+    max-height: calc(100dvh - 190px) !important;
+  }
+
+  .mat-mdc-dialog-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 16px 14px !important;
+  }
 }
 
 // ── Demo mode value redaction ─────────────────────────────────────────────────
@@ -289,5 +365,16 @@ a.mat-mdc-button-base mat-icon {
   }
   &.fib-dist-below {
     color: #ef9a9a;
+  }
+}
+
+// Top-bar navigation menus (Markets / Insights): the overlay lives outside the layout component.
+.nav-menu .mat-mdc-menu-item.nav-menu-active {
+  color: #64b5f6;
+  background: rgba(100, 181, 246, 0.1);
+  font-weight: 600;
+
+  .mat-icon {
+    color: #64b5f6;
   }
 }

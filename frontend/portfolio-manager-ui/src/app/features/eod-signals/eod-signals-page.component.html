@@ -1,38 +1,33 @@
 <div class="eod-page">
   <!-- ── Page Header ──────────────────────────────────────────────────── -->
-  <div class="page-header">
-    <div class="page-title-group">
-      <mat-icon class="page-icon">timeline</mat-icon>
-      <div>
-        <h1 class="page-title">
-          EOD SIGNALS
-          @if (totalCount() > 0) {
-            <span class="count-badge">{{ totalCount() }}</span>
-          }
-        </h1>
-        <p class="page-sub">
-          Confirmed end-of-day signals · Lifecycle tracking · History
-          @if (meta(); as m) {
-            @if (m.minDate && m.maxDate) {
-              · <span class="date-range">{{ m.minDate }} – {{ m.maxDate }}</span>
-            }
-          }
-        </p>
-        @if (lastCheckedAt()) {
-          <p class="last-checked">
-            @if (autoRefreshing()) {
-              <mat-icon class="spin-xs">sync</mat-icon>
-            }
-            CHECKED {{ lastCheckedAt() | date: 'HH:mm:ss' }}
-          </p>
+  <app-page-header
+    icon="timeline"
+    title="EOD SIGNALS"
+    subtitle="Confirmed end-of-day signals · Lifecycle tracking · History"
+  >
+    @if (totalCount() > 0) {
+      <span pageTitleExtra class="count-badge">{{ totalCount() }}</span>
+    }
+    @if (meta(); as m) {
+      @if (m.minDate && m.maxDate) {
+        <span pageSub> · <span class="date-range">{{ m.minDate }} – {{ m.maxDate }}</span></span>
+      }
+    }
+    @if (lastCheckedAt()) {
+      <p pageMeta class="last-checked">
+        @if (autoRefreshing()) {
+          <mat-icon class="spin-xs">sync</mat-icon>
         }
-      </div>
-    </div>
+        CHECKED {{ lastCheckedAt() | date: 'HH:mm:ss' }}
+      </p>
+    }
 
-    <div class="page-actions">
-      <button mat-icon-button matTooltip="Refresh" (click)="loadSignals()" [disabled]="loading()">
-        <mat-icon [class.spinning]="loading()">refresh</mat-icon>
-      </button>
+    <ng-container ngProjectAs="[pageActions]">
+      <app-refresh-button
+        tooltip="Refresh all data and reload signals"
+        [busy]="loading()"
+        (refreshed)="loadSignals()"
+      />
       <button
         mat-icon-button
         matTooltip="Export to Excel"
@@ -71,8 +66,8 @@
           Delete All
         </button>
       }
-    </div>
-  </div>
+    </ng-container>
+  </app-page-header>
 
   <!-- ── Persist Progress Banner ──────────────────────────────────────── -->
   @if (persistingNow()) {
@@ -186,8 +181,8 @@
         [formControl]="dateFromControl"
         placeholder="yyyy-mm-dd"
       />
-      <mat-datepicker-toggle matSuffix [for]="fromPicker"></mat-datepicker-toggle>
-      <mat-datepicker #fromPicker></mat-datepicker>
+      <mat-datepicker-toggle matSuffix [for]="fromPicker" />
+      <mat-datepicker #fromPicker />
     </mat-form-field>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-date">
@@ -198,8 +193,8 @@
         [formControl]="dateToControl"
         placeholder="yyyy-mm-dd"
       />
-      <mat-datepicker-toggle matSuffix [for]="toPicker"></mat-datepicker-toggle>
-      <mat-datepicker #toPicker></mat-datepicker>
+      <mat-datepicker-toggle matSuffix [for]="toPicker" />
+      <mat-datepicker #toPicker />
     </mat-form-field>
 
     @if (hasFilters()) {
@@ -245,11 +240,14 @@
 
   <!-- ── Table ─────────────────────────────────────────────────────────── -->
   @if (sortedSignals().length > 0) {
+    <app-mobile-table-controls [sort]="signalsSort" gridId="eod-signals" label="Signals" />
     <div class="table-wrapper">
       <table
         mat-table
+        appResponsiveTable
         [dataSource]="sortedSignals()"
         matSort
+        #signalsSort="matSort"
         (matSortChange)="onMatSortChange($event)"
         class="signals-table"
       >
@@ -368,9 +366,7 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.entryPrice !== null && row.entryPrice !== undefined) {
-              <span class="mono"
-                >${{ row.entryPrice | number: '1.2-2' }}</span
-              >
+              <span class="mono">${{ row.entryPrice | number: '1.2-2' }}</span>
             } @else {
               <span class="muted">—</span>
             }
@@ -384,9 +380,7 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.stopLossPrice !== null && row.stopLossPrice !== undefined) {
-              <span class="mono"
-                >${{ row.stopLossPrice | number: '1.2-2' }}</span
-              >
+              <span class="mono">${{ row.stopLossPrice | number: '1.2-2' }}</span>
             } @else {
               <span class="muted">—</span>
             }
@@ -401,9 +395,7 @@
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.riskPerShare !== null && row.riskPerShare !== undefined) {
               <div class="risk-cell">
-                <span class="mono"
-                  >${{ row.riskPerShare | number: '1.2-2' }}</span
-                >
+                <span class="mono">${{ row.riskPerShare | number: '1.2-2' }}</span>
                 @let rp = riskPercent(row);
                 @if (rp !== null) {
                   <span
@@ -465,9 +457,7 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (row.sma200 !== null && row.sma200 !== undefined) {
-              <span class="mono"
-                >${{ row.sma200 | number: '1.2-2' }}</span
-              >
+              <span class="mono">${{ row.sma200 | number: '1.2-2' }}</span>
             } @else {
               <span class="muted">—</span>
             }
@@ -483,9 +473,7 @@
         <ng-container matColumnDef="price">
           <th mat-header-cell *matHeaderCellDef mat-sort-header="price" class="num-col">PRICE</th>
           <td mat-cell *matCellDef="let row" class="num-col">
-            <span
-              class="mono"
-              [matTooltip]="'Analyzed on ' + (row.analysisTicker ?? row.symbol)"
+            <span class="mono" [matTooltip]="'Analyzed on ' + (row.analysisTicker ?? row.symbol)"
               >${{ row.price | number: '1.2-2' }}</span
             >
           </td>
@@ -498,9 +486,7 @@
           </th>
           <td mat-cell *matCellDef="let row" class="num-col">
             @if (lastPrice(row); as lp) {
-              <span
-                class="mono"
-                [matTooltip]="'Priced on ' + (row.analysisTicker ?? row.symbol)"
+              <span class="mono" [matTooltip]="'Priced on ' + (row.analysisTicker ?? row.symbol)"
                 >${{ lp | number: '1.2-2' }}</span
               >
             } @else {

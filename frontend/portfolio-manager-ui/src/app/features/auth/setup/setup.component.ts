@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { AuthApiService } from '../../../core/services/auth-api.service';
-import { AuthStateService } from '../../../core/services/auth-state.service';
+import { AuthStore } from '../../../core/store/auth.store';
 
 function passwordsMatch(group: import('@angular/forms').AbstractControl) {
   const pw = group.get('password')?.value;
@@ -33,7 +33,7 @@ function passwordsMatch(group: import('@angular/forms').AbstractControl) {
 })
 export class SetupComponent implements OnInit {
   private readonly authApi = inject(AuthApiService);
-  private readonly authState = inject(AuthStateService);
+  private readonly authState = inject(AuthStore);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 
@@ -75,7 +75,7 @@ export class SetupComponent implements OnInit {
       .subscribe({
         next: (response) => {
           this.authState.setAuth(response);
-          this.authState.setupRequired.set(false);
+          this.authState.setSetupRequired(false);
           this.router.navigate(['/dashboard']);
         },
         error: (err) => {

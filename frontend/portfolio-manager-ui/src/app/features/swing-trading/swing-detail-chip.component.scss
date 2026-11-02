@@ -1,0 +1,68 @@
+@use 'swing-shared';
+
+:host {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.dc {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-sizing: border-box;
+  max-width: 100%;
+  background: transparent;
+  font-family: inherit;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+.dc-icon {
+  width: 14px;
+  height: 14px;
+  font-size: 14px;
+}
+
+.dc-ok {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dc-warn {
+  color: #b26a00;
+}
+
+.dc-bad {
+  color: var(--mat-sys-error);
+  font-weight: 600;
+}
+
+.dc-dim {
+  color: var(--mat-sys-on-surface-variant);
+  opacity: 0.85;
+}
+
+.dc-detail {
+  display: block;
+  max-width: 100%;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 599.98px) {
+  .dc {
+    min-height: 32px;
+    padding: 4px 10px;
+  }
+}

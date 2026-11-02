@@ -43,6 +43,8 @@ export interface PortfolioItem {
   finalActionSeverity?: string | null;
   finalActionPriority?: string | null;
   finalActionUpdatedAt?: string | null;
+  /** Completed market session (yyyy-MM-dd) the published Final Action's evidence belongs to. */
+  finalActionSession?: string | null;
 }
 
 /** One Portfolio holding's computed Final Action, pushed to the backend after every recompute. */
@@ -52,6 +54,13 @@ export interface FinalActionSyncItem {
   finalAction: string;
   severity: string;
   priority: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
+}
+
+/** 5-trading-day and 1-month change % for a symbol; null = not enough history (never 0). */
+export interface PeriodChange {
+  symbol: string;
+  change5DPct: number | null;
+  change1MPct: number | null;
 }
 
 export interface StockQuote {
@@ -69,6 +78,7 @@ export interface StockQuote {
   /** Yahoo Finance market state: REGULAR, PRE, POST, CLOSED, PREPRE, POSTPOST */
   marketState: string;
   timestamp: number;
+  sourcePriceTimestamp?: number | null;
   week52High: number;
   week52Low: number;
   targetMeanPrice: number;
@@ -568,6 +578,29 @@ export interface UnlinkedTrade {
   tradeDate: string;
   /** NoCash, or MissingPrice when the leg has no price to size the cash row. */
   reason: 'NoCash' | 'MissingPrice';
+  diagnosis?: UnlinkedTradeDiagnosis | null;
+}
+
+export interface UnlinkedNearestCash {
+  id: number;
+  description: string;
+  amount: number;
+  accountType: string | null;
+  date: string | null;
+  cashFlowType: string | null;
+  /** Which matching rules this row failed. */
+  mismatches: string[];
+}
+
+/** Why a trade leg is reported as having no cash entry. */
+export interface UnlinkedTradeDiagnosis {
+  summary: string;
+  tradeRecordedAt: string;
+  expectedCashFlowType: string;
+  expectedCashAmount: number | null;
+  amountTolerance: number | null;
+  nearestCash: UnlinkedNearestCash | null;
+  details: string[];
 }
 
 export interface AddCashItemRequest {
@@ -1006,6 +1039,24 @@ export interface DashboardSummary {
   monthChangePercent: number;
   oversoldCount: number;
   overboughtCount: number;
+  /** Flow-adjusted performance (PM-022). Absent on snapshots saved before the field existed. */
+  performance?: PeriodPerformance[] | null;
+}
+
+export type PerformancePeriod = 'Day' | 'Week' | 'Month' | 'YTD';
+export type PerformanceStatus = 'Available' | 'Updating' | 'Unavailable';
+
+/** Investment Gain/Loss = Value Change - Net External Flow. Dollar fields are null unless status is Available. */
+export interface PeriodPerformance {
+  period: PerformancePeriod;
+  status: PerformanceStatus;
+  reason: string | null;
+  baselineDate: string | null;
+  valueChange: number | null;
+  netExternalFlow: number | null;
+  investmentGainLoss: number | null;
+  /** Null (N/A) whenever an external flow occurred. */
+  investmentGainLossPercent: number | null;
 }
 
 export interface DashboardMover {
@@ -1165,6 +1216,12 @@ export interface PortfolioActionDto {
   latestEodTrendShift?: string | null;
   latestEodIsNew?: boolean;
   latestEodIsInvalidated?: boolean;
+  /** CurrentValid | PriorSessionValid | AwaitingData | Evaluating — the effective canonical state. */
+  evaluationState?: string | null;
+  isActionable?: boolean;
+  lastValidAction?: string | null;
+  lastEvaluatedAtUtc?: string | null;
+  reasonCodes?: string[] | null;
 }
 
 export type ActionResolutionStatus =
@@ -1193,6 +1250,7 @@ export interface DashboardEodSummary {
   rawRecordCount: number;
   uniqueTickerCount: number;
   rows: DashboardEodSummaryRow[];
+  lastScanDate?: string | null;
 }
 
 // ── Decision Analytics ──────────────────────────────────────────────────────────
@@ -1396,4 +1454,528 @@ export interface PerformanceSummaryResponse {
   /** False when no snapshot exists before Jan 1 of the current year — the figures are a
    *  "since inception" return using the earliest available snapshot, not a true YTD return. */
   isFullYear: boolean;
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────
+
+export type AuditSource = 'User' | 'System';
+export type AuditCategory =
+  | 'Stock'
+  | 'Option'
+  | 'Cash'
+  | 'Watchlist'
+  | 'Allocation'
+  | 'Config'
+  | 'User'
+  | 'Automation'
+  | 'Signals';
+export type AuditAction = 'Create' | 'Update' | 'Delete' | 'Restore' | 'Adjust' | 'Other';
+
+// -- Signals Audit ----------------------------------------------------------
+
+export type SignalMyAction = 'Pending' | 'Actioned' | 'Partial' | 'Not Actioned';
+export type SignalCategory = 'Entry' | 'TrimExit' | 'Advisory';
+export type SignalDirection = 'Buy' | 'Sell' | 'Neutral';
+export type SignalHorizonStatus = 'Complete' | 'Pending' | 'NA';
+export type SignalLinkKind = 'None' | 'ManualConfirmed' | 'TransactionVerified' | 'LinkBroken';
+
+// -- Final Action (canonical backend engine) ---------------------------------
+
+export interface FinalActionResult {
+  symbol: string;
+  source: 'Watchlist' | 'Portfolio';
+  itemId: number | null;
+  role: string | null;
+  finalAction: string;
+  finalActionId: string;
+  category: SignalCategory;
+  direction: SignalDirection;
+  severity: 'buy' | 'trim' | 'hold' | 'wait';
+  priority: 'REQUIRED' | 'DEVELOPING' | 'INFORMATIONAL';
+  finalActionClass: string;
+  trendSetup: string;
+  momentumShift: string;
+  baseAction: string;
+  gapStatus: string;
+  hoverDescription: string;
+  reason: string | null;
+  hasHardStructuralNegative: boolean;
+  analysisPrice: number;
+  analysisTicker: string;
+  analysisCurrency: string | null;
+  trendSetupReason: string;
+  momentumShiftReason: string;
+  trendSetupClass: string;
+  momentumShiftClass: string;
+  gapScore: number;
+  gapPct: number;
+  /** True for an Entry/Add, Trim/Exit or Risk Review decision; the one rule every screen and export uses. */
+  isActionable?: boolean;
+  reasonCodes?: string[] | null;
+  evidenceAsOfUtc?: string | null;
+  entryDate?: string | null;
+  /** The technical action the portfolio gate replaced (e.g. a stop-review reminder that is not a sell). */
+  originalAction?: string | null;
+  /** Part of the canonical contract: effective evaluation state and evidence health. */
+  evaluationState?: EffectiveState | null;
+  evidenceHealth?: 'Fresh' | 'Stale' | 'Missing' | 'Invalid' | 'Failed' | null;
+  /** The last valid published action, kept separately when this result is Awaiting Data. */
+  lastValidAction?: string | null;
+  lastSuccessfulEvaluationUtc?: string | null;
+  dataAsOfDate?: string | null;
+  expectedSession?: string | null;
+  quoteTimestampUtc?: string | null;
+  isHistoricalWarning?: boolean;
+  /** Verified = a source quote time was checked; Unavailable = only the scan's bar date backs the freshness. */
+  quoteVerification?: 'Verified' | 'Unavailable' | null;
+  /** Metadata | Suffix | Assumed — how the exchange (session calendar) was resolved. */
+  exchangeBasis?: 'Metadata' | 'Suffix' | 'Assumed' | null;
+  /** Present on watchlist decisions: the structure / momentum / MA facts behind the entry status. */
+  diagnostics?: {
+    priceStructureState: string;
+    momentumState: string;
+    maStructure: string;
+    buyScore: number | null;
+    role: string;
+  } | null;
+}
+
+export interface FinalActionSnapshot {
+  watchlist: FinalActionResult[];
+  portfolio: FinalActionResult[];
+  computedAtUtc: string;
+}
+
+export interface FinalActionCatalogItem {
+  id: string;
+  label: string;
+  category: SignalCategory;
+  direction: SignalDirection;
+  group: string;
+}
+
+export type PriorityLevel = 'HIGH' | 'WATCH' | 'NONE';
+
+export interface PriorityCandidateEligibility {
+  eligible: boolean;
+  finalAction: string | null;
+  priorityLevel: PriorityLevel;
+  reasonExcluded: string[];
+}
+
+/** One Priority Candidate as decided by the backend (score + canonical Final Action + eligibility). */
+export interface PriorityCandidateApiRow {
+  score: ActionScoreDto;
+  eligible: boolean;
+  priorityLevel: PriorityLevel;
+  reasonsExcluded: string[];
+  finalAction: string | null;
+  finalActionId: string | null;
+  finalActionReason: string | null;
+  hoverDescription: string | null;
+}
+
+export interface PriorityCandidateRow {
+  score: ActionScoreDto;
+  eligibility: PriorityCandidateEligibility;
+}
+
+export interface AuditedActionEntry {
+  id: string;
+  label: string;
+  enabled: boolean;
+  custom: boolean;
+}
+
+export interface AuditedActionEntryView extends AuditedActionEntry {
+  knownToRules: boolean;
+  category: SignalCategory;
+  direction: SignalDirection;
+}
+
+export interface SignalsAuditSettings {
+  priorityEnabled: boolean;
+  priorityThreshold: number;
+  activatedAtUtc: string | null;
+  baselineCount: number;
+  finalActionEnabled: boolean;
+  entries: AuditedActionEntryView[];
+  finalActionBaselineCount: number;
+}
+
+export interface SignalTypeOption {
+  key: string;
+  label: string;
+  category: SignalCategory;
+  direction: SignalDirection;
+}
+
+export interface SignalHorizon {
+  pct: number | null;
+  evalDate: string | null;
+  evalPrice: number | null;
+  status: SignalHorizonStatus;
+}
+
+export interface SignalAuditRow {
+  id: number;
+  symbol: string;
+  role: string | null;
+  signalDate: string;
+  daysSince: number;
+  dateAnomaly: boolean;
+  signalType: string;
+  signalTypeLabel: string;
+  category: SignalCategory;
+  direction: SignalDirection;
+  source: string;
+  signalPrice: number;
+  currency: string | null;
+  score: number | null;
+  return5D: SignalHorizon;
+  return20D: SignalHorizon;
+  return1M: SignalHorizon;
+  today: SignalHorizon;
+  /** Price of the linked transaction, and the change from it to the latest close. Null when nothing is linked. */
+  actionedPrice?: number | null;
+  todayVsActionedPct?: number | null;
+  myAction: SignalMyAction;
+  hasNote: boolean;
+  linkedTransactionId: number | null;
+  linkKind: SignalLinkKind;
+  origin: string;
+  episodeActive: boolean;
+  /** Verified = passed the Action Center eligibility rules at capture; Unverified = captured before that check existed. */
+  eligibilityStatus: 'Verified' | 'Unverified';
+  /** Verified = history matches the recorded price basis; Adjusted = rebased (split) and corrected; Unverified = cannot be proven. */
+  priceBasis: 'Verified' | 'Adjusted' | 'Unverified';
+  status?: RecommendationStatus;
+  /** False = recorded for the Action Center but excluded from performance analytics. */
+  performanceAudited?: boolean;
+  lastValidatedAtUtc?: string | null;
+  statusReason?: string | null;
+  supersededByEventId?: number | null;
+  /**
+   * The CURRENT effective state of a Final Action recommendation, separate from the lifecycle `status` above: a recommendation can
+   * be historically Active yet currently AwaitingData and non-actionable. Null for closed lifecycles and non-Final-Action rows.
+   */
+  effectiveState?: EffectiveState | null;
+  isActionable?: boolean | null;
+  evidenceHealth?: string | null;
+  dataAsOfDate?: string | null;
+  reasonCodes?: string[] | null;
+  /** When the lifecycle status last changed (UTC). Only the current status is stored, not a full transition history. */
+  statusChangedAtUtc?: string | null;
+}
+
+export interface SignalAuditPagedResponse {
+  items: SignalAuditRow[];
+  /** Exact count of every matching authorized record, independent of page size and the evaluation limit. */
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Rows actually evaluated for this response. Equals `total` for SQL-backed sorts. */
+  evaluated?: number;
+  evaluationLimit?: number;
+  /** True only when a computed sort (returns, signal type) ranked just the newest `evaluated` of `total` rows. */
+  partial?: boolean;
+}
+
+export interface SignalEffectivenessRow {
+  signalType: string;
+  label: string;
+  direction: SignalDirection;
+  count: number;
+  observations5D: number;
+  avg5D: number | null;
+  observations20D: number;
+  avg20D: number | null;
+  observations1M: number;
+  avg1M: number | null;
+  favourableObservations: number;
+  favourablePct: number | null;
+  actionedCount: number;
+}
+
+export interface SignalAuditSummary {
+  total: number;
+  priorityCandidate: number;
+  entryAdd: number;
+  trimExit: number;
+  actioned: number;
+  pendingReview: number;
+  /** Deprecated: the page loads effectiveness from its own endpoint; the summary sends an empty list. */
+  effectiveness: SignalEffectivenessRow[];
+  /** KPIs are computed over the newest `evaluated` rows; `total` is the exact matching count. */
+  evaluated?: number;
+  evaluationLimit?: number;
+  partial?: boolean;
+}
+
+export type EffectivenessWindow = '30' | '90' | '180' | 'all';
+
+/** Context filters for the effectiveness view. Ticker, date, status and My Action are deliberately absent. */
+export interface SignalEffectivenessQueryParams {
+  window: EffectivenessWindow;
+  signalType: string[];
+  source: string;
+  role: string[];
+  includeBaselineInStats: boolean;
+}
+
+/** Raw returns are the stock's price change; adjusted flips the sign for Sell signals and is null where direction is undefined. */
+export interface SignalEffectivenessResultRow {
+  signalType: string;
+  label: string;
+  direction: SignalDirection;
+  directionDefined: boolean;
+  eligible: number;
+  overlappingCount: number;
+  observations5D: number;
+  rawAvg5D: number | null;
+  adjustedAvg5D: number | null;
+  observations20D: number;
+  rawAvg20D: number | null;
+  adjustedAvg20D: number | null;
+  observations1M: number;
+  rawAvg1M: number | null;
+  adjustedAvg1M: number | null;
+  favourableObservations: number;
+  favourablePct: number | null;
+  actionedCount: number;
+}
+
+export interface SignalEffectivenessCoverage {
+  cohortEvents: number;
+  withPriceHistory: number;
+  noPriceHistory: number;
+  overlappingEvents: number;
+  complete: boolean;
+  batches: number;
+  note: string | null;
+}
+
+export interface SignalEffectivenessResult {
+  window: EffectivenessWindow;
+  windowStart: string | null;
+  windowEnd: string;
+  coverage: SignalEffectivenessCoverage;
+  rows: SignalEffectivenessResultRow[];
+}
+
+export interface SignalLinkedTransaction {
+  id: number;
+  symbol: string;
+  transactionType: string | null;
+  accountType: string | null;
+  openDate: string | null;
+  closeDate: string | null;
+  shares: number;
+  price: number;
+  decisionSource: string | null;
+}
+
+/** Point-in-time context as captured; every field may be absent for older or partial captures. */
+export interface SignalContext {
+  score?: {
+    total?: number;
+    portfolioNeed?: number;
+    technical?: number;
+    fundamental?: number;
+    risk?: number;
+    badge?: string;
+  };
+  trendShift?: string;
+  rsi?: number;
+  allocationStatus?: string;
+  watchlistTier?: string;
+  eodSignalState?: string | null;
+  eodScanType?: string | null;
+  finalAction?: string | null;
+  finalActionReason?: string | null;
+  trendSetup?: string | null;
+  baseAction?: string | null;
+  hover?: string | null;
+  fibonacci?: { zone?: string | null; status?: string | null; level618?: number | null } | null;
+  structuralStop?: number | null;
+  technicalFacts?: {
+    maStructure?: string | null;
+    maCrossState?: string | null;
+    momentumState?: string | null;
+    rsi?: number | null;
+    priceStructure?: Record<string, unknown> | null;
+  } | null;
+}
+
+export interface SignalAuditDetail {
+  row: SignalAuditRow;
+  capturedAtUtc: string;
+  ruleVersion: string | null;
+  note: string | null;
+  myActionUpdatedUtc: string | null;
+  episodeEndedDate: string | null;
+  context: SignalContext | null;
+  linkedTransaction: SignalLinkedTransaction | null;
+}
+
+export interface SignalTransactionCandidate {
+  id: number;
+  symbol: string;
+  transactionType: string | null;
+  accountType: string | null;
+  date: string | null;
+  shares: number;
+  price: number;
+  decisionSource: string | null;
+  daysFromSignal: number;
+  isLinked: boolean;
+}
+
+export type SignalOriginFilter = 'All' | 'Live' | 'INITIAL_BASELINE';
+
+/** System lifecycle of a recommendation. Independent of the user's response (`SignalMyAction`). */
+export type RecommendationStatus = 'Active' | 'Acted' | 'Dismissed' | 'Expired' | 'Invalidated' | 'Superseded';
+export type SignalStatusFilter = 'All' | 'Open' | 'Closed' | RecommendationStatus;
+
+export type OpenDecisionBucket = 'EntryAdd' | 'TrimExit' | 'RiskReview';
+export type OpenDecisionUrgency = 'Urgent' | 'High' | 'Normal';
+export type ActionCenterFilter = 'All' | 'Entry' | 'ReduceExit' | 'Risk' | 'Holdings' | 'Watchlist';
+
+export interface OpenDecision {
+  id: number;
+  symbol: string;
+  context: 'Holding' | 'Watchlist';
+  role: string | null;
+  actionLabel: string;
+  actionId: string;
+  bucket: OpenDecisionBucket;
+  urgency: OpenDecisionUrgency;
+  rationale: string | null;
+  evidence: string;
+  signalDate: string;
+  lastValidatedAtUtc: string | null;
+  isStale: boolean;
+  status: RecommendationStatus;
+  myAction: SignalMyAction;
+  signalPrice: number;
+  origin: string;
+  /** CurrentValid | PriorSessionValid | AwaitingData | Evaluating | HistoricalWarning. */
+  effectiveState?: EffectiveState | null;
+  ageTradingDays?: number | null;
+  isHistoricalWarning?: boolean;
+  reasonCodes?: string[] | null;
+  createdAtUtc?: string | null;
+}
+
+export type EffectiveState =
+  | 'CurrentValid'
+  | 'PriorSessionValid'
+  | 'AwaitingData'
+  | 'Evaluating'
+  | 'Expired'
+  | 'HistoricalWarning';
+
+export interface ActionSummary {
+  entryAdd: number;
+  trimExit: number;
+  riskReview: number;
+  totalOpen: number;
+  asOfUtc: string;
+  lastValidatedAtUtc: string | null;
+  /** Recommendations without usable evidence; never part of totalOpen or the actionable counts. */
+  awaitingData?: number;
+  historicalWarnings?: number;
+}
+
+export interface OpenDecisionsResponse {
+  summary: ActionSummary;
+  items: OpenDecision[];
+  validation: ValidationStatus;
+  /** Awaiting Data and historical-warning rows: listed so nothing is hidden, never counted. */
+  notActionable?: OpenDecision[];
+}
+
+/**
+ * Validated = the latest EOD evaluation completed and nothing awaits revalidation.
+ * Pending = recommendations await revalidation, or no evaluation has completed yet.
+ * Unavailable = the latest evaluation failed or is incomplete, or the last complete one is stale.
+ */
+export type ValidationState = 'Validated' | 'Pending' | 'Unavailable';
+
+export interface ValidationStatus {
+  state: ValidationState;
+  lastCompleteEvaluationUtc: string | null;
+  lastAttemptUtc: string | null;
+  pendingCount: number;
+}
+
+export interface SignalsAuditQueryParams {
+  ticker: string;
+  signalType: string[];
+  source: 'All' | 'Portfolio' | 'Watchlist';
+  role: string[];
+  myAction: 'All' | SignalMyAction;
+  /** All records, only genuine new signals, or only the initial baseline records. */
+  origin: SignalOriginFilter;
+  /** Effectiveness excludes initial-baseline records unless this is set. */
+  includeBaselineInStats: boolean;
+  /** Unaudited recommendations are hidden from the default list; they never count in performance statistics. */
+  includeUnaudited: boolean;
+  status: SignalStatusFilter;
+  from: string;
+  to: string;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+  page: number;
+  pageSize: number;
+}
+
+export interface AuditChange {
+  field: string;
+  old: string | null;
+  new: string | null;
+}
+
+export interface AuditLogEntry {
+  id: number;
+  occurredAtUtc: string;
+  userId: string | null;
+  userName: string | null;
+  source: AuditSource;
+  category: AuditCategory;
+  action: AuditAction;
+  entityType: string;
+  entityId: string | null;
+  symbol: string | null;
+  accountType: string | null;
+  summary: string;
+  changes: AuditChange[];
+  correlationId: string | null;
+}
+
+export interface AuditPagedResponse {
+  items: AuditLogEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AuditFilters {
+  categories: AuditCategory[];
+  actions: AuditAction[];
+  users: { userId: string; userName: string }[];
+}
+
+export interface AuditQueryParams {
+  page: number;
+  pageSize: number;
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+  from: string | null;
+  to: string | null;
+  category: AuditCategory[];
+  action: AuditAction[];
+  source: AuditSource | null;
+  userId: string | null;
+  q: string;
 }

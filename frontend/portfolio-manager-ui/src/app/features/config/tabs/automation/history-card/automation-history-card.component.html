@@ -1,0 +1,125 @@
+@if (automationState.history().length > 0) {
+  <div class="automation-history">
+    <div class="sub-card-header">
+      <mat-icon>history</mat-icon>
+      <span class="sub-card-title"
+        >Recent runs ({{ rows().length }} of {{ automationState.history().length }})</span
+      >
+      <mat-form-field
+        appearance="outline"
+        subscriptSizing="dynamic"
+        class="automation-history-filter"
+      >
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          placeholder="Filter by status, date, trigger or error…"
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          autocomplete="off"
+        />
+        @if (filter()) {
+          <button
+            matSuffix
+            mat-icon-button
+            type="button"
+            (click)="filter.set('')"
+            matTooltip="Clear filter"
+          >
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+      <button
+        mat-stroked-button
+        type="button"
+        color="warn"
+        (click)="clearHistory()"
+        [disabled]="automationState.clearingHistory()"
+        matTooltip="Permanently deletes all recorded run history (this audit log only — never portfolio/cash data)"
+      >
+        <mat-icon [class.spinning]="automationState.clearingHistory()">{{
+          automationState.clearingHistory() ? 'sync' : 'delete_sweep'
+        }}</mat-icon>
+        {{ automationState.clearingHistory() ? 'Clearing…' : 'Clear History' }}
+      </button>
+    </div>
+
+    <table
+      mat-table
+      appResponsiveTable
+      [dataSource]="rows()"
+      matSort
+      [matSortActive]="sortCol()"
+      [matSortDirection]="sortDir()"
+      (matSortChange)="onSortChange($event)"
+      class="automation-history-table"
+    >
+      <ng-container matColumnDef="overallStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+        <td mat-cell *matCellDef="let run">
+          <span [class]="'section-header-badge ' + statusClass(run.overallStatus)">
+            {{ run.overallStatus }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="tradingDate">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Trading Date</th>
+        <td mat-cell *matCellDef="let run">{{ run.tradingDate }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="triggerType">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Trigger</th>
+        <td mat-cell *matCellDef="let run">{{ run.triggerType }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="refreshStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Refresh</th>
+        <td mat-cell *matCellDef="let run">{{ refreshLabel(run) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="rsiStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>RSI</th>
+        <td mat-cell *matCellDef="let run">{{ run.rsiStatus || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="snapshotStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Snapshot</th>
+        <td mat-cell *matCellDef="let run">{{ run.snapshotStatus || '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="valueScreenerStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Value Screener</th>
+        <td mat-cell *matCellDef="let run">
+          {{ run.valueScreenerStatus ? valueScreenerLabel(run.valueScreenerStatus) : '—' }}
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="actualStartUtc">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Started</th>
+        <td mat-cell *matCellDef="let run">{{ run.actualStartUtc | date: 'MMM d, h:mm a' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="errorMessage">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Error</th>
+        <td mat-cell *matCellDef="let run">
+          @if (run.errorMessage) {
+            <span class="automation-history-error"
+              >{{ run.errorStep }}: {{ run.errorMessage }}</span
+            >
+          } @else {
+            —
+          }
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns"></tr>
+    </table>
+
+    @if (rows().length === 0) {
+      <p class="section-footer-hint no-match">No runs match "{{ filter() }}".</p>
+    }
+  </div>
+}

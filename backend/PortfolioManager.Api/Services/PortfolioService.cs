@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services.Risk;
 using System.Security.Claims;
 
 namespace PortfolioManager.Api.Services;
@@ -9,6 +10,8 @@ namespace PortfolioManager.Api.Services;
 public interface IPortfolioService
 {
     Task<IReadOnlyList<PortfolioItemDto>> GetAllAsync(CancellationToken ct = default);
+    /// <summary>Items visible to <paramref name="userId"/> (own + shared) for background jobs that have no HTTP user.</summary>
+    Task<IReadOnlyList<PortfolioItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default);
     Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default);
     Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default);
     Task<PortfolioItemDto> AddManualAsync(AddManualPositionRequest request, CancellationToken ct = default);
@@ -49,14 +52,40 @@ public sealed class PortfolioService(
         return items.Select(ToDto).ToList();
     }
 
+    public async Task<IReadOnlyList<PortfolioItemDto>> GetAllForUserAsync(string userId, CancellationToken ct = default)
+    {
+        var items = await db.PortfolioItems
+            .AsNoTracking()
+            .Where(x => x.UserId == userId || x.UserId == null)
+            .OrderBy(x => x.Symbol)
+            .ToListAsync(ct);
+
+        return items.Select(ToDto).ToList();
+    }
+
     public async Task<PortfolioItemDto?> GetByIdAsync(int id, CancellationToken ct = default)
     {
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         return item is null ? null : ToDto(item);
     }
 
+    private static void ValidateCloseDate(string? transactionType, DateTime? openDate, DateTime? closeDate, bool legacyIncompleteClose)
+    {
+        if (!string.Equals(transactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)) return;
+        if (closeDate is null)
+        {
+            if (legacyIncompleteClose) return;
+            throw new RiskValidationException("A CLOSE transaction requires a Close Date.");
+        }
+        if (openDate.HasValue && closeDate.Value.Date < openDate.Value.Date)
+            throw new RiskValidationException("A trade cannot close before its opening date.");
+    }
+
     public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
     {
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, false);
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = new PortfolioItem
         {
             UserId           = CurrentUserId(),
@@ -73,11 +102,14 @@ public sealed class PortfolioService(
             CloseDate        = request.CloseDate,
             ClosingPrice     = request.ClosingPrice,
             DecisionSource   = request.DecisionSource,
+            DecisionSourceClosed = request.DecisionSourceClosed,
             HoldingRole      = request.HoldingRole
         };
 
+        await TradeEpisodeAssigner.AssignOnOpenAsync(db, item, ct);
         db.PortfolioItems.Add(item);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return ToDto(item);
@@ -112,8 +144,25 @@ public sealed class PortfolioService(
 
     public async Task<UpdatePortfolioItemResponse?> UpdateAsync(int id, UpdatePortfolioItemRequest request, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
+        // Legacy CLOSE rows saved without a date stay correctable; only an unchanged type/quantity qualifies.
+        var legacyIncompleteClose = string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && item.CloseDate is null
+            && string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && item.Shares == request.Shares;
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, true);
+        if (await HasRiskHistoryAsync(item, ct)
+            && (!string.Equals(item.AccountType, request.AccountType, StringComparison.Ordinal)
+                || item.OpenDate?.Date != request.OpenDate?.Date
+                || (string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+                    && (item.TransactionType != request.TransactionType || item.Shares != request.Shares
+                        || (item.CloseDate.HasValue && item.CloseDate.Value.Date != request.CloseDate?.Date)))))
+            throw new RiskValidationException("This change would make existing trade-episode/risk history ambiguous. Keep its account, role and dates; a new trade must be recorded separately.");
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, legacyIncompleteClose);
+        if (request.HoldingRole is not null) await ApplyRoleCorrectionAsync(item, request.HoldingRole, ct);
 
         // Partial close: user is closing fewer shares than the position currently holds. Rather than
         // silently losing track of the remainder (previously required a manual second "Add Stock"),
@@ -122,6 +171,7 @@ public sealed class PortfolioService(
         var isPartialClose = string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
             && !string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
             && request.Shares < item.Shares;
+        var wasClose = string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase);
         var remainingShares = isPartialClose ? item.Shares - request.Shares : 0m;
 
         item.CompanyName      = request.CompanyName;
@@ -147,7 +197,6 @@ public sealed class PortfolioService(
         item.OpenDate              = request.OpenDate;
         item.CloseDate             = request.CloseDate;
         item.ClosingPrice          = request.ClosingPrice;
-        if (request.HoldingRole is not null) item.HoldingRole = request.HoldingRole;
         item.DecisionSource        = request.DecisionSource;
         item.DecisionSourceClosed  = request.DecisionSourceClosed;
 
@@ -174,7 +223,14 @@ public sealed class PortfolioService(
             db.PortfolioItems.Add(remainderItem);
         }
 
+        if (remainderItem is not null) TradeEpisodeAssigner.PropagateToRemainder(item, remainderItem);
+        if (!string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase) && item.TradeEpisodeId is null)
+            await TradeEpisodeAssigner.AssignOnOpenAsync(db, item, ct);
+        if (!isPartialClose && !wasClose)
+            await TradeEpisodeAssigner.RetireOnFullExitAsync(db, item, new RiskUserContext(httpCtx), ct);
+
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return new UpdatePortfolioItemResponse(ToDto(item), remainderItem is null ? null : ToDto(remainderItem));
@@ -182,10 +238,62 @@ public sealed class PortfolioService(
 
     public async Task<bool> UpdateHoldingRoleAsync(int id, string holdingRole, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
-        item.HoldingRole = holdingRole;
+        var changed = await ApplyRoleCorrectionAsync(item, holdingRole, ct);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        if (changed) mutationClock.Touch();
+        return true;
+    }
+
+    /// <summary>
+    /// Role is a classification of one lot, not a trade. Only HoldingRole changes: episode id, quantities, prices, dates,
+    /// broker stops and prior audit rows are untouched. Swing membership is derived from lot roles, so nothing is moved.
+    /// Stages one audit event in the caller's unit of work. Returns false for a no-op.
+    /// </summary>
+    private async Task<bool> ApplyRoleCorrectionAsync(PortfolioItem item, string newRole, CancellationToken ct)
+    {
+        if (string.Equals(item.HoldingRole, newRole, StringComparison.Ordinal)) return false;
+        var isClose = string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase);
+        var toSwing = string.Equals(newRole, "Swing", StringComparison.OrdinalIgnoreCase);
+        var symbol = TradeEpisodeResolver.NormSymbol(item.Symbol);
+        var account = item.AccountType ?? string.Empty;
+
+        if (item.TradeEpisodeId is { } episodeId)
+        {
+            var episode = await db.TradeEpisodes.AsNoTracking().FirstOrDefaultAsync(e => e.Id == episodeId, ct);
+            if (episode is null || episode.UserId != item.UserId || episode.AccountType != account || episode.Symbol != symbol)
+                throw new RiskConflictException("This lot's trade episode is missing or belongs to a different owner, account or symbol, so its role cannot be corrected safely. Resolve the episode history first.");
+
+            if (!isClose)
+            {
+                var mixes = await db.PortfolioItems.AsNoTracking().AnyAsync(x => x.Id != item.Id && x.TradeEpisodeId == episodeId
+                    && x.TransactionType == "OPEN" && x.Shares > 0 && x.HoldingRole != newRole, ct);
+                if (mixes)
+                    throw new RiskConflictException($"Other open lots of {item.Symbol} in this trade episode have different roles. Changing only this lot would leave one episode with different roles and could close its history or broker-stop link incorrectly. Reclassify the whole episode (all its open lots) or record a separate trade.");
+            }
+            if (toSwing && !isClose)
+            {
+                if (episode.Status != EpisodeStatuses.Open)
+                    throw new RiskConflictException("This lot's trade episode is closed, so it cannot become a Swing position. Record a new trade instead.");
+                if (item.OpenDate is null || item.OpenDate.Value.Date < episode.OpenDate.Date)
+                    throw new RiskConflictException("This lot's open date does not fit its trade episode, so a consistent Swing position cannot be established. Correct the history first.");
+            }
+        }
+        else if (toSwing)
+        {
+            throw new RiskConflictException("This lot has no trade episode, so it cannot safely become a Swing position (no episode or broker stop will be created or assigned automatically). Record the Swing trade separately.");
+        }
+
+        var changes = new List<AuditChangeDto>();
+        RiskSupport.Diff(changes, "HoldingRole", item.HoldingRole, newRole);
+        RiskSupport.StageAudit(db, new RiskUserContext(httpCtx), RiskAuditSources.User, "HoldingRoleCorrected", account, symbol, changes,
+            $"Lot #{item.Id} role corrected. Quantity, cost, dates, transactions and broker orders are unchanged.", null,
+            episodeId: item.TradeEpisodeId);
+        item.HoldingRole = newRole;
         return true;
     }
 
@@ -200,11 +308,16 @@ public sealed class PortfolioService(
 
     public async Task<bool> DeleteAsync(int id, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return false;
 
+        if (await HasRiskHistoryAsync(item, ct))
+            throw new RiskValidationException("This transaction has trade-episode/risk history and cannot be deleted. Its history and broker records must be preserved.");
         db.PortfolioItems.Remove(item);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         mutationClock.Touch();
         mutationClock.MarkTodayDirty();
         return true;
@@ -238,6 +351,13 @@ public sealed class PortfolioService(
 
     public async Task<int> RestoreAsync(IReadOnlyList<PortfolioBackupItem> items, CancellationToken ct = default)
     {
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
+        if (await db.TradeEpisodes.AnyAsync(ct) || await db.RiskPlans.AnyAsync(ct)
+            || await db.BrokerStopRecords.AnyAsync(ct) || await db.RiskAuditEvents.AnyAsync(ct))
+            throw new RiskValidationException("Portfolio JSON replacement cannot preserve existing trade episodes, broker orders and risk audit history. Use the approved full SQL database recovery procedure instead. No data was replaced.");
+        if (!IsAdmin() && await db.PortfolioItems.AnyAsync(x => x.UserId != CurrentUserId(), ct))
+            throw new RiskValidationException("Replacement restore cannot replace other ownership partitions.");
         var existing = await db.PortfolioItems.ToListAsync(ct);
         db.PortfolioItems.RemoveRange(existing);
 
@@ -265,8 +385,15 @@ public sealed class PortfolioService(
 
         db.PortfolioItems.AddRange(newItems);
         await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
         return newItems.Count;
     }
+
+    private async Task<bool> HasRiskHistoryAsync(PortfolioItem item, CancellationToken ct) =>
+        item.TradeEpisodeId is not null
+        || await db.RiskPlans.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct)
+        || await db.BrokerStopRecords.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct)
+        || await db.RiskAuditEvents.AnyAsync(x => x.AccountType == item.AccountType && x.Symbol == item.Symbol, ct);
 
     public async Task<int> RefreshSectorsAsync(CancellationToken ct = default)
     {

@@ -24,6 +24,7 @@
         @if (lastRunAt()) {
           <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
         }
+        <app-refresh-button tooltip="Refresh market data (quotes, dashboard, signals)" />
         @if (sourceMode() !== 'adhoc') {
           <button
             mat-stroked-button
@@ -191,11 +192,14 @@
 
   <!-- RESULTS TABLE -->
   @if (activeResults().length > 0) {
+    <app-mobile-table-controls [sort]="screenerSort" gridId="value-screener" label="Screener" />
     <div class="table-wrapper">
       <table
         mat-table
+        appResponsiveTable
         [dataSource]="activeResults()"
         matSort
+        #screenerSort="matSort"
         (matSortChange)="onSortChange($event)"
         [matSortActive]="sortCol()"
         [matSortDirection]="sortDir()"

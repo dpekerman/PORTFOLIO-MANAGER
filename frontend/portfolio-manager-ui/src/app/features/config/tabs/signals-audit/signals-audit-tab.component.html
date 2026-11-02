@@ -1,0 +1,162 @@
+<app-settings-section
+  icon="insights"
+  title="Signal Tracker Settings"
+  subtitle="Controls which recommendations are recorded as historical signals · does not change how recommendations are calculated"
+>
+  <div class="section-body">
+    <h3 class="sa-heading">Priority Candidates</h3>
+
+    <mat-slide-toggle
+      [checked]="enabled()"
+      (change)="enabled.set($event.checked)"
+      aria-label="Audit Priority Candidates"
+    >
+      Audit Priority Candidates
+    </mat-slide-toggle>
+
+    <mat-form-field appearance="outline" class="sa-threshold" subscriptSizing="dynamic">
+      <mat-label>Minimum score (signal when score &gt; this)</mat-label>
+      <input
+        matInput
+        type="number"
+        min="0"
+        max="100"
+        step="1"
+        [ngModel]="threshold()"
+        (ngModelChange)="threshold.set($event === '' ? null : +$event)"
+        [disabled]="!enabled()"
+      />
+      @if (!thresholdValid()) {
+        <mat-error>Enter a score between 0 and 100.</mat-error>
+      }
+      <mat-hint>Default 75: a score of 76 qualifies, 75 does not.</mat-hint>
+    </mat-form-field>
+
+    <ul class="sa-notes">
+      <li>
+        A new signal is recorded the first time a watchlist candidate rises above the threshold. It is not
+        repeated while the score stays above it; a new one is recorded only after the score falls to or below
+        the threshold and later rises again.
+      </li>
+      <li>
+        Turning auditing on, or changing the threshold, does not create signals for stocks that already
+        qualify. They are recorded only after they drop out and re-qualify.
+      </li>
+      <li>Turning auditing off ends open signals and keeps all history.</li>
+      <li>Capture runs in the backend end-of-day automation, whether or not a browser is open.</li>
+    </ul>
+
+    @if (store.settings(); as s) {
+      <p class="sa-meta">
+        @if (s.activatedAtUtc) {
+          Active since {{ s.activatedAtUtc.substring(0, 10) }} ·
+        }
+        {{ s.baselineCount }} stock(s) excluded until they re-qualify
+      </p>
+    }
+
+    <h3 class="sa-heading sa-fa-heading">Final Actions</h3>
+
+    <mat-slide-toggle
+      [checked]="faEnabled()"
+      (change)="faEnabled.set($event.checked)"
+      aria-label="Audit Final Actions"
+    >
+      Audit Final Actions
+    </mat-slide-toggle>
+    <p class="sa-meta">
+      A signal is recorded when a watchlist stock or holding changes to one of the enabled actions, and ends
+      when its Final Action changes. {{ enabledCount() }} of {{ entries().length }} enabled.
+    </p>
+
+    <div class="sa-fa-tools">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sa-search">
+        <mat-label>Search actions</mat-label>
+        <input matInput [ngModel]="search()" (ngModelChange)="search.set($event)" aria-label="Search actions" />
+      </mat-form-field>
+      <div class="sa-filter" role="group" aria-label="Filter actions">
+        @for (f of filters; track f.value) {
+          <button
+            type="button"
+            class="sa-chip"
+            [class.sa-chip-active]="statusFilter() === f.value"
+            (click)="statusFilter.set(f.value)"
+          >
+            {{ f.label }}
+          </button>
+        }
+      </div>
+      <button type="button" class="sa-link" (click)="setAll(true)">Select all</button>
+      <button type="button" class="sa-link" (click)="setAll(false)">Deselect all</button>
+    </div>
+
+    <ul class="sa-fa-list" aria-label="Audited Final Actions">
+      @for (e of visibleEntries(); track e.id) {
+        <li class="sa-fa-row" [class.sa-fa-off]="!e.enabled">
+          <mat-slide-toggle
+            [checked]="e.enabled"
+            (change)="toggleEntry(e.id, $event.checked)"
+            [aria-label]="'Audit ' + e.label"
+          />
+          @if (editingId() === e.id) {
+            <input
+              class="sa-edit"
+              [ngModel]="editLabel()"
+              (ngModelChange)="editLabel.set($event)"
+              (keydown.enter)="commitEdit()"
+              (keydown.escape)="cancelEdit()"
+              aria-label="Edit action name"
+            />
+            <button type="button" mat-icon-button class="sa-icon" (click)="commitEdit()" aria-label="Save name">
+              <mat-icon>check</mat-icon>
+            </button>
+            <button type="button" mat-icon-button class="sa-icon" (click)="cancelEdit()" aria-label="Cancel edit">
+              <mat-icon>close</mat-icon>
+            </button>
+          } @else {
+            <span class="sa-fa-label">{{ e.label }}</span>
+            @if (!e.knownToRules) {
+              <span class="sa-badge" title="The current recommendation rules never produce this action, so nothing is recorded for it.">
+                not produced by current rules
+              </span>
+            }
+            <button type="button" mat-icon-button class="sa-icon" (click)="startEdit(e)" [attr.aria-label]="'Edit ' + e.label">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button type="button" mat-icon-button class="sa-icon" (click)="removeEntry(e.id)" [attr.aria-label]="'Delete ' + e.label">
+              <mat-icon>delete</mat-icon>
+            </button>
+          }
+        </li>
+      } @empty {
+        <li class="sa-fa-empty">No actions match.</li>
+      }
+    </ul>
+
+    <div class="sa-add">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sa-add-field">
+        <mat-label>Add action</mat-label>
+        <input
+          matInput
+          list="sa-fa-catalog"
+          [ngModel]="newLabel()"
+          (ngModelChange)="newLabel.set($event)"
+          (keydown.enter)="addEntry()"
+          aria-label="Add action"
+        />
+        <datalist id="sa-fa-catalog">
+          @for (c of store.finalActionCatalog(); track c.id) {
+            <option [value]="c.label"></option>
+          }
+        </datalist>
+        @if (addError(); as err) {
+          <mat-error>{{ err }}</mat-error>
+        }
+        <mat-hint>Pick a Final Action or type your own.</mat-hint>
+      </mat-form-field>
+      <button type="button" mat-stroked-button (click)="addEntry()" [disabled]="!newLabel().trim() || !!addError()">
+        <mat-icon>add</mat-icon> Add
+      </button>
+    </div>
+  </div>
+</app-settings-section>

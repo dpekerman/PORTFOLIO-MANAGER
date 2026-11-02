@@ -31,7 +31,20 @@ public sealed record DashboardSummary(
     decimal MonthChange,
     decimal MonthChangePercent,
     int OversoldCount,
-    int OverboughtCount);
+    int OverboughtCount,
+    IReadOnlyList<PeriodPerformanceDto>? Performance = null);
+
+/// <summary>Flow-adjusted performance for one period. Dollar fields are null unless Status is Available;
+/// InvestmentGainLossPercent is null (N/A) whenever an external flow occurred.</summary>
+public sealed record PeriodPerformanceDto(
+    string Period,
+    string Status,
+    string? Reason,
+    string? BaselineDate,
+    decimal? ValueChange,
+    decimal? NetExternalFlow,
+    decimal? InvestmentGainLoss,
+    decimal? InvestmentGainLossPercent);
 
 public sealed record DashboardMover(
     string Symbol,
@@ -116,14 +129,21 @@ public sealed record PortfolioActionDto(
     string? LatestEodScanType = null,
     string? LatestEodTrendShift = null,
     bool LatestEodIsNew = false,
-    bool LatestEodIsInvalidated = false);
+    bool LatestEodIsInvalidated = false,
+    /// <summary>CurrentValid | PriorSessionValid | AwaitingData | Evaluating — the effective canonical state; Awaiting Data is never actionable.</summary>
+    string? EvaluationState = null,
+    bool IsActionable = false,
+    string? LastValidAction = null,
+    DateTime? LastEvaluatedAtUtc = null,
+    IReadOnlyList<string>? ReasonCodes = null);
 
 /// <summary>Latest completed EOD scanner session, reduced to one row per canonical ticker.</summary>
 public sealed record DashboardEodSummary(
     string? TradingDate,
     int RawRecordCount,
     int UniqueTickerCount,
-    IReadOnlyList<DashboardEodSummaryRow> Rows);
+    IReadOnlyList<DashboardEodSummaryRow> Rows,
+    string? LastScanDate = null);
 
 /// <summary>One canonical ticker result from the latest completed EOD scanner session.</summary>
 public sealed record DashboardEodSummaryRow(

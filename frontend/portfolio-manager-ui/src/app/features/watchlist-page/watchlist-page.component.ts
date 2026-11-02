@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
+﻿import { CurrencyPipe, DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +6,7 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -32,26 +33,29 @@ import {
   priceStructureTooltip as formatPriceStructureTooltip,
   priceStructureSortRank,
 } from '../../core/price-structure-display';
-import { AppRefreshService } from '../../core/services/app-refresh.service';
-import { AuthStateService } from '../../core/services/auth-state.service';
+import { AppRefreshStore } from '../../core/store/app-refresh.store';
+import { AuthStore } from '../../core/store/auth.store';
 import {
-  DecisionEngineService,
   GapStatus,
   PageDecision,
-  WatchlistValueContext,
 } from '../../core/services/decision-engine.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { FinalActionStore } from '../../core/store/final-action.store';
+import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
+import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { ScannerStore } from '../../core/store/scanner.store';
 import { ScreenRefreshService } from '../../core/services/screen-refresh.service';
-import { WatchlistRsiStateService } from '../../core/services/watchlist-rsi-state.service';
-import { WatchlistStateService } from '../../core/services/watchlist-state.service';
+import { WatchlistRsiStore } from '../../core/store/watchlist-rsi.store';
+import { WatchlistStore } from '../../core/store/watchlist.store';
 import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { ConfirmDialogComponent } from '../../shared/confirm-dialog/confirm-dialog.component';
 import { ScreenRefreshProgressComponent } from '../../shared/screen-refresh-progress/screen-refresh-progress.component';
 import { WatchlistCardSkeletonComponent } from '../../shared/skeleton/watchlist-card-skeleton.component';
@@ -62,6 +66,7 @@ import {
 } from '../transactions/transaction-notes-dialog/transaction-notes-dialog.component';
 import {
   AddWatchlistDialogComponent,
+  AddWatchlistDialogData,
   AddWatchlistDialogResult,
 } from './add-watchlist-dialog.component';
 import { SecurityAnalysisMappingDialogComponent } from './security-analysis-mapping-dialog.component';
@@ -76,6 +81,8 @@ type SortColumn =
   | 'price'
   | 'change'
   | 'changePct'
+  | 'change5d'
+  | 'change1m'
   | 'sector'
   | 'rsi'
   | 'buyScore'
@@ -104,6 +111,7 @@ type SortDir = 'asc' | 'desc';
   styleUrl: './watchlist-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    FinalActionBadgeComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,
@@ -121,18 +129,20 @@ type SortDir = 'asc' | 'desc';
     WatchlistCardComponent,
     WatchlistCardSkeletonComponent,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
     ScreenRefreshProgressComponent,
   ],
 })
 export class WatchlistPageComponent {
-  protected readonly watchlist = inject(WatchlistStateService);
-  private readonly demoMode = inject(DemoModeService);
+  protected readonly watchlist = inject(WatchlistStore);
+  private readonly demoMode = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
   private readonly api = inject(PortfolioApiService);
-  private readonly scanner = inject(ScannerStateService);
-  private readonly watchlistRsi = inject(WatchlistRsiStateService);
-  protected readonly authState = inject(AuthStateService);
-  protected readonly appRefresh = inject(AppRefreshService);
+  private readonly scanner = inject(ScannerStore);
+  private readonly watchlistRsi = inject(WatchlistRsiStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly appRefresh = inject(AppRefreshStore);
 
   /** Mini refresh popup for the RSI enrichment pass (independent of the unified app refresh). */
   protected readonly screenRefresh = new ScreenRefreshService('watchlist');
@@ -142,8 +152,10 @@ export class WatchlistPageComponent {
   // ── Value Screener data map (symbol → result) ─────────────────────────────
   // Loaded from latest persisted DB snapshot to provide Technical / Value Score columns
   protected readonly vsMap = signal<Map<string, ValueScreenerResult>>(new Map());
-  private readonly engine = inject(DecisionEngineService);
+  private readonly finalActions = inject(FinalActionStore);
   protected readonly rsiLoading = this.watchlistRsi.rsiLoading;
+  /** loading | error | ready — decides what an empty Final Action cell means (never a decision). */
+  protected readonly finalActionsUiState = this.finalActions.uiState;
 
   protected readonly viewMode = signal<ViewMode>('grid');
   protected readonly filterText = signal('');
@@ -178,6 +190,15 @@ export class WatchlistPageComponent {
         this.vsMap.set(map);
       },
       error: () => {}, // Non-critical
+    });
+
+    // Reload 5D / 1M change % only when the symbol set changes, not on every price refresh.
+    const symbolKey = computed(() =>
+      [...new Set(this.watchlist.items().map((w) => w.item.symbol.toUpperCase()))].sort().join(','),
+    );
+    effect(() => {
+      const key = symbolKey();
+      untracked(() => this.watchlist.loadPeriodChanges(key ? key.split(',') : []));
     });
 
     // Bridge the RSI enrichment loading state into the mini-popup (indeterminate — no ticker count).
@@ -312,17 +333,19 @@ export class WatchlistPageComponent {
       .join(' ');
   }
 
-  protected decisionForSymbol(symbol: string, role: string | null): PageDecision | null {
-    const r = this.rsiMap().get(symbol.toUpperCase());
-    if (!r) return null;
-    const vs = this.vsMap().get(symbol.toUpperCase());
-    const bs = this.buyScoreForSymbol(symbol);
-    const ctx: WatchlistValueContext = {
-      buyScore: bs?.score ?? null,
-      valueTrapWarning: vs?.actionTrigger === 'ValueTrapWarning',
-      valueScore: vs?.score ?? null,
-    };
-    return this.engine.translateForWatchlist(r, role, ctx);
+  protected decisionForSymbol(symbol: string, _role: string | null): PageDecision | null {
+    return this.finalActions.decisionForWatchlist(symbol);
+  }
+
+  /** Opens the read-only Final Action explanation for a watchlist symbol. */
+  protected openFinalActionDetails(symbol: string): void {
+    const result = this.finalActions.resultForWatchlist(symbol);
+    if (!result) return;
+    this.dialog.open(FinalActionDetailsDialogComponent, {
+      data: { result },
+      autoFocus: 'dialog',
+      maxWidth: '95vw',
+    });
   }
 
   protected valueDataForSymbol(symbol: string): {
@@ -459,6 +482,12 @@ export class WatchlistPageComponent {
     return { change: r.change ?? null, changePct: r.changePercent ?? null };
   }
 
+  protected periodChangeFor(symbol: string, period: '5d' | '1m'): number | null {
+    const c = this.watchlist.periodChanges()[symbol.toUpperCase()];
+    if (!c) return null;
+    return (period === '5d' ? c.change5DPct : c.change1MPct) ?? null;
+  }
+
   /**
    * Computes BUY Score (0–5) for a symbol from the RSI scan result.
    * Each of 5 checks contributes 1 point:
@@ -568,7 +597,7 @@ export class WatchlistPageComponent {
     }
   }
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('watchlist');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('watchlist');
 
   protected readonly filteredSorted = computed<WatchlistSummary[]>(() => {
     const filter = this.filterText().trim().toLowerCase();
@@ -645,6 +674,14 @@ export class WatchlistPageComponent {
         case 'changePct':
           av = a.quote?.changePercent ?? 0;
           bv = b.quote?.changePercent ?? 0;
+          break;
+        case 'change5d':
+          av = this.periodChangeFor(a.item.symbol, '5d') ?? -1e9;
+          bv = this.periodChangeFor(b.item.symbol, '5d') ?? -1e9;
+          break;
+        case 'change1m':
+          av = this.periodChangeFor(a.item.symbol, '1m') ?? -1e9;
+          bv = this.periodChangeFor(b.item.symbol, '1m') ?? -1e9;
           break;
         case 'sector':
           av = a.quote?.sector ?? '';
@@ -793,7 +830,13 @@ export class WatchlistPageComponent {
 
   openAddDialog(): void {
     this.dialog
-      .open(AddWatchlistDialogComponent, { width: '420px', maxWidth: '95vw' })
+      .open(AddWatchlistDialogComponent, {
+        width: '420px',
+        maxWidth: '95vw',
+        data: {
+          existingSymbols: this.watchlist.items().map((w) => w.item.symbol),
+        } satisfies AddWatchlistDialogData,
+      })
       .afterClosed()
       .subscribe((result: AddWatchlistDialogResult | null) => {
         if (result) this.watchlist.addItem(result.symbol, result.role);
@@ -893,11 +936,16 @@ export class WatchlistPageComponent {
         Sector: w.quote?.sector ?? '',
         Industry: w.quote?.industry ?? '',
         'RSI (14)': this.rsiForSymbol(w.item.symbol) ?? '',
-        'Trend Setup': dec?.trendSetup ?? '',
-        'Momentum Shift': dec?.momentumShift ?? '',
+        'Technical Trend Setup': dec?.trendSetup ?? '',
+        'Technical Momentum Shift': dec?.momentumShift ?? '',
         'Price Structure': this.priceStructureLabel(w.item.symbol, w),
         'Base Action': dec?.baseAction ?? '',
         'Final Action': dec?.finalAction ?? '',
+        'Decision Status': this.finalActions.resultForWatchlist(w.item.symbol)?.evaluationState ?? '',
+        Actionable: this.finalActions.resultForWatchlist(w.item.symbol)?.isActionable ? 'Yes' : 'No',
+        'Decision Reason Codes': (this.finalActions.resultForWatchlist(w.item.symbol)?.reasonCodes ?? []).join('; '),
+        'Last Evaluated (UTC)': this.finalActions.resultForWatchlist(w.item.symbol)?.lastSuccessfulEvaluationUtc ?? '',
+        'Data As Of': this.finalActions.resultForWatchlist(w.item.symbol)?.dataAsOfDate ?? '',
         'Hover Note': dec?.hoverDescription ?? '',
         EMA9: r?.ema9Price ?? '',
         EMA10: r?.ema10Price ?? '',

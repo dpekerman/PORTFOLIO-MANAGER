@@ -82,8 +82,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ── Database ─────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSingleton<AuditSaveChangesInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, opts) =>
+    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // ── ASP.NET Core Identity ─────────────────────────────────────────────────────
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -144,6 +147,9 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IRiskService, PortfolioManager.Api.Services.Risk.RiskService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IStopSheetImportService, PortfolioManager.Api.Services.Risk.StopSheetImportService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.ISwingTradingService, PortfolioManager.Api.Services.Risk.SwingTradingService>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
@@ -244,6 +250,7 @@ builder.Services.AddScoped<IAllocationRestoreService, AllocationRestoreService>(
 builder.Services.AddExceptionHandler<PortfolioManager.Api.Middleware.AccountTypeExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<SignalNotificationTracker>();
+builder.Services.AddSingleton<ScoreAlertTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
 // Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
@@ -271,6 +278,7 @@ builder.Services.AddScoped<IRsiSnapshotService, RsiSnapshotService>();
 builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
 builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
+builder.Services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDataRefreshService, DataRefreshService>();
 builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
@@ -282,6 +290,10 @@ builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>(
 builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
+builder.Services.AddScoped<IPeriodChangeService, PeriodChangeService>();
+builder.Services.AddScoped<ISignalsAuditService, SignalsAuditService>();
+builder.Services.AddScoped<IOpenDecisionsService, OpenDecisionsService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.FinalAction.IFinalActionService, PortfolioManager.Api.Services.FinalAction.FinalActionService>();
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 // Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window
@@ -307,6 +319,18 @@ builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinato
 builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var safetyScope = app.Services.CreateScope();
+    var safetyDb = safetyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var pending = await safetyDb.Database.GetPendingMigrationsAsync();
+    if (pending.Contains("20261028213913_CorrectPm033EpisodeIntegrity"))
+    {
+        app.Logger.LogCritical("PM-033 corrective migration is pending. Startup refused; review and apply the migration explicitly before restarting.");
+        throw new InvalidOperationException("PM-033 migration approval is required. Automatic development migration is blocked.");
+    }
+}
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 // Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { catchError, Observable, shareReplay, switchMap, throwError } from 'rxjs';
 import { AuthResponse } from '../models/portfolio.models';
 import { AuthApiService } from '../services/auth-api.service';
-import { AuthStateService } from '../services/auth-state.service';
+import { AuthStore } from '../store/auth.store';
 
 const SKIP_AUTH_URLS = [
   '/api/auth/login',
@@ -17,7 +17,7 @@ const SKIP_AUTH_URLS = [
 let refreshInFlight: Observable<AuthResponse> | null = null;
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
-  const authState = inject(AuthStateService);
+  const authState = inject(AuthStore);
   const authApi = inject(AuthApiService);
   const router = inject(Router);
 

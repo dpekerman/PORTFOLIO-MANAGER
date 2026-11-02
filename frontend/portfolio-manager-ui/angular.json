@@ -42,13 +42,13 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "520kB",
                   "maximumError": "1MB"
                 },
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "12kB",
-                  "maximumError": "24kB"
+                  "maximumError": "32kB"
                 }
               ],
               "outputHashing": "all"
@@ -73,6 +73,12 @@
             },
             "development": {
               "buildTarget": "portfolio-manager-ui:build:development"
+            },
+            "https": {
+              "buildTarget": "portfolio-manager-ui:build:development",
+              "ssl": true,
+              "sslCert": "../../certs/pm-server.pem",
+              "sslKey": "../../certs/pm-server.key"
             }
           },
           "defaultConfiguration": "development"

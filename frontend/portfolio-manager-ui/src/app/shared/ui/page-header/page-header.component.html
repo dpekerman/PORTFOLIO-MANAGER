@@ -1,0 +1,18 @@
+<div class="page-header">
+  <div class="page-title-group">
+    <mat-icon class="page-icon" [style.color]="accent() || null">{{ icon() }}</mat-icon>
+    <div class="page-heading">
+      <h1 class="page-title">
+        {{ title() }}
+        <ng-content select="[pageTitleExtra]" />
+      </h1>
+      @if (subtitle()) {
+        <p class="page-sub">{{ subtitle() }}<ng-content select="[pageSub]" /></p>
+      }
+      <ng-content select="[pageMeta]" />
+    </div>
+  </div>
+  <div class="page-actions">
+    <ng-content select="[pageActions]" />
+  </div>
+</div>

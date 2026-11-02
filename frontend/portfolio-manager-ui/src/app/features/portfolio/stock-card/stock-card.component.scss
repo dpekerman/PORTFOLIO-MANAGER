@@ -25,6 +25,11 @@
   mat-card-header {
     position: relative;
 
+    // Keep long names clear of the absolutely-positioned edit/remove buttons.
+    @media (max-width: 599.98px) {
+      padding-right: 64px;
+    }
+
     .company-name {
       white-space: nowrap;
       overflow: hidden;
