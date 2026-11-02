@@ -64,6 +64,7 @@ import {
   TxFilterState,
   TxTotalsRow,
   TxTypeFilter,
+  dateRangeInvalid,
   activeFilterSummary,
   closeFilterApplies,
   compareSortValues,
@@ -186,6 +187,9 @@ export class TransactionsPageComponent {
   protected readonly filterDecisionSource = signal('');
   protected readonly filterRole = signal('');
   protected readonly filterSourceClosed = signal('');
+  protected readonly filterAccount = signal('');
+  protected readonly filterDateFrom = signal('');
+  protected readonly filterDateTo = signal('');
   protected readonly TX_NONE = TX_NONE;
 
   /** Toronto calendar date; refreshed at midnight so SINCE CLOSE stays correct on a long-lived page. */
@@ -225,12 +229,25 @@ export class TransactionsPageComponent {
     role: this.filterRole(),
     source: this.filterDecisionSource(),
     sourceClosed: this.filterSourceClosed(),
+    account: this.filterAccount(),
+    dateFrom: this.filterDateFrom(),
+    dateTo: this.filterDateTo(),
   }));
 
   protected readonly closeFilterEnabled = computed(() => closeFilterApplies(this.txTypeFilter()));
 
+  protected readonly dateRangeInvalid = computed(() => dateRangeInvalid(this.filterState()));
+
   protected readonly hasActiveFilters = computed(
-    () => !!(this.filterDecisionSource() || this.filterRole() || this.filterSourceClosed()),
+    () =>
+      !!(
+        this.filterDecisionSource() ||
+        this.filterRole() ||
+        this.filterSourceClosed() ||
+        this.filterAccount() ||
+        this.filterDateFrom() ||
+        this.filterDateTo()
+      ),
   );
 
   private readonly stockTxSource = computed(() =>
@@ -245,6 +262,20 @@ export class TransactionsPageComponent {
     this.stockTxSource().some((s) => !(s.item.holdingRole ?? '').trim()),
   );
 
+  protected readonly accountOptions = computed(() =>
+    distinctValues([
+      ...this.stockTxSource().map((s) => s.item.accountType),
+      ...this.optionState.analyses().map((a) => a.item.accountType),
+    ]),
+  );
+
+  protected readonly sourceOptions = computed(() =>
+    distinctValues([
+      ...this.stockTxSource().map((s) => s.item.decisionSource),
+      ...this.optionState.analyses().map((a) => a.item.decisionSource),
+    ]),
+  );
+
   protected readonly sourceClosedOptions = computed(() =>
     distinctValues([
       ...this.stockTxSource().map((s) => s.item.decisionSourceClosed),
@@ -256,6 +287,9 @@ export class TransactionsPageComponent {
     this.filterDecisionSource.set('');
     this.filterRole.set('');
     this.filterSourceClosed.set('');
+    this.filterAccount.set('');
+    this.filterDateFrom.set('');
+    this.filterDateTo.set('');
   }
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
@@ -289,6 +323,8 @@ export class TransactionsPageComponent {
           {
             type: s.item.transactionType,
             openDate: s.item.openDate,
+            closeDate: s.item.closeDate,
+            account: s.item.accountType,
             role: s.item.holdingRole,
             source: s.item.decisionSource,
             sourceClosed: s.item.decisionSourceClosed,
@@ -311,6 +347,8 @@ export class TransactionsPageComponent {
           {
             type: a.item.transactionType,
             openDate: a.item.openDate,
+            closeDate: a.item.closeDate,
+            account: a.item.accountType,
             source: a.item.decisionSource,
             sourceClosed: a.item.decisionSourceClosed,
           },
@@ -697,32 +735,37 @@ export class TransactionsPageComponent {
 
   // ── Stock Edit / Remove ────────────────────────────────────────────────────
   openEditStockTransaction(s: PortfolioSummary): void {
-    this.dialog
-      .open(EditPositionDialogComponent, {
-        data: { item: s.item } satisfies EditPositionDialogData,
-        width: '620px',
-        maxWidth: '95vw',
-        maxHeight: '95vh',
-      })
-      .afterClosed()
-      .subscribe((result: EditPositionDialogResult | undefined) => {
-        if (!result) return;
-        this.portfolio.updateItem(s.item.id, {
-          companyName: result.companyName,
-          shares: result.shares,
-          averageCostBasis: result.averageCostBasis,
-          sector: result.sector,
-          industry: result.industry,
-          overrideSector: result.overrideSector,
-          transactionType: result.transactionType,
-          accountType: result.accountType,
-          openDate: result.openDate,
-          closeDate: result.closeDate,
-          closingPrice: result.closingPrice,
-          decisionSource: result.decisionSource,
-          decisionSourceClosed: result.decisionSourceClosed,
-        });
-      });
+    this.dialog.open(EditPositionDialogComponent, {
+      data: {
+        item: s.item,
+        submit: (result: EditPositionDialogResult) =>
+          new Promise<string | null>((resolve) =>
+            this.portfolio.updateItem(
+              s.item.id,
+              {
+                companyName: result.companyName,
+                shares: result.shares,
+                averageCostBasis: result.averageCostBasis,
+                sector: result.sector,
+                industry: result.industry,
+                overrideSector: result.overrideSector,
+                transactionType: result.transactionType,
+                accountType: result.accountType,
+                openDate: result.openDate,
+                closeDate: result.closeDate,
+                closingPrice: result.closingPrice,
+                decisionSource: result.decisionSource,
+                decisionSourceClosed: result.decisionSourceClosed,
+                holdingRole: result.holdingRole,
+              },
+              { success: () => resolve(null), failure: (message) => resolve(message) },
+            ),
+          ),
+      } satisfies EditPositionDialogData,
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   confirmRemoveStockTransaction(s: PortfolioSummary): void {

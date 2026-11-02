@@ -13,6 +13,12 @@ import { PortfolioItem } from '../../../core/models/portfolio.models';
 import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
+import {
+  closeDateValidator,
+  revalidateCloseDateOn,
+  sortDecisionSources,
+  torontoTodayDate,
+} from '../../../core/close-date.util';
 
 export const HOLDING_ROLES = [
   'Core',
@@ -30,6 +36,8 @@ export interface EditPositionDialogData {
    * the returned message on failure. Resolve null on success. Without it the dialog just returns its result.
    */
   submit?: (result: EditPositionDialogResult) => Promise<string | null>;
+  /** Close Position entry (Swing Trading): prefills a CLOSE and requires the user's actual execution price. */
+  closePosition?: { defaultDecisionSourceClosed?: string | null };
 }
 
 export interface EditPositionDialogResult {
@@ -80,7 +88,8 @@ export class EditPositionDialogComponent implements OnInit {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly industries = signal<string[]>([]);
   protected readonly holdingRoles = HOLDING_ROLES;
-  protected readonly decisionSources = this.configService.config().decisionSources;
+  protected readonly decisionSources = sortDecisionSources(this.configService.config().decisionSources);
+  protected readonly closeMode = !!this.data.closePosition;
 
   private toDate(val: string | null | undefined): Date | null {
     if (!val) return null;
@@ -92,8 +101,14 @@ export class EditPositionDialogComponent implements OnInit {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  /** Close Position entry: only an exact, existing catalog value is ever pre-selected. */
+  private defaultClosedSource(): string | null {
+    const wanted = this.data.closePosition?.defaultDecisionSourceClosed;
+    return wanted && this.decisionSources.includes(wanted) ? wanted : null;
+  }
+
   protected readonly form = this.fb.group({
-    transactionType: [this.data.item.transactionType ?? 'OPEN'],
+    transactionType: [this.closeMode ? 'CLOSE' : (this.data.item.transactionType ?? 'OPEN')],
     companyName: [this.data.item.companyName, [Validators.required, Validators.maxLength(200)]],
     shares: [
       this.data.item.shares,
@@ -107,12 +122,35 @@ export class EditPositionDialogComponent implements OnInit {
     industry: [this.data.item.industry ?? '', [Validators.maxLength(150)]],
     accountType: [this.data.item.accountType ?? (null as string | null)],
     openDate: [this.toDate(this.data.item.openDate) as Date | null],
-    closeDate: [this.toDate(this.data.item.closeDate) as Date | null],
-    closingPrice: [this.data.item.closingPrice ?? (null as number | null), [Validators.min(0)]],
+    closeDate: [
+      (this.closeMode ? torontoTodayDate() : this.toDate(this.data.item.closeDate)) as Date | null,
+      [closeDateValidator],
+    ],
+    closingPrice: [
+      (this.closeMode ? null : (this.data.item.closingPrice ?? null)) as number | null,
+      this.closeMode ? [Validators.required, Validators.min(0.0001)] : [Validators.min(0)],
+    ],
     decisionSource: [this.data.item.decisionSource ?? (null as string | null)],
-    decisionSourceClosed: [this.data.item.decisionSourceClosed ?? (null as string | null)],
+    decisionSourceClosed: [
+      (this.closeMode ? this.defaultClosedSource() : (this.data.item.decisionSourceClosed ?? null)) as
+        | string
+        | null,
+    ],
     holdingRole: [this.data.item.holdingRole ?? (null as string | null)],
   });
+
+  constructor() {
+    revalidateCloseDateOn(this.form);
+    // Switching to CLOSE fills an empty Close Date only; an existing or user-chosen date is never overwritten.
+    this.form.controls.transactionType.valueChanges.subscribe((t) => {
+      if (t === 'CLOSE' && !this.form.controls.closeDate.value) {
+        this.form.controls.closeDate.setValue(torontoTodayDate());
+      }
+    });
+    // A legacy CLOSE row without a date must be corrected before it can be saved.
+    if (this.form.controls.closeDate.invalid) this.form.controls.closeDate.markAsTouched();
+  }
+
 
   /** True while the form represents a partial close — closing fewer shares than currently held.
    * The backend auto-splits the remainder into a new open position on save. */
@@ -149,7 +187,7 @@ export class EditPositionDialogComponent implements OnInit {
       sector: newSector,
       industry: newIndustry,
       overrideSector: sectorChanged || this.data.item.sectorIsOverridden,
-      transactionType: this.form.value.transactionType ?? null,
+      transactionType: this.closeMode ? 'CLOSE' : (this.form.value.transactionType ?? null),
       accountType: this.form.value.accountType ?? null,
       openDate: this.formatDate(this.form.value.openDate),
       closeDate: this.formatDate(this.form.value.closeDate),

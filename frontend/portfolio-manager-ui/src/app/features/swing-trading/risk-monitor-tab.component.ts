@@ -9,6 +9,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
 import { SwingTradeRow } from '../../core/models/swing-trading.models';
+import { SwingClosePositionService } from '../../core/services/swing-close-position.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { SwingTradingStore } from '../../core/store/swing-trading.store';
@@ -65,6 +66,7 @@ export class RiskMonitorTabComponent {
   protected readonly store = inject(SwingTradingStore);
   protected readonly demo = inject(DemoModeStore);
   private readonly dialog = inject(MatDialog);
+  private readonly closer = inject(SwingClosePositionService);
 
   protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys('swing-risk-monitor');
   protected readonly sort = signal<Sort>({ active: '', direction: '' });
@@ -114,6 +116,14 @@ export class RiskMonitorTabComponent {
 
   protected manage(row: SwingTradeRow): void {
     openManageRiskDialog(this.dialog, manageRiskDataFor(row));
+  }
+
+  protected canClose(row: SwingTradeRow): boolean {
+    return this.closer.hasEligibleLot(row);
+  }
+
+  protected closePosition(row: SwingTradeRow): void {
+    void this.closer.open(row);
   }
 
   protected reviewOrder(account: string, symbol: string): void {

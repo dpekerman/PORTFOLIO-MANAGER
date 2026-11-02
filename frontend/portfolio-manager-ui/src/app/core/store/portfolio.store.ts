@@ -290,6 +290,9 @@ export const PortfolioStore = signalStore(
               if (prev) void tradeCashLink.offerForStock(prev, updated);
               if (prev && (prev.holdingRole ?? null) !== (updated.holdingRole ?? null)) {
                 patchState(store, ({ roleChangeVersion }) => ({ roleChangeVersion: roleChangeVersion + 1 }));
+              } else if (prev && prev.transactionType !== 'CLOSE' && updated.transactionType === 'CLOSE') {
+                // A new CLOSE changes Swing membership/quantities, so dependent views reload the same way.
+                patchState(store, ({ roleChangeVersion }) => ({ roleChangeVersion: roleChangeVersion + 1 }));
               }
               callbacks?.success?.();
             },

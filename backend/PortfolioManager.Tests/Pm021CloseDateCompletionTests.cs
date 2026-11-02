@@ -61,7 +61,12 @@ public class Pm021CloseDateCompletionTests
         await risk.SavePlanAsync(new SaveRiskPlanRequest("A", "SYNTH.TO", 9, null, "Fixed", null, "thesis", null, null, null));
         await risk.SaveBrokerStopAsync(new SaveBrokerStopRequest(null, "A", "SYNTH.TO", "StopMarket", 9, null, 100,
             null, null, null, null, null, false, null));
-        (await svc.UpdateAsync(added.Id, Request())).Should().NotBeNull();
+        (await svc.UpdateAsync(added.Id, Request(close: new DateTime(2026, 9, 5)))).Should().NotBeNull();
+        // Reproduce the legacy production state (CLOSE + NULL date) directly; the API no longer creates it.
+        var row = (await db.PortfolioItems.FindAsync(added.Id))!;
+        row.CloseDate = null;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
         (await db.PortfolioItems.FindAsync(added.Id))!.CloseDate.Should().BeNull();
         return (db, svc, added.Id);
     }

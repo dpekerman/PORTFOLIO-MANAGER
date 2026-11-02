@@ -390,3 +390,37 @@ export function downloadTextFile(filename: string, text: string, mime = 'text/cs
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/** The Decision Source - Close the Close Position entry pre-selects, only when the configured list has this exact value. */
+export const CLOSE_POSITION_DEFAULT_SOURCE = 'Stop Loss Trigerred';
+
+/** The part of a portfolio lot the Close Position eligibility check needs. */
+export interface CloseLotCandidate {
+  id: number;
+  symbol: string;
+  accountType?: string | null;
+  holdingRole?: string | null;
+  transactionType?: string | null;
+  shares: number;
+  isManual?: boolean;
+}
+
+/**
+ * Lots of a Swing row that can be closed: the row's own OPEN, Swing, non-manual lots of the same account and
+ * symbol with shares remaining. A breached stop does not matter; nothing is closed until the user submits.
+ */
+export function eligibleCloseLots<T extends CloseLotCandidate>(row: SwingTradeRow, items: readonly T[]): T[] {
+  const ids = new Set(row.lotIds);
+  return items
+    .filter(
+      (i) =>
+        ids.has(i.id) &&
+        !i.isManual &&
+        i.transactionType === 'OPEN' &&
+        i.holdingRole === 'Swing' &&
+        i.shares > 0 &&
+        (i.accountType ?? '') === row.account &&
+        i.symbol.toUpperCase() === row.symbol.toUpperCase(),
+    )
+    .sort((a, b) => a.id - b.id);
+}

@@ -9,7 +9,9 @@ import {
   compareSortValues,
   computeTxTotals,
   dateOnly,
+  dateRangeInvalid,
   daysSinceClose,
+  txEffectiveDate,
   distinctValues,
   isFutureClose,
   matchesTx,
@@ -24,12 +26,17 @@ const state = (over: Partial<TxFilterState> = {}): TxFilterState => ({
   role: '',
   source: '',
   sourceClosed: '',
+  account: '',
+  dateFrom: '',
+  dateTo: '',
   ...over,
 });
 
 const closed = (over: Partial<TxFilterable> = {}): TxFilterable => ({
   type: 'CLOSE',
   openDate: '2026-01-01',
+  closeDate: '2026-10-15',
+  account: 'TFSA_D_TD',
   role: 'Swing',
   source: 'Technical Signal',
   sourceClosed: 'Stop Loss',
@@ -38,6 +45,7 @@ const closed = (over: Partial<TxFilterable> = {}): TxFilterable => ({
 const open = (over: Partial<TxFilterable> = {}): TxFilterable => ({
   type: 'OPEN',
   openDate: '2026-08-27',
+  account: 'TFSA_D_TD',
   role: 'Swing',
   source: 'Technical Signal',
   sourceClosed: null,
@@ -130,9 +138,11 @@ describe('matchesTx filters', () => {
     expect(matchesTx(closed({ role: undefined }), state({ role: 'Core' }), false)).toBe(true);
   });
 
-  it('filters the opening decision source by substring', () => {
-    expect(matchesTx(closed(), state({ source: 'technical' }))).toBe(true);
-    expect(matchesTx(closed(), state({ source: 'manual' }))).toBe(false);
+  it('filters the opening decision source by exact value (not a substring)', () => {
+    expect(matchesTx(closed(), state({ source: 'technical signal' }))).toBe(true);
+    expect(matchesTx(closed(), state({ source: 'Technical' }))).toBe(false);
+    expect(matchesTx(closed(), state({ source: 'Manual' }))).toBe(false);
+    expect(matchesTx(closed({ source: null }), state({ source: TX_NONE }))).toBe(true);
   });
 
   it('filters the close decision source on ALL and CLOSE', () => {
@@ -260,5 +270,106 @@ describe('exports', () => {
   it('option export has matching header and row widths', () => {
     expect(TX_OPTION_EXPORT_COLUMNS.at(-2)?.header).toBe('Since Close (days)');
     expect(TX_STOCK_EXPORT_COLUMNS.length).toBe(stockRow.length);
+  });
+});
+
+describe('PM-013 advanced filters', () => {
+  const rows: (TxFilterable & { currency: string; gainLoss: number | null; diffDollar: number | null; id: number })[] = [
+    { id: 1, ...closed({ closeDate: '2026-10-01', account: 'TFSA_D_TD', sourceClosed: 'Stop Loss Trigerred' }), currency: 'CAD', gainLoss: 100, diffDollar: 5 },
+    { id: 2, ...closed({ closeDate: '2026-10-31T00:00:00', account: 'TFSA_D_TD', sourceClosed: 'Stop Loss Trigerred' }), currency: 'USD', gainLoss: 50, diffDollar: 2 },
+    { id: 3, ...closed({ closeDate: '2026-11-01', account: 'TFSA_D_TD', sourceClosed: 'Stop Loss Trigerred' }), currency: 'CAD', gainLoss: 7, diffDollar: 1 },
+    { id: 4, ...closed({ closeDate: '2026-09-30', account: 'TFSA_D_TD', sourceClosed: 'Stop Loss Trigerred' }), currency: 'CAD', gainLoss: 9, diffDollar: 1 },
+    { id: 5, ...closed({ closeDate: '2026-10-15', account: 'RRSP', sourceClosed: 'Stop Loss Trigerred' }), currency: 'CAD', gainLoss: 11, diffDollar: 1 },
+    { id: 6, ...closed({ closeDate: '2026-10-15', role: 'Core', sourceClosed: 'Stop Loss Trigerred' }), currency: 'CAD', gainLoss: 13, diffDollar: 1 },
+    { id: 7, ...closed({ closeDate: '2026-10-15', sourceClosed: 'Target' }), currency: 'CAD', gainLoss: 17, diffDollar: 1 },
+    { id: 8, ...open({ openDate: '2026-10-10' }), currency: 'CAD', gainLoss: null, diffDollar: 3 },
+    { id: 9, ...closed({ closeDate: null }), currency: 'CAD', gainLoss: 19, diffDollar: 1 },
+  ];
+  const ids = (f: TxFilterState) => rows.filter((r) => matchesTx(r, f)).map((r) => r.id);
+
+  it('From only and To only are inclusive', () => {
+    expect(ids(state({ tab: 'CLOSE', dateFrom: '2026-10-15' }))).toEqual([2, 3, 5, 6, 7]);
+    expect(ids(state({ tab: 'CLOSE', dateTo: '2026-10-01' }))).toEqual([1, 4]);
+  });
+
+  it('From and To are both inclusive day boundaries, including date-time strings', () => {
+    expect(ids(state({ tab: 'CLOSE', dateFrom: '2026-10-01', dateTo: '2026-10-31' }))).toEqual([1, 2, 5, 6, 7]);
+  });
+
+  it('a single-day range returns exactly that day', () => {
+    expect(ids(state({ tab: 'CLOSE', dateFrom: '2026-10-31', dateTo: '2026-10-31' }))).toEqual([2]);
+  });
+
+  it('From after To matches nothing and is reported as invalid', () => {
+    const f = state({ dateFrom: '2026-10-31', dateTo: '2026-10-01' });
+    expect(dateRangeInvalid(f)).toBe(true);
+    expect(ids(f)).toEqual([]);
+    expect(dateRangeInvalid(state({ dateFrom: '2026-10-01', dateTo: '2026-10-01' }))).toBe(false);
+  });
+
+  it('uses the close date for CLOSE and the open date for OPEN, never a missing date', () => {
+    expect(txEffectiveDate('CLOSE', '2026-01-01', '2026-10-15')).toBe('2026-10-15');
+    expect(txEffectiveDate('OPEN', '2026-08-27', null)).toBe('2026-08-27');
+    const inOct = state({ dateFrom: '2026-10-01', dateTo: '2026-10-31' });
+    expect(ids(inOct)).toContain(8); // OPEN row dated by its open date
+    expect(ids(inOct)).not.toContain(9); // CLOSE without a close date is excluded when a bound is active
+    expect(ids(state())).toContain(9); // ...but still listed with no date filter
+  });
+
+  it('filters by account exactly', () => {
+    expect(ids(state({ tab: 'CLOSE', account: 'RRSP' }))).toEqual([5]);
+    expect(ids(state({ tab: 'CLOSE', account: 'rrsp' }))).toEqual([]);
+  });
+
+  it('ANDs the documented example: dates + account + role + close source', () => {
+    const f = state({
+      tab: 'CLOSE',
+      dateFrom: '2026-10-01',
+      dateTo: '2026-10-31',
+      account: 'TFSA_D_TD',
+      role: 'Swing',
+      sourceClosed: 'Stop Loss Trigerred',
+    });
+    expect(ids(f)).toEqual([1, 2]);
+  });
+
+  it('combines Open and Close decision sources independently', () => {
+    expect(ids(state({ tab: 'CLOSE', source: 'Technical Signal', sourceClosed: 'Target' }))).toEqual([7]);
+    expect(ids(state({ tab: 'CLOSE', source: 'Manual', sourceClosed: 'Target' }))).toEqual([]);
+  });
+
+  it('keeps ALL / OPEN / CLOSED semantics with date filters', () => {
+    const range = { dateFrom: '2026-10-01', dateTo: '2026-10-31' };
+    expect(ids(state({ tab: 'OPEN', ...range }))).toEqual([8]);
+    expect(ids(state({ tab: 'ALL', ...range }))).toEqual([1, 2, 5, 6, 7, 8]);
+  });
+
+  it('totals are computed from exactly the filtered rows, per currency', () => {
+    const f = state({ tab: 'CLOSE', dateFrom: '2026-10-01', dateTo: '2026-10-31', account: 'TFSA_D_TD', role: 'Swing' });
+    const t = computeTxTotals(rows.filter((r) => matchesTx(r, f)));
+    expect(t.closedGainLoss).toEqual([
+      { currency: 'CAD', amount: 117, count: 2 },
+      { currency: 'USD', amount: 50, count: 1 },
+    ]);
+    expect(computeTxTotals([]).closedGainLoss).toEqual([]);
+    expect(computeTxTotals([]).count).toBe(0);
+  });
+
+  it('the CSV contains every filtered row, not just a page', () => {
+    const f = state({ tab: 'CLOSE', dateFrom: '2026-10-01', dateTo: '2026-10-31' });
+    const matched = rows.filter((r) => matchesTx(r, f));
+    const csv = txRowsToCsv(
+      [{ header: 'Id', kind: 'int' }],
+      matched.map((r) => [r.id]),
+    );
+    expect(csv.split('\n')).toEqual(['Id', '1', '2', '5', '6', '7']);
+  });
+
+  it('lists the new filters in the exported filter summary', () => {
+    const summary = activeFilterSummary(state({ dateFrom: '2026-10-01', account: 'RRSP', source: 'Manual' }));
+    expect(summary).toContainEqual(['Transaction Date From', '2026-10-01']);
+    expect(summary).toContainEqual(['Transaction Date To', 'Any']);
+    expect(summary).toContainEqual(['Account', 'RRSP']);
+    expect(summary).toContainEqual(['Decision Source - Open', 'Manual']);
   });
 });

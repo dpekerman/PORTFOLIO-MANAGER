@@ -628,6 +628,15 @@ test.describe('PM-016 Swing grid cleanup', () => {
     await openManage(page, 'WELL.TO');
   });
 
+  test('PM-020: Close Position sits beside Manage Risk, is labelled, and records nothing on its own', async ({ page }) => {
+    await openSwing(page);
+    const button = page.getByRole('button', { name: 'Close position WELL.TO in Corp_TD' });
+    await expect(button.first()).toBeAttached();
+    await expect(page.getByRole('button', { name: 'Manage risk for WELL.TO in Corp_TD' }).first()).toBeVisible();
+    // The mocked portfolio has no matching OPEN lot id, so the shortcut is correctly unavailable (no guessing).
+    await expect(button.first()).toBeDisabled();
+  });
+
   test('Breached Planned Stops quick filter shows confirmed breaches only and works with other filters', async ({ page }, info) => {
     await openSwing(page);
     await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();

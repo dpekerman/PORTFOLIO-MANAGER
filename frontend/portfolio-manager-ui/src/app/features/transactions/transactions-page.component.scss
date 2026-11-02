@@ -129,6 +129,10 @@
   }
 }
 
+.tx-filter-error {
+  color: var(--mat-sys-error, #b3261e);
+}
+
 .tx-filter-field {
   min-width: 170px;
   max-width: 220px;

@@ -228,6 +228,9 @@
           <button mat-flat-button type="button" class="st-row-btn" (click)="manage(r)" [attr.aria-label]="'Manage risk for ' + r.symbol + ' in ' + r.account" data-testid="manage-risk-btn">
             <mat-icon aria-hidden="true">shield</mat-icon> Manage Risk
           </button>
+          <button mat-stroked-button type="button" class="st-row-btn" (click)="closePosition(r)" [disabled]="!canClose(r)" [attr.aria-label]="'Close position ' + r.symbol + ' in ' + r.account" data-testid="close-position-btn">
+            <mat-icon aria-hidden="true">logout</mat-icon> Close Position
+          </button>
         </td>
       </ng-container>
 
