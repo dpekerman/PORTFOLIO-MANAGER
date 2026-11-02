@@ -12,6 +12,7 @@ import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { AuditAction, AuditCategory, AuditLogEntry, AuditSource } from '../../core/models/portfolio.models';
 import { AuditRange, AuditStore } from '../../core/store/audit.store';
@@ -45,6 +46,7 @@ const SEARCH_DEBOUNCE_MS = 350;
   styleUrl: './audit-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     DatePipe,
     NgTemplateOutlet,
     AppRefreshButtonComponent,

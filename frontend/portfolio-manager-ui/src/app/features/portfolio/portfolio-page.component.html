@@ -329,6 +329,7 @@
                 <table
                   mat-table
                   appResponsiveTable
+                  appRowSelection
                   [dataSource]="gridRows()"
                   matSort
                   #stockSort="matSort"
@@ -1372,12 +1373,14 @@
                     mat-row
                     *matRowDef="let row; columns: gridDisplayedColumns(); when: isAggRow"
                     class="pg-agg-row"
+                    [appSelectableRow]="'agg:' + asAgg(row).symbol"
                     (click)="toggleGroup(asAgg(row).symbol, $event)"
                   ></tr>
                   <tr
                     mat-row
                     *matRowDef="let row; columns: gridDisplayedColumns(); when: isItemRow"
                     class="pg-row"
+                    [appSelectableRow]="'item:' + asItem(row).item.id"
                     [class.pg-child-row]="groupedSymbols().has(asItem(row).item.symbol)"
                   ></tr>
                   @if (gridRows().length === 0) {
@@ -1608,6 +1611,7 @@
                   class="portfolio-grid-table mat-elevation-z0"
                   mat-table
                   appResponsiveTable
+                  appRowSelection
                   [dataSource]="sortedCashItems()"
                   matSort
                   #cashSort="matSort"
@@ -1692,6 +1696,7 @@
                   <tr
                     mat-row
                     *matRowDef="let row; columns: cashDisplayedColumns()"
+                    [appSelectableRow]="row.id"
                     class="pg-row"
                   ></tr>
                 </table>
@@ -1813,6 +1818,7 @@
                 class="portfolio-grid-table options-grid-table mat-elevation-z0"
                 mat-table
                 appResponsiveTable
+                appRowSelection
                 [dataSource]="sortedOptionAnalyses()"
                 matSort
                 #optionSort="matSort"
@@ -2123,6 +2129,7 @@
                 <tr
                   mat-row
                   *matRowDef="let row; columns: optionDisplayedColumns()"
+                  [appSelectableRow]="row.item.id"
                   class="pg-row"
                 ></tr>
               </table>

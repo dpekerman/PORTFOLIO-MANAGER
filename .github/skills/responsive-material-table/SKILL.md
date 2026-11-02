@@ -22,6 +22,10 @@ Import `ResponsiveTableDirective` and `MobileTableControlsComponent` from `share
 
 Still add the directive; card labels come from the header text. For wide tables derive the handset column list with `BreakpointStore.isHandset()` in a `computed`, keeping desktop columns unchanged.
 
+## Persistent row selection (every grid)
+
+Add `appRowSelection` to the `<table>` and `[appSelectableRow]="<stable business key>"` to the data `<tr mat-row>` (e.g. `row.id`, `row.symbol`; never the row object), and put `...ROW_SELECTION` in the component `imports` (from `shared/row-selection/row-selection.directive`). The last clicked row then stays highlighted through dialogs, refreshes and sorting. Styles live in `src/styles/_row-selection.scss`.
+
 ## Pitfalls
 
 - Fixed `width`/`min-width` on cells, sticky columns and `colgroup` fight cards; scope them to `@media (min-width: 600px)` or override under `[data-responsive='cards']` (shared rules live in `src/styles/_responsive-table.scss` and `_responsive-pages.scss`, so component SCSS budgets do not grow).

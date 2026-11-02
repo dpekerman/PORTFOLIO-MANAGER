@@ -212,6 +212,7 @@
               <table
                 mat-table
                 appResponsiveTable
+                appRowSelection
                 [dataSource]="sortedStockTransactions()"
                 matSort
                 #stockSort="matSort"
@@ -628,7 +629,7 @@
                 </ng-container>
 
                 <tr mat-header-row *matHeaderRowDef="stockColumns(); sticky: true"></tr>
-                <tr mat-row *matRowDef="let row; columns: stockColumns()" class="pg-row"></tr>
+                <tr mat-row *matRowDef="let row; columns: stockColumns()" class="pg-row" [appSelectableRow]="row.item.id"></tr>
                 <tr mat-footer-row *matFooterRowDef="stockColumns()" class="tx-totals-row"></tr>
               </table>
             </div>
@@ -669,6 +670,7 @@
             <div class="tx-table-wrapper">
               <table
                 mat-table
+                appRowSelection
                 [dataSource]="sortedOptionTransactions()"
                 matSort
                 (matSortChange)="onOptionSortChange($event)"
@@ -1016,7 +1018,7 @@
                 </ng-container>
 
                 <tr mat-header-row *matHeaderRowDef="optionColumns(); sticky: true"></tr>
-                <tr mat-row *matRowDef="let row; columns: optionColumns()" class="pg-row"></tr>
+                <tr mat-row *matRowDef="let row; columns: optionColumns()" class="pg-row" [appSelectableRow]="row.item.id"></tr>
                 <tr mat-footer-row *matFooterRowDef="optionColumns()" class="tx-totals-row"></tr>
               </table>
             </div>

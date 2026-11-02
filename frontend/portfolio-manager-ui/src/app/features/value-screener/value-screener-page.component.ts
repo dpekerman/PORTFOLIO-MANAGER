@@ -17,6 +17,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
 import {
@@ -43,6 +44,7 @@ import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-r
   styleUrl: './value-screener-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     AppRefreshButtonComponent,
     DecimalPipe,
     CurrencyPipe,

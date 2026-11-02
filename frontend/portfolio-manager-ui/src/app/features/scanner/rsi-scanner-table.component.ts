@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import * as XLSX from 'xlsx';
@@ -41,6 +42,7 @@ import { ResponsiveTableDirective } from '../../shared/responsive-table/responsi
   styleUrl: './rsi-scanner-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     MatTableModule,
     MatButtonModule,
     MatIconModule,

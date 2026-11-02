@@ -9,6 +9,7 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
 import { JournalRow } from '../../core/models/swing-trading.models';
@@ -37,6 +38,7 @@ import {
   selector: 'app-trade-journal-tab',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     DatePipe,
     DecimalPipe,
     GridColumnButtonComponent,

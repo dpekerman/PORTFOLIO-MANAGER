@@ -207,6 +207,7 @@
       <table
         mat-table
         appResponsiveTable
+        appRowSelection
         [dataSource]="store.items()"
         matSort
         #signalSort="matSort"
@@ -396,6 +397,7 @@
           mat-row
           *matRowDef="let row; columns: displayedColumns()"
           class="signal-row"
+          [appSelectableRow]="row.id"
           tabindex="0"
           (click)="openDetails(row)"
           (keydown.enter)="openDetails(row)"
@@ -515,7 +517,7 @@
         </figure>
 
         <div class="eff-table-wrap" [class.eff-loading]="store.effectivenessLoading()" [attr.aria-busy]="store.effectivenessLoading()">
-          <table mat-table appResponsiveTable [dataSource]="eff.rows" class="eff-table" aria-label="Signal effectiveness by signal type">
+          <table mat-table appResponsiveTable appRowSelection [dataSource]="eff.rows" class="eff-table" aria-label="Signal effectiveness by signal type">
             <ng-container matColumnDef="label">
               <th mat-header-cell *matHeaderCellDef>Signal Type</th>
               <td mat-cell *matCellDef="let r">
@@ -571,7 +573,7 @@
             </ng-container>
 
             <tr mat-header-row *matHeaderRowDef="effColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: effColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: effColumns" [appSelectableRow]="row.signalType"></tr>
           </table>
         </div>
       }

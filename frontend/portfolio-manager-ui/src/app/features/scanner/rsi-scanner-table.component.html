@@ -13,6 +13,7 @@
   <table
     mat-table
     appResponsiveTable
+    appRowSelection
     matSort
     #scannerSort="matSort"
     matSortActive="momentumShift"
@@ -815,6 +816,7 @@
     <tr
       mat-row
       *matRowDef="let row; columns: displayedColumns()"
+      [appSelectableRow]="row.symbol"
       [class.row-confirmed]="row.status === 'Confirmed'"
       [class.row-warning]="row.status === 'EarlyWarning'"
     ></tr>

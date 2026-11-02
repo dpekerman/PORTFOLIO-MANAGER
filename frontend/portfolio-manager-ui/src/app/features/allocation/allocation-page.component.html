@@ -154,6 +154,7 @@
           <div class="beta-contrib-table-wrapper">
             <table
               mat-table
+              appRowSelection
               [dataSource]="sortedBetaContributors()"
               matSort
               matSortActive="symbol"
@@ -225,7 +226,7 @@
               </ng-container>
 
               <tr mat-header-row *matHeaderRowDef="betaColumns; sticky: true"></tr>
-              <tr mat-row *matRowDef="let row; columns: betaColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: betaColumns" [appSelectableRow]="row.symbol"></tr>
             </table>
           </div>
         </div>
