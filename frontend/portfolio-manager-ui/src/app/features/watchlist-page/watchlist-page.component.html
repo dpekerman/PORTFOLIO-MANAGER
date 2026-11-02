@@ -240,6 +240,7 @@
           <table
             mat-table
             appResponsiveTable
+            appRowSelection
             [dataSource]="filteredSorted()"
             [trackBy]="trackById"
             matSort
@@ -1284,6 +1285,7 @@
               mat-row
               *matRowDef="let row; columns: displayedColumns()"
               class="watchlist-row"
+              [appSelectableRow]="row.item.id"
             ></tr>
 
             @if (filteredSorted().length === 0) {

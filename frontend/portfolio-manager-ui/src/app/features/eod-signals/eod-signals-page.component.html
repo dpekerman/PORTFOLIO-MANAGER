@@ -245,6 +245,7 @@
       <table
         mat-table
         appResponsiveTable
+        appRowSelection
         [dataSource]="sortedSignals()"
         matSort
         #signalsSort="matSort"
@@ -657,6 +658,7 @@
           mat-row
           *matRowDef="let row; columns: displayedColumns()"
           class="signal-row"
+          [appSelectableRow]="row.id"
           [class]="signalStateClass(row.signalState)"
         ></tr>
       </table>

@@ -57,6 +57,7 @@
     <table
       mat-table
       appResponsiveTable
+      appRowSelection
       matSort
       #sortRef="matSort"
       [dataSource]="rows()"
@@ -149,7 +150,7 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="columns(); sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns()"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns()" [appSelectableRow]="row.key"></tr>
     </table>
   </div>
 }

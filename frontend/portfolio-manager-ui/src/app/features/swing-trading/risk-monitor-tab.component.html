@@ -73,6 +73,7 @@
     <table
       mat-table
       appResponsiveTable
+      appRowSelection
       matSort
       #sortRef="matSort"
       [dataSource]="rows()"
@@ -204,7 +205,7 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="columns(); sticky: true"></tr>
-      <tr mat-row *matRowDef="let row; columns: columns()" [attr.data-severity]="row.severity"></tr>
+      <tr mat-row *matRowDef="let row; columns: columns()" [attr.data-severity]="row.severity" [appSelectableRow]="row.key"></tr>
     </table>
   </div>
 }

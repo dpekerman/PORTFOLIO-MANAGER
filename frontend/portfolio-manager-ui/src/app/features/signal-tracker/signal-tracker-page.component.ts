@@ -27,6 +27,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import * as XLSX from 'xlsx';
 import { SIGNALS_EXPORT_HEADERS, signalsExportRows, signalsToCsv } from './signal-tracker-export';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { SignalAuditRow, SignalEffectivenessResultRow, SignalHorizon, SignalMyAction } from '../../core/models/portfolio.models';
@@ -55,6 +56,7 @@ type SignalKpi = 'total' | 'priority' | 'entry' | 'trim' | 'actioned' | 'pending
   styleUrl: './signal-tracker-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     DecimalPipe,
     FormsModule,
     NgTemplateOutlet,

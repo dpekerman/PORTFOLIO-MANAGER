@@ -151,6 +151,7 @@
       <table
         mat-table
         multiTemplateDataRows
+        appRowSelection
         [dataSource]="store.items()"
         matSort
         [matSortActive]="store.sortBy()"
@@ -233,6 +234,7 @@
           mat-row
           *matRowDef="let row; columns: displayedColumns()"
           class="audit-row"
+          [appSelectableRow]="row.id"
           [class.expanded]="expandedId() === row.id"
           (click)="toggle(row)"
         ></tr>

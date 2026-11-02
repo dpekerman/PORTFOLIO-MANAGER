@@ -197,6 +197,7 @@
       <table
         mat-table
         appResponsiveTable
+        appRowSelection
         [dataSource]="activeResults()"
         matSort
         #screenerSort="matSort"
@@ -315,6 +316,7 @@
         <tr
           mat-row
           *matRowDef="let row; columns: displayedColumns()"
+          [appSelectableRow]="row.symbol"
           [class]="tierClass(row.tier) + '-row'"
         ></tr>
       </table>
