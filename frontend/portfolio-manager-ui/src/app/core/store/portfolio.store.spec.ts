@@ -389,6 +389,28 @@ describe('PortfolioStore', () => {
       expect(s.roleChangeVersion()).toBe(0);
     });
 
+    it('updateItem bumps roleChangeVersion when an OPEN lot becomes CLOSE so Swing views reload (PM-020)', () => {
+      api.updateItem.mockReturnValue(
+        of({ updated: { symbol: 'AAPL', shares: 10, averageCostBasis: 5, transactionType: 'CLOSE' }, newOpenItem: null }),
+      );
+      const s = withPositions([position({ shares: 10, averageCostBasis: 5 })]);
+
+      s.updateItem(1, {} as never);
+
+      expect(s.roleChangeVersion()).toBe(1);
+    });
+
+    it('updateItem does not bump roleChangeVersion for an edit that leaves the lot OPEN', () => {
+      api.updateItem.mockReturnValue(
+        of({ updated: { symbol: 'AAPL', shares: 10, averageCostBasis: 5, transactionType: 'OPEN' }, newOpenItem: null }),
+      );
+      const s = withPositions([position({ shares: 10, averageCostBasis: 5 })]);
+
+      s.updateItem(1, {} as never);
+
+      expect(s.roleChangeVersion()).toBe(0);
+    });
+
     it('patchItemNotes updates one row only', () => {
       const s = withPositions([
         position({ shares: 1, averageCostBasis: 1 }),

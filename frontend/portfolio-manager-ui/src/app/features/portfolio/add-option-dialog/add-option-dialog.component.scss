@@ -58,6 +58,26 @@ mat-dialog-actions {
 // dialog inside the viewport. Desktop keeps the two-column layout.
 @media (max-width: 599.98px) {
   .option-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+
+    .field-half,
+    .field-ticker,
+    .field-type {
+      flex: none;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .cost-preview .cost-line {
+    flex-direction: column;
+    gap: 4px;
   }
 }

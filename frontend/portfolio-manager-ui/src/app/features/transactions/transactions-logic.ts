@@ -81,18 +81,54 @@ export interface TxFilterState {
   tab: TxTypeFilter;
   /** Role dropdown: '' = all, TX_NONE = no role, otherwise an exact role. */
   role: string;
-  /** Opening Decision Source text (case-insensitive contains). */
+  /** Opening Decision Source dropdown: '' = all, TX_NONE = none recorded, otherwise exact (case-insensitive). */
   source: string;
   /** Close Decision Source dropdown: '' = all, TX_NONE = none recorded, otherwise exact. */
   sourceClosed: string;
+  /** Account dropdown: '' = all, otherwise the exact account. */
+  account: string;
+  /** Inclusive lower bound on the effective transaction date, `yyyy-MM-dd` or ''. */
+  dateFrom: string;
+  /** Inclusive upper bound on the effective transaction date, `yyyy-MM-dd` or ''. */
+  dateTo: string;
 }
 
 export interface TxFilterable {
   type: string | null | undefined;
   openDate: string | null | undefined;
+  closeDate?: string | null;
+  account?: string | null;
   role?: string | null;
   source: string | null | undefined;
   sourceClosed: string | null | undefined;
+}
+
+/** Business-effective date of a transaction: the close date of a CLOSE, otherwise the open date. */
+export function txEffectiveDate(
+  type: string | null | undefined,
+  openDate: string | null | undefined,
+  closeDate: string | null | undefined,
+): string | null {
+  return type === 'CLOSE' ? (closeDate ?? null) : (openDate ?? null);
+}
+
+/** True when both bounds are set and From is after To (no row can match; shown as an error, never swapped). */
+export function dateRangeInvalid(f: Pick<TxFilterState, 'dateFrom' | 'dateTo'>): boolean {
+  return !!f.dateFrom && !!f.dateTo && f.dateFrom > f.dateTo;
+}
+
+/**
+ * Inclusive date-only comparison. Dates stay `yyyy-MM-dd` strings (the Toronto reporting day the user
+ * entered), so no UTC or DST arithmetic can shift a boundary. A row without an effective date never
+ * matches an active date bound.
+ */
+function matchesDateRange(effective: string | null, f: TxFilterState): boolean {
+  if (!f.dateFrom && !f.dateTo) return true;
+  const day = dateOnly(effective);
+  if (!day) return false;
+  if (f.dateFrom && day < f.dateFrom) return false;
+  if (f.dateTo && day > f.dateTo) return false;
+  return true;
 }
 
 function matchesSelect(selected: string, actual: string | null | undefined): boolean {
@@ -108,8 +144,8 @@ export function closeFilterApplies(tab: TxTypeFilter): boolean {
 }
 
 /**
- * Tab + filter predicate shared by the stock and option grids. All active filters are AND-ed.
- * `roleApplies` is false for rows that carry no role (options).
+ * Tab + filter predicate shared by the stock and option grids, totals and exports. All active filters are
+ * AND-ed. `roleApplies` is false for rows that carry no role (options).
  */
 export function matchesTx(row: TxFilterable, f: TxFilterState, roleApplies = true): boolean {
   const type = row.type;
@@ -123,8 +159,10 @@ export function matchesTx(row: TxFilterable, f: TxFilterState, roleApplies = tru
     return false;
   }
 
-  const source = f.source.trim().toLowerCase();
-  if (source && !(row.source ?? '').toLowerCase().includes(source)) return false;
+  if (dateRangeInvalid(f)) return false;
+  if (!matchesDateRange(txEffectiveDate(type, row.openDate, row.closeDate), f)) return false;
+  if (f.account && (row.account ?? '').trim() !== f.account) return false;
+  if (!matchesSelect(f.source, row.source)) return false;
   if (roleApplies && !matchesSelect(f.role, row.role)) return false;
   if (closeFilterApplies(f.tab) && !matchesSelect(f.sourceClosed, row.sourceClosed)) return false;
   return true;
@@ -350,8 +388,11 @@ export function activeFilterSummary(f: TxFilterState): string[][] {
   const label = (v: string, all: string) => (v === TX_NONE ? '(none)' : v || all);
   return [
     ['Tab', f.tab === 'CLOSE' ? 'CLOSED' : f.tab],
+    ['Transaction Date From', f.dateFrom || 'Any'],
+    ['Transaction Date To', f.dateTo || 'Any'],
+    ['Account', f.account || 'All Accounts'],
     ['Role', label(f.role, 'All Roles')],
-    ['Decision Source', f.source.trim() || 'All'],
+    ['Decision Source - Open', label(f.source, 'All')],
     [
       'Decision Source - Close',
       closeFilterApplies(f.tab) ? label(f.sourceClosed, 'All') : 'Not applicable (OPEN)',

@@ -52,6 +52,13 @@ mat-dialog-actions {
   gap: 8px;
 }
 
+.save-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--mat-sys-error, #b3261e);
+  font-size: 0.85rem;
+}
+
 // A phone has no room for two form columns; one column keeps every field legible and the
 // dialog inside the viewport. Desktop keeps the two-column layout.
 @media (max-width: 599.98px) {

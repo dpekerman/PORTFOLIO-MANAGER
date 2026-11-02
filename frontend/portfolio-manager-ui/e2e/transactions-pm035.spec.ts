@@ -25,7 +25,10 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
     await page.getByRole('radio', { name: 'Closed', exact: true }).click();
     await expect(page.getByRole('combobox', { name: 'Role' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: /Decision Source — Close/ })).toBeVisible();
-    await expect(page.getByRole('textbox', { name: 'Decision Source' })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: /Decision Source — Open/ })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: 'Account' })).toBeVisible();
+    await expect(page.getByLabel('Transaction Date From')).toBeVisible();
+    await expect(page.getByLabel('Transaction Date To')).toBeVisible();
 
     const before = await stockRows(page).count();
     await pick(page, 'filter-role', 'Strategic');
@@ -40,10 +43,30 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
     await pick(page, 'filter-role', 'Swing');
     await pick(page, 'filter-source-closed', 'Risk Control');
     await expect.poll(() => stockRows(page).count()).toBe(2); // SU.TO + META
-    await page.getByTestId('filter-source').fill('no-such-source');
+    await page.getByTestId('filter-date-from').fill('2099-01-01');
     await expect(page.getByText(/stock\s+transactions match the current filters/)).toBeVisible();
     await page.getByRole('button', { name: 'Reset filters' }).first().click();
     await expect.poll(() => stockRows(page).count()).toBeGreaterThan(2);
+  });
+
+  test('PM-013: From after To is flagged and matches nothing; a valid range and account narrow the grid', async ({ page }) => {
+    await page.getByRole('radio', { name: 'Closed', exact: true }).click();
+    const before = await stockRows(page).count();
+
+    await page.getByTestId('filter-date-from').fill('2026-10-31');
+    await page.getByTestId('filter-date-to').fill('2026-10-01');
+    await expect(page.getByTestId('filter-date-error')).toBeVisible();
+    await expect(page.getByText(/stock\s+transactions match the current filters/)).toBeVisible();
+
+    await page.getByTestId('reset-filters').click();
+    await expect.poll(() => stockRows(page).count()).toBe(before);
+
+    await page.getByTestId('filter-account').click();
+    const accounts = page.getByRole('option');
+    expect(await accounts.count()).toBeGreaterThan(1); // All Accounts + dynamic accounts
+    await accounts.nth(1).click();
+    await expect.poll(() => stockRows(page).count()).toBeLessThanOrEqual(before);
+    await expect(page.getByTestId('reset-filters')).toBeVisible();
   });
 
   test('the close filter is disabled on OPEN and never hides open rows', async ({ page }) => {
@@ -148,6 +171,31 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
     }
     const summary = XLSX.utils.sheet_to_json<string[]>(book.Sheets['Filters & Totals'], { header: 1 });
     expect(summary).toContainEqual(['Role', 'Strategic']);
+  });
+
+  test('Edit Position from Transactions sends the chosen Role and shows it after saving', async ({ page }) => {
+    const puts: Array<Record<string, unknown>> = [];
+    await page.route('**/api/portfolio/*', async (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      puts.push(body);
+      const id = Number(new URL(route.request().url()).pathname.split('/').pop());
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ updated: { id, symbol: 'X.TO', ...body }, newOpenItem: null }),
+      });
+    });
+    await page.getByRole('radio', { name: 'Closed', exact: true }).click();
+    await page.locator('button:has(mat-icon:text-is("edit")):visible').first().click();
+    const dlg = page.locator('mat-dialog-container');
+    await dlg.getByLabel('Holding Role').click();
+    await page.getByRole('option', { name: 'Core', exact: true }).click();
+    await dlg.getByRole('button', { name: /Save Changes/ }).click();
+
+    await expect(dlg).toHaveCount(0);
+    expect(puts).toHaveLength(1);
+    expect(puts[0]['holdingRole']).toBe('Core');
   });
 
   test('no horizontal page overflow with the new filter bar', async ({ page }) => {

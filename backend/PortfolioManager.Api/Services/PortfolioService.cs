@@ -69,8 +69,21 @@ public sealed class PortfolioService(
         return item is null ? null : ToDto(item);
     }
 
+    private static void ValidateCloseDate(string? transactionType, DateTime? openDate, DateTime? closeDate, bool legacyIncompleteClose)
+    {
+        if (!string.Equals(transactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)) return;
+        if (closeDate is null)
+        {
+            if (legacyIncompleteClose) return;
+            throw new RiskValidationException("A CLOSE transaction requires a Close Date.");
+        }
+        if (openDate.HasValue && closeDate.Value.Date < openDate.Value.Date)
+            throw new RiskValidationException("A trade cannot close before its opening date.");
+    }
+
     public async Task<PortfolioItemDto> AddAsync(AddPortfolioItemRequest request, CancellationToken ct = default)
     {
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, false);
         await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
             ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = new PortfolioItem
@@ -89,6 +102,7 @@ public sealed class PortfolioService(
             CloseDate        = request.CloseDate,
             ClosingPrice     = request.ClosingPrice,
             DecisionSource   = request.DecisionSource,
+            DecisionSourceClosed = request.DecisionSourceClosed,
             HoldingRole      = request.HoldingRole
         };
 
@@ -134,9 +148,12 @@ public sealed class PortfolioService(
             ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct) : null;
         var item = await OwnedItems().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return null;
-        if (string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
-            && request.OpenDate.HasValue && request.CloseDate.HasValue && request.CloseDate.Value.Date < request.OpenDate.Value.Date)
-            throw new RiskValidationException("A trade cannot close before its opening date.");
+        // Legacy CLOSE rows saved without a date stay correctable; only an unchanged type/quantity qualifies.
+        var legacyIncompleteClose = string.Equals(item.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && item.CloseDate is null
+            && string.Equals(request.TransactionType, "CLOSE", StringComparison.OrdinalIgnoreCase)
+            && item.Shares == request.Shares;
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, true);
         if (await HasRiskHistoryAsync(item, ct)
             && (!string.Equals(item.AccountType, request.AccountType, StringComparison.Ordinal)
                 || item.OpenDate?.Date != request.OpenDate?.Date
@@ -144,6 +161,7 @@ public sealed class PortfolioService(
                     && (item.TransactionType != request.TransactionType || item.Shares != request.Shares
                         || (item.CloseDate.HasValue && item.CloseDate.Value.Date != request.CloseDate?.Date)))))
             throw new RiskValidationException("This change would make existing trade-episode/risk history ambiguous. Keep its account, role and dates; a new trade must be recorded separately.");
+        ValidateCloseDate(request.TransactionType, request.OpenDate, request.CloseDate, legacyIncompleteClose);
         if (request.HoldingRole is not null) await ApplyRoleCorrectionAsync(item, request.HoldingRole, ct);
 
         // Partial close: user is closing fewer shares than the position currently holds. Rather than

@@ -113,4 +113,92 @@ describe('EditPositionDialogComponent (PM-014 role save)', () => {
     fixture.detectChanges();
     expect(text()).toContain('does not change quantity, cost, transactions or broker orders');
   });
+
+  describe('PM-020 close position entry', () => {
+    async function createClose(sources: string[]) {
+      await TestBed.configureTestingModule({
+        imports: [EditPositionDialogComponent],
+        providers: [
+          { provide: MAT_DIALOG_DATA, useValue: { item, closePosition: { defaultDecisionSourceClosed: 'Stop Loss Trigerred' } } },
+          { provide: MatDialogRef, useValue: { close: vi.fn() } },
+          { provide: PortfolioApiService, useValue: { getSectorIndustryLists: () => of({ sectors: [], industries: [] }) } },
+          { provide: ConfigStore, useValue: { config: () => ({ decisionSources: sources }) } },
+          { provide: AccountTypesStore, useValue: { ready: signal(true), loading: signal(false), error: signal(null), names: signal(['A']), load: vi.fn() } },
+        ],
+      }).compileComponents();
+      fixture = TestBed.createComponent(EditPositionDialogComponent);
+      fixture.detectChanges();
+      return fixture.componentInstance as unknown as {
+        form: { value: Record<string, unknown>; controls: { closingPrice: { setValue(v: number | null): void } } };
+      };
+    }
+
+    it('prefills a CLOSE with today, an empty price and the exact default source when it exists', async () => {
+      const c = await createClose(['Manual', 'Stop Loss Trigerred', 'App Signal']);
+      expect(c.form.value['transactionType']).toBe('CLOSE');
+      expect(c.form.value['closeDate']).toBeInstanceOf(Date);
+      expect(c.form.value['closingPrice']).toBeNull();
+      expect(c.form.value['decisionSourceClosed']).toBe('Stop Loss Trigerred');
+      expect(c.form.value['shares']).toBe(100);
+    });
+
+    it('leaves the source blank when the exact value is not configured', async () => {
+      const c = await createClose(['Manual', 'Stop Loss Triggered']);
+      expect(c.form.value['decisionSourceClosed']).toBeNull();
+    });
+
+    it('requires the actual execution price before saving', async () => {
+      const c = await createClose(['Manual']);
+      const comp = fixture.componentInstance as unknown as { save(): void };
+      comp.save();
+      expect(fixture.componentInstance).toBeTruthy();
+      c.form.controls.closingPrice.setValue(11.5);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Enter the actual execution price');
+    });
+
+    it('lists decision sources alphabetically without changing the values', async () => {
+      await createClose(['manual', 'App Signal', 'catalyst']);
+      const sorted = (fixture.componentInstance as unknown as { decisionSources: string[] }).decisionSources;
+      expect(sorted).toEqual(['App Signal', 'catalyst', 'manual']);
+    });
+  });
+
+  describe('PM-018 close date', () => {
+    const form = () =>
+      (fixture.componentInstance as unknown as {
+        form: {
+          controls: { closeDate: { value: Date | null; invalid: boolean; setValue(v: Date | null): void } };
+          patchValue(v: unknown): void;
+        };
+      }).form;
+
+    it('defaults an empty Close Date when switching OPEN to CLOSE and blocks saving without one', async () => {
+      await create(Promise.resolve(null));
+      form().patchValue({ transactionType: 'CLOSE' });
+      expect(form().controls.closeDate.value).toBeInstanceOf(Date);
+
+      form().controls.closeDate.setValue(null);
+      component().save();
+      expect(submit).not.toHaveBeenCalled();
+    });
+
+    it('never overwrites a Close Date chosen by the user', async () => {
+      await create(Promise.resolve(null));
+      const chosen = new Date(2026, 9, 5, 12);
+      form().controls.closeDate.setValue(chosen);
+      form().patchValue({ transactionType: 'CLOSE' });
+      form().patchValue({ shares: 50 });
+      expect(form().controls.closeDate.value).toBe(chosen);
+    });
+
+    it('rejects a Close Date before the Open Date', async () => {
+      await create(Promise.resolve(null));
+      form().patchValue({ transactionType: 'CLOSE' });
+      form().controls.closeDate.setValue(new Date(2026, 7, 1, 12));
+      expect(form().controls.closeDate.invalid).toBe(true);
+      component().save();
+      expect(submit).not.toHaveBeenCalled();
+    });
+  });
 });

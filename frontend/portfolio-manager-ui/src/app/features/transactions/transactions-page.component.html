@@ -55,25 +55,59 @@
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">
-          <mat-icon matPrefix>person</mat-icon>
-          <mat-label>Decision Source</mat-label>
+          <mat-label>Transaction Date From</mat-label>
           <input
             matInput
-            [ngModel]="filterDecisionSource()"
-            (ngModelChange)="filterDecisionSource.set($event)"
-            autocomplete="off"
-            data-testid="filter-source"
+            type="date"
+            [ngModel]="filterDateFrom()"
+            (ngModelChange)="filterDateFrom.set($event ?? '')"
+            [max]="filterDateTo() || null"
+            data-testid="filter-date-from"
           />
-          @if (filterDecisionSource()) {
-            <button
-              matSuffix
-              mat-icon-button
-              aria-label="Clear Decision Source"
-              (click)="filterDecisionSource.set('')"
-            >
-              <mat-icon>close</mat-icon>
-            </button>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">
+          <mat-label>Transaction Date To</mat-label>
+          <input
+            matInput
+            type="date"
+            [ngModel]="filterDateTo()"
+            (ngModelChange)="filterDateTo.set($event ?? '')"
+            [min]="filterDateFrom() || null"
+            data-testid="filter-date-to"
+          />
+          @if (dateRangeInvalid()) {
+            <mat-hint class="tx-filter-error" role="alert" data-testid="filter-date-error">From must not be after To</mat-hint>
           }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">
+          <mat-label>Account</mat-label>
+          <mat-select
+            [value]="filterAccount()"
+            (selectionChange)="filterAccount.set($event.value)"
+            data-testid="filter-account"
+          >
+            <mat-option value="">All Accounts</mat-option>
+            @for (a of accountOptions(); track a) {
+              <mat-option [value]="a">{{ a }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">
+          <mat-label>Decision Source — Open</mat-label>
+          <mat-select
+            [value]="filterDecisionSource()"
+            (selectionChange)="filterDecisionSource.set($event.value)"
+            data-testid="filter-source"
+          >
+            <mat-option value="">All</mat-option>
+            @for (r of sourceOptions(); track r) {
+              <mat-option [value]="r">{{ r }}</mat-option>
+            }
+            <mat-option [value]="TX_NONE">(none recorded)</mat-option>
+          </mat-select>
         </mat-form-field>
 
         <mat-form-field appearance="outline" subscriptSizing="dynamic" class="tx-filter-field">

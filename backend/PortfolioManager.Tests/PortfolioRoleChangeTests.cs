@@ -188,6 +188,24 @@ public class PortfolioRoleChangeTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
+    public async Task Closed_lot_with_no_role_can_be_assigned_a_role_and_it_persists(bool put)
+    {
+        await using var db = NewDb();
+        db.PortfolioItems.Add(Lot(1, "BDT.TO", "CLOSE", null!, null, "2026-05-01", "2026-07-07"));
+        await db.SaveChangesAsync();
+        var before = Snapshot(await db.PortfolioItems.AsNoTracking().SingleAsync());
+
+        await Change(Svc(db), db, put, 1, "Core");
+
+        db.ChangeTracker.Clear();
+        var lot = await db.PortfolioItems.AsNoTracking().SingleAsync();
+        lot.HoldingRole.Should().Be("Core");
+        Snapshot(lot).Should().Be(before);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
     public async Task Same_role_is_a_no_op_without_audit(bool put)
     {
         await using var db = NewDb();
