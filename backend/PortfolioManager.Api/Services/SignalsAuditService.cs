@@ -4,6 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services.FinalAction;
+using PortfolioManager.Api.Services.Risk;
 
 namespace PortfolioManager.Api.Services;
 
@@ -70,7 +71,9 @@ public sealed class SignalsAuditService(
     IMarketDataProvider marketData,
     IMemoryCache cache,
     IAuditService audit,
-    ILogger<SignalsAuditService> logger) : ISignalsAuditService
+    ILogger<SignalsAuditService> logger,
+    IPortfolioSnapshotService? portfolioSnapshots = null,
+    IWatchlistSnapshotService? watchlistSnapshots = null) : ISignalsAuditService
 {
     private const string PriorityRuleVersion = "priority-score-v2";
     private const string FinalActionRuleVersion = "final-action-v1";
@@ -734,7 +737,7 @@ public sealed class SignalsAuditService(
     }
 
     private static bool IsComputedSort(string? sortBy) =>
-        (sortBy ?? "").ToLowerInvariant() is "signaltype" or "return5d" or "return20d" or "return1m" or "today" or "todayvsactioned";
+        (sortBy ?? "").ToLowerInvariant() is "signaltype" or "return5d" or "return20d" or "return1m" or "today" or "todayvsactioned" or "currentprice";
 
     public async Task<SignalAuditSummaryDto> GetSummaryAsync(string userId, SignalsAuditQuery query, CancellationToken ct = default)
     {
@@ -1089,7 +1092,7 @@ public sealed class SignalsAuditService(
             ? await EvaluationStatusReader.ReadAsync(db, userId, nowUtc, ct)
             : EvaluationStatus.Unknown;
         var cachedSnapshot = finalActions.TryGetCached(userId);
-
+        var quotes = await LoadCachedQuotesAsync(userId, ct);
         var linkIds = events.Where(e => e.LinkedTransactionId is not null).Select(e => e.LinkedTransactionId!.Value).Distinct().ToList();
         var linkedTx = linkIds.Count == 0
             ? new Dictionary<int, PortfolioItem>()
@@ -1111,6 +1114,7 @@ public sealed class SignalsAuditService(
                     vsActioned = Math.Round((r.Today.EvalPrice.Value - actionedPrice.Value) / actionedPrice.Value * 100m, 2);
             }
             var effective = EffectiveStateProvider.ForEvent(e, cachedSnapshot, evalStatus, nowUtc);
+            var current = CurrentPriceFor(e.Symbol, quotes, nowUtc);
             return new SignalAuditRowDto(
                 e.Id, e.Symbol, e.Role, e.SignalDate.ToString("yyyy-MM-dd"), days, days < 0,
                 e.SignalType, def?.Label ?? e.SignalType, e.SignalCategory, e.Direction, e.Source,
@@ -1119,8 +1123,51 @@ public sealed class SignalsAuditService(
                 LinkKind(e, linkedTx), e.Origin, e.EpisodeEndedDate is null, e.EligibilityStatus, basis,
                 actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId,
                 effective?.Status.State.ToString(), effective?.Status.IsActionable, effective?.EvidenceHealth,
-                effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes, e.StatusChangedAtUtc);
+                effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes, e.StatusChangedAtUtc,
+                current.Price, current.Currency, current.AsOfUtc, current.Source, current.Status);
         }).ToList();
+    }
+
+    private readonly record struct CurrentPrice(decimal? Price, string? Currency, DateTime? AsOfUtc, string? Source, string Status);
+
+    /// <summary>
+    /// The latest quotes already held by the Portfolio and Watchlist snapshots. Read-only: no provider call is made, and
+    /// when a symbol is in both the quote with the newer provider timestamp wins.
+    /// </summary>
+    private async Task<Dictionary<string, StockQuote>> LoadCachedQuotesAsync(string userId, CancellationToken ct)
+    {
+        var map = new Dictionary<string, StockQuote>(StringComparer.OrdinalIgnoreCase);
+        void Add(string? key, StockQuote? q)
+        {
+            if (q is null || string.IsNullOrWhiteSpace(key)) return;
+            if (!map.TryGetValue(key, out var existing)
+                || (q.SourcePriceTimestamp ?? 0) > (existing.SourcePriceTimestamp ?? 0))
+                map[key] = q;
+        }
+        try
+        {
+            if (portfolioSnapshots is not null)
+                foreach (var s in await portfolioSnapshots.GetLatestAsync(userId, ct) ?? []) Add(s.Item.Symbol, s.Quote);
+            if (watchlistSnapshots is not null)
+                foreach (var s in await watchlistSnapshots.GetLatestAsync(userId, ct) ?? []) Add(s.Item.Symbol, s.Quote);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[SignalsAudit] Cached quotes unavailable; Current Price will show Unavailable.");
+        }
+        return map;
+    }
+
+    /// <summary>Current Price evidence for a signal's trading symbol. Never falls back to the signal price or a horizon price.</summary>
+    private static CurrentPrice CurrentPriceFor(string symbol, IReadOnlyDictionary<string, StockQuote> quotes, DateTime nowUtc)
+    {
+        if (!quotes.TryGetValue(symbol, out var quote))
+            return new CurrentPrice(null, null, null, "no cached quote", PriceBases.Unavailable);
+        var evidence = PriceEvidence.FromQuote(quote.CurrentPrice, quote.Timestamp, quote.MarketState, symbol, nowUtc, quote.SourcePriceTimestamp);
+        if (evidence.Price is not > 0m)
+            return new CurrentPrice(null, null, evidence.AsOfUtc, evidence.Source, PriceBases.Unavailable);
+        var (currency, _) = TradingCurrency.Resolve(symbol, quote.Currency);
+        return new CurrentPrice(evidence.Price, currency, evidence.AsOfUtc, evidence.Source, evidence.Basis);
     }
 
     /// <summary>
@@ -1171,6 +1218,7 @@ public sealed class SignalsAuditService(
             "return1m" => OrderNullable(rows, r => P(r.Return1M), desc),
             "today" => OrderNullable(rows, r => P(r.Today), desc),
             "todayvsactioned" => OrderNullable(rows, r => r.TodayVsActionedPct, desc),
+            "currentprice" => OrderNullable(rows, r => r.CurrentPrice, desc),
             "myaction" => Order(rows, r => r.MyAction, desc),
             _ => Order(rows, r => r.SignalDate, desc),
         };

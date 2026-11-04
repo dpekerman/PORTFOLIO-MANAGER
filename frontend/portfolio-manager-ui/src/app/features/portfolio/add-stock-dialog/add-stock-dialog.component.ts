@@ -5,7 +5,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -19,6 +19,13 @@ import { backendErrorMessage, PortfolioStore } from '../../../core/store/portfol
 import { closeDateValidator, revalidateCloseDateOn, sortDecisionSources, torontoTodayDate } from '../../../core/close-date.util';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
+import { normalizePrefillSymbol } from '../../../core/symbol-prefill.util';
+
+/** Optional context from another screen. Only the ticker is prefilled; the user still supplies account, shares and cost. */
+export interface AddStockDialogData {
+  symbol?: string;
+  companyName?: string;
+}
 
 @Component({
   selector: 'app-add-stock-dialog',
@@ -47,6 +54,7 @@ export class AddStockDialogComponent {
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
   private readonly configService = inject(ConfigStore);
+  private readonly prefill = inject<AddStockDialogData | null>(MAT_DIALOG_DATA, { optional: true });
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
@@ -76,7 +84,7 @@ export class AddStockDialogComponent {
     companyName: ['', [Validators.required, Validators.maxLength(200)]],
     shares: [null as number | null, [Validators.required, Validators.min(0.0001)]],
     averageCostBasis: [null as number | null, [Validators.required, Validators.min(0.01)]],
-    openDate: [new Date() as Date | null],
+    openDate: [torontoTodayDate() as Date | null],
     closeDate: [null as Date | null, [closeDateValidator]],
     closingPrice: [null as number | null, [Validators.min(0)]],
     accountType: [null as string | null],
@@ -85,6 +93,7 @@ export class AddStockDialogComponent {
   });
 
   constructor() {
+    this.applyPrefill();
     revalidateCloseDateOn(this.form);
     this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed()).subscribe((t) => {
       if (t === 'CLOSE' && !this.form.controls.closeDate.value) {
@@ -127,6 +136,29 @@ export class AddStockDialogComponent {
       companyName: result.description,
     });
     this.searchResults.set([]);
+  }
+
+  /**
+   * Prefills the ticker from the opening screen and resolves the company name through the same symbol search the form
+   * already uses. An unresolved name stays empty for the user to complete; nothing is guessed or submitted.
+   */
+  private applyPrefill(): void {
+    const symbol = normalizePrefillSymbol(this.prefill?.symbol);
+    if (!symbol) return;
+    this.form.patchValue({ symbol, companyName: this.prefill?.companyName ?? '' });
+    if (this.prefill?.companyName) return;
+    this.api
+      .searchSymbols(symbol)
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (results) => {
+          const exact = results.find((r) => r.symbol.toUpperCase() === symbol);
+          if (exact && !this.form.controls.companyName.value) {
+            this.form.patchValue({ companyName: exact.description });
+          }
+        },
+        error: () => undefined,
+      });
   }
 
   private formatDate(d: Date | null | undefined): string | null {

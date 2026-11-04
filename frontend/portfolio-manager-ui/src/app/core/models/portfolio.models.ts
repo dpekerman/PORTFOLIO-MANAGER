@@ -88,6 +88,14 @@ export interface StockQuote {
   priceToBook: number;
   dividendYield: number; // e.g. 0.035 = 3.5%
   marketCap: number;
+  /** Annual forward dividend per share in the trading currency (estimate). Null = unknown or unreliable. */
+  forwardDividendPerShare?: number | null;
+  /** Forward annual dividend / price x 100, already a percentage (3.5 = 3.5%). Null = unknown or unreliable. */
+  forwardYieldPct?: number | null;
+  /** Positive, Zero, Missing, Stale or Inconsistent. Absent on quotes saved before this field existed. */
+  dividendStatus?: 'Positive' | 'Zero' | 'Missing' | 'Stale' | 'Inconsistent' | null;
+  dividendDateUtc?: string | null;
+  dividendSource?: string | null;
 }
 
 export interface PortfolioSummary {
@@ -1666,7 +1674,15 @@ export interface SignalAuditRow {
   reasonCodes?: string[] | null;
   /** When the lifecycle status last changed (UTC). Only the current status is stored, not a full transition history. */
   statusChangedAtUtc?: string | null;
+  /** Latest cached quote, independent of the historical signal evaluation. Null when unavailable; never the signal price. */
+  currentPrice?: number | null;
+  currentPriceCurrency?: string | null;
+  currentPriceAsOfUtc?: string | null;
+  currentPriceSource?: string | null;
+  currentPriceStatus?: CurrentPriceStatus;
 }
+
+export type CurrentPriceStatus = 'Live' | 'EOD' | 'Stale' | 'Unavailable';
 
 export interface SignalAuditPagedResponse {
   items: SignalAuditRow[];

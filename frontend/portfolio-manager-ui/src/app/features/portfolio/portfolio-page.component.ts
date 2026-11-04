@@ -52,6 +52,8 @@ import { GapStatus } from '../../core/services/decision-engine.service';
 import { FinalActionStore } from '../../core/store/final-action.store';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
 import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
+import { ForwardDividendCellComponent } from '../../shared/forward-dividend-cell/forward-dividend-cell.component';
+import { forwardSortValue } from '../../core/forward-dividend.util';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { OptionStore } from '../../core/store/option.store';
@@ -152,7 +154,9 @@ type GridSortCol =
   | 'fib78_6'
   | 'fibZone'
   | 'fibStatus'
-  | 'fibDist';
+  | 'fibDist'
+  | 'fwdDivPerShare'
+  | 'fwdYieldPct';
 
 type OptionSortCol =
   | 'opt_ticker'
@@ -183,6 +187,7 @@ type CashSortCol = 'description' | 'amount' | 'addedAt' | 'cashAccountType';
   imports: [
     ...ROW_SELECTION,
     FinalActionBadgeComponent,
+    ForwardDividendCellComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,
@@ -903,12 +908,7 @@ export class PortfolioPageComponent {
     // 2. Sort within each multi-position group by individual row sort value
     for (const group of groups.values()) {
       if (group.length > 1) {
-        group.sort((a, b) => {
-          const av = this.gridSortValue(a, col);
-          const bv = this.gridSortValue(b, col);
-          if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-          return String(av).localeCompare(String(bv)) * dir;
-        });
+        group.sort((a, b) => this.compareSortValues(this.gridSortValue(a, col), this.gridSortValue(b, col), dir));
       }
     }
 
@@ -920,8 +920,7 @@ export class PortfolioPageComponent {
         groupA.length === 1 ? this.gridSortValue(groupA[0], col) : this.aggSortValue(groupA, col);
       const bv =
         groupB.length === 1 ? this.gridSortValue(groupB[0], col) : this.aggSortValue(groupB, col);
-      if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
+      return this.compareSortValues(av, bv, dir);
     });
 
     // 4. Build result rows in sorted group order
@@ -1010,7 +1009,7 @@ export class PortfolioPageComponent {
     });
   }
 
-  private gridSortValue(s: PortfolioSummary, col: GridSortCol): number | string {
+  private gridSortValue(s: PortfolioSummary, col: GridSortCol): number | string | null {
     const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
     const mv = s.item.isManual
       ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
@@ -1086,13 +1085,24 @@ export class PortfolioPageComponent {
         return this.fibForSymbol(s.item.symbol)?.fibStatus ?? '';
       case 'fibDist':
         return this.fibForSymbol(s.item.symbol)?.distanceToFib61_8Pct ?? 0;
+      case 'fwdDivPerShare':
+        return s.item.isManual ? null : forwardSortValue(s.quote, 'perShare');
+      case 'fwdYieldPct':
+        return s.item.isManual ? null : forwardSortValue(s.quote, 'yield');
       default:
         return 0;
     }
   }
 
+  /** Orders sort values; unavailable (null) values go last whichever direction is chosen. */
+  private compareSortValues(av: number | string | null, bv: number | string | null, dir: 1 | -1): number {
+    if (av === null || bv === null) return av === bv ? 0 : av === null ? 1 : -1;
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  }
+
   /** Computes a sort value for a multi-account aggregate group. */
-  private aggSortValue(group: PortfolioSummary[], col: GridSortCol): number | string {
+  private aggSortValue(group: PortfolioSummary[], col: GridSortCol): number | string | null {
     const grandTotal = this.portfolioGrandTotal();
     const totalMv = group.reduce((sum, s) => {
       const p = s.quote?.currentPrice ?? s.item.averageCostBasis;
@@ -1240,6 +1250,8 @@ export class PortfolioPageComponent {
         'Decision Status',
         'Last Evaluated (UTC)',
         'Data As Of',
+        'Fwd Div/Share',
+        'Fwd Yield %',
       ],
     ];
 
@@ -1283,6 +1295,9 @@ export class PortfolioPageComponent {
         this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.evaluationState ?? '',
         this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.lastSuccessfulEvaluationUtc ?? '',
         this.finalActions.resultForPortfolio(s.item.symbol, s.item.id)?.dataAsOfDate ?? '',
+        // Plain numbers in the quote currency; blank when the estimate is unavailable (never 0 for unknown).
+        forwardSortValue(s.quote, 'perShare')?.toString() ?? '',
+        forwardSortValue(s.quote, 'yield')?.toFixed(2) ?? '',
       ]);
     }
 

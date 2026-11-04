@@ -510,6 +510,49 @@
                       }
                     </td>
                   </ng-container>
+                  <ng-container matColumnDef="fwdDivPerShare">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      class="pg-num-header"
+                      matTooltip="Estimated annual forward dividend per share. Not a guaranteed payment."
+                    >
+                      FWD DIV/SHARE
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @let fdSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
+                      @let fdQuote = isAggRow(0, row) ? asAgg(row).quote : asItem(row).quote;
+                      @if (!isAggRow(0, row) && groupedSymbols().has(fdSym)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (!isAggRow(0, row) && asItem(row).item.isManual) {
+                        <span class="pg-dim">—</span>
+                      } @else {
+                        <app-forward-dividend-cell [quote]="fdQuote" [currency]="holdingCurrency(fdSym)" metric="perShare" />
+                      }
+                    </td>
+                  </ng-container>
+                  <ng-container matColumnDef="fwdYieldPct">
+                    <th
+                      mat-header-cell
+                      *matHeaderCellDef
+                      mat-sort-header
+                      class="pg-num-header"
+                      matTooltip="Estimated forward annual dividend divided by the current price. Not a guaranteed payment."
+                    >
+                      FWD YIELD %
+                    </th>
+                    <td mat-cell *matCellDef="let row" class="pg-num">
+                      @let fyQuote = isAggRow(0, row) ? asAgg(row).quote : asItem(row).quote;
+                      @if (!isAggRow(0, row) && groupedSymbols().has(asItem(row).item.symbol)) {
+                        <span class="pg-dim">—</span>
+                      } @else if (!isAggRow(0, row) && asItem(row).item.isManual) {
+                        <span class="pg-dim">—</span>
+                      } @else {
+                        <app-forward-dividend-cell [quote]="fyQuote" metric="yield" />
+                      }
+                    </td>
+                  </ng-container>
                   <ng-container matColumnDef="currency">
                     <th mat-header-cell *matHeaderCellDef>CURRENCY</th>
                     <td mat-cell *matCellDef="let row">{{ holdingCurrency(isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol) }}</td>

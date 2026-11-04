@@ -145,6 +145,44 @@ test.describe('signal tracker', () => {
     expect((await xlsxDownload).suggestedFilename()).toMatch(/\.xlsx$/);
   });
 
+  test('PM-019: Current Price follows Signal Price with its status, and Unavailable never shows the signal price', async ({ page }, testInfo) => {
+    await page.goto('/audit/signals');
+    const lmt = page.locator('tr.signal-row:visible', { hasText: 'LMT.TO' });
+    await expect(lmt).toContainText('29.40');
+    await expect(lmt).toContainText('EOD');
+    const msft = page.locator('tr.signal-row:visible', { hasText: 'MSFT' });
+    await expect(msft).toContainText('Unavailable');
+    await expect(msft).not.toContainText('410.50 USD Unavailable');
+
+    if (!isPhone(testInfo.project.name)) {
+      const labels = await page
+        .locator('table.signals-table th')
+        .evaluateAll((els) => els.map((e) => (e.textContent ?? '').replace(/\s+/g, ' ').trim()));
+      const signalIdx = labels.findIndex((l) => l.startsWith('Signal Price'));
+      expect(signalIdx).toBeGreaterThan(-1);
+      expect(labels[signalIdx + 1]).toMatch(/^Current Price/);
+    }
+  });
+
+  test('PM-019: + Position opens Add Stock prefilled with the ticker and saves nothing until submitted', async ({ page }) => {
+    await page.goto('/audit/signals');
+    const before = await page.locator('tr.signal-row:visible', { hasText: 'LMT.TO' }).innerText();
+    const button = page.getByRole('button', { name: 'Add position for LMT.TO' });
+    await button.focus();
+    await page.keyboard.press('Enter');
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('heading', { name: /Add Stock to Portfolio/ })).toBeVisible();
+    await expect(dialog.locator('input[formcontrolname="symbol"]')).toHaveValue('LMT.TO');
+    await expect(dialog.locator('input[formcontrolname="shares"]')).toHaveValue('');
+    await expect(dialog.locator('input[formcontrolname="averageCostBasis"]')).toHaveValue('');
+
+    await dialog.getByRole('button', { name: /Cancel/ }).click();
+    await expect(dialog).toBeHidden();
+    // The signal row, including MY ACTION, is exactly as it was.
+    expect(await page.locator('tr.signal-row:visible', { hasText: 'LMT.TO' }).innerText()).toBe(before);
+  });
+
 });
 
 // Re-enable together with `showEffectiveness` in signal-tracker-page.component.ts.

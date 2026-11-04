@@ -206,7 +206,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
                            "regularMarketPreviousClose,regularMarketVolume," +
                            "longName,shortName,sector,industry,quoteType,marketState," +
-                           "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield";
+                           "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield," +
+                           "dividendRate,dividendYield,dividendDate";
 
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode)
@@ -347,6 +348,11 @@ public sealed class YahooFinanceService : IMarketDataProvider
         if (string.IsNullOrWhiteSpace(sector) && q.QuoteType is not null)
             QuoteTypeSectorMap.TryGetValue(q.QuoteType, out sector!);
 
+        var currency = string.IsNullOrWhiteSpace(q.Currency) ? null : q.Currency.Trim().ToUpperInvariant();
+        // Only a live regular-market price can be compared with the yield; a previous-close fallback may be stale.
+        var forward = ForwardDividendCalculator.Evaluate(q.DividendRate, q.DividendYieldPct, q.RegularMarketPrice, q.DividendDate,
+            DateTime.UtcNow, currency);
+
         return new StockQuote
         {
             Symbol        = q.Symbol,
@@ -371,7 +377,12 @@ public sealed class YahooFinanceService : IMarketDataProvider
             ForwardPE     = q.ForwardPE,
             PriceToBook   = q.PriceToBook,
             DividendYield = q.TrailingAnnualDividendYield,
-            MarketCap     = q.MarketCap ?? 0L
+            MarketCap     = q.MarketCap ?? 0L,
+            ForwardDividendPerShare = forward.PerShare,
+            ForwardYieldPct         = forward.YieldPct,
+            DividendStatus          = forward.Status,
+            DividendDateUtc         = forward.DividendDateUtc,
+            DividendSource          = forward.Status == DividendStatuses.Missing ? null : forward.Source,
         };
     }
 
@@ -399,7 +410,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
                            "&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent," +
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
                            "regularMarketPreviousClose,regularMarketVolume," +
-                           "longName,shortName,sector,industry,quoteType,marketState";
+                           "longName,shortName,sector,industry,quoteType,marketState,dividendRate,dividendYield,dividendDate";
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode) continue;
 

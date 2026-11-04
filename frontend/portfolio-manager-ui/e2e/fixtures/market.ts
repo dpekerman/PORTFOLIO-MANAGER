@@ -4,6 +4,7 @@ import type {
   EodSignalsMeta,
   RsiScanResult,
   ScannerResponse,
+  StockQuote,
   ValueScreenerResult,
   WatchlistSummary,
   YesterdayEodResponse,
@@ -43,6 +44,25 @@ const watchSeeds: [string, string, number, number, string, string, string][] = [
   ['FTS.TO', 'Fortis Inc.', 61.8, 0.2, 'Strategic', 'Core', 'Utilities'],
 ];
 
+// Deterministic forward-dividend evidence for a few symbols; every other symbol has none (Missing) like an ETF or non-payer.
+const fwdDividends: Record<string, Partial<StockQuote>> = {
+  'ABX.TO': {
+    dividendStatus: 'Positive',
+    forwardDividendPerShare: 0.4,
+    forwardYieldPct: 1.52,
+    dividendSource: 'Yahoo Finance v7 quote: dividendRate',
+    dividendDateUtc: '2026-12-01T00:00:00Z',
+  },
+  'CP.TO': {
+    dividendStatus: 'Positive',
+    forwardDividendPerShare: 0.95,
+    forwardYieldPct: 0.87,
+    dividendSource: 'Yahoo Finance v7 quote: dividendRate',
+  },
+  COST: { dividendStatus: 'Zero', forwardDividendPerShare: 0, forwardYieldPct: 0, dividendSource: 'Yahoo Finance v7 quote: dividendRate' },
+  'BAM.TO': { dividendStatus: 'Inconsistent', forwardDividendPerShare: 1.9, forwardYieldPct: 2.7 },
+};
+
 export const watchlistSummaries: WatchlistSummary[] = watchSeeds.map(
   ([symbol, name, price, chg, tier, role, sector], i) => ({
     item: {
@@ -55,7 +75,7 @@ export const watchlistSummaries: WatchlistSummary[] = watchSeeds.map(
       earningsDate: i % 2 === 0 ? isoDate(5 + i) : null,
       watchlistTier: tier,
     },
-    quote: makeStockQuote(symbol, name, price, chg, { sector }),
+    quote: makeStockQuote(symbol, name, price, chg, { sector, ...fwdDividends[symbol] }),
     priceStructure: makePriceStructure(symbol, { eodClose: price }),
     technicalFacts: makeTechnicalFacts(symbol, { rsi: 30 + ((i * 11) % 45) }),
   }),

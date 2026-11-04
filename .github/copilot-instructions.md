@@ -8,6 +8,9 @@ Angular 22 SPA + .NET 8 Web API + SQL Server. Yahoo Finance data (no API key).
 
 ## Agent Execution Rules
 
+- For every new request/chat, create a separate branch based on the `develop` branch before changing code.
+- Never commit or push automatically; only on explicit user instruction.
+
 - Do not delegate implementation to subagents.
 - Do not spawn parallel or background agents.
 - Perform all work in the main Copilot agent session.

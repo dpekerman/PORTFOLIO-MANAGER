@@ -39,11 +39,35 @@ describe('signal tracker export', () => {
 
   it('has one value per header and labels baseline records', () => {
     const [r] = signalsExportRows([row], (v) => v);
+    const col = (name: (typeof SIGNALS_EXPORT_HEADERS)[number]) => r[SIGNALS_EXPORT_HEADERS.indexOf(name)];
     expect(r.length).toBe(SIGNALS_EXPORT_HEADERS.length);
-    expect(r[5]).toBe('Initial baseline');
-    expect(r[10]).toBe('Pending');
-    expect(r[13]).toBe(5.25);
-    expect(r[14]).toBe('N/A');
+    expect(col('Record Type')).toBe('Initial baseline');
+    expect(col('5D %')).toBe('Pending');
+    expect(col('Today vs Signal %')).toBe(5.25);
+    expect(col('Today vs Actioned %')).toBe('N/A');
+  });
+
+  it('PM-019: Current Price follows the signal price columns, is numeric, and is blank (never the signal price) when unavailable', () => {
+    expect(SIGNALS_EXPORT_HEADERS.indexOf('Current Price')).toBe(SIGNALS_EXPORT_HEADERS.indexOf('Currency') + 1);
+    const priced = {
+      ...row,
+      currentPrice: 230.5,
+      currentPriceCurrency: 'CAD',
+      currentPriceStatus: 'EOD',
+      currentPriceAsOfUtc: '2026-11-02T21:00:00Z',
+    } as unknown as SignalAuditRow;
+    const [p] = signalsExportRows([priced], (v) => v);
+    const col = (r: (string | number | null)[], name: (typeof SIGNALS_EXPORT_HEADERS)[number]) => r[SIGNALS_EXPORT_HEADERS.indexOf(name)];
+    expect(col(p, 'Current Price')).toBe(230.5);
+    expect(col(p, 'Current Price Currency')).toBe('CAD');
+    expect(col(p, 'Current Price Status')).toBe('EOD');
+    expect(col(p, 'Current Price As Of (UTC)')).toBe('2026-11-02T21:00:00Z');
+    expect(col(p, 'Signal Price')).toBe(217.17);
+
+    const [u] = signalsExportRows([row], (v) => v);
+    expect(col(u, 'Current Price')).toBe('');
+    expect(col(u, 'Current Price Status')).toBe('Unavailable');
+    expect(col(u, 'Signal Price')).toBe(217.17);
   });
 
   it('exports lifecycle status and the current effective state as separate, non-actionable-aware columns', () => {
