@@ -43,6 +43,8 @@ import {
 import { FinalActionStore } from '../../core/store/final-action.store';
 import { FinalActionDetailsDialogComponent } from '../../shared/final-action-details-dialog/final-action-details-dialog.component';
 import { FinalActionBadgeComponent } from '../../shared/final-action-badge/final-action-badge.component';
+import { ForwardDividendCellComponent } from '../../shared/forward-dividend-cell/forward-dividend-cell.component';
+import { compareMissingLast, forwardSortValue } from '../../core/forward-dividend.util';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
@@ -103,7 +105,9 @@ type SortColumn =
   | 'fib78_6'
   | 'fibZone'
   | 'fibStatus'
-  | 'fibDist';
+  | 'fibDist'
+  | 'fwdDivPerShare'
+  | 'fwdYieldPct';
 type SortDir = 'asc' | 'desc';
 
 @Component({
@@ -114,6 +118,7 @@ type SortDir = 'asc' | 'desc';
   imports: [
     ...ROW_SELECTION,
     FinalActionBadgeComponent,
+    ForwardDividendCellComponent,
     FormsModule,
     CurrencyPipe,
     DatePipe,
@@ -646,6 +651,10 @@ export class WatchlistPageComponent {
     const dir = this.sortDir() === 'asc' ? 1 : -1;
 
     return [...items].sort((a, b) => {
+      if (col === 'fwdDivPerShare' || col === 'fwdYieldPct') {
+        const metric = col === 'fwdDivPerShare' ? 'perShare' : 'yield';
+        return compareMissingLast(forwardSortValue(a.quote, metric), forwardSortValue(b.quote, metric), dir);
+      }
       let av: string | number;
       let bv: string | number;
       switch (col) {
@@ -972,6 +981,9 @@ export class WatchlistPageComponent {
         Technical: this.valueDataForSymbol(w.item.symbol)?.technical ?? '',
         'Buy Score': this.buyScoreForSymbol(w.item.symbol)?.score ?? '',
         'Value Score': this.valueDataForSymbol(w.item.symbol)?.score ?? '',
+        // Numeric, in the quote currency; blank when unavailable (unknown is never exported as 0).
+        'Fwd Div/Share': forwardSortValue(w.quote, 'perShare') ?? '',
+        'Fwd Yield %': forwardSortValue(w.quote, 'yield') ?? '',
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);

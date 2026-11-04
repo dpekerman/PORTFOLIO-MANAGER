@@ -543,6 +543,47 @@
               </td>
             </ng-container>
 
+            <!-- Forward dividend (estimate) -->
+            <ng-container matColumnDef="fwdDivPerShare">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header="fwdDivPerShare"
+                matTooltip="Estimated annual forward dividend per share. Not a guaranteed payment."
+                class="resizable-th"
+              >
+                FWD DIV/SHARE
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'fwdDivPerShare')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                <app-forward-dividend-cell [quote]="w.quote" [currency]="tradingCurrency(w.item.symbol)" metric="perShare" />
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="fwdYieldPct">
+              <th
+                mat-header-cell
+                *matHeaderCellDef
+                mat-sort-header="fwdYieldPct"
+                matTooltip="Estimated forward annual dividend divided by the current price. Not a guaranteed payment."
+                class="resizable-th"
+              >
+                FWD YIELD %
+                <div
+                  class="col-resize-handle"
+                  (mousedown)="startResize($event, 'fwdYieldPct')"
+                  (click)="$event.stopPropagation()"
+                ></div>
+              </th>
+              <td mat-cell *matCellDef="let w">
+                <app-forward-dividend-cell [quote]="w.quote" metric="yield" />
+              </td>
+            </ng-container>
+
             <!-- 52-Week Range -->
             <ng-container matColumnDef="week52">
               <th

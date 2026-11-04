@@ -122,6 +122,12 @@ public sealed class YahooQuoteItem
     [JsonPropertyName("forwardPE")]                     public decimal ForwardPE                    { get; set; }
     [JsonPropertyName("priceToBook")]                   public decimal PriceToBook                  { get; set; }
     [JsonPropertyName("trailingAnnualDividendYield")]   public decimal TrailingAnnualDividendYield   { get; set; }
+    /// <summary>Annualised forward dividend per share in the trading currency. Absent (null) when Yahoo does not supply it.</summary>
+    [JsonPropertyName("dividendRate")]                  public decimal? DividendRate                { get; set; }
+    /// <summary>On /v7/finance/quote this is a PERCENTAGE (5.64 = 5.64%); /v10 summaryDetail reports a fraction instead.</summary>
+    [JsonPropertyName("dividendYield")]                 public decimal? DividendYieldPct            { get; set; }
+    /// <summary>Unix seconds of the latest or next dividend payment. It dates the dividend, not when Yahoo last refreshed it.</summary>
+    [JsonPropertyName("dividendDate")]                  public long?    DividendDate                { get; set; }
 }
 
 /// <summary>Result shape returned by GET /api/stocks/search.</summary>

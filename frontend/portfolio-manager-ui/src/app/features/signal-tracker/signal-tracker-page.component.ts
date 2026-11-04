@@ -41,6 +41,7 @@ import { GridColumnButtonComponent } from '../../shared/column-config-dialog/gri
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
 import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import { SignalActionDialogComponent } from './signal-action-dialog.component';
+import { AddStockDialogComponent, AddStockDialogData } from '../portfolio/add-stock-dialog/add-stock-dialog.component';
 import { SIGNAL_STATUS_FILTER_OPTIONS, signalEvidenceWarning, signalStatusMeta } from './signal-status';
 import { describeReasonCode, stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 import { SignalDetailsDialogComponent } from './signal-details-dialog.component';
@@ -268,6 +269,27 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected price(row: SignalAuditRow): number {
     return this.demoMode.maskValue(row.signalPrice);
+  }
+
+  protected currentPrice(row: SignalAuditRow): number {
+    return this.demoMode.maskValue(row.currentPrice ?? 0);
+  }
+
+  protected currentPriceTooltip(row: SignalAuditRow): string {
+    if (row.currentPrice == null) return `No usable cached quote (${row.currentPriceSource ?? 'unavailable'}). The signal price is not used as a substitute.`;
+    const asOf = row.currentPriceAsOfUtc ? ` as of ${new Date(row.currentPriceAsOfUtc).toLocaleString()}` : '';
+    return `${row.currentPriceStatus}${asOf}. ${row.currentPriceSource ?? ''}`.trim();
+  }
+
+  /** Opens the existing Add Stock dialog prefilled with the ticker only; nothing is saved until the user submits it. */
+  protected openAddPosition(row: SignalAuditRow, event: Event): void {
+    event.stopPropagation();
+    this.dialog.open(AddStockDialogComponent, {
+      data: { symbol: row.symbol } satisfies AddStockDialogData,
+      width: '620px',
+      maxWidth: '95vw',
+      maxHeight: '95vh',
+    });
   }
 
   /** Current effective state tag (distinct from the lifecycle status). Empty for rows that have none. */

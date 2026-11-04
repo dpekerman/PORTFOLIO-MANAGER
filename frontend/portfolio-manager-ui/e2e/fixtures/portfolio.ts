@@ -5,6 +5,7 @@ import type {
   PortfolioItem,
   PortfolioSummary,
   SectorIndustryLists,
+  StockQuote,
   UnlinkedTrade,
 } from '../../src/app/core/models/portfolio.models';
 import {
@@ -340,6 +341,13 @@ export const portfolioItems: PortfolioItem[] = [...seeds.map(toItem), manualItem
   (a, b) => a.id - b.id,
 );
 
+const fwdDividends: Record<string, Partial<StockQuote>> = {
+  'ENB.TO': { dividendStatus: 'Positive', forwardDividendPerShare: 3.88, forwardYieldPct: 5.65, dividendSource: 'Yahoo Finance v7 quote: dividendRate' },
+  'RY.TO': { dividendStatus: 'Positive', forwardDividendPerShare: 6.12, forwardYieldPct: 3.57, dividendSource: 'Yahoo Finance v7 quote: dividendRate' },
+  AAPL: { dividendStatus: 'Positive', forwardDividendPerShare: 1.08, forwardYieldPct: 0.55, dividendSource: 'Yahoo Finance v7 quote: dividendRate' },
+  NVDA: { dividendStatus: 'Zero', forwardDividendPerShare: 0, forwardYieldPct: 0, dividendSource: 'Yahoo Finance v7 quote: dividendRate' },
+};
+
 /** Quote-enriched summaries, as returned by /stocks/quotes and its snapshot variant. */
 export const portfolioSummaries: PortfolioSummary[] = portfolioItems.map((item) => {
   const seed = seeds.find((s) => s.id === item.id);
@@ -349,6 +357,7 @@ export const portfolioSummaries: PortfolioSummary[] = portfolioItems.map((item) 
     quote: makeStockQuote(item.symbol, item.companyName, seed.price, seed.changePct, {
       sector: seed.sector,
       industry: seed.industry,
+      ...fwdDividends[item.symbol],
     }),
     priceStructure: makePriceStructure(item.symbol, { eodClose: seed.price }),
     technicalFacts: makeTechnicalFacts(item.symbol, {

@@ -312,7 +312,16 @@ public sealed record SignalAuditRowDto(
     string? EvidenceHealth = null,
     string? DataAsOfDate = null,
     IReadOnlyList<string>? ReasonCodes = null,
-    DateTime? StatusChangedAtUtc = null);
+    DateTime? StatusChangedAtUtc = null,
+    /// <summary>
+    /// Latest cached market quote, independent of the historical signal evaluation. Null when no usable quote exists;
+    /// the signal price is never substituted. Status is Live, EOD, Stale or Unavailable.
+    /// </summary>
+    decimal? CurrentPrice = null,
+    string? CurrentPriceCurrency = null,
+    DateTime? CurrentPriceAsOfUtc = null,
+    string? CurrentPriceSource = null,
+    string CurrentPriceStatus = "Unavailable");
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,

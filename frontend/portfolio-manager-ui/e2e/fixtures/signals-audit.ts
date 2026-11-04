@@ -43,6 +43,11 @@ function freshRows(): Row[] {
       return1M: pending,
       today: horizon(2.4, 0),
       myAction: 'Pending',
+      currentPrice: 29.4,
+      currentPriceCurrency: 'CAD',
+      currentPriceAsOfUtc: '2026-11-02T21:00:00Z',
+      currentPriceSource: 'provider regular-session close',
+      currentPriceStatus: 'EOD',
     }),
     baseRow({
       id: 2,
@@ -61,6 +66,9 @@ function freshRows(): Row[] {
       hasNote: true,
       linkedTransactionId: 11,
       linkKind: 'TransactionVerified',
+      currentPrice: null,
+      currentPriceSource: 'no cached quote',
+      currentPriceStatus: 'Unavailable',
     }),
     baseRow({
       id: 1,
