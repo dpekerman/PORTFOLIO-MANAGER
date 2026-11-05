@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
 
@@ -82,42 +82,26 @@ public sealed class SwingTradingService(
     public async Task<OpenTradesResponse> GetOpenTradesAsync(CancellationToken ct = default)
     {
         var now = _clock.GetUtcNow().UtcDateTime;
-        var threshold = config.GetValue("Risk:ApproachingStopThresholdPct", StopRiskEvaluator.DefaultThresholdPct);
-
-        var lots = await _user.OwnedLots(db).AsNoTracking().ToListAsync(ct);
-        var refs = lots.Select(LotRef.From).ToList();
-        var epIds = refs.Where(l => l.IsOpen && l.TradeEpisodeId.HasValue).Select(l => l.TradeEpisodeId!.Value).Distinct().ToList();
-        var episodes = epIds.Count == 0 ? new Dictionary<Guid, TradeEpisode>()
-            : await db.TradeEpisodes.AsNoTracking().Where(e => epIds.Contains(e.Id)).ToDictionaryAsync(e => e.Id, ct);
-        var positions = TradeEpisodeResolver.ResolveOpenSwingPositions(refs, episodes);
-
-        var plans = await Mine(db.RiskPlans.AsNoTracking()).ToListAsync(ct);
-        var stops = await Mine(db.BrokerStopRecords.AsNoTracking()).ToListAsync(ct);
         var quotes = await QuotesAsync(ct);
+        var snap = await new OpenRiskReader(db, config, _clock).ReadAsync(new RiskScope(_user.UserId, _user.IsAdmin), quotes, ct);
+        var threshold = snap.ThresholdPct;
+        var lots = await _user.OwnedLots(db).AsNoTracking().ToListAsync(ct);
+        var positions = snap.Positions.Select(p => p.Position).ToList();
+        var stops = snap.AllStops;
         var rows = new List<SwingTradeRowDto>();
 
-        foreach (var pos in positions)
+        foreach (var rp in snap.Positions)
         {
+            var pos = rp.Position;
             var swingLots = pos.OpenLots.Where(l => l.IsSwing).ToList();
-            quotes.TryGetValue(pos.Symbol, out var quote);
-            var evidence = quote is null ? PriceEvidence.Unavailable("no quote in portfolio snapshot")
-                : PriceEvidence.FromQuote(quote.CurrentPrice, quote.Timestamp, quote.MarketState, pos.Symbol, now, quote.SourcePriceTimestamp);
+            var quote = rp.Quote;
+            var evidence = rp.Evidence;
             var (currency, basis) = TradingCurrency.Resolve(pos.Symbol, quote?.Currency);
-
-            var owner = pos.OpenLots[0].UserId;
-            var scopePlans = plans.Where(p => p.UserId == owner && p.AccountType == pos.Account && p.Symbol == pos.Symbol)
-                .OrderByDescending(p => p.UpdatedAtUtc).ToList();
-            var plan = scopePlans.FirstOrDefault(p => RiskService.BelongsToEpisode(p.TradeEpisodeId, p.EpisodeOpenDate, pos))
-                ?? scopePlans.FirstOrDefault();
-            var planCurrent = plan is not null && RiskService.BelongsToEpisode(plan.TradeEpisodeId, plan.EpisodeOpenDate, pos);
-            var active = stops.Where(s => (s.UserId == owner || (owner == null && s.UserId == _user.UserId)) && s.AccountType == pos.Account && s.Symbol == pos.Symbol
-                    && BrokerUserStatuses.IsActive(s.UserStatus) && RiskService.BelongsToEpisode(s.TradeEpisodeId, s.EpisodeOpenDate, pos))
-                .OrderByDescending(s => s.TriggerPrice).ToList();
-
-            var eval = StopRiskEvaluator.Evaluate(new RiskEvalInput(evidence, planCurrent ? plan!.PlannedStopPrice : null,
-                active.Select(s => new StopLite(s.Id, s.TriggerPrice, s.CoveredQuantity, s.BrokerVerificationStatus)).ToList(),
-                pos.SwingQuantity, pos.TotalQuantity, threshold));
-
+            var owner = rp.Owner;
+            var plan = rp.Plan;
+            var planCurrent = rp.PlanCurrent;
+            var active = rp.ActiveStops.ToList();
+            var eval = rp.Evaluation;
             var avg = swingLots.Sum(l => l.AverageCostBasis * l.Shares) / pos.SwingQuantity;
             decimal? price = evidence.Price is > 0 ? evidence.Price : null;
             decimal? mv = price is null ? null : Math.Round(price.Value * pos.SwingQuantity, 2);

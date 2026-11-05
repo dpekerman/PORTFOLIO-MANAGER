@@ -35,6 +35,10 @@ export interface WatchlistEntryContext {
   maStructure: string | null;
   priceStructure: PriceStructureResult | null;
   chaseRisk?: boolean;
+  /** A gap-up that is holding (Strong or Weak): chasing it is the risk. A Failed gap is not a chase risk. */
+  gapChase?: boolean;
+  /** The gap-up faded (Gap Up - Failed): no entry is confirmed while it stands, but it does not mean the price is extended. */
+  gapFailed?: boolean;
   trendDamage?: boolean;
   valueTrap?: boolean;
 }
@@ -112,15 +116,19 @@ export function evaluateWatchlistEntry(context: WatchlistEntryContext): Watchlis
   const compression =
     patternType.includes('FALLING_WEDGE') &&
     ['DEVELOPING', 'TIGHTENING', 'NEAR_APEX'].includes(patternState);
-  const extended =
+  const severelyBearishMa = context.maStructure === '200 > 50 > P';
+  // Confirmed structural damage outranks a gap-driven "extended" reading: a damaged trend is never extended.
+  const damaged = context.trendDamage === true || severelyBearishMa;
+  const trendExtended =
     context.chaseRisk === true ||
     context.trendSetup === 'Constructive Extended' ||
     context.momentumShift === 'Warning — Overbought Run';
+  const extended = trendExtended || (context.gapChase === true && !damaged);
+  const gapFailed = context.gapFailed === true;
   const acceptableMa =
     !context.maStructure ||
     context.maStructure.startsWith('P >') ||
     context.maStructure === '50 > P > 200';
-  const severelyBearishMa = context.maStructure === '200 > 50 > P';
   const oversold = context.rsi !== null && context.rsi <= 35;
   const earlyReversal =
     oversold &&
@@ -144,12 +152,14 @@ export function evaluateWatchlistEntry(context: WatchlistEntryContext): Watchlis
     finalActionReason = 'Price is at active resistance without a confirmed breakout.';
   } else if (extended) {
     finalAction = resistance ? 'WATCH / NO CHASE' : 'WAIT FOR PULLBACK';
-    finalActionReason =
-      'Trend may be healthy, but current price location is extended for a new entry.';
+    finalActionReason = trendExtended
+      ? 'Trend may be healthy, but current price location is extended for a new entry.'
+      : 'Price gapped up and the gap is holding; do not chase it for a new entry.';
   } else if (declining) {
     finalAction = context.trendDamage ? 'WAIT FOR RECLAIM' : 'WAIT FOR REVERSAL';
     finalActionReason = 'Momentum is declining and reversal confirmation is not complete.';
   } else if (
+    !gapFailed &&
     confirmedConstructive &&
     accelerating &&
     (buyScore ?? 0) >= 4 &&
@@ -164,6 +174,7 @@ export function evaluateWatchlistEntry(context: WatchlistEntryContext): Watchlis
     finalActionReason =
       'Structure and momentum are confirmed with a strong Buy Score and acceptable MA structure.';
   } else if (
+    !gapFailed &&
     roleAllowsStarter &&
     (buyScore ?? 0) >= 4 &&
     (confirmedConstructive || supportConstructive) &&
@@ -174,6 +185,7 @@ export function evaluateWatchlistEntry(context: WatchlistEntryContext): Watchlis
     finalActionReason =
       'Constructive support and momentum allow a staged initial position for this role.';
   } else if (
+    !gapFailed &&
     (buyScore ?? 0) >= 4 &&
     (supportConstructive || compression || confirmedConstructive) &&
     !context.trendDamage
@@ -505,7 +517,9 @@ export class DecisionEngineService {
       momentumState: dec.momentumShift,
       maStructure,
       priceStructure: r.priceStructure,
-      chaseRisk: !!r.chaseRisk || gap.status !== 'No Gap',
+      chaseRisk: !!r.chaseRisk,
+      gapChase: gap.status === 'Gap Up - Strong' || gap.status === 'Gap Up - Weak',
+      gapFailed: gap.status === 'Gap Up - Failed',
       trendDamage: r.fibZone === 'Trend Damage',
       valueTrap: isValueTrap,
     });
@@ -1437,6 +1451,8 @@ export class DecisionEngineService {
     if (ts === 'Technical Caution' || ms === 'Breakdown' || ms === 'Active Sell Trigger')
       return 'Hold / Review';
     if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Hold / Risk Review';
+    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
+      return 'Hold / Overbought Caution — No Add';
     if (ms === 'Uptrend') return 'Hold / No Chase';
     return 'Hold';
   }
@@ -1456,6 +1472,8 @@ export class DecisionEngineService {
     if (ts === 'Technical Caution' || ms === 'Breakdown') return 'Hold / Technical Caution';
     if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Hold / Risk Review';
     if (ms === 'Active Sell Trigger') return 'Trim / Review';
+    if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
+      return 'Hold / Overbought Caution — No Add';
     if (ms === 'Uptrend') return 'Hold / No Chase';
     return 'Hold';
   }
@@ -1473,7 +1491,7 @@ export class DecisionEngineService {
     }
     if (ms === 'Consolidation / Dip-Buy') return 'Hold / Trail Stop';
     if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Trail Stop / Trim';
+      return 'Hold / Trail Stop — No Add';
     if (ts === 'Cooling' || ms === 'Breakdown') return 'Exit / Cut Loss';
     if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Cut Loss / Exit';
     if (ms === 'Uptrend') return 'Hold / Trail Stop';
@@ -1487,7 +1505,7 @@ export class DecisionEngineService {
     if ((ts === 'Confirmed Constructive' || ts === 'Quality Trend Entry') && ms === 'Uptrend')
       return 'Hold Spec / Trail Stop';
     if (ts === 'Constructive Extended' || ms === 'Warning — Overbought Run')
-      return 'Trim / Trail Stop';
+      return 'Hold Spec / Trail Stop — No Add';
     if (ts === 'Cooling' || ms === 'Breakdown') return 'Cut Loss / Thesis Review';
     if (ts === 'Waterfall / Falling Knife' || ms === 'Warning') return 'Cut Loss / Exit';
     if (ms === 'Uptrend') return 'Hold Spec / Trail Stop';
@@ -1639,6 +1657,7 @@ export class DecisionEngineService {
   private finalActionClass(action: string): string {
     const a = action.toLowerCase();
     if (a.includes('stand by') && a.includes('no add')) return 'ma-standby-no-add';
+    if (a.startsWith('hold') && a.includes('no add')) return 'ma-hold';
     // TFSA profit-taking rule gets its own amber class
     if (a.includes('partial profit') || a.includes('profit watch') || a.includes('protect gain'))
       return 'ma-tfsa-profit';

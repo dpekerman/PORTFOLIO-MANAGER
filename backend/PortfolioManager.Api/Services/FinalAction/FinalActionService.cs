@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -61,7 +61,24 @@ public sealed record FinalActionResultDto(
     /// <summary>Verified = a source quote timestamp was checked against the expected session; Unavailable = none exists, so the scan's bar date is the only session-level evidence (freshness of the quote itself is NOT independently verified).</summary>
     string? QuoteVerification = null,
     /// <summary>How the exchange (which decides the session calendar) was resolved: Metadata | Suffix | Assumed (NYSE default when nothing identifies the market).</summary>
-    string? ExchangeBasis = null);
+    string? ExchangeBasis = null,
+    /// <summary>Read-only stop-risk facts for an open Swing lot (observed breach, coverage, verification). Never an execution claim.</summary>
+    StopRiskEvidence? Risk = null,
+    /// <summary>What the decision knows about current ownership of the symbol (open lots only; closed lots never count).</summary>
+    FinalActionOwnership? Ownership = null,
+    /// <summary>SingleCurrency | MixedCurrency | UnknownCurrency: whether allocation percentages behind the decision are verifiable.</summary>
+    string? AllocationStatus = null,
+    /// <summary>When the app fetched the quote (distinct from <see cref="QuoteTimestampUtc"/>, the provider's own price time).</summary>
+    DateTime? QuoteFetchedAtUtc = null);
+
+/// <summary>Ownership facts across all open lots and accounts of a symbol. Exposure is null when it cannot be verified.</summary>
+public sealed record FinalActionOwnership(
+    bool Owned,
+    int OpenLots,
+    IReadOnlyList<string> Accounts,
+    IReadOnlyList<string> Roles,
+    bool MixedRoles,
+    double? ExposurePct);
 
 /// <summary>Technical readings the decision was based on, kept with the audited signal for later review.</summary>
 public sealed record FinalActionTechnicalsDto(
@@ -112,7 +129,8 @@ public sealed class FinalActionService(
     IRsiScannerService scanner,
     IPortfolioSnapshotService portfolioSnapshot,
     IMemoryCache cache,
-    ILogger<FinalActionService> logger) : IFinalActionService
+    ILogger<FinalActionService> logger,
+    PortfolioManager.Api.Services.Risk.IOpenRiskReader? riskReader = null) : IFinalActionService
 {
     // Same parameters the Angular watchlist analysis uses (analyzeSymbols(batch, 30, 75, 'Enhanced')).
     private const decimal OversoldThreshold = 30m;
@@ -166,9 +184,14 @@ public sealed class FinalActionService(
 
         // Watchlist quotes come from the already-stored Watchlist snapshot (same source holdings use): no new requests.
         var watchQuoteUtc = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        var watchFetchedUtc = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         var watchSnap = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
         foreach (var w in Deserialize<List<WatchlistSummaryDto>>(watchSnap?.SnapshotJson) ?? [])
-            if (w.Quote is { Timestamp: > 0 } wq) watchQuoteUtc[w.Item.Symbol] = DateTimeOffset.FromUnixTimeSeconds(wq.Timestamp).UtcDateTime;
+        {
+            var (sourceUtc, fetchedUtc) = QuoteTimes(w.Quote);
+            if (sourceUtc is { } su) watchQuoteUtc[w.Item.Symbol] = su;
+            if (fetchedUtc is { } fu) watchFetchedUtc[w.Item.Symbol] = fu;
+        }
 
         // Evidence must be usable before any decision is kept: otherwise the symbol is "Awaiting Data" — a visible,
         // non-actionable status — and is also listed as unknown so lifecycle never confirms, invalidates or expires on it.
@@ -187,6 +210,13 @@ public sealed class FinalActionService(
         static string Basis(string symbol, RsiScanResult? scan) =>
             TradingCalendar.Resolve(symbol, scan?.AnalysisMarket).Basis.ToString();
 
+        var grandTotal = await GrandTotalAsync(userId, summaries, ct);
+        var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
+        var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
+        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
+        var valuation = await CheckValuationAsync(userId, summaries, ct);
+        var riskByLot = await LoadRiskAsync(userId, summaries, ct);
+
         var watchlist = new List<FinalActionResultDto>();
         foreach (var item in watchlistItems)
         {
@@ -201,17 +231,41 @@ public sealed class FinalActionService(
             }
             var category = decision is null ? "Advisory" : FinalActionCatalog.Describe(decision.FinalAction).Category;
             DateTime? wlQuote = watchQuoteUtc.TryGetValue(item.Symbol, out var wq0) ? wq0 : null;
+            DateTime? wlFetched = watchFetchedUtc.TryGetValue(item.Symbol, out var wf0) ? wf0 : null;
             var assessment = Assess(scan, item.Symbol, category, wlQuote);
             if (decision is null || assessment.Health != EvidenceHealth.Fresh)
             {
                 unknown.Add(item.Symbol);
                 watchlist.Add(AwaitingDto(item.Symbol, SignalSources.Watchlist, null, role, scan, assessment, null, null) with
                 {
-                    QuoteTimestampUtc = wlQuote, QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
+                    QuoteTimestampUtc = wlQuote, QuoteFetchedAtUtc = wlFetched, QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
                     ExchangeBasis = Basis(item.Symbol, scan),
                 });
                 continue;
             }
+            var owned = openHoldings.Where(h => string.Equals(h.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
+            var wlCodes = Codes(assessment);
+            string? wlOriginal = null;
+            if (owned.Count > 0 && category == "Entry")
+            {
+                // Entry readiness for a ticker that is already held is an ADD. Exposure is every open lot of the symbol;
+                // limits come from the lots' role, and lots with different roles make the ADD policy ambiguous.
+                var lot = owned[0];
+                var lotCtx = BuildContext(lot, scan!, summaries, grandTotal, valuation);
+                var lotEvidence = BuildEvidence(lot, scan!, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, lotCtx, valuation);
+                var ownedRoles = owned.Select(RoleOfLot).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r, StringComparer.OrdinalIgnoreCase).ToList();
+                if (ownedRoles.Count > 1)
+                    lotEvidence = lotEvidence with
+                    {
+                        RolePolicyAmbiguous = true,
+                        RolePolicyDetail = $"open lots hold different roles: {string.Join(", ", ownedRoles)}",
+                    };
+                var conditioned = PortfolioEvidenceGate.ConditionOwnedEntry(decision, lotEvidence);
+                decision = conditioned.Decision;
+                wlOriginal = conditioned.OriginalAction;
+                wlCodes = conditioned.ReasonCodes.Concat(["ALREADY_OWNED"]).Concat(wlCodes).ToList();
+            }
+            else if (owned.Count > 0) wlCodes = ["ALREADY_OWNED", .. wlCodes];
             watchlist.Add(ToDto(decision, item.Symbol, SignalSources.Watchlist, null, role, scan!) with
             {
                 EvaluationState = nameof(EffectiveState.CurrentValid),
@@ -219,30 +273,31 @@ public sealed class FinalActionService(
                 LastSuccessfulEvaluationUtc = nowUtc,
                 DataAsOfDate = assessment.DataAsOf,
                 ExpectedSession = assessment.ExpectedSession,
-                ReasonCodes = Codes(assessment),
+                ReasonCodes = wlCodes,
+                OriginalAction = wlOriginal,
+                Ownership = OwnershipOf(owned, grandTotal, valuation),
+                AllocationStatus = valuation.Status,
                 QuoteTimestampUtc = wlQuote,
+                QuoteFetchedAtUtc = wlFetched,
                 QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
                 ExchangeBasis = Basis(item.Symbol, scan),
             });
         }
 
-        var grandTotal = await GrandTotalAsync(userId, summaries, ct);
-        var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
-        var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
-        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
         var portfolio = new List<FinalActionResultDto>();
         foreach (var holding in openHoldings)
         {
             scans.TryGetValue(holding.Item.Symbol, out var scan);
-            DateTime? quoteUtc = holding.Quote is { Timestamp: > 0 } q ? DateTimeOffset.FromUnixTimeSeconds(q.Timestamp).UtcDateTime : null;
+            var (quoteUtc, quoteFetchedUtc) = QuoteTimes(holding.Quote);
             FinalActionDecision? decision = null;
             PortfolioEvidence? evidence = null;
             GateOutcome? gate = null;
             if (scan is not null)
             {
-                var context = BuildContext(holding, scan, summaries, grandTotal);
+                var context = BuildContext(holding, scan, summaries, grandTotal, valuation);
                 decision = FinalActionEngine.TranslateForPortfolio(ToInput(scan), holding.Item.HoldingRole, context);
-                evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context);
+                evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context, valuation,
+                    riskByLot.GetValueOrDefault(holding.Item.Id));
                 gate = PortfolioEvidenceGate.Apply(decision, holding.Item.HoldingRole, evidence);
             }
             var category = gate is null ? "Advisory" : FinalActionCatalog.Describe(gate.Decision.FinalAction).Category;
@@ -253,7 +308,7 @@ public sealed class FinalActionService(
                 portfolio.Add(AwaitingDto(holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan, assessment,
                     holding.Item.FinalAction, holding.Item.FinalActionUpdatedAt) with
                 {
-                    QuoteTimestampUtc = quoteUtc, QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
+                    QuoteTimestampUtc = quoteUtc, QuoteFetchedAtUtc = quoteFetchedUtc, QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
                     ExchangeBasis = Basis(holding.Item.Symbol, scan),
                 });
                 continue;
@@ -268,12 +323,16 @@ public sealed class FinalActionService(
                     EvidenceAsOfUtc = evidence.EvidenceAsOfUtc,
                     EntryDate = evidence.EntryDate,
                     OriginalAction = gate.OriginalAction,
+                    Risk = evidence.Risk,
+                    Ownership = OwnershipOf(openHoldings.Where(h => string.Equals(h.Item.Symbol, holding.Item.Symbol, StringComparison.OrdinalIgnoreCase)).ToList(), grandTotal, valuation),
+                    AllocationStatus = valuation.Status,
                     EvaluationState = nameof(EffectiveState.CurrentValid),
                     EvidenceHealth = assessment.Health.ToString(),
                     LastSuccessfulEvaluationUtc = nowUtc,
                     DataAsOfDate = assessment.DataAsOf,
                     ExpectedSession = assessment.ExpectedSession,
                     QuoteTimestampUtc = quoteUtc,
+                    QuoteFetchedAtUtc = quoteFetchedUtc,
                     QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
                     ExchangeBasis = Basis(holding.Item.Symbol, scan),
                 });
@@ -345,6 +404,7 @@ public sealed class FinalActionService(
     {
         var def = FinalActionCatalog.Describe(d.FinalAction);
         var (severity, priority) = FinalActionEngine.ActionCenterClassification(d.FinalActionClass);
+        if (d.FinalAction == PortfolioEvidenceGate.ReviewStopBreach) priority = "REQUIRED";
         var dto = new FinalActionResultDto(
             symbol, source, itemId, role, d.FinalAction, def.Id, def.Category, def.Direction, severity, priority,
             d.FinalActionClass, d.TrendSetup, d.MomentumShift, d.BaseAction, d.GapStatus, d.HoverDescription,
@@ -363,7 +423,8 @@ public sealed class FinalActionService(
     internal static PortfolioEvidence BuildEvidence(
         PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> openHoldings,
         IReadOnlyList<PortfolioSummaryDto> all, double grandTotal, decimal stockTotal,
-        IReadOnlyList<SinglePositionLimit> limits, IReadOnlyList<AllocationSectorTarget> sectorTargets, PortfolioItemContext context)
+        IReadOnlyList<SinglePositionLimit> limits, IReadOnlyList<AllocationSectorTarget> sectorTargets, PortfolioItemContext context,
+        ValuationCheck? valuation = null, StopRiskEvidence? risk = null)
     {
         var item = holding.Item;
         var lots = openHoldings.Where(h => string.Equals(h.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -375,7 +436,8 @@ public sealed class FinalActionService(
         var evidenceDate = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(evidenceUtc, EasternZone()));
 
         // Concentration is the symbol's TOTAL exposure (every lot, every account). The limit is the target lot's own role limit.
-        double? positionSize = grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
+        var reliable = valuation?.Reliable ?? true;
+        double? positionSize = reliable && grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
         string RoleOf(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
         var targetRole = RoleOf(holding);
         SinglePositionLimit? LimitFor(string role) => limits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
@@ -393,7 +455,7 @@ public sealed class FinalActionService(
             : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
         var sectorOver = false;
         double? sectorPct = null;
-        if (target is not null && stockTotal > 0)
+        if (reliable && target is not null && stockTotal > 0)
         {
             var actual = all.Where(s => !IsClose(s.Item.TransactionType)
                     && (string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)
@@ -407,8 +469,18 @@ public sealed class FinalActionService(
             context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
             limit is null ? null : Dbl(limit.TargetPct), sectorOver,
             scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource,
-            ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector));
+            ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector), risk, valuation);
     }
+
+    private static string RoleOfLot(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
+
+    /// <summary>
+    /// Provider price time (<see cref="StockQuote.SourcePriceTimestamp"/>) and the app's fetch time, kept apart. Only the
+    /// provider time can prove which session a price belongs to; a fetch time proves nothing about the price.
+    /// </summary>
+    internal static (DateTime? SourceUtc, DateTime? FetchedUtc) QuoteTimes(StockQuote? q) => (
+        q?.SourcePriceTimestamp is > 0 ? DateTimeOffset.FromUnixTimeSeconds(q.SourcePriceTimestamp.Value).UtcDateTime : null,
+        q is { Timestamp: > 0 } ? DateTimeOffset.FromUnixTimeSeconds(q.Timestamp).UtcDateTime : null);
 
     private static decimal MarketValue(PortfolioSummaryDto s) => s.Item.IsManual
         ? s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares
@@ -467,7 +539,7 @@ public sealed class FinalActionService(
     // ── Portfolio context (port of PortfolioFinalActionSyncService) ──────────
 
     internal static PortfolioItemContext BuildContext(
-        PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> all, double grandTotal)
+        PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> all, double grandTotal, ValuationCheck? valuation = null)
     {
         var item = holding.Item;
         double? tradedPrice = all.FirstOrDefault(s => s.Item.Id == item.Id)?.Quote is { } q
@@ -482,7 +554,7 @@ public sealed class FinalActionService(
         double? marketValue = item.IsManual
             ? Dbl(item.ManualMarketValue ?? item.AverageCostBasis)
             : tradedPrice is not null ? tradedPrice.Value * Dbl(item.Shares) : null;
-        double? positionSize = grandTotal > 0 && marketValue is not null ? marketValue.Value / grandTotal * 100 : null;
+        double? positionSize = (valuation?.Reliable ?? true) && grandTotal > 0 && marketValue is not null ? marketValue.Value / grandTotal * 100 : null;
 
         return new PortfolioItemContext(
             item.AccountType, gain, holdingDays, dist52, positionSize,
@@ -524,6 +596,93 @@ public sealed class FinalActionService(
                 map[r.Symbol] = r;
         }
         return map;
+    }
+
+    /// <summary>
+    /// Decides whether allocation percentages can be trusted. There is no FX service and no currency on holdings or cash, so
+    /// the currency of each component is the provider's quote currency (ticker suffix as a labelled fallback); cash follows the
+    /// ledger convention (reporting currency CAD unless the account or description is marked USD). More than one currency
+    /// means the raw sum is not meaningful and no conversion is guessed.
+    /// </summary>
+    internal static ValuationCheck ClassifyValuation(
+        IEnumerable<(string Symbol, string? QuoteCurrency)> stocks,
+        IEnumerable<(string? Account, string? Description)> cash,
+        IEnumerable<string> optionUnderlyings)
+    {
+        var currencies = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var (symbol, quoteCurrency) in stocks)
+            currencies.Add(PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(symbol, quoteCurrency).Code);
+        foreach (var u in optionUnderlyings)
+            currencies.Add(PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(u, null).Code);
+        foreach (var (account, description) in cash)
+            currencies.Add(UsdMarker.IsMatch(account ?? "") || UsdMarker.IsMatch(description ?? "") ? "USD" : "CAD");
+
+        if (currencies.Count <= 1)
+            return new ValuationCheck(ValuationCheck.SingleCurrency, currencies.Count == 0 ? "no valued components" : $"all components in {currencies.Single()}");
+        return new ValuationCheck(ValuationCheck.MixedCurrency,
+            $"the portfolio total mixes {string.Join(" and ", currencies)} with no verified conversion");
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex UsdMarker = new(
+        @"(?<![A-Za-z])(USD|US\$|USDOLLAR)(?![A-Za-z])|_USD\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private async Task<ValuationCheck> CheckValuationAsync(string userId, IReadOnlyList<PortfolioSummaryDto> summaries, CancellationToken ct)
+    {
+        var stocks = summaries.Where(s => !IsClose(s.Item.TransactionType))
+            .Select(s => (s.Item.Symbol, s.Quote?.Currency)).ToList();
+        var cash = (await db.CashItems.AsNoTracking().Where(c => c.UserId == userId || c.UserId == null)
+            .Select(c => new { c.AccountType, c.Description }).ToListAsync(ct)).Select(c => (c.AccountType, (string?)c.Description)).ToList();
+        var options = await db.OptionItems.AsNoTracking()
+            .Where(o => (o.UserId == userId || o.UserId == null) && o.TransactionType != "CLOSE")
+            .Select(o => o.UnderlyingTicker).ToListAsync(ct);
+        return ClassifyValuation(stocks, cash, options);
+    }
+
+    /// <summary>One batched read of open Swing risk for the whole pass. A failed read leaves risk unknown; it never implies Clear.</summary>
+    private async Task<Dictionary<int, StopRiskEvidence>> LoadRiskAsync(string userId, IReadOnlyList<PortfolioSummaryDto> summaries, CancellationToken ct)
+    {
+        var map = new Dictionary<int, StopRiskEvidence>();
+        if (riskReader is null) return map;
+        try
+        {
+            var quotes = new Dictionary<string, StockQuote>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in summaries) if (s.Quote is not null) quotes[s.Item.Symbol] = s.Quote;
+            var snap = await riskReader.ReadAsync(new PortfolioManager.Api.Services.Risk.RiskScope(userId, false), quotes, ct);
+            foreach (var p in snap.Positions) 
+            {
+                var evidence = ToRiskEvidence(p);
+                foreach (var lot in p.Position.OpenLots.Where(l => l.IsSwing)) map[lot.Id] = evidence;
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "[FinalAction] Stop-risk read failed; stop evidence is unavailable for this pass.");
+        }
+        return map;
+    }
+
+    internal static StopRiskEvidence ToRiskEvidence(PortfolioManager.Api.Services.Risk.OpenRiskPosition p)
+    {
+        var usable = p.Evidence.IsUsable;
+        var price = p.Evidence.Price;
+        decimal? brokerStop = p.ActiveStops.Count > 0 ? p.ActiveStops.Max(s => s.TriggerPrice) : null;
+        var plannedBreached = p.Evaluation.PlannedStopState == "Breached";
+        var brokerBreached = usable && brokerStop is not null && price is not null && price <= brokerStop;
+        return new StopRiskEvidence(
+            p.Evaluation.PlannedStopState, p.PlanCurrent ? p.Plan?.PlannedStopPrice : null, brokerStop, plannedBreached, brokerBreached,
+            price, p.Evidence.AsOfUtc, p.Evidence.Basis, p.Evaluation.CoverageState, p.Evaluation.Protection,
+            p.ActiveStops.Select(s => s.BrokerVerificationStatus).ToList(), p.PlanCurrent, p.Position.Account, p.Position.EpisodeOpenDate);
+    }
+
+    private static FinalActionOwnership OwnershipOf(IReadOnlyList<PortfolioSummaryDto> lots, double grandTotal, ValuationCheck valuation)
+    {
+        if (lots.Count == 0) return new FinalActionOwnership(false, 0, [], [], false, null);
+        string Role(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
+        var roles = lots.Select(Role).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r).ToList();
+        var accounts = lots.Select(l => l.Item.AccountType ?? "").Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(a => a).ToList();
+        double? exposure = valuation.Reliable && grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
+        return new FinalActionOwnership(true, lots.Count, accounts, roles, roles.Count > 1, exposure);
     }
 
     private static bool IsClose(string? type) => string.Equals(type, "CLOSE", StringComparison.OrdinalIgnoreCase);

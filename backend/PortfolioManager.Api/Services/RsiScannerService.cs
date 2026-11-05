@@ -372,7 +372,17 @@ public sealed class RsiScannerService : IRsiScannerService
         return null;
     }
 
-    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
+    /// <summary>One session's open, high, low and close must describe a single price range (a small tolerance absorbs provider rounding).</summary>
+    internal static bool IsSessionConsistent(decimal open, decimal high, decimal low, decimal close)
+    {
+        const decimal tolerance = 0.001m;
+        if (high <= 0m || low <= 0m || high < low) return false;
+        var floor = low * (1m - tolerance);
+        var ceiling = high * (1m + tolerance);
+        return close >= floor && close <= ceiling && open >= floor && open <= ceiling;
+    }
+
+    internal async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         try
         {
@@ -389,15 +399,37 @@ public sealed class RsiScannerService : IRsiScannerService
 
             var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
             if (qd is null) return null;
-            var timestamps = chartResult.Timestamp ?? [];
+            var rawTimestamps = chartResult.Timestamp ?? [];
 
-            // Filter out null slots (non-trading days Yahoo sometimes returns as null)
-            var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
-            var highs   = qd.High.Where(h => h.HasValue).Select(h => h!.Value).ToList();
-            var lows    = qd.Low.Where(l => l.HasValue).Select(l => l!.Value).ToList();
-            var volumes = qd.Volume.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+            // A bar is only usable when it is complete. Dropping nulls per series would shift them against each other:
+            // a still-open session (null close, real open/high/low/volume) would then pair the previous close with the
+            // new session's range. Bars are therefore kept or dropped whole, preserving index <-> timestamp alignment.
+            var barCount = new[] { rawTimestamps.Count, qd.Open.Count, qd.High.Count, qd.Low.Count, qd.Close.Count }.Min();
+            var timestamps = new List<long>(barCount);
+            var opens   = new List<decimal>(barCount);
+            var highs   = new List<decimal>(barCount);
+            var lows    = new List<decimal>(barCount);
+            var closes  = new List<decimal>(barCount);
+            var volumes = new List<long>(barCount);
+            for (var i = 0; i < barCount; i++)
+            {
+                if (qd.Open[i] is not { } barOpen || qd.High[i] is not { } barHigh
+                    || qd.Low[i] is not { } barLow || qd.Close[i] is not { } barClose) continue;
+                timestamps.Add(rawTimestamps[i]);
+                opens.Add(barOpen);
+                highs.Add(barHigh);
+                lows.Add(barLow);
+                closes.Add(barClose);
+                volumes.Add(i < qd.Volume.Count ? qd.Volume[i] ?? 0L : 0L);
+            }
 
             if (closes.Count < 30) return null;
+            if (!IsSessionConsistent(opens[^1], highs[^1], lows[^1], closes[^1]))
+            {
+                _logger.LogWarning("Scan for {Symbol} rejected: last bar {Date} is internally inconsistent (O {O} H {H} L {L} C {C}).",
+                    symbol, DateTimeOffset.FromUnixTimeSeconds(timestamps[^1]).UtcDateTime.ToString("yyyy-MM-dd"), opens[^1], highs[^1], lows[^1], closes[^1]);
+                return null;
+            }
 
             // ── Core RSI ────────────────────────────────────────────────────
             decimal rsi = CalculateRsi(closes, 14);
@@ -411,8 +443,6 @@ public sealed class RsiScannerService : IRsiScannerService
                 : volumes.Select(v => (decimal)v).Average();
             decimal todayVol   = volumes.Count > 0 ? volumes.Last() : 0L;
             decimal volRatio   = avgVol > 0 ? todayVol / avgVol : 1m;
-
-            var opens = qd.Open.Where(o => o.HasValue).Select(o => o!.Value).ToList();
 
             // ── Candle data ─────────────────────────────────────────────────
             decimal todayOpen  = opens.Count  > 0 ? opens.Last()   : closes.Last();

@@ -1533,11 +1533,39 @@ export interface FinalActionResult {
   dataAsOfDate?: string | null;
   expectedSession?: string | null;
   quoteTimestampUtc?: string | null;
-  isHistoricalWarning?: boolean;
+  /** When the app fetched the quote; distinct from the provider's own price time in quoteTimestampUtc. */
+  quoteFetchedAtUtc?: string | null;
   /** Verified = a source quote time was checked; Unavailable = only the scan's bar date backs the freshness. */
   quoteVerification?: 'Verified' | 'Unavailable' | null;
   /** Metadata | Suffix | Assumed — how the exchange (session calendar) was resolved. */
   exchangeBasis?: 'Metadata' | 'Suffix' | 'Assumed' | null;
+  /** Read-only stop-risk facts for an open Swing lot. An observed breach is never a confirmed broker execution. */
+  risk?: {
+    plannedStopState: 'Breached' | 'Clear' | 'Unverified' | 'NoPlan';
+    plannedStop: number | null;
+    brokerStop: number | null;
+    plannedBreached: boolean;
+    brokerBreached: boolean;
+    observedPrice: number | null;
+    observedAtUtc: string | null;
+    priceBasis: 'Live' | 'EOD' | 'Stale' | 'Unavailable';
+    coverageState: string;
+    protection: string;
+    brokerVerification: string[];
+    planAvailable: boolean;
+    account: string;
+  } | null;
+  /** Open-lot ownership of the symbol; exposurePct is null when it cannot be verified. */
+  ownership?: {
+    owned: boolean;
+    openLots: number;
+    accounts: string[];
+    roles: string[];
+    mixedRoles: boolean;
+    exposurePct: number | null;
+  } | null;
+  /** SingleCurrency | MixedCurrency | UnknownCurrency — whether allocation percentages are verifiable. */
+  allocationStatus?: 'SingleCurrency' | 'MixedCurrency' | 'UnknownCurrency' | null;
   /** Present on watchlist decisions: the structure / momentum / MA facts behind the entry status. */
   diagnostics?: {
     priceStructureState: string;

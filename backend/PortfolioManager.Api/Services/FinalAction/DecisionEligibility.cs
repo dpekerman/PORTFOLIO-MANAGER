@@ -18,6 +18,9 @@ public static class DecisionEligibility
         "CLOSE/PROTECT",
     };
 
+    // An observed stop breach is advisory by category (it is not a share reduction) but is a Risk Review decision.
+    private const string StopBreachId = "REVIEW STOP BREACH";
+
     // Catalog TrimExit rows that only say "watch": passive, not a decision.
     private static readonly HashSet<string> PassiveTrimIds = new(StringComparer.Ordinal) { "TRIM/EXIT WATCH" };
 
@@ -26,6 +29,7 @@ public static class DecisionEligibility
         if (r.AnalysisPrice <= 0m) return DecisionBucket.None;
         var id = FinalActionCatalog.CanonicalId(r.FinalActionId);
         var def = FinalActionCatalog.Describe(id);
+        if (id == StopBreachId) return r.Source == SignalSources.Portfolio ? DecisionBucket.RiskReview : DecisionBucket.None;
         if (def.Category == "Entry") return DecisionBucket.EntryAdd;
         if (def.Category != "TrimExit" || PassiveTrimIds.Contains(id)) return DecisionBucket.None;
         // Selling needs a holding; a watchlist-only symbol cannot be trimmed.

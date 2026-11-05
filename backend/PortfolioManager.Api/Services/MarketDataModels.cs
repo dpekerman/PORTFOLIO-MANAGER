@@ -39,6 +39,7 @@ public sealed class YahooMeta
     [JsonPropertyName("regularMarketPreviousClose")] public decimal RegularMarketPreviousClose { get; set; }
     [JsonPropertyName("regularMarketChange")]        public decimal RegularMarketChange { get; set; }
     [JsonPropertyName("regularMarketChangePercent")] public decimal RegularMarketChangePercent { get; set; }
+    [JsonPropertyName("regularMarketTime")]          public long?   RegularMarketTime { get; set; }
     [JsonPropertyName("longName")]                   public string? LongName { get; set; }
     [JsonPropertyName("shortName")]                  public string? ShortName { get; set; }
 }

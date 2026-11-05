@@ -29,7 +29,7 @@ public sealed class FinalActionAwaitingDataTests
     private static PortfolioSummaryDto Holding(int id, string symbol, string role = "Swing", long quoteTs = 0) => new(
         new PortfolioItemDto(id, symbol, symbol, 10m, 90m, "", "", false, false, null, OldStamp, "OPEN", "Margin", OldStamp.AddDays(-30), null, null,
             role, null, null, null, "Add to Trade", "buy", "DEVELOPING", OldStamp),
-        new StockQuote { Symbol = symbol, CurrentPrice = 100m, Timestamp = quoteTs },
+        new StockQuote { Symbol = symbol, CurrentPrice = 100m, Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), SourcePriceTimestamp = quoteTs > 0 ? quoteTs : null },
         PriceStructureResult.None);
 
     private static async Task<(FinalActionService Service, AppDbContext Db, PortfolioSnapshotService Snap)> SetUpAsync(
@@ -155,7 +155,7 @@ public sealed class FinalActionAwaitingDataTests
     private static async Task AddWatchQuoteAsync(AppDbContext db, string symbol, long ts)
     {
         var rows = new[] { new WatchlistSummaryDto(new WatchlistItemDto(5, symbol, "", DateTime.UtcNow, "Core", false, null, "Active"),
-            new StockQuote { Symbol = symbol, CurrentPrice = 100m, Timestamp = ts }) };
+            new StockQuote { Symbol = symbol, CurrentPrice = 100m, Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds(), SourcePriceTimestamp = ts > 0 ? ts : null }) };
         db.WatchlistSnapshots.Add(new WatchlistSnapshot { UserId = "u", SnapshotJson = JsonSerializer.Serialize(rows, Json) });
         await db.SaveChangesAsync();
     }
