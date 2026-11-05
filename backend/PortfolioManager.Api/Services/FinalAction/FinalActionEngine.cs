@@ -340,7 +340,9 @@ public static class FinalActionEngine
         if (ctx.OversoldContext && ctx.TopHalfClose && (ctx.HighVolume || ctx.MacdImproving) && !waterfallBlock)
             return "Active Buy Trigger";
 
-        if (ctx.OverboughtContext && ctx.BottomHalfClose && (ctx.HighVolume || ctx.MacdWeakening))
+        // Volume alone is not bearish confirmation (a high-volume breakout day can close low in its range while RSI is still rising):
+        // MACD must be weakening, or high volume must come with RSI at/below its signal line.
+        if (ctx.OverboughtContext && ctx.BottomHalfClose && (ctx.MacdWeakening || (ctx.HighVolume && rsiAvail && rsi <= sig)))
             return "Active Sell Trigger";
 
         if (rsi < 35 && rsiAvail && rsi < sig) return "Warning";

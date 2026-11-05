@@ -163,11 +163,13 @@ public sealed class FinalActionServiceTests
         Assert.Equal("Hold / Monitor", by["OLDWIN"].FinalAction);
         Assert.False(by["OLDWIN"].IsActionable);
 
+        // Mild Cooling with a loss is risk evidence, not an independent exit reason: monitor, keep the original reading visible.
         foreach (var sym in new[] { "OLDLOSS", "NEWLOSS" })
         {
-            Assert.Equal("Exit / Cut Loss", by[sym].FinalAction);
-            Assert.True(by[sym].IsActionable);
-            Assert.Contains("POST_ENTRY_LOSS", by[sym].ReasonCodes!);
+            Assert.Equal(sym == "NEWLOSS" ? "Hold / Catalyst Monitoring" : "Hold / Monitor", by[sym].FinalAction);
+            Assert.False(by[sym].IsActionable);
+            Assert.Equal("Exit / Cut Loss", by[sym].OriginalAction);
+            Assert.Contains("LOSS_NOT_INDEPENDENT_EXIT_REASON", by[sym].ReasonCodes!);
         }
     }
 

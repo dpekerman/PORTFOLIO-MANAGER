@@ -83,6 +83,9 @@ public static class GateReasons
     public const string StopCoveragePartial = "STOP_COVERAGE_PARTIAL";
     public const string StopCoverageUnknown = "STOP_COVERAGE_UNKNOWN";
     public const string AllocationUnavailable = "ALLOCATION_EVIDENCE_UNAVAILABLE";
+    public const string LossNotIndependent = "LOSS_NOT_INDEPENDENT_EXIT_REASON";
+    public const string ProfitProtectedByStop = "SELL_TRIGGER_PROFIT_PROTECTED_BY_STOP";
+    public const string LabelCorrectedForLoss = "TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS";
 }
 
 /// <summary>
@@ -122,9 +125,39 @@ public static class PortfolioEvidenceGate
 
     public static GateOutcome Apply(FinalActionDecision d, string? role, PortfolioEvidence e)
     {
-        var reduced = ApplyReduction(d, role, e);
-        return ApplyStopRisk(reduced, d, e);
+        var (adjusted, correctedFrom) = CorrectTakeProfitLabelOnLoss(d, e);
+        var reduced = ApplyReduction(adjusted, role, e);
+        if (correctedFrom is not null)
+            reduced = reduced with { OriginalAction = reduced.OriginalAction ?? correctedFrom, ReasonCodes = [.. reduced.ReasonCodes, GateReasons.LabelCorrectedForLoss] };
+        return ApplyStopRisk(reduced, adjusted, e);
     }
+
+    /// <summary>A position at a loss is never told to "Take Profit": the sell trigger stands, only the label is corrected.</summary>
+    private static (FinalActionDecision Decision, string? CorrectedFrom) CorrectTakeProfitLabelOnLoss(FinalActionDecision d, PortfolioEvidence e)
+    {
+        if (e.UnrealizedGainPct is not < 0) return (d, null);
+        var corrected = d.FinalAction switch
+        {
+            "Exit / Take Profit" => "Exit / Cut Loss",
+            "Take Profit / Exit" => "Cut Loss / Exit",
+            "Close / Take Profit" => "Close / Protect",
+            _ => null,
+        };
+        return corrected is null
+            ? (d, null)
+            : (d with { FinalAction = corrected, FinalActionClass = FinalActionEngine.FinalActionClass(corrected) }, d.FinalAction);
+    }
+
+    /// <summary>Cooling or Breakdown without waterfall/warning evidence: weakness worth watching, not by itself a reason to exit.</summary>
+    private static bool IsMildWeakness(FinalActionDecision d) =>
+        (d.TrendSetup == "Cooling" || d.MomentumShift == "Breakdown")
+        && d.MomentumShift is not ("Active Sell Trigger" or "Bearish Shift" or "Warning")
+        && d.TrendSetup != "Waterfall / Falling Knife";
+
+    /// <summary>A profitable position whose planned stop is verified clear is managed by that stop, not exited on a technical sell alone.</summary>
+    private static bool IsProfitProtectedByStop(PortfolioEvidence e) =>
+        e.UnrealizedGainPct is > 0
+        && e.Risk is { PlannedStopState: "Clear", PlannedBreached: false, BrokerBreached: false };
 
     private static GateOutcome ApplyReduction(FinalActionDecision d, string? role, PortfolioEvidence e)
     {
@@ -168,7 +201,11 @@ public static class PortfolioEvidenceGate
                 detail = $"Confirmed sell trigger evaluated on {e.EvidenceDate:yyyy-MM-dd}, after the entry.";
             }
         }
-        else if (shortRole && kind == Kind.LossExit && loss)
+        else if (kind == Kind.ProfitExit && IsProfitProtectedByStop(e))
+        {
+            // No pass: handled as a stop-management advisory below.
+        }
+        else if (shortRole && kind == Kind.LossExit && loss && !IsMildWeakness(d))
         {
             pass = GateReasons.LossBreach;
             detail = string.Create(CultureInfo.InvariantCulture, $"Price is below cost ({e.UnrealizedGainPct:F1}%) with technical weakness.");
@@ -187,15 +224,21 @@ public static class PortfolioEvidenceGate
         }
 
         if (kind == Kind.ProfitTake) return ProfitAdvisory(d, role, e, codes);
+        if (kind == Kind.ProfitExit && IsProfitProtectedByStop(e)) return ProfitProtectedAdvisory(d, role, e, codes);
 
         codes.Add(GateReasons.TechnicalOnly);
         if (entryDay) codes.Add(GateReasons.EntryDayEvidence);
+        var lossOnly = shortRole && kind == Kind.LossExit && loss && IsMildWeakness(d);
+        if (lossOnly) codes.Add(GateReasons.LossNotIndependent);
 
         var catalyst = e.DecisionSource?.Contains("Catalyst", StringComparison.OrdinalIgnoreCase) == true;
         var replacement = catalyst ? "Hold / Catalyst Monitoring" : "Hold / Monitor";
         var why = entryDay
             ? $"Technical signal ({d.MomentumShift} / {d.TrendSetup}) was evaluated on {e.EvidenceDate:yyyy-MM-dd}, on or before the entry of {e.EntryDate:yyyy-MM-dd}; it is not post-entry evidence."
-            : $"Technical signal ({d.MomentumShift} / {d.TrendSetup}) is not backed by a post-entry loss, confirmed breakdown or allocation breach for a {role ?? "Strategic"} holding.";
+            : lossOnly
+                ? string.Create(CultureInfo.InvariantCulture,
+                    $"A post-entry loss ({e.UnrealizedGainPct:F1}%) with only mild weakness ({d.MomentumShift} / {d.TrendSetup}) is risk evidence, not an independent exit reason; no stop breach, confirmed breakdown or allocation breach exists for a {role ?? "Strategic"} holding.")
+                : $"Technical signal ({d.MomentumShift} / {d.TrendSetup}) is not backed by a post-entry loss, confirmed breakdown or allocation breach for a {role ?? "Strategic"} holding.";
         var reasonText = $"{why} Original technical action: {d.FinalAction}. Evidence as of {e.EvidenceAsOfUtc:yyyy-MM-dd HH:mm} UTC.";
 
         var gated = d with
@@ -204,6 +247,25 @@ public static class PortfolioEvidenceGate
             FinalActionClass = FinalActionEngine.FinalActionClass(replacement),
             HoverDescription = "Review stop-loss levels. Reminder only — no sell trigger is confirmed for this holding.",
             FinalActionReason = reasonText,
+        };
+        return new GateOutcome(gated, codes, d.FinalAction);
+    }
+
+    /// <summary>A confirmed sell trigger on a profitable position whose planned stop is verified clear: protect the gain with the stop instead of exiting.</summary>
+    private static GateOutcome ProfitProtectedAdvisory(FinalActionDecision d, string? role, PortfolioEvidence e, List<string> codes)
+    {
+        var replacement = string.Equals(role?.Trim(), "Speculative", StringComparison.OrdinalIgnoreCase) ? SpecTrailStopNoAdd : TrailStopNoAdd;
+        codes.Add(GateReasons.ProfitProtectedByStop);
+        var stop = e.Risk?.PlannedStop is { } s ? string.Create(CultureInfo.InvariantCulture, $" {s:0.####}") : "";
+        var reason = string.Create(CultureInfo.InvariantCulture,
+            $"Confirmed sell trigger on a profitable position (unrealized gain {e.UnrealizedGainPct:F1}%) with the planned stop{stop} verified clear: tighten or trail the stop to protect the gain rather than exit. " +
+            $"No stop breach, confirmed breakdown or allocation breach exists. Original rule output: {d.FinalAction}. Evidence as of {e.EvidenceAsOfUtc:yyyy-MM-dd HH:mm} UTC.");
+        var gated = d with
+        {
+            FinalAction = replacement,
+            FinalActionClass = FinalActionEngine.FinalActionClass(replacement),
+            HoverDescription = "Protect the gain: tighten or trail the stop. Advisory only — no exit trigger is independently confirmed.",
+            FinalActionReason = reason,
         };
         return new GateOutcome(gated, codes, d.FinalAction);
     }

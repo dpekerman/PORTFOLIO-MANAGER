@@ -927,8 +927,14 @@ export class DecisionEngineService {
     if (oversoldContext && topHalfClose && (highVolume || macdImproving) && !waterfallBlock)
       return 'Active Buy Trigger';
 
-    // 2. Active Sell Trigger: OverboughtContext AND BottomHalfClose AND (HighVol OR MACDWeakening)
-    if (overboughtContext && bottomHalfClose && (highVolume || macdWeakening))
+    // 2. Active Sell Trigger: OverboughtContext AND BottomHalfClose AND bearish confirmation.
+    //    Volume alone is not confirmation: a high-volume breakout day can close low in its range while RSI is still rising.
+    //    Confirmation = MACD weakening, or high volume with RSI at/below its signal line.
+    if (
+      overboughtContext &&
+      bottomHalfClose &&
+      (macdWeakening || (highVolume && rsiAvail && rsi <= sig))
+    )
       return 'Active Sell Trigger';
 
     // 3. Warning (oversold, knife still falling)
