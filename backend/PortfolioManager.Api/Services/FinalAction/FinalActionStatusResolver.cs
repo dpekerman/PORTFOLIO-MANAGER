@@ -19,7 +19,9 @@ public sealed record EvidenceInput(
     /// <summary>The symbol's scan failed or was absent in a pass.</summary>
     bool EvaluationFailed,
     /// <summary>First required input missing for the decision rule (see <see cref="FinalActionStatusResolver.MissingRequired"/>).</summary>
-    string? MissingRequired);
+    string? MissingRequired,
+    /// <summary>The scanner fetched data it refused to use (<see cref="ScanRejection"/>): a data-quality problem, not a failed refresh.</summary>
+    string? Rejection = null);
 
 public sealed record EvidenceAssessment(
     EvidenceHealth Health,
@@ -72,6 +74,8 @@ public static class FinalActionStatusResolver
     public const string AwaitingStaleData = "AWAITING_STALE_DATA";
     public const string AwaitingRefreshFailed = "AWAITING_REFRESH_FAILED";
     public const string AwaitingInvalidPrice = "AWAITING_INVALID_PRICE";
+    public const string AwaitingInconsistentData = "AWAITING_INCONSISTENT_DATA";
+    public const string AwaitingInsufficientHistory = "AWAITING_INSUFFICIENT_HISTORY";
     public const string AwaitingRequiredPrefix = "AWAITING_REQUIRED_";
     public const string EvaluationInterrupted = "EVALUATION_INTERRUPTED";
     public const string RevalidationMissed = "REVALIDATION_MISSED";
@@ -86,6 +90,8 @@ public static class FinalActionStatusResolver
         var expected = TradingCalendar.LastCompletedSession(utcNow, ex);
         EvidenceAssessment Result(EvidenceHealth h, params string[] codes) => new(h, codes, expected, e.ScanTradingDate);
 
+        if (e.Rejection == ScanRejection.InconsistentSession) return Result(EvidenceHealth.Invalid, AwaitingInconsistentData);
+        if (e.Rejection == ScanRejection.InsufficientHistory) return Result(EvidenceHealth.Missing, AwaitingInsufficientHistory);
         if (e.EvaluationFailed) return Result(EvidenceHealth.Failed, AwaitingRefreshFailed);
         if (e.Price <= 0m) return Result(EvidenceHealth.Invalid, AwaitingInvalidPrice);
         if (e.MissingRequired is not null) return Result(EvidenceHealth.Missing, AwaitingRequiredPrefix + e.MissingRequired);

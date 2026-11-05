@@ -26,6 +26,23 @@ const REASON_LABELS: Record<string, string> = {
   REVALIDATION_MISSED: 'The latest evaluation did not re-confirm this recommendation',
   LIFECYCLE_WINDOW_ELAPSED: 'The recommendation window has elapsed',
   QUOTE_OLDER_THAN_SCAN: 'The source quote is older than the scan',
+  PROFIT_SIGNAL_NO_INDEPENDENT_TRIGGER: 'Profit-taking rule fired without an independent exit reason — advisory only',
+  OVERBOUGHT_CAUTION_NO_ADD: 'Overbought or extended — do not add; not a reason to sell',
+  PLANNED_STOP_BREACHED: 'Observed price is at or below the Planned Stop (not a confirmed broker execution)',
+  BROKER_STOP_BREACHED: 'Observed price is at or below a recorded broker stop (verify the order status)',
+  STOP_EVIDENCE_UNVERIFIED: 'Stop state cannot be verified: the price observation is stale or unavailable',
+  STOP_COVERAGE_PARTIAL: 'Recorded broker stops cover only part of the position',
+  STOP_COVERAGE_UNKNOWN: 'Broker stop coverage is unknown or ambiguous',
+  ALLOCATION_EVIDENCE_UNAVAILABLE: 'Allocation cannot be verified: portfolio values mix currencies without a verified conversion',
+  ALREADY_OWNED: 'Already held — this is an add decision, not a new position',
+  ADD_BLOCKED_PORTFOLIO_ACTION: "Add blocked: the Portfolio's own decision for this holding does not permit adding",
+  LOSS_NOT_INDEPENDENT_EXIT_REASON:
+    'A loss with only mild weakness is risk evidence, not an independent exit reason',
+  SELL_TRIGGER_PROFIT_PROTECTED_BY_STOP:
+    'Sell trigger on a profitable position: consider tightening your stop (a plan, not a broker order)',
+  TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS: 'Position is at a loss: the take-profit label was corrected',
+  AWAITING_INCONSISTENT_DATA: 'Market data was internally inconsistent and was not used',
+  AWAITING_INSUFFICIENT_HISTORY: 'Too little complete price history to evaluate',
 };
 
 export function describeReasonCode(code: string): string {

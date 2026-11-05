@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 
 namespace PortfolioManager.Api.Services.FinalAction;
 
@@ -129,7 +129,9 @@ public static class FinalActionEngine
             MomentumState: dec.MomentumShift,
             MaStructure: maStructure,
             PriceStructure: r.PriceStructure,
-            ChaseRisk: r.ChaseRisk || gap.Status != "No Gap",
+            ChaseRisk: r.ChaseRisk,
+            GapChase: gap.Status is "Gap Up - Strong" or "Gap Up - Weak",
+            GapFailed: gap.Status == "Gap Up - Failed",
             TrendDamage: r.FibZone == "Trend Damage",
             ValueTrap: isValueTrap));
 
@@ -338,7 +340,9 @@ public static class FinalActionEngine
         if (ctx.OversoldContext && ctx.TopHalfClose && (ctx.HighVolume || ctx.MacdImproving) && !waterfallBlock)
             return "Active Buy Trigger";
 
-        if (ctx.OverboughtContext && ctx.BottomHalfClose && (ctx.HighVolume || ctx.MacdWeakening))
+        // Volume alone is not bearish confirmation (a high-volume breakout day can close low in its range while RSI is still rising):
+        // MACD must be weakening, or high volume must come with RSI at/below its signal line.
+        if (ctx.OverboughtContext && ctx.BottomHalfClose && (ctx.MacdWeakening || (ctx.HighVolume && rsiAvail && rsi <= sig)))
             return "Active Sell Trigger";
 
         if (rsi < 35 && rsiAvail && rsi < sig) return "Warning";
@@ -490,7 +494,8 @@ public static class FinalActionEngine
 
     private sealed record WatchlistEntryContext(
         string? Role, double? Rsi, int? BuyScore, string? TrendSetup, string? MomentumShift, string? MomentumState,
-        string? MaStructure, FinalActionPriceStructure? PriceStructure, bool ChaseRisk, bool TrendDamage, bool ValueTrap);
+        string? MaStructure, FinalActionPriceStructure? PriceStructure, bool ChaseRisk, bool TrendDamage, bool ValueTrap,
+        bool GapChase = false, bool GapFailed = false);
 
     private static readonly string[] HardLevelStates =
     [
@@ -530,10 +535,14 @@ public static class FinalActionEngine
             && levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM" or "BOUNCE_CONFIRMED" or "APPROACHING_SUPPORT";
         var compression = patternType.Contains("FALLING_WEDGE", StringComparison.Ordinal)
             && patternState is "DEVELOPING" or "TIGHTENING" or "NEAR_APEX";
-        var extended = c.ChaseRisk || c.TrendSetup == "Constructive Extended" || c.MomentumShift == "Warning — Overbought Run";
+        var severelyBearishMa = c.MaStructure == "200 > 50 > P";
+        // Confirmed structural damage outranks a gap-driven "extended" reading: a damaged trend is never extended.
+        var damaged = c.TrendDamage || severelyBearishMa;
+        var trendExtended = c.ChaseRisk || c.TrendSetup == "Constructive Extended" || c.MomentumShift == "Warning — Overbought Run";
+        var extended = trendExtended || (c.GapChase && !damaged);
+        var gapFailed = c.GapFailed;
         var acceptableMa = string.IsNullOrEmpty(c.MaStructure)
             || c.MaStructure.StartsWith("P >", StringComparison.Ordinal) || c.MaStructure == "50 > P > 200";
-        var severelyBearishMa = c.MaStructure == "200 > 50 > P";
         var oversold = c.Rsi is not null && c.Rsi <= 35;
         var earlyReversal = oversold && (positive || c.TrendSetup == "Oversold Reversal Watch" || c.TrendSetup == "Early Reversal");
         var roleAllowsStarter = role is "Core" or "Strategic" or "Strategic-Income";
@@ -553,25 +562,27 @@ public static class FinalActionEngine
         else if (extended)
         {
             finalAction = resistance ? "WATCH / NO CHASE" : "WAIT FOR PULLBACK";
-            reason = "Trend may be healthy, but current price location is extended for a new entry.";
+            reason = trendExtended
+                ? "Trend may be healthy, but current price location is extended for a new entry."
+                : "Price gapped up and the gap is holding; do not chase it for a new entry.";
         }
         else if (declining)
         {
             finalAction = c.TrendDamage ? "WAIT FOR RECLAIM" : "WAIT FOR REVERSAL";
             reason = "Momentum is declining and reversal confirmation is not complete.";
         }
-        else if (confirmedConstructive && accelerating && (buyScore ?? 0) >= 4 && acceptableMa && !c.TrendDamage && !c.ValueTrap)
+        else if (!gapFailed && confirmedConstructive && accelerating && (buyScore ?? 0) >= 4 && acceptableMa && !c.TrendDamage && !c.ValueTrap)
         {
             finalAction = role == "Speculative" && !(structure?.KeyLevelState.Contains("BREAKOUT", StringComparison.Ordinal) ?? false)
                 ? "BUY WATCH" : "ENTRY CANDIDATE";
             reason = "Structure and momentum are confirmed with a strong Buy Score and acceptable MA structure.";
         }
-        else if (roleAllowsStarter && (buyScore ?? 0) >= 4 && (confirmedConstructive || supportConstructive) && positive && acceptableMa)
+        else if (!gapFailed && roleAllowsStarter && (buyScore ?? 0) >= 4 && (confirmedConstructive || supportConstructive) && positive && acceptableMa)
         {
             finalAction = "STARTER ENTRY";
             reason = "Constructive support and momentum allow a staged initial position for this role.";
         }
-        else if ((buyScore ?? 0) >= 4 && (supportConstructive || compression || confirmedConstructive) && !c.TrendDamage)
+        else if (!gapFailed && (buyScore ?? 0) >= 4 && (supportConstructive || compression || confirmedConstructive) && !c.TrendDamage)
         {
             finalAction = "BUY WATCH";
             reason = "The setup is promising, but one or more entry confirmations are still missing.";
@@ -634,6 +645,11 @@ public static class FinalActionEngine
         };
     }
 
+    internal const string OverboughtCaution = "Hold / Overbought Caution — No Add";
+
+    /// <summary>Overbought/extended without a confirmed bearish reversal: a reason not to add, never a reason to sell.</summary>
+    internal static bool IsOverextended(string ts, string ms) => ts == "Constructive Extended" || ms == "Warning — Overbought Run";
+
     private static string CorePortfolioAction(string ts, string ms, FinalActionInput r)
     {
         var rsi = r.Rsi;
@@ -650,6 +666,7 @@ public static class FinalActionEngine
         if (ts == "Cooling") return "Hold / No New Buy";
         if (ts == "Technical Caution" || ms == "Breakdown" || ms == "Active Sell Trigger") return "Hold / Review";
         if (ts == "Waterfall / Falling Knife" || ms == "Warning") return "Hold / Risk Review";
+        if (IsOverextended(ts, ms)) return OverboughtCaution;
         if (ms == "Uptrend") return "Hold / No Chase";
         return "Hold";
     }
@@ -671,6 +688,7 @@ public static class FinalActionEngine
         if (ts == "Technical Caution" || ms == "Breakdown") return "Hold / Technical Caution";
         if (ts == "Waterfall / Falling Knife" || ms == "Warning") return "Hold / Risk Review";
         if (ms == "Active Sell Trigger") return "Trim / Review";
+        if (IsOverextended(ts, ms)) return OverboughtCaution;
         if (ms == "Uptrend") return "Hold / No Chase";
         return "Hold";
     }
@@ -688,7 +706,7 @@ public static class FinalActionEngine
             return "Hold / Trail Stop";
         }
         if (ms == "Consolidation / Dip-Buy") return "Hold / Trail Stop";
-        if (ts == "Constructive Extended" || ms == "Warning — Overbought Run") return "Trail Stop / Trim";
+        if (ts == "Constructive Extended" || ms == "Warning — Overbought Run") return "Hold / Trail Stop — No Add";
         if (ts == "Cooling" || ms == "Breakdown") return "Exit / Cut Loss";
         if (ts == "Waterfall / Falling Knife" || ms == "Warning") return "Cut Loss / Exit";
         if (ms == "Uptrend") return "Hold / Trail Stop";
@@ -701,7 +719,7 @@ public static class FinalActionEngine
         if (ms == "Active Sell Trigger") return "Take Profit / Exit";
         if (ms == "Bullish Shift") return "Hold Spec / Watch";
         if ((ts == "Confirmed Constructive" || ts == "Quality Trend Entry") && ms == "Uptrend") return "Hold Spec / Trail Stop";
-        if (ts == "Constructive Extended" || ms == "Warning — Overbought Run") return "Trim / Trail Stop";
+        if (ts == "Constructive Extended" || ms == "Warning — Overbought Run") return "Hold Spec / Trail Stop — No Add";
         if (ts == "Cooling" || ms == "Breakdown") return "Cut Loss / Thesis Review";
         if (ts == "Waterfall / Falling Knife" || ms == "Warning") return "Cut Loss / Exit";
         if (ms == "Uptrend") return "Hold Spec / Trail Stop";
@@ -838,6 +856,7 @@ public static class FinalActionEngine
     {
         var a = action.ToLowerInvariant();
         if (a.Contains("stand by") && a.Contains("no add")) return "ma-standby-no-add";
+        if (a.StartsWith("hold", StringComparison.Ordinal) && a.Contains("no add")) return "ma-hold";
         if (a.Contains("partial profit") || a.Contains("profit watch") || a.Contains("protect gain")) return "ma-tfsa-profit";
         if (a.Contains("trim") || a.Contains("sell 50%") || a.Contains("sell majority") || a.Contains("keep runner")
             || a.Contains("keep small runner") || a.Contains("hold runner") || a.Contains("trail remainder")

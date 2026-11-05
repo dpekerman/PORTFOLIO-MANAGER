@@ -150,6 +150,7 @@ builder.Services.AddScoped<IPortfolioService, PortfolioService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IRiskService, PortfolioManager.Api.Services.Risk.RiskService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IStopSheetImportService, PortfolioManager.Api.Services.Risk.StopSheetImportService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.ISwingTradingService, PortfolioManager.Api.Services.Risk.SwingTradingService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IOpenRiskReader, PortfolioManager.Api.Services.Risk.OpenRiskReader>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();

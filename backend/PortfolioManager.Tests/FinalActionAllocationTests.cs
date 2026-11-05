@@ -168,7 +168,8 @@ public sealed class FinalActionAllocationTests
     [Fact]
     public void ActionableExit_NamesTheQualifyingRiskRule()
     {
-        var d = Decision("Exit / Cut Loss", "Cooling", "Breakdown");
+        // A confirmed sell trigger on a Swing position at a loss is an independent technical exit.
+        var d = Decision("Exit / Cut Loss", "Confirmed Constructive", "Active Sell Trigger");
         var e = Ev(gain: -4);
         var o = PortfolioEvidenceGate.Apply(d, "Swing", e);
         var (codes, text) = FinalActionExplainer.ExplainPortfolio(o.Decision, o, e, "Swing");

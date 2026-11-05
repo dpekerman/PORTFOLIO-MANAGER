@@ -143,7 +143,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                 LowPrice      = m.RegularMarketDayLow,
                 OpenPrice     = m.RegularMarketOpen,
                 PreviousClose = prev,
-                Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                SourcePriceTimestamp = m.RegularMarketTime
             };
         }
         catch (Exception ex)

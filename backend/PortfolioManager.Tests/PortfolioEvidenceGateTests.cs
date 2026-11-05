@@ -133,17 +133,32 @@ public sealed class PortfolioEvidenceGateTests
 
     // ── Untouched cases ──
     [Theory]
-    [InlineData("Take Partial Profit / Protect Gain")]
-    [InlineData("Sell Majority / Keep Small Runner")]
-    [InlineData("Trim 33–50% / Trail Remainder")]
     [InlineData("Hold / Review")]
     [InlineData("Trim / Exit Watch")]
     [InlineData("Hold")]
-    public void ProfitTakingAndAdvisoryActions_AreNeverChanged(string action)
+    public void AdvisoryActions_AreNeverChanged(string action)
     {
         var o = Run(action, "Strategic", Evidence(entry: Today));
         Assert.Equal(action, o.Decision.FinalAction);
         Assert.Empty(o.ReasonCodes);
+    }
+
+    // PM-024: profit-taking labels used to bypass the gate and sell Strategic holdings on gain / 52-week-high / RSI alone.
+    // They now need an independent reason (allocation breach, structural breakdown); without one they are advisory.
+    [Theory]
+    [InlineData("Take Partial Profit / Protect Gain")]
+    [InlineData("Sell Majority / Keep Small Runner")]
+    [InlineData("Trim 33–50% / Trail Remainder")]
+    public void ProfitTakingActions_AreGatedLikeEveryOtherReduction(string action)
+    {
+        var advisory = Run(action, "Strategic", Evidence(entry: Today.AddDays(-60)));
+        Assert.Equal("Hold / Profit Watch — No Add", advisory.Decision.FinalAction);
+        Assert.Equal(action, advisory.OriginalAction);
+        Assert.Contains(GateReasons.ProfitNoIndependentTrigger, advisory.ReasonCodes);
+
+        var breach = Run(action, "Strategic", Evidence(size: 12, limit: 10));
+        Assert.Equal(action, breach.Decision.FinalAction);
+        Assert.Contains(GateReasons.AllocationBreach, breach.ReasonCodes);
     }
 
     // ── Add side ──
