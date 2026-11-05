@@ -35,6 +35,14 @@ const REASON_LABELS: Record<string, string> = {
   STOP_COVERAGE_UNKNOWN: 'Broker stop coverage is unknown or ambiguous',
   ALLOCATION_EVIDENCE_UNAVAILABLE: 'Allocation cannot be verified: portfolio values mix currencies without a verified conversion',
   ALREADY_OWNED: 'Already held — this is an add decision, not a new position',
+  ADD_BLOCKED_PORTFOLIO_ACTION: "Add blocked: the Portfolio's own decision for this holding does not permit adding",
+  LOSS_NOT_INDEPENDENT_EXIT_REASON:
+    'A loss with only mild weakness is risk evidence, not an independent exit reason',
+  SELL_TRIGGER_PROFIT_PROTECTED_BY_STOP:
+    'Sell trigger on a profitable position: consider tightening your stop (a plan, not a broker order)',
+  TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS: 'Position is at a loss: the take-profit label was corrected',
+  AWAITING_INCONSISTENT_DATA: 'Market data was internally inconsistent and was not used',
+  AWAITING_INSUFFICIENT_HISTORY: 'Too little complete price history to evaluate',
 };
 
 export function describeReasonCode(code: string): string {

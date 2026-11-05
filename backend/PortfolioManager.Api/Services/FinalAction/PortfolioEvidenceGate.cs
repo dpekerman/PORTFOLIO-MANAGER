@@ -84,6 +84,7 @@ public static class GateReasons
     public const string StopCoverageUnknown = "STOP_COVERAGE_UNKNOWN";
     public const string AllocationUnavailable = "ALLOCATION_EVIDENCE_UNAVAILABLE";
     public const string LossNotIndependent = "LOSS_NOT_INDEPENDENT_EXIT_REASON";
+    public const string AddBlockedPortfolioAction = "ADD_BLOCKED_PORTFOLIO_ACTION";
     public const string ProfitProtectedByStop = "SELL_TRIGGER_PROFIT_PROTECTED_BY_STOP";
     public const string LabelCorrectedForLoss = "TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS";
 }
@@ -258,13 +259,13 @@ public static class PortfolioEvidenceGate
         codes.Add(GateReasons.ProfitProtectedByStop);
         var stop = e.Risk?.PlannedStop is { } s ? string.Create(CultureInfo.InvariantCulture, $" {s:0.####}") : "";
         var reason = string.Create(CultureInfo.InvariantCulture,
-            $"Confirmed sell trigger on a profitable position (unrealized gain {e.UnrealizedGainPct:F1}%) with the planned stop{stop} verified clear: tighten or trail the stop to protect the gain rather than exit. " +
-            $"No stop breach, confirmed breakdown or allocation breach exists. Original rule output: {d.FinalAction}. Evidence as of {e.EvidenceAsOfUtc:yyyy-MM-dd HH:mm} UTC.");
+            $"Confirmed sell trigger on a profitable position (unrealized gain {e.UnrealizedGainPct:F1}%) while the observed price is above the Planned Stop{stop}: consider tightening or trailing your stop to protect the gain rather than exiting. " +
+            $"The Planned Stop is a plan, not a confirmed broker order, and this application places no orders. No stop breach, confirmed breakdown or allocation breach exists. Original rule output: {d.FinalAction}. Evidence as of {e.EvidenceAsOfUtc:yyyy-MM-dd HH:mm} UTC.");
         var gated = d with
         {
             FinalAction = replacement,
             FinalActionClass = FinalActionEngine.FinalActionClass(replacement),
-            HoverDescription = "Protect the gain: tighten or trail the stop. Advisory only — no exit trigger is independently confirmed.",
+            HoverDescription = "Protect the gain: consider tightening or trailing your stop. Advisory only — no exit trigger is independently confirmed and no order is implied.",
             FinalActionReason = reason,
         };
         return new GateOutcome(gated, codes, d.FinalAction);
@@ -294,6 +295,35 @@ public static class PortfolioEvidenceGate
             FinalActionReason = reason,
         };
         return new GateOutcome(gated, codes, d.FinalAction);
+    }
+
+    /// <summary>
+    /// Whether a Portfolio decision for a held lot does not permit adding to it: a Hold that says no add / no chase / no new buy,
+    /// a caution or risk-review hold, a stop-breach review, or any trim/exit. Decided from the catalog entry, not a second rule set.
+    /// </summary>
+    public static bool BlocksAdd(string portfolioAction)
+    {
+        var def = FinalActionCatalog.Describe(portfolioAction);
+        if (def.Category == "Entry") return false;
+        if (def.Category == "TrimExit" || def.Id is "REVIEW STOP BREACH" or "ADD/NEEDS REVIEW" or "HOLD/REVIEW") return true;
+        return def.Group is "Portfolio" or "Profit-taking"
+            && (def.Id.Contains("NO ADD", StringComparison.Ordinal) || def.Id.Contains("NO CHASE", StringComparison.Ordinal)
+                || def.Id.Contains("NO NEW BUY", StringComparison.Ordinal) || def.Id.Contains("CAUTION", StringComparison.Ordinal)
+                || def.Id.Contains("RISK REVIEW", StringComparison.Ordinal));
+    }
+
+    /// <summary>A Watchlist Entry on a held ticker where the Portfolio's own decision for the lot does not permit an add.</summary>
+    public static GateOutcome BlockOwnedEntryByPortfolioAction(FinalActionDecision d, string portfolioAction)
+    {
+        const string replacement = "Hold / No Add";
+        var gated = d with
+        {
+            FinalAction = replacement,
+            FinalActionClass = "ma-hold",
+            FinalActionReason = Join(d.FinalActionReason,
+                $"The Portfolio's decision for this holding is \"{portfolioAction}\", which does not permit adding. Original technical action: {d.FinalAction}."),
+        };
+        return new GateOutcome(gated, [GateReasons.AddBlockedPortfolioAction], d.FinalAction);
     }
 
     /// <summary>A watchlist entry for a ticker that is already held is an ADD: the same limit, sector and allocation-reliability checks apply.</summary>

@@ -138,15 +138,31 @@ public sealed class FinalActionService(
     private const string LogicMode = "Enhanced";
     private const int BatchSize = 100;
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
+    /// <summary>Failed, inconsistent or incomplete market data can recover within minutes: such a snapshot must not be reused for the full TTL.</summary>
+    private static readonly TimeSpan TransientCacheTtl = TimeSpan.FromMinutes(1);
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
     public FinalActionSnapshotDto? TryGetCached(string userId) =>
-        cache.TryGetValue($"final-actions:{userId}", out FinalActionSnapshotDto? hit) ? hit : null;
+        cache.TryGetValue($"final-actions:{userId}", out FinalActionSnapshotDto? hit) && IsStillCurrent(hit, DateTime.UtcNow) ? hit : null;
+
+    /// <summary>
+    /// A cached snapshot is only served while every decision it holds is still based on the last completed session. When a session
+    /// completes (or the grace period ends) after the snapshot was computed, its actions are no longer current and are recomputed.
+    /// </summary>
+    internal static bool IsStillCurrent(FinalActionSnapshotDto? snapshot, DateTime nowUtc) =>
+        snapshot is not null
+        && snapshot.Watchlist.Concat(snapshot.Portfolio).All(r =>
+            r.EvaluationState != nameof(EffectiveState.CurrentValid)
+            || r.DataAsOfDate is not { } asOf
+            || asOf >= TradingCalendar.LastCompletedSession(nowUtc, TradingCalendar.ExchangeFor(r.Symbol, null)));
+
+    private static bool HasTransientEvidenceProblem(FinalActionSnapshotDto s) =>
+        s.Watchlist.Concat(s.Portfolio).Any(r => r.EvidenceHealth is nameof(EvidenceHealth.Failed) or nameof(EvidenceHealth.Invalid) or nameof(EvidenceHealth.Missing));
 
     public async Task<FinalActionSnapshotDto> ComputeAsync(string userId, bool fresh = false, CancellationToken ct = default)
     {
         var key = $"final-actions:{userId}";
-        if (!fresh && cache.TryGetValue(key, out FinalActionSnapshotDto? hit) && hit is not null) return hit;
+        if (!fresh && cache.TryGetValue(key, out FinalActionSnapshotDto? hit) && hit is not null && IsStillCurrent(hit, DateTime.UtcNow)) return hit;
 
         var watchlistItems = await db.WatchlistItems.AsNoTracking()
             .Where(w => w.UserId == userId || w.UserId == null).ToListAsync(ct);
@@ -160,6 +176,7 @@ public sealed class FinalActionService(
             .Select(s => s.ToUpperInvariant()).Distinct().ToList();
 
         var scans = new Dictionary<string, RsiScanResult>(StringComparer.OrdinalIgnoreCase);
+        var rejections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var unknown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var batch in symbols.Chunk(BatchSize))
         {
@@ -167,6 +184,7 @@ public sealed class FinalActionService(
             {
                 foreach (var r in await scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
                     scans[r.Symbol] = r;
+                foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -200,7 +218,8 @@ public sealed class FinalActionService(
             var tradingDate = scan is null || scan.TradingDate == default ? (DateOnly?)null : scan.TradingDate;
             return FinalActionStatusResolver.AssessEvidence(
                 new EvidenceInput(tradingDate, quoteUtc, scan?.CurrentPrice ?? 0m, EvaluationFailed: scan is null,
-                    MissingRequired: scan is null ? null : FinalActionStatusResolver.MissingRequired(scan, category)),
+                    MissingRequired: scan is null ? null : FinalActionStatusResolver.MissingRequired(scan, category),
+                    Rejection: scan is null && rejections.TryGetValue(symbol, out var rejected) ? rejected : null),
                 TradingCalendar.ExchangeFor(symbol, scan?.AnalysisMarket), nowUtc);
         }
 
@@ -216,6 +235,20 @@ public sealed class FinalActionService(
         var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
         var valuation = await CheckValuationAsync(userId, summaries, ct);
         var riskByLot = await LoadRiskAsync(userId, summaries, ct);
+
+        // One authoritative portfolio evaluation per open lot (engine + evidence + gate), shared by the Portfolio rows below and
+        // by the Watchlist, so an owned ticker's ADD is judged against exactly the decision the Portfolio shows for its lots.
+        var lotEval = new Dictionary<int, (RsiScanResult? Scan, PortfolioEvidence? Evidence, GateOutcome? Gate)>();
+        foreach (var holding in openHoldings)
+        {
+            scans.TryGetValue(holding.Item.Symbol, out var lotScan);
+            if (lotScan is null) { lotEval[holding.Item.Id] = (null, null, null); continue; }
+            var context = BuildContext(holding, lotScan, summaries, grandTotal, valuation);
+            var raw = FinalActionEngine.TranslateForPortfolio(ToInput(lotScan), holding.Item.HoldingRole, context);
+            var evidence = BuildEvidence(holding, lotScan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context, valuation,
+                riskByLot.GetValueOrDefault(holding.Item.Id));
+            lotEval[holding.Item.Id] = (lotScan, evidence, PortfolioEvidenceGate.Apply(raw, holding.Item.HoldingRole, evidence));
+        }
 
         var watchlist = new List<FinalActionResultDto>();
         foreach (var item in watchlistItems)
@@ -264,6 +297,21 @@ public sealed class FinalActionService(
                 decision = conditioned.Decision;
                 wlOriginal = conditioned.OriginalAction;
                 wlCodes = conditioned.ReasonCodes.Concat(["ALREADY_OWNED"]).Concat(wlCodes).ToList();
+
+                // The Portfolio's own decision for the held lots has the last word on an ADD: if it does not permit adding
+                // (No Add / caution / risk review / exit), the Watchlist entry must not read as a buy.
+                if (FinalActionCatalog.Describe(decision.FinalAction).Category == "Entry")
+                {
+                    var blocking = owned.Select(l => lotEval[l.Item.Id].Gate?.Decision.FinalAction)
+                        .FirstOrDefault(a => a is not null && PortfolioEvidenceGate.BlocksAdd(a));
+                    if (blocking is not null)
+                    {
+                        var blocked = PortfolioEvidenceGate.BlockOwnedEntryByPortfolioAction(decision, blocking);
+                        decision = blocked.Decision;
+                        wlOriginal = blocked.OriginalAction;
+                        wlCodes = blocked.ReasonCodes.Concat(wlCodes).ToList();
+                    }
+                }
             }
             else if (owned.Count > 0) wlCodes = ["ALREADY_OWNED", .. wlCodes];
             watchlist.Add(ToDto(decision, item.Symbol, SignalSources.Watchlist, null, role, scan!) with
@@ -287,19 +335,8 @@ public sealed class FinalActionService(
         var portfolio = new List<FinalActionResultDto>();
         foreach (var holding in openHoldings)
         {
-            scans.TryGetValue(holding.Item.Symbol, out var scan);
             var (quoteUtc, quoteFetchedUtc) = QuoteTimes(holding.Quote);
-            FinalActionDecision? decision = null;
-            PortfolioEvidence? evidence = null;
-            GateOutcome? gate = null;
-            if (scan is not null)
-            {
-                var context = BuildContext(holding, scan, summaries, grandTotal, valuation);
-                decision = FinalActionEngine.TranslateForPortfolio(ToInput(scan), holding.Item.HoldingRole, context);
-                evidence = BuildEvidence(holding, scan, openHoldings, summaries, grandTotal, stockTotal, positionLimits, sectorTargets, context, valuation,
-                    riskByLot.GetValueOrDefault(holding.Item.Id));
-                gate = PortfolioEvidenceGate.Apply(decision, holding.Item.HoldingRole, evidence);
-            }
+            var (scan, evidence, gate) = lotEval[holding.Item.Id];
             var category = gate is null ? "Advisory" : FinalActionCatalog.Describe(gate.Decision.FinalAction).Category;
             var assessment = Assess(scan, holding.Item.Symbol, category, quoteUtc);
             if (gate is null || evidence is null || assessment.Health != EvidenceHealth.Fresh)
@@ -341,7 +378,7 @@ public sealed class FinalActionService(
         var meta = new FinalActionEvaluationMeta(
             unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), portfolioSnap?.UpdatedAt, portfolioSnap is not null);
         var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, nowUtc, meta);
-        cache.Set(key, snapshot, CacheTtl);
+        cache.Set(key, snapshot, HasTransientEvidenceProblem(snapshot) ? TransientCacheTtl : CacheTtl);
         return snapshot;
     }
 
@@ -370,8 +407,12 @@ public sealed class FinalActionService(
     {
         var why = a.Health switch
         {
-            EvidenceHealth.Failed => "the market-data refresh for this symbol failed",
+            EvidenceHealth.Failed => "the market-data refresh for this symbol failed (provider or network error)",
+            EvidenceHealth.Invalid when a.Codes.Contains(FinalActionStatusResolver.AwaitingInconsistentData) =>
+                "the market data for this symbol is internally inconsistent (a session's price range does not contain its own price) and was not used",
             EvidenceHealth.Invalid => "the price is missing or invalid",
+            EvidenceHealth.Missing when a.Codes.Contains(FinalActionStatusResolver.AwaitingInsufficientHistory) =>
+                "the provider returned too little complete price history to evaluate this symbol",
             EvidenceHealth.Missing => "required evidence is unavailable (" + string.Join(", ", a.Codes) + ")",
             EvidenceHealth.Stale => a.DataAsOf is { } d
                 ? $"the latest data is from {d:yyyy-MM-dd}, older than the last completed session ({a.ExpectedSession:yyyy-MM-dd})"

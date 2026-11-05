@@ -55,6 +55,7 @@ public sealed class Pm024Stage3OwnershipTests
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         db.WatchlistItems.Add(new WatchlistItem { UserId = "u", Symbol = "MIX.TO", Role = "Strategic" });
         db.SinglePositionLimits.Add(new SinglePositionLimit { Role = "Strategic", TargetPct = strategicLimit });
+        db.SinglePositionLimits.Add(new SinglePositionLimit { Role = "Core", TargetPct = strategicLimit });
         db.SinglePositionLimits.Add(new SinglePositionLimit { Role = "Swing", TargetPct = swingLimit });
         if (sectorTarget is { } t) db.AllocationSectorTargets.Add(new AllocationSectorTarget { Sector = "Tech", TargetPct = t });
         foreach (var n in new[] { "MARGIN", "TFSA" }) db.AccountTypes.Add(new AccountType { Name = n, NormalizedName = n });
@@ -100,8 +101,9 @@ public sealed class Pm024Stage3OwnershipTests
     [Fact]
     public async Task SingleRole_AcrossAccountsAndCosts_AggregatesEveryOpenLot_InAnyOrder()
     {
-        var a = Lot(1, "MIX.TO", "Strategic", "TFSA", 100m, 80m);
-        var b = Lot(2, "MIX.TO", "Strategic", "MARGIN", 50m, 95m);
+        // Core lots: the Portfolio's own decision ("Hold / Add If Underweight") permits an add, so the Watchlist entry stands.
+        var a = Lot(1, "MIX.TO", "Core", "TFSA", 100m, 92m);
+        var b = Lot(2, "MIX.TO", "Core", "MARGIN", 50m, 95m);
         var first = await EvaluateAsync([a, b, Other()], strategicLimit: 70m);
         var second = await EvaluateAsync([b, a, Other()], strategicLimit: 70m);
 
@@ -133,7 +135,7 @@ public sealed class Pm024Stage3OwnershipTests
     [Fact]
     public async Task ClosedLotOfAnotherRole_IsNotEligible_AndDoesNotMakeTheAddAmbiguous()
     {
-        var r = await EvaluateAsync([Lot(1, "MIX.TO", "Strategic", "TFSA", 100m, 80m), Lot(2, "MIX.TO", "Swing", "MARGIN", 500m, 90m, type: "CLOSE"), Other()]);
+        var r = await EvaluateAsync([Lot(1, "MIX.TO", "Core", "TFSA", 100m, 92m), Lot(2, "MIX.TO", "Swing", "MARGIN", 500m, 90m, type: "CLOSE"), Other()]);
         Assert.Equal("STARTER ENTRY", r.FinalAction);
         Assert.DoesNotContain("ADD_ROLE_POLICY_AMBIGUOUS", r.ReasonCodes!);
         Assert.Equal(1, r.Ownership!.OpenLots);

@@ -91,7 +91,10 @@ public sealed class Pm024Stage4SwingExitPolicyTests
         Assert.Equal("Hold / Trail Stop — No Add", o.Decision.FinalAction);
         Assert.Equal("Exit / Take Profit", o.OriginalAction);
         Assert.Contains(GateReasons.ProfitProtectedByStop, o.ReasonCodes);
-        Assert.Contains("verified clear", o.Decision.FinalActionReason);
+        Assert.Contains("above the Planned Stop", o.Decision.FinalActionReason);
+        Assert.Contains("not a confirmed broker order", o.Decision.FinalActionReason);
+        Assert.Contains("places no orders", o.Decision.FinalActionReason);
+        Assert.Contains("no order is implied", o.Decision.HoverDescription);
         Assert.Equal(DecisionBucket.None, DecisionEligibility.Classify(FinalActionCatalog.Describe(o.Decision.FinalAction).Id, "Portfolio", 18m));
     }
 
@@ -107,11 +110,12 @@ public sealed class Pm024Stage4SwingExitPolicyTests
     }
 
     [Fact]
-    public void ConfirmedSell_WithAStopBreach_EscalatesToReviewStopBreach()
+    public void ConfirmedSell_WithAStopBreach_KeepsTheIndependentExit_AndAddsTheBreachEvidence()
     {
         var o = Gate(ConfirmedSell(), Ev(7.53, Stop("Breached", breached: true)));
-        Assert.NotEqual("Hold / Trail Stop — No Add", o.Decision.FinalAction);
-        Assert.Contains(o.Decision.FinalAction, new[] { "Exit / Take Profit", PortfolioEvidenceGate.ReviewStopBreach });
+        Assert.Equal("Exit / Take Profit", o.Decision.FinalAction);
+        Assert.Contains(GateReasons.PlannedStopBreached, o.ReasonCodes);
+        Assert.Contains(GateReasons.TechnicalExitPostEntry, o.ReasonCodes);
         Assert.DoesNotContain(GateReasons.ProfitProtectedByStop, o.ReasonCodes);
     }
 

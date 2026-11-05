@@ -12,10 +12,26 @@ public interface IRsiScannerService
     Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
     Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// Trading symbols of the most recent <see cref="AnalyzeSymbolsAsync"/> call that returned data the scanner refused to use
+    /// (see <see cref="ScanRejection"/>), as opposed to symbols that simply failed to load. Empty for scanners that don't classify.
+    /// </summary>
+    IReadOnlyDictionary<string, string> LastRejections => new Dictionary<string, string>();
+}
+
+/// <summary>Why market data was fetched but not usable. A rejection is a data-quality problem, never a transport failure.</summary>
+public static class ScanRejection
+{
+    public const string InconsistentSession = "INCONSISTENT_SESSION";
+    public const string InsufficientHistory = "INSUFFICIENT_HISTORY";
 }
 
 public sealed class RsiScannerService : IRsiScannerService
 {
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _rejections = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, string> LastRejections => _rejections;
+
     private readonly HttpClient _http;
     private readonly ILogger<RsiScannerService> _logger;
     private readonly IMarketDataProvider _marketData;
@@ -120,6 +136,7 @@ public sealed class RsiScannerService : IRsiScannerService
         IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
     {
         var results = new List<RsiScanResult>();
+        _rejections.Clear();
         var distinct = symbols
             .Select(s => s.Trim().ToUpperInvariant())
             .Where(s => s.Length > 0)
@@ -149,6 +166,9 @@ public sealed class RsiScannerService : IRsiScannerService
             var batchResults = await Task.WhenAll(tasks);
             foreach (var scanned in batchResults.Where(item => item.Result is not null))
                 results.AddRange(scanned.Symbols.Select(symbol => CopyForTradingTicker(scanned.Result!, symbol)));
+            foreach (var unusable in batchResults.Where(item => item.Result is null))
+                if (_rejections.TryGetValue(unusable.Symbols[0].AnalysisTicker, out var why))
+                    foreach (var symbol in unusable.Symbols) _rejections[symbol.TradingTicker] = why;
             if (analysisGroups.Count > 3) await Task.Delay(1500, ct);
         }
 
@@ -423,9 +443,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 volumes.Add(i < qd.Volume.Count ? qd.Volume[i] ?? 0L : 0L);
             }
 
-            if (closes.Count < 30) return null;
+            if (closes.Count < 30)
+            {
+                _rejections[symbol] = ScanRejection.InsufficientHistory;
+                return null;
+            }
             if (!IsSessionConsistent(opens[^1], highs[^1], lows[^1], closes[^1]))
             {
+                _rejections[symbol] = ScanRejection.InconsistentSession;
                 _logger.LogWarning("Scan for {Symbol} rejected: last bar {Date} is internally inconsistent (O {O} H {H} L {L} C {C}).",
                     symbol, DateTimeOffset.FromUnixTimeSeconds(timestamps[^1]).UtcDateTime.ToString("yyyy-MM-dd"), opens[^1], highs[^1], lows[^1], closes[^1]);
                 return null;
