@@ -193,6 +193,24 @@ public sealed class FinalActionService(
             }
         }
 
+        // A transient provider hiccup on one thin symbol (e.g. a CSE listing) must not leave it "Awaiting Data" for the whole day:
+        // retry once, only for symbols with no scan and no deterministic rejection (inconsistent/insufficient data would just repeat).
+        var retry = symbols.Where(s => !scans.ContainsKey(s) && !rejections.ContainsKey(s) && !unknown.Contains(s)).ToArray();
+        if (retry.Length > 0)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), ct);
+                foreach (var r in await scanner.AnalyzeSymbolsAsync(retry, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
+                    scans[r.Symbol] = r;
+                foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "[FinalAction] Retry scan of {Count} symbol(s) failed.", retry.Length);
+            }
+        }
+
         // A symbol with no scan or no usable price was not evaluated: it must never confirm or invalidate anything.
         foreach (var s in symbols)
             if (!scans.TryGetValue(s, out var sc) || sc.CurrentPrice <= 0m) unknown.Add(s);
