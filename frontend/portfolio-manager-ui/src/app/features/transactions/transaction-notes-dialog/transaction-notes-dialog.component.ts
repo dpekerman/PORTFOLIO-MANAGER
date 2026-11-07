@@ -18,28 +18,8 @@ export interface TransactionNotesDialogResult {
   selector: 'app-transaction-notes-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, MatButtonModule, MatDialogModule, MatFormFieldModule, MatInputModule],
-  template: `
-    <h2 mat-dialog-title>Notes — {{ data.symbol }}</h2>
-    <mat-dialog-content>
-      <mat-form-field appearance="outline" style="width:100%">
-        <mat-label>Notes</mat-label>
-        <textarea
-          matInput
-          [(ngModel)]="notes"
-          rows="6"
-          placeholder="Add a note about this transaction…"
-          cdkFocusInitial
-        ></textarea>
-      </mat-form-field>
-    </mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="cancel()">Cancel</button>
-      @if (notes) {
-        <button mat-stroked-button color="warn" (click)="clear()">Clear Note</button>
-      }
-      <button mat-flat-button color="primary" (click)="save()">Save</button>
-    </mat-dialog-actions>
-  `,
+  templateUrl: './transaction-notes-dialog.component.html',
+  styleUrl: './transaction-notes-dialog.component.scss',
 })
 export class TransactionNotesDialogComponent {
   protected readonly data = inject<TransactionNotesDialogData>(MAT_DIALOG_DATA);

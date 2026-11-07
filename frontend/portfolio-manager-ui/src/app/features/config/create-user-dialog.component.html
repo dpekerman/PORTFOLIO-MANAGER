@@ -1,0 +1,34 @@
+<h2 mat-dialog-title>Create User</h2>
+<mat-dialog-content>
+  <form [formGroup]="form" class="create-user-form">
+    <mat-form-field appearance="outline" class="full-w">
+      <mat-label>Display Name</mat-label>
+      <input matInput formControlName="displayName" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-w">
+      <mat-label>Email</mat-label>
+      <input matInput type="email" formControlName="email" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-w">
+      <mat-label>Password</mat-label>
+      <input matInput type="password" formControlName="password" />
+      @if (form.controls.password.hasError('minlength')) {
+        <mat-error>At least 10 characters required</mat-error>
+      }
+    </mat-form-field>
+    <mat-form-field appearance="outline" class="full-w">
+      <mat-label>Role</mat-label>
+      <mat-select formControlName="role">
+        <mat-option value="Admin">Admin</mat-option>
+        <mat-option value="Trader">Trader</mat-option>
+        <mat-option value="Viewer">Viewer</mat-option>
+      </mat-select>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button [mat-dialog-close]="undefined">Cancel</button>
+  <button mat-flat-button color="primary" [disabled]="form.invalid" (click)="submit()">
+    Create
+  </button>
+</mat-dialog-actions>

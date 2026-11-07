@@ -1,0 +1,57 @@
+<h2 mat-dialog-title>Add to Watchlist</h2>
+<mat-dialog-content>
+  <form [formGroup]="form">
+    <mat-form-field appearance="outline" class="watchlist-symbol-field">
+      <mat-label>Symbol (e.g. AAPL, RY.TO)</mat-label>
+      <input
+        matInput
+        formControlName="symbol"
+        (input)="onSymbolInput($event)"
+        [matAutocomplete]="auto"
+        placeholder="Search symbol..."
+      />
+      @if (isDuplicate()) {
+        <span matSuffix class="exists-tag" role="status">
+          <mat-icon>warning</mat-icon> Already exists
+        </span>
+      }
+      @if (searching()) {
+        <mat-progress-spinner matSuffix mode="indeterminate" diameter="20" />
+      }
+      <mat-autocomplete #auto (optionSelected)="selectResult($event.option.value)">
+        @for (r of searchResults(); track r.symbol) {
+          <mat-option [value]="r">
+            <span class="search-result">
+              <strong>{{ r.symbol }}</strong>
+              @if (r.exchange) {
+                <span class="search-exch">{{ r.exchange }}</span>
+              }
+              <span class="search-desc">{{ r.description }}</span>
+              @if (isExisting(r.symbol)) {
+                <span class="exists-tag">Already exists</span>
+              }
+            </span>
+          </mat-option>
+        }
+      </mat-autocomplete>
+      @if (isDuplicate()) {
+        <mat-hint class="exists-hint">This ticker is already on your watchlist.</mat-hint>
+      }
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="watchlist-role-field">
+      <mat-label>Investment Role</mat-label>
+      <mat-select formControlName="role">
+        @for (r of roles; track r) {
+          <mat-option [value]="r">{{ r }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </form>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-flat-button color="primary" [disabled]="form.invalid || isDuplicate()" (click)="confirm()">
+    Add
+  </button>
+</mat-dialog-actions>

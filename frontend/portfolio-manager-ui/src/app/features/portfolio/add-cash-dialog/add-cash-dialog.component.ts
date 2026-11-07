@@ -10,7 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { CashFlowType, SELECTABLE_CASH_FLOW_TYPES } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
 @Component({
@@ -34,7 +34,7 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 })
 export class AddCashDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly cashState = inject(CashStateService);
+  private readonly cashState = inject(CashStore);
   private readonly dialogRef = inject(MatDialogRef<AddCashDialogComponent>);
 
   protected readonly saving = signal(false);

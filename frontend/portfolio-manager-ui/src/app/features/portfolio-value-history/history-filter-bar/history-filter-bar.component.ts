@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { SnapshotStatus } from '../../../core/models/portfolio.models';
-import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
+import { PortfolioValueHistoryStore } from '../../../core/store/portfolio-value-history.store';
 
 @Component({
   selector: 'app-history-filter-bar',
@@ -28,7 +28,7 @@ import { PortfolioValueHistoryStateService } from '../../../core/services/portfo
   ],
 })
 export class HistoryFilterBarComponent {
-  protected readonly historyState = inject(PortfolioValueHistoryStateService);
+  protected readonly historyState = inject(PortfolioValueHistoryStore);
 
   protected readonly statusOptions: { value: SnapshotStatus; label: string }[] = [
     { value: 'Original', label: 'Original' },

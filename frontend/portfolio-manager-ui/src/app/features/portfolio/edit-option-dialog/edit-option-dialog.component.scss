@@ -9,7 +9,7 @@ h2[mat-dialog-title] {
   flex-direction: column;
   gap: 4px;
   padding-top: 8px;
-  min-width: 520px;
+  min-width: min(520px, 100%);
   width: 100%;
 }
 
@@ -76,5 +76,13 @@ h2[mat-dialog-title] {
     justify-content: space-between;
     font-size: 0.85rem;
     font-weight: 500;
+  }
+}
+
+// Side-by-side field pairs stack on a phone so each field keeps a usable width.
+@media (max-width: 599.98px) {
+  .form-row {
+    flex-direction: column;
+    gap: 4px;
   }
 }

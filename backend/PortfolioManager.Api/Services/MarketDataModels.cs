@@ -39,6 +39,7 @@ public sealed class YahooMeta
     [JsonPropertyName("regularMarketPreviousClose")] public decimal RegularMarketPreviousClose { get; set; }
     [JsonPropertyName("regularMarketChange")]        public decimal RegularMarketChange { get; set; }
     [JsonPropertyName("regularMarketChangePercent")] public decimal RegularMarketChangePercent { get; set; }
+    [JsonPropertyName("regularMarketTime")]          public long?   RegularMarketTime { get; set; }
     [JsonPropertyName("longName")]                   public string? LongName { get; set; }
     [JsonPropertyName("shortName")]                  public string? ShortName { get; set; }
 }
@@ -112,14 +113,22 @@ public sealed class YahooQuoteItem
     [JsonPropertyName("industry")]                      public string? Industry                     { get; set; }
     [JsonPropertyName("quoteType")]                     public string? QuoteType                    { get; set; }
     [JsonPropertyName("marketState")]                   public string? MarketState                  { get; set; }
+    [JsonPropertyName("regularMarketTime")]             public long? RegularMarketTime              { get; set; }
+    [JsonPropertyName("currency")]                      public string? Currency                     { get; set; }
     [JsonPropertyName("marketCap")]                     public long?   MarketCap                    { get; set; }
-    [JsonPropertyName("fiftyTwoWeekHigh")]              public decimal FiftyTwoWeekHigh             { get; set; }
+    [JsonPropertyName("fiftyTwoWeekHigh")]               public decimal FiftyTwoWeekHigh             { get; set; }
     [JsonPropertyName("fiftyTwoWeekLow")]               public decimal FiftyTwoWeekLow              { get; set; }
     [JsonPropertyName("targetMeanPrice")]               public decimal TargetMeanPrice              { get; set; }
     [JsonPropertyName("trailingPE")]                    public decimal TrailingPE                   { get; set; }
     [JsonPropertyName("forwardPE")]                     public decimal ForwardPE                    { get; set; }
     [JsonPropertyName("priceToBook")]                   public decimal PriceToBook                  { get; set; }
     [JsonPropertyName("trailingAnnualDividendYield")]   public decimal TrailingAnnualDividendYield   { get; set; }
+    /// <summary>Annualised forward dividend per share in the trading currency. Absent (null) when Yahoo does not supply it.</summary>
+    [JsonPropertyName("dividendRate")]                  public decimal? DividendRate                { get; set; }
+    /// <summary>On /v7/finance/quote this is a PERCENTAGE (5.64 = 5.64%); /v10 summaryDetail reports a fraction instead.</summary>
+    [JsonPropertyName("dividendYield")]                 public decimal? DividendYieldPct            { get; set; }
+    /// <summary>Unix seconds of the latest or next dividend payment. It dates the dividend, not when Yahoo last refreshed it.</summary>
+    [JsonPropertyName("dividendDate")]                  public long?    DividendDate                { get; set; }
 }
 
 /// <summary>Result shape returned by GET /api/stocks/search.</summary>

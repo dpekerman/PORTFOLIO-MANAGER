@@ -12,7 +12,8 @@ namespace PortfolioManager.Api.Controllers;
 public sealed class AnalyticsController(
     IAnalyticsService analyticsService,
     IPerformanceSummaryService performanceSummary,
-    IPortfolioActionScoreService actionScore) : ControllerBase
+    IPortfolioActionScoreService actionScore,
+    PortfolioManager.Api.Services.FinalAction.IFinalActionService finalActions) : ControllerBase
 {
     [HttpGet("decision-performance")]
     public async Task<ActionResult<AnalyticsDecisionPerformanceResponse>> GetDecisionPerformance(CancellationToken ct)
@@ -31,4 +32,35 @@ public sealed class AnalyticsController(
     public async Task<ActionResult<IReadOnlyList<ActionScoreDto>>> GetActionScores(CancellationToken ct)
         => Ok(await actionScore.GetScoresAsync(
             User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty, ct));
+
+    /// <summary>
+    /// Every scored watchlist candidate with its canonical Final Action and Action-Center eligibility, computed by
+    /// the backend engine. The Priority Candidates widget shows only the eligible rows; no client-side rules.
+    /// </summary>
+    [HttpGet("priority-candidates")]
+    public async Task<ActionResult<IReadOnlyList<PriorityCandidateRowDto>>> GetPriorityCandidates(CancellationToken ct)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+        var scores = await actionScore.GetScoresAsync(userId, ct);
+        var snapshot = await finalActions.ComputeAsync(userId, fresh: false, ct);
+        var byTicker = snapshot.Watchlist.GroupBy(r => r.Symbol.ToUpperInvariant()).ToDictionary(g => g.Key, g => g.First());
+
+        return Ok(scores.Select(s =>
+        {
+            byTicker.TryGetValue(s.Symbol.ToUpperInvariant(), out var decision);
+            var e = PortfolioManager.Api.Services.FinalAction.PriorityCandidateEligibility.Resolve(decision, s.TotalScore);
+            return new PriorityCandidateRowDto(s, e.Eligible, e.PriorityLevel, e.ReasonsExcluded,
+                decision?.FinalAction, decision?.FinalActionId, decision?.Reason, decision?.HoverDescription);
+        }).ToList());
+    }
 }
+
+public sealed record PriorityCandidateRowDto(
+    ActionScoreDto Score,
+    bool Eligible,
+    string PriorityLevel,
+    IReadOnlyList<string> ReasonsExcluded,
+    string? FinalAction,
+    string? FinalActionId,
+    string? FinalActionReason,
+    string? HoverDescription);

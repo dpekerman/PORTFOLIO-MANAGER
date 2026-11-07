@@ -71,6 +71,12 @@ public sealed class AccountTypeService(AppDbContext db) : IAccountTypeService
         foreach (var stock in stocks) stock.AccountType = name;
         foreach (var option in options) option.AccountType = name;
         foreach (var entry in cash) entry.AccountType = name;
+        foreach (var episode in await db.TradeEpisodes.Where(x => x.AccountType == oldName).ToListAsync(ct))
+            episode.AccountType = name;
+        foreach (var plan in await db.RiskPlans.Where(x => x.AccountType == oldName).ToListAsync(ct))
+            plan.AccountType = name;
+        foreach (var order in await db.BrokerStopRecords.Where(x => x.AccountType == oldName).ToListAsync(ct))
+            order.AccountType = name;
         item.Name = name;
         item.NormalizedName = Normalize(name);
         item.Version = Guid.NewGuid();
@@ -89,7 +95,11 @@ public sealed class AccountTypeService(AppDbContext db) : IAccountTypeService
         var item = await FindAsync(id, version, ct);
         if (await db.PortfolioItems.AnyAsync(x => x.AccountType == item.Name, ct)
             || await db.OptionItems.AnyAsync(x => x.AccountType == item.Name, ct)
-            || await db.CashItems.AnyAsync(x => x.AccountType == item.Name, ct))
+            || await db.CashItems.AnyAsync(x => x.AccountType == item.Name, ct)
+            || await db.TradeEpisodes.AnyAsync(x => x.AccountType == item.Name, ct)
+            || await db.RiskPlans.AnyAsync(x => x.AccountType == item.Name, ct)
+            || await db.BrokerStopRecords.AnyAsync(x => x.AccountType == item.Name, ct)
+            || await db.RiskAuditEvents.AnyAsync(x => x.AccountType == item.Name, ct))
             throw new AccountTypeException(409, "This account type is in use, including closed transactions or cash entries, and cannot be deleted.");
         db.AccountTypes.Remove(item);
         await db.SaveChangesAsync(ct);

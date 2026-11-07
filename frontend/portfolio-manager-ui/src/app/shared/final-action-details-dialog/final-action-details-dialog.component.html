@@ -1,0 +1,75 @@
+<h2 mat-dialog-title id="fa-details-title">Final Action — {{ r.symbol }}</h2>
+<mat-dialog-content class="fad" aria-labelledby="fa-details-title">
+  <section class="fad-sec" aria-label="Portfolio decision">
+    <h3>Portfolio decision</h3>
+    <p class="fad-action" data-testid="fad-action">
+      <strong>{{ r.finalAction }}</strong>
+      <span class="fad-chip" [class.fad-chip-warn]="awaiting">{{ state }}</span>
+      <span class="fad-chip" [class.fad-chip-on]="r.isActionable">{{ r.isActionable ? 'Actionable' : 'Not actionable' }}</span>
+    </p>
+    @if (r.reason) {
+      <p class="fad-reason" data-testid="fad-reason">{{ r.reason }}</p>
+    }
+    @if (r.originalAction) {
+      <p class="fad-note">Technical rule produced <em>{{ r.originalAction }}</em>; it was not promoted to a portfolio decision.</p>
+    }
+    @if (codes.length > 0) {
+      <ul class="fad-codes" aria-label="Reason codes">
+        @for (c of codes; track c.code) {
+          <li><span class="fad-code">{{ c.code }}</span> {{ c.text }}</li>
+        }
+      </ul>
+    }
+  </section>
+
+  @if (r.lastValidAction) {
+    <section class="fad-sec" aria-label="Last valid action">
+      <h3>Last valid action (historical)</h3>
+      <p>
+        {{ r.lastValidAction }}
+        @if (r.lastSuccessfulEvaluationUtc) {
+          <span class="fad-dim"> — evaluated {{ r.lastSuccessfulEvaluationUtc | date: 'MMM d, y, h:mm a' }}</span>
+        }
+      </p>
+    </section>
+  }
+
+  <section class="fad-sec" aria-label="Technical signals">
+    <h3>Technical signals <span class="fad-dim">(market readings, not decisions)</span></h3>
+    <dl class="fad-dl">
+      <dt>Trend setup</dt><dd>{{ r.trendSetup || '—' }}</dd>
+      <dt>Momentum shift</dt><dd>{{ r.momentumShift || '—' }}</dd>
+    </dl>
+    @if (conflict) {
+      <p class="fad-note" data-testid="fad-conflict">{{ conflict }}</p>
+    }
+  </section>
+
+  <section class="fad-sec" aria-label="Evidence and freshness">
+    <h3>Evidence</h3>
+    <dl class="fad-dl">
+      <dt>Evidence health</dt><dd>{{ r.evidenceHealth || '—' }}</dd>
+      <dt>Data as of (session)</dt><dd>{{ r.dataAsOfDate || '—' }}</dd>
+      <dt>Expected session</dt><dd>{{ r.expectedSession || '—' }}</dd>
+      <dt>Source quote time</dt>
+      <dd data-testid="fad-quote">
+        @if (r.quoteVerification === 'Verified') {
+          {{ r.quoteTimestampUtc | date: 'MMM d, y, h:mm a' }} (checked)
+        } @else {
+          Not available — the bar date is used; source freshness was not independently verified
+        }
+      </dd>
+      @if (r.exchangeBasis === 'Assumed') {
+        <dt>Exchange</dt><dd>Assumed (no market metadata); NYSE session calendar used</dd>
+      }
+      <dt>Last successful evaluation</dt>
+      <dd>{{ r.lastSuccessfulEvaluationUtc ? (r.lastSuccessfulEvaluationUtc | date: 'MMM d, y, h:mm a') : '—' }}</dd>
+      @if (r.entryDate) {
+        <dt>Entry date</dt><dd>{{ r.entryDate }}</dd>
+      }
+    </dl>
+  </section>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-flat-button type="button" mat-dialog-close cdkFocusInitial>Close</button>
+</mat-dialog-actions>

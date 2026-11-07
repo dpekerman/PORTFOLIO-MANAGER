@@ -35,6 +35,9 @@ public sealed class TradingSessionGuard(
         }
         var todayEt = DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz));
 
+        // Weekends are never trading days, even when market data is unavailable and the check would otherwise fail open.
+        if (todayEt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) return false;
+
         var latestBarDate = await GetLatestTradingDateAsync(ct);
         return latestBarDate is null || latestBarDate == todayEt;
     }

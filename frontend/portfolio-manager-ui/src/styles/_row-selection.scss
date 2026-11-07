@@ -1,0 +1,31 @@
+// Persistent "last worked on" row highlight for every Material grid (see RowSelectionDirective).
+// Wins over per-grid tier/severity/hover colours and over sticky-cell backgrounds.
+
+table.mat-mdc-table tr.mat-mdc-row.row-selected {
+  background-color: color-mix(in srgb, var(--mat-sys-primary, #3f51b5) 16%, transparent) !important;
+  box-shadow: inset 4px 0 0 var(--mat-sys-primary, #3f51b5);
+
+  > td.mat-mdc-cell {
+    background-color: color-mix(in srgb, var(--mat-sys-primary, #3f51b5) 16%, var(--mat-sys-surface, #fff)) !important;
+  }
+
+  > td.mat-mdc-cell:first-child {
+    box-shadow: inset 4px 0 0 var(--mat-sys-primary, #3f51b5);
+  }
+}
+
+table.mat-mdc-table tr.mat-mdc-row[appSelectableRow],
+table.mat-mdc-table tr.mat-mdc-row[aria-selected] {
+  cursor: pointer;
+}
+
+// Phone card layout: highlight the whole card.
+table.mat-mdc-table[data-responsive='cards'] tr.mat-mdc-row.row-selected {
+  box-shadow: none;
+  outline: 2px solid var(--mat-sys-primary, #3f51b5);
+  outline-offset: -2px;
+
+  > td.mat-mdc-cell:first-child {
+    box-shadow: none;
+  }
+}

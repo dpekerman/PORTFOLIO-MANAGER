@@ -129,10 +129,19 @@
   }
 }
 
+.tx-filter-error {
+  color: var(--mat-sys-error, #b3261e);
+}
+
 .tx-filter-field {
   min-width: 170px;
   max-width: 220px;
   font-size: 0.82rem;
+
+  @media (max-width: 600px) {
+    flex: 1 1 100%;
+    max-width: none;
+  }
 }
 
 .tx-filter-age {
@@ -392,6 +401,18 @@
   font-weight: 700 !important;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.tx-total-cell {
+  line-height: 1.3;
+
+  .tx-total-ccy {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+    letter-spacing: 0.04em;
+  }
 }
 
 .tx-totals-cost {

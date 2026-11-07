@@ -12,7 +12,7 @@ import {
   UpdateAutomationSettingsRequest,
 } from '../models/portfolio.models';
 
-/** HTTP transport only, zero state — see AutomationStateService for signals/polling. */
+/** HTTP transport only, zero state — see AutomationStore for signals/polling. */
 @Injectable({ providedIn: 'root' })
 export class AutomationApiService {
   private readonly http = inject(HttpClient);

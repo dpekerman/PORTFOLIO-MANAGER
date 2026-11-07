@@ -1,0 +1,27 @@
+@use 'swing-shared';
+
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.st-table {
+  width: 100%;
+
+  td,
+  th {
+    padding: 6px 10px;
+    vertical-align: top;
+  }
+}
+
+.st-count {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.st-foot {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}

@@ -1,0 +1,38 @@
+.card-skeleton {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  & > :last-child {
+    margin-left: auto;
+  }
+}
+.header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}

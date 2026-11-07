@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 
 @Component({
   selector: 'app-add-manual-dialog',
@@ -25,7 +25,7 @@ import { PortfolioStateService } from '../../../core/services/portfolio-state.se
 })
 export class AddManualDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly state = inject(PortfolioStateService);
+  private readonly state = inject(PortfolioStore);
   private readonly dialogRef = inject(MatDialogRef<AddManualDialogComponent>);
 
   protected readonly saving = signal(false);

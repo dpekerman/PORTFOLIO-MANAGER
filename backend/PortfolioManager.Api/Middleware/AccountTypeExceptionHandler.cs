@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using PortfolioManager.Api.Services;
+using PortfolioManager.Api.Services.Risk;
 
 namespace PortfolioManager.Api.Middleware;
 
@@ -8,6 +9,20 @@ public sealed class AccountTypeExceptionHandler(ILogger<AccountTypeExceptionHand
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext context, Exception exception, CancellationToken ct)
     {
+        if (exception is RiskConflictException conflict)
+        {
+            logger.LogWarning("Portfolio risk-history conflict: {Reason}", conflict.Message);
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            await context.Response.WriteAsJsonAsync(new { error = conflict.Message }, ct);
+            return true;
+        }
+        if (exception is RiskValidationException riskError)
+        {
+            logger.LogWarning("Portfolio risk-history operation rejected: {Reason}", riskError.Message);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsJsonAsync(new { error = riskError.Message }, ct);
+            return true;
+        }
         if (exception is not AccountTypeException error) return false;
         logger.LogWarning("Account type operation rejected: {Reason}", error.Message);
         context.Response.StatusCode = error.StatusCode;

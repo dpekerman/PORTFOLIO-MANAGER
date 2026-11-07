@@ -33,6 +33,11 @@ export const routes: Routes = [
           import('./features/transactions/transactions.routes').then((m) => m.TRANSACTION_ROUTES),
       },
       {
+        path: 'swing-trading',
+        loadChildren: () =>
+          import('./features/swing-trading/swing-trading.routes').then((m) => m.SWING_TRADING_ROUTES),
+      },
+      {
         path: 'scanner',
         loadChildren: () =>
           import('./features/scanner/scanner.routes').then((m) => m.SCANNER_ROUTES),
@@ -69,6 +74,17 @@ export const routes: Routes = [
           import('./features/portfolio-value-history/portfolio-value-history.routes').then(
             (m) => m.PORTFOLIO_VALUE_HISTORY_ROUTES,
           ),
+      },
+      {
+        path: 'signal-tracker',
+        loadChildren: () =>
+          import('./features/signal-tracker/signal-tracker.routes').then(
+            (m) => m.SIGNAL_TRACKER_ROUTES,
+          ),
+      },
+      {
+        path: 'audit',
+        loadChildren: () => import('./features/audit/audit.routes').then((m) => m.AUDIT_ROUTES),
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     ],

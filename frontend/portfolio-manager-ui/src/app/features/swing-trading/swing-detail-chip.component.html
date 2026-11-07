@@ -1,0 +1,18 @@
+<button
+  type="button"
+  class="st-chip dc"
+  [class]="'st-chip dc dc-' + tone()"
+  [matTooltip]="detail()"
+  [attr.aria-expanded]="open()"
+  [attr.aria-label]="label() + '. ' + detail()"
+  [attr.data-testid]="testId()"
+  (click)="toggle()"
+>
+  @if (icon(); as i) {
+    <mat-icon aria-hidden="true" class="dc-icon">{{ i }}</mat-icon>
+  }
+  <span class="dc-label">{{ label() }}</span>
+</button>
+@if (open()) {
+  <span class="dc-detail" role="note">{{ detail() }}</span>
+}

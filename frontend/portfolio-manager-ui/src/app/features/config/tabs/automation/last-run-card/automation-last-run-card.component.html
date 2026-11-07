@@ -1,0 +1,91 @@
+@if (automationState.lastRun(); as run) {
+  <div class="automation-run-detail">
+    <div class="eod-toggle-row">
+      <span [class]="'section-header-badge ' + statusClass(run.overallStatus)">
+        Last run: {{ run.overallStatus }}
+      </span>
+      <span class="eod-toggle-hint">
+        {{ run.tradingDate }} · {{ run.triggerType }} · {{ run.machineName }}
+      </span>
+    </div>
+
+    <div class="automation-steps">
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">power</mat-icon>
+        <span>
+          Keep-awake lock acquired:
+          {{
+            run.powerRequestAcquiredAtUtc
+              ? (run.powerRequestAcquiredAtUtc | date: 'h:mm:ss a')
+              : 'pending'
+          }}
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">sync</mat-icon>
+        <span>
+          Market data refresh: <strong>{{ run.refreshStatus || 'pending' }}</strong>
+          @if (run.refreshCompletedAtUtc) {
+            ({{ run.refreshStartedAtUtc | date: 'h:mm a' }} –
+            {{ run.refreshCompletedAtUtc | date: 'h:mm a' }} ·
+            {{ run.portfolioSymbolCount }} portfolio + {{ run.watchlistSymbolCount }} watchlist
+            symbols)
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">query_stats</mat-icon>
+        <span>
+          RSI / EOD Signals: <strong>{{ run.rsiStatus || 'pending' }}</strong>
+          @if (run.rsiCompletedAtUtc) {
+            (observed {{ run.rsiCompletedAtUtc | date: 'h:mm a' }} ·
+            {{ run.eodSignalsPersistedCount }} signals persisted today)
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">photo_camera</mat-icon>
+        <span>
+          Portfolio Snapshot: <strong>{{ run.snapshotStatus || 'pending' }}</strong>
+          @if (run.snapshotCompletedAtUtc) {
+            (observed {{ run.snapshotCompletedAtUtc | date: 'h:mm a' }}
+            {{ run.snapshotSource ? '· source: ' + run.snapshotSource : '' }})
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">insights</mat-icon>
+        <span>
+          Value Screener (informational):
+          <strong>{{ valueScreenerLabel(run.valueScreenerStatus) }}</strong>
+          @if (run.valueScreenerStatus === 'NotObserved') {
+            (runs independently at 5:00 PM ET)
+          }
+          @if (run.valueScreenerLastRunAtUtc) {
+            (last run {{ run.valueScreenerLastRunAtUtc | date: 'h:mm a' }})
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">bedtime</mat-icon>
+        <span>
+          Keep-awake lock released:
+          {{
+            run.powerRequestReleasedAtUtc
+              ? (run.powerRequestReleasedAtUtc | date: 'h:mm:ss a')
+              : 'pending'
+          }}
+          @if (run.completedAtUtc) {
+            · Completed {{ run.completedAtUtc | date: 'h:mm:ss a' }}
+          }
+        </span>
+      </div>
+      @if (run.errorMessage) {
+        <div class="automation-step automation-step--error">
+          <mat-icon class="automation-step-icon">error_outline</mat-icon>
+          <span>Error @ {{ run.errorStep }}: {{ run.errorMessage }}</span>
+        </div>
+      }
+    </div>
+  </div>
+}

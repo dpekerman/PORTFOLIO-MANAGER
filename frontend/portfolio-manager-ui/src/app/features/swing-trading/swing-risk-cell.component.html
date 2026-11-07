@@ -1,0 +1,26 @@
+<div class="st-status-stack">
+  <span [class]="'st-chip ' + severityClass(row().severity)" data-testid="severity-chip">{{ row().severity }}</span>
+  @if (shown().length > 0) {
+    <span class="st-status-chips">
+      @for (s of shown(); track s) {
+        @if (s === 'StopBreached' && row().observation && !demo.isDemoMode()) {
+          <app-swing-detail-chip [label]="label(s)" [detail]="row().observation!" [tone]="tone(s)" testId="risk-status-chip" />
+        } @else {
+          <span class="st-chip" [class]="'st-chip st-tone-' + tone(s)" data-testid="risk-status-chip">{{ label(s) }}</span>
+        }
+      }
+      @if (view().hidden.length > 0) {
+        <button
+          type="button"
+          class="st-chip st-more"
+          [attr.aria-expanded]="expanded()"
+          [attr.aria-label]="expanded() ? 'Show fewer risk flags' : 'Show ' + view().hidden.length + ' more risk flags'"
+          data-testid="risk-more"
+          (click)="toggle()"
+        >
+          {{ expanded() ? 'Show less' : '+' + view().hidden.length + ' more' }}
+        </button>
+      }
+    </span>
+  }
+</div>

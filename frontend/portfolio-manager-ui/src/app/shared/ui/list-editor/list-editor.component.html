@@ -1,0 +1,58 @@
+<div class="list-panel">
+  <div class="list-header">
+    <span class="list-title">{{ heading() }}</span>
+    <span class="list-badge">{{ items().length }}</span>
+  </div>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="list-search">
+    <mat-icon matPrefix>search</mat-icon>
+    <input
+      matInput
+      [placeholder]="'Filter ' + heading().toLowerCase() + '…'"
+      [ngModel]="filter()"
+      (ngModelChange)="filter.set($event)"
+      autocomplete="off"
+    />
+    @if (filter()) {
+      <button matSuffix mat-icon-button (click)="filter.set('')" matTooltip="Clear">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </mat-form-field>
+  <div class="list-scroll">
+    @if (filtered().length === 0) {
+      <p class="list-empty">
+        {{ filter() ? 'No matches found' : 'No ' + heading().toLowerCase() + ' yet' }}
+      </p>
+    }
+    <mat-list>
+      @for (item of filtered(); track item) {
+        <mat-list-item class="list-item">
+          <span matListItemTitle>{{ item }}</span>
+          <button
+            matListItemMeta
+            mat-icon-button
+            (click)="removed.emit(item)"
+            matTooltip="Remove"
+            class="list-delete-btn"
+          >
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </mat-list-item>
+      }
+    </mat-list>
+  </div>
+  <mat-form-field appearance="outline" class="list-add-input" subscriptSizing="dynamic">
+    <mat-label>Add {{ noun() }}</mat-label>
+    <input
+      matInput
+      [ngModel]="newValue()"
+      (ngModelChange)="newValue.set($event)"
+      (keydown.enter)="$event.preventDefault(); add()"
+      [placeholder]="placeholder()"
+      autocomplete="off"
+    />
+    <button matSuffix mat-icon-button (click)="add()" [matTooltip]="'Add ' + noun()">
+      <mat-icon>add_circle</mat-icon>
+    </button>
+  </mat-form-field>
+</div>

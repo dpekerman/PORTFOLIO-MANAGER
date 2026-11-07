@@ -1,0 +1,163 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.sw-page {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px;
+  min-width: 0;
+}
+
+.sw-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+}
+
+.sw-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sw-refresh {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sw-refresh-status {
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.sw-refresh-error {
+  margin: 0;
+  color: var(--mat-sys-error);
+}
+
+.sw-spinning {
+  animation: sw-spin 1s linear infinite;
+}
+
+@keyframes sw-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-spinning {
+    animation: none;
+  }
+}
+
+.sw-tile {
+  display: grid;
+  gap: 2px;
+  align-content: center;
+  justify-items: center;
+  text-align: center;
+  padding: 10px 14px;
+  background: rgba(var(--sw-tile-rgb), 0.16);
+  border: 1px solid rgba(var(--sw-tile-rgb), 0.55);
+  border-radius: 12px;
+  color: color-mix(in srgb, rgb(var(--sw-tile-rgb)) 65%, var(--mat-sys-on-surface));
+  min-width: 0;
+}
+
+.sw-tile-total {
+  --sw-tile-rgb: 0, 160, 70;
+}
+
+.sw-tile-market {
+  --sw-tile-rgb: 25, 118, 210;
+}
+
+.sw-tile-pnl {
+  --sw-tile-rgb: 126, 62, 190;
+}
+
+.sw-tile-attention {
+  --sw-tile-rgb: 230, 140, 0;
+}
+
+.sw-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.sw-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.sw-cur {
+  font-size: 0.85rem;
+  font-weight: 400;
+  opacity: 0.75;
+}
+
+.sw-pos {
+  color: #1b7f3a;
+}
+
+.sw-neg {
+  color: var(--mat-sys-error);
+}
+
+.sw-asof {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.sw-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 0.72rem;
+}
+
+.sw-warn {
+  color: #b26a00;
+}
+
+.sw-sub {
+  opacity: 0.7;
+}
+
+.sw-tabs {
+  min-width: 0;
+}
+
+@media (max-width: 959.98px) {
+  .sw-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 599.98px) {
+  .sw-page {
+    padding: 8px;
+  }
+
+  .sw-head button {
+    min-height: 44px;
+  }
+}

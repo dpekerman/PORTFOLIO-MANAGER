@@ -1,6 +1,6 @@
 <h2 mat-dialog-title>
-  <mat-icon>edit</mat-icon>
-  Edit Position · {{ data.item.symbol }}
+  <mat-icon>{{ closeMode ? 'logout' : 'edit' }}</mat-icon>
+  {{ closeMode ? 'Close Position' : 'Edit Position' }} · {{ data.item.symbol }}
 </h2>
 
 <mat-dialog-content>
@@ -9,7 +9,9 @@
     <mat-form-field appearance="outline">
       <mat-label>Transaction Type</mat-label>
       <mat-select formControlName="transactionType">
-        <mat-option value="OPEN">OPEN</mat-option>
+        @if (!closeMode) {
+          <mat-option value="OPEN">OPEN</mat-option>
+        }
         <mat-option value="CLOSE">CLOSE</mat-option>
       </mat-select>
       <mat-hint>CLOSE moves this record to Transactions</mat-hint>
@@ -88,13 +90,23 @@
       <input matInput [matDatepicker]="closePicker" formControlName="closeDate" />
       <mat-datepicker-toggle matSuffix [for]="closePicker" />
       <mat-datepicker #closePicker />
+      @if (form.controls.closeDate.errors?.['required']) {
+        <mat-error>Close Date is required for a CLOSE</mat-error>
+      }
+      @if (form.controls.closeDate.errors?.['beforeOpen']) {
+        <mat-error>Close Date cannot be before the Open Date</mat-error>
+      }
     </mat-form-field>
 
     <mat-form-field appearance="outline">
       <mat-label>Closing Price / Share</mat-label>
       <span matTextPrefix>$&nbsp;</span>
       <input matInput type="number" formControlName="closingPrice" step="0.01" min="0" />
-      <mat-hint>Price at which position was closed</mat-hint>
+      @if (form.controls.closingPrice.errors?.['required'] || form.controls.closingPrice.errors?.['min']) {
+        <mat-error>Enter the actual execution price</mat-error>
+      } @else {
+        <mat-hint>Price at which position was closed</mat-hint>
+      }
     </mat-form-field>
 
     <!-- Row 6: Decision Source (full width) -->
@@ -131,21 +143,24 @@
           <mat-option [value]="r">{{ r }}</mat-option>
         }
       </mat-select>
-      <mat-hint>Investment role for this position</mat-hint>
+      <mat-hint>Investment role for this position. Changing it does not change quantity, cost, transactions or broker orders.</mat-hint>
     </mat-form-field>
+
+    @if (errorMessage(); as message) {
+      <p class="save-error" role="alert">{{ message }}</p>
+    }
   </form>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-stroked-button type="button" (click)="cancel()">Cancel</button>
+  <button mat-stroked-button type="button" [disabled]="saving()" (click)="cancel()">Cancel</button>
   <button
     mat-flat-button
-    type="submit"
-    form="edit-form"
-    [disabled]="form.invalid || form.pristine"
+    type="button"
+    [disabled]="form.invalid || form.pristine || saving()"
     (click)="save()"
   >
     <mat-icon>save</mat-icon>
-    Save Changes
+    {{ saving() ? 'Saving…' : 'Save Changes' }}
   </button>
 </mat-dialog-actions>
