@@ -572,6 +572,29 @@
   white-space: nowrap;
 }
 
+// One compact height/spacing for Record, Dismiss, + Position and Close Position.
+.action-btn.mat-mdc-button-base {
+  --mat-button-text-container-height: 30px;
+  --mat-button-outlined-container-height: 30px;
+  --mat-button-text-horizontal-padding: 8px;
+  --mat-button-outlined-horizontal-padding: 8px;
+  min-height: 30px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+
+  .mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .action-btn.mat-mdc-button-base {
+    min-height: 40px;
+  }
+}
+
 .px-status {
   display: block;
   font-size: 0.68rem;

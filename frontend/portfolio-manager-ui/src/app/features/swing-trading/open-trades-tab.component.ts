@@ -25,11 +25,12 @@ import { SwingDetailChipComponent } from './swing-detail-chip.component';
 import { SwingFilterBarComponent } from './swing-filter-bar.component';
 import { SwingPlannedStopCellComponent } from './swing-planned-stop-cell.component';
 import { SwingRiskCellComponent } from './swing-risk-cell.component';
-import { brokerStopView, priceView, protectionView } from './swing-presenters';
+import { brokerStopView, priceView, protectionView, targetView } from './swing-presenters';
 import {
   OPEN_TRADES_EXPORT_COLUMNS,
   compareNullable,
   downloadTextFile,
+  epochOrNull,
   manageRiskDataFor,
   openTradesExportRows,
 } from './swing-trading-logic';
@@ -72,20 +73,26 @@ export class OpenTradesTabComponent {
   private readonly closer = inject(SwingClosePositionService);
 
   protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys('swing-open-trades');
-  protected readonly sort = signal<Sort>({ active: 'risk', direction: 'asc' });
+  protected readonly sort = signal<Sort>({ active: 'openDate', direction: 'desc' });
   protected readonly priceOf = priceView;
   protected readonly brokerStopOf = brokerStopView;
   protected readonly protectionOf = protectionView;
+  protected readonly targetOf = (r: SwingTradeRow) => targetView(r, (n) => (n === null ? '—' : String(this.demo.maskValue(n))));
 
   protected readonly rows = computed(() => {
     const { active, direction } = this.sort();
     const data = this.store.filteredRows();
     if (!active || !direction) return data;
     const dir = direction === 'asc' ? 1 : -1;
-    return [...data].sort((a, b) =>
-      dir * compareNullable(this.sortValue(a, active), this.sortValue(b, active)) ||
-      compareNullable(a.distancePct, b.distancePct) || a.symbol.localeCompare(b.symbol) ||
-      a.account.localeCompare(b.account) || a.key.localeCompare(b.key));
+    // Missing values sort last in both directions; ties fall back to a fixed order so rows never jump.
+    return [...data].sort((a, b) => {
+      const av = this.sortValue(a, active);
+      const bv = this.sortValue(b, active);
+      const primary = av === null || bv === null ? compareNullable(av, bv) : dir * compareNullable(av, bv);
+      return primary ||
+        compareNullable(a.distancePct, b.distancePct) || a.symbol.localeCompare(b.symbol) ||
+        a.account.localeCompare(b.account) || a.key.localeCompare(b.key);
+    });
   });
 
   protected onSort(s: Sort): void {
@@ -98,7 +105,7 @@ export class OpenTradesTabComponent {
       case 'company': return r.companyName;
       case 'account': return r.account;
       case 'decisionSource': return r.decisionSource;
-      case 'openDate': return r.episodeOpenDate;
+      case 'openDate': return epochOrNull(r.episodeOpenDate);
       case 'daysHeld': return r.daysHeld;
       case 'quantity': return r.swingQuantity;
       case 'price': return r.currentPrice;
@@ -107,6 +114,7 @@ export class OpenTradesTabComponent {
       case 'stopLoss': return r.plannedStop;
       case 'brokerStop': return r.brokerStopTrigger;
       case 'target': return r.targetPrice;
+      case 'toTarget': return targetView(r, () => '').pct;
       case 'stopType': return r.stopType;
       case 'protection': return r.protection;
       case 'distance': return r.distancePct;

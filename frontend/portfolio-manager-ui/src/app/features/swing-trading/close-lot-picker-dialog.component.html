@@ -1,7 +1,7 @@
 <h2 mat-dialog-title>Close which lot?</h2>
 <mat-dialog-content>
   <p class="picker-intro">
-    {{ data.symbol }} in {{ data.account }} has {{ data.lots.length }} open Swing lots. Choose the lot you sold.
+    {{ data.symbol }}{{ data.account ? ' in ' + data.account : '' }} has {{ data.lots.length }} open lots. Choose the lot you sold.
   </p>
   <ul class="picker-list">
     @for (lot of data.lots; track lot.id) {
@@ -11,10 +11,10 @@
           type="button"
           class="picker-btn"
           (click)="choose(lot.id)"
-          [attr.aria-label]="'Close lot ' + lot.id + ', opened ' + (lot.openDate | date: 'yyyy-MM-dd') + ', ' + lot.shares + ' shares'"
+          [attr.aria-label]="'Close lot ' + lot.id + (lot.account ? ' in ' + lot.account : '') + ', opened ' + (lot.openDate | date: 'yyyy-MM-dd') + ', ' + lot.shares + ' shares'"
           [attr.data-testid]="'close-lot-' + lot.id"
         >
-          <span>Lot {{ lot.id }}</span>
+          <span>Lot {{ lot.id }}@if (lot.account) { · {{ lot.account }} }</span>
           <span>{{ lot.openDate ? (lot.openDate | date: 'yyyy-MM-dd') : 'no open date' }}</span>
           <span>{{ lot.shares | number: '1.0-4' }} shares</span>
         </button>

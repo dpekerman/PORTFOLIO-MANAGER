@@ -5,8 +5,10 @@ import {
   DestroyRef,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -36,6 +38,8 @@ import { BreakpointStore } from '../../core/store/breakpoint.store';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import { SignalsAuditStore } from '../../core/store/signals-audit.store';
+import { PortfolioStore } from '../../core/store/portfolio.store';
+import { SwingClosePositionService } from '../../core/services/swing-close-position.service';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
@@ -88,7 +92,20 @@ export class SignalTrackerPageComponent implements OnInit {
   private readonly snackBar = inject(MatSnackBar);
   private readonly isHandset = inject(BreakpointStore).isHandset;
   private readonly route = inject(ActivatedRoute);
+  private readonly closer = inject(SwingClosePositionService);
+  private readonly portfolio = inject(PortfolioStore);
+  private closeRefreshSeen = this.portfolio.roleChangeVersion();
 
+  /** Close Position is offered only while the exact security has a currently open lot in the portfolio. */
+  protected canClose(row: SignalAuditRow): boolean {
+    return this.closer.hasEligibleLotForSymbol(row.symbol);
+  }
+
+  /** Same picker, Edit Position dialog and update path as Swing Trading; nothing is saved until the user submits. */
+  protected closePosition(row: SignalAuditRow, event: Event): void {
+    event.stopPropagation();
+    void this.closer.openForSymbol(row.symbol);
+  }
   protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('signals-audit');
 
   /** Collapsed by default on handsets so the signals are visible without scrolling past the filters. */
@@ -211,6 +228,13 @@ export class SignalTrackerPageComponent implements OnInit {
   private readonly ticker$ = new Subject<string>();
 
   constructor() {
+    // A successful close bumps roleChangeVersion; reload so signal rows reflect the new holdings.
+    effect(() => {
+      const version = this.portfolio.roleChangeVersion();
+      if (version === this.closeRefreshSeen) return;
+      this.closeRefreshSeen = version;
+      untracked(() => this.store.loadInitial());
+    });
     this.ticker$
       .pipe(debounceTime(TICKER_DEBOUNCE_MS), distinctUntilChanged(), takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((ticker) => this.store.setFilters({ ticker }));

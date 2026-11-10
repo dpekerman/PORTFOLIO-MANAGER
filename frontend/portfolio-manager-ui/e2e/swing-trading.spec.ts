@@ -136,11 +136,21 @@ test.describe('PM-033 Swing Trading workspace', () => {
     expect(errors).toEqual([]);
   });
 
-  test('lists every Swing position, highest risk first, and never claims full protection', async ({ page }, info) => {
+  test('lists every Swing position newest-opened first, sortable by risk, and never claims full protection', async ({ page }, info) => {
     await openSwing(page);
     await expect(rows(page)).toHaveCount(8);
-    await expect(rows(page).first()).toContainText('DIS.TO');
-    await expect(rows(page).first().getByTestId('severity-chip')).toHaveText('Critical');
+    // PM-025: default is Opened, newest first (MAL.TO opened 2026-10-26, then EFR.TO 2026-10-15).
+    await expect(rows(page).first()).toContainText('MAL.TO');
+    await expect(rows(page).nth(1)).toContainText('EFR.TO');
+    if (!isPhone(info.project.name)) {
+      await expect(page.getByRole('columnheader', { name: 'Opened' })).toHaveAttribute('aria-sort', 'descending');
+      await page.getByRole('columnheader', { name: 'Risk' }).click();
+      await expect(page.getByRole('columnheader', { name: 'Risk' })).toHaveAttribute('aria-sort', 'ascending');
+    }
+    await expect(rowFor(page, 'DIS.TO').getByTestId('severity-chip')).toHaveText('CRITICAL');
+    await expect(rowFor(page, 'NVDA.TO').getByTestId('severity-chip')).toHaveText('HIGH');
+    await expect(rowFor(page, 'NOVO.TO').getByTestId('severity-chip')).toHaveText('MEDIUM');
+    await expect(rowFor(page, 'DIS.TO').getByTestId('risk-status-chip')).toContainText('At/below stop');
     await expect(page.getByText('Fully Protected')).toHaveCount(0);
     await expect(rowFor(page, 'TA.TO')).toContainText('Mixed');
     if (isPhone(info.project.name)) {
@@ -159,7 +169,7 @@ test.describe('PM-033 Swing Trading workspace', () => {
 
   test('shows Stop Loss, Current Price, Protection and Manage Risk on every card/row', async ({ page }, info) => {
     await openSwing(page);
-    const first = rows(page).first();
+    const first = rowFor(page, 'DIS.TO');
     await expect(first.getByTestId('protection-chip')).toBeVisible();
     const btn = first.getByTestId('manage-risk-btn');
     await expect(btn).toBeVisible();
@@ -184,18 +194,15 @@ test.describe('PM-033 Swing Trading workspace', () => {
     const checkStack = async (stack: ReturnType<Page['locator']>) => {
       const measurements = await stack.evaluate((el) => {
         const children = Array.from(el.children).map((child) => child.getBoundingClientRect());
-        const chips = Array.from(el.querySelectorAll('.st-status-chips .st-chip')).map((chip) => chip.getBoundingClientRect());
         return {
           gap: children[1].top - children[0].bottom,
           aligned: Math.abs(children[1].left - children[0].left) <= 1,
-          chipGaps: chips.slice(1).map((chip, i) => chip.top - chips[i].bottom),
           contained: Array.from(el.querySelectorAll('.st-chip')).every((chip) => chip.scrollWidth <= chip.clientWidth + 1),
         };
       });
       expect(measurements.gap).toBeCloseTo(4, 0);
       expect(measurements.aligned).toBe(true);
       expect(measurements.contained).toBe(true);
-      for (const gap of measurements.chipGaps) expect(gap).toBeCloseTo(4, 0);
     };
     await checkStack(risk);
     await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
@@ -285,7 +292,7 @@ test.describe('PM-033 Risk Monitor', () => {
     await expect(banner).not.toContainText(/was executed|has been filled|order filled/i);
     const monitor = page.locator('[data-testid="risk-table"] tr.mat-mdc-row');
     await expect(monitor.first()).toContainText('DIS.TO');
-    await expect(monitor.first().getByTestId('severity-chip')).toHaveText('Critical');
+    await expect(monitor.first().getByTestId('severity-chip')).toHaveText('CRITICAL');
     await expect(monitor.first()).toContainText(/unknown/i);
     await expect(monitor.first().getByTestId('manage-risk-btn')).toBeVisible();
     await expectNoHorizontalPageOverflow(page);

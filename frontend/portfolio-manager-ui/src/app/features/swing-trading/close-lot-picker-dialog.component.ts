@@ -7,15 +7,18 @@ export interface CloseLotPickerLot {
   id: number;
   openDate: string | null;
   shares: number;
+  /** Set when the lots span several accounts so the user can tell them apart. */
+  account?: string | null;
 }
 
 export interface CloseLotPickerData {
   symbol: string;
-  account: string;
+  /** null when the lots belong to more than one account. */
+  account: string | null;
   lots: CloseLotPickerLot[];
 }
 
-/** Compact chooser for which OPEN lot of a multi-lot Swing position to close. Resolves the lot id or nothing. */
+/** Compact chooser for which OPEN lot of a multi-lot position to close. Resolves the lot id or nothing. */
 @Component({
   selector: 'app-close-lot-picker-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,

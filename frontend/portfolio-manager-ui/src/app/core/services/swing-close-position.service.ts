@@ -14,6 +14,7 @@ import { CloseLotPickerDialogComponent } from '../../features/swing-trading/clos
 import {
   CLOSE_POSITION_DEFAULT_SOURCE,
   eligibleCloseLots,
+  eligibleCloseLotsForSymbol,
 } from '../../features/swing-trading/swing-trading-logic';
 
 /**
@@ -29,27 +30,62 @@ export class SwingClosePositionService {
   private busy = false;
 
   hasEligibleLot(row: SwingTradeRow): boolean {
-    return eligibleCloseLots(row, this.portfolio.summaries().map((s) => s.item)).length > 0;
+    return this.swingLots(row).length > 0;
+  }
+
+  /** Signal Tracker: true when this exact security has at least one currently open, closable lot in any account. */
+  hasEligibleLotForSymbol(symbol: string): boolean {
+    return this.symbolLots(symbol).length > 0;
   }
 
   async open(row: SwingTradeRow): Promise<void> {
+    await this.run(row.symbol, row.account, () => this.swingLots(row), 'No open Swing lot is available to close for this position.');
+  }
+
+  /** Signal Tracker entry point: the same picker, Edit Position dialog and update path, over current holdings. */
+  async openForSymbol(symbol: string): Promise<void> {
+    await this.run(symbol, null, () => this.symbolLots(symbol), 'No open lot is available to close for this security.', null);
+  }
+
+  private swingLots(row: SwingTradeRow): PortfolioItem[] {
+    return eligibleCloseLots(row, this.portfolio.summaries().map((s) => s.item));
+  }
+
+  private symbolLots(symbol: string): PortfolioItem[] {
+    return eligibleCloseLotsForSymbol(symbol, this.portfolio.summaries().map((s) => s.item));
+  }
+
+  private async run(
+    symbol: string,
+    account: string | null,
+    currentLots: () => PortfolioItem[],
+    emptyMessage: string,
+    defaultSource: string | null = CLOSE_POSITION_DEFAULT_SOURCE,
+  ): Promise<void> {
     if (this.busy) return;
-    const lots = eligibleCloseLots(row, this.portfolio.summaries().map((s) => s.item));
+    const lots = currentLots();
     if (lots.length === 0) {
-      this.snackBar.open('No open Swing lot is available to close for this position.', 'Close', { duration: 4000 });
+      this.snackBar.open(emptyMessage, 'Close', { duration: 4000 });
       return;
     }
+    // More than one lot (or account) is never resolved silently: the user must pick one.
     let lot: PortfolioItem = lots[0];
     if (lots.length > 1) {
+      const multiAccount = new Set(lots.map((l) => l.accountType ?? '')).size > 1;
       const id = await firstValueFrom(
         this.dialog
           .open<CloseLotPickerDialogComponent, unknown, number>(CloseLotPickerDialogComponent, {
             width: '420px',
             maxWidth: '95vw',
             data: {
-              symbol: row.symbol,
-              account: row.account,
-              lots: lots.map((l) => ({ id: l.id, openDate: l.openDate ?? null, shares: l.shares })),
+              symbol,
+              account: multiAccount ? null : account ?? lots[0].accountType ?? null,
+              lots: lots.map((l) => ({
+                id: l.id,
+                openDate: l.openDate ?? null,
+                shares: l.shares,
+                account: multiAccount ? l.accountType ?? null : null,
+              })),
             },
           })
           .afterClosed(),
@@ -58,15 +94,15 @@ export class SwingClosePositionService {
       if (id === undefined) return;
       lot = lots.find((l) => l.id === id) ?? lot;
     }
-    this.openCloseDialog(row, lot);
+    this.openCloseDialog(currentLots, lot, defaultSource);
   }
 
-  private openCloseDialog(row: SwingTradeRow, lot: PortfolioItem): void {
+  private openCloseDialog(currentLots: () => PortfolioItem[], lot: PortfolioItem, defaultSource: string | null): void {
     this.dialog.open(EditPositionDialogComponent, {
       data: {
         item: lot,
-        closePosition: { defaultDecisionSourceClosed: CLOSE_POSITION_DEFAULT_SOURCE },
-        submit: (result: EditPositionDialogResult) => this.submit(row, lot, result),
+        closePosition: { defaultDecisionSourceClosed: defaultSource },
+        submit: (result: EditPositionDialogResult) => this.submit(currentLots, lot, result),
       } satisfies EditPositionDialogData,
       width: '620px',
       maxWidth: '95vw',
@@ -74,12 +110,10 @@ export class SwingClosePositionService {
     });
   }
 
-  private submit(row: SwingTradeRow, lot: PortfolioItem, result: EditPositionDialogResult): Promise<string | null> {
+  private submit(currentLots: () => PortfolioItem[], lot: PortfolioItem, result: EditPositionDialogResult): Promise<string | null> {
     if (this.busy) return Promise.resolve('A close is already being saved.');
     // Re-confirm identity and eligibility against the latest data immediately before saving.
-    const current = eligibleCloseLots(row, this.portfolio.summaries().map((s) => s.item)).find(
-      (l) => l.id === lot.id,
-    );
+    const current = currentLots().find((l) => l.id === lot.id);
     if (!current || current.shares !== lot.shares) {
       return Promise.resolve('This lot changed since the dialog opened. Close it and reopen Close Position.');
     }

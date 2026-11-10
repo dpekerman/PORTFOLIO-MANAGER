@@ -117,3 +117,20 @@
 .st-row-btn + .st-row-btn {
   margin-left: 8px;
 }
+
+// Compact grid action: shorter and narrower on desktop; handsets keep the 44px touch target above.
+@media (min-width: 600px) {
+  .st-row-btn.mat-mdc-button-base {
+    --mdc-text-button-container-height: 28px;
+    --mdc-filled-button-container-height: 28px;
+    --mdc-outlined-button-container-height: 28px;
+    --mat-button-text-container-height: 28px;
+    --mat-button-filled-container-height: 28px;
+    --mat-button-outlined-container-height: 28px;
+    --mat-button-filled-horizontal-padding: 8px;
+    --mat-button-outlined-horizontal-padding: 8px;
+    --mat-button-text-horizontal-padding: 8px;
+    font-size: 0.78rem;
+    letter-spacing: normal;
+  }
+}

@@ -258,6 +258,7 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'stopType', label: 'Stop Type' },
       { key: 'protection', label: 'Protection', priority: 'primary' },
       { key: 'distance', label: 'To Stop' },
+      { key: 'toTarget', label: 'To Target %', insertAfter: 'distance' },
       { key: 'risk', label: 'Risk', priority: 'primary' },
       { key: 'finalAction', label: 'Final Action', priority: 'primary' },
       { key: 'actions', label: 'Actions', pinned: true },
