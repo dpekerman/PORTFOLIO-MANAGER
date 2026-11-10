@@ -73,32 +73,30 @@ describe('SwingRiskCellComponent', () => {
     riskStatuses: ['MissingRiskPlan', 'UnknownCoverage', 'NoBrokerProtection', 'StopBreached', 'StaleEvidence'],
   });
   const chips = (el: HTMLElement) => Array.from(el.querySelectorAll('[data-testid="risk-status-chip"]')).map((c) => c.textContent!.trim());
+  const severity = (el: HTMLElement) => el.querySelector('[data-testid="severity-chip"]')!;
 
-  it('shows the most material statuses and a real button for the rest', () => {
+  it('shows one compact severity word with every flag in its detail, and keeps the breach visible', () => {
     const el = render(SwingRiskCellComponent, many).nativeElement;
-    expect(el.querySelector('[data-testid="severity-chip"]')!.textContent).toContain('Critical');
-    expect(chips(el)).toEqual(['At/below stop', 'Stale / no price']);
-    const more = el.querySelector('[data-testid="risk-more"]') as HTMLButtonElement;
-    expect(more.tagName).toBe('BUTTON');
-    expect(more.textContent).toContain('+3 more');
-    expect(more.getAttribute('aria-label')).toBe('Show 3 more risk flags');
-  });
-
-  it('expands to every status with click and collapses again', () => {
-    const fixture = render(SwingRiskCellComponent, many);
-    const more = fixture.nativeElement.querySelector('[data-testid="risk-more"]') as HTMLButtonElement;
-    more.click();
-    fixture.detectChanges();
-    expect(chips(fixture.nativeElement)).toHaveLength(5);
-    expect(more.getAttribute('aria-expanded')).toBe('true');
-    more.click();
-    fixture.detectChanges();
-    expect(chips(fixture.nativeElement)).toHaveLength(2);
-  });
-
-  it('has no more button when everything fits, and keeps a broker-stop breach visible', () => {
-    const el = render(SwingRiskCellComponent, swingRow({ riskStatuses: ['StopBreached', 'UnknownCoverage'], plannedStopState: 'NoPlan' })).nativeElement;
+    expect(severity(el).textContent).toContain('CRITICAL');
+    expect(severity(el).getAttribute('aria-label')).toContain('Stale / no price');
+    expect(chips(el)).toEqual(['At/below stop']);
     expect(el.querySelector('[data-testid="risk-more"]')).toBeNull();
-    expect(chips(el)).toContain('At/below stop');
+  });
+
+  it('maps severities to compact labels and never reports unverified evidence as LOW', () => {
+    const label = (over: Partial<SwingTradeRow>) => {
+      TestBed.resetTestingModule();
+      return severity(render(SwingRiskCellComponent, swingRow({ riskStatuses: [], ...over })).nativeElement).textContent!.trim();
+    };
+    expect(label({ severity: 'High' })).toBe('HIGH');
+    expect(label({ severity: 'Medium' })).toBe('MEDIUM');
+    expect(label({ severity: 'Low' })).toBe('LOW');
+    expect(label({ severity: 'None' })).toBe('LOW');
+    expect(label({ severity: 'None', priceBasis: 'Stale' })).toBe('UNKNOWN');
+  });
+
+  it('has no breach chip when there is no breach', () => {
+    const el = render(SwingRiskCellComponent, swingRow({ riskStatuses: ['UnknownCoverage'], plannedStopState: 'NoPlan' })).nativeElement;
+    expect(chips(el)).toEqual([]);
   });
 });

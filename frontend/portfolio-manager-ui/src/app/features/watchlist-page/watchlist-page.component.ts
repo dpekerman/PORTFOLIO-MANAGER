@@ -169,7 +169,7 @@ export class WatchlistPageComponent {
   protected readonly filterTrendSetup = signal('');
   protected readonly filterFinalAction = signal('');
   protected readonly filterFavorites = signal(false);
-  protected readonly tierFilter = signal<string>('Active');
+  protected readonly tierFilter = signal<string>('All');
   protected readonly tiers = ['All', 'Active', 'Strategic', 'Universe'];
   protected readonly sortCol = signal<SortColumn>('symbol');
   protected readonly sortDir = signal<SortDir>('asc');

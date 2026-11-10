@@ -68,6 +68,55 @@ export function plannedStopView(row: SwingTradeRow, money: Money): PlannedStopVi
   }
 }
 
+// ── Target ────────────────────────────────────────────────────────────────────────────────
+
+export type TargetState = 'Reached' | 'NotReached' | 'Unverified' | 'Unavailable';
+
+export interface TargetView {
+  state: TargetState;
+  /** Signed % from the current price to the target; null unless the price is a usable (Live/EOD) observation. */
+  pct: number | null;
+  /** Short visible label for Reached / Unverified only. */
+  text: string | null;
+  icon: 'flag' | 'schedule' | null;
+  detail: string;
+}
+
+const hasUsablePrice = (row: SwingTradeRow): boolean =>
+  row.currentPrice !== null && Number.isFinite(row.currentPrice) && row.currentPrice > 0
+  && (row.priceBasis === 'Live' || row.priceBasis === 'EOD');
+
+/**
+ * Long-only (Swing positions are long). The target is the one saved on the user's Risk Plan; a plan carried over from a
+ * prior trade, or a non-positive/invalid target, is treated as unavailable. This is a market observation only: it never
+ * implies an order was placed or filled.
+ */
+export function targetView(row: SwingTradeRow, money: Money): TargetView {
+  const target = row.targetPrice;
+  if (target === null || !Number.isFinite(target) || target <= 0 || row.planFromPriorEpisode) {
+    return { state: 'Unavailable', pct: null, text: null, icon: null, detail: 'No Target Price is set for this trade.' };
+  }
+  const t = money(target);
+  const when = asOfLabel(row.priceAsOfUtc);
+  if (!hasUsablePrice(row)) {
+    const last = row.currentPrice === null ? '' : ` (last known ${money(row.currentPrice)} as of ${when})`;
+    return {
+      state: 'Unverified', pct: null, text: 'Unverified', icon: 'schedule',
+      detail: `Target ${t}. The latest price is ${row.priceBasis === 'Stale' ? 'stale' : 'unavailable'}${last}, so reaching the target can be neither confirmed nor ruled out.`,
+    };
+  }
+  const price = row.currentPrice as number;
+  const pct = ((target - price) / price) * 100;
+  const observed = `Latest usable observed price ${money(price)} (${row.priceBasis}) as of ${when}, ${row.priceSource}.`;
+  if (price >= target) {
+    return {
+      state: 'Reached', pct, text: 'Target reached', icon: 'flag',
+      detail: `Target ${t}. ${observed} Result: TARGET REACHED. This is a market observation only; it does not show that a sell order was placed or filled, or that the position was sold.`,
+    };
+  }
+  return { state: 'NotReached', pct, text: null, icon: null, detail: `Target ${t}. ${observed} The price is below the target.` };
+}
+
 // ── Broker stop / protection ──────────────────────────────────────────────────────────────
 
 export interface StatusView {
@@ -149,6 +198,29 @@ export function riskSummaryLabel(row: SwingTradeRow): string {
 }
 
 export type RiskTone = 'bad' | 'warn' | 'dim';
+
+export interface CompactRisk {
+  label: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
+  /** Existing severity class (sev-*), so colours stay shared with the rest of Swing Trading. */
+  severity: SwingTradeRow['severity'];
+  detail: string;
+}
+
+/** Maps the backend severity to one compact word; evidence the backend could not verify shows UNKNOWN, never LOW. */
+export function compactRisk(row: SwingTradeRow): CompactRisk {
+  const flags = riskSummaryLabel(row);
+  const detail = `Severity ${row.severity}. ${flags}.`;
+  const unverified = row.riskStatuses.includes('StaleEvidence') || row.priceBasis === 'Stale' || row.priceBasis === 'Unavailable';
+  switch (row.severity) {
+    case 'Critical': return { label: 'CRITICAL', severity: row.severity, detail };
+    case 'High': return { label: 'HIGH', severity: row.severity, detail };
+    case 'Medium': return { label: 'MEDIUM', severity: row.severity, detail };
+    default:
+      return unverified
+        ? { label: 'UNKNOWN', severity: row.severity, detail: `${detail} Price evidence is stale or unavailable, so the risk is unverified.` }
+        : { label: 'LOW', severity: row.severity, detail };
+  }
+}
 
 /** Visual weight only: a breach is red, the other material statuses amber, bookkeeping gaps muted. */
 export function riskTone(status: RiskStatus): RiskTone {

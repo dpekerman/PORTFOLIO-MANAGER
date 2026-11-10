@@ -71,6 +71,7 @@ import {
   compareSortValues,
   computeTxTotals,
   dateOnly,
+  dateSortKey,
   daysSinceClose,
   distinctValues,
   isFutureClose,
@@ -166,6 +167,11 @@ export class TransactionsPageComponent {
   protected readonly activeTab = signal<'transactions' | 'analytics'>('transactions');
 
   protected onTabChange(tab: 'transactions' | 'analytics'): void {
+    // The grids are re-created when returning from Analytics; seed them with the user's current sort.
+    this.sortInit.set({
+      stock: [this.stockSortCol(), this.stockSortDir()],
+      option: [this.optionSortCol(), this.optionSortDir()],
+    });
     this.activeTab.set(tab);
     if (tab === 'analytics') this.dashboardState.loadDecisionPerformance();
   }
@@ -295,8 +301,14 @@ export class TransactionsPageComponent {
   }
 
   // ── Stock transactions sort ─────────────────────────────────────────────────
-  protected readonly stockSortCol = signal<StockTxCol>('tx_open_date');
+  protected readonly stockSortCol = signal<StockTxCol>('tx_trans_date');
   protected readonly stockSortDir = signal<SortDir>('desc');
+
+  // Sort the grids start with when (re)created, so the header arrow matches the applied sort.
+  protected readonly sortInit = signal<{ stock: [string, SortDir]; option: [string, SortDir] }>({
+    stock: ['tx_trans_date', 'desc'],
+    option: ['otx_open_date', 'desc'],
+  });
 
   // ── Option transactions sort ────────────────────────────────────────────────
   protected readonly optionSortCol = signal<OptionTxCol>('otx_open_date');
@@ -335,7 +347,8 @@ export class TransactionsPageComponent {
         ),
       )
       .sort((a, b) =>
-        compareSortValues(this.stockSortValue(a, col), this.stockSortValue(b, col), dir),
+        compareSortValues(this.stockSortValue(a, col), this.stockSortValue(b, col), dir) ||
+        b.item.id - a.item.id,
       );
   });
 
@@ -359,7 +372,8 @@ export class TransactionsPageComponent {
         ),
       )
       .sort((a, b) =>
-        compareSortValues(this.optionTxSortValue(a, col), this.optionTxSortValue(b, col), dir),
+        compareSortValues(this.optionTxSortValue(a, col), this.optionTxSortValue(b, col), dir) ||
+        b.item.id - a.item.id,
       );
   });
 
@@ -660,9 +674,9 @@ export class TransactionsPageComponent {
       case 'tx_avg_cost':
         return s.item.averageCostBasis;
       case 'tx_open_date':
-        return s.item.openDate ?? '';
+        return dateSortKey(s.item.openDate);
       case 'tx_close_date':
-        return s.item.closeDate ?? '';
+        return dateSortKey(s.item.closeDate);
       case 'tx_closing_price':
         return s.item.closingPrice ?? 0;
       case 'tx_gain_loss':
@@ -676,7 +690,7 @@ export class TransactionsPageComponent {
       case 'tx_diff_dollar':
         return this.stockDiffDollar(s) ?? 0;
       case 'tx_trans_date':
-        return this.stockTransDate(s.item) ?? '';
+        return dateSortKey(this.stockTransDate(s.item));
       case 'tx_decision_source':
         return s.item.decisionSource ?? '';
       case 'tx_decision_source_closed':
@@ -713,9 +727,9 @@ export class TransactionsPageComponent {
       case 'otx_contracts':
         return a.item.numberOfContracts;
       case 'otx_open_date':
-        return a.item.openDate ?? '';
+        return dateSortKey(a.item.openDate);
       case 'otx_close_date':
-        return a.item.closeDate ?? '';
+        return dateSortKey(a.item.closeDate);
       case 'otx_closing_price':
         return a.item.closingPrice ?? 0;
       case 'otx_gain_loss':

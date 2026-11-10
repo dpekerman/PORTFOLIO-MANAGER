@@ -382,7 +382,7 @@
             <button
               mat-stroked-button
               type="button"
-              class="record-btn"
+              class="record-btn action-btn"
               [attr.aria-label]="(row.myAction === 'Pending' ? 'Record action for ' : 'Edit action for ') + row.symbol"
               (click)="openAction(row, $event)"
             >
@@ -392,7 +392,7 @@
               <button
                 mat-button
                 type="button"
-                class="dismiss-btn"
+                class="dismiss-btn action-btn"
                 [attr.aria-label]="'Dismiss recommendation for ' + row.symbol"
                 (click)="dismiss(row, $event)"
               >
@@ -402,7 +402,7 @@
             <button
               mat-button
               type="button"
-              class="position-btn"
+              class="position-btn action-btn"
               [attr.aria-label]="'Add position for ' + row.symbol"
               matTooltip="Record a purchase you made in the portfolio. Nothing is saved until you submit."
               (click)="openAddPosition(row, $event)"
@@ -411,6 +411,21 @@
             >
               <mat-icon>add</mat-icon> Position
             </button>
+            @if (canClose(row)) {
+              <button
+                mat-button
+                type="button"
+                class="close-position-btn action-btn"
+                [attr.aria-label]="'Close position for ' + row.symbol"
+                matTooltip="Close an open position through the existing Close Position workflow. Nothing is saved until you confirm."
+                data-testid="signal-close-position-btn"
+                (click)="closePosition(row, $event)"
+                (keydown.enter)="$event.stopPropagation()"
+                (keydown.space)="$event.stopPropagation()"
+              >
+                <mat-icon>logout</mat-icon> Close Position
+              </button>
+            }
           </td>
         </ng-container>
 

@@ -48,6 +48,12 @@ function dayNumber(day: string): number {
   return Date.UTC(y, m - 1, d) / DAY_MS;
 }
 
+/** Numeric sort key (calendar day number) for a date string; null when missing or invalid. Never shifts by time zone. */
+export function dateSortKey(value: string | null | undefined): number | null {
+  const day = dateOnly(value);
+  return day === null ? null : dayNumber(day);
+}
+
 /**
  * Calendar days from the close date to `today` (both date-only, so DST and UTC offsets cannot
  * shift the result). Null for OPEN rows, a missing/invalid close date, or a close date in the

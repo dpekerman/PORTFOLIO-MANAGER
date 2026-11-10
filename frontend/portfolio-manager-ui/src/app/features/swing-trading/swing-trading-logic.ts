@@ -374,6 +374,13 @@ export function manageRiskDataFor(row: SwingTradeRow): ManageRiskDialogData {
   };
 }
 
+/** Numeric sort key for a date string; null for a missing or unparsable date. */
+export function epochOrNull(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const t = Date.parse(value);
+  return Number.isNaN(t) ? null : t;
+}
+
 export function compareNullable(a: string | number | null, b: string | number | null): number {
   if (a === null && b === null) return 0;
   if (a === null) return 1;
@@ -423,4 +430,16 @@ export function eligibleCloseLots<T extends CloseLotCandidate>(row: SwingTradeRo
         i.symbol.toUpperCase() === row.symbol.toUpperCase(),
     )
     .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * OPEN, non-manual lots with shares remaining for exactly this security, across every account and holding role.
+ * The match is on the exact symbol, so an underlying (DIS) never matches its CDR (DIS.TO) or the reverse.
+ */
+export function eligibleCloseLotsForSymbol<T extends CloseLotCandidate>(symbol: string, items: readonly T[]): T[] {
+  const wanted = symbol.trim().toUpperCase();
+  if (!wanted) return [];
+  return items
+    .filter((i) => !i.isManual && i.transactionType === 'OPEN' && i.shares > 0 && i.symbol.trim().toUpperCase() === wanted)
+    .sort((a, b) => (a.accountType ?? '').localeCompare(b.accountType ?? '') || a.id - b.id);
 }

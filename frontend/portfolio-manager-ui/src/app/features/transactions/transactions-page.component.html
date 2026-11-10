@@ -215,6 +215,8 @@
                 appRowSelection
                 [dataSource]="sortedStockTransactions()"
                 matSort
+                [matSortActive]="stockColumns().includes(sortInit().stock[0]) ? sortInit().stock[0] : ''"
+                [matSortDirection]="stockColumns().includes(sortInit().stock[0]) ? sortInit().stock[1] : ''"
                 #stockSort="matSort"
                 (matSortChange)="onStockSortChange($event)"
                 class="tx-grid-table"
@@ -673,6 +675,8 @@
                 appRowSelection
                 [dataSource]="sortedOptionTransactions()"
                 matSort
+                [matSortActive]="optionColumns().includes(sortInit().option[0]) ? sortInit().option[0] : ''"
+                [matSortDirection]="optionColumns().includes(sortInit().option[0]) ? sortInit().option[1] : ''"
                 (matSortChange)="onOptionSortChange($event)"
                 class="tx-grid-table"
               >
