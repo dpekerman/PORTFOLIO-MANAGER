@@ -41,6 +41,13 @@ describe('ManageRiskDialogComponent', () => {
   };
 
   async function openTab(label: string): Promise<void> {
+    const header = q<HTMLElement>('[data-testid="mr-advanced"] .mat-expansion-panel-header');
+    if (header && header.getAttribute('aria-expanded') !== 'true') {
+      header.click();
+      fixture.detectChanges();
+      await fixture.whenStable();
+      fixture.detectChanges();
+    }
     const tabs = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="tab"]'));
     tabs.find((t) => t.textContent!.includes(label))!.click();
     fixture.detectChanges();
@@ -93,13 +100,13 @@ describe('ManageRiskDialogComponent', () => {
     try {
       await fixture.whenStable();
       const label = Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('dt'))
-        .find((element) => element.textContent?.trim() === 'Account average cost');
+        .find((element) => element.textContent?.trim() === 'Avg. cost');
       expect(label).toBeDefined();
       expect(label!.nextElementSibling!.textContent?.trim()).toBe(
         demo.maskValue(data.averageCost!).toFixed(2),
       );
       expect(q('[data-testid="mr-demo-readonly"]')).not.toBeNull();
-      expect(q('[data-testid="mr-plan-save"]')).toBeNull();
+      expect(q('[data-testid="mr-save"]')).toBeNull();
       expect((fixture.nativeElement as HTMLElement).querySelectorAll('input')).toHaveLength(0);
     } finally {
       demo.disable();
@@ -117,9 +124,9 @@ describe('ManageRiskDialogComponent', () => {
     }));
     const valueFor = (name: string) => Array.from((fixture.nativeElement as HTMLElement).querySelectorAll('dt'))
       .find((element) => element.textContent?.trim() === name)?.nextElementSibling?.textContent?.trim();
-    expect(valueFor('Account average cost')).toBe('41.00');
+    expect(valueFor('Avg. cost')).toBe('41.00');
     expect(valueFor('Swing average cost')).toBe('30.00');
-    expect(valueFor('Account market value')).toBe('10,000.00');
+    expect(valueFor('Market value')).toBe('10,000.00 CAD');
     expect(valueFor('Swing market value')).toBe('5,000.00');
     expect(valueFor('Current price')).toContain('50.00');
     expect(valueFor('Current price')).toContain('Stale');
@@ -138,22 +145,123 @@ describe('ManageRiskDialogComponent', () => {
   it('blocks saving a non-positive planned stop and explains why', async () => {
     await create();
     setInput('[data-testid="mr-plan-stop"]', '-5');
-    expect(q<HTMLButtonElement>('[data-testid="mr-plan-save"]')!.disabled).toBe(true);
+    expect(q<HTMLButtonElement>('[data-testid="mr-save"]')!.disabled).toBe(true);
     expect(text()).toContain('must be a positive price');
   });
 
   it('warns but allows a long stop at/above the latest price', async () => {
     await create();
     setInput('[data-testid="mr-plan-stop"]', '18.5');
-    expect(q<HTMLButtonElement>('[data-testid="mr-plan-save"]')!.disabled).toBe(false);
+    expect(q<HTMLButtonElement>('[data-testid="mr-save"]')!.disabled).toBe(false);
     expect(q('[data-testid="mr-plan-warnings"]')!.textContent).toContain('at or above the latest price');
+  });
+
+  it('PM-032: Trade Plan (Planned Stop and Target) comes first and shows To Stop, To Target and R:R', async () => {
+    await create(position({ brokerStops: [] }));
+    expect(q('[data-testid="mr-trade-plan"]')).not.toBeNull();
+    expect(q('[data-testid="mr-advanced"] .mat-expansion-panel-header')!.getAttribute('aria-expanded')).toBe('false');
+    expect(q('[data-testid="mr-quick-trigger"]')).toBeNull();
+    setInput('[data-testid="mr-plan-stop"]', '17.1');
+    setInput('[data-testid="mr-plan-target"]', '19.8');
+    expect(q('[data-testid="mr-to-stop"]')!.textContent).toContain('-5.0%');
+    expect(q('[data-testid="mr-to-target"]')!.textContent).toContain('+10.0%');
+    expect(q('[data-testid="mr-rr"]')!.textContent).toContain('1 : 2.00');
+  });
+
+  it('PM-032: the broker confirmation defaults trigger and limit from the planned stop and needs the checkbox', async () => {
+    await create(position({ brokerStops: [] }));
+    const save = () => q<HTMLButtonElement>('[data-testid="mr-save"]')!;
+    setInput('[data-testid="mr-plan-stop"]', '16');
+    q<HTMLButtonElement>('[data-testid="mr-edit-broker"]')!.click();
+    fixture.detectChanges();
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-trigger"]')!.value).toBe('16');
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-limit"]')!.value).toBe('16');
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-shares"]')!.value).toBe('600');
+    setInput('[data-testid="mr-quick-limit"]', '16.5');
+    expect(q('[data-testid="mr-quick-limit-err"]')!.textContent).toContain('must not exceed the stop trigger');
+    q<HTMLInputElement>('[data-testid="mr-quick-confirm"] input')!.click();
+    fixture.detectChanges();
+    expect(save().disabled).toBe(true);
+    setInput('[data-testid="mr-quick-limit"]', '15.8');
+    expect(save().disabled).toBe(false);
+  });
+
+  it('PM-032: Save writes the plan and a user-reported StopLimit with the confirmation time', async () => {
+    await create(position({ brokerStops: [] }));
+    setInput('[data-testid="mr-plan-stop"]', '16');
+    setInput('[data-testid="mr-plan-target"]', '20');
+    q<HTMLInputElement>('[data-testid="mr-quick-confirm"] input')!.click();
+    fixture.detectChanges();
+    q<HTMLButtonElement>('[data-testid="mr-save"]')!.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(store['savePlan']).toHaveBeenCalledWith(expect.objectContaining({ plannedStopPrice: 16, targetPrice: 20 }));
+    expect(store['saveBrokerStop']).toHaveBeenCalledWith(expect.objectContaining({
+      id: null, orderType: 'StopLimit', triggerPrice: 16, limitPrice: 16, coveredQuantity: 600, allowOverCoverage: false,
+    }));
+    const request = (store['saveBrokerStop'] as ReturnType<typeof vi.fn>).mock.calls[0][0] as { lastUserVerifiedDate: string };
+    expect(Number.isNaN(Date.parse(request.lastUserVerifiedDate))).toBe(false);
+    expect(q('[data-testid="mr-saved"]')!.textContent).toContain('This application does not verify, place or execute broker orders.');
+  });
+
+  it('PM-032: without the checkbox only the plan is saved and no broker order is written', async () => {
+    await create(position({ brokerStops: [] }));
+    setInput('[data-testid="mr-plan-stop"]', '16');
+    q<HTMLButtonElement>('[data-testid="mr-save"]')!.click();
+    await fixture.whenStable();
+    expect(store['savePlan']).toHaveBeenCalled();
+    expect(store['saveBrokerStop']).not.toHaveBeenCalled();
+  });
+
+  it('PM-032: with several active orders the user must choose one; nothing is edited implicitly', async () => {
+    await create(position({
+      brokerStops: [
+        stop({ id: 1, orderType: 'StopLimit', limitPrice: 15.5, coveredQuantity: 300 }),
+        stop({ id: 2, orderType: 'StopLimit', limitPrice: 15.6, coveredQuantity: 300, rowVersion: 'v2' }),
+      ],
+    }));
+    expect(q('[data-testid="mr-quick-choose"]')).not.toBeNull();
+    expect(q('[data-testid="mr-quick-form"]')).toBeNull();
+    (fixture.componentInstance as unknown as { chooseQuick(id: number): void }).chooseQuick(2);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(q('[data-testid="mr-quick-form"]')).not.toBeNull();
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-limit"]')!.value).toBe('15.6');
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-confirm"] input')!.checked).toBe(false);
+  });
+
+  it('PM-032: a single existing order is summarised, never auto-confirmed, and Save stays disabled until the user confirms', async () => {
+    await create(position({ brokerStops: [stop({ id: 7, orderType: 'StopLimit', limitPrice: 15.5, coveredQuantity: 600 })] }));
+    expect(q('[data-testid="mr-order-summary"]')!.textContent).toContain('Trigger: 16.2');
+    expect(q('[data-testid="mr-order-summary"]')!.textContent).toContain('Limit: 15.5');
+    expect(q<HTMLInputElement>('[data-testid="mr-quick-confirm"] input')!.checked).toBe(false);
+    expect(q('[data-testid="mr-confirm-chip"]')!.textContent).toContain('Not confirmed');
+    expect(q<HTMLButtonElement>('[data-testid="mr-save"]')!.disabled).toBe(true);
+    q<HTMLInputElement>('[data-testid="mr-quick-confirm"] input')!.click();
+    fixture.detectChanges();
+    expect(q<HTMLButtonElement>('[data-testid="mr-save"]')!.disabled).toBe(false);
+  });
+
+  it('PM-032: an already self-confirmed, unchanged order shows Self-confirmed and writes nothing', async () => {
+    await create(position({ brokerStops: [stop({ id: 7, orderType: 'StopLimit', limitPrice: 15.5, coveredQuantity: 600, lastUserVerifiedDate: '2026-11-11T10:00:00Z' })] }));
+    expect(q('[data-testid="mr-confirm-chip"]')!.textContent).toContain('Self-confirmed');
+    expect(q<HTMLButtonElement>('[data-testid="mr-save"]')!.disabled).toBe(true);
+  });
+
+  it('PM-032: partial close shows the exact quantity mismatch message', async () => {
+    await create(position({
+      totalQuantity: 1000, swingQuantity: 1000,
+      brokerStops: [stop({ orderType: 'StopLimit', limitPrice: 15.5, coveredQuantity: 1500 })],
+    }));
+    expect(q('[data-testid="mr-overcoverage"]')!.textContent).toContain('Order covers 1,500 shares; 1,000 remain open. Verify or amend at your broker.');
   });
 
   it('saves the plan with the exact values and says no broker order changed', async () => {
     await create();
     setInput('[data-testid="mr-plan-stop"]', '15.75');
     setInput('[data-testid="mr-plan-target"]', '21');
-    (q<HTMLFormElement>('form[aria-label="Risk plan"]')!).dispatchEvent(new Event('submit'));
+    q<HTMLButtonElement>('[data-testid="mr-save"]')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(store['savePlan']).toHaveBeenCalledWith(

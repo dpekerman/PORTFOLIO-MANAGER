@@ -122,7 +122,11 @@ public static class BrokerUserStatuses
     public const string Superseded = "Superseded";
     /// <summary>The trade closed in Portfolio Manager; the broker order's real state is unknown.</summary>
     public const string EpisodeClosed = "EpisodeClosed";
-    public static readonly string[] Terminal = [UserReportedCancelled, UserReportedFilled, Superseded, EpisodeClosed];
+    public const string UserReportedExpired = "UserReportedExpired";
+    public const string UserReportedResolved = "UserReportedResolved";
+    public static readonly string[] Terminal = [UserReportedCancelled, UserReportedFilled, Superseded, EpisodeClosed, UserReportedExpired, UserReportedResolved];
+    /// <summary>Statuses a user may report for an order (all unverified user reports).</summary>
+    public static readonly string[] UserReportable = [UserReportedCancelled, UserReportedFilled, UserReportedExpired, UserReportedResolved];
     public static bool IsActive(string status) => !Terminal.Contains(status);
 }
 

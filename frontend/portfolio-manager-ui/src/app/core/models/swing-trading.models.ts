@@ -12,8 +12,15 @@ export type BrokerUserStatus =
   | 'UserConfirmedEstablished'
   | 'UserReportedCancelled'
   | 'UserReportedFilled'
+  | 'UserReportedExpired'
+  | 'UserReportedResolved'
   | 'Superseded'
   | 'EpisodeClosed';
+export type ReconcileStatus =
+  | 'UserReportedCancelled'
+  | 'UserReportedFilled'
+  | 'UserReportedExpired'
+  | 'UserReportedResolved';
 export type RiskStatus =
   | 'StopBreached'
   | 'ApproachingStop'
@@ -123,6 +130,22 @@ export interface BrokerOrderReminder {
   stop: BrokerStop;
 }
 
+export interface BrokerOrderReminderGroup {
+  account: string;
+  symbol: string;
+  episodeOpenDate: string | null;
+  orders: BrokerStop[];
+}
+
+export interface ResolveBrokerOrdersRequest {
+  accountType: string;
+  symbol: string;
+  status: ReconcileStatus;
+  orders: { id: number; rowVersion: string }[];
+  requestId: string;
+  confirmed: boolean;
+}
+
 export interface SaveRiskPlanRequest {
   accountType: string;
   symbol: string;
@@ -154,7 +177,7 @@ export interface SaveBrokerStopRequest {
 }
 
 export interface BrokerStopTransitionRequest {
-  status: 'UserReportedCancelled' | 'UserReportedFilled' | 'Superseded';
+  status: 'UserReportedCancelled' | 'UserReportedFilled' | 'UserReportedExpired' | 'UserReportedResolved' | 'Superseded';
   replacedByRecordId: number | null;
   reason: string | null;
   rowVersion: string | null;
@@ -229,6 +252,7 @@ export interface OpenTradesSummary {
 
 export interface OpenTradesResponse {
   brokerOrderReminders?: BrokerOrderReminder[];
+  brokerOrderReminderGroups?: BrokerOrderReminderGroup[];
   summary: OpenTradesSummary;
   rows: SwingTradeRow[];
   approachingThresholdPct: number;

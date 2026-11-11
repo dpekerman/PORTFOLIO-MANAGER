@@ -5,6 +5,7 @@ import {
   BrokerStopTransitionRequest,
   JournalRow,
   OpenTradesResponse,
+  ResolveBrokerOrdersRequest,
   RiskPosition,
   SaveBrokerStopRequest,
   SaveRiskPlanRequest,
@@ -43,5 +44,9 @@ export class SwingTradingApiService {
 
   transitionBrokerStop(id: number, request: BrokerStopTransitionRequest): Observable<RiskPosition> {
     return this.http.post<RiskPosition>(`${this.base}/risk/broker-stops/${id}/status`, request);
+  }
+
+  resolveBrokerOrders(request: ResolveBrokerOrdersRequest): Observable<{ resolved: number; position: RiskPosition }> {
+    return this.http.post<{ resolved: number; position: RiskPosition }>(`${this.base}/risk/broker-stops/resolve`, request);
   }
 }

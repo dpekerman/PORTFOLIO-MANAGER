@@ -1,17 +1,44 @@
 <app-swing-filter-bar />
 
-@if (store.brokerOrderReminders().length > 0) {
-  <section class="rm-alert" role="status" aria-label="Broker orders requiring verification" data-testid="broker-order-reminders">
-    <strong>Broker orders still require your review.</strong>
-    Closing a Swing trade does not cancel its brokerage order. These records are not protection for a new Swing episode.
-    <ul>
-      @for (reminder of store.brokerOrderReminders(); track reminder.stop.id) {
-        <li>
-          {{ reminder.symbol }} · {{ reminder.account }} · {{ reminder.stop.userStatus }}
-          <button mat-stroked-button type="button" (click)="reviewOrder(reminder.account, reminder.symbol)">Review broker order</button>
-        </li>
-      }
-    </ul>
+@if (store.brokerOrderReminderGroups().length > 0) {
+  <section class="rm-alert rm-reconcile" role="status" aria-label="Broker orders requiring verification" data-testid="broker-order-reminders">
+    <strong>Position closed. Check that any remaining broker stop-limit order has been cancelled.</strong>
+    Closing a trade here does not cancel broker orders. These records never count as protection for a new position.
+    @for (g of store.brokerOrderReminderGroups(); track groupKey(g)) {
+      <div class="rm-group" role="group" [attr.aria-label]="g.symbol + ' ' + g.account + ' broker orders'" data-testid="broker-order-group">
+        <div class="rm-legend">{{ g.symbol }} · {{ g.account }}</div>
+        @for (o of g.orders; track o.id) {
+          <mat-checkbox class="rm-order" [checked]="isSelected(g, o.id)" (change)="toggleOrder(g, o.id)" [attr.data-testid]="'reminder-order-' + o.id">
+            {{ demo.maskValue(o.triggerPrice) | number: '1.2-4' }}@if (o.limitPrice !== null) { / {{ demo.maskValue(o.limitPrice) | number: '1.2-4' }} }
+            {{ o.currency }}
+            · {{ o.coveredQuantity === null ? 'shares unknown' : (o.coveredQuantity | number: '1.0-6') + ' shares' }}
+            · {{ o.orderType }}
+          </mat-checkbox>
+        }
+        <div class="rm-resolve">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic">
+            <mat-label>Status you are reporting</mat-label>
+            <mat-select [value]="draft(g).status" (selectionChange)="setStatus(g, $event.value)" data-testid="reminder-status">
+              @for (s of reconcileStatuses; track s.value) {
+                <mat-option [value]="s.value">{{ s.label }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-checkbox class="rm-confirm" [checked]="draft(g).confirmed" (change)="setConfirmed(g, $event.checked)" data-testid="reminder-confirm">
+            I confirm this status applies to each selected order. It is my report and is not verified with the broker.
+          </mat-checkbox>
+          <div class="rm-actions">
+            <button mat-flat-button type="button" [disabled]="!canResolve(g) || store.saving()" (click)="resolve(g)" data-testid="reminder-resolve">
+              Record status
+            </button>
+            <button mat-stroked-button type="button" (click)="reviewOrder(g.account, g.symbol)">Review in Manage Risk</button>
+          </div>
+        </div>
+      </div>
+    }
+    @if (store.positionError(); as err) {
+      <p class="rm-error" role="alert">{{ err }}</p>
+    }
   </section>
 }
 

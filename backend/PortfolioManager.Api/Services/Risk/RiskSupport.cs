@@ -189,6 +189,8 @@ public static class TradeEpisodeAssigner
                         && s.UserStatus != BrokerUserStatuses.UserReportedCancelled
                         && s.UserStatus != BrokerUserStatuses.UserReportedFilled
                         && s.UserStatus != BrokerUserStatuses.Superseded
+                        && s.UserStatus != BrokerUserStatuses.UserReportedExpired
+                        && s.UserStatus != BrokerUserStatuses.UserReportedResolved
                         && s.UserStatus != BrokerUserStatuses.EpisodeClosed)
             .ToListAsync(ct);
         foreach (var s in stops)

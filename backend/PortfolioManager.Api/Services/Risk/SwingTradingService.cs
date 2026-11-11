@@ -28,9 +28,11 @@ public sealed record OpenTradesResponse(
     OpenTradesSummaryDto Summary, IReadOnlyList<SwingTradeRowDto> Rows, decimal ApproachingThresholdPct, string ThresholdNote)
 {
     public IReadOnlyList<BrokerOrderReminderDto> BrokerOrderReminders { get; init; } = [];
+    public IReadOnlyList<BrokerOrderReminderGroupDto> BrokerOrderReminderGroups { get; init; } = [];
 }
 
 public sealed record BrokerOrderReminderDto(string Account, string Symbol, BrokerStopDto Stop);
+public sealed record BrokerOrderReminderGroupDto(string Account, string Symbol, DateTime? EpisodeOpenDate, IReadOnlyList<BrokerStopDto> Orders);
 
 public sealed record JournalHistoryItemDto(DateTime OccurredAtUtc, string EventType, string Summary);
 
@@ -135,16 +137,27 @@ public sealed class SwingTradingService(
         }).ToList();
         var asOf = ordered.Where(r => r.PriceAsOfUtc.HasValue).Select(r => r.PriceAsOfUtc).Min();
 
+        // Retired (closed-episode) orders always remind. A still-active order reminds only when no open Swing position owns it,
+        // and never when it belongs to an open holding of another investment role.
+        bool OtherRoleOwns(BrokerStopRecord s) => lots.Any(l => l.TransactionType == "OPEN" && l.Shares > 0
+            && !string.Equals(l.HoldingRole, "Swing", StringComparison.OrdinalIgnoreCase)
+            && l.Symbol == s.Symbol && l.AccountType == s.AccountType
+            && (l.UserId == s.UserId || l.UserId == null || s.UserId == null)
+            && (s.TradeEpisodeId is null || l.TradeEpisodeId == s.TradeEpisodeId));
         var reminders = stops.Where(s => s.BrokerCancellationUnverified ||
-                (BrokerUserStatuses.IsActive(s.UserStatus) && !positions.Any(p =>
+                (BrokerUserStatuses.IsActive(s.UserStatus) && !OtherRoleOwns(s) && !positions.Any(p =>
                     (p.OpenLots[0].UserId == s.UserId || (p.OpenLots[0].UserId == null && s.UserId == _user.UserId))
                     && p.Account == s.AccountType && p.Symbol == s.Symbol
                     && RiskService.BelongsToEpisode(s.TradeEpisodeId, s.EpisodeOpenDate, p))))
             .OrderBy(s => s.AccountType).ThenBy(s => s.Symbol).ThenBy(s => s.Id)
             .Select(s => new BrokerOrderReminderDto(s.AccountType, s.Symbol, RiskService.ToDto(s, null))).ToList();
+        var reminderGroups = reminders
+            .GroupBy(x => (x.Account, x.Symbol, Episode: x.Stop.EpisodeOpenDate?.Date))
+            .Select(g => new BrokerOrderReminderGroupDto(g.Key.Account, g.Key.Symbol, g.Key.Episode, g.Select(x => x.Stop).ToList()))
+            .ToList();
         return new OpenTradesResponse(new OpenTradesSummaryDto(ordered.Count, ordered.Count(r => r.NeedsAttention), totals, asOf,
             ordered.Any(r => r.PriceBasis == PriceBases.Stale), ordered.Any(r => r.PriceBasis == PriceBases.Unavailable)),
-            ordered, threshold, ThresholdNote) { BrokerOrderReminders = reminders };
+            ordered, threshold, ThresholdNote) { BrokerOrderReminders = reminders, BrokerOrderReminderGroups = reminderGroups };
     }
 
     public async Task<IReadOnlyList<JournalRowDto>> GetJournalAsync(CancellationToken ct = default)
