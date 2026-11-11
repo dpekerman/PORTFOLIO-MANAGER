@@ -218,9 +218,9 @@
         (matSortChange)="onSort($event)"
         class="signals-table"
       >
-        <ng-container matColumnDef="symbol">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Ticker</th>
-          <td mat-cell *matCellDef="let row">
+        <ng-container matColumnDef="symbol" sticky>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="st-sticky-col">Ticker</th>
+          <td mat-cell *matCellDef="let row" class="st-sticky-col">
             <div class="type-cell">
               <span class="symbol">{{ row.symbol }}</span>
               @if (row.score !== null) {
@@ -230,9 +230,9 @@
           </td>
         </ng-container>
 
-        <ng-container matColumnDef="role">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Role</th>
-          <td mat-cell *matCellDef="let row"><span class="role" [class]="'role ' + roleClass(row.role)">{{ row.role || '—' }}</span></td>
+        <ng-container matColumnDef="role" sticky>
+          <th mat-header-cell *matHeaderCellDef mat-sort-header class="st-sticky-col st-sticky-last">Role</th>
+          <td mat-cell *matCellDef="let row" class="st-sticky-col st-sticky-last"><span class="role" [class]="'role ' + roleClass(row.role)">{{ row.role || '—' }}</span></td>
         </ng-container>
 
         <ng-container matColumnDef="signalDate">

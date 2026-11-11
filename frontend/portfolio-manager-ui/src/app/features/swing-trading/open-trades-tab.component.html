@@ -59,9 +59,9 @@
       aria-label="Open Swing trades"
       data-testid="open-trades-table"
     >
-      <ng-container matColumnDef="symbol">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header>Symbol</th>
-        <td mat-cell *matCellDef="let r">
+      <ng-container matColumnDef="symbol" sticky>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header class="st-sticky-col">Symbol</th>
+        <td mat-cell *matCellDef="let r" class="st-sticky-col">
           <strong>{{ r.symbol }}</strong>
           @if (r.mixedRole) {
             <span class="st-chip st-warn" matTooltip="This account also holds non-Swing lots of this security. Total {{ r.totalQuantity | number: '1.0-6' }}.">Mixed</span>
@@ -69,9 +69,9 @@
         </td>
       </ng-container>
 
-      <ng-container matColumnDef="company">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header="company">Security</th>
-        <td mat-cell *matCellDef="let r">{{ r.companyName }}</td>
+      <ng-container matColumnDef="company" sticky>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header="company" class="st-sticky-col st-sticky-last">Security</th>
+        <td mat-cell *matCellDef="let r" class="st-sticky-col st-sticky-last" [attr.title]="r.companyName">{{ r.companyName }}</td>
       </ng-container>
 
       <ng-container matColumnDef="account">

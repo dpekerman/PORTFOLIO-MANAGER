@@ -236,6 +236,23 @@
   width: 100%;
   background: var(--bg-surface) !important;
 
+  // Frozen Ticker + Role columns (CDK sets the left offsets); same treatment as Watchlist .wl-sticky-col.
+  .st-sticky-col {
+    background: var(--bg-surface);
+
+    &.mat-mdc-cell {
+      z-index: 2;
+    }
+
+    &.mat-mdc-header-cell {
+      z-index: 3;
+    }
+
+    &.st-sticky-last {
+      box-shadow: 1px 0 0 var(--mat-sys-outline-variant);
+    }
+  }
+
   /* Same header and cell treatment as the Portfolio and Transactions grids. */
   th.mat-mdc-header-cell {
     font-size: 0.62rem;
