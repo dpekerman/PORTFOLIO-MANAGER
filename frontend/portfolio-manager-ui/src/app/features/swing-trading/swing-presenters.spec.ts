@@ -86,21 +86,24 @@ describe('protectionView', () => {
   const s = { brokerStops: [stop()] };
 
   it('maps coverage to one concise state and keeps covered quantity in the detail', () => {
-    expect(protectionView(swingRow({ coverageState: 'None', plannedStop: 11 })).label).toBe('Planned only');
-    expect(protectionView(swingRow({ coverageState: 'None', plannedStop: null })).label).toBe('None');
+    expect(protectionView(swingRow({ coverageState: 'None', plannedStop: 11 })).label).toBe('Stop Not Confirmed');
+    expect(protectionView(swingRow({ coverageState: 'None', plannedStop: null })).label).toBe('Stop Not Confirmed');
     const partial = protectionView(swingRow({ ...s, coverageState: 'Partial', coveredQuantity: 300 }));
-    expect(partial.label).toBe('Partial');
+    expect(partial.label).toBe('Partially Covered');
     expect(partial.detail).toContain('Covered quantity 300 of 600');
     const unknown = protectionView(swingRow({ ...s, coverageState: 'Unknown' }));
-    expect(unknown.label).toBe('Unknown');
+    expect(unknown.label).toBe('Unverified');
     expect(unknown.detail).toContain('Covered quantity unknown');
-    expect(protectionView(swingRow({ ...s, coverageState: 'Ambiguous' })).label).toBe('Ambiguous');
-    expect(protectionView(swingRow({ ...s, coverageState: 'OverCovered' })).label).toBe('Over-covered');
+    expect(protectionView(swingRow({ ...s, coverageState: 'Ambiguous' })).label).toBe('Unverified');
+    const over = protectionView(swingRow({ ...s, coverageState: 'OverCovered', coveredQuantity: 1500, totalQuantity: 1000 }));
+    expect(over.label).toBe('Quantity Mismatch');
+    expect(over.detail).toContain('Order covers 1,500 shares; 1,000 remain open. Verify or amend at your broker.');
   });
 
-  it('Full coverage is only plain "Covered" when the broker verified it', () => {
+  it('Full coverage is never plain "Covered" unless the broker verified it, and never self-confirmed without a user confirmation', () => {
     const full = { coverageState: 'Full' as const, coveredQuantity: 600 };
-    expect(protectionView(swingRow({ ...full, brokerStops: [stop()] })).label).toBe('Covered (unverified)');
+    expect(protectionView(swingRow({ ...full, brokerStops: [stop()] })).label).toBe('Unverified');
+    expect(protectionView(swingRow({ ...full, brokerStops: [stop({ lastUserVerifiedDate: '2026-11-11T10:00:00Z' })] })).label).toBe('Stop Self-Confirmed');
     expect(protectionView(swingRow({ ...full, brokerStops: [stop({ brokerVerificationStatus: 'Verified' })] })).label).toBe('Covered');
   });
 });

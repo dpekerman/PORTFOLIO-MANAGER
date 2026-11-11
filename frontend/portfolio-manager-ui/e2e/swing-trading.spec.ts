@@ -24,6 +24,8 @@ async function openManage(page: Page, symbol: string) {
 }
 
 async function tab(page: Page, name: string) {
+  const header = dialog(page).getByTestId('mr-advanced').locator('.mat-expansion-panel-header');
+  if ((await header.getAttribute('aria-expanded')) !== 'true') await header.click();
   await dialog(page).getByRole('tab', { name }).click();
 }
 
@@ -34,10 +36,10 @@ test.describe('PM-033 Swing Trading workspace', () => {
     await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
     const reminders = page.getByTestId('broker-order-reminders');
     await expect(reminders).toContainText('DIS.TO');
-    await expect(reminders).toContainText('not protection for a new Swing episode');
-    await reminders.getByRole('button', { name: 'Review broker order' }).click();
+    await expect(reminders).toContainText('never count as protection for a new position');
+    await reminders.getByRole('button', { name: 'Review in Manage Risk' }).click();
     await tab(page, 'Broker stops');
-    await dialog(page).locator('summary').filter({ hasText: 'Inactive and previous-trade records' }).click();
+    await dialog(page).getByTestId('mr-prior').locator('.mat-expansion-panel-header').click();
     await dialog(page).getByRole('button', { name: 'I cancelled it', exact: true }).click();
     await expect(dialog(page).getByTestId('mr-transition-confirm')).toBeDisabled();
     await dialog(page).getByTestId('mr-transition').getByRole('textbox').fill('Synthetic broker cancellation confirmation');
@@ -160,11 +162,11 @@ test.describe('PM-033 Swing Trading workspace', () => {
     }
     await expect(rowFor(page, 'WELL.TO')).toContainText('Unresolved');
     await expect(rowFor(page, 'EMP-A.TO')).toContainText('Stale');
-    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('None');
-    await expect(rowFor(page, 'WELL.TO').getByTestId('protection-chip')).toHaveText('Planned only');
-    await expect(rowFor(page, 'TA.TO').getByTestId('protection-chip')).toHaveText('Ambiguous');
-    await expect(rowFor(page, 'NOVO.TO').getByTestId('protection-chip')).toHaveText('Partial');
-    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('Unknown');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Stop Not Confirmed');
+    await expect(rowFor(page, 'WELL.TO').getByTestId('protection-chip')).toHaveText('Stop Not Confirmed');
+    await expect(rowFor(page, 'TA.TO').getByTestId('protection-chip')).toHaveText('Unverified');
+    await expect(rowFor(page, 'NOVO.TO').getByTestId('protection-chip')).toHaveText('Partially Covered');
+    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('Unverified');
   });
 
   test('shows Stop Loss, Current Price, Protection and Manage Risk on every card/row', async ({ page }, info) => {
@@ -307,6 +309,75 @@ test.describe('PM-033 Risk Monitor', () => {
   });
 });
 
+test.describe('PM-032 simplified risk management', () => {
+  test('Manage Risk is plan-first: Planned Stop and Target are the main inputs, broker confirmation is secondary', async ({ page, errors }) => {
+    await openSwing(page);
+    await openManage(page, 'EFR.TO');
+    await expect(dialog(page).getByTestId('mr-trade-plan')).toBeVisible();
+    await expect(dialog(page).getByTestId('mr-quick')).toBeVisible();
+    await expect(dialog(page).getByTestId('mr-advanced').locator('.mat-expansion-panel-header')).toHaveAttribute('aria-expanded', 'false');
+    await expect(dialog(page).getByTestId('mr-quick-trigger')).toHaveCount(0);
+
+    await dialog(page).getByTestId('mr-plan-stop').fill('12.5');
+    await dialog(page).getByTestId('mr-plan-target').fill('15');
+    await expect(dialog(page).getByTestId('mr-to-stop')).toContainText('%');
+    await expect(dialog(page).getByTestId('mr-rr')).toContainText('1 :');
+    await dialog(page).getByTestId('mr-edit-broker').click();
+    await expect(dialog(page).getByTestId('mr-quick-trigger')).toHaveValue('12.5');
+    await expect(dialog(page).getByTestId('mr-quick-limit')).toHaveValue('12.5');
+    await dialog(page).getByTestId('mr-quick-limit').fill('13');
+    await expect(dialog(page).getByTestId('mr-quick-limit-err')).toContainText('must not exceed the stop trigger');
+    await dialog(page).getByTestId('mr-quick-limit').fill('12.4');
+    await expect(dialog(page).getByTestId('mr-save')).toBeEnabled();
+    await dialog(page).getByTestId('mr-quick-confirm').getByRole('checkbox').check();
+    await dialog(page).getByTestId('mr-save').click();
+    await expect(dialog(page).getByTestId('mr-saved')).toContainText('Risk plan saved. Broker stop-limit self-confirmed.');
+    await expect(dialog(page).getByTestId('mr-confirm-chip')).toContainText('Self-confirmed');
+    await dialog(page).getByTestId('mr-close').click();
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Stop Self-Confirmed');
+    await expectNoHorizontalPageOverflow(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('a failed save changes nothing and the order stays unrecorded', async ({ page }) => {
+    await openSwing(page);
+    await openManage(page, 'EFR.TO');
+    swingState.conflictNext = true;
+    await dialog(page).getByTestId('mr-plan-stop').fill('12.5');
+    await dialog(page).getByTestId('mr-quick-confirm').getByRole('checkbox').check();
+    await dialog(page).getByTestId('mr-save').click();
+    await expect(dialog(page).getByTestId('mr-error')).toContainText('changed by someone else');
+    await dialog(page).getByTestId('mr-close').click();
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Stop Not Confirmed');
+  });
+
+  test('grouped reconciliation needs explicit status and confirmation, then clears the reminder and keeps history', async ({ page, errors }) => {
+    retireStopsAsPreviousTrade('TFSA_L_TD', 'DIS.TO');
+    await openSwing(page);
+    await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
+    const reminders = page.getByTestId('broker-order-reminders');
+    await expect(reminders).toContainText('Position closed. Check that any remaining broker stop-limit order has been cancelled.');
+    await expect(reminders.getByTestId('broker-order-group')).toHaveCount(1);
+    const resolve = reminders.getByTestId('reminder-resolve');
+    await expect(resolve).toBeDisabled();
+    await reminders.getByTestId('reminder-status').focus();
+    await page.keyboard.press('Enter');
+    await page.getByRole('option', { name: 'Cancelled at broker' }).click();
+    await expect(resolve).toBeDisabled();
+    await reminders.getByTestId('reminder-confirm').getByRole('checkbox').check();
+    await expect(resolve).toBeEnabled();
+    await resolve.click();
+    await expect(reminders).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Open Trades', exact: true }).click();
+    await openManage(page, 'DIS.TO');
+    await tab(page, 'History');
+    await expect(dialog(page).getByTestId('mr-history')).toContainText('BrokerStatusChanged');
+    await expect(dialog(page).getByTestId('mr-history')).toContainText('UserReportedCancelled');
+    await expectNoHorizontalPageOverflow(page);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('PM-033 Manage Risk dialog', () => {
   test('keeps the planned stop and the broker stop distinct and says it never touches the broker', async ({ page }) => {
     await openSwing(page);
@@ -324,13 +395,13 @@ test.describe('PM-033 Manage Risk dialog', () => {
     const stop = dialog(page).getByTestId('mr-plan-stop');
     await stop.fill('-5');
     await expect(dialog(page).getByText('must be a positive price')).toBeVisible();
-    await expect(dialog(page).getByTestId('mr-plan-save')).toBeDisabled();
+    await expect(dialog(page).getByTestId('mr-save')).toBeDisabled();
 
     await stop.fill('13.9');
     await expect(dialog(page).getByTestId('mr-plan-warnings')).toContainText('at or above the latest price');
     await stop.fill('12.5');
     await dialog(page).getByTestId('mr-plan-target').fill('16');
-    await dialog(page).getByTestId('mr-plan-save').click();
+    await dialog(page).getByTestId('mr-save').click();
     await expect(dialog(page).getByTestId('mr-saved')).toContainText('No broker order was changed');
 
     await tab(page, 'History');
@@ -340,12 +411,13 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await dialog(page).getByTestId('mr-close').click();
     await expect(dialog(page)).toHaveCount(0);
     await expect(rowFor(page, 'EFR.TO')).toContainText('12.50');
-    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Planned only');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Stop Not Confirmed');
   });
 
   test('keeps risk plan notes single-line and preserves their saved values', async ({ page }) => {
     await openSwing(page);
     await openManage(page, 'EFR.TO');
+    await tab(page, 'Risk plan');
     await settle(page);
     const notes = [
       { label: 'Stop rationale', value: 'Below support' },
@@ -362,22 +434,23 @@ test.describe('PM-033 Manage Risk dialog', () => {
       await field.fill(value);
     }
     await expectNoHorizontalPageOverflow(page);
-    await dialog(page).getByTestId('mr-plan-save').click();
+    await dialog(page).getByTestId('mr-save').click();
     await expect(dialog(page).getByTestId('mr-saved')).toContainText('No broker order was changed');
     await dialog(page).getByTestId('mr-close').click();
     await expect(dialog(page)).toHaveCount(0);
     await openManage(page, 'EFR.TO');
+    await tab(page, 'Risk plan');
     for (const { label, value } of notes) {
       await expect(dialog(page).getByLabel(label, { exact: true })).toHaveValue(value);
     }
   });
 
-  test('keeps Save plan and Close on one footer row and only offers Save plan on its tab', async ({ page }) => {
+  test('keeps Save and Close on one footer row without overlap and the advanced section collapsed', async ({ page }) => {
     await openSwing(page);
     await openManage(page, 'EFR.TO');
     await settle(page);
     const footer = dialog(page).locator('mat-dialog-actions');
-    const save = footer.getByTestId('mr-plan-save');
+    const save = footer.getByTestId('mr-save');
     const close = footer.getByTestId('mr-close');
     await expect(save).toBeVisible();
     await expect(close).toBeVisible();
@@ -385,23 +458,11 @@ test.describe('PM-033 Manage Risk dialog', () => {
     const closeBox = (await close.boundingBox())!;
     expect(Math.abs(saveBox.y - closeBox.y)).toBeLessThanOrEqual(1);
     expect(saveBox.x + saveBox.width).toBeLessThanOrEqual(closeBox.x);
+    expect(closeBox.x + closeBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     await tab(page, 'Broker stops');
-    await expect(save).toHaveCount(0);
-    await expect(close).toBeVisible();
-    const addStop = footer.getByTestId('mr-add-stop');
-    await expect(addStop).toBeVisible();
-    const addBox = (await addStop.boundingBox())!;
-    const brokerCloseBox = (await close.boundingBox())!;
-    expect(Math.abs(addBox.y - brokerCloseBox.y)).toBeLessThanOrEqual(1);
-    expect(addBox.x + addBox.width).toBeLessThanOrEqual(brokerCloseBox.x);
-    expect(addBox.x).toBeGreaterThanOrEqual(0);
-    expect(brokerCloseBox.x + brokerCloseBox.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    await expect(dialog(page).getByTestId('mr-add-stop')).toBeVisible();
     await tab(page, 'History');
-    await expect(save).toHaveCount(0);
-    await expect(addStop).toHaveCount(0);
-    await dialog(page).getByRole('tab', { name: 'History' }).press('Home');
-    await dialog(page).getByRole('tab', { name: 'Risk plan' }).press('Enter');
-    await expect(save).toBeVisible();
+    await expect(dialog(page).getByTestId('mr-add-stop')).toBeHidden();
     await close.click();
     await expect(dialog(page)).toHaveCount(0);
   });
@@ -421,7 +482,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await expect(dialog(page).getByTestId('mr-coverage')).toContainText('Partial');
     await expect(dialog(page).getByTestId('mr-stop')).toContainText('Not broker-verified');
     await dialog(page).getByTestId('mr-close').click();
-    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Partial');
+    await expect(rowFor(page, 'EFR.TO').getByTestId('protection-chip')).toHaveText('Partially Covered');
     await expect(rowFor(page, 'EFR.TO')).not.toContainText('Fully Protected');
   });
 
@@ -441,7 +502,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await openManage(page, 'EFR.TO');
     swingState.conflictNext = true;
     await dialog(page).getByTestId('mr-plan-stop').fill('12.5');
-    await dialog(page).getByTestId('mr-plan-save').click();
+    await dialog(page).getByTestId('mr-save').click();
     await expect(dialog(page).getByTestId('mr-error')).toContainText('changed by someone else');
     await expect(dialog(page).getByRole('button', { name: 'Reload latest' })).toBeVisible();
   });
@@ -463,7 +524,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
   test('a previous trade\'s order is not active and prompts a broker check', async ({ page }) => {
     retireStopsAsPreviousTrade('TFSA_L_TD', 'DIS.TO');
     await openSwing(page);
-    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('None');
+    await expect(rowFor(page, 'DIS.TO').getByTestId('protection-chip')).toHaveText('Stop Not Confirmed');
     await openManage(page, 'DIS.TO');
     await expect(dialog(page).getByTestId('mr-closed-warning')).toContainText('may still be open');
   });
@@ -474,7 +535,7 @@ test.describe('PM-033 Manage Risk dialog', () => {
     await rowFor(page, 'DIS.TO').getByTestId('manage-risk-btn').focus();
     await page.keyboard.press('Enter');
     await expect(dialog(page)).toBeVisible();
-    await expect(dialog(page).getByRole('tab', { name: 'Risk plan' })).toBeVisible();
+    await expect(dialog(page).getByTestId('mr-quick')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog(page)).toHaveCount(0);
   });
@@ -482,14 +543,14 @@ test.describe('PM-033 Manage Risk dialog', () => {
   test('fits the phone width with 44px touch targets', async ({ page }, info) => {
     test.skip(!isPhone(info.project.name), 'Phone-only layout');
     await openSwing(page);
-    await openManage(page, 'DIS.TO');
+    await openManage(page, 'EFR.TO');
     await settle(page);
     const box = await dialog(page).boundingBox();
     const vp = page.viewportSize()!;
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width);
     expect(box!.width).toBeGreaterThanOrEqual(vp.width - 20);
-    const save = await dialog(page).getByTestId('mr-plan-save').boundingBox();
+    const save = await dialog(page).getByTestId('mr-save').boundingBox();
     // 44 CSS px; the S21 emulation scales the 384px viewport slightly, so allow rounding.
     expect(save!.height).toBeGreaterThanOrEqual(43);
     await expectNoHorizontalPageOverflow(page);

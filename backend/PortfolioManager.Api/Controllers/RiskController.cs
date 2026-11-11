@@ -16,6 +16,7 @@ public sealed class RiskController(IRiskService risk, IStopSheetImportService im
         catch (RiskValidationException ex) { return BadRequest(new { error = ex.Message }); }
         catch (RiskNotFoundException ex) { return NotFound(new { error = ex.Message }); }
         catch (RiskConcurrencyException ex) { return Conflict(new { error = ex.Message }); }
+        catch (RiskConflictException ex) { return Conflict(new { error = ex.Message }); }
     }
 
     [HttpGet("position")]
@@ -41,6 +42,11 @@ public sealed class RiskController(IRiskService risk, IStopSheetImportService im
     [HttpPost("broker-stops/{id:int}/status")]
     public Task<ActionResult<RiskPositionDto>> Transition(int id, [FromBody] BrokerStopTransitionRequest request, CancellationToken ct)
         => Run(() => risk.TransitionBrokerStopAsync(id, request, ct));
+
+    [Authorize(Roles = "Admin,Trader")]
+    [HttpPost("broker-stops/resolve")]
+    public Task<ActionResult<ResolveBrokerOrdersResultDto>> ResolveBrokerStops([FromBody] ResolveBrokerOrdersRequest request, CancellationToken ct)
+        => Run(() => risk.ResolveBrokerOrdersAsync(request, ct));
 
     /// <summary>Dry run by default. Applying requires an administrator and is a separately approved operation.</summary>
     [Authorize(Roles = "Admin")]

@@ -41,6 +41,14 @@ public sealed record SaveBrokerStopRequest(
 
 public sealed record BrokerStopTransitionRequest(string Status, int? ReplacedByRecordId, string? Reason, string? RowVersion);
 
+public sealed record ResolveBrokerOrdersResultDto(int Resolved, RiskPositionDto Position);
+
+public sealed record ResolveBrokerOrderItem(int Id, string? RowVersion);
+
+/// <summary>Explicit, user-confirmed reconciliation of specific retired broker orders. Never account+symbol-wide.</summary>
+public sealed record ResolveBrokerOrdersRequest(
+    string AccountType, string Symbol, string Status, IReadOnlyList<ResolveBrokerOrderItem> Orders, string? RequestId, bool Confirmed);
+
 public sealed record BackfillReportDto(
     bool Applied, int EpisodesPlanned, int LotsAssigned, int Unresolved,
     IReadOnlyList<BackfillEpisode> Episodes, IReadOnlyList<BackfillAssignment> Assignments, IReadOnlyList<BackfillUnresolved> UnresolvedItems);

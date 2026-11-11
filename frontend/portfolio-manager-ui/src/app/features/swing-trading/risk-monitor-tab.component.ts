@@ -1,6 +1,9 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -9,7 +12,7 @@ import { MatTableModule } from '@angular/material/table';
 import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import * as XLSX from 'xlsx';
-import { SwingTradeRow } from '../../core/models/swing-trading.models';
+import { BrokerOrderReminderGroup, ReconcileStatus, SwingTradeRow } from '../../core/models/swing-trading.models';
 import { SwingClosePositionService } from '../../core/services/swing-close-position.service';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
@@ -49,8 +52,11 @@ import {
     FinalActionBadgeComponent,
     GridColumnButtonComponent,
     MatButtonModule,
+    MatCheckboxModule,
+    MatFormFieldModule,
     MatIconModule,
     MatMenuModule,
+    MatSelectModule,
     MatSortModule,
     MatTableModule,
     MatTooltipModule,
@@ -130,6 +136,63 @@ export class RiskMonitorTabComponent {
 
   protected reviewOrder(account: string, symbol: string): void {
     openManageRiskDialog(this.dialog, { account, symbol });
+  }
+
+  protected readonly reconcileStatuses: { value: ReconcileStatus; label: string }[] = [
+    { value: 'UserReportedCancelled', label: 'Cancelled at broker' },
+    { value: 'UserReportedFilled', label: 'Filled' },
+    { value: 'UserReportedExpired', label: 'Expired' },
+    { value: 'UserReportedResolved', label: 'Already resolved' },
+  ];
+  private readonly drafts = signal<Record<string, { deselected: number[]; status: ReconcileStatus | null; confirmed: boolean }>>({});
+
+  protected groupKey(g: BrokerOrderReminderGroup): string {
+    return `${g.account}|${g.symbol}|${g.episodeOpenDate ?? ''}`;
+  }
+
+  protected draft(g: BrokerOrderReminderGroup): { deselected: number[]; status: ReconcileStatus | null; confirmed: boolean } {
+    return this.drafts()[this.groupKey(g)] ?? { deselected: [], status: null, confirmed: false };
+  }
+
+  private patchDraft(g: BrokerOrderReminderGroup, patch: Partial<{ deselected: number[]; status: ReconcileStatus | null; confirmed: boolean }>): void {
+    this.drafts.update((d) => ({ ...d, [this.groupKey(g)]: { ...this.draft(g), ...patch } }));
+  }
+
+  protected isSelected(g: BrokerOrderReminderGroup, id: number): boolean {
+    return !this.draft(g).deselected.includes(id);
+  }
+
+  protected toggleOrder(g: BrokerOrderReminderGroup, id: number): void {
+    const current = this.draft(g).deselected;
+    // Changing the selection invalidates a prior confirmation: the user must re-confirm for the orders actually selected.
+    this.patchDraft(g, { deselected: current.includes(id) ? current.filter((x) => x !== id) : [...current, id], confirmed: false });
+  }
+
+  protected setStatus(g: BrokerOrderReminderGroup, value: string): void {
+    this.patchDraft(g, { status: (value || null) as ReconcileStatus | null, confirmed: false });
+  }
+
+  protected setConfirmed(g: BrokerOrderReminderGroup, confirmed: boolean): void {
+    this.patchDraft(g, { confirmed });
+  }
+
+  protected canResolve(g: BrokerOrderReminderGroup): boolean {
+    const d = this.draft(g);
+    return d.status !== null && d.confirmed && g.orders.some((o) => !d.deselected.includes(o.id));
+  }
+
+  protected async resolve(g: BrokerOrderReminderGroup): Promise<void> {
+    const d = this.draft(g);
+    if (!this.canResolve(g) || d.status === null) return;
+    const ok = await this.store.resolveBrokerOrders({
+      accountType: g.account,
+      symbol: g.symbol,
+      status: d.status,
+      orders: g.orders.filter((o) => !d.deselected.includes(o.id)).map((o) => ({ id: o.id, rowVersion: o.rowVersion })),
+      requestId: crypto.randomUUID(),
+      confirmed: true,
+    });
+    if (ok) this.drafts.update((all) => Object.fromEntries(Object.entries(all).filter(([k]) => k !== this.groupKey(g))));
   }
 
   protected showFinalAction(row: SwingTradeRow, lotId?: number): void {

@@ -39,3 +39,43 @@
     padding-left: 18px;
   }
 }
+
+.rm-reconcile {
+  .rm-group {
+    margin: 8px 0 0;
+    padding: 8px 10px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 6px;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .rm-legend {
+    font-weight: 600;
+  }
+
+  .rm-order,
+  .rm-confirm {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .rm-resolve {
+    display: grid;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .rm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    button {
+      min-height: 44px;
+    }
+  }
+
+  .rm-error {
+    margin: 8px 0 0;
+  }
+}

@@ -323,11 +323,30 @@ export function handleRisk(req: MockRequest): unknown {
     if (trigger === null || !(trigger > 0)) return bad('Trigger price must be a positive price.');
     const covered = (b['coveredQuantity'] as number | null) ?? null;
     if (covered !== null && covered > r.totalQuantity && !(b['allowOverCoverage'] && b['reason'])) return bad('Covered quantity exceeds the current account quantity.');
-    const s = stop(swingState.nextStop++, trigger, { coveredQuantity: covered, confirmationSource: 'ManualEntry', notes: (b['notes'] as string | null) ?? null, orderType: (b['orderType'] as BrokerStop['orderType']) ?? 'StopMarket' });
+    const limit = (b['limitPrice'] as number | null) ?? null;
+    if (b['orderType'] === 'StopLimit') {
+      if (limit === null || !(limit > 0)) return bad('A stop-limit order requires a limit price.');
+      if (limit > trigger) return bad('For a sell stop-limit the limit price must not exceed the stop trigger.');
+    }
+    const s = stop(swingState.nextStop++, trigger, { coveredQuantity: covered, limitPrice: limit, lastUserVerifiedDate: (b['lastUserVerifiedDate'] as string | null) ?? null, confirmationSource: 'ManualEntry', notes: (b['notes'] as string | null) ?? null, orderType: (b['orderType'] as BrokerStop['orderType']) ?? 'StopMarket' });
     r.brokerStops = [s, ...r.brokerStops];
     logEvent(k, 'BrokerStopRecorded', [{ field: 'TriggerPrice', old: null, new: String(trigger) }], (b['reason'] as string | null) ?? null, s.id);
     recompute(r);
     return positionFor(account, symbol);
+  }
+
+  if (method === 'POST' && path === '/api/risk/broker-stops/resolve') {
+    if (!b['confirmed']) return bad('Confirm that the reported status applies to each selected order.');
+    const orders = (b['orders'] as { id: number }[]) ?? [];
+    const found = orders.map((o) => retired.find((e) => e.stop.id === o.id && e.key === k));
+    if (orders.length === 0 || found.some((f) => !f)) return bad('A selected order does not belong to this account and symbol, or is already resolved.');
+    for (const f of found) {
+      logEvent(k, 'BrokerStatusChanged', [{ field: 'UserStatus', old: f!.stop.userStatus, new: String(b['status']) }], 'User-reported grouped reconciliation. Not verified with the broker.', f!.stop.id);
+      f!.stop.userStatus = String(b['status']) as BrokerStop['userStatus'];
+      f!.stop.brokerCancellationUnverified = false;
+      f!.stop.isActive = false;
+    }
+    return { resolved: orders.length, position: positionFor(account, symbol) };
   }
 
   const upd = /^\/api\/risk\/broker-stops\/(\d+)$/.exec(path);
@@ -341,6 +360,14 @@ export function handleRisk(req: MockRequest): unknown {
       { field: 'CoveredQuantity', old: fmt(s.coveredQuantity), new: fmt((b['coveredQuantity'] as number | null) ?? null) },
     ].filter((c) => c.old !== c.new);
     s.triggerPrice = trigger;
+    if (b['orderType'] === 'StopLimit') {
+      const limit = (b['limitPrice'] as number | null) ?? null;
+      if (limit === null || !(limit > 0)) return bad('A stop-limit order requires a limit price.');
+      if (limit > trigger) return bad('For a sell stop-limit the limit price must not exceed the stop trigger.');
+      s.limitPrice = limit;
+      s.orderType = 'StopLimit';
+    }
+    s.lastUserVerifiedDate = (b['lastUserVerifiedDate'] as string | null) ?? s.lastUserVerifiedDate;
     s.coveredQuantity = (b['coveredQuantity'] as number | null) ?? null;
     s.rowVersion = `${s.rowVersion}+`;
     logEvent(k, changes.length === 1 && changes[0].field === 'CoveredQuantity' ? 'CoverageAdjusted' : 'BrokerStopUpdated', changes, (b['reason'] as string | null) ?? null, s.id);

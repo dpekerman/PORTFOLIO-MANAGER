@@ -1,5 +1,5 @@
 import { RiskStatus, SwingTradeRow } from '../../core/models/swing-trading.models';
-import { priceBasisLabel, riskStatusLabel } from './swing-trading-logic';
+import { overCoverageMessage, priceBasisLabel, riskStatusLabel } from './swing-trading-logic';
 
 /**
  * Presentation mappers for the Swing grids. They only translate fields the backend already evaluated
@@ -148,7 +148,7 @@ export function brokerStopView(row: SwingTradeRow): StatusView {
     case 'Partial': return { label: 'Partial', tone: 'warn', detail };
     case 'Unknown': return { label: 'Unknown', tone: 'warn', detail };
     case 'Ambiguous': return { label: 'Unknown', tone: 'warn', detail: `${detail} The account also holds non-Swing lots, so the order cannot be allocated to this exposure.` };
-    case 'OverCovered': return { label: 'Over-covered', tone: 'warn', detail };
+    case 'OverCovered': return { label: 'Over-covered', tone: 'warn', detail: `${overCoverageMessage(row.coveredQuantity ?? 0, row.totalQuantity)} ${detail}` };
     default: return allVerified(row) ? { label: 'Recorded', tone: 'ok', detail } : { label: 'Recorded (unverified)', tone: 'warn', detail };
   }
 }
@@ -157,14 +157,17 @@ export function protectionView(row: SwingTradeRow): StatusView {
   const detail = `${row.protection}. ${coverageDetail(row)}`;
   switch (row.coverageState) {
     case 'None':
-      return row.plannedStop !== null
-        ? { label: 'Planned only', tone: 'warn', detail }
-        : { label: 'None', tone: 'bad', detail };
-    case 'Partial': return { label: 'Partial', tone: 'warn', detail };
-    case 'Unknown': return { label: 'Unknown', tone: 'warn', detail };
-    case 'Ambiguous': return { label: 'Ambiguous', tone: 'warn', detail };
-    case 'OverCovered': return { label: 'Over-covered', tone: 'warn', detail };
-    default: return allVerified(row) ? { label: 'Covered', tone: 'ok', detail } : { label: 'Covered (unverified)', tone: 'warn', detail };
+      return { label: 'Stop Not Confirmed', tone: row.plannedStop !== null ? 'warn' : 'bad', detail };
+    case 'Partial': return { label: 'Partially Covered', tone: 'warn', detail };
+    case 'Unknown': return { label: 'Unverified', tone: 'warn', detail };
+    case 'Ambiguous': return { label: 'Unverified', tone: 'warn', detail };
+    case 'OverCovered':
+      return { label: 'Quantity Mismatch', tone: 'warn', detail: `${overCoverageMessage(row.coveredQuantity ?? 0, row.totalQuantity)} ${detail}` };
+    default:
+      if (allVerified(row)) return { label: 'Covered', tone: 'ok', detail };
+      return row.brokerStops.every((s) => !!s.lastUserVerifiedDate)
+        ? { label: 'Stop Self-Confirmed', tone: 'warn', detail: `${detail} Self-confirmed by you; not verified with the broker.` }
+        : { label: 'Unverified', tone: 'warn', detail: `${detail} No self-confirmation is recorded for this order.` };
   }
 }
 

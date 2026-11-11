@@ -10,6 +10,7 @@ public interface IRiskService
     Task<RiskPositionDto> SavePlanAsync(SaveRiskPlanRequest request, CancellationToken ct = default);
     Task<RiskPositionDto> SaveBrokerStopAsync(SaveBrokerStopRequest request, CancellationToken ct = default);
     Task<RiskPositionDto> TransitionBrokerStopAsync(int id, BrokerStopTransitionRequest request, CancellationToken ct = default);
+    Task<ResolveBrokerOrdersResultDto> ResolveBrokerOrdersAsync(ResolveBrokerOrdersRequest request, CancellationToken ct = default);
     Task<BackfillReportDto> BackfillEpisodesAsync(bool dryRun, CancellationToken ct = default);
 }
 
@@ -177,9 +178,25 @@ public sealed class RiskService(
         var orderType = string.IsNullOrWhiteSpace(r.OrderType) ? BrokerOrderTypes.StopMarket : r.OrderType.Trim();
         if (!BrokerOrderTypes.All.Contains(orderType)) throw new RiskValidationException("Unsupported order type.");
         decimal? limit = r.LimitPrice is null ? null : RiskSupport.RequirePrice(r.LimitPrice, "Limit price");
+        if (orderType == BrokerOrderTypes.StopLimit)
+        {
+            if (limit is null) throw new RiskValidationException("A stop-limit order requires a limit price.");
+            if (limit > trigger) throw new RiskValidationException("For a sell stop-limit the limit price must not exceed the stop trigger.");
+        }
         if (r.CoveredQuantity is <= 0) throw new RiskValidationException("Covered quantity must be positive, or left blank when unknown.");
-        if (r.CoveredQuantity > pos.TotalQuantity && !(r.AllowOverCoverage && !string.IsNullOrWhiteSpace(r.Reason)))
+        var allowOver = r.AllowOverCoverage && !string.IsNullOrWhiteSpace(r.Reason);
+        if (r.CoveredQuantity > pos.TotalQuantity && !allowOver)
             throw new RiskValidationException($"Covered quantity exceeds the current account quantity ({pos.TotalQuantity:0.######}). Confirm an unusual case with a reason.");
+        if (r.CoveredQuantity is { } newCover && !allowOver)
+        {
+            var others = await Mine(db.BrokerStopRecords.AsNoTracking())
+                .Where(s => s.AccountType == account && s.Symbol == sym && s.Id != (r.Id ?? 0) && s.CoveredQuantity != null).ToListAsync(ct);
+            var combined = others.Where(s => BrokerUserStatuses.IsActive(s.UserStatus) && BelongsToEpisode(s.TradeEpisodeId, s.EpisodeOpenDate, pos)
+                    && (s.UserId == pos.OpenLots[0].UserId || (pos.OpenLots[0].UserId == null && s.UserId == _user.UserId)))
+                .Sum(s => s.CoveredQuantity!.Value) + newCover;
+            if (combined > pos.TotalQuantity)
+                throw new RiskValidationException($"Combined coverage of active orders ({combined:0.######}) would exceed the open quantity ({pos.TotalQuantity:0.######}). Amend the other order or confirm an unusual case with a reason.");
+        }
         if (r.PlacedDate is { } pd && pd.Date > DateTime.UtcNow.Date.AddDays(1)) throw new RiskValidationException("Placed date cannot be in the future.");
         if (r.BrokerOrderRef?.Length > 100 || r.Notes?.Length > 1000) throw new RiskValidationException("A text field is too long.");
 
@@ -240,8 +257,9 @@ public sealed class RiskService(
     {
         var rec = await Mine(db.BrokerStopRecords).FirstOrDefaultAsync(s => s.Id == id, ct)
             ?? throw new RiskNotFoundException("Broker stop record not found.");
-        if (r.Status is not (BrokerUserStatuses.UserReportedCancelled or BrokerUserStatuses.UserReportedFilled or BrokerUserStatuses.Superseded))
-            throw new RiskValidationException("Status must be UserReportedCancelled, UserReportedFilled or Superseded.");
+        if (r.Status is not (BrokerUserStatuses.UserReportedCancelled or BrokerUserStatuses.UserReportedFilled or BrokerUserStatuses.Superseded
+            or BrokerUserStatuses.UserReportedExpired or BrokerUserStatuses.UserReportedResolved))
+            throw new RiskValidationException("Status must be UserReportedCancelled, UserReportedFilled, UserReportedExpired, UserReportedResolved or Superseded.");
         if (!BrokerUserStatuses.IsActive(rec.UserStatus) && !(rec.UserStatus == BrokerUserStatuses.EpisodeClosed && rec.BrokerCancellationUnverified))
             throw new RiskValidationException("This broker stop is already inactive.");
         if (string.IsNullOrWhiteSpace(r.Reason))
@@ -268,6 +286,63 @@ public sealed class RiskService(
         RiskSupport.StageAudit(db, _user, RiskAuditSources.User, "BrokerStatusChanged", rec.AccountType, rec.Symbol, changes, r.Reason, null, stop: rec);
         await SaveAsync(ct);
         return await GetPositionAsync(rec.AccountType, rec.Symbol, ct);
+    }
+
+    /// <summary>
+    /// Grouped reconciliation of retired/leftover orders the user explicitly selected. Validates every record before any
+    /// write (all-or-nothing), never touches orders of an open position's current episode, and audits each transition.
+    /// </summary>
+    public async Task<ResolveBrokerOrdersResultDto> ResolveBrokerOrdersAsync(ResolveBrokerOrdersRequest r, CancellationToken ct = default)
+    {
+        if (!r.Confirmed) throw new RiskValidationException("Confirm that the reported status applies to each selected order.");
+        if (r.Status is not (BrokerUserStatuses.UserReportedCancelled or BrokerUserStatuses.UserReportedFilled
+            or BrokerUserStatuses.UserReportedExpired or BrokerUserStatuses.UserReportedResolved))
+            throw new RiskValidationException("Status must be cancelled, filled, expired or already resolved.");
+        if (string.IsNullOrWhiteSpace(r.RequestId) || r.RequestId.Length > 64)
+            throw new RiskValidationException("A request id is required.");
+        if (r.Orders is null || r.Orders.Count == 0 || r.Orders.Count > 50) throw new RiskValidationException("Select between 1 and 50 orders.");
+        var ids = r.Orders.Select(o => o.Id).ToList();
+        if (ids.Distinct().Count() != ids.Count) throw new RiskValidationException("An order was selected more than once.");
+
+        await using var tx = db.Database.IsRelational() && db.Database.CurrentTransaction is null
+            ? await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct) : null;
+        var account = TradeEpisodeResolver.NormAccount(r.AccountType);
+        var sym = TradeEpisodeResolver.NormSymbol(r.Symbol);
+        var correlation = $"resolve:{r.RequestId.Trim()}";
+        if (await db.RiskAuditEvents.AnyAsync(e => e.CorrelationId == correlation, ct))
+            throw new RiskConflictException("This reconciliation request was already processed.");
+
+        var recs = await Mine(db.BrokerStopRecords).Where(s => ids.Contains(s.Id)).ToListAsync(ct);
+        if (recs.Count != ids.Count) throw new RiskNotFoundException("A selected broker order was not found.");
+        var (_, pos) = await LoadPositionAsync(account, sym, ct);
+        foreach (var rec in recs)
+        {
+            if (rec.AccountType != account || rec.Symbol != sym)
+                throw new RiskValidationException("A selected order does not belong to this account and symbol.");
+            var retired = rec.UserStatus == BrokerUserStatuses.EpisodeClosed && rec.BrokerCancellationUnverified;
+            if (!retired && !BrokerUserStatuses.IsActive(rec.UserStatus))
+                throw new RiskValidationException("A selected order is already resolved. Reload and review.");
+            if (BelongsToEpisode(rec.TradeEpisodeId, rec.EpisodeOpenDate, pos))
+                throw new RiskValidationException("A selected order belongs to the current open position and cannot be reconciled here.");
+            var supplied = r.Orders.First(o => o.Id == rec.Id).RowVersion;
+            RiskSupport.CheckVersion(rec.RowVersion, supplied, "A selected broker order");
+            if (supplied is not null) db.Entry(rec).Property(p => p.RowVersion).OriginalValue = rec.RowVersion;
+        }
+
+        foreach (var rec in recs)
+        {
+            var changes = new List<AuditChangeDto>();
+            RiskSupport.Diff(changes, "UserStatus", rec.UserStatus, r.Status);
+            RiskSupport.Diff(changes, "BrokerCancellationUnverified", rec.BrokerCancellationUnverified, false);
+            rec.UserStatus = r.Status;
+            rec.BrokerCancellationUnverified = false;
+            rec.UpdatedAtUtc = DateTime.UtcNow;
+            RiskSupport.StageAudit(db, _user, RiskAuditSources.User, "BrokerStatusChanged", rec.AccountType, rec.Symbol, changes,
+                "User-reported grouped reconciliation. Not verified with the broker.", correlation, stop: rec);
+        }
+        await SaveAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        return new ResolveBrokerOrdersResultDto(recs.Count, await GetPositionAsync(account, sym, ct));
     }
 
     /// <summary>Report only unless dryRun is false. Links history only where the relationship is unambiguous.</summary>

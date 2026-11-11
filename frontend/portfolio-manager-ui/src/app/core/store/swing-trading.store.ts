@@ -7,8 +7,10 @@ import { Observable, pipe, switchMap, tap } from 'rxjs';
 import {
   BrokerStopTransitionRequest,
   BrokerOrderReminder,
+  BrokerOrderReminderGroup,
   JournalRow,
   OpenTradesSummary,
+  ResolveBrokerOrdersRequest,
   RiskPosition,
   SaveBrokerStopRequest,
   SaveRiskPlanRequest,
@@ -21,6 +23,7 @@ import {
   SwingFilters,
   distinctSorted,
   filterSwingRows,
+  groupReminders,
   aggregateFinalActions,
 } from '../../features/swing-trading/swing-trading-logic';
 import { FinalActionStore } from './final-action.store';
@@ -31,6 +34,7 @@ import { setError, setLoaded, setLoading, withRequestStatus } from './features/r
 
 interface SwingTradingState {
   brokerOrderReminders: BrokerOrderReminder[];
+  brokerOrderReminderGroups: BrokerOrderReminderGroup[];
   rows: SwingTradeRow[];
   summary: OpenTradesSummary | null;
   thresholdPct: number;
@@ -54,6 +58,7 @@ interface SwingTradingState {
 
 const initialState: SwingTradingState = {
   brokerOrderReminders: [],
+  brokerOrderReminderGroups: [],
   rows: [],
   summary: null,
   thresholdPct: 5,
@@ -137,6 +142,7 @@ export const SwingTradingStore = signalStore(
                   {
                     rows: res.rows,
                     brokerOrderReminders: res.brokerOrderReminders ?? [],
+                    brokerOrderReminderGroups: res.brokerOrderReminderGroups ?? groupReminders(res.brokerOrderReminders ?? []),
                     summary: res.summary,
                     thresholdPct: res.approachingThresholdPct,
                     thresholdNote: res.thresholdNote,
@@ -277,6 +283,28 @@ export const SwingTradingStore = signalStore(
         mutate(request.id === null ? api.addBrokerStop(request) : api.updateBrokerStop(request.id, request)),
       transitionBrokerStop: (id: number, request: BrokerStopTransitionRequest) =>
         mutate(api.transitionBrokerStop(id, request)),
+      /** Explicit, user-confirmed reconciliation of selected retired orders; refreshes the grid and reminders on success. */
+      resolveBrokerOrders: (request: ResolveBrokerOrdersRequest): Promise<boolean> => {
+        patchState(store, { saving: true, positionError: null, conflict: false });
+        return new Promise<boolean>((resolve) => {
+          api.resolveBrokerOrders(request).subscribe({
+            next: () => {
+              patchState(store, { saving: false });
+              loadOpenTrades();
+              if (store.journalLoaded()) loadJournal();
+              resolve(true);
+            },
+            error: (err: unknown) => {
+              patchState(store, {
+                saving: false,
+                conflict: err instanceof HttpErrorResponse && err.status === 409,
+                positionError: errorMessage(err, 'Could not record the status. Nothing was changed.'),
+              });
+              resolve(false);
+            },
+          });
+        });
+      },
     };
   }),
   withHooks({
