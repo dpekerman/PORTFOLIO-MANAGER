@@ -11,6 +11,27 @@
   white-space: nowrap;
 }
 
+// Frozen identity columns (CDK computes the left offsets from `sticky` on the column def; mirrors Watchlist .wl-sticky-col).
+.st-sticky-col {
+  background: var(--bg-surface);
+
+  &.mat-mdc-cell {
+    z-index: 2;
+  }
+
+  &.mat-mdc-header-cell {
+    z-index: 3;
+  }
+
+  &.st-sticky-last {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 1px 0 0 var(--mat-sys-outline-variant);
+  }
+}
+
 .sev-critical {
   color: var(--mat-sys-error);
   font-weight: 700;

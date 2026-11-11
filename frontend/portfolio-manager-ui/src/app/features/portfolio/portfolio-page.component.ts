@@ -1307,19 +1307,19 @@ export class PortfolioPageComponent {
       this.cashState.totalCash() +
       this.optionState.totalMarketValue();
 
-    for (const c of this.cashState.items()) {
-      const pct = grandTotal > 0 ? ((c.amount / grandTotal) * 100).toFixed(2) : '0';
+    for (const c of this.cashState.totalsByAccount()) {
+      const pct = grandTotal > 0 ? ((c.total / grandTotal) * 100).toFixed(2) : '0';
       rows.push([
         'Cash',
         'CASH',
-        c.description,
+        c.accountType,
+        c.accountType,
         '',
         '',
         '',
+        c.total.toFixed(2),
         '',
-        c.amount.toFixed(2),
-        '',
-        c.amount.toFixed(2),
+        c.total.toFixed(2),
         '0.00',
         pct,
         '0.00',

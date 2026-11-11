@@ -1570,7 +1570,7 @@
           <div class="subsection-title-group">
             <mat-icon class="subsection-icon">payments</mat-icon>
             <span class="subsection-title"
-              >Cash <span class="count-badge">{{ cashState.items().length }}</span></span
+              >Cash <span class="count-badge">{{ cashState.totalsByAccount().length }}</span></span
             >
             @if (cashState.items().length > 0) {
               <div class="subsection-meta">
@@ -1585,8 +1585,8 @@
                   >
                 </div>
                 <div class="subsection-stat">
-                  <span class="stat-label">Positions</span>
-                  <span class="stat-value">{{ cashState.items().length }}</span>
+                  <span class="stat-label">Accounts</span>
+                  <span class="stat-value">{{ cashState.totalsByAccount().length }}</span>
                 </div>
               </div>
             }

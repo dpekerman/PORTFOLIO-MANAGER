@@ -1,4 +1,4 @@
-import { CurrencyPipe, DecimalPipe, PercentPipe, SlicePipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -27,6 +27,9 @@ interface OptionTickerGroup {
   expanded: boolean;
 }
 
+import * as XLSX from 'xlsx';
+import { buildCashAccountRows } from './allocation-cash';
+import { buildAllocationWorkbook } from './allocation-export';
 import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
 import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
 
@@ -42,7 +45,6 @@ import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.com
     CurrencyPipe,
     DecimalPipe,
     PercentPipe,
-    SlicePipe,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
@@ -191,13 +193,10 @@ export class AllocationPageComponent {
     return gt > 0 ? this.portfolio.totalValue() / gt : 0;
   });
 
-  protected readonly cashItemsWithPct = computed(() => {
-    const gt = this.grandTotal();
-    return this.cashState.items().map((c) => ({
-      ...c,
-      pct: gt > 0 ? c.amount / gt : 0,
-    }));
-  });
+  /** Current balance per cash account (authoritative CashStore totals); ledger transactions stay in the cash ledger. */
+  protected readonly cashAccountRows = computed(() =>
+    buildCashAccountRows(this.cashState.totalsByAccount(), this.grandTotal()),
+  );
 
   protected readonly optionGroups = computed<OptionTickerGroup[]>(() => {
     const gt = this.grandTotal();
@@ -244,59 +243,38 @@ export class AllocationPageComponent {
     });
   }
 
-  exportCsv(): void {
+  exportExcel(): void {
     const totalValue = this.portfolio.totalValue();
+    const gt = this.grandTotal();
     const summaries = this.portfolio.summaries().filter((s) => s.item.transactionType !== 'CLOSE');
 
-    const rows: string[][] = [
-      [
-        'Type',
-        'Sector',
-        'Industry',
-        'Symbol / Description',
-        'Company',
-        'Market Value',
-        'Portfolio %',
-      ],
-    ];
-
-    for (const s of summaries) {
-      const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-      const marketValue = s.item.isManual
-        ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-        : price * s.item.shares;
-      const pct = totalValue > 0 ? ((marketValue / totalValue) * 100).toFixed(2) : '0';
-      rows.push([
-        'Stock',
-        s.item.sector ?? 'Unknown',
-        s.item.industry ?? 'Unknown',
-        s.item.symbol,
-        s.item.companyName,
-        marketValue.toFixed(2),
-        pct,
-      ]);
-    }
-
-    const gt = this.grandTotal();
-    for (const c of this.cashState.items()) {
-      const pct = gt > 0 ? ((c.amount / gt) * 100).toFixed(2) : '0';
-      rows.push(['Cash', '', '', c.description, '', c.amount.toFixed(2), pct]);
-    }
-
-    for (const a of this.optionState.analyses().filter((a) => a.item.transactionType !== 'CLOSE')) {
-      const pct = gt > 0 ? ((a.marketValue / gt) * 100).toFixed(2) : '0';
-      const desc = `${a.item.underlyingTicker} ${a.item.positionType} $${a.item.strike} exp ${a.item.expirationDate}`;
-      rows.push(['Option', '', '', a.item.underlyingTicker, desc, a.marketValue.toFixed(2), pct]);
-    }
-
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'allocation.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const book = buildAllocationWorkbook({
+      stocks: summaries.map((s) => {
+        const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
+        const marketValue = s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+          : price * s.item.shares;
+        return {
+          sector: s.item.sector ?? 'Unknown',
+          industry: s.item.industry ?? 'Unknown',
+          symbol: s.item.symbol,
+          company: s.item.companyName,
+          marketValue,
+          weight: totalValue > 0 ? marketValue / totalValue : 0,
+        };
+      }),
+      cash: this.cashAccountRows(),
+      options: this.optionState
+        .analyses()
+        .filter((a) => a.item.transactionType !== 'CLOSE')
+        .map((a) => ({
+          symbol: a.item.underlyingTicker,
+          description: `${a.item.underlyingTicker} ${a.item.positionType} $${a.item.strike} exp ${a.item.expirationDate}`,
+          marketValue: a.marketValue,
+          weight: gt > 0 ? a.marketValue / gt : 0,
+        })),
+    });
+    XLSX.writeFile(book, 'allocation.xlsx');
   }
 
   backupAllocationData(): void {
