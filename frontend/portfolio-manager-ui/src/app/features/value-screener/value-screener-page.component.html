@@ -138,6 +138,8 @@
 
     <!-- TIER SUMMARY CARDS — clickable to filter -->
     @if (allActiveResults().length > 0) {
+      <details class="app-filter-panel">
+        <summary>Filters @if (activeTierFilter()) { <span class="app-filter-state">{{ activeTierFilter() }}</span> }</summary>
       <div class="tier-summary">
         <div
           class="tier-card tier-card--high"
@@ -187,6 +189,7 @@
           </button>
         }
       </div>
+      </details>
     }
   </section>
 

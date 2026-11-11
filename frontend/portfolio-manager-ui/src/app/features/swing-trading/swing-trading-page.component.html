@@ -30,7 +30,7 @@
         <strong class="sw-value" data-testid="sum-mv">—</strong>
       } @else {
         @for (t of totals(); track t.currency) {
-          <strong class="sw-value" data-testid="sum-mv">{{ t.marketValue | number: '1.2-2' }} <span class="sw-cur">{{ t.currency }}</span></strong>
+          <strong class="sw-value" data-testid="sum-mv"><span class="sw-amount">{{ t.marketValue | number: '1.2-2' }}</span> <span class="sw-cur">{{ t.currency }}</span></strong>
         }
       }
       <span class="sw-label">Current market value</span>
@@ -41,7 +41,7 @@
       } @else {
         @for (t of totals(); track t.currency) {
           <strong class="sw-value" [class.sw-pos]="t.positive" [class.sw-neg]="t.negative" data-testid="sum-pnl">
-            {{ t.pnl | number: '1.2-2' }} <span class="sw-cur">{{ t.currency }}</span> ({{ t.pnlPct | number: '1.2-2' }}%)
+            <span class="sw-amount">{{ t.pnl | number: '1.2-2' }}</span> <span class="sw-cur">{{ t.currency }}</span> <span class="sw-amount">({{ t.pnlPct | number: '1.2-2' }}%)</span>
           </strong>
         }
       }

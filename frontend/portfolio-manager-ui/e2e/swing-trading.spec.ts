@@ -198,7 +198,9 @@ test.describe('PM-033 Swing Trading workspace', () => {
         const children = Array.from(el.children).map((child) => child.getBoundingClientRect());
         return {
           gap: children[1].top - children[0].bottom,
-          aligned: Math.abs(children[1].left - children[0].left) <= 1,
+          aligned: el.closest('table')?.getAttribute('data-responsive') === 'cards'
+            ? Math.abs(children[1].right - children[0].right) <= 1
+            : Math.abs((children[1].left + children[1].right) - (children[0].left + children[0].right)) <= 2,
           contained: Array.from(el.querySelectorAll('.st-chip')).every((chip) => chip.scrollWidth <= chip.clientWidth + 1),
         };
       });
@@ -216,6 +218,7 @@ test.describe('PM-033 Swing Trading workspace', () => {
 
   test('filters by account, search, protection, risk status and attention, and can be cleared', async ({ page }) => {
     await openSwing(page);
+    await page.locator('.app-filter-panel > summary').click();
     await page.getByTestId('swing-account').click();
     await page.getByRole('option', { name: 'Corp_TD' }).click();
     await expect(rows(page)).toHaveCount(3);
@@ -256,6 +259,7 @@ test.describe('PM-033 Swing Trading workspace', () => {
 
   test('shows the canonical Final Action read from the existing engine', async ({ page }) => {
     await openSwing(page);
+    await page.locator('.app-filter-panel > summary').click();
     await expect(rowFor(page, 'DIS.TO')).toContainText('Hold Swing');
     await page.getByTestId('swing-final-action').click();
     await page.getByRole('option', { name: 'Hold / Trail Stop' }).click();
@@ -264,6 +268,7 @@ test.describe('PM-033 Swing Trading workspace', () => {
 
   test('exports exactly the filtered rows, with unknown coverage left blank', async ({ page }) => {
     await openSwing(page);
+    await page.locator('.app-filter-panel > summary').click();
     await page.getByTestId('swing-search').fill('DIS.TO');
     await expect(rows(page)).toHaveCount(1);
     const [download] = await Promise.all([page.waitForEvent('download'), (async () => {
@@ -572,6 +577,7 @@ test.describe('PM-033 Trade Journal', () => {
     await expect(dialog(page).getByTestId('journal-history')).toContainText('PlanCreated');
     await page.keyboard.press('Escape');
 
+    await page.locator('.app-filter-panel > summary:visible').click();
     await page.getByTestId('journal-outcome').click();
     await page.getByRole('option', { name: 'Loss' }).click();
     await expect(jr).toHaveCount(1);
@@ -710,6 +716,7 @@ test.describe('PM-016 Swing grid cleanup', () => {
     await page.getByRole('tab', { name: 'Risk Monitor', exact: true }).click();
     const monitorRows = page.getByTestId('risk-table').locator('tr.mat-mdc-row');
     await expect(monitorRows).toHaveCount(8);
+    await page.locator('.app-filter-panel > summary:visible').click();
     const quick = page.getByTestId('swing-breached-planned');
     await expect(quick).toContainText('Breached Planned Stops (1)');
     await expect(quick).toHaveAttribute('aria-pressed', 'false');
@@ -735,6 +742,7 @@ test.describe('PM-016 Swing grid cleanup', () => {
 
   test('the quick filter also applies to Open Trades because the filter bar is shared', async ({ page }) => {
     await openSwing(page);
+    await page.locator('.app-filter-panel > summary').click();
     await page.getByTestId('swing-breached-planned').click();
     await expect(rows(page)).toHaveCount(1);
     await expect(rows(page).first()).toContainText('WELL.TO');
@@ -750,6 +758,7 @@ test.describe('PM-016 Swing grid cleanup', () => {
     const flag = rowFor(page, 'WELL.TO').getByTestId('planned-stop-flag');
     await expect(flag).toBeVisible();
     expect((await flag.boundingBox())!.height).toBeGreaterThanOrEqual(32);
+    await page.locator('.app-filter-panel > summary').click();
     const quick = page.getByTestId('swing-breached-planned');
     expect((await quick.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     const overflow = await page.locator('[data-testid="open-trades-table"]').evaluate((table) =>

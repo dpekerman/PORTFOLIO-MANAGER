@@ -96,6 +96,8 @@
   }
 
   <!-- ── Filter Bar ────────────────────────────────────────────────────── -->
+  <details class="app-filter-panel">
+    <summary>Filters @if (hasFilters()) { <span class="app-filter-state">Active</span> }</summary>
   <div class="filter-bar">
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="f-ticker">
       <mat-icon matPrefix>search</mat-icon>
@@ -204,6 +206,8 @@
       </button>
     }
   </div>
+
+  </details>
 
   <!-- ── Progress bar ─────────────────────────────────────────────────── -->
   @if (loading()) {

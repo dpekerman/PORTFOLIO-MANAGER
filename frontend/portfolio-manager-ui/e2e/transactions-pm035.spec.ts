@@ -19,6 +19,7 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/transactions');
     await expect(stockRows(page).first()).toBeAttached();
+    await page.locator('.app-filter-panel > summary').click();
   });
 
   test('filters have accessible labels and Reset restores the grid', async ({ page }) => {

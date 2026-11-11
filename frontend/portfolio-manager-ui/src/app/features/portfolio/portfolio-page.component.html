@@ -180,6 +180,8 @@
                   mat-button
                   class="gf-toggle-btn"
                   (click)="filtersExpanded.set(!filtersExpanded())"
+                  [attr.aria-expanded]="filtersExpanded()"
+                  aria-controls="portfolio-grid-filters"
                   [color]="hasActiveFilters ? 'primary' : undefined"
                 >
                   <mat-icon>{{ filtersExpanded() ? 'filter_list_off' : 'filter_list' }}</mat-icon>
@@ -200,7 +202,7 @@
                 }
               </div>
               @if (filtersExpanded()) {
-                <div class="grid-filters-bar">
+                <div class="grid-filters-bar" id="portfolio-grid-filters">
                   <mat-form-field
                     appearance="outline"
                     subscriptSizing="dynamic"

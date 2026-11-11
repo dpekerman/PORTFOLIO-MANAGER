@@ -8,10 +8,16 @@
 .ps {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   box-sizing: border-box;
   max-width: 100%;
+}
+
+@media (max-width: 599.98px) {
+  .ps {
+    align-items: flex-end;
+  }
 }
 
 .ps-breached {

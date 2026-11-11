@@ -120,6 +120,8 @@
     </div>
   } @else if (watchlist.items().length > 0) {
     <!-- ── Tier filter tabs ────────────────────────────────────────────── -->
+    <details class="app-filter-panel">
+      <summary>Filters <span class="app-filter-state">{{ tierFilter() }}@if (filterText() || filterTrendSetup() || filterFinalAction() || filterFavorites()) { / Active }</span></summary>
     <div class="tier-filter-bar">
       <mat-button-toggle-group
         [value]="tierFilter()"
@@ -215,9 +217,12 @@
         >
           <mat-icon>{{ filterFavorites() ? 'star' : 'star_border' }}</mat-icon>
         </button>
-        <span class="grid-count-label"
-          >{{ filteredSorted().length }} of {{ watchlist.count() }}</span
-        >
+      </div>
+    }
+    </details>
+    @if (viewMode() === 'grid') {
+      <div class="grid-filter-bar">
+        <span class="grid-count-label">{{ filteredSorted().length }} of {{ watchlist.count() }}</span>
         @if (colWidths().size > 0) {
           <button
             mat-icon-button

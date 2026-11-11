@@ -8,6 +8,7 @@
 .tj-filters {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   padding: 8px 0;
 
@@ -29,7 +30,7 @@
   td,
   th {
     padding: 6px 10px;
-    vertical-align: top;
+    vertical-align: middle;
   }
 }
 

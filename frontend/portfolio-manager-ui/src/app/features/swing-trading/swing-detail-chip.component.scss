@@ -3,7 +3,7 @@
 :host {
   display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   max-width: 100%;
@@ -19,7 +19,7 @@
   font-family: inherit;
   white-space: normal;
   overflow-wrap: anywhere;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 
   &:focus-visible {
@@ -60,7 +60,22 @@
   overflow-wrap: anywhere;
 }
 
+@media (min-width: 600px) {
+  .dc {
+    white-space: nowrap;
+  }
+}
+
 @media (max-width: 599.98px) {
+  :host {
+    align-items: flex-end;
+  }
+
+  .dc,
+  .dc-detail {
+    text-align: right;
+  }
+
   .dc {
     min-height: 32px;
     padding: 4px 10px;
