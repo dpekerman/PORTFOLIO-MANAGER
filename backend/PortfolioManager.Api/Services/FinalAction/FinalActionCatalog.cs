@@ -55,6 +55,8 @@ public static partial class FinalActionCatalog
         ("Hold / Trail Stop — No Add", Advisory, Neutral, "Portfolio"),
         ("Hold / Overbought Caution — No Add", Advisory, Neutral, "Portfolio"),
         ("Hold / Profit Watch — No Add", Advisory, Neutral, "Portfolio"),
+        ("Profit Protection Watch", Advisory, Neutral, "Portfolio"),
+        ("Consider Partial Trim", TrimExit, Sell, "Portfolio"),
         ("Review Stop Breach", Advisory, Neutral, "Portfolio"),
         ("Hold", Advisory, Neutral, "Portfolio"),
         ("Hold / Monitor", Advisory, Neutral, "Portfolio"),

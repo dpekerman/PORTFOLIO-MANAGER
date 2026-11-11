@@ -58,6 +58,9 @@ public sealed record PortfolioEvidence(
     /// <summary>Null means the valuation is treated as reliable (legacy callers).</summary>
     ValuationCheck? Valuation = null)
 {
+    /// <summary>Minimum unrealized gain for a Strategic tactical profit-protection reading. Candidate default, not an approved universal limit.</summary>
+    public double TacticalMinGainPct { get; init; } = 10;
+
     public bool AllocationReliable => Valuation?.Reliable ?? true;
 }
 
@@ -87,6 +90,8 @@ public static class GateReasons
     public const string AddBlockedPortfolioAction = "ADD_BLOCKED_PORTFOLIO_ACTION";
     public const string ProfitProtectedByStop = "SELL_TRIGGER_PROFIT_PROTECTED_BY_STOP";
     public const string LabelCorrectedForLoss = "TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS";
+    public const string ProfitProtectionWatch = "PROFIT_PROTECTION_WATCH";
+    public const string TacticalTrimConfirmed = "TACTICAL_TRIM_CONFIRMED";
 }
 
 /// <summary>
@@ -110,6 +115,8 @@ public static class PortfolioEvidenceGate
     public const string ProfitWatchNoAdd = "Hold / Profit Watch — No Add";
     public const string TrailStopNoAdd = "Hold / Trail Stop — No Add";
     public const string SpecTrailStopNoAdd = "Hold Spec / Trail Stop — No Add";
+    public const string ProfitProtectionWatchAction = "Profit Protection Watch";
+    public const string ConsiderPartialTrim = "Consider Partial Trim";
 
     private enum Kind { None, Add, Trim, ProfitExit, LossExit, ProfitTake, ProfitWatch }
 
@@ -130,7 +137,54 @@ public static class PortfolioEvidenceGate
         var reduced = ApplyReduction(adjusted, role, e);
         if (correctedFrom is not null)
             reduced = reduced with { OriginalAction = reduced.OriginalAction ?? correctedFrom, ReasonCodes = [.. reduced.ReasonCodes, GateReasons.LabelCorrectedForLoss] };
+        reduced = ApplyStrategicTactical(reduced, adjusted, role, e);
         return ApplyStopRisk(reduced, adjusted, e);
+    }
+
+    /// <summary>
+    /// Strategic tactical profit protection. Overbought alone never reaches here. A profitable Strategic holding with post-entry
+    /// evidence becomes "Profit Protection Watch" on early deterioration, or "Consider Partial Trim" on a confirmed sell trigger.
+    /// Allocation, structural and stop outcomes were decided earlier and are never weakened; the size of any trim stays a user decision.
+    /// </summary>
+    private static GateOutcome ApplyStrategicTactical(GateOutcome o, FinalActionDecision raw, string? role, PortfolioEvidence e)
+    {
+        if (!string.Equals(role?.Trim(), "Strategic", StringComparison.OrdinalIgnoreCase)) return o;
+        if (e.UnrealizedGainPct is not { } gain || gain < e.TacticalMinGainPct) return o;
+        if (e.EntryDate is not { } entry || entry >= e.EvidenceDate) return o;
+
+        var d = o.Decision;
+        var advisory = d.FinalAction is FinalActionEngine.OverboughtCaution or ProfitWatchNoAdd or "Hold / Technical Caution"
+            || (d.FinalAction == "Hold / Monitor" && o.OriginalAction is not null && Classify(o.OriginalAction) == Kind.Trim);
+        if (!advisory) return o;
+
+        var gainText = string.Create(CultureInfo.InvariantCulture, $"unrealized gain {gain:F1}%");
+        var asOf = $"Evidence as of {e.EvidenceAsOfUtc:yyyy-MM-dd HH:mm} UTC.";
+        var original = o.OriginalAction ?? raw.FinalAction;
+
+        if (d.MomentumShift == "Active Sell Trigger")
+        {
+            var reason = $"Confirmed sell trigger after entry on a profitable Strategic holding ({gainText}). The long-term thesis is not judged here: consider a partial trim (suggested 10–25% of the position, a user decision) and optionally review a protective stop-limit. Advisory only — no order is placed. Original action: {original}. {asOf}";
+            return new GateOutcome(d with
+            {
+                FinalAction = ConsiderPartialTrim,
+                FinalActionClass = FinalActionEngine.FinalActionClass(ConsiderPartialTrim),
+                HoverDescription = "Tactical partial trim worth considering. Advisory only — no order is placed and the quantity is your decision.",
+                FinalActionReason = Join(raw.FinalActionReason, reason),
+            }, [.. o.ReasonCodes.Where(c => c != GateReasons.TechnicalOnly), GateReasons.TacticalTrimConfirmed], o.OriginalAction ?? raw.FinalAction);
+        }
+
+        var overextended = FinalActionEngine.IsOverextended(d.TrendSetup, d.MomentumShift);
+        var deteriorating = d.TrendSetup is "Technical Caution" or "Cooling" || d.MomentumShift is "Bearish Shift" or "Breakdown";
+        if (!overextended || !deteriorating) return o;
+
+        var watch = $"Extended Strategic holding with {gainText} and early deterioration ({d.TrendSetup} / {d.MomentumShift}). Not a sell trigger: do not add, and consider protecting the gain (a user-managed stop-limit). Advisory only. Original action: {original}. {asOf}";
+        return new GateOutcome(d with
+        {
+            FinalAction = ProfitProtectionWatchAction,
+            FinalActionClass = FinalActionEngine.FinalActionClass(ProfitProtectionWatchAction),
+            HoverDescription = "Profit protection watch. No add; no sell trigger is confirmed.",
+            FinalActionReason = Join(raw.FinalActionReason, watch),
+        }, [.. o.ReasonCodes, GateReasons.ProfitProtectionWatch], o.OriginalAction ?? raw.FinalAction);
     }
 
     /// <summary>A position at a loss is never told to "Take Profit": the sell trigger stands, only the label is corrected.</summary>

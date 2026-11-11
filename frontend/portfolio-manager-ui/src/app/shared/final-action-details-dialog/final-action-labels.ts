@@ -28,6 +28,8 @@ const REASON_LABELS: Record<string, string> = {
   QUOTE_OLDER_THAN_SCAN: 'The source quote is older than the scan',
   PROFIT_SIGNAL_NO_INDEPENDENT_TRIGGER: 'Profit-taking rule fired without an independent exit reason — advisory only',
   OVERBOUGHT_CAUTION_NO_ADD: 'Overbought or extended — do not add; not a reason to sell',
+  PROFIT_PROTECTION_WATCH: 'Profitable and extended with early deterioration — watch and consider protecting the gain',
+  TACTICAL_TRIM_CONFIRMED: 'Confirmed sell trigger on a profitable Strategic holding — partial trim worth considering',
   PLANNED_STOP_BREACHED: 'Observed price is at or below the Planned Stop (not a confirmed broker execution)',
   BROKER_STOP_BREACHED: 'Observed price is at or below a recorded broker stop (verify the order status)',
   STOP_EVIDENCE_UNVERIFIED: 'Stop state cannot be verified: the price observation is stale or unavailable',
