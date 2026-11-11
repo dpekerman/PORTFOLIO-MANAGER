@@ -69,6 +69,8 @@
       when its Final Action changes. {{ enabledCount() }} of {{ entries().length }} enabled.
     </p>
 
+    <details class="app-filter-panel">
+      <summary>Filters @if (search() || statusFilter() !== 'ALL') { <span class="app-filter-state">Active</span> }</summary>
     <div class="sa-fa-tools">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="sa-search">
         <mat-label>Search actions</mat-label>
@@ -86,6 +88,9 @@
           </button>
         }
       </div>
+    </div>
+    </details>
+    <div class="sa-fa-tools">
       <button type="button" class="sa-link" (click)="setAll(true)">Select all</button>
       <button type="button" class="sa-link" (click)="setAll(false)">Deselect all</button>
     </div>

@@ -80,6 +80,14 @@
   opacity: 0.75;
 }
 
+.st-cell-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
 .st-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -104,11 +112,11 @@
 .st-status-chips {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   min-width: 0;
   max-width: 100%;
-  text-align: left;
+  text-align: center;
 }
 
 .st-status-stack .st-chip {
@@ -119,24 +127,64 @@
 }
 
 @media (min-width: 600px) {
+  .st-table.mat-mdc-table {
+    width: max-content;
+    min-width: 100%;
+  }
+
   .st-table {
+    td,
+    th {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .mat-column-thesis,
+    .mat-column-notes {
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    th,
+    .mat-column-symbol,
+    .mat-column-openDate,
+    .mat-column-closeDate,
+    .mat-column-asOf,
+    .mat-column-actions {
+      white-space: nowrap;
+    }
+
     .mat-column-protection,
     .mat-column-risk,
     .mat-column-severity {
       min-width: 160px;
     }
   }
+
+  .st-status-stack .st-chip {
+    white-space: nowrap;
+  }
 }
 
 @media (max-width: 599.98px) {
+  .st-cell-value {
+    align-items: flex-end;
+  }
+
+  .st-status-stack,
+  .st-status-chips {
+    align-items: flex-end;
+    text-align: right;
+  }
+
   .st-toolbar button,
   .st-row-btn {
     min-height: 44px;
   }
 }
 
-.st-row-btn + .st-row-btn {
-  margin-left: 8px;
+.st-row-btn {
+  margin: 2px 4px;
 }
 
 // Compact grid action: shorter and narrower on desktop; handsets keep the 44px touch target above.

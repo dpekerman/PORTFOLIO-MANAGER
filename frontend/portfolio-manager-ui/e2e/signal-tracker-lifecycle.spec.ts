@@ -15,8 +15,8 @@ async function open(page: Page, url = '/signal-tracker') {
 }
 
 async function openFilters(page: Page, testInfo: TestInfo) {
-  // Filters start collapsed on handsets only, and the header toggles, so open only when the control is hidden.
-  if (isPhone(testInfo) && !(await page.getByRole('combobox', { name: 'Status' }).isVisible())) {
+  // Open only when hidden: callers may have already expanded the filters.
+  if (!(await page.getByRole('combobox', { name: 'Status' }).isVisible())) {
     await page.getByRole('button', { name: /Filters/ }).click();
   }
 }

@@ -69,7 +69,7 @@ test.describe('action center header counters and queue', () => {
     await expect(rows(page).first()).toContainText('ENB.TO');
     await expect(rows(page).first()).toContainText('Urgent');
     await expect(counter(page, 'Risk')).toHaveAttribute('aria-pressed', 'true');
-    await expect(widget(page).locator('[data-testid="ac-showing"]')).toContainText('Risk Review');
+    await expect(widget(page).locator('.app-filter-panel > summary')).toContainText('Risk');
     await expect(total(page)).toHaveText('4');
 
     await counter(page, 'Entry').click();
@@ -82,6 +82,7 @@ test.describe('action center header counters and queue', () => {
 
   test('keeps only the useful Holdings / Watchlist filters, no duplicate category chips', async ({ page }) => {
     await openDashboard(page);
+    await widget(page).locator('.app-filter-panel > summary').click();
     await expect(widget(page).locator('.ac-chip')).toHaveText([/Holdings\s*3/, /Watchlist\s*1/]);
     for (const dup of ['Entry', 'ReduceExit', 'Risk', 'All']) {
       await expect(widget(page).locator(`[data-testid="ac-filter-${dup}"]`)).toHaveCount(0);
@@ -229,7 +230,7 @@ test.describe('signal tracker lifecycle', () => {
     await page.goto('/signal-tracker');
     await expect(page.getByRole('heading', { level: 1, name: 'Signal Tracker' })).toBeVisible();
     const unaudited = page.getByRole('checkbox', { name: 'Include unaudited recommendations' });
-    // Filters start collapsed on handsets only.
+    // Filters start collapsed on every viewport.
     if (!(await unaudited.isVisible())) await page.getByRole('button', { name: /Filters/ }).click();
 
     await unaudited.check();

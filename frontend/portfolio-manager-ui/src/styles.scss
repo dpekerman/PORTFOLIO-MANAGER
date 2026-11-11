@@ -4,6 +4,7 @@
 @use 'styles/responsive-pages';
 @use 'styles/responsive-dashboard';
 @use 'styles/responsive-dashboard-cards';
+@use 'styles/filter-panel';
 
 // ── Dark theme (default) — Angular Material ───────────────────────────────────
 html {
@@ -262,6 +263,17 @@ a.mat-mdc-button-base mat-icon {
   padding: 4px 6px !important;
   text-align: right !important;
   vertical-align: middle !important;
+}
+
+.sw-page .st-table:not([data-responsive='cards']) .mat-sort-header-container {
+  justify-content: center;
+}
+
+@media (max-width: 599.98px) {
+  .sw-page .mat-mdc-tab {
+    min-width: 0;
+    padding-inline: 8px;
+  }
 }
 
 // ── Fibonacci Retracement — shared styles (used by Scanner, Portfolio, Watchlist) ──

@@ -77,7 +77,7 @@ export class AuditPageComponent {
   private readonly dialog = inject(MatDialog);
   protected readonly expandedId = signal<number | null>(null);
   /** Collapsed by default on handsets so the entries are visible without scrolling past the filters. */
-  protected readonly filtersOpen = signal(!this.isHandset());
+  protected readonly filtersOpen = signal(false);
   protected readonly selected = signal<ReadonlySet<number>>(new Set());
   protected readonly selectedCount = computed(() => this.selected().size);
   protected readonly allOnPageSelected = computed(

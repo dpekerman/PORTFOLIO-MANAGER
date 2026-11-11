@@ -44,7 +44,7 @@ test.describe('signal tracker', () => {
     await page.goto('/audit/signals');
     await expect(page.locator('tr.signal-row:visible').first()).toBeVisible();
     await expect(page.locator('.life-invalid')).toHaveCount(0); // default Active view excludes it
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     await page.getByRole('combobox', { name: 'Status' }).click();
     await page.getByRole('option', { name: 'Invalidated', exact: true }).click();
     const badge = page.locator('.life-invalid:visible').first();
@@ -112,7 +112,7 @@ test.describe('signal tracker', () => {
   test('filters narrow rows and summary together; Reset restores them', async ({ page }, testInfo) => {
     await page.goto('/audit/signals');
     await expect(page.locator('tr.signal-row:visible')).toHaveCount(3);
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     await page.getByLabel('Ticker').fill('msft');
     await expect(page.locator('tr.signal-row:visible')).toHaveCount(1);
     await expect(page.locator('.kpi', { hasText: 'Total Signals' }).locator('.kpi-value')).toHaveText('1');
@@ -123,7 +123,7 @@ test.describe('signal tracker', () => {
 
   test('From / To use a calendar picker and can be cleared', async ({ page }, testInfo) => {
     await page.goto('/audit/signals');
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     await page.getByRole('button', { name: 'Open calendar' }).first().click();
     await page.locator('.mat-calendar-body-cell').first().click();
     await expect(page.getByRole('button', { name: 'Clear From date' })).toBeVisible();
@@ -211,7 +211,7 @@ test.describe.skip('signal effectiveness', () => {
     const initial = requests.length;
     expect(initial).toBeGreaterThan(0);
 
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     await page.getByLabel('Ticker').fill('msft');
     await expect(page.locator('tr.signal-row:visible')).toHaveCount(1);
     await page.getByRole('button', { name: 'Open calendar' }).first().click();
@@ -260,7 +260,7 @@ test.describe.skip('signal effectiveness', () => {
   test('context filters apply: an unmatched role shows an explicit insufficient-history state', async ({ page }, testInfo) => {
     await page.goto('/signal-tracker');
     await expect(eff(page)).toContainText('n=6');
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     // Keyboard-open the multi-select: the empty outline label overlaps its trigger for pointer clicks.
     await page.getByRole('combobox', { name: 'Investment Role' }).focus();
     await page.keyboard.press('Enter');
@@ -344,7 +344,7 @@ test.describe.skip('signal effectiveness', () => {
   test('a one-row table says "1 signal", not "1 signals"', async ({ page }, testInfo) => {
     await page.goto('/signal-tracker');
     await expect(page.locator('tr.signal-row:visible')).toHaveCount(3);
-    if (isPhone(testInfo.project.name)) await page.getByRole('button', { name: /Filters/ }).click();
+    await page.getByRole('button', { name: /Filters/ }).click();
     await page.getByLabel('Ticker').fill('msft');
     await expect(page.locator('tr.signal-row:visible')).toHaveCount(1);
     await expect(page.locator('mat-panel-description').first()).toHaveText('1 signal');

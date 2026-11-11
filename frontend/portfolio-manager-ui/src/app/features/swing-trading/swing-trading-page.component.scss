@@ -98,10 +98,19 @@
 }
 
 .sw-value {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 4px;
   font-size: 1.4rem;
   font-weight: 800;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.sw-amount {
+  white-space: nowrap;
 }
 
 .sw-cur {
@@ -159,5 +168,13 @@
 
   .sw-head button {
     min-height: 44px;
+  }
+
+  .sw-tile {
+    padding-inline: 8px;
+  }
+
+  .sw-value {
+    font-size: clamp(0.95rem, 4.7vw, 1.2rem);
   }
 }

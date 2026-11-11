@@ -19,17 +19,15 @@ test.describe('audit page', () => {
     expect(errors, 'runtime errors on the audit page').toEqual([]);
   });
 
-  test('filters start collapsed on phones, expanded elsewhere', async ({ page }, testInfo) => {
+  test('filters start collapsed on every viewport and can be toggled', async ({ page }) => {
     await page.goto('/audit');
     await expect(page.getByRole('heading', { level: 1, name: 'Audit', exact: true })).toBeVisible();
     const category = page.getByLabel('Category');
-    if (testInfo.project.name.startsWith('mobile')) {
-      await expect(category).toBeHidden();
-      await page.getByRole('button', { name: /Filters/ }).click();
-      await expect(category).toBeVisible();
-    } else {
-      await expect(category).toBeVisible();
-    }
+    await expect(category).toBeHidden();
+    await page.getByRole('button', { name: /Filters/ }).click();
+    await expect(category).toBeVisible();
+    await page.getByRole('button', { name: /Filters/ }).click();
+    await expect(category).toBeHidden();
   });
 
   test('admin can select entries and must confirm before deleting', async ({ page }) => {

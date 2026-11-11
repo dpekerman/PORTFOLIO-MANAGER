@@ -46,7 +46,7 @@
   <section class="filters" aria-label="Signal filters">
     <mat-expansion-panel class="filters-panel" [(expanded)]="filtersOpen">
       <mat-expansion-panel-header>
-        <mat-panel-title>Filters</mat-panel-title>
+        <mat-panel-title>Filters{{ store.hasActiveFilters() ? ' (active)' : '' }}</mat-panel-title>
         <mat-panel-description>{{ store.total() }} {{ store.total() === 1 ? 'signal' : 'signals' }}</mat-panel-description>
       </mat-expansion-panel-header>
 

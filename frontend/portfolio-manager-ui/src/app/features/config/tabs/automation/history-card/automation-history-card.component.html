@@ -5,31 +5,6 @@
       <span class="sub-card-title"
         >Recent runs ({{ rows().length }} of {{ automationState.history().length }})</span
       >
-      <mat-form-field
-        appearance="outline"
-        subscriptSizing="dynamic"
-        class="automation-history-filter"
-      >
-        <mat-icon matPrefix>search</mat-icon>
-        <input
-          matInput
-          placeholder="Filter by status, date, trigger or error…"
-          [ngModel]="filter()"
-          (ngModelChange)="filter.set($event)"
-          autocomplete="off"
-        />
-        @if (filter()) {
-          <button
-            matSuffix
-            mat-icon-button
-            type="button"
-            (click)="filter.set('')"
-            matTooltip="Clear filter"
-          >
-            <mat-icon>close</mat-icon>
-          </button>
-        }
-      </mat-form-field>
       <button
         mat-stroked-button
         type="button"
@@ -44,6 +19,26 @@
         {{ automationState.clearingHistory() ? 'Clearing…' : 'Clear History' }}
       </button>
     </div>
+
+    <details class="app-filter-panel">
+      <summary>Filters @if (filter()) { <span class="app-filter-state">Active</span> }</summary>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="automation-history-filter">
+        <mat-label>Search runs</mat-label>
+        <mat-icon matPrefix>search</mat-icon>
+        <input
+          matInput
+          placeholder="Filter by status, date, trigger or error…"
+          [ngModel]="filter()"
+          (ngModelChange)="filter.set($event)"
+          autocomplete="off"
+        />
+        @if (filter()) {
+          <button matSuffix mat-icon-button type="button" (click)="filter.set('')" aria-label="Clear filter">
+            <mat-icon>close</mat-icon>
+          </button>
+        }
+      </mat-form-field>
+    </details>
 
     <table
       mat-table

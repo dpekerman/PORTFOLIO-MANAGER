@@ -55,7 +55,7 @@ export const APP_ROUTES: RouteSpec[] = [
     navLabel: 'Watchlist',
     landmark: heading(1, /MY WATCHLIST/),
     hasMatTable: true,
-    primaryControls: (p) => [btn(p, /Add Symbol/), p.getByPlaceholder(/Filter by ticker/)],
+    primaryControls: (p) => [btn(p, /Add Symbol/), p.locator('.app-filter-panel > summary')],
     inLayout: true,
   },
   {
@@ -71,7 +71,7 @@ export const APP_ROUTES: RouteSpec[] = [
     navLabel: 'EOD Signals',
     landmark: heading(1, /EOD SIGNALS/),
     hasMatTable: true,
-    primaryControls: (p) => [p.getByPlaceholder('e.g. TD.TO'), btn(p, /Delete All/)],
+    primaryControls: (p) => [p.locator('.app-filter-panel > summary'), btn(p, /Delete All/)],
     inLayout: true,
   },
   {
@@ -79,7 +79,7 @@ export const APP_ROUTES: RouteSpec[] = [
     navLabel: 'Transactions',
     landmark: heading(2, /TRANSACTIONS/),
     hasMatTable: true,
-    primaryControls: (p) => [btn(p, /^Open$/), btn(p, /Export CSV/)],
+    primaryControls: (p) => [p.locator('.app-filter-panel > summary'), btn(p, /Export CSV/)],
     inLayout: true,
   },
   {
@@ -110,7 +110,7 @@ export const APP_ROUTES: RouteSpec[] = [
     navLabel: 'Value History',
     landmark: heading(1, /Portfolio Value History/),
     hasMatTable: true,
-    primaryControls: (p) => [btn(p, /Reset Filters/)],
+    primaryControls: (p) => [p.locator('.app-filter-panel > summary')],
     inLayout: true,
   },
   {

@@ -32,6 +32,17 @@ Repo: [github.com/dpekerman/PORTFOLIO-MANAGER](https://github.com/dpekerman/PORT
 
 ---
 
+## Filters and responsive tables
+
+Filter controls start collapsed on desktop, tablet, and phones. Expand **Filters** to
+search or refine results; collapsing the panel preserves its selections. Active
+filters remain indicated in the collapsed header. Export and refresh actions stay
+outside filter panels.
+
+Swing Trading uses centered table headers, values, and status badges on desktop,
+with left-aligned prose. On phones, the same rows become label/value cards with
+44px action buttons; Manage Risk and Close Position use text-only labels.
+
 ## Managing account types
 
 Open **Configuration -> Account Types** to add a new choice (1-120 characters).

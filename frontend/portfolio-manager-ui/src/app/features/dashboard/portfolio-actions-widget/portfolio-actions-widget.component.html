@@ -4,6 +4,8 @@
   }
 
   @if (hasAny()) {
+    <details class="app-filter-panel">
+      <summary>Filters @if (activeFilter() !== 'All') { <span class="app-filter-state">{{ activeFilter() }}</span> }</summary>
     <div class="ac-filters" role="group" aria-label="Action Center filters">
     @for (chip of chips(); track chip.filter) {
       <button
@@ -26,6 +28,7 @@
       </span>
     }
     </div>
+    </details>
   }
 
   @if (hasAny() && validationState() === 'Unavailable') {

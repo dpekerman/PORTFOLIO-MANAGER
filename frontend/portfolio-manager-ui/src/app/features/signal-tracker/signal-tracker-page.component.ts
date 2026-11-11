@@ -109,7 +109,7 @@ export class SignalTrackerPageComponent implements OnInit {
   protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('signals-audit');
 
   /** Collapsed by default on handsets so the signals are visible without scrolling past the filters. */
-  protected readonly filtersOpen = signal(!this.isHandset());
+  protected readonly filtersOpen = signal(false);
 
   /** Which summary card (if any) matches the current signal type / My Action filters. */
   protected readonly activeKpi = computed<SignalKpi | null>(() => {
