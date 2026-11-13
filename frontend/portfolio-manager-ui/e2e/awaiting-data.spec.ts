@@ -101,7 +101,8 @@ const portfolioScenario = () =>
       // MSFT (and the rest) deliberately have no result: "Not evaluated".
     ],
     [
-      awaiting('BAM.TO', 'Watchlist', ['AWAITING_INVALID_PRICE'], 'Invalid', null),
+      { ...awaiting('BAM.TO', 'Watchlist', ['AWAITING_INVALID_PRICE'], 'Invalid', null),
+        rejectedBar: { analysisTicker: 'BAM', tradingDate: '2026-11-13', open: 102, high: 101, low: 99, close: 100 } },
       fa('SHOP', 'Watchlist', { finalAction: 'WAIT FOR PULLBACK', finalActionId: 'WAIT FOR PULLBACK', momentumShift: 'Neutral', reasonCodes: [], originalAction: null, reason: null }),
     ],
   );
@@ -217,6 +218,10 @@ test.describe('Awaiting Data — Watchlist', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toContainText('The price is missing or invalid');
     await expect(dialog.locator('[data-testid="fad-action"]')).toContainText('Not actionable');
+    await expect(dialog.locator('[data-testid="fad-rejected-bar"]')).toContainText('BAM (2026-11-13)');
+    const box = await dialog.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width + 1);
     await page.keyboard.press('Escape');
 
     await expectNoHorizontalPageOverflow(page);

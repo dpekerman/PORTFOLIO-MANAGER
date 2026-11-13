@@ -514,6 +514,7 @@ public sealed partial class SignalsAuditServiceTests
     public async Task FinalActionCapture_EnabledAction_CreatesOneEvent_WithOriginalPriceAndMetadata_Idempotently()
     {
         var h = await WithFinalActionAsync("FOO", "STARTER ENTRY");
+        h.FinalActions.ExtraWatchlist[0] = h.FinalActions.ExtraWatchlist[0] with { IntradayRangeReconstructed = true };
         await h.Service.CaptureAsync(User);
         await h.Service.CaptureAsync(User);
 
@@ -525,6 +526,7 @@ public sealed partial class SignalsAuditServiceTests
         Assert.Equal("Strategic", ev.Role);
         Assert.Equal(SignalSources.Watchlist, ev.Source);
         Assert.Contains("\"finalActionId\":\"STARTER ENTRY\"", ev.ContextJson);
+        Assert.Contains("\"intradayRangeReconstructed\":true", ev.ContextJson);
 
         h.FinalActions.ExtraWatchlist[0] = Result("FOO", "STARTER ENTRY", SignalSources.Watchlist, 99m);
         await h.Service.CaptureAsync(User);

@@ -47,8 +47,19 @@
 
   <section class="fad-sec" aria-label="Evidence and freshness">
     <h3>Evidence</h3>
+    @if (r.intradayRangeReconstructed) {
+      <p class="fad-note">The daily range was inconsistent. The range was reconstructed from the same provider's intraday bars; it was not independently verified.</p>
+    }
+    @if (r.rejectedBar; as bar) {
+      <p class="fad-note" data-testid="fad-rejected-bar">
+        {{ bar.analysisTicker }} ({{ bar.tradingDate }}): rejected open {{ demo.displayValue(bar.open, 4) }},
+        high {{ demo.displayValue(bar.high, 4) }}, low {{ demo.displayValue(bar.low, 4) }},
+        close {{ demo.displayValue(bar.close, 4) }}. Intraday recovery was unavailable or could not be verified.
+      </p>
+    }
     <dl class="fad-dl">
       <dt>Evidence health</dt><dd>{{ r.evidenceHealth || '—' }}</dd>
+      <dt>Analysis ticker</dt><dd>{{ r.analysisTicker }}</dd>
       <dt>Data as of (session)</dt><dd>{{ r.dataAsOfDate || '—' }}</dd>
       <dt>Expected session</dt><dd>{{ r.expectedSession || '—' }}</dd>
       <dt>Source quote time</dt>

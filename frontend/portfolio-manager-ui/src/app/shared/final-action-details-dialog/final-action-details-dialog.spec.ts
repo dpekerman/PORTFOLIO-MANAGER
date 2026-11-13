@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { FinalActionResult } from '../../core/models/portfolio.models';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { FinalActionDetailsDialogComponent } from './final-action-details-dialog.component';
 import { describeReasonCode, stateLabel, technicalConflictNote } from './final-action-labels';
 
@@ -104,6 +105,40 @@ describe('FinalActionDetailsDialogComponent', () => {
     expect(el.textContent).toContain('Stale');
     expect(el.textContent).toContain('2026-10-20');
     expect(el.querySelector('[data-testid="fad-conflict"]')).toBeNull();
+  });
+
+  it('identifies the analyzed security and rejected bar for a CDR', () => {
+    const el = render(result({
+      finalAction: 'Awaiting Data',
+      evaluationState: 'AwaitingData',
+      rejectedBar: { analysisTicker: 'CAT', tradingDate: '2026-11-13', open: 611.93, high: 611.1948, low: 590.26, close: 600.2 },
+    }));
+    const details = el.querySelector('[data-testid="fad-rejected-bar"]')!.textContent!;
+    expect(details).toContain('CAT (2026-11-13)');
+    expect(details).toContain('Intraday recovery was unavailable or could not be verified');
+  });
+
+  it('masks rejected prices in demo mode', () => {
+    TestBed.configureTestingModule({
+      providers: [{ provide: MAT_DIALOG_DATA, useValue: { result: result({
+        rejectedBar: { analysisTicker: 'CAT', tradingDate: '2026-11-13', open: 611.93, high: 611.1948, low: 590.26, close: 600.2 },
+      }) } }],
+    });
+    const demo = TestBed.inject(DemoModeStore);
+    demo.enable();
+    demo.setStyle('fake');
+    const fixture = TestBed.createComponent(FinalActionDetailsDialogComponent);
+    fixture.detectChanges();
+    const details = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="fad-rejected-bar"]')!.textContent!;
+    expect(details).not.toContain('611.9300');
+    demo.disable();
+    demo.setStyle('blur');
+  });
+
+  it('discloses a reconstructed range is not independently verified', () => {
+    const el = render(result({ intradayRangeReconstructed: true }));
+    expect(el.textContent).toContain('same provider');
+    expect(el.textContent).toContain('not independently verified');
   });
 
   it('is labelled for assistive technology and has a focusable close button', () => {
