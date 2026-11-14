@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>2add001d-b6be-43be-8814-058054cd9f2d</UserSecretsId>
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>

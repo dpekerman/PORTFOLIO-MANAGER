@@ -1,0 +1,91 @@
+<div class="alloc-panel">
+  <div class="alloc-header">
+    <span class="alloc-title">{{ heading() }}</span>
+    <span class="alloc-badge">{{ rows().length }}</span>
+    <button mat-icon-button matTooltip="Add row" (click)="startAdd()" class="alloc-add-btn">
+      <mat-icon>add</mat-icon>
+    </button>
+  </div>
+
+  @if (editing()?.id === null) {
+    <div class="alloc-edit-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+        <mat-label>{{ labelName() }}</mat-label>
+        <input matInput [ngModel]="editing()!.label" (ngModelChange)="setLabel($event)" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-pct-field">
+        <mat-label>{{ pctLabel() }}</mat-label>
+        <input
+          matInput
+          type="number"
+          min="0"
+          max="100"
+          step="0.5"
+          [ngModel]="editing()!.targetPct"
+          (ngModelChange)="setPct($event)"
+        />
+      </mat-form-field>
+      <button mat-icon-button (click)="save()" matTooltip="Save"><mat-icon>check</mat-icon></button>
+      <button mat-icon-button (click)="cancel()" matTooltip="Cancel">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+  }
+
+  <div class="alloc-col-headers">
+    <span class="alloc-col-header-name">{{ labelName() }}</span>
+    <span class="alloc-col-header-pct">Target</span>
+  </div>
+
+  <div class="alloc-list">
+    @for (item of rows(); track item.id) {
+      @if (editing()?.id === item.id) {
+        <div class="alloc-edit-row">
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-field">
+            <input matInput [ngModel]="editing()!.label" (ngModelChange)="setLabel($event)" />
+          </mat-form-field>
+          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="alloc-pct-field">
+            <input
+              matInput
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              [ngModel]="editing()!.targetPct"
+              (ngModelChange)="setPct($event)"
+            />
+          </mat-form-field>
+          <button mat-icon-button (click)="save()"><mat-icon>check</mat-icon></button>
+          <button mat-icon-button (click)="cancel()"><mat-icon>close</mat-icon></button>
+        </div>
+      } @else {
+        <div class="alloc-row">
+          <span class="alloc-name">{{ item.label }}</span>
+          <span class="alloc-pct">{{ item.targetPct }}%</span>
+          <button mat-icon-button (click)="startEdit(item)" matTooltip="Edit" class="alloc-act">
+            <mat-icon>edit</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            (click)="confirmDelete(item.id)"
+            matTooltip="Delete"
+            class="alloc-act alloc-del"
+          >
+            <mat-icon>delete_outline</mat-icon>
+          </button>
+        </div>
+      }
+    }
+  </div>
+
+  @if (showTotal()) {
+    <div class="alloc-total">
+      <span>TOTAL</span>
+      <span [class.alloc-total-ok]="total() === 100" [class.alloc-total-warn]="total() !== 100"
+        >{{ total() }}%</span
+      >
+    </div>
+  } @else {
+    <p class="alloc-no-total-hint">{{ noTotalHint() }}</p>
+  }
+</div>

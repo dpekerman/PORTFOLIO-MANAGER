@@ -1,0 +1,16 @@
+@if (masked() !== null) {
+  <span class="ps" [class.ps-breached]="view().state === 'Breached'" data-testid="planned-stop-cell" [attr.data-state]="view().state">
+    <span class="ps-value">{{ masked() | number: '1.2-4' }}</span>
+    @if (view().text; as text) {
+      <app-swing-detail-chip
+        [label]="text"
+        [detail]="view().detail"
+        [icon]="view().icon"
+        [tone]="view().state === 'Breached' ? 'bad' : 'warn'"
+        testId="planned-stop-flag"
+      />
+    }
+  </span>
+} @else {
+  <span class="st-dim">{{ row().planFromPriorEpisode ? 'Not set (prior trade)' : 'Not set' }}</span>
+}

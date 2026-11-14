@@ -12,7 +12,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { CashFlowType, SELECTABLE_CASH_FLOW_TYPES } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
+import { CashStore } from '../../../core/store/cash.store';
 
 export interface AdjustCashBalanceDialogData {
   accountType: string;
@@ -40,7 +40,7 @@ export interface AdjustCashBalanceDialogData {
 })
 export class AdjustCashBalanceDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly cashState = inject(CashStateService);
+  private readonly cashState = inject(CashStore);
   private readonly dialogRef = inject(MatDialogRef<AdjustCashBalanceDialogComponent>);
   protected readonly data = inject<AdjustCashBalanceDialogData>(MAT_DIALOG_DATA);
 

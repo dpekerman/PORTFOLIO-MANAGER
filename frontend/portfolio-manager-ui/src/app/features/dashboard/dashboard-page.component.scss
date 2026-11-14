@@ -236,13 +236,17 @@
   color: #687481;
 }
 .db-range-group {
-  ::ng-deep .mat-button-toggle {
+  mat-button-toggle {
     font-size: 0.76rem;
-  }
-  ::ng-deep .mat-button-toggle-button {
-    padding: 0 10px;
-    line-height: 26px;
     min-width: 36px;
+    // Material exposes no token for the label padding, so the extra 10px lives on the host.
+    padding: 0 10px;
+    box-sizing: border-box;
+
+    // The checked toggle already gets a 30px left padding for its check mark.
+    &.mat-button-toggle-checked {
+      padding-left: 0;
+    }
   }
 }
 .db-chart-interactive {
@@ -406,6 +410,13 @@ mat-card.db-panel {
   gap: 6px;
   line-height: 1;
 }
+// Header controls (tabs, selectors, chevron) sit on one row, vertically centred with the title.
+.db-panel-hd .db-panel-hd-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
 .db-panel-title {
   font-size: 0.8rem;
   font-weight: 600;
@@ -468,26 +479,18 @@ mat-card.db-panel {
 
 /* Panel icon = navigatable button — force Material touch-target to match visible size */
 .panel-nav-btn {
-  width: 24px !important;
-  height: 24px !important;
+  // The button keeps a 24px footprint; the 32px box (ripple, focus ring, touch target) is
+  // centred on it with a negative margin instead of overriding Material's internals.
+  --mat-icon-button-touch-target-size: 32px;
+  width: 32px !important;
+  height: 32px !important;
+  margin: -4px;
   padding: 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex-shrink: 0;
   vertical-align: middle;
-  // shrink Material's internal 48 px touch-target so it doesn't push the icon off-axis
-  ::ng-deep {
-    .mat-mdc-button-touch-target,
-    .mdc-icon-button__ripple,
-    .mat-mdc-focus-indicator {
-      width: 32px !important;
-      height: 32px !important;
-      top: 50% !important;
-      left: 50% !important;
-      transform: translate(-50%, -50%) !important;
-    }
-  }
   mat-icon {
     font-size: 18px !important;
     width: 18px !important;
@@ -505,26 +508,9 @@ mat-card.db-panel {
 
 /* ── Movers ──────────────────────────────────────────────────────────────── */
 .movers-count-sel {
-  width: 60px;
-  font-size: 0.76rem;
-  ::ng-deep .mat-mdc-select-value {
-    font-size: 0.76rem;
-  }
-  /* ensure the overlay panel is wide enough to show full option text */
-  ::ng-deep .mat-mdc-select-panel {
-    min-width: 70px !important;
-  }
-  ::ng-deep .mat-mdc-option {
-    font-size: 0.8rem;
-    min-height: 36px;
-  }
-}
-.movers-count-sel {
+  --mat-select-trigger-text-size: 0.76rem;
   width: 76px;
   font-size: 0.76rem;
-  ::ng-deep .mat-mdc-select-value {
-    font-size: 0.76rem;
-  }
 }
 
 /* Side-by-side movers columns */
@@ -1147,6 +1133,82 @@ mat-card.db-panel {
   line-height: 1;
 }
 
+/* ── Action Center header: validation state + category counters (also the category filters) ── */
+.ac-validation-ico {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  color: #e65100;
+}
+
+.ac-counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 8px;
+}
+
+.ac-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px 10px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--mat-sys-surface-container);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+
+  &.active {
+    background: var(--mat-sys-secondary-container);
+    border-color: var(--mat-sys-primary);
+  }
+}
+
+.ac-counter-count {
+  font-variant-numeric: tabular-nums;
+}
+.ac-counter-entry .ac-counter-count {
+  color: #2e7d32;
+}
+.ac-counter-exit .ac-counter-count {
+  color: #e65100;
+}
+.ac-counter-risk .ac-counter-count {
+  color: #c62828;
+}
+
+@media (max-width: 599.98px) {
+  .ac-counters {
+    padding: 0 12px 8px;
+    gap: 4px;
+  }
+  .ac-counter {
+    padding: 2px 8px;
+    font-size: 0.72rem;
+  }
+  // Keep the Allocation title on one row next to its tabs at 360px.
+  .db-alloc-tab {
+    padding: 3px 8px;
+    font-size: 0.7rem;
+  }
+  .db-panel-hd-right:has(.db-alloc-tabs) {
+    gap: 2px;
+  }
+}
+
 /* ── Misc ────────────────────────────────────────────────────────────────── */
 .positive {
   color: #1a9e7a;
@@ -1270,6 +1332,116 @@ mat-card.db-panel {
     min-width: 112px;
     padding: 6px 8px;
     font-size: 0.65rem;
+  }
+}
+
+/* ── Phone: collapsed-first dashboard ────────────────────────────────────── */
+@media (max-width: 599.98px) {
+  .db-hide-collapsed {
+    display: none !important;
+  }
+
+  // One header pattern: title on the left, chevron pinned to the far right.
+  .db-panel-hd,
+  .db-card-header {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .db-card-header {
+    flex-wrap: wrap;
+    padding: 8px 16px 0 16px;
+  }
+  .db-chart-card mat-card-content:empty {
+    display: none;
+  }
+  .db-panel-subtitle {
+    display: none;
+  }
+  .db-panel-hd-left {
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+    min-width: 0;
+    > mat-icon,
+    > button,
+    > .db-panel-badge {
+      flex: none;
+    }
+  }
+  .db-panel-title {
+    min-width: 0;
+    line-height: 1.25;
+  }
+  .db-panel-hd .db-toggle-btn,
+  .db-card-header .db-toggle-btn {
+    order: 3;
+    flex: none;
+    margin-left: auto;
+  }
+  .db-panel-hd-right {
+    display: flex;
+    align-items: center;
+    flex: none;
+    margin-left: auto;
+    gap: 4px;
+  }
+  // Chart: the range toggle drops to its own full-width row under the title and chevron.
+  .db-card-header {
+    .db-panel-hd-left {
+      order: 1;
+    }
+    .db-panel-hd-right {
+      display: contents;
+    }
+    .db-toggle-btn {
+      order: 2;
+    }
+    .db-range-group {
+      order: 3;
+      flex: 1 0 100%;
+      margin: 0 0 8px;
+    }
+  }
+
+  .db-toggle-btn {
+    --mat-icon-button-state-layer-size: 48px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    transition: background-color 0.15s ease;
+
+    &:active {
+      background: color-mix(in srgb, currentColor 16%, transparent);
+    }
+    &[aria-expanded='true'] mat-icon {
+      animation: db-chevron-open 0.25s ease-out;
+    }
+    &[aria-expanded='false'] mat-icon {
+      animation: db-chevron-close 0.25s ease-out;
+    }
+  }
+}
+
+@keyframes db-chevron-open {
+  from {
+    transform: rotate(-180deg);
+  }
+  to {
+    transform: rotate(0);
+  }
+}
+@keyframes db-chevron-close {
+  from {
+    transform: rotate(180deg);
+  }
+  to {
+    transform: rotate(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .db-toggle-btn mat-icon {
+    animation: none !important;
   }
 }
 

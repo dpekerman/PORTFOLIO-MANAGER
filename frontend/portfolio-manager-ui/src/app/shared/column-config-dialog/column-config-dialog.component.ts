@@ -6,11 +6,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import {
-  ColumnPreference,
-  GRID_REGISTRY,
-  GridColumnService,
-} from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
+import { ColumnPreference, GRID_REGISTRY } from '../../core/store/grid-registry';
 
 export interface ColumnConfigDialogData {
   gridId: string;
@@ -34,7 +31,7 @@ export interface ColumnConfigDialogData {
   ],
 })
 export class ColumnConfigDialogComponent {
-  private readonly gridColumnService = inject(GridColumnService);
+  private readonly gridColumns = inject(GridColumnStore);
   private readonly data = inject<ColumnConfigDialogData>(MAT_DIALOG_DATA);
 
   /** The GridDef for this dialog instance. */
@@ -42,7 +39,7 @@ export class ColumnConfigDialogComponent {
 
   /** Working copy of column preferences. */
   protected readonly workingPrefs = signal<ColumnPreference[]>(
-    this.gridColumnService.getEditablePrefs(this.data.gridId),
+    this.gridColumns.getEditablePrefs(this.data.gridId),
   );
 
   /** Count of currently visible columns. */
@@ -105,13 +102,13 @@ export class ColumnConfigDialogComponent {
   }
 
   protected resetToDefaults(): void {
-    this.gridColumnService.resetGrid(this.data.gridId);
-    this.workingPrefs.set(this.gridColumnService.getEditablePrefs(this.data.gridId));
+    this.gridColumns.resetGrid(this.data.gridId);
+    this.workingPrefs.set(this.gridColumns.getEditablePrefs(this.data.gridId));
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
 
   private persist(): void {
-    this.gridColumnService.updatePrefs(this.data.gridId, this.workingPrefs());
+    this.gridColumns.updatePrefs(this.data.gridId, this.workingPrefs());
   }
 }

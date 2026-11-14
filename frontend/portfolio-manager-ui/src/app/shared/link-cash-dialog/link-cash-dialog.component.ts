@@ -12,8 +12,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { startWith } from 'rxjs';
 import { CashItem } from '../../core/models/portfolio.models';
-import { CashStateService } from '../../core/services/cash-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
+import { CashStore } from '../../core/store/cash.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { AccountTypeSelectComponent } from '../account-type-select/account-type-select.component';
 
 export interface LinkCashDialogData {
@@ -70,8 +70,8 @@ export function easternToday(): string {
 })
 export class LinkCashDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly cashState = inject(CashStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  private readonly cashState = inject(CashStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly dialogRef = inject(MatDialogRef<LinkCashDialogComponent, LinkCashDialogResult>);
   protected readonly data = inject<LinkCashDialogData>(MAT_DIALOG_DATA);
 

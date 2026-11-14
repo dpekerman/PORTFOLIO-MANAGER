@@ -1,0 +1,39 @@
+<app-settings-section
+  icon="category"
+  title="Sectors &amp; Industries"
+  subtitle="Dropdown values shown when editing a portfolio position's sector and industry"
+>
+  <div class="section-body">
+    <div class="lists-grid">
+      <app-list-editor
+        heading="Sectors"
+        noun="sector"
+        placeholder="e.g. Real Estate"
+        [items]="sectors()"
+        (added)="addSector($event)"
+        (removed)="removeSector($event)"
+      />
+      <app-list-editor
+        heading="Industries"
+        noun="industry"
+        placeholder="e.g. Banks – Diversified"
+        [items]="industries()"
+        (added)="addIndustry($event)"
+        (removed)="removeIndustry($event)"
+      />
+    </div>
+  </div>
+
+  <div class="section-footer">
+    <span class="section-footer-hint">Unsaved changes will be lost if you leave the page</span>
+    <button
+      mat-flat-button
+      (click)="saveSectorIndustryLists()"
+      [disabled]="savingLists()"
+      matTooltip="Persist sector & industry lists to backend"
+    >
+      <mat-icon>{{ savingLists() ? 'hourglass_empty' : 'save' }}</mat-icon>
+      {{ savingLists() ? 'Saving…' : 'Save Sector & Industry Lists' }}
+    </button>
+  </div>
+</app-settings-section>

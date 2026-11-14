@@ -46,6 +46,69 @@ public sealed class UnlinkedTradeAndSnapshotTests
         TransactionType = "OPEN", AccountType = Account, OpenDate = openDate, AddedAt = openDate
     };
 
+    // ── Legacy baseline + diagnosis ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Baseline_HidesLegacyLegs_ButShowsNewOnesWithDiagnosis()
+    {
+        await using var db = CreateDb();
+        await SeedLedgerAsync(db);
+        db.PortfolioItems.Add(Stock("OLD.TO", 100m, 2m, new DateTime(2026, 9, 2)));
+        await db.SaveChangesAsync();
+        var detector = CreateDetector(db);
+
+        var first = await detector.BaselineCurrentAsync();
+        Assert.Equal(1, first.Added);
+        Assert.Equal(0, (await detector.BaselineCurrentAsync()).Added);
+        Assert.Empty(await detector.GetUnlinkedAsync());
+
+        var fresh = Stock("NEW.TO", 10m, 5m, new DateTime(2026, 10, 8));
+        db.PortfolioItems.Add(fresh);
+        await db.SaveChangesAsync();
+
+        var only = Assert.Single(await detector.GetUnlinkedAsync());
+        Assert.Equal(fresh.Id, only.SourceItemId);
+        Assert.NotNull(only.Diagnosis);
+        Assert.Equal(-50m, only.Diagnosis!.ExpectedCashAmount);
+        Assert.Contains(only.Diagnosis.Details, d => d.Contains("No cash row is linked"));
+    }
+
+    [Fact]
+    public async Task Baseline_EditedLegacyTrade_ResurfacesWithNote()
+    {
+        await using var db = CreateDb();
+        await SeedLedgerAsync(db);
+        var item = Stock("OLD.TO", 100m, 2m, new DateTime(2026, 9, 2));
+        db.PortfolioItems.Add(item);
+        await db.SaveChangesAsync();
+        var detector = CreateDetector(db);
+        await detector.BaselineCurrentAsync();
+
+        item.Shares = 150m;
+        await db.SaveChangesAsync();
+
+        var only = Assert.Single(await detector.GetUnlinkedAsync());
+        Assert.StartsWith("Edited after being acknowledged", only.Diagnosis!.Summary);
+    }
+
+    [Fact]
+    public async Task Diagnosis_NearMissCashRow_ExplainsWhichRuleFailed()
+    {
+        await using var db = CreateDb();
+        await SeedLedgerAsync(db);
+        db.PortfolioItems.Add(Stock("BBB.TO", 100m, 2m, new DateTime(2026, 9, 2)));
+        db.CashItems.Add(new CashItem
+        {
+            Description = "CASH", Amount = -200m, AccountType = "Corp_TD", CashFlowType = CashFlowTypeRules.TradePurchase,
+            TransactionDate = new DateTime(2026, 9, 2), AddedAt = new DateTime(2026, 9, 2)
+        });
+        await db.SaveChangesAsync();
+
+        var only = Assert.Single(await CreateDetector(db).GetUnlinkedAsync());
+        Assert.NotNull(only.Diagnosis!.NearestCash);
+        Assert.Contains(only.Diagnosis.NearestCash!.Mismatches, m => m.StartsWith("account is Corp_TD"));
+    }
+
     // ── Unlinked-trade detector ──────────────────────────────────────────────
 
     [Fact]

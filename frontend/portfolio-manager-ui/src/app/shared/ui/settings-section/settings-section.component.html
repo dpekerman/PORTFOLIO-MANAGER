@@ -1,0 +1,13 @@
+<div class="config-section" [class.eod-section-border]="accent()">
+  <div class="section-header">
+    <mat-icon [class.eod-active-icon]="accent()">{{ icon() }}</mat-icon>
+    <div class="section-header-text">
+      <h2 class="section-title">{{ title() }}</h2>
+      @if (subtitle()) {
+        <p class="section-subtitle">{{ subtitle() }}</p>
+      }
+    </div>
+    <ng-content select="[sectionHeaderExtra]" />
+  </div>
+  <ng-content />
+</div>

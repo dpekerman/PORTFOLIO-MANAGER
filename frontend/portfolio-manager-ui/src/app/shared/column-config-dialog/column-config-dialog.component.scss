@@ -68,7 +68,7 @@
 }
 
 .ccd-content {
-  min-width: 420px;
+  min-width: min(420px, 100%);
   max-width: 520px;
   max-height: 65vh;
   overflow-y: auto;
@@ -259,7 +259,7 @@
 }
 
 .ccd-content {
-  min-width: 420px;
+  min-width: min(420px, 100%);
   max-width: 520px;
   max-height: 65vh;
   overflow-y: auto;

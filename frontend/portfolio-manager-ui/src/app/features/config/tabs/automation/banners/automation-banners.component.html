@@ -1,0 +1,88 @@
+@if (automationState.runInFlight()) {
+  <div class="automation-running-banner">
+    <mat-icon class="automation-running-icon">autorenew</mat-icon>
+    <div class="automation-running-text">
+      <span class="automation-running-title">
+        Automation is running{{
+          automationState.lastRun()?.triggerType
+            ? ' — ' + automationState.lastRun()?.triggerType
+            : ''
+        }}…
+      </span>
+      <span class="automation-running-detail">
+        Refresh: {{ automationState.lastRun()?.refreshStatus || 'pending' }} · RSI:
+        {{ automationState.lastRun()?.rsiStatus || 'pending' }} · Snapshot:
+        {{ automationState.lastRun()?.snapshotStatus || 'pending' }} · Value Screener:
+        {{ automationState.lastRun()?.valueScreenerStatus || 'pending' }}
+      </span>
+    </div>
+    <button
+      mat-stroked-button
+      type="button"
+      color="warn"
+      (click)="cancelAutomationRun()"
+      [disabled]="automationState.cancelling()"
+      matTooltip="Stops the in-progress run; steps already completed are not undone"
+    >
+      <mat-icon [class.spinning]="automationState.cancelling()">{{
+        automationState.cancelling() ? 'sync' : 'stop_circle'
+      }}</mat-icon>
+      {{ automationState.cancelling() ? 'Stopping…' : 'Stop' }}
+    </button>
+  </div>
+}
+
+@if (automationState.recoveryResult(); as recovery) {
+  <div
+    class="automation-running-banner automation-recovery-banner"
+    [class.automation-recovery-banner--failed]="recovery.status !== 'Completed'"
+  >
+    <mat-icon class="automation-recovery-icon">{{
+      recovery.status === 'Completed' ? 'task_alt' : 'error_outline'
+    }}</mat-icon>
+    <div class="automation-running-text">
+      <span class="automation-running-title">
+        {{
+          recovery.status === 'AlreadyRunning'
+            ? 'A recovery run is already in progress — try again shortly.'
+            : recovery.status === 'TimedOut'
+              ? 'Fix Missing Data — timed out safely'
+              : 'Fix Missing Data — done'
+        }}
+      </span>
+      <span class="automation-running-detail">
+        EOD Signals: {{ recovery.eodSignals?.message || 'not completed' }} · Snapshot:
+        {{ recovery.snapshot?.message || 'not completed' }} · Value Screener:
+        {{ recovery.valueScreener?.message || 'not completed' }}
+      </span>
+    </div>
+  </div>
+}
+
+@if (automationState.backupResult(); as backup) {
+  <div
+    class="automation-running-banner automation-recovery-banner"
+    [class.automation-recovery-banner--failed]="!backup.ran"
+  >
+    <mat-icon class="automation-recovery-icon">{{
+      backup.ran ? 'task_alt' : 'info_outline'
+    }}</mat-icon>
+    <div class="automation-running-text">
+      <span class="automation-running-title">Backup Now</span>
+      <span class="automation-running-detail">{{ backup.message }}</span>
+    </div>
+  </div>
+}
+
+@if (automationState.activeOperation(); as operation) {
+  <div class="automation-running-banner automation-recovery-banner">
+    <mat-icon class="automation-recovery-icon">hourglass_top</mat-icon>
+    <div class="automation-running-text">
+      <span class="automation-running-title">{{ operation }}</span>
+      <span class="automation-running-detail">
+        The operation has a bounded request deadline. Existing completed database writes are
+        preserved if a later step times out.
+      </span>
+    </div>
+  </div>
+}

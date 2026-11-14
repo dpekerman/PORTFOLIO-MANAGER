@@ -1,5 +1,5 @@
 .import-content {
-  min-width: 560px;
+  min-width: min(560px, 100%);
   max-width: 700px;
 }
 
@@ -141,6 +141,6 @@ mat-dialog-actions {
 
 @media (max-width: 600px) {
   .import-content {
-    min-width: 280px;
+    min-width: min(280px, 100%);
   }
 }

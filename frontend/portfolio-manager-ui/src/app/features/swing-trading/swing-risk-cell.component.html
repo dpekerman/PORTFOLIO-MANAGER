@@ -1,0 +1,15 @@
+<div class="st-status-stack">
+  <app-swing-detail-chip
+    [label]="compact().label"
+    [detail]="compact().detail"
+    [tone]="severityTone()"
+    testId="severity-chip"
+  />
+  @for (s of critical(); track s) {
+    @if (s === 'StopBreached' && row().observation && !demo.isDemoMode()) {
+      <app-swing-detail-chip [label]="label(s)" [detail]="row().observation!" [tone]="tone(s)" testId="risk-status-chip" />
+    } @else {
+      <span class="st-chip" [class]="'st-chip st-tone-' + tone(s)" data-testid="risk-status-chip">{{ label(s) }}</span>
+    }
+  }
+</div>

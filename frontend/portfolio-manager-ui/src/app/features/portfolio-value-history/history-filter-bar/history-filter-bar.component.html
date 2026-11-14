@@ -1,3 +1,5 @@
+<details class="app-filter-panel">
+  <summary>Filters @if (historyState.dateRange().from || historyState.dateRange().to || historyState.statusFilter()) { <span class="app-filter-state">Active</span> }</summary>
 <div class="filter-bar">
   <mat-form-field appearance="outline" class="filter-field">
     <mat-label>From</mat-label>
@@ -7,8 +9,8 @@
       [formControl]="fromControl"
       (dateChange)="onFromChange($event.value)"
     />
-    <mat-datepicker-toggle matIconSuffix [for]="fromPicker"></mat-datepicker-toggle>
-    <mat-datepicker #fromPicker></mat-datepicker>
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+    <mat-datepicker #fromPicker />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="filter-field">
@@ -19,8 +21,8 @@
       [formControl]="toControl"
       (dateChange)="onToChange($event.value)"
     />
-    <mat-datepicker-toggle matIconSuffix [for]="toPicker"></mat-datepicker-toggle>
-    <mat-datepicker #toPicker></mat-datepicker>
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+    <mat-datepicker #toPicker />
   </mat-form-field>
 
   <mat-form-field appearance="outline" class="filter-field">
@@ -41,3 +43,4 @@
     Reset Filters
   </button>
 </div>
+</details>

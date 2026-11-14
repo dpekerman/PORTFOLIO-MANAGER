@@ -10,8 +10,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
-import { ConfigService } from '../../../core/services/config.service';
-import { OptionStateService } from '../../../core/services/option-state.service';
+import { ConfigStore } from '../../../core/store/config.store';
+import { OptionStore } from '../../../core/store/option.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
 
@@ -37,10 +37,10 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 })
 export class AddOptionDialogComponent {
   private readonly fb = inject(FormBuilder);
-  private readonly optionState = inject(OptionStateService);
+  private readonly optionState = inject(OptionStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddOptionDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
 
   protected readonly saving = signal(false);
 
@@ -57,7 +57,7 @@ export class AddOptionDialogComponent {
     marketPrice: [null as number | null, [Validators.required, Validators.min(0)]],
     accountType: [null as string | null],
     openDate: [new Date() as Date | null],
-    closeDate: [new Date() as Date | null],
+    closeDate: [null as Date | null],
     closingPrice: [null as number | null, [Validators.min(0)]],
     decisionSource: [null as string | null],
   });
@@ -88,7 +88,10 @@ export class AddOptionDialogComponent {
         transactionType: this.form.value.transactionType,
         accountType: this.form.value.accountType,
         openDate: this.formatDate(this.form.value.openDate),
-        closeDate: this.formatDate(this.form.value.closeDate),
+        closeDate:
+          this.form.value.transactionType === 'CLOSE'
+            ? this.formatDate(this.form.value.closeDate ?? new Date())
+            : null,
         closingPrice: this.form.value.closingPrice,
         decisionSource: this.form.value.decisionSource,
       });

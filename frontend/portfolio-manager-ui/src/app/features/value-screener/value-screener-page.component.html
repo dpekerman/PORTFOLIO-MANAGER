@@ -24,6 +24,7 @@
         @if (lastRunAt()) {
           <span class="scan-time">Last run: {{ lastRunAt() | date: 'MMM d, yyyy h:mm a' }}</span>
         }
+        <app-refresh-button tooltip="Refresh market data (quotes, dashboard, signals)" />
         @if (sourceMode() !== 'adhoc') {
           <button
             mat-stroked-button
@@ -137,6 +138,8 @@
 
     <!-- TIER SUMMARY CARDS — clickable to filter -->
     @if (allActiveResults().length > 0) {
+      <details class="app-filter-panel">
+        <summary>Filters @if (activeTierFilter()) { <span class="app-filter-state">{{ activeTierFilter() }}</span> }</summary>
       <div class="tier-summary">
         <div
           class="tier-card tier-card--high"
@@ -186,16 +189,21 @@
           </button>
         }
       </div>
+      </details>
     }
   </section>
 
   <!-- RESULTS TABLE -->
   @if (activeResults().length > 0) {
+    <app-mobile-table-controls [sort]="screenerSort" gridId="value-screener" label="Screener" />
     <div class="table-wrapper">
       <table
         mat-table
+        appResponsiveTable
+        appRowSelection
         [dataSource]="activeResults()"
         matSort
+        #screenerSort="matSort"
         (matSortChange)="onSortChange($event)"
         [matSortActive]="sortCol()"
         [matSortDirection]="sortDir()"
@@ -311,6 +319,7 @@
         <tr
           mat-row
           *matRowDef="let row; columns: displayedColumns()"
+          [appSelectableRow]="row.symbol"
           [class]="tierClass(row.tier) + '-row'"
         ></tr>
       </table>

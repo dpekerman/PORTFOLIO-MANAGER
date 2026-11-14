@@ -32,6 +32,7 @@ public class RsiScanResult
     public string AnalysisMarket { get; set; } = string.Empty;
     public string AnalysisCurrency { get; set; } = string.Empty;
     public bool UsesUnderlyingSecurity { get; set; }
+    public bool IntradayRangeReconstructed { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public decimal Rsi { get; set; }
     public decimal CurrentPrice { get; set; }

@@ -17,6 +17,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
 import {
@@ -26,12 +27,16 @@ import {
   ValueScreenerResult,
   ValueTier,
 } from '../../core/models/portfolio.models';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
 import { currencyCodeForTradingSymbol } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 
 type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
+
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
 
 @Component({
   selector: 'app-value-screener-page',
@@ -39,6 +44,8 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
   styleUrl: './value-screener-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
+    AppRefreshButtonComponent,
     DecimalPipe,
     CurrencyPipe,
     DatePipe,
@@ -53,6 +60,8 @@ type SourceMode = 'portfolio' | 'watchlist' | 'adhoc';
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class ValueScreenerPageComponent implements OnInit {
@@ -84,7 +93,7 @@ export class ValueScreenerPageComponent implements OnInit {
   protected readonly sortCol = signal<string>('score');
   protected readonly sortDir = signal<'asc' | 'desc'>('desc');
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('value-screener');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('value-screener');
 
   protected tradingCurrency(symbol: string): string {
     return currencyCodeForTradingSymbol(symbol);

@@ -84,6 +84,21 @@
   margin-top: 1px;
 }
 
+// Handset: a pinned 2-row bar would eat a third of the screen, so it scrolls with the page.
+@media (max-width: 599.98px) {
+  .summary-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 10px;
+    position: static;
+    box-shadow: none;
+  }
+  .summary-tile {
+    padding: 8px 12px;
+    min-width: 0;
+  }
+}
+
 .breakdown {
   display: flex;
   flex-direction: column;

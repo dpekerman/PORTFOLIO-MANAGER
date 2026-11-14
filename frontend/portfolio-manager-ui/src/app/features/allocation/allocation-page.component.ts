@@ -1,4 +1,4 @@
-import { CurrencyPipe, DecimalPipe, PercentPipe, SlicePipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -6,16 +6,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { OptionItem } from '../../core/models/portfolio.models';
-import { CashStateService } from '../../core/services/cash-state.service';
-import { accountTypeError } from '../../core/services/account-types-state.service';
-import { DemoModeService } from '../../core/services/demo-mode.service';
-import { OptionStateService } from '../../core/services/option-state.service';
+import { CashStore } from '../../core/store/cash.store';
+import { accountTypeError } from '../../core/store/account-types.store';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
+import { OptionStore } from '../../core/store/option.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioBetaStateService } from '../../core/services/portfolio-beta-state.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
+import { PortfolioBetaStore } from '../../core/store/portfolio-beta.store';
+import { PortfolioStore } from '../../core/store/portfolio.store';
 import { SectorExpositionComponent } from './sector-exposition/sector-exposition.component';
 
 interface OptionTickerGroup {
@@ -26,16 +27,24 @@ interface OptionTickerGroup {
   expanded: boolean;
 }
 
+import * as XLSX from 'xlsx';
+import { buildCashAccountRows } from './allocation-cash';
+import { buildAllocationWorkbook } from './allocation-export';
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+
 @Component({
   selector: 'app-allocation-page',
   templateUrl: './allocation-page.component.html',
   styleUrl: './allocation-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
+    AppRefreshButtonComponent,
+    PageHeaderComponent,
     CurrencyPipe,
     DecimalPipe,
     PercentPipe,
-    SlicePipe,
     MatButtonModule,
     MatCardModule,
     MatIconModule,
@@ -47,13 +56,13 @@ interface OptionTickerGroup {
   ],
 })
 export class AllocationPageComponent {
-  protected readonly portfolio = inject(PortfolioStateService);
-  protected readonly demoMode = inject(DemoModeService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly optionState = inject(OptionStateService);
+  protected readonly portfolio = inject(PortfolioStore);
+  protected readonly demoMode = inject(DemoModeStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly optionState = inject(OptionStore);
   private readonly api = inject(PortfolioApiService);
   private readonly snackBar = inject(MatSnackBar);
-  protected readonly betaState = inject(PortfolioBetaStateService);
+  protected readonly betaState = inject(PortfolioBetaStore);
 
   protected readonly showBetaDetail = signal(false);
   protected readonly betaSortCol = signal<'symbol' | 'weightPct' | 'beta'>('symbol');
@@ -184,13 +193,10 @@ export class AllocationPageComponent {
     return gt > 0 ? this.portfolio.totalValue() / gt : 0;
   });
 
-  protected readonly cashItemsWithPct = computed(() => {
-    const gt = this.grandTotal();
-    return this.cashState.items().map((c) => ({
-      ...c,
-      pct: gt > 0 ? c.amount / gt : 0,
-    }));
-  });
+  /** Current balance per cash account (authoritative CashStore totals); ledger transactions stay in the cash ledger. */
+  protected readonly cashAccountRows = computed(() =>
+    buildCashAccountRows(this.cashState.totalsByAccount(), this.grandTotal()),
+  );
 
   protected readonly optionGroups = computed<OptionTickerGroup[]>(() => {
     const gt = this.grandTotal();
@@ -237,59 +243,38 @@ export class AllocationPageComponent {
     });
   }
 
-  exportCsv(): void {
+  exportExcel(): void {
     const totalValue = this.portfolio.totalValue();
+    const gt = this.grandTotal();
     const summaries = this.portfolio.summaries().filter((s) => s.item.transactionType !== 'CLOSE');
 
-    const rows: string[][] = [
-      [
-        'Type',
-        'Sector',
-        'Industry',
-        'Symbol / Description',
-        'Company',
-        'Market Value',
-        'Portfolio %',
-      ],
-    ];
-
-    for (const s of summaries) {
-      const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
-      const marketValue = s.item.isManual
-        ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
-        : price * s.item.shares;
-      const pct = totalValue > 0 ? ((marketValue / totalValue) * 100).toFixed(2) : '0';
-      rows.push([
-        'Stock',
-        s.item.sector ?? 'Unknown',
-        s.item.industry ?? 'Unknown',
-        s.item.symbol,
-        s.item.companyName,
-        marketValue.toFixed(2),
-        pct,
-      ]);
-    }
-
-    const gt = this.grandTotal();
-    for (const c of this.cashState.items()) {
-      const pct = gt > 0 ? ((c.amount / gt) * 100).toFixed(2) : '0';
-      rows.push(['Cash', '', '', c.description, '', c.amount.toFixed(2), pct]);
-    }
-
-    for (const a of this.optionState.analyses().filter((a) => a.item.transactionType !== 'CLOSE')) {
-      const pct = gt > 0 ? ((a.marketValue / gt) * 100).toFixed(2) : '0';
-      const desc = `${a.item.underlyingTicker} ${a.item.positionType} $${a.item.strike} exp ${a.item.expirationDate}`;
-      rows.push(['Option', '', '', a.item.underlyingTicker, desc, a.marketValue.toFixed(2), pct]);
-    }
-
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'allocation.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    const book = buildAllocationWorkbook({
+      stocks: summaries.map((s) => {
+        const price = s.quote?.currentPrice ?? s.item.averageCostBasis;
+        const marketValue = s.item.isManual
+          ? (s.item.manualMarketValue ?? s.item.averageCostBasis)
+          : price * s.item.shares;
+        return {
+          sector: s.item.sector ?? 'Unknown',
+          industry: s.item.industry ?? 'Unknown',
+          symbol: s.item.symbol,
+          company: s.item.companyName,
+          marketValue,
+          weight: totalValue > 0 ? marketValue / totalValue : 0,
+        };
+      }),
+      cash: this.cashAccountRows(),
+      options: this.optionState
+        .analyses()
+        .filter((a) => a.item.transactionType !== 'CLOSE')
+        .map((a) => ({
+          symbol: a.item.underlyingTicker,
+          description: `${a.item.underlyingTicker} ${a.item.positionType} $${a.item.strike} exp ${a.item.expirationDate}`,
+          marketValue: a.marketValue,
+          weight: gt > 0 ? a.marketValue / gt : 0,
+        })),
+    });
+    XLSX.writeFile(book, 'allocation.xlsx');
   }
 
   backupAllocationData(): void {

@@ -5,7 +5,7 @@ import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -13,11 +13,19 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { debounceTime, distinctUntilChanged, Subject, switchMap } from 'rxjs';
 import { SymbolSearchResult } from '../../../core/models/portfolio.models';
-import { ConfigService } from '../../../core/services/config.service';
+import { ConfigStore } from '../../../core/store/config.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { backendErrorMessage, PortfolioStore } from '../../../core/store/portfolio.store';
+import { closeDateValidator, revalidateCloseDateOn, sortDecisionSources, torontoTodayDate } from '../../../core/close-date.util';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 import { AccountTypeSelectComponent } from '../../../shared/account-type-select/account-type-select.component';
+import { normalizePrefillSymbol } from '../../../core/symbol-prefill.util';
+
+/** Optional context from another screen. Only the ticker is prefilled; the user still supplies account, shares and cost. */
+export interface AddStockDialogData {
+  symbol?: string;
+  companyName?: string;
+}
 
 @Component({
   selector: 'app-add-stock-dialog',
@@ -42,14 +50,16 @@ import { AccountTypeSelectComponent } from '../../../shared/account-type-select/
 export class AddStockDialogComponent {
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(PortfolioApiService);
-  private readonly state = inject(PortfolioStateService);
+  private readonly state = inject(PortfolioStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
   private readonly dialogRef = inject(MatDialogRef<AddStockDialogComponent>);
-  private readonly configService = inject(ConfigService);
+  private readonly configService = inject(ConfigStore);
+  private readonly prefill = inject<AddStockDialogData | null>(MAT_DIALOG_DATA, { optional: true });
 
   protected readonly searchResults = signal<SymbolSearchResult[]>([]);
   protected readonly searching = signal(false);
   protected readonly saving = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
 
   protected readonly today = new Date();
 
@@ -63,7 +73,7 @@ export class AddStockDialogComponent {
   ] as const;
 
   protected get decisionSources(): string[] {
-    return this.configService.config().decisionSources ?? [];
+    return sortDecisionSources(this.configService.config().decisionSources);
   }
 
   private readonly searchSubject = new Subject<string>();
@@ -74,8 +84,8 @@ export class AddStockDialogComponent {
     companyName: ['', [Validators.required, Validators.maxLength(200)]],
     shares: [null as number | null, [Validators.required, Validators.min(0.0001)]],
     averageCostBasis: [null as number | null, [Validators.required, Validators.min(0.01)]],
-    openDate: [new Date() as Date | null],
-    closeDate: [new Date() as Date | null],
+    openDate: [torontoTodayDate() as Date | null],
+    closeDate: [null as Date | null, [closeDateValidator]],
     closingPrice: [null as number | null, [Validators.min(0)]],
     accountType: [null as string | null],
     holdingRole: [null as string | null],
@@ -83,6 +93,14 @@ export class AddStockDialogComponent {
   });
 
   constructor() {
+    this.applyPrefill();
+    revalidateCloseDateOn(this.form);
+    this.form.controls.transactionType.valueChanges.pipe(takeUntilDestroyed()).subscribe((t) => {
+      if (t === 'CLOSE' && !this.form.controls.closeDate.value) {
+        this.form.controls.closeDate.setValue(torontoTodayDate());
+      }
+    });
+
     this.searchSubject
       .pipe(
         takeUntilDestroyed(),
@@ -120,14 +138,39 @@ export class AddStockDialogComponent {
     this.searchResults.set([]);
   }
 
+  /**
+   * Prefills the ticker from the opening screen and resolves the company name through the same symbol search the form
+   * already uses. An unresolved name stays empty for the user to complete; nothing is guessed or submitted.
+   */
+  private applyPrefill(): void {
+    const symbol = normalizePrefillSymbol(this.prefill?.symbol);
+    if (!symbol) return;
+    this.form.patchValue({ symbol, companyName: this.prefill?.companyName ?? '' });
+    if (this.prefill?.companyName) return;
+    this.api
+      .searchSymbols(symbol)
+      .pipe(takeUntilDestroyed())
+      .subscribe({
+        next: (results) => {
+          const exact = results.find((r) => r.symbol.toUpperCase() === symbol);
+          if (exact && !this.form.controls.companyName.value) {
+            this.form.patchValue({ companyName: exact.description });
+          }
+        },
+        error: () => undefined,
+      });
+  }
+
   private formatDate(d: Date | null | undefined): string | null {
     if (!d) return null;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
   async submit(): Promise<void> {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.saving()) return;
     this.saving.set(true);
+    this.errorMessage.set(null);
+    const isClose = this.form.value.transactionType === 'CLOSE';
     try {
       const created = await this.state.addItem({
         symbol: this.form.value.symbol!,
@@ -137,13 +180,16 @@ export class AddStockDialogComponent {
         transactionType: this.form.value.transactionType,
         accountType: this.form.value.accountType,
         openDate: this.formatDate(this.form.value.openDate),
-        closeDate: this.formatDate(this.form.value.closeDate),
+        closeDate: isClose ? this.formatDate(this.form.value.closeDate) : null,
         closingPrice: this.form.value.closingPrice,
         holdingRole: this.form.value.holdingRole,
         decisionSource: this.form.value.decisionSource,
       });
       this.dialogRef.close(true);
       void this.tradeCashLink.offerForStock(null, created);
+    } catch (err) {
+      // The dialog stays open with every entered value intact.
+      this.errorMessage.set(backendErrorMessage(err, 'Failed to add stock'));
     } finally {
       this.saving.set(false);
     }

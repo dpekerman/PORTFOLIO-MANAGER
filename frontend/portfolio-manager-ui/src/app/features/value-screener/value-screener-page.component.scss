@@ -621,10 +621,3 @@
   color: var(--text-secondary);
 }
 
-// Global tooltip override for multi-line tooltips
-::ng-deep .value-screener-tooltip {
-  white-space: pre-line !important;
-  max-width: 380px !important;
-  font-size: 0.78rem !important;
-  line-height: 1.5 !important;
-}

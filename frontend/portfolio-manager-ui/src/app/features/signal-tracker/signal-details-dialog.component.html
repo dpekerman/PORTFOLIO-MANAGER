@@ -1,0 +1,182 @@
+<h2 mat-dialog-title>Signal details</h2>
+<mat-dialog-content>
+  @if (!detail()) {
+    <mat-progress-bar mode="indeterminate" aria-label="Loading signal" />
+  } @else {
+    @let d = detail()!;
+    @let r = d.row;
+    <section class="block" aria-label="Signal at capture">
+      <h3>Signal at capture</h3>
+      <dl class="grid">
+        <div><dt>Ticker</dt><dd>{{ r.symbol }}</dd></div>
+        <div><dt>Role</dt><dd>{{ r.role || 'Not Available' }}</dd></div>
+        <div><dt>Signal Type</dt><dd>{{ r.signalTypeLabel }}</dd></div>
+        <div><dt>Source</dt><dd>{{ r.source }}</dd></div>
+        <div>
+          <dt>Signal Date / Time</dt>
+          <dd>{{ r.signalDate }} <small>captured {{ d.capturedAtUtc.substring(0, 16).replace('T', ' ') }} UTC</small></dd>
+        </div>
+        <div><dt>Days Since</dt><dd>{{ r.daysSince }}</dd></div>
+        <div>
+          <dt>Signal Price</dt>
+          <dd [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+            {{ price(r.signalPrice) | number: '1.2-2' }} {{ r.currency }}
+          </dd>
+        </div>
+        <div><dt>Rule Version</dt><dd>{{ d.ruleVersion || 'Not Available' }}</dd></div>
+        <div><dt>Origin</dt><dd>{{ r.origin }}</dd></div>
+        <div>
+          <dt>Episode</dt>
+          <dd>{{ d.episodeEndedDate ? 'Ended ' + d.episodeEndedDate : 'Still qualifying' }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="block" aria-label="Lifecycle and current evidence" data-testid="lifecycle-evidence">
+      <h3>Lifecycle &amp; current evidence</h3>
+      <dl class="grid">
+        <div>
+          <dt>Lifecycle status</dt>
+          <dd>{{ statusMeta(r.status).label }} <small>{{ statusMeta(r.status).meaning }}</small></dd>
+        </div>
+        <div><dt>Status changed</dt><dd>{{ utc(r.statusChangedAtUtc) }}</dd></div>
+        <div class="wide"><dt>Status reason</dt><dd>{{ text(r.statusReason) }}</dd></div>
+        <div><dt>My Action</dt><dd>{{ r.myAction }}</dd></div>
+        <div><dt>Effective state</dt><dd>{{ r.effectiveState ? stateLabel(r.effectiveState) : 'Not applicable' }}</dd></div>
+        <div><dt>Actionable now</dt><dd>{{ r.isActionable == null ? 'Not applicable' : r.isActionable ? 'Yes' : 'No' }}</dd></div>
+        <div><dt>Evidence health</dt><dd>{{ r.evidenceHealth || (r.effectiveState ? 'Unknown' : 'Not applicable') }}</dd></div>
+        <div class="wide"><dt>Evidence note</dt><dd>{{ evidenceSummary(r) }}</dd></div>
+        @if (evidenceWarning(r); as warning) {
+          <div class="wide" data-testid="evidence-warning-text"><dt>Warning</dt><dd>{{ warning }}</dd></div>
+        }
+        <div><dt>Last evaluated</dt><dd>{{ utc(r.lastValidatedAtUtc) }}</dd></div>
+        <div><dt>Data as of</dt><dd>{{ text(r.dataAsOfDate) }}</dd></div>
+        <div class="wide"><dt>Reason codes</dt><dd>{{ reasons(r.reasonCodes) }}</dd></div>
+        <div><dt>Record type</dt><dd>{{ originLabel(r.origin) }}</dd></div>
+        <div><dt>Eligibility</dt><dd>{{ r.eligibilityStatus === 'Unverified' ? 'Score-qualified, eligibility unverified' : 'Verified' }}</dd></div>
+        <div><dt>Price basis</dt><dd>{{ basisLabel(r.priceBasis) }}</dd></div>
+        <div><dt>Performance audited</dt><dd>{{ r.performanceAudited === false ? 'No (Action Center only)' : 'Yes' }}</dd></div>
+      </dl>
+    </section>
+
+    @if (context()?.finalAction) {
+      <section class="block" aria-label="Final Action">
+        <h3>Final Action at capture</h3>
+        <dl class="grid">
+          <div><dt>Final Action</dt><dd>{{ context()?.finalAction }}</dd></div>
+          <div><dt>Trend setup</dt><dd>{{ text(context()?.trendSetup) }}</dd></div>
+          <div><dt>Base action</dt><dd>{{ text(context()?.baseAction) }}</dd></div>
+          <div class="wide"><dt>Reason</dt><dd>{{ text(context()?.finalActionReason) }}</dd></div>
+        </dl>
+      </section>
+    }
+
+    <section class="block" aria-label="Score">
+      <h3>Priority score &amp; breakdown</h3>
+      @if (context()?.score; as sc) {
+        <dl class="grid">
+          <div><dt>Total</dt><dd>{{ sc.total | number: '1.0-1' }}</dd></div>
+          <div><dt>Portfolio need (30)</dt><dd>{{ sc.portfolioNeed | number: '1.0-1' }}</dd></div>
+          <div><dt>Technical (30)</dt><dd>{{ sc.technical | number: '1.0-1' }}</dd></div>
+          <div><dt>Fundamental (25)</dt><dd>{{ sc.fundamental | number: '1.0-1' }}</dd></div>
+          <div><dt>Risk room (15)</dt><dd>{{ sc.risk | number: '1.0-1' }}</dd></div>
+          <div><dt>Badge</dt><dd>{{ text(sc.badge) }}</dd></div>
+        </dl>
+      } @else {
+        <p class="na">{{ r.signalType === 'PRIORITY_CANDIDATE' ? 'Not Available' : 'Not applicable: this is a Final Action signal, not a Priority Candidate.' }}</p>
+      }
+    </section>
+
+    <section class="block" aria-label="Technical context at signal time">
+      <h3>Technical context at signal time</h3>
+      <dl class="grid">
+        <div><dt>RSI</dt><dd>{{ context()?.rsi === undefined ? 'Not Available' : (context()!.rsi | number: '1.0-1') }}</dd></div>
+        <div><dt>Momentum Shift</dt><dd>{{ text(context()?.trendShift) }}</dd></div>
+        <div><dt>MA structure</dt><dd>{{ text(context()?.technicalFacts?.maStructure) }}</dd></div>
+        <div><dt>MA cross</dt><dd>{{ text(context()?.technicalFacts?.maCrossState) }}</dd></div>
+        <div><dt>Price Structure</dt><dd>{{ priceStructureText() }}</dd></div>
+        <div><dt>Support / resistance</dt><dd>{{ keyLevelText() }}</dd></div>
+        <div><dt>Channel</dt><dd>{{ channelText() }}</dd></div>
+        <div><dt>Fibonacci</dt><dd>{{ fibonacciText() }}</dd></div>
+        <div><dt>Structural stop</dt><dd>{{ stopText() }}</dd></div>
+        <div><dt>Allocation status</dt><dd>{{ text(context()?.allocationStatus) }}</dd></div>
+      </dl>
+      <p class="hint">Only what was stored at capture is shown; nothing is rebuilt from today's indicators.</p>
+    </section>
+
+    <section class="block" aria-label="Performance since signal">
+      <h3>Performance since signal</h3>
+      <dl class="grid">
+        @for (h of [
+          { label: '5D', v: r.return5D },
+          { label: '20D', v: r.return20D },
+          { label: '1M', v: r.return1M },
+          { label: 'Today vs Signal', v: r.today }
+        ]; track h.label) {
+          <div>
+            <dt>{{ h.label }}</dt>
+            <dd>
+              @if (h.v.status === 'Complete') {
+                <span [class.pos]="h.v.pct! > 0" [class.neg]="h.v.pct! < 0"
+                  [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                  {{ pct(h.v) > 0 ? '+' : '' }}{{ pct(h.v) | number: '1.2-2' }}%
+                </span>
+                <small>on {{ h.v.evalDate }}</small>
+              } @else {
+                {{ h.v.status === 'Pending' ? 'Pending' : 'N/A' }}
+              }
+            </dd>
+          </div>
+        }
+        <div>
+          <dt>Today vs Actioned</dt>
+          <dd>
+            @if (r.todayVsActionedPct !== null && r.todayVsActionedPct !== undefined) {
+              <span [class.pos]="r.todayVsActionedPct > 0" [class.neg]="r.todayVsActionedPct < 0"
+                [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+                {{ r.todayVsActionedPct > 0 ? '+' : '' }}{{ r.todayVsActionedPct | number: '1.2-2' }}%
+              </span>
+            } @else {
+              N/A
+            }
+          </dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="block" aria-label="My action">
+      <h3>My action</h3>
+      <dl class="grid">
+        <div><dt>My Action</dt><dd>{{ r.myAction }}</dd></div>
+        <div>
+          <dt>Verification</dt>
+          <dd>
+            @switch (r.linkKind) {
+              @case ('TransactionVerified') { Linked to a matching transaction }
+              @case ('ManualConfirmed') { Confirmed manually (no linked transaction) }
+              @case ('LinkBroken') { Linked transaction no longer matches }
+              @default { None }
+            }
+          </dd>
+        </div>
+        @if (d.linkedTransaction; as t) {
+          <div class="wide">
+            <dt>Linked transaction</dt>
+            <dd>
+              {{ t.transactionType === 'CLOSE' ? 'SELL' : 'BUY' }} {{ t.symbol }} on
+              {{ t.transactionType === 'CLOSE' ? t.closeDate : t.openDate }} ·
+              {{ t.accountType || 'No account' }} · {{ t.decisionSource || 'No decision source' }}
+            </dd>
+          </div>
+        }
+        <div class="wide">
+          <dt>Investor note</dt>
+          <dd>{{ d.note || 'None' }}</dd>
+        </div>
+      </dl>
+    </section>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close (click)="close()">Close</button>
+</mat-dialog-actions>

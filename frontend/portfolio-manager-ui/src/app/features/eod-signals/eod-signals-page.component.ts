@@ -22,6 +22,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute } from '@angular/router';
 import { debounceTime, distinctUntilChanged, filter, interval } from 'rxjs';
@@ -33,15 +34,17 @@ import {
   EodSignalsMeta,
   SignalState,
 } from '../../core/models/portfolio.models';
-import { GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore } from '../../core/store/grid-column.store';
 import { PortfolioApiService } from '../../core/services/portfolio-api.service';
-import { PortfolioStateService } from '../../core/services/portfolio-state.service';
-import { ScannerStateService } from '../../core/services/scanner-state.service';
+import { PortfolioStore } from '../../core/store/portfolio.store';
+import { ScannerStore } from '../../core/store/scanner.store';
 import {
   currencyCodeForAnalysis,
   formatTrendShift,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
+import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
+import { ResponsiveTableDirective } from '../../shared/responsive-table/responsive-table.directive';
 import {
   ConfirmDialogComponent,
   ConfirmDialogData,
@@ -72,12 +75,18 @@ type SortCol =
   | 'signalState';
 type SortDir = 'asc' | 'desc';
 
+import { AppRefreshButtonComponent } from '../../shared/app-refresh-button/app-refresh-button.component';
+import { PageHeaderComponent } from '../../shared/ui/page-header/page-header.component';
+
 @Component({
   selector: 'app-eod-signals-page',
   templateUrl: './eod-signals-page.component.html',
   styleUrl: './eod-signals-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
+    AppRefreshButtonComponent,
+    PageHeaderComponent,
     DatePipe,
     DecimalPipe,
     ReactiveFormsModule,
@@ -93,6 +102,8 @@ type SortDir = 'asc' | 'desc';
     MatTableModule,
     MatTooltipModule,
     GridColumnButtonComponent,
+    MobileTableControlsComponent,
+    ResponsiveTableDirective,
   ],
 })
 export class EodSignalsPageComponent implements OnInit {
@@ -101,8 +112,8 @@ export class EodSignalsPageComponent implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly scannerState = inject(ScannerStateService);
-  private readonly portfolioState = inject(PortfolioStateService);
+  private readonly scannerState = inject(ScannerStore);
+  private readonly portfolioState = inject(PortfolioStore);
 
   protected readonly portfolioRoleMap = computed<ReadonlyMap<string, string>>(
     () =>
@@ -293,7 +304,7 @@ export class EodSignalsPageComponent implements OnInit {
     return (pd / row.price) * 100;
   }
 
-  protected readonly displayedColumns = inject(GridColumnService).getColumnKeys('eod-signals');
+  protected readonly displayedColumns = inject(GridColumnStore).getResponsiveColumnKeys('eod-signals');
 
   protected readonly scanTypeOptions = ['Oversold', 'Overbought'];
   protected readonly signalTypeOptions = ['EodConfirm', 'Confirmed', 'EarlyWarning'];
