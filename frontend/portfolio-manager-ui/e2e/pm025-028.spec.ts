@@ -111,6 +111,7 @@ test.describe('PM-027 Transactions default sort', () => {
     await page.goto('/transactions');
     const table = page.locator('table.mat-mdc-table').first();
     await expect(table.locator('tr.mat-mdc-row').first()).toBeAttached();
+    await page.locator('.app-filter-panel > summary').click();
     const header = table.getByRole('columnheader', { name: 'TRANS DATE' });
     await expect(header).toHaveAttribute('aria-sort', 'descending');
 
@@ -128,6 +129,7 @@ test.describe('PM-027 Transactions default sort', () => {
 test.describe('PM-028 Watchlist default tab', () => {
   test('opens on All and keeps Active selectable', async ({ page }) => {
     await page.goto('/watchlist');
+    await page.locator('.app-filter-panel > summary').click();
     const all = page.getByRole('radio', { name: /^All/ });
     await expect(all).toBeChecked();
     await page.getByRole('radio', { name: /^Active/ }).click();
