@@ -30,6 +30,7 @@ public sealed class YahooChartResult
 
 public sealed class YahooMeta
 {
+    [JsonPropertyName("symbol")]                     public string? Symbol { get; set; }
     [JsonPropertyName("regularMarketPrice")]         public decimal RegularMarketPrice { get; set; }
     [JsonPropertyName("regularMarketDayHigh")]       public decimal RegularMarketDayHigh { get; set; }
     [JsonPropertyName("regularMarketDayLow")]        public decimal RegularMarketDayLow { get; set; }

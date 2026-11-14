@@ -244,7 +244,9 @@ public sealed class EodAutomationOrchestratorService(
                         .FirstOrDefault(r => string.Equals(r.Symbol, s, StringComparison.OrdinalIgnoreCase)
                             && r.EvaluationState == nameof(Services.FinalAction.EffectiveState.AwaitingData));
                     var why = row is null ? "" : $" [{row.EvidenceHealth}{(row.ReasonCodes is { Count: > 0 } c ? ": " + string.Join("/", c) : "")}]";
-                    return s + why;
+                    var bar = row?.RejectedBar;
+                    var analysis = bar is null ? "" : $" (analysis: {bar.AnalysisTicker}, session: {bar.TradingDate:yyyy-MM-dd}; recovery unverified)";
+                    return s + analysis + why;
                 }));
                 log.ErrorStep = PartialEvaluationStep;
                 log.ErrorMessage = Truncate($"{published} holding(s) published; Awaiting Data (not evaluated): {detail}", 2000);

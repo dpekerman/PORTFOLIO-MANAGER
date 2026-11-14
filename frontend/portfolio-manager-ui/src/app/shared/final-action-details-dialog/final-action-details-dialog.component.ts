@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { FinalActionResult } from '../../core/models/portfolio.models';
+import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { describeReasonCode, stateLabel, technicalConflictNote } from './final-action-labels';
 
 export interface FinalActionDetailsData {
@@ -22,6 +23,7 @@ export interface FinalActionDetailsData {
   styleUrl: './final-action-details-dialog.component.scss',
 })
 export class FinalActionDetailsDialogComponent {
+  protected readonly demo = inject(DemoModeStore);
   protected readonly r = inject<FinalActionDetailsData>(MAT_DIALOG_DATA).result;
   protected readonly state = stateLabel(this.r.evaluationState);
   protected readonly conflict = technicalConflictNote(this.r);

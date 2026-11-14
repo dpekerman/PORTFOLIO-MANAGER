@@ -69,7 +69,9 @@ public sealed record FinalActionResultDto(
     /// <summary>SingleCurrency | MixedCurrency | UnknownCurrency: whether allocation percentages behind the decision are verifiable.</summary>
     string? AllocationStatus = null,
     /// <summary>When the app fetched the quote (distinct from <see cref="QuoteTimestampUtc"/>, the provider's own price time).</summary>
-    DateTime? QuoteFetchedAtUtc = null);
+    DateTime? QuoteFetchedAtUtc = null,
+    RejectedMarketBar? RejectedBar = null,
+    bool IntradayRangeReconstructed = false);
 
 /// <summary>Ownership facts across all open lots and accounts of a symbol. Exposure is null when it cannot be verified.</summary>
 public sealed record FinalActionOwnership(
@@ -177,6 +179,7 @@ public sealed class FinalActionService(
 
         var scans = new Dictionary<string, RsiScanResult>(StringComparer.OrdinalIgnoreCase);
         var rejections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var rejectedBars = new Dictionary<string, RejectedMarketBar>(StringComparer.OrdinalIgnoreCase);
         var unknown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var batch in symbols.Chunk(BatchSize))
         {
@@ -185,6 +188,7 @@ public sealed class FinalActionService(
                 foreach (var r in await scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
                     scans[r.Symbol] = r;
                 foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
+                foreach (var (rejectedSymbol, bar) in scanner.LastRejectedBars) rejectedBars[rejectedSymbol] = bar;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -204,6 +208,7 @@ public sealed class FinalActionService(
                 foreach (var r in await scanner.AnalyzeSymbolsAsync(retry, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
                     scans[r.Symbol] = r;
                 foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
+                foreach (var (rejectedSymbol, bar) in scanner.LastRejectedBars) rejectedBars[rejectedSymbol] = bar;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -287,7 +292,8 @@ public sealed class FinalActionService(
             if (decision is null || assessment.Health != EvidenceHealth.Fresh)
             {
                 unknown.Add(item.Symbol);
-                watchlist.Add(AwaitingDto(item.Symbol, SignalSources.Watchlist, null, role, scan, assessment, null, null) with
+                rejectedBars.TryGetValue(item.Symbol, out var rejectedBar);
+                watchlist.Add(AwaitingDto(item.Symbol, SignalSources.Watchlist, null, role, scan, assessment, null, null, rejectedBar) with
                 {
                     QuoteTimestampUtc = wlQuote, QuoteFetchedAtUtc = wlFetched, QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
                     ExchangeBasis = Basis(item.Symbol, scan),
@@ -360,8 +366,9 @@ public sealed class FinalActionService(
             if (gate is null || evidence is null || assessment.Health != EvidenceHealth.Fresh)
             {
                 unknown.Add(holding.Item.Symbol);
+                rejectedBars.TryGetValue(holding.Item.Symbol, out var rejectedBar);
                 portfolio.Add(AwaitingDto(holding.Item.Symbol, SignalSources.Portfolio, holding.Item.Id, holding.Item.HoldingRole, scan, assessment,
-                    holding.Item.FinalAction, holding.Item.FinalActionUpdatedAt) with
+                    holding.Item.FinalAction, holding.Item.FinalActionUpdatedAt, rejectedBar) with
                 {
                     QuoteTimestampUtc = quoteUtc, QuoteFetchedAtUtc = quoteFetchedUtc, QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
                     ExchangeBasis = Basis(holding.Item.Symbol, scan),
@@ -406,7 +413,7 @@ public sealed class FinalActionService(
     /// </summary>
     private static FinalActionResultDto AwaitingDto(
         string symbol, string source, int? itemId, string? role, RsiScanResult? scan, EvidenceAssessment a,
-        string? lastValidAction, DateTime? lastEvaluatedUtc)
+        string? lastValidAction, DateTime? lastEvaluatedUtc, RejectedMarketBar? rejectedBar)
     {
         const string label = "Awaiting Data";
         var def = FinalActionCatalog.Describe(label);
@@ -414,11 +421,11 @@ public sealed class FinalActionService(
         return new FinalActionResultDto(
             symbol, source, itemId, role, label, def.Id, def.Category, def.Direction, "hold", "INFORMATIONAL",
             "ma-standby", "", "", "", "", reason, reason, false,
-            0m, scan is null || string.IsNullOrEmpty(scan.AnalysisTicker) ? symbol : scan.AnalysisTicker, null,
+            0m, scan is null || string.IsNullOrEmpty(scan.AnalysisTicker) ? rejectedBar?.AnalysisTicker ?? symbol : scan.AnalysisTicker, null,
             IsActionable: false, ReasonCodes: a.Codes, EvidenceAsOfUtc: scan?.ScannedAt,
             EvaluationState: nameof(EffectiveState.AwaitingData), EvidenceHealth: a.Health.ToString(),
             LastValidAction: lastValidAction, LastSuccessfulEvaluationUtc: lastEvaluatedUtc,
-            DataAsOfDate: a.DataAsOf, ExpectedSession: a.ExpectedSession);
+            DataAsOfDate: a.DataAsOf ?? rejectedBar?.TradingDate, ExpectedSession: a.ExpectedSession, RejectedBar: rejectedBar);
     }
 
     private static string DescribeAwaiting(EvidenceAssessment a, string? lastValidAction, DateTime? lastEvaluatedUtc)
@@ -476,7 +483,8 @@ public sealed class FinalActionService(
                 : null,
             new FinalActionTechnicalsDto(scan.Rsi, scan.TrendShift, scan.MaStructure, scan.MaCrossState, scan.PriceStructure,
                 scan.FibZone, scan.FibStatus, scan.Fib61_8, scan.DynamicStopLoss));
-        return dto with { IsActionable = DecisionEligibility.IsActionable(dto), EvidenceAsOfUtc = scan.ScannedAt };
+        return dto with { IsActionable = DecisionEligibility.IsActionable(dto), EvidenceAsOfUtc = scan.ScannedAt,
+            IntradayRangeReconstructed = scan.IntradayRangeReconstructed };
     }
 
     internal static PortfolioEvidence BuildEvidence(

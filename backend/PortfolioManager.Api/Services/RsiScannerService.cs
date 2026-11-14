@@ -18,7 +18,10 @@ public interface IRsiScannerService
     /// (see <see cref="ScanRejection"/>), as opposed to symbols that simply failed to load. Empty for scanners that don't classify.
     /// </summary>
     IReadOnlyDictionary<string, string> LastRejections => new Dictionary<string, string>();
+    IReadOnlyDictionary<string, RejectedMarketBar> LastRejectedBars => new Dictionary<string, RejectedMarketBar>();
 }
+
+public sealed record RejectedMarketBar(string AnalysisTicker, DateOnly TradingDate, decimal Open, decimal High, decimal Low, decimal Close);
 
 /// <summary>Why market data was fetched but not usable. A rejection is a data-quality problem, never a transport failure.</summary>
 public static class ScanRejection
@@ -31,6 +34,8 @@ public sealed class RsiScannerService : IRsiScannerService
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _rejections = new(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, string> LastRejections => _rejections;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RejectedMarketBar> _rejectedBars = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, RejectedMarketBar> LastRejectedBars => _rejectedBars;
 
     private readonly HttpClient _http;
     private readonly ILogger<RsiScannerService> _logger;
@@ -137,6 +142,7 @@ public sealed class RsiScannerService : IRsiScannerService
     {
         var results = new List<RsiScanResult>();
         _rejections.Clear();
+        _rejectedBars.Clear();
         var distinct = symbols
             .Select(s => s.Trim().ToUpperInvariant())
             .Where(s => s.Length > 0)
@@ -168,7 +174,12 @@ public sealed class RsiScannerService : IRsiScannerService
                 results.AddRange(scanned.Symbols.Select(symbol => CopyForTradingTicker(scanned.Result!, symbol)));
             foreach (var unusable in batchResults.Where(item => item.Result is null))
                 if (_rejections.TryGetValue(unusable.Symbols[0].AnalysisTicker, out var why))
-                    foreach (var symbol in unusable.Symbols) _rejections[symbol.TradingTicker] = why;
+                    foreach (var symbol in unusable.Symbols)
+                    {
+                        _rejections[symbol.TradingTicker] = why;
+                        if (_rejectedBars.TryGetValue(symbol.AnalysisTicker, out var rejectedBar))
+                            _rejectedBars[symbol.TradingTicker] = rejectedBar;
+                    }
             if (analysisGroups.Count > 3) await Task.Delay(1500, ct);
         }
 
@@ -402,6 +413,68 @@ public sealed class RsiScannerService : IRsiScannerService
         return close >= floor && close <= ceiling && open >= floor && open <= ceiling;
     }
 
+    internal static (decimal High, decimal Low)? ReconstructSessionRange(
+        YahooChartResult? chart, string symbol, DateOnly session, decimal open, decimal high, decimal low, decimal close, DateTime nowUtc)
+    {
+        var exchange = TradingCalendar.ExchangeFor(symbol);
+        if (!SessionHasClosed(session, exchange, nowUtc)) return null;
+        var closeTime = TradingCalendar.CloseTime(session, exchange);
+        var quote = chart?.Indicators?.Quote?.FirstOrDefault();
+        if (quote is null || chart?.Timestamp is null ||
+            !string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)) return null;
+
+        var expectedMinutes = (int)(closeTime.ToTimeSpan() - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
+        var minutes = new SortedDictionary<int, (decimal Open, decimal High, decimal Low, decimal Close)>();
+        var count = new[] { chart.Timestamp.Count, quote.Open.Count, quote.High.Count, quote.Low.Count, quote.Close.Count }.Min();
+        for (var i = 0; i < count; i++)
+        {
+            var instant = DateTimeOffset.FromUnixTimeSeconds(chart.Timestamp[i]).UtcDateTime;
+            var local = TradingCalendar.TorontoNow(instant);
+            if (DateOnly.FromDateTime(local) != session) continue;
+            var minute = (int)(local.TimeOfDay - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
+            if (local.Second != 0 || minute < 0 || minute >= expectedMinutes) continue;
+            if (quote.Open[i] is not { } o || quote.High[i] is not { } h ||
+                quote.Low[i] is not { } l || quote.Close[i] is not { } c ||
+                !IsSessionConsistent(o, h, l, c) || !minutes.TryAdd(minute, (o, h, l, c))) return null;
+        }
+
+        if (minutes.Count != expectedMinutes ||
+            !minutes.ContainsKey(0) || !minutes.ContainsKey(expectedMinutes - 1)) return null;
+        static bool Matches(decimal a, decimal b) => a > 0m && b > 0m && Math.Abs(a - b) <= b * 0.001m;
+        if (!Matches(minutes.First().Value.Open, open) || !Matches(minutes.Last().Value.Close, close)) return null;
+        var reconstructedHigh = minutes.Values.Max(m => m.High);
+        var reconstructedLow = minutes.Values.Min(m => m.Low);
+        if (high <= 0m || low <= 0m || high < low ||
+            !Matches(reconstructedHigh, Math.Max(high, Math.Max(open, close))) ||
+            !Matches(reconstructedLow, Math.Min(low, Math.Min(open, close))) ||
+            !IsSessionConsistent(open, reconstructedHigh, reconstructedLow, close)) return null;
+        return (reconstructedHigh, reconstructedLow);
+    }
+
+    private static bool SessionHasClosed(DateOnly session, MarketExchange exchange, DateTime nowUtc)
+    {
+        if (!TradingCalendar.IsTradingDay(session, exchange)) return false;
+        var now = TradingCalendar.TorontoNow(nowUtc);
+        var today = DateOnly.FromDateTime(now);
+        return today > session || (today == session && TimeOnly.FromDateTime(now) >= TradingCalendar.CloseTime(session, exchange));
+    }
+
+    private async Task<(decimal High, decimal Low)?> RecoverSessionRangeAsync(
+        string symbol, DateOnly session, decimal open, decimal high, decimal low, decimal close, CancellationToken ct)
+    {
+        if (!SessionHasClosed(session, TradingCalendar.ExchangeFor(symbol), DateTime.UtcNow)) return null;
+        await Task.Delay(300, ct);
+        using var response = await FetchWithRetryAsync($"v8/finance/chart/{Uri.EscapeDataString(symbol)}?interval=1m&range=5d", ct);
+        if (response is null || !response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Intraday range recovery for {Symbol} failed: provider response {Status}.", symbol, response?.StatusCode);
+            return null;
+        }
+        var json = await response.Content.ReadAsStringAsync(ct);
+        var chart = JsonSerializer.Deserialize<YahooChartResponse>(json, _json)?.Chart?.Result?.FirstOrDefault();
+        return ReconstructSessionRange(chart, symbol, session, open, high, low, close, DateTime.UtcNow);
+    }
+
     internal async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         try
@@ -448,12 +521,34 @@ public sealed class RsiScannerService : IRsiScannerService
                 _rejections[symbol] = ScanRejection.InsufficientHistory;
                 return null;
             }
+            var intradayRangeReconstructed = false;
             if (!IsSessionConsistent(opens[^1], highs[^1], lows[^1], closes[^1]))
             {
-                _rejections[symbol] = ScanRejection.InconsistentSession;
-                _logger.LogWarning("Scan for {Symbol} rejected: last bar {Date} is internally inconsistent (O {O} H {H} L {L} C {C}).",
-                    symbol, DateTimeOffset.FromUnixTimeSeconds(timestamps[^1]).UtcDateTime.ToString("yyyy-MM-dd"), opens[^1], highs[^1], lows[^1], closes[^1]);
-                return null;
+                var session = TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[^1]).UtcDateTime);
+                var rejected = new RejectedMarketBar(symbol, session, opens[^1], highs[^1], lows[^1], closes[^1]);
+                (decimal High, decimal Low)? recovered;
+                try
+                {
+                    recovered = await RecoverSessionRangeAsync(symbol, session, rejected.Open, rejected.High, rejected.Low, rejected.Close, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Intraday range recovery failed for {Symbol} on {Date}.", symbol, session);
+                    recovered = null;
+                }
+                if (recovered is null)
+                {
+                    _rejections[symbol] = ScanRejection.InconsistentSession;
+                    _rejectedBars[symbol] = rejected;
+                    _logger.LogWarning("Scan for {Symbol} rejected: last bar {Date} is internally inconsistent (O {O} H {H} L {L} C {C}); intraday recovery unavailable or unverified.",
+                        symbol, session, rejected.Open, rejected.High, rejected.Low, rejected.Close);
+                    return null;
+                }
+                highs[^1] = recovered.Value.High;
+                lows[^1] = recovered.Value.Low;
+                intradayRangeReconstructed = true;
+                _logger.LogWarning("Scan for {Symbol} on {Date} used same-provider intraday range H {RecoveredHigh} L {RecoveredLow}; daily bar was O {Open} H {High} L {Low} C {Close}.",
+                    symbol, session, highs[^1], lows[^1], rejected.Open, rejected.High, rejected.Low, rejected.Close);
             }
 
             // ── Core RSI ────────────────────────────────────────────────────
@@ -615,6 +710,7 @@ public sealed class RsiScannerService : IRsiScannerService
             return new RsiScanResult
             {
                 Symbol = symbol,
+                IntradayRangeReconstructed = intradayRangeReconstructed,
                 CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
                 Rsi = Math.Round(rsi, 2),
                 RsiSignal = rsiSignalAvailable ? rsiSignalValue : null,
@@ -624,7 +720,9 @@ public sealed class RsiScannerService : IRsiScannerService
                 ChangePercent = Math.Round(changePct, 2),
                 ScanType = scanType,
                 Status = status,
-                TriggerDetails = trigger,
+                TriggerDetails = intradayRangeReconstructed
+                    ? trigger + " [Daily range reconstructed from same-provider intraday bars.]"
+                    : trigger,
                 Volume = todayVol,
                 VolumeRatio = Math.Round(volRatio, 2),
                 TradingDate = DateOnly.FromDateTime(candles[^1].Date),
@@ -691,7 +789,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 MomentumState = technicalAnalysis.MomentumState,
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Failed to analyze {Symbol}", symbol);
         }

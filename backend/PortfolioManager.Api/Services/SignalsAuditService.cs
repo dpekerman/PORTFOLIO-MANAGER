@@ -617,6 +617,7 @@ public sealed class SignalsAuditService(
             eodScanType = score.LatestEodScanType,
             finalAction = fa?.FinalAction,
             finalActionReason = fa?.Reason,
+            intradayRangeReconstructed = fa?.IntradayRangeReconstructed,
             technicalFacts = facts,
         }, SignalsAuditSettings.Json);
 
@@ -635,6 +636,7 @@ public sealed class SignalsAuditService(
             hasHardStructuralNegative = r.HasHardStructuralNegative,
             hover = r.HoverDescription,
             reasonCodes = r.ReasonCodes,
+            intradayRangeReconstructed = r.IntradayRangeReconstructed,
             evidenceAsOfUtc = r.EvidenceAsOfUtc,
             entryDate = r.EntryDate,
             isActionable = r.IsActionable,

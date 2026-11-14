@@ -28,8 +28,8 @@
           @if (run.refreshCompletedAtUtc) {
             ({{ run.refreshStartedAtUtc | date: 'h:mm a' }} –
             {{ run.refreshCompletedAtUtc | date: 'h:mm a' }} ·
-            {{ run.portfolioSymbolCount }} portfolio + {{ run.watchlistSymbolCount }} watchlist
-            symbols)
+            {{ run.portfolioSymbolCount }} portfolio rows (including closed) +
+            {{ run.watchlistSymbolCount }} watchlist rows)
           }
         </span>
       </div>

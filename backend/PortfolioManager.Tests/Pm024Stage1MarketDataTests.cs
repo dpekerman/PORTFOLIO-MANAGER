@@ -148,6 +148,169 @@ public sealed class Pm024Stage1MarketDataTests
     public void SessionConsistency(double open, double high, double low, double close, bool expected) =>
         Assert.Equal(expected, RsiScannerService.IsSessionConsistent((decimal)open, (decimal)high, (decimal)low, (decimal)close));
 
+    private static YahooChartResult Intraday(DateOnly day)
+    {
+        var start = new DateTimeOffset(day.ToDateTime(new TimeOnly(14, 30)), TimeSpan.Zero);
+        var quote = new YahooQuoteData();
+        var chart = new YahooChartResult { Meta = new YahooMeta { Symbol = "SYN" }, Timestamp = [], Indicators = new YahooIndicators { Quote = [quote] } };
+        for (var i = 0; i < 390; i++)
+        {
+            chart.Timestamp.Add(start.AddMinutes(i).ToUnixTimeSeconds());
+            quote.Open.Add(i == 0 ? 102m : 100m);
+            quote.High.Add(i == 0 ? 102m : 101m);
+            quote.Low.Add(99m);
+            quote.Close.Add(100m);
+        }
+        return chart;
+    }
+
+    [Fact]
+    public void IntradayRecovery_UsesFridaySessionOnMonday_OnlyAfterClose()
+    {
+        var friday = new DateOnly(2026, 11, 13);
+        var data = Intraday(friday);
+        var monday = new DateTime(2026, 11, 16, 15, 0, 0, DateTimeKind.Utc);
+        var recovered = RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 102m, 101m, 99m, 100m, monday);
+        Assert.Equal((102m, 99m), recovered);
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 102m, 101m, 99m, 100m,
+            new DateTime(2026, 11, 13, 20, 59, 0, DateTimeKind.Utc)));
+        Assert.Equal(friday, TradingCalendar.LastCompletedSession(monday, MarketExchange.Nyse));
+        var mondaySession = new DateOnly(2026, 11, 16);
+        Assert.NotNull(RsiScannerService.ReconstructSessionRange(Intraday(mondaySession), "SYN", mondaySession, 102m, 101m, 99m, 100m,
+            new DateTime(2026, 11, 16, 21, 0, 0, DateTimeKind.Utc)));
+        Assert.Equal(mondaySession, TradingCalendar.LastCompletedSession(
+            new DateTime(2026, 11, 16, 23, 0, 0, DateTimeKind.Utc), MarketExchange.Nyse));
+    }
+
+    [Fact]
+    public void IntradayRecovery_RejectsMissingOrMismatchedEvidence()
+    {
+        var friday = new DateOnly(2026, 11, 13);
+        var now = new DateTime(2026, 11, 16, 15, 0, 0, DateTimeKind.Utc);
+        var data = Intraday(friday);
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 103m, 101m, 99m, 100m, now));
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 102m, 101m, 99m, 103m, now));
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "SYN", friday.AddDays(3), 102m, 101m, 99m, 100m, now));
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "OTHER", friday, 102m, 101m, 99m, 100m, now));
+        data.Timestamp!.RemoveAt(0);
+        Assert.Null(RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 102m, 101m, 99m, 100m, now));
+    }
+
+    [Theory]
+    [InlineData(109.82, 111.58, 110.105, 110.34)]
+    [InlineData(611.93, 611.1948, 590.2601, 600.20)]
+    [InlineData(236.17, 235.855, 219.3545, 226.61)]
+    public void IntradayRecovery_CoversObservedOpenOutsideRange(double o, double h, double l, double c)
+    {
+        var open = (decimal)o;
+        var high = (decimal)h;
+        var low = (decimal)l;
+        var close = (decimal)c;
+        var friday = new DateOnly(2026, 11, 13);
+        var data = Intraday(friday);
+        var bars = data.Indicators!.Quote![0];
+        for (var i = 0; i < 390; i++)
+        {
+            bars.Open[i] = i == 0 ? open : close;
+            bars.High[i] = Math.Max(high, open);
+            bars.Low[i] = Math.Min(low, open);
+            bars.Close[i] = close;
+        }
+        var recovered = RsiScannerService.ReconstructSessionRange(data, "SYN", friday, open, high, low, close,
+            new DateTime(2026, 11, 16, 15, 0, 0, DateTimeKind.Utc));
+        Assert.Equal((Math.Max(high, open), Math.Min(low, open)), recovered);
+    }
+
+    [Fact]
+    public void IntradayRecovery_RejectsGapsAndInvalidCandles()
+    {
+        var friday = new DateOnly(2026, 11, 13);
+        var now = new DateTime(2026, 11, 16, 15, 0, 0, DateTimeKind.Utc);
+        var gap = Intraday(friday);
+        for (var i = 200; i < 203; i++)
+            gap.Indicators!.Quote![0].Close[i] = null;
+        Assert.Null(RsiScannerService.ReconstructSessionRange(gap, "SYN", friday, 102m, 101m, 99m, 100m, now));
+        var invalid = Intraday(friday);
+        invalid.Indicators!.Quote![0].High[100] = 90m;
+        Assert.Null(RsiScannerService.ReconstructSessionRange(invalid, "SYN", friday, 102m, 101m, 99m, 100m, now));
+        var extreme = Intraday(friday);
+        extreme.Indicators!.Quote![0].High[100] = 150m;
+        Assert.Null(RsiScannerService.ReconstructSessionRange(extreme, "SYN", friday, 102m, 101m, 99m, 100m, now));
+        var singleMissing = Intraday(friday);
+        singleMissing.Timestamp![100] += 60;
+        Assert.Null(RsiScannerService.ReconstructSessionRange(singleMissing, "SYN", friday, 102m, 101m, 99m, 100m, now));
+    }
+
+    private sealed class CdrResolver : ISecurityAnalysisResolver
+    {
+        public Task<ResolvedSecurityAnalysis> ResolveAsync(string tradingTicker, string? userId, CancellationToken ct = default) =>
+            Task.FromResult(new ResolvedSecurityAnalysis(tradingTicker, "SYN", "US", "USD", true, UnderlyingResolutionStatus.Resolved, SecurityAnalysisMappingSource.USER));
+        public Task<bool> ValidateUnderlyingTickerAsync(string underlyingTicker, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<ResolvedSecurityAnalysis> SaveUserMappingAsync(string tradingTicker, string underlyingTicker, string userId, bool useUnderlyingForAnalysis, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> RemoveUserMappingAsync(string tradingTicker, string userId, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    private sealed class DailyAndIntradayHandler(string daily, string intraday) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent(request.RequestUri!.Query.Contains("interval=1m", StringComparison.Ordinal) ? intraday : daily),
+            });
+    }
+
+    [Fact]
+    public async Task Scanner_UsesVerifiedIntradayRange_WithoutChangingDailyOpenOrClose()
+    {
+        var friday = new DateOnly(2020, 11, 6);
+        var bars = Bars(260, friday);
+        bars[^1] = bars[^1] with { O = 102m, H = 101m, L = 99m, C = 100m };
+        var intraday = JsonSerializer.Serialize(new { chart = new { result = new[] { Intraday(friday) } } }, Json);
+        var http = new HttpClient(new DailyAndIntradayHandler(ChartJson(bars), intraday)) { BaseAddress = new Uri("https://query1.finance.yahoo.com/") };
+        var scanner = new RsiScannerService(http, NullLogger<RsiScannerService>.Instance, null!, new ScannerRuntimeConfig(), null!,
+            new ChannelAnalysisService(), null!, null!);
+        var scan = await scanner.AnalyzeSymbolAsync("SYN", 30m, 75m, "Enhanced", CancellationToken.None);
+        Assert.NotNull(scan);
+        Assert.True(scan.IntradayRangeReconstructed);
+        Assert.Equal(102m, scan.OpenPrice);
+        Assert.Equal(102m, scan.DayHigh);
+        Assert.Equal(99m, scan.DayLow);
+        Assert.Equal(100m, scan.CurrentPrice);
+        Assert.Contains("reconstructed from same-provider intraday bars", scan.TriggerDetails);
+    }
+
+    [Fact]
+    public async Task Scanner_MapsRejectedUnderlyingEvidenceToCdrTicker()
+    {
+        var friday = new DateOnly(2020, 11, 6);
+        var bars = Bars(260, friday);
+        bars[^1] = bars[^1] with { O = 102m, H = 101m, L = 99m, C = 100m };
+        var incomplete = Intraday(friday);
+        incomplete.Timestamp!.RemoveAt(0);
+        var intraday = JsonSerializer.Serialize(new { chart = new { result = new[] { incomplete } } }, Json);
+        var http = new HttpClient(new DailyAndIntradayHandler(ChartJson(bars), intraday)) { BaseAddress = new Uri("https://query1.finance.yahoo.com/") };
+        var scanner = new RsiScannerService(http, NullLogger<RsiScannerService>.Instance, null!, new ScannerRuntimeConfig(), null!,
+            new ChannelAnalysisService(), null!, new CdrResolver());
+        var scans = await scanner.AnalyzeSymbolsAsync(["SYN.TO"], userId: "u");
+        Assert.Empty(scans);
+        Assert.Equal(ScanRejection.InconsistentSession, scanner.LastRejections["SYN.TO"]);
+        Assert.Equal("SYN", scanner.LastRejectedBars["SYN.TO"].AnalysisTicker);
+        Assert.Equal(friday, scanner.LastRejectedBars["SYN.TO"].TradingDate);
+    }
+
+    [Fact]
+    public async Task Scanner_PropagatesCancellationDuringRecovery()
+    {
+        var bars = Bars(260, new DateOnly(2020, 11, 6));
+        bars[^1] = bars[^1] with { O = 102m, H = 101m, L = 99m, C = 100m };
+        var http = new HttpClient(new StaticHandler(ChartJson(bars))) { BaseAddress = new Uri("https://query1.finance.yahoo.com/") };
+        var scanner = new RsiScannerService(http, NullLogger<RsiScannerService>.Instance, null!, new ScannerRuntimeConfig(), null!,
+            new ChannelAnalysisService(), null!, null!);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scanner.AnalyzeSymbolAsync("SYN", 30m, 75m, "Enhanced", cancellation.Token));
+    }
+
     // ── Freshness is judged on the bar used: pre-close, 4:30 PM ET EOD, grace, after-hours ──
 
     private static DateTime Et(int hour, int minute) => new DateTime(2026, 11, 4, 0, 0, 0, DateTimeKind.Utc).AddHours(hour + 5).AddMinutes(minute);   // EST, UTC-5

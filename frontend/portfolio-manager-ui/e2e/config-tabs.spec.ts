@@ -40,3 +40,11 @@ test('config: unsaved edits survive switching tabs and Save All reports dirty se
   await expect(overdue).toHaveValue('28');
   await expect(page.getByText(/section\(s\) with unsaved changes/)).toBeAttached();
 });
+
+test('automation refresh counts identify portfolio rows including closed positions', async ({ page }) => {
+  await page.goto('/config');
+  await page.getByRole('tab', { name: /Automation/ }).click();
+  await expect(page.getByText(/9 portfolio rows \(including closed\)/)).toBeVisible();
+  await expect(page.getByText(/10 watchlist rows/)).toBeVisible();
+  await expectNoHorizontalPageOverflow(page);
+});

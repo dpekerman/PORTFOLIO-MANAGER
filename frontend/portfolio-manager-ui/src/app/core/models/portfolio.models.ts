@@ -1527,6 +1527,15 @@ export interface FinalActionResult {
   /** Part of the canonical contract: effective evaluation state and evidence health. */
   evaluationState?: EffectiveState | null;
   evidenceHealth?: 'Fresh' | 'Stale' | 'Missing' | 'Invalid' | 'Failed' | null;
+  rejectedBar?: {
+    analysisTicker: string;
+    tradingDate: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+  } | null;
+  intradayRangeReconstructed?: boolean;
   /** The last valid published action, kept separately when this result is Awaiting Data. */
   lastValidAction?: string | null;
   lastSuccessfulEvaluationUtc?: string | null;

@@ -24,6 +24,7 @@ public sealed class Pm024ReleaseBlockerTests
     private sealed class FakeScanner(IReadOnlyDictionary<string, string>? rejections, params RsiScanResult[] results) : IRsiScannerService
     {
         public IReadOnlyDictionary<string, string> LastRejections { get; } = rejections ?? new Dictionary<string, string>();
+        public IReadOnlyDictionary<string, RejectedMarketBar> LastRejectedBars { get; init; } = new Dictionary<string, RejectedMarketBar>();
 
         public Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m,
             string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
@@ -213,6 +214,44 @@ public sealed class Pm024ReleaseBlockerTests
             Assert.False(Row(s).IsActionable);
             Assert.Null(Row(s).LastValidAction);                                       // a stale action is never presented as current
         }
+    }
+
+    [Fact]
+    public async Task RejectedCdr_IdentifiesUnderlyingAndDoesNotPublishAnAction()
+    {
+        await using var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
+        db.WatchlistItems.Add(new WatchlistItem { UserId = "u", Symbol = "CAT.TO", Role = "Strategic" });
+        db.PortfolioSnapshots.Add(new PortfolioSnapshot { UserId = "u", SnapshotJson = "[]" });
+        await db.SaveChangesAsync();
+        var scanner = new FakeScanner(new Dictionary<string, string> { ["CAT.TO"] = ScanRejection.InconsistentSession })
+        {
+            LastRejectedBars = new Dictionary<string, RejectedMarketBar>
+            {
+                ["CAT.TO"] = new("CAT", new DateOnly(2026, 11, 13), 611.93m, 611.1948m, 590.26m, 600.2m),
+            },
+        };
+        var service = new FinalActionService(db, scanner, new PortfolioSnapshotService(db, NullLogger<PortfolioSnapshotService>.Instance),
+            new MemoryCache(new MemoryCacheOptions()), NullLogger<FinalActionService>.Instance);
+        var snapshot = await service.ComputeAsync("u", fresh: true);
+        var row = Assert.Single(snapshot.Watchlist);
+        Assert.Equal("Awaiting Data", row.FinalAction);
+        Assert.False(row.IsActionable);
+        Assert.Equal("CAT", row.AnalysisTicker);
+        Assert.Equal("CAT", row.RejectedBar!.AnalysisTicker);
+        Assert.Equal(new DateOnly(2026, 11, 13), row.DataAsOfDate);
+        Assert.Contains("CAT.TO", snapshot.Meta!.UnknownSymbols);
+        Assert.Equal(0, await service.PublishPortfolioActionsAsync("u", snapshot));
+    }
+
+    [Fact]
+    public async Task ReconstructedRange_IsDisclosedOnTheFinalAction()
+    {
+        var scan = EntryScan("OK.TO");
+        scan.IntradayRangeReconstructed = true;
+        var snapshot = await ComputeAsync([], ["OK.TO"], null, scan);
+        var row = Assert.Single(snapshot.Watchlist);
+        Assert.Equal("CurrentValid", row.EvaluationState);
+        Assert.True(row.IntradayRangeReconstructed);
     }
 
     [Fact]

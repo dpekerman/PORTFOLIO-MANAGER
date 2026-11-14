@@ -189,6 +189,12 @@ Several `IHostedService` workers run continuously alongside the API:
 - `AutomationMissedRunWatchdogService` — detects and recovers missed EOD automation runs
 - `DatabaseBackupBackgroundService` — scheduled database backups
 
+### Inconsistent market bars
+
+The scanner rejects a daily bar whose open or close falls outside its high/low range. After the session closes, it attempts one recovery from Yahoo's one-minute data for the same analysis ticker and session. Recovery requires every regular-session minute, consistent minute bars, matching daily open and close, and a reconstructed range matching the daily bar's open/high/low/close envelope within the existing 0.1% tolerance. This is a second Yahoo data series, **not an independent provider**. If it cannot be verified, the symbol remains non-actionable as Awaiting Data; its last published holding action is not overwritten.
+
+Final Action details show the analyzed ticker and rejected prices, or indicate when a range was reconstructed. EOD PartialSuccess history identifies affected symbols and sessions. Refresh counts are snapshot rows (including closed portfolio rows), whereas published actions count evaluated open holdings. Existing history is not rewritten. For a Friday-to-Monday check, verify Friday's session over the weekend and before Monday's close, then inspect Monday's EOD run and any Awaiting Data details after the scheduled scan. A recovered result depends on the provider still supplying the complete minute series.
+
 ---
 
 ## Environment Configuration
