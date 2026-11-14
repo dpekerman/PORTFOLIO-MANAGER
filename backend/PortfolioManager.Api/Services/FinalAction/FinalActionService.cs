@@ -124,7 +124,57 @@ public interface IFinalActionService
 
     /// <summary>The cached evaluation, if any. Never scans: read-only consumers (Dashboard, Action Center rows) use it so a page load cannot trigger market-data calls or renew a recommendation.</summary>
     FinalActionSnapshotDto? TryGetCached(string userId) => null;
+
+    /// <summary>
+    /// PM-029: the same evaluation as <see cref="ComputeAsync"/>, returned as one immutable bundle together with the exact scans and
+    /// portfolio basis the decisions were made from, so consumers never re-derive or re-scan. Fresh evaluations are single-flight per user.
+    /// </summary>
+    Task<FinalActionEvaluation> EvaluateAsync(string userId, bool fresh = false, CancellationToken ct = default) =>
+        throw new NotSupportedException();
+
+    /// <summary>
+    /// PM-029: evaluates symbols the user neither watches nor holds through the identical watchlist decision path (role Strategic),
+    /// side-effect free: read-only scan, never published, never cached as the user's Final Actions, never fed to lifecycle/Action Center.
+    /// </summary>
+    Task<UniverseFinalActions> EvaluateUniverseAsync(string userId, IReadOnlyCollection<string> symbols, CancellationToken ct = default) =>
+        throw new NotSupportedException();
 }
+
+/// <summary>Portfolio numbers a Final Action evaluation used. Consumers (PM-029 Portfolio Fit) must use these, never recompute them.</summary>
+public sealed record FinalActionPortfolioBasis(
+    IReadOnlyList<PortfolioSummaryDto> Summaries,
+    IReadOnlyList<PortfolioSummaryDto> OpenHoldings,
+    double GrandTotal,
+    decimal StockTotal,
+    ValuationCheck Valuation,
+    IReadOnlyList<SinglePositionLimit> PositionLimits,
+    IReadOnlyList<AllocationSectorTarget> SectorTargets,
+    DateTime? PortfolioUpdatedAt);
+
+/// <summary>PM-029 Portfolio Fit input derived with the Final Action exposure arithmetic (see FinalActionService.ExposureFor).</summary>
+public sealed record PortfolioExposure(
+    bool Owned,
+    bool AllocationReliable,
+    double? PositionSizePct,
+    double? PositionLimitPct,
+    bool RolePolicyAmbiguous,
+    bool SectorKnown,
+    string Sector,
+    double? SectorPct,
+    double? SectorTargetPct);
+
+/// <summary>One immutable Final Action evaluation: the decisions plus the evidence they were made from.</summary>
+public sealed record FinalActionEvaluation(
+    Guid EvaluationId,
+    FinalActionSnapshotDto Snapshot,
+    IReadOnlyDictionary<string, RsiScanResult> Scans,
+    FinalActionPortfolioBasis Portfolio);
+
+public sealed record UniverseFinalActions(
+    IReadOnlyList<FinalActionResultDto> Rows,
+    IReadOnlyDictionary<string, RsiScanResult> Scans,
+    IReadOnlySet<string> Unknown,
+    DateTime ComputedAtUtc);
 
 public sealed class FinalActionService(
     AppDbContext db,
@@ -143,6 +193,8 @@ public sealed class FinalActionService(
     /// <summary>Failed, inconsistent or incomplete market data can recover within minutes: such a snapshot must not be reused for the full TTL.</summary>
     private static readonly TimeSpan TransientCacheTtl = TimeSpan.FromMinutes(1);
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
+    /// <summary>PM-029 row source for symbols evaluated only because they are in the opportunity universe (TSX 60).</summary>
+    public const string UniverseSource = "Universe";
 
     public FinalActionSnapshotDto? TryGetCached(string userId) =>
         cache.TryGetValue($"final-actions:{userId}", out FinalActionSnapshotDto? hit) && IsStillCurrent(hit, DateTime.UtcNow) ? hit : null;
@@ -163,19 +215,46 @@ public sealed class FinalActionService(
 
     public async Task<FinalActionSnapshotDto> ComputeAsync(string userId, bool fresh = false, CancellationToken ct = default)
     {
-        var key = $"final-actions:{userId}";
-        if (!fresh && cache.TryGetValue(key, out FinalActionSnapshotDto? hit) && hit is not null && IsStillCurrent(hit, DateTime.UtcNow)) return hit;
+        if (!fresh && cache.TryGetValue(SnapshotKey(userId), out FinalActionSnapshotDto? hit) && hit is not null && IsStillCurrent(hit, DateTime.UtcNow)) return hit;
+        return (await EvaluateAsync(userId, fresh, ct)).Snapshot;
+    }
 
-        var watchlistItems = await db.WatchlistItems.AsNoTracking()
-            .Where(w => w.UserId == userId || w.UserId == null).ToListAsync(ct);
-        var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        var summaries = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson) ?? [];
-        var openHoldings = summaries
-            .Where(s => !IsClose(s.Item.TransactionType) && !s.Item.IsManual).ToList();
+    private static string SnapshotKey(string userId) => $"final-actions:{userId}";
+    private static string BundleKey(string userId) => $"final-actions-bundle:{userId}";
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> Gates = new(StringComparer.Ordinal);
 
-        var symbols = watchlistItems.Select(w => w.Symbol)
-            .Concat(openHoldings.Select(h => h.Item.Symbol))
-            .Select(s => s.ToUpperInvariant()).Distinct().ToList();
+    public async Task<FinalActionEvaluation> EvaluateAsync(string userId, bool fresh = false, CancellationToken ct = default)
+    {
+        var requestedAtUtc = DateTime.UtcNow;
+        if (!fresh && TryGetBundle(userId, requestedAtUtc) is { } cached) return cached;
+
+        // Single-flight: concurrent callers wait for the evaluation in progress instead of scanning the same symbols again.
+        // A fresh caller accepts a bundle only if it was computed after its own request started.
+        var gate = Gates.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            if (TryGetBundle(userId, DateTime.UtcNow) is { } done && (!fresh || done.Snapshot.ComputedAtUtc >= requestedAtUtc)) return done;
+            return await ComputeCoreAsync(userId, ct);
+        }
+        finally { gate.Release(); }
+    }
+
+    private FinalActionEvaluation? TryGetBundle(string userId, DateTime nowUtc) =>
+        cache.TryGetValue(BundleKey(userId), out FinalActionEvaluation? b) && b is not null && IsStillCurrent(b.Snapshot, nowUtc) ? b : null;
+
+    private sealed record ScanPass(
+        Dictionary<string, RsiScanResult> Scans,
+        Dictionary<string, string> Rejections,
+        Dictionary<string, RejectedMarketBar> RejectedBars,
+        HashSet<string> Unknown);
+
+    /// <summary>Batched scan + one retry, shared by the user evaluation (persisting) and the universe evaluation (read-only).</summary>
+    private async Task<ScanPass> ScanSymbolsAsync(IReadOnlyList<string> symbols, string userId, bool readOnly, CancellationToken ct)
+    {
+        Task<List<RsiScanResult>> Analyze(IEnumerable<string> batch) => readOnly
+            ? scanner.AnalyzeSymbolsReadOnlyAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct)
+            : scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct);
 
         var scans = new Dictionary<string, RsiScanResult>(StringComparer.OrdinalIgnoreCase);
         var rejections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -185,7 +264,7 @@ public sealed class FinalActionService(
         {
             try
             {
-                foreach (var r in await scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
+                foreach (var r in await Analyze(batch))
                     scans[r.Symbol] = r;
                 foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
                 foreach (var (rejectedSymbol, bar) in scanner.LastRejectedBars) rejectedBars[rejectedSymbol] = bar;
@@ -205,7 +284,7 @@ public sealed class FinalActionService(
             try
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), ct);
-                foreach (var r in await scanner.AnalyzeSymbolsAsync(retry, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct))
+                foreach (var r in await Analyze(retry))
                     scans[r.Symbol] = r;
                 foreach (var (rejectedSymbol, why) in scanner.LastRejections) rejections[rejectedSymbol] = why;
                 foreach (var (rejectedSymbol, bar) in scanner.LastRejectedBars) rejectedBars[rejectedSymbol] = bar;
@@ -219,7 +298,118 @@ public sealed class FinalActionService(
         // A symbol with no scan or no usable price was not evaluated: it must never confirm or invalidate anything.
         foreach (var s in symbols)
             if (!scans.TryGetValue(s, out var sc) || sc.CurrentPrice <= 0m) unknown.Add(s);
+        return new ScanPass(scans, rejections, rejectedBars, unknown);
+    }
 
+    /// <summary>Evidence must be usable before any decision is kept; otherwise the symbol is "Awaiting Data".</summary>
+    private static EvidenceAssessment AssessEvidence(
+        RsiScanResult? scan, string symbol, string category, DateTime? quoteUtc, IReadOnlyDictionary<string, string> rejections, DateTime nowUtc)
+    {
+        var tradingDate = scan is null || scan.TradingDate == default ? (DateOnly?)null : scan.TradingDate;
+        return FinalActionStatusResolver.AssessEvidence(
+            new EvidenceInput(tradingDate, quoteUtc, scan?.CurrentPrice ?? 0m, EvaluationFailed: scan is null,
+                MissingRequired: scan is null ? null : FinalActionStatusResolver.MissingRequired(scan, category),
+                Rejection: scan is null && rejections.TryGetValue(symbol, out var rejected) ? rejected : null),
+            TradingCalendar.ExchangeFor(symbol, scan?.AnalysisMarket), nowUtc);
+    }
+
+    private static List<string> EvidenceCodes(EvidenceAssessment a) =>
+        a.Codes.Where(c => c != FinalActionStatusResolver.QuoteTimestampUnavailable).ToList();
+
+    private static string ExchangeBasisOf(string symbol, RsiScanResult? scan) =>
+        TradingCalendar.Resolve(symbol, scan?.AnalysisMarket).Basis.ToString();
+
+    /// <summary>The watchlist engine decision for one symbol (null without a scan).</summary>
+    private static FinalActionDecision? WatchlistDecision(RsiScanResult? scan, string symbol, string role, IReadOnlyDictionary<string, ValueScreenerResult> valueByTicker)
+    {
+        if (scan is null) return null;
+        valueByTicker.TryGetValue(symbol, out var vs);
+        var ctx = vs is null ? null : new WatchlistValueContext((double)vs.Score, vs.ActionTrigger == ActionTrigger.ValueTrapWarning, null);
+        return FinalActionEngine.TranslateForWatchlist(ToInput(scan), role, ctx);
+    }
+
+    private static FinalActionResultDto AwaitingWatchlistRow(
+        string symbol, string source, string role, RsiScanResult? scan, EvidenceAssessment assessment, RejectedMarketBar? rejectedBar,
+        DateTime? quoteUtc, DateTime? fetchedUtc) =>
+        AwaitingDto(symbol, source, null, role, scan, assessment, null, null, rejectedBar) with
+        {
+            QuoteTimestampUtc = quoteUtc, QuoteFetchedAtUtc = fetchedUtc, QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
+            ExchangeBasis = ExchangeBasisOf(symbol, scan),
+        };
+
+    private static FinalActionResultDto CurrentWatchlistRow(
+        FinalActionDecision decision, string symbol, string source, string role, RsiScanResult scan, EvidenceAssessment assessment,
+        DateTime nowUtc, List<string> codes, string? originalAction, FinalActionOwnership ownership, string allocationStatus,
+        DateTime? quoteUtc, DateTime? fetchedUtc) =>
+        ToDto(decision, symbol, source, null, role, scan) with
+        {
+            EvaluationState = nameof(EffectiveState.CurrentValid),
+            EvidenceHealth = assessment.Health.ToString(),
+            LastSuccessfulEvaluationUtc = nowUtc,
+            DataAsOfDate = assessment.DataAsOf,
+            ExpectedSession = assessment.ExpectedSession,
+            ReasonCodes = codes,
+            OriginalAction = originalAction,
+            Ownership = ownership,
+            AllocationStatus = allocationStatus,
+            QuoteTimestampUtc = quoteUtc,
+            QuoteFetchedAtUtc = fetchedUtc,
+            QuoteVerification = quoteUtc is null ? "Unavailable" : "Verified",
+            ExchangeBasis = ExchangeBasisOf(symbol, scan),
+        };
+
+    public async Task<UniverseFinalActions> EvaluateUniverseAsync(string userId, IReadOnlyCollection<string> symbols, CancellationToken ct = default)
+    {
+        const string role = "Strategic";
+        var list = symbols.Select(s => s.Trim().ToUpperInvariant()).Where(s => s.Length > 0).Distinct().ToList();
+        var pass = await ScanSymbolsAsync(list, userId, readOnly: true, ct);
+        var valueByTicker = await LoadValueScreenerAsync(ct);
+        var valuation = await CheckValuationAsync(userId, await LoadSummariesAsync(userId, ct), ct);
+        var nowUtc = DateTime.UtcNow;
+        var notOwned = OwnershipOf([], 0, valuation);
+
+        var rows = new List<FinalActionResultDto>();
+        foreach (var symbol in list)
+        {
+            pass.Scans.TryGetValue(symbol, out var scan);
+            var decision = WatchlistDecision(scan, symbol, role, valueByTicker);
+            var category = decision is null ? "Advisory" : FinalActionCatalog.Describe(decision.FinalAction).Category;
+            var assessment = AssessEvidence(scan, symbol, category, null, pass.Rejections, nowUtc);
+            if (decision is null || assessment.Health != EvidenceHealth.Fresh)
+            {
+                pass.Unknown.Add(symbol);
+                pass.RejectedBars.TryGetValue(symbol, out var rejectedBar);
+                rows.Add(AwaitingWatchlistRow(symbol, UniverseSource, role, scan, assessment, rejectedBar, null, null));
+                continue;
+            }
+            rows.Add(CurrentWatchlistRow(decision, symbol, UniverseSource, role, scan!, assessment, nowUtc,
+                EvidenceCodes(assessment), null, notOwned, valuation.Status, null, null));
+        }
+        return new UniverseFinalActions(rows,
+            pass.Scans.ToDictionary(kv => kv.Key, kv => kv.Value.Copy(), StringComparer.OrdinalIgnoreCase),
+            pass.Unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), nowUtc);
+    }
+
+    private async Task<List<PortfolioSummaryDto>> LoadSummariesAsync(string userId, CancellationToken ct)
+    {
+        var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        return Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson) ?? [];
+    }
+
+    private async Task<FinalActionEvaluation> ComputeCoreAsync(string userId, CancellationToken ct)
+    {
+        var watchlistItems = await db.WatchlistItems.AsNoTracking()
+            .Where(w => w.UserId == userId || w.UserId == null).ToListAsync(ct);
+        var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        var summaries = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson) ?? [];
+        var openHoldings = summaries
+            .Where(s => !IsClose(s.Item.TransactionType) && !s.Item.IsManual).ToList();
+
+        var symbols = watchlistItems.Select(w => w.Symbol)
+            .Concat(openHoldings.Select(h => h.Item.Symbol))
+            .Select(s => s.ToUpperInvariant()).Distinct().ToList();
+
+        var (scans, rejections, rejectedBars, unknown) = await ScanSymbolsAsync(symbols, userId, readOnly: false, ct);
         var valueByTicker = await LoadValueScreenerAsync(ct);
         var nowUtc = DateTime.UtcNow;
 
@@ -236,21 +426,12 @@ public sealed class FinalActionService(
 
         // Evidence must be usable before any decision is kept: otherwise the symbol is "Awaiting Data" — a visible,
         // non-actionable status — and is also listed as unknown so lifecycle never confirms, invalidates or expires on it.
-        EvidenceAssessment Assess(RsiScanResult? scan, string symbol, string category, DateTime? quoteUtc)
-        {
-            var tradingDate = scan is null || scan.TradingDate == default ? (DateOnly?)null : scan.TradingDate;
-            return FinalActionStatusResolver.AssessEvidence(
-                new EvidenceInput(tradingDate, quoteUtc, scan?.CurrentPrice ?? 0m, EvaluationFailed: scan is null,
-                    MissingRequired: scan is null ? null : FinalActionStatusResolver.MissingRequired(scan, category),
-                    Rejection: scan is null && rejections.TryGetValue(symbol, out var rejected) ? rejected : null),
-                TradingCalendar.ExchangeFor(symbol, scan?.AnalysisMarket), nowUtc);
-        }
+        EvidenceAssessment Assess(RsiScanResult? scan, string symbol, string category, DateTime? quoteUtc) =>
+            AssessEvidence(scan, symbol, category, quoteUtc, rejections, nowUtc);
 
-        static List<string> Codes(EvidenceAssessment a) =>
-            a.Codes.Where(c => c != FinalActionStatusResolver.QuoteTimestampUnavailable).ToList();
+        static List<string> Codes(EvidenceAssessment a) => EvidenceCodes(a);
 
-        static string Basis(string symbol, RsiScanResult? scan) =>
-            TradingCalendar.Resolve(symbol, scan?.AnalysisMarket).Basis.ToString();
+        static string Basis(string symbol, RsiScanResult? scan) => ExchangeBasisOf(symbol, scan);
 
         var grandTotal = await GrandTotalAsync(userId, summaries, ct);
         var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
@@ -278,13 +459,7 @@ public sealed class FinalActionService(
         {
             var role = item.Role ?? "Strategic";
             scans.TryGetValue(item.Symbol, out var scan);
-            FinalActionDecision? decision = null;
-            if (scan is not null)
-            {
-                valueByTicker.TryGetValue(item.Symbol, out var vs);
-                var ctx = vs is null ? null : new WatchlistValueContext((double)vs.Score, vs.ActionTrigger == ActionTrigger.ValueTrapWarning, null);
-                decision = FinalActionEngine.TranslateForWatchlist(ToInput(scan), role, ctx);
-            }
+            var decision = WatchlistDecision(scan, item.Symbol, role, valueByTicker);
             var category = decision is null ? "Advisory" : FinalActionCatalog.Describe(decision.FinalAction).Category;
             DateTime? wlQuote = watchQuoteUtc.TryGetValue(item.Symbol, out var wq0) ? wq0 : null;
             DateTime? wlFetched = watchFetchedUtc.TryGetValue(item.Symbol, out var wf0) ? wf0 : null;
@@ -293,11 +468,7 @@ public sealed class FinalActionService(
             {
                 unknown.Add(item.Symbol);
                 rejectedBars.TryGetValue(item.Symbol, out var rejectedBar);
-                watchlist.Add(AwaitingDto(item.Symbol, SignalSources.Watchlist, null, role, scan, assessment, null, null, rejectedBar) with
-                {
-                    QuoteTimestampUtc = wlQuote, QuoteFetchedAtUtc = wlFetched, QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
-                    ExchangeBasis = Basis(item.Symbol, scan),
-                });
+                watchlist.Add(AwaitingWatchlistRow(item.Symbol, SignalSources.Watchlist, role, scan, assessment, rejectedBar, wlQuote, wlFetched));
                 continue;
             }
             var owned = openHoldings.Where(h => string.Equals(h.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
@@ -338,22 +509,8 @@ public sealed class FinalActionService(
                 }
             }
             else if (owned.Count > 0) wlCodes = ["ALREADY_OWNED", .. wlCodes];
-            watchlist.Add(ToDto(decision, item.Symbol, SignalSources.Watchlist, null, role, scan!) with
-            {
-                EvaluationState = nameof(EffectiveState.CurrentValid),
-                EvidenceHealth = assessment.Health.ToString(),
-                LastSuccessfulEvaluationUtc = nowUtc,
-                DataAsOfDate = assessment.DataAsOf,
-                ExpectedSession = assessment.ExpectedSession,
-                ReasonCodes = wlCodes,
-                OriginalAction = wlOriginal,
-                Ownership = OwnershipOf(owned, grandTotal, valuation),
-                AllocationStatus = valuation.Status,
-                QuoteTimestampUtc = wlQuote,
-                QuoteFetchedAtUtc = wlFetched,
-                QuoteVerification = wlQuote is null ? "Unavailable" : "Verified",
-                ExchangeBasis = Basis(item.Symbol, scan),
-            });
+            watchlist.Add(CurrentWatchlistRow(decision, item.Symbol, SignalSources.Watchlist, role, scan!, assessment, nowUtc,
+                wlCodes, wlOriginal, OwnershipOf(owned, grandTotal, valuation), valuation.Status, wlQuote, wlFetched));
         }
 
         var portfolio = new List<FinalActionResultDto>();
@@ -403,8 +560,14 @@ public sealed class FinalActionService(
         var meta = new FinalActionEvaluationMeta(
             unknown.Select(s => s.ToUpperInvariant()).ToHashSet(), portfolioSnap?.UpdatedAt, portfolioSnap is not null);
         var snapshot = new FinalActionSnapshotDto(watchlist, portfolio, nowUtc, meta);
-        cache.Set(key, snapshot, HasTransientEvidenceProblem(snapshot) ? TransientCacheTtl : CacheTtl);
-        return snapshot;
+        var basis = new FinalActionPortfolioBasis(summaries, openHoldings, grandTotal, stockTotal, valuation, positionLimits, sectorTargets,
+            portfolioSnap?.UpdatedAt);
+        var bundle = new FinalActionEvaluation(Guid.NewGuid(), snapshot,
+            scans.ToDictionary(kv => kv.Key, kv => kv.Value.Copy(), StringComparer.OrdinalIgnoreCase), basis);
+        var ttl = HasTransientEvidenceProblem(snapshot) ? TransientCacheTtl : CacheTtl;
+        cache.Set(SnapshotKey(userId), snapshot, ttl);
+        cache.Set(BundleKey(userId), bundle, ttl);
+        return bundle;
     }
 
     /// <summary>
@@ -517,26 +680,54 @@ public sealed class FinalActionService(
 
         // The symbol's sector is resolved once (first lot that has one, else the scan), so a lot with a blank sector
         // still counts toward the sector of its own symbol.
-        var sector = lots.Select(l => l.Item.Sector).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? scan.Sector ?? "";
-        var target = string.IsNullOrEmpty(sector) ? null
-            : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
-        var sectorOver = false;
-        double? sectorPct = null;
-        if (reliable && target is not null && stockTotal > 0)
-        {
-            var actual = all.Where(s => !IsClose(s.Item.TransactionType)
-                    && (string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)
-                        || (string.IsNullOrWhiteSpace(s.Item.Sector)
-                            && string.Equals(s.Item.Symbol, item.Symbol, StringComparison.OrdinalIgnoreCase)))).Sum(MarketValue) / stockTotal * 100m;
-            sectorPct = Dbl(actual);
-            sectorOver = actual - target.TargetPct > 2m;
-        }
+        var sector = SymbolSector(lots, scan.Sector);
+        var (sectorPct, target, sectorOver) = SectorExposure(item.Symbol, sector, all, stockTotal, sectorTargets, reliable);
 
         return new PortfolioEvidence(
             context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
             limit is null ? null : Dbl(limit.TargetPct), sectorOver,
             scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource,
             ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector), risk, valuation);
+    }
+
+    private static string SymbolSector(IEnumerable<PortfolioSummaryDto> lots, string? fallback) =>
+        lots.Select(l => l.Item.Sector).FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? fallback ?? "";
+
+    /// <summary>Sector weight of open stock (stockTotal denominator) vs its target; over = actual − target &gt; 2 pp (the ADD gate).</summary>
+    private static (double? Pct, AllocationSectorTarget? Target, bool Over) SectorExposure(
+        string symbol, string sector, IReadOnlyList<PortfolioSummaryDto> all, decimal stockTotal,
+        IReadOnlyList<AllocationSectorTarget> sectorTargets, bool reliable)
+    {
+        var target = string.IsNullOrEmpty(sector) ? null
+            : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
+        if (!reliable || target is null || stockTotal <= 0) return (null, target, false);
+        var actual = all.Where(s => !IsClose(s.Item.TransactionType)
+                && (string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)
+                    || (string.IsNullOrWhiteSpace(s.Item.Sector)
+                        && string.Equals(s.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase)))).Sum(MarketValue) / stockTotal * 100m;
+        return (Dbl(actual), target, actual - target.TargetPct > 2m);
+    }
+
+    /// <summary>
+    /// PM-029 Portfolio Fit input for any symbol, owned or not, from the exact basis and arithmetic of a Final Action evaluation:
+    /// whole-symbol exposure over GrandTotal, the lot role's limit (or <paramref name="defaultRole"/> when not owned), mixed-role
+    /// ambiguity, and sector weight vs target. Never a new valuation formula.
+    /// </summary>
+    internal static PortfolioExposure ExposureFor(string symbol, string defaultRole, string? fallbackSector, FinalActionPortfolioBasis basis)
+    {
+        var reliable = basis.Valuation.Reliable;
+        var lots = basis.OpenHoldings.Where(h => string.Equals(h.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase)).ToList();
+        var owned = lots.Count > 0;
+        double? positionSize = !owned ? 0d : reliable && basis.GrandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / basis.GrandTotal * 100 : null;
+        SinglePositionLimit? LimitFor(string role) =>
+            basis.PositionLimits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
+        var roles = owned ? lots.Select(RoleOfLot).Distinct(StringComparer.OrdinalIgnoreCase).ToList() : [defaultRole];
+        var limit = LimitFor(roles[0]);
+        var ambiguous = roles.Count > 1;
+        var sector = SymbolSector(lots, fallbackSector);
+        var (sectorPct, target, _) = SectorExposure(symbol, sector, basis.Summaries, basis.StockTotal, basis.SectorTargets, reliable);
+        return new PortfolioExposure(owned, reliable, positionSize, ambiguous ? null : limit is null ? null : Dbl(limit.TargetPct), ambiguous,
+            !string.IsNullOrEmpty(sector), sector, sectorPct, target is null ? null : Dbl(target.TargetPct));
     }
 
     private static string RoleOfLot(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
@@ -651,11 +842,15 @@ public sealed class FinalActionService(
         return Dbl(stocks + cash + options);
     }
 
-    private async Task<Dictionary<string, ValueScreenerResult>> LoadValueScreenerAsync(CancellationToken ct)
+    private Task<Dictionary<string, ValueScreenerResult>> LoadValueScreenerAsync(CancellationToken ct) => LoadValueScreenerAsync(db, ct);
+
+    /// <summary>Latest Value Screener result per symbol with the Final Action precedence (Universe &lt; Watchlist &lt; Portfolio).</summary>
+    internal static async Task<Dictionary<string, ValueScreenerResult>> LoadValueScreenerAsync(AppDbContext db, CancellationToken ct)
     {
         var map = new Dictionary<string, ValueScreenerResult>(StringComparer.OrdinalIgnoreCase);
-        // Same precedence as the Watchlist page: watchlist results first, portfolio results override.
-        foreach (var origin in new[] { "Watchlist", "Portfolio" })
+        // Same precedence as the Watchlist page: watchlist results first, portfolio results override. PM-029 Universe results
+        // (symbols neither watched nor held) have the lowest precedence and never replace a Watchlist/Portfolio evaluation.
+        foreach (var origin in new[] { "Universe", "Watchlist", "Portfolio" })
         {
             var snap = await db.ValueScreenerSnapshots.AsNoTracking()
                 .Where(s => s.Origin == origin).OrderByDescending(s => s.RunAt).FirstOrDefaultAsync(ct);

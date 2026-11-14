@@ -62,6 +62,20 @@ public class SecurityAnalysisResolverTests
     }
 
     [Fact]
+    public async Task ResolveReadOnlyAsync_SameResultForDetectedWrapper_ButPersistsNoAutoMapping()
+    {
+        await using var db = CreateDb();
+        var provider = new FakeMarketData { QuoteName = "Example Canadian Depositary Receipt CAD Hedged" };
+        var resolver = new SecurityAnalysisResolver(db, provider);
+
+        var readOnly = await resolver.ResolveReadOnlyAsync("EXAMPLE.TO", "user-1");
+
+        Assert.Empty(db.SecurityAnalysisMappings);
+        Assert.Equal(await resolver.ResolveAsync("EXAMPLE.TO", "user-1"), readOnly);
+        Assert.Single(db.SecurityAnalysisMappings);
+    }
+
+    [Fact]
     public async Task ValidateUnderlyingTickerAsync_RequiresQuoteAndSufficientHistory()
     {
         await using var db = CreateDb();

@@ -91,3 +91,9 @@
   border-color: rgba(255, 193, 7, 0.9);
   font-weight: 600;
 }
+// Neutral "several differing decisions" indicator: deliberately carries no buy/sell colour.
+.ma-multiple {
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface);
+  border-color: var(--mat-sys-outline);
+}

@@ -28,6 +28,8 @@ export interface ColumnDef {
    * defaults to `'secondary'` and is reachable through the "Show all fields" toggle.
    */
   priority?: 'primary' | 'secondary';
+  /** A required column is always visible: the dialog cannot hide it and a saved hidden state is ignored. */
+  required?: boolean;
 }
 
 export interface ColumnPreference {
@@ -41,6 +43,11 @@ export interface GridDef {
   page: string;
   pageIcon: string;
   columns: ColumnDef[];
+  /**
+   * Opt-in: honour `defaultHidden` everywhere — for users with no saved layout, in "Reset to defaults", and for columns
+   * added after a layout was saved. Without it (every legacy grid) an unsaved layout shows all columns, as before.
+   */
+  respectDefaultHiddenWhenUnsaved?: boolean;
 }
 
 // ── Responsive projection helpers ─────────────────────────────────────────────
@@ -464,6 +471,54 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'fibDist', label: 'Dist. to Fib 61.8 %', defaultHidden: true },
       { key: 'actions', label: 'Actions', pinned: true },
       { key: 'colConfig', label: '', pinned: true },
+    ],
+  },
+  {
+    id: 'trading-opportunities',
+    label: 'Trading Opportunities',
+    page: 'Trading Opportunities',
+    pageIcon: 'local_fire_department',
+    respectDefaultHiddenWhenUnsaved: true,
+    columns: [
+      { key: 'symbol', label: 'Symbol', required: true, priority: 'primary' },
+      { key: 'swing', label: 'Swing Score', priority: 'primary' },
+      { key: 'strategic', label: 'Strategic Score', priority: 'primary' },
+      { key: 'rr', label: 'Reward : Risk' },
+      { key: 'risk', label: 'Risk' },
+      { key: 'fit', label: 'Portfolio Fit' },
+      { key: 'finalAction', label: 'Final Action', priority: 'primary' },
+      { key: 'sectorHeat', label: 'Sector Heat', priority: 'primary' },
+      { key: 'sector', label: 'Sector' },
+      { key: 'price', label: 'Price', defaultHidden: true },
+      { key: 'rsi14', label: 'RSI (14)', defaultHidden: true },
+      { key: 'macdHist', label: 'MACD Hist.', defaultHidden: true },
+      { key: 'ema20', label: 'EMA 20', defaultHidden: true },
+      { key: 'sma50', label: 'SMA 50', defaultHidden: true },
+      { key: 'sma200', label: 'SMA 200', defaultHidden: true },
+      { key: 'volumeRatio', label: 'Volume Ratio', defaultHidden: true },
+      { key: 'rs20', label: 'Sector Heat 20D (pp)', defaultHidden: true },
+      { key: 'rs60', label: 'Sector Heat 60D (pp)', defaultHidden: true },
+      { key: 'stock20d', label: 'Stock 20D %', defaultHidden: true },
+      { key: 'bench20d', label: 'Benchmark 20D %', defaultHidden: true },
+      { key: 'entry', label: 'Entry', defaultHidden: true },
+      { key: 'stop', label: 'Stop', defaultHidden: true },
+      { key: 'target', label: 'Target', defaultHidden: true },
+      { key: 'riskPct', label: 'Risk %', defaultHidden: true },
+      { key: 'rewardPct', label: 'Reward %', defaultHidden: true },
+      { key: 'setupKind', label: 'Setup', defaultHidden: true },
+      { key: 'owned', label: 'Owned', defaultHidden: true },
+      { key: 'sources', label: 'Sources', defaultHidden: true },
+      { key: 'weightPct', label: 'Portfolio Weight %', defaultHidden: true },
+      { key: 'sectorWeightPct', label: 'Sector Weight %', defaultHidden: true },
+      { key: 'positionHeadroom', label: 'Position Headroom', defaultHidden: true },
+      { key: 'sectorHeadroom', label: 'Sector Headroom', defaultHidden: true },
+      { key: 'accounts', label: 'Accounts', defaultHidden: true },
+      { key: 'roles', label: 'Roles', defaultHidden: true },
+      { key: 'industry', label: 'Industry', defaultHidden: true },
+      { key: 'swingCompleteness', label: 'Swing Completeness %', defaultHidden: true },
+      { key: 'strategicCompleteness', label: 'Strategic Completeness %', defaultHidden: true },
+      { key: 'dataAsOf', label: 'Data As Of', defaultHidden: true },
+      { key: 'status', label: 'Data Status', defaultHidden: true },
     ],
   },
 ];

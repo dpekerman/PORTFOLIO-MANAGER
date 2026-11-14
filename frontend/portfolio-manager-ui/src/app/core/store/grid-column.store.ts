@@ -57,13 +57,14 @@ function nonPinnedColumns(gridDef: GridDef): ColumnDef[] {
  */
 function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (ColumnPreference & { added: boolean })[] {
   const validKeys = new Set(nonPinned.map((c) => c.key));
+  const required = new Set(nonPinned.filter((c) => c.required).map((c) => c.key));
   const list = prefs
     .filter((p) => validKeys.has(p.key))
-    .map((p) => ({ ...p, added: false }));
+    .map((p) => ({ ...p, visible: p.visible || required.has(p.key), added: false }));
   const known = new Set(prefs.map((p) => p.key));
   for (const col of nonPinned) {
     if (known.has(col.key)) continue;
-    const entry = { key: col.key, visible: !col.defaultHidden, added: true };
+    const entry = { key: col.key, visible: col.required === true || !col.defaultHidden, added: true };
     const anchor = col.insertAfter ? list.findIndex((p) => p.key === col.insertAfter) : -1;
     if (anchor >= 0) list.splice(anchor + 1, 0, entry);
     else list.push(entry);
@@ -71,16 +72,32 @@ function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (Col
   return list;
 }
 
+/**
+ * The layout a user without a saved preference sees (and "Reset to defaults" restores): every non-pinned column in registry
+ * order; hidden only for `defaultHidden` columns of grids that opt in via `respectDefaultHiddenWhenUnsaved`.
+ */
+export function defaultEditablePrefs(gridDef: GridDef): ColumnPreference[] {
+  const honourHidden = gridDef.respectDefaultHiddenWhenUnsaved === true;
+  return nonPinnedColumns(gridDef).map((c) => ({
+    key: c.key,
+    visible: c.required === true || !honourHidden || !c.defaultHidden,
+  }));
+}
+
 export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefined): string[] {
+  const pinnedKeys = gridDef.columns.filter((c) => c.pinned).map((c) => c.key);
   if (!prefs) {
-    // No customisation — return all defaults
-    return gridDef.columns.map((c) => c.key);
+    if (!gridDef.respectDefaultHiddenWhenUnsaved) {
+      // No customisation — return all defaults
+      return gridDef.columns.map((c) => c.key);
+    }
+    return [...defaultEditablePrefs(gridDef).filter((p) => p.visible).map((p) => p.key), ...pinnedKeys];
   }
 
-  const pinnedKeys = gridDef.columns.filter((c) => c.pinned).map((c) => c.key);
-  // Newly registered columns have always been shown regardless of `defaultHidden` here; keep that behaviour.
+  // Legacy grids show newly registered columns regardless of `defaultHidden`; opted-in grids honour it.
+  const honourHidden = gridDef.respectDefaultHiddenWhenUnsaved === true;
   const result = withNewColumns(nonPinnedColumns(gridDef), prefs)
-    .filter((p) => p.added || p.visible)
+    .filter((p) => (honourHidden ? p.visible : p.added || p.visible))
     .map((p) => p.key);
 
   // Pinned columns always come last
@@ -97,13 +114,18 @@ export function resolveEditablePrefs(
   gridDef: GridDef,
   prefs: ColumnPreference[] | undefined,
 ): ColumnPreference[] {
-  const nonPinned = nonPinnedColumns(gridDef);
-
   if (!prefs) {
-    return nonPinned.map((c) => ({ key: c.key, visible: true }));
+    return defaultEditablePrefs(gridDef);
   }
 
-  return withNewColumns(nonPinned, prefs).map(({ key, visible }) => ({ key, visible }));
+  return withNewColumns(nonPinnedColumns(gridDef), prefs).map(({ key, visible }) => ({ key, visible }));
+}
+
+/** True when the editable layout differs from {@link defaultEditablePrefs} (order or visibility). */
+export function isCustomisedLayout(gridDef: GridDef, prefs: readonly ColumnPreference[]): boolean {
+  const defaults = defaultEditablePrefs(gridDef);
+  if (prefs.length !== defaults.length) return true;
+  return prefs.some((p, i) => p.key !== defaults[i].key || p.visible !== defaults[i].visible);
 }
 
 function loadFromStorage(): StoredPrefs {

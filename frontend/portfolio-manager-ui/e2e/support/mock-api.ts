@@ -55,6 +55,13 @@ import {
   signalSummary,
   signalTypes,
 } from '../fixtures/signals-audit';
+import {
+  opportunityConfig,
+  opportunityDetailResponse,
+  opportunitySnapshotResponse,
+  opportunityState,
+  resetOpportunities,
+} from '../fixtures/opportunities';
 
 /** Applies the server-side filters the real endpoint supports (enough for the e2e scenarios). */
 function filterSignalRows(q: URLSearchParams) {
@@ -381,6 +388,21 @@ get(/^\/api\/eod-signals$/, (r) =>
 );
 get(/^\/api\/eod-signals\/meta$/, eodMeta);
 
+// PM-029 Trading Opportunities (read-only; refresh only bumps the mock snapshot id).
+get(/^\/api\/opportunities$/, () => opportunitySnapshotResponse());
+get(/^\/api\/opportunities\/config$/, opportunityConfig);
+get(/^\/api\/opportunities\/reference$/, { constituents: [], benchmarks: [] });
+on('POST', /^\/api\/opportunities\/refresh$/, () => {
+  opportunityState.snapshotId += 1;
+  opportunityState.refreshes += 1;
+  return opportunitySnapshotResponse();
+});
+get(/^\/api\/opportunities\/([^/]+)$/, (r) => {
+  const symbol = decodeURIComponent(r.path.split('/').pop() ?? '');
+  const id = r.query.get('snapshotId');
+  return opportunityDetailResponse(symbol, id === null ? null : Number(id));
+});
+
 // â”€â”€ Value screener â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 get(/^\/api\/valuescreener\/latest$/, valueScreenerLatest);
 on('POST', /^\/api\/valuescreener\/refresh$/, () => valueScreenerLatest);
@@ -435,6 +457,7 @@ export async function installApiMocks(page: Page): Promise<ApiMocks> {
   const mocks: ApiMocks = { unmocked: [], requests: [] };
   resetSignalsAudit();
   resetSwing();
+  resetOpportunities();
 
   await page.route(
     (url) => url.pathname.startsWith('/api/') && url.hostname === 'localhost',

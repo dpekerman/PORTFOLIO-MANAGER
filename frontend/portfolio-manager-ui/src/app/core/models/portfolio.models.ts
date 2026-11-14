@@ -474,7 +474,7 @@ export type ActionTrigger =
   | 'HoldRideTrend'
   | 'ValueTrapWarning'
   | 'Observe';
-export type ValueOrigin = 'Portfolio' | 'Watchlist';
+export type ValueOrigin = 'Portfolio' | 'Watchlist' | 'Universe';
 
 export interface ValueScreenerResult {
   symbol: string;

@@ -120,6 +120,7 @@ export class LayoutComponent {
       label: 'Insights',
       icon: 'insights',
       links: [
+        { path: '/trading-opportunities', label: 'Trading Opportunities', icon: 'local_fire_department' },
         { path: '/allocation', label: 'Allocation', icon: 'donut_large' },
         { path: '/portfolio-value-history', label: 'Value History', icon: 'history' },
         { path: '/signal-tracker', label: 'Signal Tracker', icon: 'track_changes' },

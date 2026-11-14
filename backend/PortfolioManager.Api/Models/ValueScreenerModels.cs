@@ -23,7 +23,7 @@ namespace PortfolioManager.Api.Models
         Observe
     }
 
-    public enum ValueOrigin { Portfolio, Watchlist }
+    public enum ValueOrigin { Portfolio, Watchlist, Universe }
 
     public enum ValueTier { HighConviction, FairValue, ValueTrap }
 
@@ -53,6 +53,23 @@ namespace PortfolioManager.Api.Models
         public decimal Week52Low { get; set; }
         public string Sector { get; set; } = "";
         public DateTime AnalyzedAt { get; set; } = DateTime.UtcNow;
+
+        // PM-029: per-factor availability. Null on legacy snapshots (written before PM-029) ⇒ consumers treat as unknown.
+        public bool? F1Available { get; set; }
+        public bool? F2Available { get; set; }
+        public bool? F3Available { get; set; }
+        public bool? F4Available { get; set; }
+        public bool? F5Available { get; set; }
+        /// <summary>"EV/EBIT" or "TrailingPE".</summary>
+        public string? EarningsYieldBasis { get; set; }
+        /// <summary>"FCF" or "OCF".</summary>
+        public string? FcfYieldBasis { get; set; }
+        /// <summary>"ROIC", "ROE" or "Proxy" (EY / P/B).</summary>
+        public string? CapitalEfficiencyBasis { get; set; }
+        public int? PiotroskiSignalsAvailable { get; set; }
+        /// <summary>True when market cap was estimated as price × 1,000,000 (no real market-cap data).</summary>
+        public bool? MarketCapFallbackUsed { get; set; }
+        public bool? FundamentalsDataAvailable { get; set; }
     }
 
     public class ValueScreenerRequest

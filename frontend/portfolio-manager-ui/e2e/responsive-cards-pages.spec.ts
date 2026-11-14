@@ -113,6 +113,17 @@ const CASES: CardTableCase[] = [
     desktopMinHeaders: 5,
     hasSecondaryFields: true,
   },
+  {
+    name: 'trading opportunities table',
+    path: '/trading-opportunities',
+    landmark: (p) => p.getByRole('heading', { level: 1, name: /Trading Opportunities/ }),
+    table: (p) => p.getByTestId('opportunities-table'),
+    sortLabel: 'Sort Opportunities by',
+    sortOption: 'Sector Heat',
+    cellLabel: 'Swing Score',
+    desktopMinHeaders: 9,
+    hasSecondaryFields: true,
+  },
 ];
 
 for (const c of CASES) {

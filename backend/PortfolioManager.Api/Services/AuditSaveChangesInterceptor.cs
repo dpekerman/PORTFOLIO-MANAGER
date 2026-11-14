@@ -40,6 +40,8 @@ public sealed class AuditSaveChangesInterceptor(
         [nameof(AccountType)] = AuditCategories.Config,
         [nameof(SectorIndustryConfig)] = AuditCategories.Config,
         [nameof(ValueScreenerScheduleConfig)] = AuditCategories.Config,
+        [nameof(IndexConstituent)] = AuditCategories.Config,
+        [nameof(SectorBenchmarkMapping)] = AuditCategories.Config,
         [nameof(ApplicationUser)] = AuditCategories.User,
     };
 

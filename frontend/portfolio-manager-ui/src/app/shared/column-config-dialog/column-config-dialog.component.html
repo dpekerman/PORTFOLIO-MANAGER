@@ -55,6 +55,8 @@
         <mat-slide-toggle
           class="ccd-toggle"
           [checked]="pref.visible"
+          [disabled]="isRequired(pref.key)"
+          [matTooltip]="isRequired(pref.key) ? 'This column is required and cannot be hidden' : ''"
           (change)="setVisible(i, $event.checked)"
           [attr.aria-label]="'Show ' + getLabel(pref.key) + ' column'"
         />
@@ -89,6 +91,15 @@
   >
     <mat-icon>restart_alt</mat-icon>
     Reset to defaults
+  </button>
+  <button
+    mat-stroked-button
+    (click)="showAll()"
+    [disabled]="!anyHidden()"
+    matTooltip="Show every column"
+  >
+    <mat-icon>visibility</mat-icon>
+    Show all
   </button>
   <span class="ccd-actions-spacer"></span>
   <button mat-flat-button mat-dialog-close>

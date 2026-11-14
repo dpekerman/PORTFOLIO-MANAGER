@@ -13,3 +13,9 @@
   opacity: 1;
   color: var(--mat-sys-primary);
 }
+.gcb-labelled {
+  min-height: 44px;
+}
+.gcb-labelled.gcb-customised {
+  color: var(--mat-sys-primary);
+}

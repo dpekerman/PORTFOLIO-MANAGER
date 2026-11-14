@@ -241,6 +241,50 @@ public sealed class Pm024Stage1MarketDataTests
         Assert.Null(RsiScannerService.ReconstructSessionRange(singleMissing, "SYN", friday, 102m, 101m, 99m, 100m, now));
     }
 
+    private sealed class CountingStagedSignals : IStagedSignalService
+    {
+        public int Upserts { get; private set; }
+        public Task<Dictionary<string, ScanType>> LoadActiveStagedSymbolsAsync(CancellationToken ct = default) => Task.FromResult(new Dictionary<string, ScanType>());
+        public Task UpsertAndEnrichAsync(IEnumerable<RsiScanResult> results, decimal trendShiftThreshold = 0.25m, decimal earlyMin = 0.25m, decimal normalMin = 1.0m, decimal strongMin = 5.0m, decimal explosiveMin = 10.0m, int maxActiveTradingDays = 7, CancellationToken ct = default)
+        { Upserts++; return Task.CompletedTask; }
+        public Task DeactivateAsync(string symbol, string scanType, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CleanupStaleAsync(int retentionDays = 30, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class CountingResolver : ISecurityAnalysisResolver
+    {
+        public int Persisting { get; private set; }
+        public int ReadOnly { get; private set; }
+        private static ResolvedSecurityAnalysis Self(string t) => new(t, t, "US", "USD", false, UnderlyingResolutionStatus.NotApplicable, null);
+        public Task<ResolvedSecurityAnalysis> ResolveAsync(string tradingTicker, string? userId, CancellationToken ct = default) { Persisting++; return Task.FromResult(Self(tradingTicker)); }
+        public Task<ResolvedSecurityAnalysis> ResolveReadOnlyAsync(string tradingTicker, string? userId, CancellationToken ct = default) { ReadOnly++; return Task.FromResult(Self(tradingTicker)); }
+        public Task<bool> ValidateUnderlyingTickerAsync(string underlyingTicker, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<ResolvedSecurityAnalysis> SaveUserMappingAsync(string tradingTicker, string underlyingTicker, string userId, bool useUnderlyingForAnalysis, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<bool> RemoveUserMappingAsync(string tradingTicker, string userId, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    [Fact]
+    public async Task Pm029_ReadOnlyAnalysis_ProducesTheSameScan_WithoutStagedSignalOrMappingWrites()
+    {
+        var bars = Bars(260, new DateOnly(2020, 11, 6));
+        RsiScannerService NewScanner(IStagedSignalService staged, ISecurityAnalysisResolver resolver) =>
+            new(new HttpClient(new StaticHandler(ChartJson(bars))) { BaseAddress = new Uri("https://query1.finance.yahoo.com/") },
+                NullLogger<RsiScannerService>.Instance, null!, new ScannerRuntimeConfig(), staged, new ChannelAnalysisService(), null!, resolver);
+
+        // An oversold threshold of 99 makes the synthetic series a signal, so the persisting path would upsert it.
+        var stagedRo = new CountingStagedSignals(); var resolverRo = new CountingResolver();
+        var readOnly = await NewScanner(stagedRo, resolverRo).AnalyzeSymbolsReadOnlyAsync(["SYN"], 99m, 100m, "Enhanced", "u");
+        var stagedRw = new CountingStagedSignals(); var resolverRw = new CountingResolver();
+        var persisting = await NewScanner(stagedRw, resolverRw).AnalyzeSymbolsAsync(["SYN"], 99m, 100m, "Enhanced", "u");
+
+        var scan = Assert.Single(readOnly);
+        Assert.NotEqual(ScanType.Neutral, scan.ScanType);
+        Assert.Equal((0, 0, 1), (stagedRo.Upserts, resolverRo.Persisting, resolverRo.ReadOnly));
+        Assert.Equal((1, 1, 0), (stagedRw.Upserts, resolverRw.Persisting, resolverRw.ReadOnly));
+        Assert.Equal(Assert.Single(persisting).Rsi, scan.Rsi);
+        Assert.Equal(persisting[0].CurrentPrice, scan.CurrentPrice);
+    }
+
     private sealed class CdrResolver : ISecurityAnalysisResolver
     {
         public Task<ResolvedSecurityAnalysis> ResolveAsync(string tradingTicker, string? userId, CancellationToken ct = default) =>

@@ -1,0 +1,7 @@
+<span [class]="cls()" [matTooltip]="tooltip()" data-testid="score-cell">
+  <span aria-hidden="true">{{ text() }}</span>
+  @if (provisional()) {
+    <span class="heat-marker" aria-hidden="true">P</span>
+  }
+  <span class="cdk-visually-hidden">{{ label() }}</span>
+</span>
