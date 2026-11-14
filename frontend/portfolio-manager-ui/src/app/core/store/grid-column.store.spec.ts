@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { BreakpointStore } from './breakpoint.store';
-import { GridColumnStore, resolveEditablePrefs, resolveKeys } from './grid-column.store';
+import { GridColumnStore, isCustomisedLayout, resolveEditablePrefs, resolveKeys } from './grid-column.store';
 import { ColumnPreference, GRID_REGISTRY, GridDef, resolveHandsetKeys } from './grid-registry';
 import { UserPreferencesStore } from './user-preferences.store';
 
@@ -97,6 +97,61 @@ describe('resolveEditablePrefs', () => {
       { key: 'a', visible: true },
     ];
     expect(resolveEditablePrefs(grid, prefs).map((p) => p.key)).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
+  const optIn: GridDef = {
+    ...grid,
+    respectDefaultHiddenWhenUnsaved: true,
+    columns: [
+      { key: 'a', label: 'A', required: true },
+      { key: 'b', label: 'B' },
+      { key: 'c', label: 'C', defaultHidden: true },
+      { key: 'actions', label: 'Actions', pinned: true },
+    ],
+  };
+
+  it('shows only default columns when nothing is saved, and the editable list marks extras hidden', () => {
+    expect(resolveKeys(optIn, undefined)).toEqual(['a', 'b', 'actions']);
+    expect(resolveEditablePrefs(optIn, undefined)).toEqual([
+      { key: 'a', visible: true },
+      { key: 'b', visible: true },
+      { key: 'c', visible: false },
+    ]);
+  });
+
+  it('keeps a default-hidden column hidden when it is added after a layout was saved', () => {
+    const saved: ColumnPreference[] = [{ key: 'b', visible: true }, { key: 'a', visible: true }];
+    expect(resolveKeys(optIn, saved)).toEqual(['b', 'a', 'actions']);
+    expect(resolveEditablePrefs(optIn, saved)).toContainEqual({ key: 'c', visible: false });
+  });
+
+  it('re-shows a required column that a persisted layout had hidden', () => {
+    const saved: ColumnPreference[] = [
+      { key: 'a', visible: false },
+      { key: 'b', visible: true },
+      { key: 'c', visible: true },
+    ];
+    expect(resolveKeys(optIn, saved)).toEqual(['a', 'b', 'c', 'actions']);
+    expect(resolveEditablePrefs(optIn, saved)[0]).toEqual({ key: 'a', visible: true });
+  });
+
+  it('detects customisation against the opted-in defaults', () => {
+    expect(isCustomisedLayout(optIn, resolveEditablePrefs(optIn, undefined))).toBe(false);
+    expect(isCustomisedLayout(optIn, [
+      { key: 'a', visible: true },
+      { key: 'b', visible: true },
+      { key: 'c', visible: true },
+    ])).toBe(true);
+    expect(isCustomisedLayout(grid, resolveEditablePrefs(grid, undefined))).toBe(false);
+  });
+
+  it('the real Trading Opportunities grid defaults to the nine approved columns in order', () => {
+    const def = GRID_REGISTRY.find((d) => d.id === 'trading-opportunities')!;
+    expect(resolveKeys(def, undefined)).toEqual([
+      'symbol', 'swing', 'strategic', 'rr', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
+    ]);
   });
 });
 

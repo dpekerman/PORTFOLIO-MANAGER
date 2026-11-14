@@ -7,6 +7,9 @@ namespace PortfolioManager.Api.Services;
 public interface ISecurityAnalysisResolver
 {
     Task<ResolvedSecurityAnalysis> ResolveAsync(string tradingTicker, string? userId, CancellationToken ct = default);
+    /// <summary>PM-029: resolution without persisting an AUTO "needs user input" mapping. Test doubles that never persist may rely on the default.</summary>
+    Task<ResolvedSecurityAnalysis> ResolveReadOnlyAsync(string tradingTicker, string? userId, CancellationToken ct = default)
+        => ResolveAsync(tradingTicker, userId, ct);
     Task<bool> ValidateUnderlyingTickerAsync(string underlyingTicker, CancellationToken ct = default);
     Task<ResolvedSecurityAnalysis> SaveUserMappingAsync(string tradingTicker, string underlyingTicker, string userId, bool useUnderlyingForAnalysis, CancellationToken ct = default);
     Task<bool> RemoveUserMappingAsync(string tradingTicker, string userId, CancellationToken ct = default);
@@ -25,10 +28,17 @@ public sealed class SecurityAnalysisResolver(AppDbContext db, IMarketDataProvide
         "CDR",
     ];
 
-    public async Task<ResolvedSecurityAnalysis> ResolveAsync(
+    public Task<ResolvedSecurityAnalysis> ResolveAsync(string tradingTicker, string? userId, CancellationToken ct = default)
+        => ResolveCoreAsync(tradingTicker, userId, persist: true, ct);
+
+    public Task<ResolvedSecurityAnalysis> ResolveReadOnlyAsync(string tradingTicker, string? userId, CancellationToken ct = default)
+        => ResolveCoreAsync(tradingTicker, userId, persist: false, ct);
+
+    private async Task<ResolvedSecurityAnalysis> ResolveCoreAsync(
         string tradingTicker,
         string? userId,
-        CancellationToken ct = default)
+        bool persist,
+        CancellationToken ct)
     {
         var normalizedTradingTicker = Normalize(tradingTicker);
         var mapping = await db.SecurityAnalysisMappings.AsNoTracking()
@@ -46,18 +56,21 @@ public sealed class SecurityAnalysisResolver(AppDbContext db, IMarketDataProvide
             : null;
         if (quote is not null && IsWrapperCandidate(quote.CompanyName))
         {
-            db.SecurityAnalysisMappings.Add(new SecurityAnalysisMapping
+            if (persist)
             {
-                TradingTicker = normalizedTradingTicker,
-                UnderlyingMarket = "US",
-                UseUnderlyingForAnalysis = false,
-                ResolutionStatus = UnderlyingResolutionStatus.NeedsUserInput,
-                MappingSource = SecurityAnalysisMappingSource.AUTO,
-                DetectionDetail = quote.CompanyName,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-            });
-            await db.SaveChangesAsync(ct);
+                db.SecurityAnalysisMappings.Add(new SecurityAnalysisMapping
+                {
+                    TradingTicker = normalizedTradingTicker,
+                    UnderlyingMarket = "US",
+                    UseUnderlyingForAnalysis = false,
+                    ResolutionStatus = UnderlyingResolutionStatus.NeedsUserInput,
+                    MappingSource = SecurityAnalysisMappingSource.AUTO,
+                    DetectionDetail = quote.CompanyName,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                });
+                await db.SaveChangesAsync(ct);
+            }
             return new ResolvedSecurityAnalysis(
                 normalizedTradingTicker,
                 normalizedTradingTicker,

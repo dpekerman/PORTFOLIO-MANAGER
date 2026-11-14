@@ -1,0 +1,147 @@
+<app-mobile-table-controls [sort]="sortRef" [gridId]="gridId" label="Opportunities" />
+
+<div class="grid-scroll">
+  <table
+    mat-table
+    appResponsiveTable
+    appRowSelection
+    matSort
+    #sortRef="matSort"
+    [dataSource]="rows()"
+    [matSortActive]="sortActive()"
+    [matSortDirection]="sort().direction"
+    matSortDisableClear
+    (matSortChange)="onSort($event)"
+    class="opp-table"
+    aria-label="Trading opportunities"
+    data-testid="opportunities-table"
+  >
+    <ng-container matColumnDef="symbol" sticky>
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('symbol') }}</th>
+      <td mat-cell *matCellDef="let row" class="symbol-cell">
+        <div class="sym-line">
+          <span class="sym">{{ row.symbol }}</span>
+          @if (row.owned) {
+            <mat-icon class="owned-icon" matTooltip="Held in your portfolio" aria-label="Owned">account_balance_wallet</mat-icon>
+          }
+        </div>
+        <div class="company" [matTooltip]="row.companyName">{{ row.companyName }}</div>
+        @if (row.usesUnderlying && row.analysisTicker) {
+          <div class="via" [matTooltip]="'Scored on the underlying security ' + row.analysisTicker">via {{ row.analysisTicker }}</div>
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="swing">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header class="center">{{ label('swing') }}</th>
+      <td mat-cell *matCellDef="let row" class="score-td">
+        <app-score-heat-cell [summary]="row.swing" perspective="Swing" />
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="strategic">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header class="center">{{ label('strategic') }}</th>
+      <td mat-cell *matCellDef="let row" class="score-td">
+        <app-score-heat-cell [summary]="row.strategic" perspective="Strategic" />
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="rr">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('rr') }}</th>
+      <td mat-cell *matCellDef="let row">
+        <span
+          class="rr"
+          [class.rr-valid]="row.setup.kind === 'ValidCandidate'"
+          [class.rr-weak]="row.setup.kind === 'NotActionable'"
+          [class.rr-na]="row.setup.kind === 'Unavailable'"
+          [matTooltip]="rrTooltip(row)"
+          >{{ rrText(row) }}</span
+        >
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="risk">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('risk') }}</th>
+      <td mat-cell *matCellDef="let row">
+        @if (row.risk.category === 'Unavailable') {
+          <span class="muted" matTooltip="Risk cannot be measured without a valid stop">—</span>
+        } @else {
+          <span
+            class="chip"
+            [class.chip-low]="row.risk.category === 'Low'"
+            [class.chip-medium]="row.risk.category === 'Medium'"
+            [class.chip-high]="row.risk.category === 'High'"
+            [matTooltip]="row.risk.basis"
+            >{{ row.risk.category }}</span
+          >
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="fit">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('fit') }}</th>
+      <td mat-cell *matCellDef="let row">
+        <span
+          class="chip"
+          [class.chip-low]="row.fit.status === 'Eligible'"
+          [class.chip-medium]="row.fit.status === 'Review'"
+          [class.chip-high]="row.fit.status === 'NoAdd'"
+          [class.chip-na]="row.fit.status === 'Unavailable'"
+          [matTooltip]="fitTooltip(row)"
+          >{{ fitLabel(row) }}</span
+        >
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="finalAction">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('finalAction') }}</th>
+      <td mat-cell *matCellDef="let row">
+        @if (row.finalAction.kind === 'None') {
+          <span class="muted" matTooltip="Final Action is evaluated for watchlist and portfolio symbols only">Not evaluated</span>
+        } @else {
+          <app-final-action-badge
+            [label]="finalActionLabel(row)"
+            [bucket]="row.finalAction.kind === 'Single' ? row.finalAction.finalActionClass : 'ma-multiple'"
+            [tooltip]="finalActionTooltip(row)"
+            [ariaLabel]="'Final Action for ' + row.symbol + ': ' + finalActionLabel(row)"
+            (activated)="open(row)"
+          />
+        }
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="sectorHeat">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('sectorHeat') }}</th>
+      <td mat-cell *matCellDef="let row" class="heat-td">
+        <app-sector-heat-badge [heat]="row.sectorHeat" [sector]="row.sector" />
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="sector">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('sector') }}</th>
+      <td mat-cell *matCellDef="let row" class="sector-cell">{{ row.sector ?? 'Unclassified' }}</td>
+    </ng-container>
+
+    @for (col of simpleColumns; track col.key) {
+      <ng-container [matColumnDef]="col.key">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header [class.num]="col.kind !== 'text'">{{ col.label }}</th>
+        <td mat-cell *matCellDef="let row" [class.num]="col.kind !== 'text'">{{ simpleText(row, col) }}</td>
+      </ng-container>
+    }
+
+    <tr mat-header-row *matHeaderRowDef="columns(); sticky: true"></tr>
+    <tr
+      mat-row
+      *matRowDef="let row; columns: columns()"
+      [appSelectableRow]="row.symbol"
+      class="opp-row"
+      tabindex="0"
+      [attr.data-symbol]="row.symbol"
+      (click)="toggle(row)"
+      (keydown)="onRowKey($event, row)"
+    ></tr>
+    <tr class="mat-row no-data" *matNoDataRow>
+      <td class="mat-cell" [attr.colspan]="columns().length">No securities match the current filters.</td>
+    </tr>
+  </table>
+</div>

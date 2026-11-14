@@ -1,0 +1,120 @@
+// PM-029 Trading Opportunities — heat tokens and shared heat classes (grid cells, details panel cards, mobile cards).
+// Fills are saturated in both themes; every foreground/background pair has a contrast ratio of at least 4.5:1.
+
+:root {
+  --heat-strong: #1b5e20;
+  --heat-strong-fg: #ffffff;
+  --heat-attractive: #2e7d32;
+  --heat-attractive-fg: #ffffff;
+  --heat-moderate: #f9a825;
+  --heat-moderate-fg: #1a1a1a;
+  --heat-caution: #bf360c;
+  --heat-caution-fg: #ffffff;
+  --heat-weak: #b71c1c;
+  --heat-weak-fg: #ffffff;
+  --heat-na: #4a4a4a;
+  --heat-na-fg: #e0e0e0;
+  --heat-hatch: rgba(255, 255, 255, 0.2);
+
+  --heat-pos-1: #1f3d22;
+  --heat-pos-1-fg: #a5d6a7;
+  --heat-pos-2: #2e7d32;
+  --heat-pos-2-fg: #ffffff;
+  --heat-pos-3: #1b5e20;
+  --heat-pos-3-fg: #ffffff;
+  --heat-neg-1: #4a1f1f;
+  --heat-neg-1-fg: #ef9a9a;
+  --heat-neg-2: #c62828;
+  --heat-neg-2-fg: #ffffff;
+  --heat-neg-3: #8e0000;
+  --heat-neg-3-fg: #ffffff;
+  --heat-neutral: #333333;
+  --heat-neutral-fg: #d6d6d6;
+}
+
+body.light-theme {
+  --heat-na: #757575;
+  --heat-na-fg: #ffffff;
+  --heat-hatch: rgba(255, 255, 255, 0.28);
+
+  --heat-pos-1: #e8f5e9;
+  --heat-pos-1-fg: #1b5e20;
+  --heat-neg-1: #ffebee;
+  --heat-neg-1-fg: #8e0000;
+  --heat-neutral: #eeeeee;
+  --heat-neutral-fg: #424242;
+}
+
+// ── Score heat cell (fully filled, bold centred integer) ─────────────────────
+.heat-fill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 52px;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--heat-na);
+  color: var(--heat-na-fg);
+}
+
+.heat--strong { background: var(--heat-strong); color: var(--heat-strong-fg); }
+.heat--attractive { background: var(--heat-attractive); color: var(--heat-attractive-fg); }
+.heat--moderate { background: var(--heat-moderate); color: var(--heat-moderate-fg); }
+.heat--caution { background: var(--heat-caution); color: var(--heat-caution-fg); }
+.heat--weak { background: var(--heat-weak); color: var(--heat-weak-fg); }
+.heat--none { background: var(--heat-na); color: var(--heat-na-fg); font-weight: 600; }
+
+// Provisional: same band fill + diagonal hatch + "P" marker, so it is never mistaken for a verified score.
+.heat--provisional {
+  background-image: repeating-linear-gradient(
+    135deg,
+    var(--heat-hatch) 0,
+    var(--heat-hatch) 3px,
+    transparent 3px,
+    transparent 7px
+  );
+}
+
+.heat-marker {
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 1px 3px;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+// ── Sector Heat badge (signed pp, arrow + sign so colour is never the only cue) ──
+.sector-heat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  background: var(--heat-neutral);
+  color: var(--heat-neutral-fg);
+}
+
+.sh--pos-1 { background: var(--heat-pos-1); color: var(--heat-pos-1-fg); }
+.sh--pos-2 { background: var(--heat-pos-2); color: var(--heat-pos-2-fg); }
+.sh--pos-3 { background: var(--heat-pos-3); color: var(--heat-pos-3-fg); }
+.sh--neg-1 { background: var(--heat-neg-1); color: var(--heat-neg-1-fg); }
+.sh--neg-2 { background: var(--heat-neg-2); color: var(--heat-neg-2-fg); }
+.sh--neg-3 { background: var(--heat-neg-3); color: var(--heat-neg-3-fg); }
+.sh--neutral { background: var(--heat-neutral); color: var(--heat-neutral-fg); }
+.sh--unavailable {
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 500;
+  border: 1px dashed var(--border-subtle);
+}

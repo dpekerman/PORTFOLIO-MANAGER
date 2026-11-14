@@ -21,7 +21,7 @@ public class ValueScreenerPersistenceService(
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
-    /// <summary>Saves the screener results for a given origin ("Portfolio" or "Watchlist").</summary>
+    /// <summary>Saves the screener results for a given origin ("Portfolio", "Watchlist" or PM-029 "Universe").</summary>
     public async Task SaveAsync(string origin, List<ValueScreenerResult> results, CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
@@ -47,8 +47,8 @@ public class ValueScreenerPersistenceService(
 
         await db.SaveChangesAsync(ct);
 
-        // Update the schedule config last-run timestamp
-        var cfg = await db.ValueScreenerScheduleConfigs.FirstOrDefaultAsync(ct);
+        // Update the schedule config last-run timestamp (PM-029: Universe runs never touch the schedule state)
+        var cfg = origin is "Portfolio" or "Watchlist" ? await db.ValueScreenerScheduleConfigs.FirstOrDefaultAsync(ct) : null;
         if (cfg != null)
         {
             if (origin == "Portfolio") cfg.LastPortfolioRunAt = snapshot.RunAt;

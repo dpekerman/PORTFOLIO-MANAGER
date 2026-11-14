@@ -295,6 +295,7 @@ builder.Services.AddScoped<IPeriodChangeService, PeriodChangeService>();
 builder.Services.AddScoped<ISignalsAuditService, SignalsAuditService>();
 builder.Services.AddScoped<IOpenDecisionsService, OpenDecisionsService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.FinalAction.IFinalActionService, PortfolioManager.Api.Services.FinalAction.FinalActionService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Opportunities.IOpportunityService, PortfolioManager.Api.Services.Opportunities.OpportunityService>();
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 // Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window

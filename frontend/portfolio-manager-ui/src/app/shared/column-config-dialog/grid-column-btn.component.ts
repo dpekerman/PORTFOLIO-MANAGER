@@ -3,7 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GridColumnStore } from '../../core/store/grid-column.store';
+import { GridColumnStore, resolveKeys } from '../../core/store/grid-column.store';
 import { GRID_REGISTRY } from '../../core/store/grid-registry';
 import {
   ColumnConfigDialogComponent,
@@ -24,18 +24,27 @@ import {
 })
 export class GridColumnButtonComponent {
   readonly gridId = input.required<string>();
+  /** Renders a labelled "Columns (n)" button instead of the bare icon. */
+  readonly showLabel = input(false);
 
   private readonly dialog = inject(MatDialog);
   private readonly gridColumns = inject(GridColumnStore);
 
   private readonly _cols = computed(() => this.gridColumns.getColumnKeys(this.gridId())());
 
+  /** Number of visible data columns (pinned chrome such as the config gear excluded). */
+  protected readonly visibleCount = computed(() => {
+    const gridDef = GRID_REGISTRY.find((g) => g.id === this.gridId());
+    const pinned = new Set(gridDef?.columns.filter((c) => c.pinned).map((c) => c.key) ?? []);
+    return this._cols().filter((k) => !pinned.has(k)).length;
+  });
+
   /** True when the grid has been customised (differs from defaults). */
   protected readonly isCustomised = computed(() => {
     const gridDef = GRID_REGISTRY.find((g) => g.id === this.gridId());
     if (!gridDef) return false;
     const current = this._cols();
-    const defaults = gridDef.columns.map((c) => c.key);
+    const defaults = resolveKeys(gridDef, undefined);
     if (current.length !== defaults.length) return true;
     return current.some((k, i) => k !== defaults[i]);
   });

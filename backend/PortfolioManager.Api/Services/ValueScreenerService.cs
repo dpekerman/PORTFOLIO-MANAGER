@@ -69,7 +69,25 @@ public sealed class ValueScreenerService(
             symbolsWithOrigin.TryAdd(adhoc, ValueOrigin.Watchlist);
 
         if (symbolsWithOrigin.Count == 0) return [];
+        return await ScreenAsync(symbolsWithOrigin, readOnlyScan: false, ct);
+    }
 
+    /// <summary>
+    /// PM-029: screens index-universe symbols the user neither watches nor holds. Results carry <see cref="ValueOrigin.Universe"/>
+    /// and the technical scan is read-only (no staged signals, no analysis mappings), so the run has no signal side effects.
+    /// </summary>
+    public async Task<List<ValueScreenerResult>> RunUniverseAsync(IReadOnlyCollection<string> symbols, CancellationToken ct = default)
+    {
+        var symbolsWithOrigin = new Dictionary<string, ValueOrigin>(StringComparer.OrdinalIgnoreCase);
+        foreach (var s in symbols.Select(s => s.Trim().ToUpperInvariant()).Where(s => s.Length > 0))
+            symbolsWithOrigin.TryAdd(s, ValueOrigin.Universe);
+        if (symbolsWithOrigin.Count == 0) return [];
+        return await ScreenAsync(symbolsWithOrigin, readOnlyScan: true, ct);
+    }
+
+    private async Task<List<ValueScreenerResult>> ScreenAsync(
+        Dictionary<string, ValueOrigin> symbolsWithOrigin, bool readOnlyScan, CancellationToken ct)
+    {
         // 2. Batch-fetch live price quotes (for current price, 52-week range, sector name)
         Dictionary<string, StockQuote> quotes;
         try { quotes = await marketData.GetBatchQuotesAsync(symbolsWithOrigin.Keys, ct); }
@@ -96,8 +114,11 @@ public sealed class ValueScreenerService(
         Dictionary<string, RsiScanResult> rsiMap;
         try
         {
-            var rsiResults = await rsiScanner.AnalyzeSymbolsAsync(
-                symList, oversoldThreshold: 30m, overboughtThreshold: 75m, logicMode: "Enhanced", ct: ct);
+            var rsiResults = readOnlyScan
+                ? await rsiScanner.AnalyzeSymbolsReadOnlyAsync(
+                    symList, oversoldThreshold: 30m, overboughtThreshold: 75m, logicMode: "Enhanced", ct: ct)
+                : await rsiScanner.AnalyzeSymbolsAsync(
+                    symList, oversoldThreshold: 30m, overboughtThreshold: 75m, logicMode: "Enhanced", ct: ct);
             rsiMap = rsiResults.ToDictionary(r => r.Symbol, r => r, StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex) { logger.LogWarning(ex, "Value screener: RSI fetch failed"); rsiMap = []; }
@@ -384,7 +405,20 @@ public sealed class ValueScreenerService(
             Week52High         = week52High,
             Week52Low          = week52Low,
             Sector             = sector,
-            AnalyzedAt         = DateTime.UtcNow
+            AnalyzedAt         = DateTime.UtcNow,
+            F1Available        = f1Available,
+            F2Available        = f2Available,
+            F3Available        = f3Available,
+            F4Available        = f4Available,
+            F5Available        = f5Available,
+            EarningsYieldBasis = !f1Available ? null : ev > 0 && ebit > 0 ? "EV/EBIT" : "TrailingPE",
+            FcfYieldBasis      = !f2Available ? null : fcf != 0 ? "FCF" : "OCF",
+            CapitalEfficiencyBasis = !f5Available ? null
+                               : ebit != 0 && investedCapital > 0 ? "ROIC"
+                               : roe != 0m ? "ROE" : "Proxy",
+            PiotroskiSignalsAvailable = pioAvailable,
+            MarketCapFallbackUsed = !(snap?.MarketCap > 0) && marketCap > 0,
+            FundamentalsDataAvailable = snap?.DataAvailable ?? false,
         };
     }
 }

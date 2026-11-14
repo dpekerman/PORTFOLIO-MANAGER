@@ -54,6 +54,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<RiskPlan> RiskPlans => Set<RiskPlan>();
     public DbSet<BrokerStopRecord> BrokerStopRecords => Set<BrokerStopRecord>();
     public DbSet<RiskAuditEvent> RiskAuditEvents => Set<RiskAuditEvent>();
+    public DbSet<IndexConstituent> IndexConstituents => Set<IndexConstituent>();
+    public DbSet<SectorBenchmarkMapping> SectorBenchmarkMappings => Set<SectorBenchmarkMapping>();
+    public DbSet<OpportunitySnapshot> OpportunitySnapshots => Set<OpportunitySnapshot>();
+    public DbSet<OpportunityRefreshState> OpportunityRefreshStates => Set<OpportunityRefreshState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -609,6 +613,55 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             entity.HasOne(e => e.BrokerStopRecord).WithMany().HasForeignKey(e => e.BrokerStopRecordId).OnDelete(DeleteBehavior.NoAction);
             entity.HasIndex(e => new { e.AccountType, e.Symbol, e.OccurredAtUtc });
             entity.HasIndex(e => new { e.UserId, e.TradeEpisodeId, e.OccurredAtUtc });
+        });
+
+        // PM-029 Trading Opportunities
+        modelBuilder.Entity<IndexConstituent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.IndexCode).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Symbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CompanyName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.EffectiveFrom).HasColumnType("date");
+            entity.Property(e => e.EffectiveTo).HasColumnType("date");
+            entity.Property(e => e.Source).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.SourceAsOfDate).HasColumnType("date");
+            entity.Property(e => e.VerifiedBy).HasMaxLength(256);
+            entity.HasIndex(e => new { e.IndexCode, e.Symbol, e.EffectiveFrom }).IsUnique();
+        });
+        modelBuilder.Entity<SectorBenchmarkMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Sector).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Market).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.BenchmarkSymbol).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.BenchmarkName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Currency).IsRequired().HasMaxLength(3);
+            entity.Property(e => e.ProviderSectorAliasesJson).IsRequired().HasDefaultValue("[]");
+            entity.Property(e => e.Notes).HasMaxLength(500);
+            entity.Property(e => e.Source).HasMaxLength(300);
+            entity.Property(e => e.SourceAsOfDate).HasColumnType("date");
+            entity.Property(e => e.UpdatedBy).HasMaxLength(256);
+            entity.HasIndex(e => new { e.Sector, e.Market }).IsUnique().HasFilter("[IsActive] = 1");
+        });
+        modelBuilder.Entity<OpportunitySnapshot>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ScoringVersion).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.EvaluationId).HasMaxLength(64);
+            entity.Property(e => e.DataAsOfSession).HasColumnType("date");
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ErrorSummary).HasMaxLength(1000);
+            entity.Property(e => e.SnapshotJson).IsRequired();
+            entity.HasIndex(e => new { e.UserId, e.ComputedAtUtc });
+        });
+        modelBuilder.Entity<OpportunityRefreshState>(entity =>
+        {
+            entity.HasKey(e => e.UserId);
+            entity.Property(e => e.UserId).HasMaxLength(450);
+            entity.Property(e => e.LastAttemptStatus).HasMaxLength(20);
+            entity.Property(e => e.ErrorSummary).HasMaxLength(1000);
         });
         // SQL Server datetime2 has no timezone marker. Timestamp properties in this app are written
         // with DateTime.UtcNow; stamp Kind=Utc on read so JSON emits a trailing "Z" for Angular.
