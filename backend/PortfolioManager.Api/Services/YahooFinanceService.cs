@@ -136,6 +136,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
             {
                 Symbol        = symbol.ToUpperInvariant(),
                 CompanyName   = m.LongName ?? m.ShortName ?? symbol,
+                InstrumentType = m.InstrumentType,
+                Currency = m.Currency,
                 CurrentPrice  = price,
                 Change        = Math.Round(change, 2),
                 ChangePercent = Math.Round(changePct, 2),
@@ -178,7 +180,10 @@ public sealed class YahooFinanceService : IMarketDataProvider
                     quote.Open[item.Index] ?? item.Close.Value,
                     quote.High[item.Index] ?? item.Close.Value,
                     quote.Low[item.Index] ?? item.Close.Value,
-                    item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L))
+                    item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L,
+                    string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+                        && quote.Open[item.Index].HasValue && quote.High[item.Index].HasValue && quote.Low[item.Index].HasValue,
+                    chart.Meta?.Currency))
                 .ToList();
         }
         catch (Exception ex)
@@ -205,8 +210,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                 var url  = $"v7/finance/quote?symbols={joined}" +
                            "&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent," +
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
-                           "regularMarketPreviousClose,regularMarketVolume," +
-                           "longName,shortName,sector,industry,quoteType,marketState," +
+                           "regularMarketPreviousClose,regularMarketVolume,regularMarketTime," +
+                           "longName,shortName,sector,industry,quoteType,marketState,currency,marketCap," +
                            "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield," +
                            "dividendRate,dividendYield,dividendDate";
 
@@ -358,6 +363,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
         {
             Symbol        = q.Symbol,
             CompanyName   = q.LongName ?? q.ShortName ?? q.Symbol,
+            InstrumentType = q.QuoteType,
             CurrentPrice  = price,
             Change        = Math.Round(change, 2),
             ChangePercent = Math.Round(changePct, 2),
@@ -411,7 +417,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                            "&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent," +
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
                            "regularMarketPreviousClose,regularMarketVolume," +
-                           "longName,shortName,sector,industry,quoteType,marketState,dividendRate,dividendYield,dividendDate";
+                           "longName,shortName,sector,industry,quoteType,marketState,currency,marketCap," +
+                           "trailingPE,forwardPE,priceToBook,dividendRate,dividendYield,dividendDate";
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode) continue;
 

@@ -125,7 +125,7 @@ public sealed class ValueScreenerService(
             quotes.TryGetValue(sym, out var quote);
             fundamentals.TryGetValue(sym, out var snap);
             rsiMap.TryGetValue(sym, out var rsiResult);
-            results.Add(BuildResult(sym, origin, quote, snap, rsiResult));
+            results.Add(BuildResult(sym, origin, quote, snap, rsiResult, logger));
         }
 
         results.Sort((a, b) =>
@@ -138,9 +138,9 @@ public sealed class ValueScreenerService(
 
     // ── Scoring Engine ─────────────────────────────────────────────────────────
 
-    private ValueScreenerResult BuildResult(
+    internal static ValueScreenerResult BuildResult(
         string symbol, ValueOrigin origin,
-        StockQuote? quote, FundamentalsSnapshot? snap, RsiScanResult? rsiResult)
+        StockQuote? quote, FundamentalsSnapshot? snap, RsiScanResult? rsiResult, ILogger<ValueScreenerService> logger)
     {
         // ── Raw data ───────────────────────────────────────────────────────────
         decimal price       = quote?.CurrentPrice ?? snap?.Price ?? 0m;
@@ -158,7 +158,8 @@ public sealed class ValueScreenerService(
                         || sector.Contains("Insurance",  StringComparison.OrdinalIgnoreCase);
 
         // ── Fundamentals extraction ────────────────────────────────────────────
-        long   marketCap     = snap?.MarketCap > 0 ? snap.MarketCap : (long)(quote?.CurrentPrice * 1_000_000m ?? 0m);
+        var observedMarketCap = snap?.MarketCap > 0 ? snap.MarketCap : quote?.MarketCap > 0 ? quote.MarketCap : 0L;
+        long   marketCap     = observedMarketCap > 0 ? observedMarketCap : (long)(quote?.CurrentPrice * 1_000_000m ?? 0m);
         long   ev            = snap?.EnterpriseValue ?? 0L;
         long   ebit          = snap?.Ebit ?? 0L;
         long   fcf           = snap?.FreeCashFlow ?? 0L;
@@ -411,7 +412,7 @@ public sealed class ValueScreenerService(
                                : ebit != 0 && investedCapital > 0 ? "ROIC"
                                : roe != 0m ? "ROE" : "Proxy",
             PiotroskiSignalsAvailable = pioAvailable,
-            MarketCapFallbackUsed = !(snap?.MarketCap > 0) && marketCap > 0,
+            MarketCapFallbackUsed = observedMarketCap <= 0 && marketCap > 0,
             FundamentalsDataAvailable = snap?.DataAvailable ?? false,
         };
     }

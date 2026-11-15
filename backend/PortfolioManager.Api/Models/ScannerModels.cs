@@ -34,6 +34,7 @@ public class RsiScanResult
     public bool UsesUnderlyingSecurity { get; set; }
     public bool IntradayRangeReconstructed { get; set; }
     public string CompanyName { get; set; } = string.Empty;
+    public string? InstrumentType { get; set; }
     public decimal Rsi { get; set; }
     public decimal CurrentPrice { get; set; }
     public decimal Change { get; set; }

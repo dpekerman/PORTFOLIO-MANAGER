@@ -1,7 +1,7 @@
 namespace PortfolioManager.Api.Services.Opportunities;
 
 /// <summary>Verified | Provisional | Insufficient | Unavailable (docs/pm-029-trading-opportunities.md §3.3).</summary>
-public enum ScoreStatus { Verified, Provisional, Insufficient, Unavailable }
+public enum ScoreStatus { Verified, Provisional, Insufficient, Unavailable, NotEvaluated }
 
 /// <summary>Strong | Attractive | Moderate | Caution | Weak | None (N/A).</summary>
 public enum ScoreBand { None, Weak, Caution, Moderate, Attractive, Strong }
@@ -45,6 +45,7 @@ public sealed record ScoreResult(
 
 public static class OpportunityReasons
 {
+    public const string EtfScoringDeferred = "EtfScoringDeferred";
     public const string NoValidStop = "NoValidStop";
     public const string DynamicStopMissing = "DynamicStopMissing";
     public const string StopAtOrAboveEntry = "StopAtOrAboveEntry";

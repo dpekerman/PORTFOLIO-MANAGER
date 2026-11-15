@@ -240,6 +240,9 @@ public sealed class OpportunityService(
             scans.TryGetValue(m.Symbol, out var scan);
             valueByTicker.TryGetValue(m.Symbol, out var value);
             watchQuotes.TryGetValue(m.Symbol, out var wq);
+            var listingQuote = wq is not null && string.Equals(wq.Symbol, m.Symbol, StringComparison.OrdinalIgnoreCase) ? wq : null;
+            if (wq is not null && listingQuote is null)
+                logger.LogWarning("Ignoring listing name/type metadata for {Symbol}: cached quote identifies {QuoteSymbol}.", m.Symbol, wq.Symbol);
             var lots = basis.OpenHoldings.Where(h => string.Equals(h.Item.Symbol, m.Symbol, StringComparison.OrdinalIgnoreCase)).Select(h => h.Item).ToList();
             var providerSector = FirstUsable(scan?.Sector, wq?.Sector, value?.Sector);
             var classification = SectorClassificationResolver.Resolve(lots, providerSector, FirstUsable(wq?.Industry));
@@ -247,10 +250,11 @@ public sealed class OpportunityService(
             var exchange = TradingCalendar.ExchangeFor(analysisTicker, scan?.AnalysisMarket);
             var mapping = SectorClassificationResolver.FindBenchmark(mappings, classification.Sector, exchange);
             plans[m.Symbol] = new RowPlan(m, scan, value, lots, classification, analysisTicker, exchange, mapping,
-                TradingCalendar.LastCompletedSession(nowUtc, exchange));
+                TradingCalendar.LastCompletedSession(nowUtc, exchange),
+                listingQuote?.InstrumentType ?? (scan?.UsesUnderlyingSecurity == false ? scan.InstrumentType : null), listingQuote?.CompanyName);
         }
-        var historySymbols = plans.Values.Where(p => p.Mapping is not null && p.Scan is not null)
-            .SelectMany(p => new[] { p.AnalysisTicker, p.Mapping!.BenchmarkSymbol })
+        var historySymbols = plans.Values.Where(p => p.Scan is not null)
+            .SelectMany(p => p.Mapping is null ? new[] { p.AnalysisTicker } : new[] { p.AnalysisTicker, p.Mapping.BenchmarkSymbol })
             .Select(s => s.Trim().ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
         var histories = await LoadHistoriesAsync(historySymbols, ct);
         var failedBenchmarks = plans.Values.Where(p => p.Mapping is not null)
@@ -272,7 +276,7 @@ public sealed class OpportunityService(
             var setup = TradeSetupResolver.Resolve(p.Scan, p.ExpectedSession);
             var risk = TradeSetupResolver.AssessRisk(p.Scan, setup, p.ExpectedSession);
             var input = new OpportunityScoringInput(p.Scan, p.ExpectedSession, sector, setup, p.Value, DateTime.UtcNow,
-                IdentityResolved: !unresolved.Contains(p.Member.Symbol));
+                IdentityResolved: !unresolved.Contains(p.Member.Symbol), InstrumentType: p.InstrumentType);
             var swing = OpportunityScoringEngine.ScoreSwing(input);
             var strategic = OpportunityScoringEngine.ScoreStrategic(input);
 
@@ -282,6 +286,8 @@ public sealed class OpportunityService(
 
             var decisions = faRows.Where(r => string.Equals(r.Symbol, p.Member.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
             var row = BuildRow(p, swing, strategic, sector, setup, risk, fit, decisions, unresolved.Contains(p.Member.Symbol), valueOrigins);
+            row = row with { SetupQuality = SetupQualityCalculator.Evaluate(p.Scan,
+                histories.GetValueOrDefault(p.AnalysisTicker.Trim().ToUpperInvariant()), p.ExpectedSession, DateTime.UtcNow) };
             var evidence = BuildEvidence(p, valueOrigins, basis, evaluation, decisions);
             records.Add(new OpportunityDetailDto(0, row, swing, strategic, sector, setup, decisions,
                 savedPlans.GetValueOrDefault(p.Member.Symbol) ?? [], evidence));
@@ -301,7 +307,9 @@ public sealed class OpportunityService(
         string AnalysisTicker,
         MarketExchange Exchange,
         SectorBenchmarkMapping? Mapping,
-        DateOnly ExpectedSession);
+        DateOnly ExpectedSession,
+        string? InstrumentType,
+        string? ListingCompanyName);
 
     // ── Row mapping ───────────────────────────────────────────────────────────
 
@@ -318,8 +326,10 @@ public sealed class OpportunityService(
         var accounts = p.Lots.Select(l => l.AccountType ?? "").Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(a => a).ToList();
         var roles = p.Lots.Select(l => string.IsNullOrWhiteSpace(l.HoldingRole) ? "Strategic" : l.HoldingRole!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r).ToList();
-        var companyName = FirstUsable(scan?.CompanyName, p.Lots.Select(l => l.CompanyName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
-            m.IndexName, p.Value?.Description) ?? m.Symbol;
+        var nameCandidates = new[] { p.ListingCompanyName, scan?.UsesUnderlyingSecurity == true ? null : scan?.CompanyName }
+            .Concat(p.Lots.Select(l => l.CompanyName)).Concat([m.IndexName, p.Value?.Description]);
+        var companyName = FirstUsable(nameCandidates
+            .Where(name => !string.Equals(name?.Trim(), m.Symbol, StringComparison.OrdinalIgnoreCase)).ToArray()) ?? m.Symbol;
         var stale = scan is not null && scan.TradingDate != p.ExpectedSession;
         var rowStatus = unresolved ? "IdentityUnresolved" : scan is null ? "NoScan" : stale ? "StaleScan" : "Ok";
         var d20 = sector?.D20;
@@ -353,7 +363,7 @@ public sealed class OpportunityService(
                     d20?.IsAvailable == true ? d20.DisplayDiffPp : null, d60?.IsAvailable == true ? d60.DisplayDiffPp : null),
             new OpportunityFreshnessDto(scan?.TradingDate, p.ExpectedSession, scan?.ScannedAt, scan is null || stale,
                 p.Value?.AnalyzedAt, valueOrigin),
-            rowStatus);
+            rowStatus, p.InstrumentType);
     }
 
     private static OpportunityScoreSummaryDto Summary(ScoreResult s) =>

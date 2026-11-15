@@ -1,6 +1,14 @@
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
@@ -17,7 +25,12 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { map } from 'rxjs';
 import * as XLSX from 'xlsx';
-import { FitStatus, RiskCategory, ScorePerspective, SectorHeatDirection } from '../../core/models/opportunities.models';
+import {
+  FitStatus,
+  RiskCategory,
+  ScorePerspective,
+  SectorHeatDirection,
+} from '../../core/models/opportunities.models';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { GridColumnStore } from '../../core/store/grid-column.store';
 import {
@@ -82,12 +95,17 @@ export class TradingOpportunitiesPageComponent {
 
   protected readonly gridId = OPPORTUNITIES_GRID_ID;
   protected readonly sidePanel = toSignal(
-    inject(BreakpointObserver).observe(SIDE_PANEL_QUERY).pipe(map((s) => s.matches)),
+    inject(BreakpointObserver)
+      .observe(SIDE_PANEL_QUERY)
+      .pipe(map((s) => s.matches)),
     { initialValue: true },
   );
-  private readonly querySymbol = toSignal(this.route.queryParamMap.pipe(map((p) => p.get('symbol'))), {
-    initialValue: null,
-  });
+  private readonly querySymbol = toSignal(
+    this.route.queryParamMap.pipe(map((p) => p.get('symbol'))),
+    {
+      initialValue: null,
+    },
+  );
 
   protected readonly includeAccounts = signal(false);
   protected readonly manualRScenarios = signal<Record<string, ManualRValues>>({});
@@ -98,7 +116,8 @@ export class TradingOpportunitiesPageComponent {
   protected readonly selectedManualR = computed(() => {
     const symbol = this.store.selectedSymbol();
     return symbol
-      ? (this.manualRScenarios()[manualRScenarioKey(symbol, this.view().perspective)] ?? EMPTY_MANUAL_R)
+      ? (this.manualRScenarios()[manualRScenarioKey(symbol, this.view().perspective)] ??
+          EMPTY_MANUAL_R)
       : EMPTY_MANUAL_R;
   });
 
@@ -117,7 +136,9 @@ export class TradingOpportunitiesPageComponent {
       this.manualRScenarios(),
     ),
   );
-  protected readonly summary = computed(() => exclusionSummary(this.store.rows(), this.filterInput()));
+  protected readonly summary = computed(() =>
+    exclusionSummary(this.store.rows(), this.filterInput()),
+  );
   protected readonly panelOpen = computed(() => this.store.selectedSymbol() !== null);
   protected readonly emptyState = computed(() => {
     const view = this.view();
@@ -136,19 +157,39 @@ export class TradingOpportunitiesPageComponent {
       };
     }
     if (this.hasActiveFilters()) {
-      return { message: 'No securities match the current filters.', actionLabel: 'Reset filters', action: 'reset' as const };
+      return {
+        message: 'No securities match the current filters.',
+        actionLabel: 'Reset filters',
+        action: 'reset' as const,
+      };
     }
-    return { message: 'No securities are available in this snapshot.', actionLabel: null, action: null };
+    return {
+      message: 'No securities are available in this snapshot.',
+      actionLabel: null,
+      action: null,
+    };
   });
 
-  protected readonly sectorOptions = computed(() => uniqueSorted(this.store.rows().map((r) => r.sector ?? 'Unclassified')));
-  protected readonly industryOptions = computed(() => uniqueSorted(this.store.rows().map((r) => r.industry ?? 'Unclassified')));
-  protected readonly accountOptions = computed(() => uniqueSorted(this.store.rows().flatMap((r) => r.accounts)));
-  protected readonly roleOptions = computed(() =>
-    uniqueSorted(this.store.rows().flatMap((r) => [...r.roles, ...(r.watchlistRole ? [r.watchlistRole] : [])])),
+  protected readonly sectorOptions = computed(() =>
+    uniqueSorted(this.store.rows().map((r) => r.sector ?? 'Unclassified')),
   );
-  protected readonly finalActionOptions = computed(() => uniqueSorted(this.store.rows().map(finalActionFilterLabel)));
-  protected readonly sourceOptions = computed(() => uniqueSorted(this.store.rows().flatMap((r) => r.sources)));
+  protected readonly industryOptions = computed(() =>
+    uniqueSorted(this.store.rows().map((r) => r.industry ?? 'Unclassified')),
+  );
+  protected readonly accountOptions = computed(() =>
+    uniqueSorted(this.store.rows().flatMap((r) => r.accounts)),
+  );
+  protected readonly roleOptions = computed(() =>
+    uniqueSorted(
+      this.store.rows().flatMap((r) => [...r.roles, ...(r.watchlistRole ? [r.watchlistRole] : [])]),
+    ),
+  );
+  protected readonly finalActionOptions = computed(() =>
+    uniqueSorted(this.store.rows().map(finalActionFilterLabel)),
+  );
+  protected readonly sourceOptions = computed(() =>
+    uniqueSorted(this.store.rows().flatMap((r) => r.sources)),
+  );
   protected readonly riskOptions: { value: RiskCategory; label: string }[] = [
     { value: 'Low', label: 'Low' },
     { value: 'Medium', label: 'Medium' },
@@ -177,8 +218,16 @@ export class TradingOpportunitiesPageComponent {
   protected readonly scoreFilterOptions = computed(() => {
     const c = this.store.config();
     return [
-      { value: 'attractive' as ScoreFilter, label: c ? `Attractive (${c.attractiveMin}+)` : 'Attractive', disabled: !c },
-      { value: 'moderate' as ScoreFilter, label: c ? `Moderate (${c.moderateMin}+)` : 'Moderate', disabled: !c },
+      {
+        value: 'attractive' as ScoreFilter,
+        label: c ? `Attractive (${c.attractiveMin}+)` : 'Attractive',
+        disabled: !c,
+      },
+      {
+        value: 'moderate' as ScoreFilter,
+        label: c ? `Moderate (${c.moderateMin}+)` : 'Moderate',
+        disabled: !c,
+      },
       { value: 'scored' as ScoreFilter, label: 'All scored', disabled: false },
       { value: 'all' as ScoreFilter, label: 'All (incl. unavailable)', disabled: false },
     ];
@@ -203,7 +252,8 @@ export class TradingOpportunitiesPageComponent {
       v.verifiedOnly ||
       v.showUnavailable ||
       this.store.search().trim() !== '' ||
-      this.store.reasonFilter() !== null
+      this.store.reasonFilter() !== null ||
+      (v.perspective === 'Swing' && v.setupQuality.length > 0)
     );
   });
 
@@ -264,7 +314,9 @@ export class TradingOpportunitiesPageComponent {
     this.selectSymbol(null);
     if (symbol) {
       // Return focus to the row that opened the panel.
-      queueMicrotask(() => document.querySelector<HTMLElement>(`tr[data-symbol="${CSS.escape(symbol)}"]`)?.focus());
+      queueMicrotask(() =>
+        document.querySelector<HTMLElement>(`tr[data-symbol="${CSS.escape(symbol)}"]`)?.focus(),
+      );
     }
   }
 
@@ -276,7 +328,10 @@ export class TradingOpportunitiesPageComponent {
   }
 
   protected onEscape(): void {
-    if (this.panelOpen() && !document.querySelector('.cdk-overlay-container .mat-mdc-dialog-container')) {
+    if (
+      this.panelOpen() &&
+      !document.querySelector('.cdk-overlay-container .mat-mdc-dialog-container')
+    ) {
       this.closePanel();
     }
   }

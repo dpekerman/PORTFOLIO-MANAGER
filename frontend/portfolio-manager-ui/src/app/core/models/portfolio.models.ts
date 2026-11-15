@@ -64,6 +64,7 @@ export interface PeriodChange {
 }
 
 export interface StockQuote {
+  instrumentType?: string | null;
   symbol: string;
   companyName: string;
   currentPrice: number;
@@ -267,6 +268,7 @@ export type ChannelState =
   | 'CHANNEL_BROKEN';
 
 export interface RsiScanResult {
+  instrumentType?: string | null;
   symbol: string;
   analysisTicker?: string;
   analysisMarket?: string;
@@ -815,11 +817,7 @@ export interface EodSignalsMeta {
 // ── Portfolio Value History ────────────────────────────────────────────────────
 /** What last wrote/recomputed a snapshot row. Mirrors backend PortfolioValueSource. */
 export type PortfolioValueSource =
-  | 'EodAuto'
-  | 'ManualRecordNow'
-  | 'SameDayReseal'
-  | 'CashRecalculation'
-  | 'Migration';
+  'EodAuto' | 'ManualRecordNow' | 'SameDayReseal' | 'CashRecalculation' | 'Migration';
 
 /** Derived display status — Original/Resealed/CashRecalculated come from persisted audit fields;
  * PendingReseal is the one transient state computed from live backend state (today's row only). */
@@ -909,19 +907,9 @@ export interface SetupRequiredResponse {
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 export type AutomationOverallStatus =
-  | 'Running'
-  | 'Success'
-  | 'PartialSuccess'
-  | 'Failed'
-  | 'SkippedNonTradingDay'
-  | 'Cancelled';
+  'Running' | 'Success' | 'PartialSuccess' | 'Failed' | 'SkippedNonTradingDay' | 'Cancelled';
 export type AutomationStepStatus =
-  | ''
-  | 'Succeeded'
-  | 'Failed'
-  | 'NotEligible'
-  | 'NotScheduled'
-  | 'NotObserved';
+  '' | 'Succeeded' | 'Failed' | 'NotEligible' | 'NotScheduled' | 'NotObserved';
 export type AutomationTriggerType = 'Scheduled' | 'ManualRunNow' | 'TestWake';
 
 export interface AutomationRunLogDto {
@@ -1233,9 +1221,7 @@ export interface PortfolioActionDto {
 }
 
 export type ActionResolutionStatus =
-  | 'Resolved'
-  | 'OwnershipActionNotCalculated'
-  | 'OwnershipActionNotApplicable';
+  'Resolved' | 'OwnershipActionNotCalculated' | 'OwnershipActionNotApplicable';
 
 export interface DashboardEodSummaryRow {
   symbol: string;
@@ -1319,12 +1305,7 @@ export interface ActionScoreDto {
 
 // ── Market Leadership ────────────────────────────────────────────────────────────
 export type MarketLeadershipTrackerType =
-  | 'ETF'
-  | 'Theme'
-  | 'Future'
-  | 'Commodity'
-  | 'SectorProxy'
-  | 'Other';
+  'ETF' | 'Theme' | 'Future' | 'Commodity' | 'SectorProxy' | 'Other';
 
 export interface CreateMarketLeadershipTrackerRequest {
   symbol: string;
@@ -1887,7 +1868,8 @@ export interface SignalTransactionCandidate {
 export type SignalOriginFilter = 'All' | 'Live' | 'INITIAL_BASELINE';
 
 /** System lifecycle of a recommendation. Independent of the user's response (`SignalMyAction`). */
-export type RecommendationStatus = 'Active' | 'Acted' | 'Dismissed' | 'Expired' | 'Invalidated' | 'Superseded';
+export type RecommendationStatus =
+  'Active' | 'Acted' | 'Dismissed' | 'Expired' | 'Invalidated' | 'Superseded';
 export type SignalStatusFilter = 'All' | 'Open' | 'Closed' | RecommendationStatus;
 
 export type OpenDecisionBucket = 'EntryAdd' | 'TrimExit' | 'RiskReview';

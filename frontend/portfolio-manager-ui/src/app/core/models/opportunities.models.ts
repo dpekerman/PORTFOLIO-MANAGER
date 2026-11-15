@@ -2,7 +2,31 @@
 // Every value is computed server-side per refresh and stored in an immutable snapshot; nothing here is a prototype literal.
 import { FinalActionResult } from './portfolio.models';
 
-export type ScoreStatus = 'Verified' | 'Provisional' | 'Insufficient' | 'Unavailable';
+export type ScoreStatus =
+  'Verified' | 'Provisional' | 'Insufficient' | 'Unavailable' | 'NotEvaluated';
+export type SetupQualityStatus = 'Good' | 'Caution' | 'Poor' | 'Unavailable';
+
+export interface SetupQuality {
+  status: SetupQualityStatus;
+  policyVersion: string;
+  policyApproved: boolean;
+  currency: string | null;
+  entry: number | null;
+  proposedStop: number | null;
+  support: number | null;
+  supportSession: string | null;
+  atr: number | null;
+  proposedTarget: number | null;
+  targetSource: string | null;
+  credibleTarget: number | null;
+  resistance: number | null;
+  resistanceSession: string | null;
+  marketRewardRisk: number | null;
+  conservativeRewardRisk: number | null;
+  expectedSession: string;
+  evidenceAsOfUtc: string | null;
+  reasonCodes: string[];
+}
 export type ScoreBand = 'None' | 'Weak' | 'Caution' | 'Moderate' | 'Attractive' | 'Strong';
 export type ComponentState = 'Observed' | 'Partial' | 'Missing';
 export type ScorePerspective = 'Swing' | 'Strategic';
@@ -121,6 +145,8 @@ export interface OpportunityFreshness {
 }
 
 export interface OpportunityRow {
+  instrumentType?: string | null;
+  setupQuality?: SetupQuality | null;
   symbol: string;
   companyName: string;
   analysisTicker: string | null;

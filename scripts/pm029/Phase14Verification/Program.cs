@@ -4,11 +4,13 @@ using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services.Opportunities;
 using PortfolioManager.Api.Services.Valuation;
 
-if (args.Length != 3 || args[0] is not ("shadow" or "replay"))
+if (args.Length != 3 || args[0] is not ("shadow" or "replay" or "capture"))
 {
-    Console.Error.WriteLine("Usage: Phase14Verification <shadow|replay> <input.json> <new-output.json>");
+    Console.Error.WriteLine("Usage: Phase14Verification <shadow|replay> <input.json> <new-output.json>; capture <scorer-working-tree-id> <new-directory>");
     return 2;
 }
+if (args[0] == "capture")
+    return await BoundedMarketCapture.RunAsync(args[1], args[2]);
 var json = new JsonSerializerOptions(JsonSerializerDefaults.Web)
 {
     WriteIndented = true, Converters = { new JsonStringEnumConverter() }

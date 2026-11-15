@@ -7,6 +7,7 @@ public class StockQuote
 {
     public string Symbol { get; set; } = string.Empty;
     public string CompanyName { get; set; } = string.Empty;
+    public string? InstrumentType { get; set; }
     public decimal CurrentPrice { get; set; }
     public decimal Change { get; set; }
     public decimal ChangePercent { get; set; }

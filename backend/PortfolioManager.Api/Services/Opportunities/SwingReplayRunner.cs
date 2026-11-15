@@ -14,7 +14,9 @@ public sealed record SwingReplayListing(
     string? HistorySource, DateTimeOffset? HistoryAvailableAtUtc,
     ImmutableArray<MarketDailyClose> AnalysisHistory,
     ImmutableArray<MarketDailyClose> BenchmarkHistory,
-    string ListingIdentitySource, DateTimeOffset IdentityAvailableAtUtc);
+    string ListingIdentitySource, DateTimeOffset IdentityAvailableAtUtc,
+    ValueScreenerResult? Fundamentals = null, string? InstrumentType = null,
+    string? FundamentalsSource = null, DateTimeOffset? FundamentalsAvailableAtUtc = null);
 
 public sealed record SwingReplayPackage(
     string DatasetKind, string ScorerCommit, DateTimeOffset AsOfUtc,
@@ -23,7 +25,8 @@ public sealed record SwingReplayPackage(
 public sealed record SwingReplayRow(
     string ListingId, string Symbol, ScoreResult Score,
     SectorRelativeResult? Sector, TradeSetupResult Setup,
-    ImmutableArray<string> PackageIssueCodes);
+    ImmutableArray<string> PackageIssueCodes,
+    ScoreResult? Strategic = null, SetupQualityResult? SetupQuality = null);
 
 public sealed record SwingReplayResult(
     string DatasetKind, string ScorerCommit, DateTimeOffset AsOfUtc,
@@ -135,7 +138,23 @@ public sealed class SwingReplayRunner : ISwingReplayRunner
         var fatalIssues = issues.Any(issue => issue != "BenchmarkEvidenceUnavailable");
         var setup = TradeSetupResolver.Resolve(scan, row.ExpectedSession);
         var score = OpportunityScoringEngine.ScoreSwing(new(scan, row.ExpectedSession, sector, setup,
-            null, asOfUtc.UtcDateTime, EvaluationFailed: fatalIssues));
-        return new(row.ListingId, row.Symbol, score, sector, setup, issues.ToImmutable());
+            null, asOfUtc.UtcDateTime, EvaluationFailed: fatalIssues, InstrumentType: row.InstrumentType));
+        var fundamentals = row.Fundamentals;
+        if (fundamentals is not null && (!string.Equals(fundamentals.Symbol, row.Symbol, StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(row.FundamentalsSource)
+            || row.FundamentalsAvailableAtUtc is null || row.FundamentalsAvailableAtUtc > asOfUtc
+            || fundamentals.AnalyzedAt.Kind != DateTimeKind.Utc
+            || row.FundamentalsAvailableAtUtc.Value.UtcDateTime < fundamentals.AnalyzedAt))
+        {
+            issues.Add("FundamentalsProvenanceUnverified");
+            fundamentals = null;
+        }
+        var strategic = OpportunityScoringEngine.ScoreStrategic(new(scan, row.ExpectedSession, sector, setup,
+            fundamentals, asOfUtc.UtcDateTime, EvaluationFailed: fatalIssues, InstrumentType: row.InstrumentType));
+        var structuralHistoryVerified = !row.AnalysisHistory.IsDefaultOrEmpty && !string.IsNullOrWhiteSpace(row.HistorySource)
+            && row.HistoryAvailableAtUtc is { } available && available != default && available <= asOfUtc;
+        var quality = SetupQualityCalculator.Evaluate(scan, structuralHistoryVerified ? row.AnalysisHistory : null,
+            row.ExpectedSession, asOfUtc.UtcDateTime);
+        return new(row.ListingId, row.Symbol, score, sector, setup, issues.ToImmutable(), strategic, quality);
     }
 }

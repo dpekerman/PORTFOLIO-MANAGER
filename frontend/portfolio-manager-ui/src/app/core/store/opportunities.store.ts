@@ -2,7 +2,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { computed, effect, inject, untracked } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { tapResponse } from '@ngrx/operators';
-import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
+import {
+  patchState,
+  signalStore,
+  withComputed,
+  withHooks,
+  withMethods,
+  withState,
+} from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { EMPTY, catchError, exhaustMap, filter, pipe, switchMap, tap } from 'rxjs';
 import {
@@ -13,10 +20,16 @@ import {
   RiskCategory,
   ScorePerspective,
   SectorHeatDirection,
+  SetupQualityStatus,
 } from '../models/opportunities.models';
 import { OpportunitiesApiService } from '../services/opportunities-api.service';
 import { onceAuthenticated } from './features/auth-gate';
-import { setError, setLoaded, setLoading, withRequestStatus } from './features/request-status.feature';
+import {
+  setError,
+  setLoaded,
+  setLoading,
+  withRequestStatus,
+} from './features/request-status.feature';
 import { UserPreferencesStore } from './user-preferences.store';
 
 export const OPPORTUNITIES_VIEW_KEY = 'pm_opportunities_view_v1';
@@ -56,6 +69,7 @@ export interface OpportunityView {
   ownership: OwnershipFilter;
   sources: string[];
   heat: SectorHeatDirection[];
+  setupQuality: SetupQualityStatus[];
   sort: OpportunitySort;
 }
 
@@ -80,6 +94,7 @@ export const DEFAULT_OPPORTUNITY_VIEW: OpportunityView = {
   ownership: 'all',
   sources: [],
   heat: [],
+  setupQuality: [],
   sort: { active: 'swing', direction: 'desc' },
 };
 
@@ -126,7 +141,11 @@ export function normaliseView(
 ): OpportunityView {
   const perspective =
     perspectiveFallback ??
-    (value?.perspective === 'Strategic' ? 'Strategic' : value?.perspective === 'Swing' ? 'Swing' : 'Swing');
+    (value?.perspective === 'Strategic'
+      ? 'Strategic'
+      : value?.perspective === 'Swing'
+        ? 'Swing'
+        : 'Swing');
   const defaults = defaultOpportunityView(perspective);
   if (!value || typeof value !== 'object') return defaults;
   const sort = { ...defaults.sort, ...(value.sort ?? {}) };
@@ -134,6 +153,11 @@ export function normaliseView(
   return {
     ...defaults,
     ...value,
+    setupQuality: Array.isArray(value.setupQuality)
+      ? value.setupQuality.filter((quality) =>
+          ['Good', 'Caution', 'Poor', 'Unavailable'].includes(quality),
+        )
+      : [],
     perspective,
     sort,
   };
@@ -149,13 +173,26 @@ export function normaliseViewPreferences(value: unknown): OpportunityViewPrefere
   const legacyView = { ...record };
   delete legacyView['profiles'];
   const savedProfiles = isRecord(record['profiles']) ? record['profiles'] : {};
-  const perspective: ScorePerspective = record['perspective'] === 'Strategic' ? 'Strategic' : 'Swing';
+  const perspective: ScorePerspective =
+    record['perspective'] === 'Strategic' ? 'Strategic' : 'Swing';
   const swing = isRecord(savedProfiles['Swing'])
     ? normaliseView(savedProfiles['Swing'] as Partial<OpportunityView>, 'Swing')
-    : normaliseView(legacyView as Partial<OpportunityView>, 'Swing');
+    : normaliseView(
+        {
+          ...legacyView,
+          sort: perspective === 'Swing' ? legacyView['sort'] : undefined,
+        } as Partial<OpportunityView>,
+        'Swing',
+      );
   const strategic = isRecord(savedProfiles['Strategic'])
     ? normaliseView(savedProfiles['Strategic'] as Partial<OpportunityView>, 'Strategic')
-    : normaliseView(legacyView as Partial<OpportunityView>, 'Strategic');
+    : normaliseView(
+        {
+          ...legacyView,
+          sort: perspective === 'Strategic' ? legacyView['sort'] : undefined,
+        } as Partial<OpportunityView>,
+        'Strategic',
+      );
   return {
     perspective,
     profiles: {
@@ -311,21 +348,33 @@ export const OpportunitiesStore = signalStore(
                   patchState(store, { refreshing: false });
                   applySnapshot(snapshot);
                   if (snapshot.status === 'Partial') {
-                    snackBar.open('Refreshed with warnings — some evidence is unavailable.', 'Close', { duration: 6000 });
+                    snackBar.open(
+                      'Refreshed with warnings — some evidence is unavailable.',
+                      'Close',
+                      { duration: 6000 },
+                    );
                   }
                 },
                 error: (err: unknown) => {
                   patchState(store, { refreshing: false });
                   if (err instanceof HttpErrorResponse && err.status === 409) {
-                    snackBar.open('A refresh is already running. Results will appear when it finishes.', 'Close', {
-                      duration: 5000,
-                    });
+                    snackBar.open(
+                      'A refresh is already running. Results will appear when it finishes.',
+                      'Close',
+                      {
+                        duration: 5000,
+                      },
+                    );
                     polls = 0;
                     pollTimer = setTimeout(() => load(), REFRESH_POLL_MS);
                   } else {
-                    snackBar.open('Refresh failed — the last successful snapshot is still shown.', 'Close', {
-                      duration: 6000,
-                    });
+                    snackBar.open(
+                      'Refresh failed — the last successful snapshot is still shown.',
+                      'Close',
+                      {
+                        duration: 6000,
+                      },
+                    );
                     load();
                   }
                 },
@@ -355,7 +404,12 @@ export const OpportunitiesStore = signalStore(
 
         select(symbol: string | null): void {
           if (symbol === store.selectedSymbol()) return;
-          patchState(store, { selectedSymbol: symbol, detail: null, detailError: null, detailLoading: false });
+          patchState(store, {
+            selectedSymbol: symbol,
+            detail: null,
+            detailError: null,
+            detailLoading: false,
+          });
           if (symbol) detailRequest({ symbol, snapshotId: store.snapshot()?.snapshotId ?? null });
         },
 
@@ -373,7 +427,11 @@ export const OpportunitiesStore = signalStore(
 
         resetFilters(): void {
           patchState(store, (s) => {
-            const reset = { ...DEFAULT_OPPORTUNITY_VIEW, perspective: s.view.perspective, sort: s.view.sort };
+            const reset = {
+              ...DEFAULT_OPPORTUNITY_VIEW,
+              perspective: s.view.perspective,
+              sort: s.view.sort,
+            };
             return {
               view: reset,
               viewProfiles: { ...s.viewProfiles, [reset.perspective]: reset },

@@ -157,6 +157,32 @@ public sealed class Pm029OpportunityServiceTests
         }
     }
 
+    [Theory]
+    [InlineData("EEE.TO", "Verified synthetic listing", true)]
+    [InlineData("OTHER", "Underlying company", false)]
+    [InlineData("EEE.TO", " eee.to ", true)]
+    public async Task Refresh_UsesListingMetadataOnlyForMatchingIdentity_AndSkipsTickerNames(
+        string quoteSymbol, string quoteName, bool matches)
+    {
+        var f = await SetUpAsync();
+        var baseline = (await f.Service.RefreshAsync("u")).Rows.Single(row => row.Symbol == "EEE.TO");
+        f.Db.WatchlistSnapshots.Add(new WatchlistSnapshot
+        {
+            UserId = "u",
+            SnapshotJson = JsonSerializer.Serialize(new[]
+            {
+                new { Item = new { Symbol = "EEE.TO" }, Quote = new { Symbol = quoteSymbol, CompanyName = quoteName, InstrumentType = "ETF" } }
+            }, OpportunityService.Json)
+        });
+        await f.Db.SaveChangesAsync();
+        var row = (await f.Service.RefreshAsync("u")).Rows.Single(row => row.Symbol == "EEE.TO");
+        var nameIsTicker = string.Equals(quoteName.Trim(), row.Symbol, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(matches && !nameIsTicker ? quoteName : baseline.CompanyName, row.CompanyName);
+        Assert.Equal(matches ? "ETF" : baseline.InstrumentType, row.InstrumentType);
+        Assert.Equal(matches ? "NotEvaluated" : baseline.Swing.Status, row.Swing.Status);
+        Assert.Equal(JsonSerializer.Serialize(baseline.FinalAction), JsonSerializer.Serialize(row.FinalAction));
+    }
+
     [Fact]
     public async Task Refresh_ComputesSectorHeatFromHistories_AndShowsTheSavedPlanSeparately()
     {

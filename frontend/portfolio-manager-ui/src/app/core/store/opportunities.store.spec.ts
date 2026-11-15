@@ -98,7 +98,9 @@ describe('OpportunitiesStore', () => {
   });
 
   it('auto-refreshes when no snapshot exists yet, but not while another refresh is in flight', () => {
-    api.getLatest.mockReturnValue(of(opportunitySnapshot([], { snapshotId: null, refreshInFlight: true })));
+    api.getLatest.mockReturnValue(
+      of(opportunitySnapshot([], { snapshotId: null, refreshInFlight: true })),
+    );
     loaded();
     expect(api.refresh).not.toHaveBeenCalled();
   });
@@ -153,7 +155,11 @@ describe('OpportunitiesStore', () => {
 
     expect(s.snapshot()?.snapshotId).toBe(11);
     expect(s.refreshing()).toBe(false);
-    expect(snackBar.open).toHaveBeenCalledWith(expect.stringContaining('last successful snapshot'), 'Close', expect.anything());
+    expect(snackBar.open).toHaveBeenCalledWith(
+      expect.stringContaining('last successful snapshot'),
+      'Close',
+      expect.anything(),
+    );
   });
 
   it('polls instead of starting a second refresh when one is already running (409)', () => {
@@ -162,7 +168,11 @@ describe('OpportunitiesStore', () => {
     api.refresh.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 409 })));
 
     s.refresh();
-    expect(snackBar.open).toHaveBeenCalledWith(expect.stringContaining('already running'), 'Close', expect.anything());
+    expect(snackBar.open).toHaveBeenCalledWith(
+      expect.stringContaining('already running'),
+      'Close',
+      expect.anything(),
+    );
     expect(api.getLatest).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(REFRESH_POLL_MS);
@@ -177,10 +187,16 @@ describe('OpportunitiesStore', () => {
     expect(s.view().sort.active).toBe('strategic');
 
     expect(JSON.parse(localStorage.getItem(OPPORTUNITIES_VIEW_KEY)!).perspective).toBe('Strategic');
-    expect(JSON.parse(localStorage.getItem(OPPORTUNITIES_VIEW_KEY)!).profiles.Strategic.scoreFilter).toBe('all');
+    expect(
+      JSON.parse(localStorage.getItem(OPPORTUNITIES_VIEW_KEY)!).profiles.Strategic.scoreFilter,
+    ).toBe('all');
     expect(userPrefs.set).toHaveBeenCalledWith(
       OPPORTUNITIES_VIEW_KEY,
-      expect.objectContaining({ profiles: expect.objectContaining({ Strategic: expect.objectContaining({ scoreFilter: 'all' }) }) }),
+      expect.objectContaining({
+        profiles: expect.objectContaining({
+          Strategic: expect.objectContaining({ scoreFilter: 'all' }),
+        }),
+      }),
     );
 
     s.setSearch('aaa');
@@ -225,8 +241,21 @@ describe('OpportunitiesStore', () => {
     expect(normaliseView(null, 'Strategic').sort.active).toBe('strategic');
   });
 
+  it('does not leak a legacy explicit Swing sort into the new Strategic profile', () => {
+    const migrated = normaliseViewPreferences({
+      perspective: 'Swing',
+      sort: { active: 'symbol', direction: 'asc' },
+    });
+    expect(migrated.profiles.Swing.sort).toEqual({ active: 'symbol', direction: 'asc' });
+    expect(migrated.profiles.Strategic.sort).toEqual({ active: 'strategic', direction: 'desc' });
+  });
+
   it('migrates a legacy view to both perspective profiles and preserves explicit profile differences', () => {
-    const legacy = normaliseViewPreferences({ perspective: 'Strategic', scoreFilter: 'scored', sectors: ['Tech'] });
+    const legacy = normaliseViewPreferences({
+      perspective: 'Strategic',
+      scoreFilter: 'scored',
+      sectors: ['Tech'],
+    });
     expect(legacy.perspective).toBe('Strategic');
     expect(legacy.profiles.Swing.scoreFilter).toBe('scored');
     expect(legacy.profiles.Swing.sort.active).toBe('swing');

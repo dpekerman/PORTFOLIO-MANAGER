@@ -119,7 +119,9 @@ public sealed record OpportunityRowDto(
     OpportunityIndicatorsDto Indicators,
     OpportunityFreshnessDto Freshness,
     /// <summary>Ok | IdentityUnresolved | NoScan | StaleScan.</summary>
-    string RowStatus);
+    string RowStatus,
+    string? InstrumentType = null,
+    SetupQualityResult? SetupQuality = null);
 
 /// <summary>"Your saved risk plan" — display only, never scored, in the trading-security currency.</summary>
 public sealed record SavedRiskPlanDto(

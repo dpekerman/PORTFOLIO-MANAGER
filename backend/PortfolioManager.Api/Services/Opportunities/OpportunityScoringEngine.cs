@@ -12,7 +12,8 @@ public sealed record OpportunityScoringInput(
     ValueScreenerResult? Value,
     DateTime NowUtc,
     bool IdentityResolved = true,
-    bool EvaluationFailed = false);
+    bool EvaluationFailed = false,
+    string? InstrumentType = null);
 
 /// <summary>
 /// Deterministic pm029-v2 Swing and pm029-v1 Strategic scoring (docs/pm-029-trading-opportunities.md §3). Pure: same input ⇒ same output.
@@ -41,6 +42,11 @@ public static class OpportunityScoringEngine
             : OpportunityScoringConfig.StrategicVersion;
         if (!input.IdentityResolved) return Unavailable(perspective, version, OpportunityReasons.IdentityUnresolved);
         if (input.EvaluationFailed) return Unavailable(perspective, version, OpportunityReasons.EvaluationFailed);
+        var instrument = input.InstrumentType ?? (input.Scan?.UsesUnderlyingSecurity == false ? input.Scan.InstrumentType : null);
+        if (instrument?.Trim().ToUpperInvariant() is "ETF" or "MUTUALFUND" or "CLOSEDENDFUND")
+            return new(perspective, version, null, null, 0m, 0m, 0m, ScoreStatus.NotEvaluated,
+                ScoreBand.None, [], [OpportunityReasons.EtfScoringDeferred],
+                perspective == ScorePerspective.Swing ? OpportunityScoringConfig.SwingDenominatorMax : null);
         if (input.Scan is null) return Unavailable(perspective, version, OpportunityReasons.NoScan);
         if (input.Scan.TradingDate != input.ExpectedSession)
             return Unavailable(perspective, version, OpportunityReasons.StaleScan);
