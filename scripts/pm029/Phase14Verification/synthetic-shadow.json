@@ -1,0 +1,103 @@
+{
+  "coveredFrom": "2025-11-26",
+  "coveredThrough": "2025-11-26",
+  "calendar": [
+    { "date": "2025-11-26", "isPublicationSession": true, "expectedPublicationAtUtc": "2025-11-26T21:30:00Z" }
+  ],
+  "request": {
+    "datasetKind": "Synthetic",
+    "asOfUtc": "2025-11-26T22:00:00Z",
+    "session": "2025-11-26",
+    "requestingUserId": "test-user",
+    "accountScope": "Consolidated",
+    "maximumFxPublicationSessions": 3,
+    "securities": [
+      {
+        "id": "stock:cad", "ownerId": "test-user", "accountType": "Account",
+        "symbol": "CAD-LISTING", "sector": "Technology", "investmentRole": "Swing", "quantity": 10,
+        "listingCurrency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" },
+        "quoteCurrency": "CAD", "quotePrice": 100, "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00Z", "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26", "expectedSessionCloseUtc": "2025-11-26T21:00:00Z"
+      },
+      {
+        "id": "stock:usd", "ownerId": "test-user", "accountType": "Account",
+        "symbol": "USD-LISTING", "sector": "Technology", "investmentRole": "Swing", "quantity": 10,
+        "listingCurrency": { "currencyCode": "USD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" },
+        "quoteCurrency": "USD", "quotePrice": 100, "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00Z", "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26", "expectedSessionCloseUtc": "2025-11-26T21:00:00Z"
+      }
+    ],
+    "cash": {
+      "asOfUtc": "2025-11-26T21:00:00Z", "completeThroughSession": "2025-11-26", "source": "Synthetic complete ledger",
+      "entries": [
+        {
+          "id": "opening", "ownerId": null, "accountId": "shared", "accountType": "Account",
+          "signedAmount": 500, "effectiveDate": "2025-11-26", "recordedAtUtc": "2025-11-26T21:00:00Z",
+          "cashFlowType": "OpeningBalance",
+          "currency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" }
+        },
+        {
+          "id": "deposit", "ownerId": null, "accountId": "shared", "accountType": "Account",
+          "signedAmount": 200, "effectiveDate": "2025-11-26", "recordedAtUtc": "2025-11-26T21:00:00Z",
+          "cashFlowType": "Deposit",
+          "currency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" }
+        },
+        {
+          "id": "purchase", "ownerId": null, "accountId": "shared", "accountType": "Account",
+          "signedAmount": -200, "effectiveDate": "2025-11-26", "recordedAtUtc": "2025-11-26T21:00:00Z",
+          "cashFlowType": "TradePurchase", "sourceType": "PortfolioOpen", "sourceItemId": 1,
+          "currency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" }
+        },
+        {
+          "id": "usd-opening", "ownerId": "test-user", "accountId": "account-1", "accountType": "Account",
+          "signedAmount": 200, "effectiveDate": "2025-11-26", "recordedAtUtc": "2025-11-26T21:00:00Z",
+          "cashFlowType": "OpeningBalance",
+          "currency": { "currencyCode": "USD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" }
+        }
+      ]
+    },
+    "options": [
+      {
+        "id": "option:long", "ownerId": "test-user", "accountId": "account-1", "accountType": "Account",
+        "contractId": "synthetic-long", "symbol": "OPTION-UNDERLYING", "investmentRole": "Options",
+        "contractType": "CALL", "positionSide": "LONG", "state": "Open", "signedOpenContracts": 2,
+        "positionAsOfUtc": "2025-11-26T21:00:00Z", "positionSource": "Synthetic broker position",
+        "currency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" },
+        "multiplier": 10, "termsSource": "Synthetic contract terms", "termsVerifiedAtUtc": "2025-11-26T21:00:00Z",
+        "quoteCurrency": "CAD", "markPrice": 1, "quoteSource": "Synthetic quote", "quoteAsOfUtc": "2025-11-26T21:00:00Z",
+        "quoteSession": "2025-11-26", "expectedSession": "2025-11-26", "expectedSessionCloseUtc": "2025-11-26T21:00:00Z"
+      },
+      {
+        "id": "option:short", "ownerId": "test-user", "accountId": "account-1", "accountType": "Account",
+        "contractId": "synthetic-short", "symbol": "OPTION-UNDERLYING", "investmentRole": "Options",
+        "contractType": "PUT", "positionSide": "SHORT", "state": "Open", "signedOpenContracts": -1,
+        "positionAsOfUtc": "2025-11-26T21:00:00Z", "positionSource": "Synthetic broker position",
+        "currency": { "currencyCode": "CAD", "source": "Synthetic broker", "isVerified": true, "verifiedAtUtc": "2025-11-26T21:00:00Z" },
+        "multiplier": 100, "termsSource": "Synthetic contract terms", "termsVerifiedAtUtc": "2025-11-26T21:00:00Z",
+        "quoteCurrency": "CAD", "markPrice": 1, "quoteSource": "Synthetic quote", "quoteAsOfUtc": "2025-11-26T21:00:00Z",
+        "quoteSession": "2025-11-26", "expectedSession": "2025-11-26", "expectedSessionCloseUtc": "2025-11-26T21:00:00Z"
+      }
+    ],
+    "fx": [
+      {
+        "source": "Bank of Canada", "series": "FXUSDCAD", "baseCurrency": "USD", "quoteCurrency": "CAD",
+        "observationDate": "2025-11-26", "rate": 1.4, "retrievedAtUtc": "2025-11-26T21:40:00Z",
+        "firstObservedAtUtc": "2025-11-26T21:40:00Z", "availabilitySource": "Synthetic response",
+        "dataQuality": "ObservedAtRetrieval"
+      }
+    ],
+    "policies": [
+      { "symbol": "CAD-LISTING", "sector": "Technology", "positionLimitPct": 40, "sectorTargetPct": 60, "sectorTolerancePp": 2 }
+    ],
+    "legacy": [
+      { "id": "stock:cad", "kind": "Security", "value": 1000, "currency": "CAD" },
+      { "id": "stock:usd", "kind": "Security", "value": 1000, "currency": "USD" },
+      { "id": "cash:shared:shared:CAD", "kind": "Cash", "value": 500, "currency": "CAD" },
+      { "id": "cash:test-user:account-1:USD", "kind": "Cash", "value": 200, "currency": "USD" },
+      { "id": "option:long", "kind": "Option", "value": 200, "currency": "CAD" },
+      { "id": "option:short", "kind": "Option", "value": 100, "currency": "CAD" }
+    ]
+  }
+}

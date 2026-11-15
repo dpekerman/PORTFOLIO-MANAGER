@@ -31,6 +31,51 @@ public sealed class Pm029CadValuationTests
     }
 
     [Fact]
+    public void ScheduledPublicationIsNotEvidenceOfDelayedObservationAvailability()
+    {
+        var delayed = Fx(FxStart, 1.4059m, FxCutoff.AddHours(1)) with
+        {
+            FirstObservedAtUtc = FxCutoff.AddHours(1),
+            AvailabilitySource = "Valet response received"
+        };
+        var before = Evaluate([Security("usd", "USD", 1m, 10m, FxStart)], [delayed],
+            FxStart, FxCutoff.AddMinutes(10), Calendar(FxStart, FxStart, FxStart));
+        Assert.Contains(Pm029ValuationIssueCodes.FxNotAvailableAsOf, before.IssueCodes);
+        var after = Evaluate([Security("usd", "USD", 1m, 10m, FxStart)], [delayed],
+            FxStart, FxCutoff.AddHours(2), Calendar(FxStart, FxStart, FxStart));
+        Assert.True(after.Complete);
+        Assert.Equal(delayed, after.Components[0].SelectedFx);
+    }
+
+    [Fact]
+    public void PersistedVerifiedAvailabilityCanProveEarlierUseWithoutPretendingRetrievalWasPublication()
+    {
+        var verified = Fx(FxStart, 1.4059m, FxCutoff.AddDays(1)) with
+        {
+            VerifiedAvailableAtUtc = FxCutoff.AddMinutes(2),
+            AvailabilitySource = "Synthetic immutable first-observed log",
+            DataQuality = "VerifiedAvailability"
+        };
+        var historical = Evaluate([Security("usd", "USD", 1m, 10m, FxStart)], [verified],
+            FxStart, FxCutoff.AddMinutes(10), Calendar(FxStart, FxStart, FxStart));
+        Assert.True(historical.Complete);
+        var unverified = Evaluate([Security("usd", "USD", 1m, 10m, FxStart)],
+            [verified with { AvailabilitySource = null }], FxStart, FxCutoff.AddMinutes(10),
+            Calendar(FxStart, FxStart, FxStart));
+        Assert.Contains(Pm029ValuationIssueCodes.FxAvailabilityUnverified, unverified.IssueCodes);
+    }
+
+    [Fact]
+    public void MissingRetrievalTimeCannotProveHistoricalFxAvailability()
+    {
+        var result = Evaluate([Security("usd", "USD", 1m, 10m, FxStart)],
+            [Fx(FxStart, 1.4059m, default)], FxStart, FxCutoff.AddMinutes(10),
+            Calendar(FxStart, FxStart, FxStart));
+        Assert.False(result.Complete);
+        Assert.Contains(Pm029ValuationIssueCodes.FxAvailabilityUnverified, result.IssueCodes);
+    }
+
+    [Fact]
     public void CanadianListingCurrencyDoesNotRequireFxForUnderlyingAnalysisCurrency()
     {
         var valuation = Evaluate(

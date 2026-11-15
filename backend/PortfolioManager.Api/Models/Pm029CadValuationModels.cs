@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace PortfolioManager.Api.Models;
 
 public static class Pm029ValuationScopes
@@ -30,6 +32,7 @@ public static class Pm029ValuationIssueCodes
     public const string FxCalendarMismatch = "FxCalendarMismatch";
     public const string FxInvalidRate = "FxInvalidRate";
     public const string FxStale = "FxStale";
+    public const string FxAvailabilityUnverified = "FxAvailabilityUnverified";
     public const string NonPositiveDenominator = "NonPositiveDenominator";
     public const string UnsupportedComponent = "UnsupportedComponent";
 }
@@ -40,6 +43,10 @@ public sealed record CurrencyEvidence(
     bool IsVerified,
     DateTimeOffset? VerifiedAtUtc);
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$kind")]
+[JsonDerivedType(typeof(Pm029SecurityValuationInput), "Security")]
+[JsonDerivedType(typeof(Pm029CashBalanceValuationInput), "Cash")]
+[JsonDerivedType(typeof(Pm029OptionValuationInput), "Option")]
 public abstract record Pm029ValuationComponentInput(
     string Id,
     string? OwnerId,
@@ -106,7 +113,11 @@ public sealed record Pm029FxObservation(
     string QuoteCurrency,
     DateOnly ObservationDate,
     decimal Rate,
-    DateTimeOffset RetrievedAtUtc);
+    DateTimeOffset RetrievedAtUtc,
+    DateTimeOffset? FirstObservedAtUtc = null,
+    DateTimeOffset? VerifiedAvailableAtUtc = null,
+    string? AvailabilitySource = null,
+    string DataQuality = "ObservedAtRetrieval");
 
 public sealed record Pm029ValuationRequest(
     DateTimeOffset AsOfUtc,
@@ -136,7 +147,8 @@ public sealed record Pm029ValuationComponentResult(
     string? FxSeries,
     DateOnly? FxObservationDate,
     DateTimeOffset? FxRetrievedAtUtc,
-    decimal? FxRateCadPerUsd);
+    decimal? FxRateCadPerUsd,
+    Pm029FxObservation? SelectedFx = null);
 
 public sealed record Pm029CadValuationResult(
     DateTimeOffset AsOfUtc,

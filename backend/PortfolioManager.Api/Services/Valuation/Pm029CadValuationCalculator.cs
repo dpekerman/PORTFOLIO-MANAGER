@@ -140,7 +140,7 @@ public sealed class Pm029CadValuationCalculator(IFxPublicationCalendar publicati
         if (evidence is null || !evidence.IsVerified
             || string.IsNullOrWhiteSpace(evidence.CurrencyCode)
             || string.IsNullOrWhiteSpace(evidence.Source)
-            || evidence.VerifiedAtUtc is null)
+            || evidence.VerifiedAtUtc is null || evidence.VerifiedAtUtc == default(DateTimeOffset))
             return Pm029ValuationIssueCodes.CurrencyEvidenceMissing;
         return evidence.VerifiedAtUtc.Value.ToUniversalTime() > asOfUtc
             ? Pm029ValuationIssueCodes.CurrencyEvidenceNotAvailableAsOf
@@ -233,8 +233,22 @@ public sealed class Pm029CadValuationCalculator(IFxPublicationCalendar publicati
         if (onOrBeforeSession.GroupBy(observation => observation.ObservationDate).Any(group => group.Count() > 1))
             return (null, Pm029ValuationIssueCodes.FxObservationDuplicated);
 
+        if (onOrBeforeSession.Any(observation =>
+                observation.DataQuality is not ("ObservedAtRetrieval" or "VerifiedAvailability")
+                || observation.RetrievedAtUtc == default
+                || observation.FirstObservedAtUtc == default(DateTimeOffset)
+                || observation.VerifiedAvailableAtUtc == default(DateTimeOffset)
+                || observation.DataQuality == "VerifiedAvailability"
+                    && observation.VerifiedAvailableAtUtc is null
+                || observation.VerifiedAvailableAtUtc.HasValue
+                    && (string.IsNullOrWhiteSpace(observation.AvailabilitySource)
+                        || observation.VerifiedAvailableAtUtc > observation.RetrievedAtUtc)
+                || observation.FirstObservedAtUtc > observation.RetrievedAtUtc))
+            return (null, Pm029ValuationIssueCodes.FxAvailabilityUnverified);
+
         var availableAsOf = onOrBeforeSession
-            .Where(observation => observation.RetrievedAtUtc.ToUniversalTime() <= request.AsOfUtc)
+            .Where(observation => (observation.VerifiedAvailableAtUtc
+                ?? observation.FirstObservedAtUtc ?? observation.RetrievedAtUtc) <= request.AsOfUtc)
             .ToList();
         if (availableAsOf.Count == 0)
             return (null, Pm029ValuationIssueCodes.FxNotAvailableAsOf);
@@ -282,7 +296,7 @@ public sealed class Pm029CadValuationCalculator(IFxPublicationCalendar publicati
         return new Pm029ValuationComponentResult(
             input, input.Id, Kind(input), input.Symbol, input.Sector, input.InvestmentRole, input.AccountType, input.OwnerId is null,
             currency, nativeValue, cadValue, null, quoteSource, quoteAsOf, quoteSession,
-            fx?.Series, fx?.ObservationDate, fx?.RetrievedAtUtc, fx?.Rate);
+            fx?.Series, fx?.ObservationDate, fx?.RetrievedAtUtc, fx?.Rate, fx);
     }
 
     private static (string? Source, DateTimeOffset? AsOfUtc, DateOnly? Session) QuoteProvenance(
@@ -341,7 +355,9 @@ public static class Pm029PortfolioFitEvidenceCalculator
             : null;
 
         decimal? sectorPct = null;
-        if (!string.IsNullOrWhiteSpace(sector) && valuation.StockOnlyCad is > 0m)
+        if (!string.IsNullOrWhiteSpace(sector) && valuation.StockOnlyCad is > 0m
+            && valuation.Components.Where(component => component.Kind == "Security")
+                .All(component => !string.IsNullOrWhiteSpace(component.Sector)))
         {
             var sectorValue = valuation.Components.Where(component =>
                     component.Kind == "Security"
