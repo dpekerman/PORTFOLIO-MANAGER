@@ -1,0 +1,28 @@
+{
+  "terms": {
+    "url": "https://www.bankofcanada.ca/terms/"
+  },
+  "seriesDetail": {
+    "FXUSDCAD": {
+      "label": "USD/CAD",
+      "description": "Daily average exchange rate of the US dollar in Canadian dollars.",
+      "dimension": {
+        "key": "d",
+        "name": "Date"
+      },
+      "dateFormat": "daily",
+      "metadata": {
+        "unit": "Canadian dollars per US dollar",
+        "frequency": "Business daily"
+      }
+    }
+  },
+  "observations": [
+    { "d": "2025-11-26", "FXUSDCAD": { "v": "1.4059" } },
+    { "d": "2025-11-27", "FXUSDCAD": { "v": "1.4034" } },
+    { "d": "2025-11-28", "FXUSDCAD": { "v": "1.3979" } },
+    { "d": "2025-12-01", "FXUSDCAD": { "v": "1.3979" } },
+    { "d": "2025-12-02", "FXUSDCAD": { "v": "1.3986" } },
+    { "d": "2025-12-03", "FXUSDCAD": { "v": "1.3949" } }
+  ]
+}
