@@ -757,10 +757,11 @@ test.describe('PM-016 Swing grid cleanup', () => {
     await showAllFields(page, info.project.name);
     const flag = rowFor(page, 'WELL.TO').getByTestId('planned-stop-flag');
     await expect(flag).toBeVisible();
-    expect((await flag.boundingBox())!.height).toBeGreaterThanOrEqual(32);
+    await expect.poll(async () => (await flag.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(32);
     await page.locator('.app-filter-panel > summary').click();
     const quick = page.getByTestId('swing-breached-planned');
-    expect((await quick.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect(quick).toBeVisible();
+    await expect.poll(async () => (await quick.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
     const overflow = await page.locator('[data-testid="open-trades-table"]').evaluate((table) =>
       Array.from(table.querySelectorAll('.st-chip, app-final-action-badge')).some((el) => {
         const r = el.getBoundingClientRect();

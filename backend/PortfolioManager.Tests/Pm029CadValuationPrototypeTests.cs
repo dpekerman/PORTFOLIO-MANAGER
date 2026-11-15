@@ -1,4 +1,4 @@
-namespace PortfolioManager.Tests;
+namespace PortfolioManager.Tests.Phase12;
 
 public sealed class Pm029CadValuationPrototypeTests
 {
