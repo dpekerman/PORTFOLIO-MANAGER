@@ -18,9 +18,42 @@ import {
 import { UserPreferencesStore } from './user-preferences.store';
 
 const LS_KEY = 'pm_grid_columns_v1';
+const OPPORTUNITIES_GRID_ID = 'trading-opportunities';
+const OPPORTUNITY_PROFILES = ['Swing', 'Strategic'] as const;
 
-/** Saved column order/visibility for every grid the user has customised, keyed by grid id. */
-type StoredPrefs = Record<string, ColumnPreference[]>;
+/** Saved column order/visibility keyed by grid id, with optional strategy profile suffixes. */
+type GridPrefs = Record<string, ColumnPreference[]>;
+interface StoredPrefs {
+  schemaVersion: 2;
+  grids: GridPrefs;
+}
+
+const EMPTY_PREFS: StoredPrefs = { schemaVersion: 2, grids: {} };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isColumnPreference(value: unknown): value is ColumnPreference {
+  return isRecord(value) && typeof value['key'] === 'string' && typeof value['visible'] === 'boolean';
+}
+
+function preferenceKey(gridId: string, profile?: string): string {
+  return profile ? `${gridId}:${profile.toLowerCase()}` : gridId;
+}
+
+function migrateOpportunityProfiles(prefs: GridPrefs): GridPrefs {
+  const legacy = prefs[OPPORTUNITIES_GRID_ID];
+  if (!legacy) return prefs;
+
+  const migrated = { ...prefs };
+  delete migrated[OPPORTUNITIES_GRID_ID];
+  for (const profile of OPPORTUNITY_PROFILES) {
+    const key = preferenceKey(OPPORTUNITIES_GRID_ID, profile);
+    migrated[key] ??= legacy.map((pref) => ({ ...pref }));
+  }
+  return migrated;
+}
 
 interface GridColumnState {
   prefs: StoredPrefs;
@@ -42,20 +75,31 @@ function nonPinnedColumns(gridDef: GridDef): ColumnDef[] {
   return gridDef.columns.filter((c) => !c.pinned);
 }
 
+function defaultColumnVisibility(
+  gridDef: GridDef,
+  column: ColumnDef,
+  profile?: string,
+  addingToSavedLayout = false,
+): boolean {
+  const profileDefaults = profile ? gridDef.profileDefaults?.[profile] : undefined;
+  if (profileDefaults) return column.required === true || profileDefaults.includes(column.key);
+  const honourHidden = addingToSavedLayout || gridDef.respectDefaultHiddenWhenUnsaved === true;
+  return column.required === true || !honourHidden || !column.defaultHidden;
+}
+
 /**
  * Visible column keys for one grid, in user-configured order.
  *
- * With no saved preference every registered column shows. Otherwise saved order and visibility
- * win, columns that have since been removed from the registry are dropped, columns added to the
- * registry since the preference was saved are appended (forward-compat), and pinned columns are
- * always appended last.
+ * With no saved preference, profile defaults apply when available; other grids retain their registered
+ * defaults. Saved order and visibility win, removed columns are dropped, new columns are appended, and
+ * pinned columns are always appended last. Nothing rewrites a user's saved order or visibility.
  */
-/**
- * Saved preferences (valid columns only, in saved order) plus any registry columns the user has never seen.
- * A new column with `insertAfter` lands right after its anchor; otherwise it is appended. Nothing is rewritten:
- * saved order, visibility and hidden columns are preserved.
- */
-function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (ColumnPreference & { added: boolean })[] {
+function withNewColumns(
+  gridDef: GridDef,
+  nonPinned: ColumnDef[],
+  prefs: ColumnPreference[],
+  profile?: string,
+): (ColumnPreference & { added: boolean })[] {
   const validKeys = new Set(nonPinned.map((c) => c.key));
   const required = new Set(nonPinned.filter((c) => c.required).map((c) => c.key));
   const list = prefs
@@ -64,7 +108,7 @@ function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (Col
   const known = new Set(prefs.map((p) => p.key));
   for (const col of nonPinned) {
     if (known.has(col.key)) continue;
-    const entry = { key: col.key, visible: col.required === true || !col.defaultHidden, added: true };
+    const entry = { key: col.key, visible: defaultColumnVisibility(gridDef, col, profile, true), added: true };
     const anchor = col.insertAfter ? list.findIndex((p) => p.key === col.insertAfter) : -1;
     if (anchor >= 0) list.splice(anchor + 1, 0, entry);
     else list.push(entry);
@@ -73,30 +117,29 @@ function withNewColumns(nonPinned: ColumnDef[], prefs: ColumnPreference[]): (Col
 }
 
 /**
- * The layout a user without a saved preference sees (and "Reset to defaults" restores): every non-pinned column in registry
- * order; hidden only for `defaultHidden` columns of grids that opt in via `respectDefaultHiddenWhenUnsaved`.
+ * The clean layout a user without saved preferences sees, or "Reset to defaults" restores. Named
+ * profile defaults take precedence; other grids use `defaultHidden` only when they opt in.
  */
-export function defaultEditablePrefs(gridDef: GridDef): ColumnPreference[] {
-  const honourHidden = gridDef.respectDefaultHiddenWhenUnsaved === true;
+export function defaultEditablePrefs(gridDef: GridDef, profile?: string): ColumnPreference[] {
   return nonPinnedColumns(gridDef).map((c) => ({
     key: c.key,
-    visible: c.required === true || !honourHidden || !c.defaultHidden,
+    visible: defaultColumnVisibility(gridDef, c, profile),
   }));
 }
 
-export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefined): string[] {
+export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefined, profile?: string): string[] {
   const pinnedKeys = gridDef.columns.filter((c) => c.pinned).map((c) => c.key);
   if (!prefs) {
-    if (!gridDef.respectDefaultHiddenWhenUnsaved) {
+    if (!gridDef.respectDefaultHiddenWhenUnsaved && !(profile && gridDef.profileDefaults?.[profile])) {
       // No customisation — return all defaults
       return gridDef.columns.map((c) => c.key);
     }
-    return [...defaultEditablePrefs(gridDef).filter((p) => p.visible).map((p) => p.key), ...pinnedKeys];
+    return [...defaultEditablePrefs(gridDef, profile).filter((p) => p.visible).map((p) => p.key), ...pinnedKeys];
   }
 
   // Legacy grids show newly registered columns regardless of `defaultHidden`; opted-in grids honour it.
   const honourHidden = gridDef.respectDefaultHiddenWhenUnsaved === true;
-  const result = withNewColumns(nonPinnedColumns(gridDef), prefs)
+  const result = withNewColumns(gridDef, nonPinnedColumns(gridDef), prefs, profile)
     .filter((p) => (honourHidden ? p.visible : p.added || p.visible))
     .map((p) => p.key);
 
@@ -113,27 +156,51 @@ export function resolveKeys(gridDef: GridDef, prefs: ColumnPreference[] | undefi
 export function resolveEditablePrefs(
   gridDef: GridDef,
   prefs: ColumnPreference[] | undefined,
+  profile?: string,
 ): ColumnPreference[] {
   if (!prefs) {
-    return defaultEditablePrefs(gridDef);
+    return defaultEditablePrefs(gridDef, profile);
   }
 
-  return withNewColumns(nonPinnedColumns(gridDef), prefs).map(({ key, visible }) => ({ key, visible }));
+  return withNewColumns(gridDef, nonPinnedColumns(gridDef), prefs, profile).map(({ key, visible }) => ({
+    key,
+    visible,
+  }));
 }
 
 /** True when the editable layout differs from {@link defaultEditablePrefs} (order or visibility). */
-export function isCustomisedLayout(gridDef: GridDef, prefs: readonly ColumnPreference[]): boolean {
-  const defaults = defaultEditablePrefs(gridDef);
+export function isCustomisedLayout(
+  gridDef: GridDef,
+  prefs: readonly ColumnPreference[],
+  profile?: string,
+): boolean {
+  const defaults = defaultEditablePrefs(gridDef, profile);
   if (prefs.length !== defaults.length) return true;
   return prefs.some((p, i) => p.key !== defaults[i].key || p.visible !== defaults[i].visible);
+}
+
+function normalizePrefs(value: unknown): StoredPrefs {
+  const rawGrids =
+    isRecord(value) && typeof value['schemaVersion'] === 'number' && isRecord(value['grids'])
+      ? value['grids']
+      : value;
+  if (!isRecord(rawGrids)) return EMPTY_PREFS;
+
+  const grids: GridPrefs = {};
+  for (const [gridId, valueForGrid] of Object.entries(rawGrids)) {
+    if (Array.isArray(valueForGrid)) {
+      grids[gridId] = valueForGrid.filter(isColumnPreference).map(({ key, visible }) => ({ key, visible }));
+    }
+  }
+  return { schemaVersion: 2, grids: migrateOpportunityProfiles(grids) };
 }
 
 function loadFromStorage(): StoredPrefs {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    return raw ? (JSON.parse(raw) as StoredPrefs) : {};
+    return raw ? normalizePrefs(JSON.parse(raw)) : EMPTY_PREFS;
   } catch {
-    return {};
+    return EMPTY_PREFS;
   }
 }
 
@@ -162,7 +229,7 @@ export const GridColumnStore = signalStore(
   withProps(() => ({ grids: GRID_REGISTRY })),
   withMethods(
     (store, userPrefs = inject(UserPreferencesStore), breakpoints = inject(BreakpointStore)) => {
-      // One cached signal per grid id: grids read these in templates, so the same instance must be
+      // One cached signal per grid/profile: grids read these in templates, so the same instance must be
       // returned on every call or Angular would re-create a computed on each change detection pass.
       const columnKeySignals = new Map<string, Signal<string[]>>();
       const responsiveKeySignals = new Map<string, Signal<string[]>>();
@@ -173,15 +240,16 @@ export const GridColumnStore = signalStore(
         userPrefs.set(LS_KEY, store.prefs());
       };
 
-      const columnKeys = (gridId: string): Signal<string[]> => {
-        let keys = columnKeySignals.get(gridId);
+      const columnKeys = (gridId: string, profile?: string): Signal<string[]> => {
+        const key = preferenceKey(gridId, profile);
+        let keys = columnKeySignals.get(key);
         if (!keys) {
           keys = computed(() => {
             const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
             if (!gridDef) return [];
-            return resolveKeys(gridDef, store.prefs()[gridId]);
+            return resolveKeys(gridDef, store.prefs().grids[key], profile);
           });
-          columnKeySignals.set(gridId, keys);
+          columnKeySignals.set(key, keys);
         }
         return keys;
       };
@@ -201,17 +269,18 @@ export const GridColumnStore = signalStore(
          * INVARIANT: this is a *projection*. It never writes `prefs`, localStorage or the DB, so a
          * user who opens the app on a phone still finds their desktop layout untouched.
          */
-        getResponsiveColumnKeys(gridId: string): Signal<string[]> {
-          let keys = responsiveKeySignals.get(gridId);
+        getResponsiveColumnKeys(gridId: string, profile?: string): Signal<string[]> {
+          const key = preferenceKey(gridId, profile);
+          let keys = responsiveKeySignals.get(key);
           if (!keys) {
             keys = computed(() => {
-              const visible = columnKeys(gridId)();
+              const visible = columnKeys(gridId, profile)();
               if (!breakpoints.isHandset()) return visible;
               const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
               if (!gridDef) return visible;
               return resolveHandsetKeys(gridDef, visible, store.showAllColumnsOnHandset());
             });
-            responsiveKeySignals.set(gridId, keys);
+            responsiveKeySignals.set(key, keys);
           }
           return keys;
         },
@@ -225,31 +294,35 @@ export const GridColumnStore = signalStore(
          * Returns a mutable working copy of preferences for editing in the dialog.
          * Non-pinned columns only — pinned columns are always appended automatically.
          */
-        getEditablePrefs(gridId: string): ColumnPreference[] {
+        getEditablePrefs(gridId: string, profile?: string): ColumnPreference[] {
           const gridDef = GRID_REGISTRY.find((g) => g.id === gridId);
           if (!gridDef) return [];
-          return resolveEditablePrefs(gridDef, store.prefs()[gridId]);
+          return resolveEditablePrefs(gridDef, store.prefs().grids[preferenceKey(gridId, profile)], profile);
         },
 
         /** Persist updated preferences for a grid. */
-        updatePrefs(gridId: string, prefs: ColumnPreference[]): void {
-          patchState(store, (current) => ({ prefs: { ...current.prefs, [gridId]: prefs } }));
+        updatePrefs(gridId: string, prefs: ColumnPreference[], profile?: string): void {
+          const key = preferenceKey(gridId, profile);
+          patchState(store, (current) => ({
+            prefs: { ...current.prefs, grids: { ...current.prefs.grids, [key]: prefs } },
+          }));
           persist();
         },
 
         /** Clear saved preferences for one grid (restores defaults). */
-        resetGrid(gridId: string): void {
+        resetGrid(gridId: string, profile?: string): void {
+          const key = preferenceKey(gridId, profile);
           patchState(store, (current) => {
-            const next = { ...current.prefs };
-            delete next[gridId];
-            return { prefs: next };
+            const next = { ...current.prefs.grids };
+            delete next[key];
+            return { prefs: { ...current.prefs, grids: next } };
           });
           persist();
         },
 
         /** Clear ALL saved column preferences. */
         resetAll(): void {
-          patchState(store, { prefs: {} });
+          patchState(store, { prefs: EMPTY_PREFS });
           try {
             localStorage.removeItem(LS_KEY);
           } catch {
@@ -259,8 +332,8 @@ export const GridColumnStore = signalStore(
         },
 
         /** Overlays the DB copy once it loads; the DB wins over localStorage. */
-        applyFromDb(prefs: StoredPrefs): void {
-          patchState(store, { prefs });
+        applyFromDb(prefs: unknown): void {
+          patchState(store, { prefs: normalizePrefs(prefs) });
         },
       };
     },
@@ -269,7 +342,7 @@ export const GridColumnStore = signalStore(
     onInit(store, userPrefs = inject(UserPreferencesStore)) {
       // When DB preferences load, overlay them onto the state (DB wins over localStorage)
       effect(() => {
-        const dbValue = userPrefs.get<StoredPrefs>(LS_KEY);
+        const dbValue = userPrefs.get<unknown>(LS_KEY);
         if (dbValue) {
           store.applyFromDb(dbValue);
         }

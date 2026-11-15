@@ -10,6 +10,7 @@ import {
   OpportunityConfig,
   OpportunityDetail,
   OpportunitySnapshot,
+  RiskCategory,
   ScorePerspective,
   SectorHeatDirection,
 } from '../models/opportunities.models';
@@ -30,6 +31,7 @@ const MAX_POLLS = 120;
  */
 export type ScoreFilter = 'attractive' | 'moderate' | 'scored' | 'all';
 export type OwnershipFilter = 'all' | 'owned' | 'notOwned';
+export type FreshnessFilter = 'all' | 'current' | 'stale';
 export type SortDirection = 'asc' | 'desc' | '';
 
 export interface OpportunitySort {
@@ -44,6 +46,11 @@ export interface OpportunityView {
   showUnavailable: boolean;
   verifiedOnly: boolean;
   sectors: string[];
+  industries: string[];
+  riskCategories: RiskCategory[];
+  accounts: string[];
+  roles: string[];
+  freshness: FreshnessFilter;
   fit: FitStatus[];
   finalActionLabels: string[];
   ownership: OwnershipFilter;
@@ -52,19 +59,37 @@ export interface OpportunityView {
   sort: OpportunitySort;
 }
 
+export interface OpportunityViewPreferences {
+  perspective: ScorePerspective;
+  profiles: Record<ScorePerspective, OpportunityView>;
+}
+
 export const DEFAULT_OPPORTUNITY_VIEW: OpportunityView = {
   perspective: 'Swing',
   scoreFilter: 'attractive',
   showUnavailable: false,
   verifiedOnly: false,
   sectors: [],
+  industries: [],
+  riskCategories: [],
+  accounts: [],
+  roles: [],
+  freshness: 'all',
   fit: [],
   finalActionLabels: [],
   ownership: 'all',
   sources: [],
   heat: [],
-  sort: { active: 'score', direction: 'desc' },
+  sort: { active: 'swing', direction: 'desc' },
 };
+
+function defaultOpportunityView(perspective: ScorePerspective): OpportunityView {
+  return {
+    ...DEFAULT_OPPORTUNITY_VIEW,
+    perspective,
+    sort: { active: perspective === 'Swing' ? 'swing' : 'strategic', direction: 'desc' },
+  };
+}
 
 interface OpportunitiesState {
   snapshot: OpportunitySnapshot | null;
@@ -73,6 +98,7 @@ interface OpportunitiesState {
   /** At most one automatic refresh per app session when the stored snapshot misses a completed session (U4). */
   autoRefreshAttempted: boolean;
   view: OpportunityView;
+  viewProfiles: Record<ScorePerspective, OpportunityView>;
   search: string;
   /** Exclusion-summary chip: show only rows unscorable for this reason code in the active perspective. */
   reasonFilter: string | null;
@@ -82,22 +108,60 @@ interface OpportunitiesState {
   detailError: string | null;
 }
 
-function loadView(): OpportunityView {
+function loadViews(): Pick<OpportunitiesState, 'view' | 'viewProfiles'> {
   try {
     const raw = localStorage.getItem(OPPORTUNITIES_VIEW_KEY);
-    return raw ? normaliseView(JSON.parse(raw)) : DEFAULT_OPPORTUNITY_VIEW;
+    const saved = normaliseViewPreferences(raw ? JSON.parse(raw) : null);
+    return { view: saved.profiles[saved.perspective], viewProfiles: saved.profiles };
   } catch {
-    return DEFAULT_OPPORTUNITY_VIEW;
+    const saved = normaliseViewPreferences(null);
+    return { view: saved.profiles[saved.perspective], viewProfiles: saved.profiles };
   }
 }
 
 /** Fills fields missing from an older saved view with defaults so a stored value can never break the page. */
-export function normaliseView(value: Partial<OpportunityView> | null | undefined): OpportunityView {
-  if (!value || typeof value !== 'object') return DEFAULT_OPPORTUNITY_VIEW;
+export function normaliseView(
+  value: Partial<OpportunityView> | null | undefined,
+  perspectiveFallback?: ScorePerspective,
+): OpportunityView {
+  const perspective =
+    perspectiveFallback ??
+    (value?.perspective === 'Strategic' ? 'Strategic' : value?.perspective === 'Swing' ? 'Swing' : 'Swing');
+  const defaults = defaultOpportunityView(perspective);
+  if (!value || typeof value !== 'object') return defaults;
+  const sort = { ...defaults.sort, ...(value.sort ?? {}) };
+  if (sort.active === 'score') sort.active = perspective === 'Swing' ? 'swing' : 'strategic';
   return {
-    ...DEFAULT_OPPORTUNITY_VIEW,
+    ...defaults,
     ...value,
-    sort: { ...DEFAULT_OPPORTUNITY_VIEW.sort, ...(value.sort ?? {}) },
+    perspective,
+    sort,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Migrates the legacy single view into both profiles; new profile data is normalized independently. */
+export function normaliseViewPreferences(value: unknown): OpportunityViewPreferences {
+  const record = isRecord(value) ? value : {};
+  const legacyView = { ...record };
+  delete legacyView['profiles'];
+  const savedProfiles = isRecord(record['profiles']) ? record['profiles'] : {};
+  const perspective: ScorePerspective = record['perspective'] === 'Strategic' ? 'Strategic' : 'Swing';
+  const swing = isRecord(savedProfiles['Swing'])
+    ? normaliseView(savedProfiles['Swing'] as Partial<OpportunityView>, 'Swing')
+    : normaliseView(legacyView as Partial<OpportunityView>, 'Swing');
+  const strategic = isRecord(savedProfiles['Strategic'])
+    ? normaliseView(savedProfiles['Strategic'] as Partial<OpportunityView>, 'Strategic')
+    : normaliseView(legacyView as Partial<OpportunityView>, 'Strategic');
+  return {
+    perspective,
+    profiles: {
+      Swing: { ...swing, perspective: 'Swing' },
+      Strategic: { ...strategic, perspective: 'Strategic' },
+    },
   };
 }
 
@@ -113,7 +177,7 @@ export const OpportunitiesStore = signalStore(
     config: null,
     refreshing: false,
     autoRefreshAttempted: false,
-    view: loadView(),
+    ...loadViews(),
     search: '',
     reasonFilter: null,
     selectedSymbol: null,
@@ -140,13 +204,19 @@ export const OpportunitiesStore = signalStore(
       let polls = 0;
       let pollTimer: ReturnType<typeof setTimeout> | undefined;
 
+      const currentPreferences = (): OpportunityViewPreferences => ({
+        perspective: store.view().perspective,
+        profiles: store.viewProfiles(),
+      });
+
       const persistView = (): void => {
+        const preferences = currentPreferences();
         try {
-          localStorage.setItem(OPPORTUNITIES_VIEW_KEY, JSON.stringify(store.view()));
+          localStorage.setItem(OPPORTUNITIES_VIEW_KEY, JSON.stringify(preferences));
         } catch {
           // storage unavailable — the DB copy still applies
         }
-        userPrefs.set(OPPORTUNITIES_VIEW_KEY, store.view());
+        userPrefs.set(OPPORTUNITIES_VIEW_KEY, preferences);
       };
 
       const detailRequest = rxMethod<{ symbol: string; snapshotId: number | null }>(
@@ -290,16 +360,27 @@ export const OpportunitiesStore = signalStore(
         },
 
         updateView(patch: Partial<OpportunityView>): void {
-          patchState(store, (s) => ({ view: { ...s.view, ...patch } }));
+          patchState(store, (s) => {
+            const perspective = patch.perspective ?? s.view.perspective;
+            const nextView = { ...s.viewProfiles[perspective], ...patch, perspective };
+            return {
+              view: nextView,
+              viewProfiles: { ...s.viewProfiles, [perspective]: nextView },
+            };
+          });
           persistView();
         },
 
         resetFilters(): void {
-          patchState(store, (s) => ({
-            view: { ...DEFAULT_OPPORTUNITY_VIEW, perspective: s.view.perspective, sort: s.view.sort },
-            search: '',
-            reasonFilter: null,
-          }));
+          patchState(store, (s) => {
+            const reset = { ...DEFAULT_OPPORTUNITY_VIEW, perspective: s.view.perspective, sort: s.view.sort };
+            return {
+              view: reset,
+              viewProfiles: { ...s.viewProfiles, [reset.perspective]: reset },
+              search: '',
+              reasonFilter: null,
+            };
+          });
           persistView();
         },
 
@@ -312,8 +393,12 @@ export const OpportunitiesStore = signalStore(
         },
 
         /** Overlays the DB copy of the view once it loads (DB wins, as for grid columns). */
-        applyViewFromDb(view: Partial<OpportunityView>): void {
-          patchState(store, { view: normaliseView(view) });
+        applyViewFromDb(view: unknown): void {
+          const preferences = normaliseViewPreferences(view);
+          patchState(store, {
+            view: preferences.profiles[preferences.perspective],
+            viewProfiles: preferences.profiles,
+          });
         },
 
         /** Clears the pending poll (used by tests and on logout). */
@@ -332,7 +417,7 @@ export const OpportunitiesStore = signalStore(
       });
 
       effect(() => {
-        const dbValue = userPrefs.get<Partial<OpportunityView>>(OPPORTUNITIES_VIEW_KEY);
+        const dbValue = userPrefs.get<unknown>(OPPORTUNITIES_VIEW_KEY);
         if (dbValue) untracked(() => store.applyViewFromDb(dbValue));
       });
     },

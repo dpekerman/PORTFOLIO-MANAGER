@@ -1,4 +1,5 @@
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services;
 
 namespace PortfolioManager.Api.Services.Opportunities;
 
@@ -14,9 +15,8 @@ public sealed record OpportunityScoringInput(
     bool EvaluationFailed = false);
 
 /// <summary>
-/// Deterministic pm029-v1 Swing and Strategic scoring (docs/pm-029-trading-opportunities.md §3). Pure: same input ⇒ same output.
-/// A missing sub-item or component removes its points from both awarded and available max; essentials missing or completeness
-/// below 70 % ⇒ Insufficient (N/A). Never a probability of success.
+/// Deterministic pm029-v2 Swing and pm029-v1 Strategic scoring (docs/pm-029-trading-opportunities.md §3). Pure: same input ⇒ same output.
+/// Swing scores use the fixed S1–S5 denominator; unavailable evidence remains excluded from the available maximum.
 /// </summary>
 public static class OpportunityScoringEngine
 {
@@ -36,15 +36,32 @@ public static class OpportunityScoringEngine
 
     private static ScoreResult Score(ScorePerspective perspective, OpportunityScoringInput input)
     {
-        if (!input.IdentityResolved) return Unavailable(perspective, OpportunityReasons.IdentityUnresolved);
-        if (input.EvaluationFailed) return Unavailable(perspective, OpportunityReasons.EvaluationFailed);
-        if (input.Scan is null) return Unavailable(perspective, OpportunityReasons.NoScan);
-        if (input.Scan.TradingDate != input.ExpectedSession) return Unavailable(perspective, OpportunityReasons.StaleScan);
+        var version = perspective == ScorePerspective.Swing
+            ? OpportunityScoringConfig.SwingVersion
+            : OpportunityScoringConfig.StrategicVersion;
+        if (!input.IdentityResolved) return Unavailable(perspective, version, OpportunityReasons.IdentityUnresolved);
+        if (input.EvaluationFailed) return Unavailable(perspective, version, OpportunityReasons.EvaluationFailed);
+        if (input.Scan is null) return Unavailable(perspective, version, OpportunityReasons.NoScan);
+        if (input.Scan.TradingDate != input.ExpectedSession)
+            return Unavailable(perspective, version, OpportunityReasons.StaleScan);
+        if (perspective == ScorePerspective.Swing)
+        {
+            var freshnessReason = SwingFreshnessReason(input);
+            if (freshnessReason is not null) return Unavailable(perspective, version, freshnessReason);
+            if (input.Scan.CurrentPrice <= 0m)
+                return Unavailable(perspective, version, OpportunityReasons.InvalidAnalysisPrice);
+        }
 
         var components = perspective == ScorePerspective.Swing ? SwingComponents(input) : StrategicComponents(input);
         var awarded = components.Sum(c => c.Awarded);
         var available = components.Sum(c => c.AvailableMax);
-        int? normalized = available > 0m ? (int)Math.Round(awarded / available * 100m, 0, MidpointRounding.AwayFromZero) : null;
+        var denominator = perspective == ScorePerspective.Swing ? OpportunityScoringConfig.SwingDenominatorMax : available;
+        var completeness = perspective == ScorePerspective.Swing
+            ? available / OpportunityScoringConfig.SwingDenominatorMax * 100m
+            : available;
+        int? normalized = denominator > 0m
+            ? (int)Math.Round(awarded / denominator * 100m, 0, MidpointRounding.AwayFromZero)
+            : null;
 
         var reasons = new List<string>();
         foreach (var c in components.Where(c => c.Essential && c.State == ComponentState.Missing))
@@ -52,20 +69,41 @@ public static class OpportunityScoringEngine
             reasons.Add(OpportunityReasons.MissingEssential(c.Code));
             reasons.AddRange(c.MissingReasons);
         }
-        if (available < OpportunityScoringConfig.MinCompletenessPct) reasons.Add(OpportunityReasons.LowCompleteness);
+        if (completeness < OpportunityScoringConfig.MinCompletenessPct) reasons.Add(OpportunityReasons.LowCompleteness);
         foreach (var c in components.Where(c => !c.Essential && c.State == ComponentState.Missing))
             reasons.AddRange(c.MissingReasons);
 
         var essentialsOk = components.Where(c => c.Essential).All(c => c.State != ComponentState.Missing);
-        var status = !essentialsOk || available < OpportunityScoringConfig.MinCompletenessPct ? ScoreStatus.Insufficient
-            : available >= 100m ? ScoreStatus.Verified : ScoreStatus.Provisional;
+        var status = !essentialsOk || completeness < OpportunityScoringConfig.MinCompletenessPct ? ScoreStatus.Insufficient
+            : completeness >= 100m ? ScoreStatus.Verified : ScoreStatus.Provisional;
         int? headline = status is ScoreStatus.Verified or ScoreStatus.Provisional ? normalized : null;
-        return new ScoreResult(perspective, OpportunityScoringConfig.Version, headline, normalized, awarded, available, available,
-            status, BandFor(headline), components, reasons.Distinct(StringComparer.Ordinal).ToList());
+        return new ScoreResult(perspective, version, headline, normalized, awarded, available, completeness,
+            status, BandFor(headline), components, reasons.Distinct(StringComparer.Ordinal).ToList(),
+            perspective == ScorePerspective.Swing ? OpportunityScoringConfig.SwingDenominatorMax : null);
     }
 
-    private static ScoreResult Unavailable(ScorePerspective perspective, string reason) =>
-        new(perspective, OpportunityScoringConfig.Version, null, null, 0m, 0m, 0m, ScoreStatus.Unavailable, ScoreBand.None, [], [reason]);
+    private static ScoreResult Unavailable(ScorePerspective perspective, string version, string reason) =>
+        new(perspective, version, null, null, 0m, 0m, 0m, ScoreStatus.Unavailable, ScoreBand.None, [], [reason],
+            perspective == ScorePerspective.Swing ? OpportunityScoringConfig.SwingDenominatorMax : null);
+
+    private static string? SwingFreshnessReason(OpportunityScoringInput input)
+    {
+        var scan = input.Scan!;
+        var nowUtc = AsUtc(input.NowUtc);
+        var exchange = TradingCalendar.ExchangeFor(scan.AnalysisTicker, scan.AnalysisMarket);
+        if (input.ExpectedSession != TradingCalendar.LastCompletedSession(nowUtc, exchange))
+            return OpportunityReasons.ExpectedSessionMismatch;
+        if (scan.ScannedAt == default) return OpportunityReasons.InvalidScanTimestamp;
+
+        var scannedAtUtc = AsUtc(scan.ScannedAt);
+        if (scannedAtUtc > nowUtc) return OpportunityReasons.ScanTimestampInFuture;
+        if (scannedAtUtc < TradingCalendar.SessionCloseUtc(scan.TradingDate, exchange))
+            return OpportunityReasons.ScanBeforeSessionClose;
+        return null;
+    }
+
+    private static DateTime AsUtc(DateTime value) =>
+        value.Kind == DateTimeKind.Local ? value.ToUniversalTime() : DateTime.SpecifyKind(value, DateTimeKind.Utc);
 
     // ── Swing (§3.1) ─────────────────────────────────────────────────────────
 
@@ -79,23 +117,28 @@ public static class OpportunityScoringEngine
             S3Momentum(s),
             S4Volume(s),
             S5EntryQuality(s),
-            S6RiskReward(input.Setup, s),
         ];
     }
 
     private static ScoreComponent S1Trend(RsiScanResult s)
     {
         const string code = "S1"; const string name = "Trend & Structure"; const decimal max = 25m;
-        if (s.Ema20Price <= 0m || s.Sma50Price <= 0m) return Missing(code, name, max, true, "MovingAveragesUnavailable");
+        if (s.Ema20Price < 0m || s.Sma50Price < 0m)
+            return Missing(code, name, max, true, OpportunityReasons.InvalidMovingAverage);
+        if (s.Ema20Price == 0m || s.Sma50Price == 0m)
+            return Missing(code, name, max, true, "MovingAveragesUnavailable");
         var p = s.CurrentPrice;
         var has200 = Has200(s);
+        var sma200Reason = s.Sma200 < 0m || s.Has200Dma && s.Sma200 == 0m
+            ? OpportunityReasons.InvalidSma200
+            : "Sma200Unavailable";
         var items = new List<ScoreSubItem>
         {
             Item("PriceAboveEma20", "Price > EMA20", 7m, p > s.Ema20Price ? 7m : 0m),
             Item("Ema20AboveSma50", "EMA20 > SMA50", 6m, s.Ema20Price > s.Sma50Price ? 6m : 0m),
             Item("PriceAboveSma50", "Price > SMA50", 6m, p > s.Sma50Price ? 6m : 0m),
             has200 ? Item("PriceAboveSma200", "Price > SMA200", 6m, p > s.Sma200 ? 6m : 0m)
-                   : Absent("PriceAboveSma200", "Price > SMA200", 6m, "Sma200Unavailable"),
+                   : Absent("PriceAboveSma200", "Price > SMA200", 6m, sma200Reason),
         };
         var hard = s.PriceStructure?.HasHardStructuralNegative == true;
         return Build(code, name, max, true, items, hard ? 0m : null, hard ? "Hard structural negative ⇒ 0" : null);
@@ -129,6 +172,10 @@ public static class OpportunityScoringEngine
 
     private static ScoreComponent S3Momentum(RsiScanResult s)
     {
+        const string code = "S3"; const string name = "RSI/MACD Momentum"; const decimal max = 15m;
+        if (s.Rsi is < 0m or > 100m)
+            return Missing(code, name, max, true, OpportunityReasons.InvalidRsi);
+
         var rsi = s.Rsi;
         var rsiPts = rsi is >= 50m and <= 65m ? 6m
             : rsi is >= 45m and < 50m || rsi is > 65m and <= 70m ? 4m
@@ -137,12 +184,13 @@ public static class OpportunityScoringEngine
         var items = new List<ScoreSubItem>
         {
             Item("RsiZone", "RSI(14) zone", 6m, rsiPts, $"RSI {rsi:0.0}"),
-            s.RsiSignalAvailable && s.RsiSignal is { } sig
+            s.RsiSignalAvailable && s.RsiSignal is { } sig && sig is >= 0m and <= 100m
                 ? Item("RsiAboveSignal", "RSI > RSI signal", 3m, rsi > sig ? 3m : 0m)
-                : Absent("RsiAboveSignal", "RSI > RSI signal", 3m, "RsiSignalUnavailable"),
+                : Absent("RsiAboveSignal", "RSI > RSI signal", 3m,
+                    s.RsiSignalAvailable ? OpportunityReasons.InvalidRsiSignal : "RsiSignalUnavailable"),
             Item("Macd", "MACD histogram", 6m, MacdPoints(s.MacdHistogram, s.MacdHistDelta)),
         };
-        return Build("S3", "RSI/MACD Momentum", 15m, true, items);
+        return Build(code, name, max, true, items);
     }
 
     private static decimal MacdPoints(decimal hist, decimal delta) =>
@@ -151,6 +199,10 @@ public static class OpportunityScoringEngine
     private static ScoreComponent S4Volume(RsiScanResult s)
     {
         const string code = "S4"; const string name = "Volume Confirmation"; const decimal max = 10m;
+        if (s.Volume < 0m) return Missing(code, name, max, false, OpportunityReasons.InvalidVolume);
+        if (s.Volume == 0m) return Missing(code, name, max, false, "VolumeUnavailable");
+        if (s.VolumeRatio < 0m) return Missing(code, name, max, false, OpportunityReasons.InvalidVolumeRatio);
+        if (s.ChangePercent <= -100m) return Missing(code, name, max, false, OpportunityReasons.InvalidChangePercent);
         if (s.VolumeRatio <= 0m) return Missing(code, name, max, false, "VolumeUnavailable");
         var vr = s.VolumeRatio;
         var up = s.ChangePercent > 0m; var down = s.ChangePercent < 0m;
@@ -168,6 +220,7 @@ public static class OpportunityScoringEngine
     private static ScoreComponent S5EntryQuality(RsiScanResult s)
     {
         const string code = "S5"; const string name = "Entry Quality"; const decimal max = 10m;
+        if (s.DailyAtr < 0m) return Missing(code, name, max, false, OpportunityReasons.InvalidAtr);
         if (s.DailyAtr <= 0m) return Missing(code, name, max, false, "AtrUnavailable");
         var items = new List<ScoreSubItem>();
         if (s.Ema20Price > 0m)
@@ -176,7 +229,8 @@ public static class OpportunityScoringEngine
             var pts = x is >= -0.5m and <= 1.0m ? 6m : x is > 1.0m and <= 2.0m ? 3m : x > 2.0m ? 0m : x >= -1.5m ? 4m : 1m;
             items.Add(Item("Extension", "Distance to EMA20 (ATR)", 6m, pts, $"{x:0.00} ATR"));
         }
-        else items.Add(Absent("Extension", "Distance to EMA20 (ATR)", 6m, "Ema20Unavailable"));
+        else items.Add(Absent("Extension", "Distance to EMA20 (ATR)", 6m,
+            s.Ema20Price < 0m ? OpportunityReasons.InvalidEma20 : "Ema20Unavailable"));
         items.Add(Item("ChaseRisk", "No elevated chase risk", 2m, s.ChaseRisk == "Elevated" ? 0m : 2m));
         items.Add(FibItem(s.FibZone, 2m, 1m));
         return Build(code, name, max, false, items);
@@ -189,21 +243,6 @@ public static class OpportunityScoringEngine
         "Deep Pullback" or "Trend Damage" => Item("FibZone", "Fibonacci zone", good, 0m, zone),
         _ => Absent("FibZone", "Fibonacci zone", good, "FibUnavailable"),
     };
-
-    private static ScoreComponent S6RiskReward(TradeSetupResult setup, RsiScanResult s)
-    {
-        const string code = "S6"; const string name = "Risk/Reward"; const decimal max = 20m;
-        if (!setup.IsScorable || setup.RewardRisk is not { } rr || setup.StopDistanceAtr is not { } stopAtr)
-            return Missing(code, name, max, true, [.. setup.ReasonCodes]);
-        var rrPts = rr >= 3.0m ? 14m : rr >= 2.0m ? 11m : rr >= 1.5m ? 7m : rr >= 1.0m ? 3m : 0m;
-        var atrPts = stopAtr is >= 1.0m and <= 3.0m ? 6m : stopAtr is >= 0.5m and <= 4.0m ? 3m : 0m;
-        var items = new List<ScoreSubItem>
-        {
-            Item("RewardRisk", "Calculated R:R", 14m, rrPts, $"{rr:0.00}"),
-            Item("StopAtr", "Stop distance (ATR)", 6m, atrPts, $"{stopAtr:0.00} ATR"),
-        };
-        return Build(code, name, max, true, items, note: setup.Kind == SetupKind.NotActionable ? "Not actionable (R:R below 1.5)" : null);
-    }
 
     // ── Strategic (§3.2) ─────────────────────────────────────────────────────
 
@@ -347,7 +386,7 @@ public static class OpportunityScoringEngine
         var f5 = v.F5Available == true && v.CapitalEfficiencyBasis is "ROIC" or "ROE";
         var factors = new List<ScoreSubItem>
         {
-            Item("F4", $"Piotroski ({v.PiotroskiSignalsAvailable} signals)", OpportunityScoringConfig.F4Max, v.ScorePiotroski),
+            Item("F4", $"Fundamental health indicators ({v.PiotroskiSignalsAvailable}; proxy-based)", OpportunityScoringConfig.F4Max, v.ScorePiotroski),
             f5 ? Item("F5", v.CapitalEfficiencyBasis!, OpportunityScoringConfig.F5Max, v.ScoreRoic)
                : Absent("F5", "Capital efficiency", OpportunityScoringConfig.F5Max, v.CapitalEfficiencyBasis == "Proxy" ? "ProxyNotAccepted" : "F5Unavailable"),
         };

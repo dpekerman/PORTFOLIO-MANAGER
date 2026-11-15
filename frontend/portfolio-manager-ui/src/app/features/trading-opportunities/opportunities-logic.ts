@@ -10,6 +10,39 @@ import {
 import { OpportunitySort, OpportunityView, ScoreFilter } from '../../core/store/opportunities.store';
 import { ExportCell, TxExportColumn, TxExportKind } from '../transactions/transactions-logic';
 
+export interface ManualRValues {
+  entry: number | null;
+  stop: number | null;
+  target: number | null;
+}
+
+export const EMPTY_MANUAL_R: ManualRValues = { entry: null, stop: null, target: null };
+
+export function manualRScenarioKey(symbol: string, perspective: ScorePerspective): string {
+  return `${perspective}:${symbol}`;
+}
+
+export function manualRewardRisk(values: ManualRValues | null | undefined): number | null {
+  if (!values) return null;
+  const { entry, stop, target } = values;
+  if (
+    entry === null ||
+    stop === null ||
+    target === null ||
+    !Number.isFinite(entry) ||
+    !Number.isFinite(stop) ||
+    !Number.isFinite(target) ||
+    entry <= 0 ||
+    stop <= 0 ||
+    target <= entry ||
+    entry <= stop
+  ) {
+    return null;
+  }
+  const ratio = (target - entry) / (entry - stop);
+  return Number.isFinite(ratio) ? ratio : null;
+}
+
 // ── Scores ──────────────────────────────────────────────────────────────────
 
 export function activeScore(row: OpportunityRow, perspective: ScorePerspective): OpportunityScoreSummary {
@@ -62,15 +95,59 @@ export const REASON_CATEGORY_LABELS: Record<ReasonCategory, string> = {
   other: 'other',
 };
 
-const SETUP_CODES = new Set(['NoValidStop', 'StopOutsideVolatilityBand', 'NoStructuralTarget', 'NoEntryPrice']);
+const SETUP_CODES = new Set([
+  'NoValidStop',
+  'DynamicStopMissing',
+  'StopAtOrAboveEntry',
+  'StopOutsideVolatilityBand',
+  'NoStructuralTarget',
+  'NoEntryPrice',
+]);
 const STALE_CODES = new Set(['StaleScan', 'FundamentalsStale']);
+const REASON_PRIORITY = [
+  'IdentityUnresolved',
+  'StaleScan',
+  'FundamentalsStale',
+  'DynamicStopMissing',
+  'StopAtOrAboveEntry',
+  'StopOutsideVolatilityBand',
+  'NoValidStop',
+  'NoStructuralTarget',
+  'NoEntryPrice',
+  'NoScan',
+  'LowCompleteness',
+];
+const REASON_CATEGORIES: readonly ReasonCategory[] = ['identity', 'stale', 'setup', 'missing', 'other'];
 
 const REASON_LABELS: Record<string, string> = {
   NoValidStop: 'No valid stop',
+  DynamicStopMissing: 'Scanner stop missing',
+  StopAtOrAboveEntry: 'Scanner stop at or above entry',
   StopOutsideVolatilityBand: 'Stop outside volatility band',
   NoStructuralTarget: 'No structural target',
   NoEntryPrice: 'No entry price',
   StaleScan: 'Stale technical scan',
+  ExpectedSessionMismatch: 'Expected exchange session is no longer current',
+  InvalidAnalysisPrice: 'Analysis price is not positive',
+  InvalidScanTimestamp: 'Scan timestamp is missing',
+  ScanTimestampInFuture: 'Scan timestamp is after the evaluation time',
+  ScanBeforeSessionClose: 'Scan timestamp predates the exchange session close',
+  InvalidRsi: 'RSI is outside the 0–100 range',
+  InvalidRsiSignal: 'RSI signal is outside the 0–100 range',
+  InvalidMovingAverage: 'Moving average is negative',
+  InvalidSma200: 'SMA200 is invalid',
+  InvalidEma20: 'EMA20 is invalid',
+  InvalidVolume: 'Volume is negative',
+  InvalidVolumeRatio: 'Volume ratio is negative',
+  InvalidChangePercent: 'Daily change is outside the valid price range',
+  InvalidAtr: 'ATR is negative',
+  MovingAveragesUnavailable: 'Required moving averages are unavailable',
+  Sma200Unavailable: 'SMA200 data is unavailable',
+  Ema20Unavailable: 'EMA20 data is unavailable',
+  RsiSignalUnavailable: 'RSI signal is unavailable',
+  VolumeUnavailable: 'Volume data is unavailable',
+  AtrUnavailable: 'ATR data is unavailable',
+  FibUnavailable: 'Fibonacci zone is unavailable',
   NoScan: 'No technical scan',
   LowCompleteness: 'Low evidence completeness',
   IdentityUnresolved: 'Identity unresolved',
@@ -79,10 +156,24 @@ const REASON_LABELS: Record<string, string> = {
   FundamentalsMissing: 'Fundamentals missing',
   FundamentalsLegacy: 'Fundamentals lack availability data',
   FundamentalsInsufficientFactors: 'Too few fundamental factors',
+  PiotroskiInsufficientSignals: 'Too few proxy-based fundamental health indicators',
+};
+
+const SECTOR_HEAT_REASON_LABELS: Record<string, string> = {
+  Unmapped: 'Sector benchmark is not mapped',
+  Stale: 'Sector benchmark data is stale',
+  InsufficientObservations: 'Insufficient sector-relative observations',
+  CurrencyMismatch: 'Sector benchmark currency does not match the security',
+  PossibleCorporateAction: 'Possible corporate action affects the sector comparison',
+  Unclassified: 'Sector-relative evidence could not be classified',
 };
 
 export function reasonLabel(code: string): string {
   if (code.startsWith('MissingEssential:')) return `Missing essential component ${code.substring('MissingEssential:'.length)}`;
+  if (/^SectorHeat(?:20D|60D)?:/.test(code)) {
+    const status = code.substring(code.indexOf(':') + 1);
+    return SECTOR_HEAT_REASON_LABELS[status] ?? `Sector-relative evidence unavailable (${status})`;
+  }
   return REASON_LABELS[code] ?? code;
 }
 
@@ -112,6 +203,20 @@ export function reasonCategory(codes: readonly string[]): ReasonCategory {
   return 'other';
 }
 
+/** Chooses one most-specific primary exclusion reason so the summary counts remain mutually exclusive. */
+export function primaryReasonCode(codes: readonly string[]): string {
+  for (const reason of REASON_PRIORITY) {
+    if (codes.includes(reason)) return reason;
+  }
+  return codes[0] ?? 'other';
+}
+
+function matchesReasonFilter(codes: readonly string[], filter: string): boolean {
+  return REASON_CATEGORIES.includes(filter as ReasonCategory)
+    ? reasonCategory(codes) === filter
+    : primaryReasonCode(codes) === filter;
+}
+
 // ── Filtering ───────────────────────────────────────────────────────────────
 
 export interface OpportunityFilterInput {
@@ -137,6 +242,17 @@ export function passesAttributeFilters(row: OpportunityRow, view: OpportunityVie
     if (!hay.includes(q)) return false;
   }
   if (view.sectors.length && !view.sectors.includes(row.sector ?? 'Unclassified')) return false;
+  if (view.industries.length && !view.industries.includes(row.industry ?? 'Unclassified')) return false;
+  if (view.riskCategories.length && !view.riskCategories.includes(row.risk.category)) return false;
+  if (view.accounts.length && !row.accounts.some((account) => view.accounts.includes(account))) return false;
+  if (
+    view.roles.length &&
+    ![...row.roles, ...(row.watchlistRole ? [row.watchlistRole] : [])].some((role) => view.roles.includes(role))
+  ) {
+    return false;
+  }
+  if (view.freshness === 'current' && row.freshness.isStale) return false;
+  if (view.freshness === 'stale' && !row.freshness.isStale) return false;
   if (view.fit.length && !view.fit.includes(row.fit.status)) return false;
   if (view.finalActionLabels.length && !view.finalActionLabels.includes(finalActionFilterLabel(row))) return false;
   if (view.ownership === 'owned' && !row.owned) return false;
@@ -165,7 +281,7 @@ export function filterRows(rows: readonly OpportunityRow[], input: OpportunityFi
     if (!passesAttributeFilters(row, input.view, input.search)) return false;
     if (input.reasonFilter) {
       const s = activeScore(row, input.view.perspective);
-      return isUnscorable(s) && reasonCategory(s.reasonCodes) === input.reasonFilter;
+      return isUnscorable(s) && matchesReasonFilter(s.reasonCodes, input.reasonFilter);
     }
     return scoreGate(row, input) === 'shown';
   });
@@ -178,7 +294,7 @@ export interface ExclusionSummary {
   belowThreshold: number;
   notVerified: number;
   unscorable: number;
-  reasons: { category: ReasonCategory; label: string; count: number }[];
+  reasons: { category: ReasonCategory; code: string; label: string; count: number }[];
 }
 
 /**
@@ -195,7 +311,7 @@ export function exclusionSummary(rows: readonly OpportunityRow[], input: Opportu
     unscorable: 0,
     reasons: [],
   };
-  const byCategory = new Map<ReasonCategory, number>();
+  const byReason = new Map<string, number>();
   for (const row of rows) {
     if (!passesAttributeFilters(row, input.view, input.search)) {
       summary.filteredOut++;
@@ -203,11 +319,11 @@ export function exclusionSummary(rows: readonly OpportunityRow[], input: Opportu
     }
     const s = activeScore(row, input.view.perspective);
     if (isUnscorable(s)) {
-      const category = reasonCategory(s.reasonCodes);
-      byCategory.set(category, (byCategory.get(category) ?? 0) + 1);
+      const code = primaryReasonCode(s.reasonCodes);
+      byReason.set(code, (byReason.get(code) ?? 0) + 1);
     }
     const gate = input.reasonFilter
-      ? isUnscorable(s) && reasonCategory(s.reasonCodes) === input.reasonFilter
+      ? isUnscorable(s) && matchesReasonFilter(s.reasonCodes, input.reasonFilter)
         ? 'shown'
         : 'filtered'
       : scoreGate(row, input);
@@ -218,9 +334,15 @@ export function exclusionSummary(rows: readonly OpportunityRow[], input: Opportu
     else summary.filteredOut++;
   }
   const order: ReasonCategory[] = ['setup', 'stale', 'missing', 'identity', 'other'];
-  summary.reasons = order
-    .filter((c) => byCategory.has(c))
-    .map((category) => ({ category, label: REASON_CATEGORY_LABELS[category], count: byCategory.get(category)! }));
+  summary.reasons = [...byReason.entries()]
+    .map(([code, count]) => {
+      const category = code === 'other' ? 'other' : reasonCategory([code]);
+      return { category, code, label: reasonLabel(code), count };
+    })
+    .sort(
+      (a, b) =>
+        order.indexOf(a.category) - order.indexOf(b.category) || b.count - a.count || a.label.localeCompare(b.label),
+    );
   return summary;
 }
 
@@ -245,11 +367,11 @@ export function sectorHeatText(h: OpportunitySectorHeat, mask: (v: number) => nu
 }
 
 export function sectorHeatClass(h: OpportunitySectorHeat): string {
-  if (h.diffPp === null || h.status !== 'Matched') return 'sector-heat-badge sh--unavailable';
-  const level = Math.min(3, Math.max(1, h.intensity || 1));
-  if (h.direction === 'Positive') return `sector-heat-badge sh--pos-${level}`;
-  if (h.direction === 'Negative') return `sector-heat-badge sh--neg-${level}`;
-  return 'sector-heat-badge sh--neutral';
+  if (h.status !== 'Matched' || h.diffPp === null || h.benchmarkReturnPct === null) {
+    return 'sector-heat-badge sh--unavailable';
+  }
+  const momentum = h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
+  return `sector-heat-badge sh--benchmark-${momentum}`;
 }
 
 const HEAT_STATUS_LABELS: Record<string, string> = {
@@ -262,12 +384,13 @@ const HEAT_STATUS_LABELS: Record<string, string> = {
 };
 
 export function sectorHeatAriaLabel(h: OpportunitySectorHeat, sector: string | null): string {
-  if (h.diffPp === null || h.status !== 'Matched') {
+  if (h.diffPp === null || h.status !== 'Matched' || h.benchmarkReturnPct === null) {
     return `Sector heat unavailable: ${HEAT_STATUS_LABELS[h.status] ?? h.status}`;
   }
   const vs = sector ? ` versus ${sector} benchmark` : '';
   const word = h.direction === 'Positive' ? 'outperforming' : h.direction === 'Negative' ? 'underperforming' : 'in line';
-  return `Sector heat ${signedPp(h.diffPp)} percentage points over 20 sessions${vs}, ${word}`;
+  const momentum = h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
+  return `Sector heat ${signedPp(h.diffPp)} percentage points over 20 sessions${vs}, ${word}; benchmark momentum ${momentum} (${signedPp(h.benchmarkReturnPct)}%)`;
 }
 
 export function sectorHeatStatusLabel(status: string): string {
@@ -280,7 +403,12 @@ const RISK_ORDER: Record<string, number> = { Low: 1, Medium: 2, High: 3 };
 const FIT_ORDER: Record<string, number> = { Eligible: 1, Review: 2, NoAdd: 3 };
 
 /** Sortable / exportable value of a grid column. `score` is the active-perspective score. */
-export function columnValue(row: OpportunityRow, key: string, perspective: ScorePerspective): string | number | null {
+export function columnValue(
+  row: OpportunityRow,
+  key: string,
+  perspective: ScorePerspective,
+  manualR?: ManualRValues | null,
+): string | number | null {
   switch (key) {
     case 'symbol':
       return row.symbol;
@@ -292,6 +420,8 @@ export function columnValue(row: OpportunityRow, key: string, perspective: Score
       return row.strategic.score;
     case 'rr':
       return row.setup.rewardRisk;
+    case 'manualR':
+      return manualRewardRisk(manualR);
     case 'risk':
       return RISK_ORDER[row.risk.category] ?? null;
     case 'fit':
@@ -371,17 +501,24 @@ export function tableSortKey(sort: OpportunitySort, perspective: ScorePerspectiv
   return sort.active === 'score' ? perspective.toLowerCase() : sort.active;
 }
 
+/** Do not repeat the ticker as a company subtitle when no distinct verified description is available. */
+export function companyNameForDisplay(symbol: string, companyName: string | null | undefined): string | null {
+  const name = companyName?.trim();
+  return name && name.toLocaleUpperCase() !== symbol.trim().toLocaleUpperCase() ? name : null;
+}
+
 export function sortRows(
   rows: readonly OpportunityRow[],
   sort: OpportunitySort,
   perspective: ScorePerspective,
+  manualRByScenario: Readonly<Record<string, ManualRValues>> = {},
 ): OpportunityRow[] {
   const copy = [...rows];
   if (!sort.direction) return copy;
   const dir = sort.direction === 'asc' ? 1 : -1;
   return copy.sort((a, b) => {
-    const va = columnValue(a, sort.active, perspective);
-    const vb = columnValue(b, sort.active, perspective);
+    const va = columnValue(a, sort.active, perspective, manualRByScenario[manualRScenarioKey(a.symbol, perspective)]);
+    const vb = columnValue(b, sort.active, perspective, manualRByScenario[manualRScenarioKey(b.symbol, perspective)]);
     if (va === null && vb === null) return a.symbol.localeCompare(b.symbol);
     if (va === null) return 1;
     if (vb === null) return -1;
@@ -396,13 +533,17 @@ interface OpportunityExportColumn extends TxExportColumn {
   /** Grid column this export column belongs to (for "visible columns only"); always included when absent. */
   gridKey?: string;
   accountDetail?: boolean;
-  value: (row: OpportunityRow) => ExportCell;
+  value: (
+    row: OpportunityRow,
+    manualRByScenario: Readonly<Record<string, ManualRValues>>,
+    perspective: ScorePerspective,
+  ) => ExportCell;
 }
 
 const xcol = (
   header: string,
   kind: TxExportKind,
-  value: (row: OpportunityRow) => ExportCell,
+  value: OpportunityExportColumn['value'],
   gridKey?: string,
   accountDetail = false,
 ): OpportunityExportColumn => ({ header, kind, value, gridKey, accountDetail });
@@ -411,7 +552,7 @@ const list = (v: readonly string[]): string | null => (v.length ? v.join('; ') :
 
 const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Symbol', 'text', (r) => r.symbol),
-  xcol('Company', 'text', (r) => r.companyName),
+  xcol('Company', 'text', (r) => companyNameForDisplay(r.symbol, r.companyName)),
   xcol('Analysis Ticker', 'text', (r) => r.analysisTicker, 'symbol'),
   xcol('Exchange', 'text', (r) => r.exchange, 'symbol'),
   xcol('Swing Score', 'int', (r) => r.swing.score, 'swing'),
@@ -424,7 +565,13 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Strategic Band', 'text', (r) => (r.strategic.score === null ? 'Unscorable' : r.strategic.band), 'strategic'),
   xcol('Strategic Completeness %', 'qty', (r) => r.strategic.completenessPct, 'strategicCompleteness'),
   xcol('Strategic Reasons', 'text', (r) => list(r.strategic.reasonCodes), 'strategic'),
-  xcol('Reward:Risk', 'qty', (r) => r.setup.rewardRisk, 'rr'),
+  xcol('Market R', 'qty', (r) => r.setup.rewardRisk, 'rr'),
+  xcol(
+    'Manual R',
+    'qty',
+    (r, scenarios, perspective) => manualRewardRisk(scenarios[manualRScenarioKey(r.symbol, perspective)]),
+    'manualR',
+  ),
   xcol('Setup', 'text', (r) => r.setup.kind, 'setupKind'),
   xcol('Setup Reasons', 'text', (r) => list(r.setup.reasonCodes), 'setupKind'),
   xcol('Entry', 'money', (r) => r.setup.entry, 'entry'),
@@ -462,7 +609,7 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Roles', 'text', (r) => list(r.roles), 'roles'),
   xcol('Data As Of', 'date', (r) => r.freshness.dataAsOfDate, 'dataAsOf'),
   xcol('Data Status', 'text', (r) => r.rowStatus, 'status'),
-  xcol('Currency', 'text', (r) => r.currency ?? r.setup.currency ?? 'CAD'),
+  xcol('Currency', 'text', (r) => r.currency ?? r.setup.currency),
 ];
 
 export interface OpportunityExportOptions {
@@ -483,8 +630,10 @@ export function opportunityExportColumns(options: OpportunityExportOptions): Opp
 export function opportunityExportRows(
   rows: readonly OpportunityRow[],
   columns: readonly OpportunityExportColumn[],
+  manualRByScenario: Readonly<Record<string, ManualRValues>> = {},
+  perspective: ScorePerspective = 'Swing',
 ): ExportCell[][] {
-  return rows.map((r) => columns.map((c) => c.value(r)));
+  return rows.map((r) => columns.map((c) => c.value(r, manualRByScenario, perspective)));
 }
 
 /** Provenance sheet: snapshot id, scoring version, timestamps and the score disclaimer travel with every export. */

@@ -10,7 +10,7 @@
       </p>
     </div>
     <div class="header-actions">
-      <app-grid-column-btn [gridId]="gridId" [showLabel]="true" />
+      <app-grid-column-btn [gridId]="gridId" [profile]="view().perspective" [showLabel]="true" />
       <button
         mat-stroked-button
         type="button"
@@ -157,6 +157,75 @@
       </mat-form-field>
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Industry</mat-label>
+        <mat-select
+          multiple
+          data-testid="industry-filter"
+          [value]="view().industries"
+          (selectionChange)="update({ industries: $event.value })"
+        >
+          @for (i of industryOptions(); track i) {
+            <mat-option [value]="i">{{ i }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Risk</mat-label>
+        <mat-select
+          multiple
+          data-testid="risk-filter"
+          [value]="view().riskCategories"
+          (selectionChange)="update({ riskCategories: $event.value })"
+        >
+          @for (r of riskOptions; track r.value) {
+            <mat-option [value]="r.value">{{ r.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Account</mat-label>
+        <mat-select
+          multiple
+          data-testid="account-filter"
+          [value]="view().accounts"
+          (selectionChange)="update({ accounts: $event.value })"
+        >
+          @for (a of accountOptions(); track a) {
+            <mat-option [value]="a">{{ a }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Role</mat-label>
+        <mat-select
+          multiple
+          data-testid="role-filter"
+          [value]="view().roles"
+          (selectionChange)="update({ roles: $event.value })"
+        >
+          @for (r of roleOptions(); track r) {
+            <mat-option [value]="r">{{ r }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Freshness</mat-label>
+        <mat-select
+          data-testid="freshness-filter"
+          [value]="view().freshness"
+          (selectionChange)="update({ freshness: $event.value })"
+        >
+          @for (f of freshnessOptions; track f.value) {
+            <mat-option [value]="f.value">{{ f.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Sector Heat</mat-label>
         <mat-select multiple [value]="view().heat" (selectionChange)="update({ heat: $event.value })">
           @for (h of heatOptions; track h.value) {
@@ -218,7 +287,14 @@
         Verified only
       </mat-slide-toggle>
 
-      <button mat-button type="button" class="touch" (click)="store.resetFilters()" [disabled]="!hasActiveFilters()">
+      <button
+        mat-button
+        type="button"
+        class="touch"
+        data-testid="reset-opportunity-filters"
+        (click)="store.resetFilters()"
+        [disabled]="!hasActiveFilters()"
+      >
         <mat-icon>filter_alt_off</mat-icon> Reset filters
       </button>
     </div>
@@ -230,7 +306,13 @@
         Showing <strong>{{ summary().shown }}</strong> of {{ summary().total }}
       </span>
       @if (store.reasonFilter()) {
-        <button mat-stroked-button type="button" class="summary-chip active" (click)="store.setReasonFilter(null)">
+        <button
+          mat-stroked-button
+          type="button"
+          class="summary-chip active"
+          data-testid="clear-reason-filter"
+          (click)="store.setReasonFilter(null)"
+        >
           Unscorable only <mat-icon iconPositionEnd>close</mat-icon>
         </button>
       }
@@ -243,16 +325,16 @@
       @if (summary().filteredOut > 0) {
         <span class="summary-chip plain">{{ summary().filteredOut }} filtered out</span>
       }
-      @for (r of summary().reasons; track r.category) {
+      @for (r of summary().reasons; track r.code) {
         <button
           mat-stroked-button
           type="button"
           class="summary-chip"
-          [class.active]="store.reasonFilter() === r.category"
-          [attr.aria-pressed]="store.reasonFilter() === r.category"
+          [class.active]="store.reasonFilter() === r.code"
+          [attr.aria-pressed]="store.reasonFilter() === r.code"
           [matTooltip]="'Show the ' + r.count + ' ' + view().perspective + ' securities that cannot be scored: ' + r.label"
-          [attr.data-testid]="'reason-' + r.category"
-          (click)="toggleReason(r.category)"
+          [attr.data-testid]="'reason-' + r.code"
+          (click)="toggleReason(r.code)"
         >
           {{ r.count }} unscorable: {{ r.label }}
         </button>
@@ -284,9 +366,13 @@
         [rows]="visibleRows()"
         [perspective]="view().perspective"
         [sort]="view().sort"
+        [manualRByScenario]="manualRScenarios()"
         [selectedSymbol]="store.selectedSymbol()"
+        [emptyMessage]="emptyState().message"
+        [emptyActionLabel]="emptyState().actionLabel"
         (rowSelected)="selectSymbol($event)"
         (sortChanged)="onSort($event)"
+        (emptyAction)="applyEmptyAction()"
       />
       @if (panelOpen()) {
         <aside
@@ -303,8 +389,10 @@
             [loading]="store.detailLoading()"
             [error]="store.detailError()"
             [perspective]="view().perspective"
+            [manualRValues]="selectedManualR()"
             [config]="store.config()"
             [fullscreen]="!sidePanel()"
+            (manualRValuesChange)="setManualRScenario($event)"
             (closed)="closePanel()"
           />
         </aside>

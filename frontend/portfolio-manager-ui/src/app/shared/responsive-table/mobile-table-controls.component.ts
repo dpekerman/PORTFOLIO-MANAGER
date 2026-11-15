@@ -67,6 +67,8 @@ export class MobileTableControlsComponent {
   readonly sort = input.required<MatSort>();
   /** Registry id of the grid, used for labels and for the "Show all fields" toggle. */
   readonly gridId = input.required<string>();
+  /** Optional preference profile for grids that maintain multiple strategy layouts. */
+  readonly profile = input<string | undefined>(undefined);
   /** Accessible name of the bar, e.g. "Stock transactions". */
   readonly label = input('Table');
 
@@ -93,7 +95,9 @@ export class MobileTableControlsComponent {
     const gridDef = GRID_REGISTRY.find((g) => g.id === this.gridId());
     if (!gridDef) return [];
 
-    const onScreen = new Set(this.gridColumns.getResponsiveColumnKeys(this.gridId())());
+    const onScreen = new Set(
+      this.gridColumns.getResponsiveColumnKeys(this.gridId(), this.profile())(),
+    );
     const candidates = gridDef.columns.filter(
       (c) => c.key !== CONFIG_COLUMN_KEY && !c.pinned && c.label && onScreen.has(c.key),
     );

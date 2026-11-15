@@ -2,6 +2,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
+using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services;
 using PortfolioManager.Api.Services.FinalAction;
 using static PortfolioManager.Tests.Pm029FinalActionGoldenTests;
 
@@ -10,6 +13,22 @@ namespace PortfolioManager.Tests;
 /// <summary>PM-029 Phase 4a: evaluation bundle, single-flight and the side-effect-free universe evaluation.</summary>
 public sealed class Pm029FinalActionRefactorTests
 {
+    private sealed class ProviderFailingScanner : IRsiScannerService
+    {
+        private static Task<List<RsiScanResult>> Failed() =>
+            Task.FromException<List<RsiScanResult>>(new HttpRequestException("Synthetic provider failure."));
+
+        public Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m,
+            decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default) => Failed();
+
+        public Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m,
+            decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default) => Failed();
+
+        public Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m,
+            decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+    }
+
     private static JsonNode WithoutSource(FinalActionResultDto row)
     {
         var node = JsonNode.Parse(Normalise(new FinalActionSnapshotDto([row], [], DateTime.UnixEpoch)))!["watchlist"]![0]!.AsObject();
@@ -56,6 +75,55 @@ public sealed class Pm029FinalActionRefactorTests
         var missing = universe.Rows.Single(r => r.Symbol == "ZZZ.TO");
         Assert.Equal("AwaitingData", missing.EvaluationState);
         Assert.Contains("ZZZ.TO", universe.Unknown);
+    }
+
+    [Fact]
+    public async Task EvaluationPreview_UsesTheSameDecisionEngineWithoutCachingOrPersisting()
+    {
+        var cache = new MemoryCache(new MemoryCacheOptions());
+        var (service, db, scanner) = await SetUpGoldenAsync(cache);
+        var portfolioBefore = await db.PortfolioSnapshots.AsNoTracking().SingleAsync();
+        var mappingsBefore = await db.SecurityAnalysisMappings.AsNoTracking().CountAsync();
+        var preview = await service.EvaluatePreviewAsync("u");
+
+        Assert.True(scanner.PreviewCalls > 0);
+        Assert.Equal(0, scanner.PersistingCalls);
+        Assert.Null(service.TryGetCached("u"));
+        Assert.False(cache.TryGetValue("final-actions:u", out _));
+        Assert.False(cache.TryGetValue("final-actions-bundle:u", out _));
+        Assert.Equal(portfolioBefore.SnapshotJson, (await db.PortfolioSnapshots.AsNoTracking().SingleAsync()).SnapshotJson);
+        Assert.Empty(await db.StagedSignals.AsNoTracking().ToListAsync());
+        Assert.Equal(mappingsBefore, await db.SecurityAnalysisMappings.AsNoTracking().CountAsync());
+
+        var normal = await service.EvaluateAsync("u", fresh: true);
+
+        Assert.Equal(Normalise(normal.Snapshot), Normalise(preview.Snapshot));
+        Assert.True(scanner.PersistingCalls > 0);
+    }
+
+    [Fact]
+    public async Task EvaluationPreview_MatchesNormalAwaitingDataBehaviorWhenProviderFails()
+    {
+        var (_, db, _) = await SetUpGoldenAsync();
+        var portfolioBefore = await db.PortfolioSnapshots.AsNoTracking().SingleAsync();
+        var service = new FinalActionService(
+            db,
+            new ProviderFailingScanner(),
+            new PortfolioSnapshotService(db, NullLogger<PortfolioSnapshotService>.Instance),
+            new MemoryCache(new MemoryCacheOptions()),
+            NullLogger<FinalActionService>.Instance);
+
+        var preview = await service.EvaluatePreviewAsync("u");
+        var normal = await service.EvaluateAsync("u", fresh: true);
+
+        Assert.Equal(Normalise(normal.Snapshot), Normalise(preview.Snapshot));
+        Assert.All(preview.Snapshot.Watchlist.Concat(preview.Snapshot.Portfolio), row =>
+        {
+            Assert.Equal("Awaiting Data", row.FinalAction);
+            Assert.False(row.IsActionable);
+        });
+        Assert.Equal(portfolioBefore.SnapshotJson, (await db.PortfolioSnapshots.AsNoTracking().SingleAsync()).SnapshotJson);
+        Assert.Empty(await db.StagedSignals.AsNoTracking().ToListAsync());
     }
 
     [Fact]

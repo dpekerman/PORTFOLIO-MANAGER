@@ -19,7 +19,10 @@ public static class TradeSetupResolver
         if (entry <= 0m) return Unavailable(currency, OpportunityReasons.NoEntryPrice);
 
         var stop = scan.DynamicStopLoss;
-        if (stop <= 0m || stop >= entry) return Unavailable(currency, OpportunityReasons.NoValidStop, entry);
+        if (stop <= 0m)
+            return UnavailableWithReasons(currency, entry, OpportunityReasons.NoValidStop, OpportunityReasons.DynamicStopMissing);
+        if (stop >= entry)
+            return UnavailableWithReasons(currency, entry, OpportunityReasons.NoValidStop, OpportunityReasons.StopAtOrAboveEntry);
 
         var atr = scan.DailyAtr;
         var risk = entry - stop;
@@ -68,6 +71,9 @@ public static class TradeSetupResolver
 
     private static RiskCategory Band(decimal pct, decimal lowMax, decimal mediumMax) =>
         pct <= lowMax ? RiskCategory.Low : pct <= mediumMax ? RiskCategory.Medium : RiskCategory.High;
+
+    private static TradeSetupResult UnavailableWithReasons(string? currency, decimal? entry, params string[] reasons) =>
+        new(SetupKind.Unavailable, entry, null, null, null, null, null, null, null, currency, reasons);
 
     private static TradeSetupResult Unavailable(string? currency, string reason, decimal? entry = null, decimal? stop = null) =>
         new(SetupKind.Unavailable, entry, stop, null, null, null, null, null, null, currency, [reason]);

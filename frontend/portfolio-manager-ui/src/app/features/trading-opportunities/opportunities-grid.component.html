@@ -1,4 +1,8 @@
-<app-mobile-table-controls [sort]="sortRef" [gridId]="gridId" label="Opportunities" />
+<app-mobile-table-controls [sort]="sortRef" [gridId]="gridId" [profile]="perspective()" label="Opportunities" />
+
+<p class="grid-scroll-hint" role="note" data-testid="tablet-grid-scroll-hint">
+  Scroll the grid horizontally to view remaining columns.
+</p>
 
 <div class="grid-scroll">
   <table
@@ -25,7 +29,9 @@
             <mat-icon class="owned-icon" matTooltip="Held in your portfolio" aria-label="Owned">account_balance_wallet</mat-icon>
           }
         </div>
-        <div class="company" [matTooltip]="row.companyName">{{ row.companyName }}</div>
+        @if (companyName(row.symbol, row.companyName); as name) {
+          <div class="company" [matTooltip]="name">{{ name }}</div>
+        }
         @if (row.usesUnderlying && row.analysisTicker) {
           <div class="via" [matTooltip]="'Scored on the underlying security ' + row.analysisTicker">via {{ row.analysisTicker }}</div>
         }
@@ -58,6 +64,11 @@
           >{{ rrText(row) }}</span
         >
       </td>
+    </ng-container>
+
+    <ng-container matColumnDef="manualR">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('manualR') }}</th>
+      <td mat-cell *matCellDef="let row">{{ manualRText(row) }}</td>
     </ng-container>
 
     <ng-container matColumnDef="risk">
@@ -141,7 +152,20 @@
       (keydown)="onRowKey($event, row)"
     ></tr>
     <tr class="mat-row no-data" *matNoDataRow>
-      <td class="mat-cell" [attr.colspan]="columns().length">No securities match the current filters.</td>
+      <td class="mat-cell" [attr.colspan]="columns().length">
+        <div class="no-data-content">
+          <span>{{ emptyMessage() }}</span>
+          @if (emptyActionLabel()) {
+            <button
+              mat-button
+              type="button"
+              data-testid="empty-action"
+              (click)="$event.stopPropagation(); emptyAction.emit()"
+              >{{ emptyActionLabel() }}</button
+            >
+          }
+        </div>
+      </td>
     </tr>
   </table>
 </div>

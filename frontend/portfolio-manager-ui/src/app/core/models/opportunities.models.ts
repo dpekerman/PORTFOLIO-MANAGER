@@ -206,6 +206,8 @@ export interface ScoreResult {
   scoringVersion: string;
   score: number | null;
   normalizedScore: number | null;
+  /** Fixed technical pool for Swing-v2; absent in historical Swing-v1 payloads and Strategic scores. */
+  scoreDenominatorMax?: number | null;
   awardedTotal: number;
   availableMax: number;
   completenessPct: number;
@@ -279,6 +281,11 @@ export interface OpportunityEvidence {
   finalActionEvaluationId: string;
   finalActionComputedAtUtc: string;
   warnings: string[];
+  benchmarkCategory?: string | null;
+  benchmarkCurrency?: string | null;
+  benchmarkMappingSource?: string | null;
+  benchmarkMappingRationale?: string | null;
+  benchmarkMappingAsOfDate?: string | null;
 }
 
 export interface OpportunityDetail {
@@ -296,7 +303,7 @@ export interface OpportunityDetail {
 
 // ── Config / reference ──────────────────────────────────────────────────────
 
-/** Published scoring parameters (pm029-v1); the UI never duplicates thresholds. */
+/** Published scoring parameters; the UI never duplicates thresholds. */
 export interface OpportunityConfig {
   version: string;
   disclaimer: string;
@@ -306,6 +313,7 @@ export interface OpportunityConfig {
   moderateMin: number;
   cautionMin: number;
   minCompletenessPct: number;
+  swingDenominatorMax: number;
   shortWindowSessions: number;
   longWindowSessions: number;
   neutralBandPp: number;

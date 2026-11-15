@@ -74,7 +74,7 @@ public sealed class OpportunityService(
             .Select(p => (DateTime?)p.UpdatedAt).FirstOrDefaultAsync(ct);
         var session = DateOnly.FromDateTime(snap.DataAsOfSession);
         return new OpportunitySnapshotDto(
-            snap.Id, snap.ScoringVersion, OpportunityScoringConfig.Disclaimer, snap.ComputedAtUtc, snap.FinalActionComputedAtUtc, session,
+            snap.Id, snap.ScoringVersion, OpportunityScoringConfig.DisclaimerFor(snap.ScoringVersion), snap.ComputedAtUtc, snap.FinalActionComputedAtUtc, session,
             snap.Status, snap.ErrorSummary, lastAttempt, payload.Counts,
             session < TradingCalendar.LastCompletedSession(DateTime.UtcNow, MarketExchange.Tsx),
             portfolioUpdatedAt is { } now && payload.PortfolioUpdatedAtUtc is { } then ? now > then : portfolioUpdatedAt is not null && payload.PortfolioUpdatedAtUtc is null,
@@ -173,7 +173,7 @@ public sealed class OpportunityService(
         var nowUtc = DateTime.UtcNow;
 
         // 1. Authoritative Final Action evaluation for the user's Watchlist + holdings (the same evaluation the Final Action page uses).
-        var evaluation = await finalActions.EvaluateAsync(userId, fresh: true, ct);
+        var evaluation = await finalActions.EvaluatePreviewAsync(userId, ct);
         var basis = evaluation.Portfolio;
 
         // 2. Universe: Watchlist (same visibility rule as Final Action) + open holdings + current TSX 60 constituents.
@@ -271,7 +271,7 @@ public sealed class OpportunityService(
                 p.ExpectedSession, p.Exchange, p.Scan.AnalysisCurrency, benchInfo, p.Classification.IsClassified);
             var setup = TradeSetupResolver.Resolve(p.Scan, p.ExpectedSession);
             var risk = TradeSetupResolver.AssessRisk(p.Scan, setup, p.ExpectedSession);
-            var input = new OpportunityScoringInput(p.Scan, p.ExpectedSession, sector, setup, p.Value, nowUtc,
+            var input = new OpportunityScoringInput(p.Scan, p.ExpectedSession, sector, setup, p.Value, DateTime.UtcNow,
                 IdentityResolved: !unresolved.Contains(p.Member.Symbol));
             var swing = OpportunityScoringEngine.ScoreSwing(input);
             var strategic = OpportunityScoringEngine.ScoreStrategic(input);
@@ -282,7 +282,7 @@ public sealed class OpportunityService(
 
             var decisions = faRows.Where(r => string.Equals(r.Symbol, p.Member.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
             var row = BuildRow(p, swing, strategic, sector, setup, risk, fit, decisions, unresolved.Contains(p.Member.Symbol), valueOrigins);
-            var evidence = BuildEvidence(p, sector, valueOrigins, basis, evaluation, decisions);
+            var evidence = BuildEvidence(p, valueOrigins, basis, evaluation, decisions);
             records.Add(new OpportunityDetailDto(0, row, swing, strategic, sector, setup, decisions,
                 savedPlans.GetValueOrDefault(p.Member.Symbol) ?? [], evidence));
         }
@@ -380,7 +380,7 @@ public sealed class OpportunityService(
     }
 
     private static OpportunityEvidenceDto BuildEvidence(
-        RowPlan p, SectorRelativeResult? sector, IReadOnlyDictionary<string, (string Origin, DateTime RunAt)> valueOrigins,
+        RowPlan p, IReadOnlyDictionary<string, (string Origin, DateTime RunAt)> valueOrigins,
         FinalActionPortfolioBasis basis, FinalActionEvaluation evaluation, IReadOnlyList<FinalActionResultDto> decisions)
     {
         var warnings = new List<string>();
@@ -394,12 +394,17 @@ public sealed class OpportunityService(
         string? valueOrigin = p.Value is not null && valueOrigins.TryGetValue(p.Member.Symbol, out var vo) ? vo.Origin : null;
         return new OpportunityEvidenceDto(
             OpportunityScoringConfig.Version, OpportunityScoringConfig.Disclaimer, OpportunityScoringConfig.SectorMethodology,
-            "Yahoo Finance daily chart (split-adjusted close)", sector?.BenchmarkSymbol, sector?.BenchmarkName, p.Classification.Source,
+            "Yahoo Finance daily chart (split-adjusted close)",
+            p.Mapping?.BenchmarkSymbol.Trim().ToUpperInvariant(),
+            string.IsNullOrWhiteSpace(p.Mapping?.BenchmarkName) ? null : p.Mapping.BenchmarkName,
+            p.Classification.Source,
             p.Scan?.ScannedAt, p.Scan?.TradingDate, p.ExpectedSession,
             valueOrigin, p.Value?.AnalyzedAt,
             p.Value?.EarningsYieldBasis, p.Value?.FcfYieldBasis, p.Value?.CapitalEfficiencyBasis,
             decisions.Select(d => d.AllocationStatus).FirstOrDefault(a => a is not null) ?? basis.Valuation.Status,
-            basis.PortfolioUpdatedAt, evaluation.EvaluationId.ToString(), evaluation.Snapshot.ComputedAtUtc, warnings);
+            basis.PortfolioUpdatedAt, evaluation.EvaluationId.ToString(), evaluation.Snapshot.ComputedAtUtc, warnings,
+            p.Mapping is null ? null : "Sector mapping", p.Mapping?.Currency, p.Mapping?.Source, p.Mapping?.Notes,
+            p.Mapping?.SourceAsOfDate);
     }
 
     // ── Data loading ──────────────────────────────────────────────────────────

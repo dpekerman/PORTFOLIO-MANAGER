@@ -3,14 +3,24 @@ namespace PortfolioManager.Api.Services.Opportunities;
 /// <summary>
 /// Every threshold of the PM-029 opportunity scoring, sector heat, trade setup and fit rules. Changing ANY value requires a new
 /// <see cref="Version"/> so that stored snapshots stay reproducible. Specification: docs/pm-029-trading-opportunities.md.
-/// Approved 2026-11-14 as experimental deterministic heuristics — not a statistically calibrated probability.
+/// Deterministic heuristics — not a statistically calibrated probability.
 /// </summary>
 public static class OpportunityScoringConfig
 {
-    public const string Version = "pm029-v1";
+    public const string Version = "pm029-v2";
+    public const string LegacyVersion = "pm029-v1";
+    public const string SwingVersion = Version;
+    public const string StrategicVersion = LegacyVersion;
+    public const decimal SwingDenominatorMax = 80m;
 
     public const string Disclaimer =
+        "Swing-v2 is an evidence-adjusted technical ranking, not a probability of success or an executable buy recommendation.";
+
+    public const string LegacyDisclaimer =
         "Heuristic setup score (pm029-v1). Not a probability of success; not statistically validated.";
+
+    public static string DisclaimerFor(string? version) =>
+        string.Equals(version, LegacyVersion, StringComparison.Ordinal) ? LegacyDisclaimer : Disclaimer;
 
     // ── Status (§3.3) ────────────────────────────────────────────────────────
     public const decimal MinCompletenessPct = 70m;

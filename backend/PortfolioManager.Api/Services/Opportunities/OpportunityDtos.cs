@@ -152,7 +152,12 @@ public sealed record OpportunityEvidenceDto(
     DateTime? PortfolioUpdatedAtUtc,
     string FinalActionEvaluationId,
     DateTime FinalActionComputedAtUtc,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    string? BenchmarkCategory = null,
+    string? BenchmarkCurrency = null,
+    string? BenchmarkMappingSource = null,
+    string? BenchmarkMappingRationale = null,
+    DateTime? BenchmarkMappingAsOfDate = null);
 
 public sealed record OpportunityDetailDto(
     int SnapshotId,
@@ -195,10 +200,11 @@ public sealed record OpportunitySnapshotPayload(
 
 public sealed class OpportunityRefreshInProgressException() : Exception("An opportunity refresh is already running for this user.");
 
-/// <summary>Published scoring parameters (pm029-v1) so the UI explains thresholds without duplicating them.</summary>
+/// <summary>Published scoring parameters so the UI explains thresholds without duplicating them.</summary>
 public sealed record OpportunityConfigDto(
     string Version, string Disclaimer, string SectorMethodology,
     int StrongMin, int AttractiveMin, int ModerateMin, int CautionMin, decimal MinCompletenessPct,
+    int SwingDenominatorMax,
     int ShortWindowSessions, int LongWindowSessions, decimal NeutralBandPp, decimal Intensity2Pp, decimal Intensity3Pp,
     decimal ActionableRewardRisk, int FundamentalsMaxAgeDays)
 {
@@ -206,6 +212,7 @@ public sealed record OpportunityConfigDto(
         OpportunityScoringConfig.Version, OpportunityScoringConfig.Disclaimer, OpportunityScoringConfig.SectorMethodology,
         OpportunityScoringConfig.StrongMin, OpportunityScoringConfig.AttractiveMin, OpportunityScoringConfig.ModerateMin,
         OpportunityScoringConfig.CautionMin, OpportunityScoringConfig.MinCompletenessPct,
+        (int)OpportunityScoringConfig.SwingDenominatorMax,
         OpportunityScoringConfig.ShortWindowSessions, OpportunityScoringConfig.LongWindowSessions, OpportunityScoringConfig.NeutralBandPp,
         OpportunityScoringConfig.Intensity2Pp, OpportunityScoringConfig.Intensity3Pp,
         OpportunityScoringConfig.ActionableRewardRisk, (int)OpportunityScoringConfig.FundamentalsMaxAge.TotalDays);

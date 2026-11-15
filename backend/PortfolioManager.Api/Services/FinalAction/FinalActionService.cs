@@ -138,6 +138,10 @@ public interface IFinalActionService
     /// </summary>
     Task<UniverseFinalActions> EvaluateUniverseAsync(string userId, IReadOnlyCollection<string> symbols, CancellationToken ct = default) =>
         throw new NotSupportedException();
+
+    /// <summary>Runs the authoritative user evaluation with read-only scanner and staged-signal preview evidence.</summary>
+    Task<FinalActionEvaluation> EvaluatePreviewAsync(string userId, CancellationToken ct = default) =>
+        throw new NotSupportedException("This Final Action service does not support read-only evaluation previews.");
 }
 
 /// <summary>Portfolio numbers a Final Action evaluation used. Consumers (PM-029 Portfolio Fit) must use these, never recompute them.</summary>
@@ -189,6 +193,7 @@ public sealed class FinalActionService(
     private const decimal OverboughtThreshold = 75m;
     private const string LogicMode = "Enhanced";
     private const int BatchSize = 100;
+    private enum ScannerEvaluationMode { Persist, ReadOnly, Preview }
     private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(10);
     /// <summary>Failed, inconsistent or incomplete market data can recover within minutes: such a snapshot must not be reused for the full TTL.</summary>
     private static readonly TimeSpan TransientCacheTtl = TimeSpan.FromMinutes(1);
@@ -235,7 +240,18 @@ public sealed class FinalActionService(
         try
         {
             if (TryGetBundle(userId, DateTime.UtcNow) is { } done && (!fresh || done.Snapshot.ComputedAtUtc >= requestedAtUtc)) return done;
-            return await ComputeCoreAsync(userId, ct);
+            return await ComputeCoreAsync(userId, ScannerEvaluationMode.Persist, ct);
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<FinalActionEvaluation> EvaluatePreviewAsync(string userId, CancellationToken ct = default)
+    {
+        var gate = Gates.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            return await ComputeCoreAsync(userId, ScannerEvaluationMode.Preview, ct);
         }
         finally { gate.Release(); }
     }
@@ -249,12 +265,15 @@ public sealed class FinalActionService(
         Dictionary<string, RejectedMarketBar> RejectedBars,
         HashSet<string> Unknown);
 
-    /// <summary>Batched scan + one retry, shared by the user evaluation (persisting) and the universe evaluation (read-only).</summary>
-    private async Task<ScanPass> ScanSymbolsAsync(IReadOnlyList<string> symbols, string userId, bool readOnly, CancellationToken ct)
+    /// <summary>Batched scan + one retry, shared by persisted, read-only and preview evaluations.</summary>
+    private async Task<ScanPass> ScanSymbolsAsync(IReadOnlyList<string> symbols, string userId, ScannerEvaluationMode mode, CancellationToken ct)
     {
-        Task<List<RsiScanResult>> Analyze(IEnumerable<string> batch) => readOnly
-            ? scanner.AnalyzeSymbolsReadOnlyAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct)
-            : scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct);
+        Task<List<RsiScanResult>> Analyze(IEnumerable<string> batch) => mode switch
+        {
+            ScannerEvaluationMode.Persist => scanner.AnalyzeSymbolsAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct),
+            ScannerEvaluationMode.Preview => scanner.AnalyzeSymbolsPreviewAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct),
+            _ => scanner.AnalyzeSymbolsReadOnlyAsync(batch, OversoldThreshold, OverboughtThreshold, LogicMode, userId, ct),
+        };
 
         var scans = new Dictionary<string, RsiScanResult>(StringComparer.OrdinalIgnoreCase);
         var rejections = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -362,7 +381,7 @@ public sealed class FinalActionService(
     {
         const string role = "Strategic";
         var list = symbols.Select(s => s.Trim().ToUpperInvariant()).Where(s => s.Length > 0).Distinct().ToList();
-        var pass = await ScanSymbolsAsync(list, userId, readOnly: true, ct);
+        var pass = await ScanSymbolsAsync(list, userId, ScannerEvaluationMode.ReadOnly, ct);
         var valueByTicker = await LoadValueScreenerAsync(ct);
         var valuation = await CheckValuationAsync(userId, await LoadSummariesAsync(userId, ct), ct);
         var nowUtc = DateTime.UtcNow;
@@ -396,7 +415,7 @@ public sealed class FinalActionService(
         return Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson) ?? [];
     }
 
-    private async Task<FinalActionEvaluation> ComputeCoreAsync(string userId, CancellationToken ct)
+    private async Task<FinalActionEvaluation> ComputeCoreAsync(string userId, ScannerEvaluationMode mode, CancellationToken ct)
     {
         var watchlistItems = await db.WatchlistItems.AsNoTracking()
             .Where(w => w.UserId == userId || w.UserId == null).ToListAsync(ct);
@@ -409,7 +428,7 @@ public sealed class FinalActionService(
             .Concat(openHoldings.Select(h => h.Item.Symbol))
             .Select(s => s.ToUpperInvariant()).Distinct().ToList();
 
-        var (scans, rejections, rejectedBars, unknown) = await ScanSymbolsAsync(symbols, userId, readOnly: false, ct);
+        var (scans, rejections, rejectedBars, unknown) = await ScanSymbolsAsync(symbols, userId, mode, ct);
         var valueByTicker = await LoadValueScreenerAsync(ct);
         var nowUtc = DateTime.UtcNow;
 
@@ -564,9 +583,12 @@ public sealed class FinalActionService(
             portfolioSnap?.UpdatedAt);
         var bundle = new FinalActionEvaluation(Guid.NewGuid(), snapshot,
             scans.ToDictionary(kv => kv.Key, kv => kv.Value.Copy(), StringComparer.OrdinalIgnoreCase), basis);
-        var ttl = HasTransientEvidenceProblem(snapshot) ? TransientCacheTtl : CacheTtl;
-        cache.Set(SnapshotKey(userId), snapshot, ttl);
-        cache.Set(BundleKey(userId), bundle, ttl);
+        if (mode == ScannerEvaluationMode.Persist)
+        {
+            var ttl = HasTransientEvidenceProblem(snapshot) ? TransientCacheTtl : CacheTtl;
+            cache.Set(SnapshotKey(userId), snapshot, ttl);
+            cache.Set(BundleKey(userId), bundle, ttl);
+        }
         return bundle;
     }
 

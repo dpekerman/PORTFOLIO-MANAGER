@@ -30,6 +30,17 @@
   --heat-neg-3-fg: #ffffff;
   --heat-neutral: #333333;
   --heat-neutral-fg: #d6d6d6;
+
+  --sector-pos-1: #203a24;
+  --sector-pos-2: #284d2d;
+  --sector-pos-3: #315f38;
+  --sector-pos-fg: #a5d6a7;
+  --sector-neg-1: #3f2424;
+  --sector-neg-2: #5a2929;
+  --sector-neg-3: #763030;
+  --sector-neg-fg: #ef9a9a;
+  --sector-neutral-bg: #333333;
+  --sector-neutral-fg: #d6d6d6;
 }
 
 body.light-theme {
@@ -43,6 +54,17 @@ body.light-theme {
   --heat-neg-1-fg: #8e0000;
   --heat-neutral: #eeeeee;
   --heat-neutral-fg: #424242;
+
+  --sector-pos-1: #eff8ef;
+  --sector-pos-2: #e1f1e2;
+  --sector-pos-3: #d3ead5;
+  --sector-pos-fg: #1b5e20;
+  --sector-neg-1: #fff4f4;
+  --sector-neg-2: #ffe4e4;
+  --sector-neg-3: #ffd5d5;
+  --sector-neg-fg: #8e0000;
+  --sector-neutral-bg: #eeeeee;
+  --sector-neutral-fg: #424242;
 }
 
 // ── Score heat cell (fully filled, bold centred integer) ─────────────────────
@@ -89,32 +111,31 @@ body.light-theme {
   border: 1px solid currentColor;
 }
 
-// ── Sector Heat badge (signed pp, arrow + sign so colour is never the only cue) ──
+// ── Sector Heat: signed relative-return text, background is absolute benchmark momentum ──
 .sector-heat-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   min-height: 26px;
   padding: 0 8px;
-  border-radius: 13px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-left: 3px solid currentColor;
+  border-radius: 6px;
   font-weight: 700;
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  background: var(--heat-neutral);
-  color: var(--heat-neutral-fg);
+  background: var(--sector-neutral-bg);
+  color: var(--sector-neutral-fg);
 }
 
-.sh--pos-1 { background: var(--heat-pos-1); color: var(--heat-pos-1-fg); }
-.sh--pos-2 { background: var(--heat-pos-2); color: var(--heat-pos-2-fg); }
-.sh--pos-3 { background: var(--heat-pos-3); color: var(--heat-pos-3-fg); }
-.sh--neg-1 { background: var(--heat-neg-1); color: var(--heat-neg-1-fg); }
-.sh--neg-2 { background: var(--heat-neg-2); color: var(--heat-neg-2-fg); }
-.sh--neg-3 { background: var(--heat-neg-3); color: var(--heat-neg-3-fg); }
-.sh--neutral { background: var(--heat-neutral); color: var(--heat-neutral-fg); }
+.sh--benchmark-strong { background: var(--sector-pos-1); color: var(--sector-pos-fg); }
+.sh--benchmark-weak { background: var(--sector-neg-1); color: var(--sector-neg-fg); }
+.sh--benchmark-neutral { background: var(--sector-neutral-bg); color: var(--sector-neutral-fg); border-left-color: var(--mat-sys-outline); }
 .sh--unavailable {
   background: transparent;
   color: var(--text-muted);
   font-weight: 500;
   border: 1px dashed var(--border-subtle);
+  border-left-width: 3px;
 }

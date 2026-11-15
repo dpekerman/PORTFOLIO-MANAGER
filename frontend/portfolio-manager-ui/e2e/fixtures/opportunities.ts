@@ -8,19 +8,33 @@ import type {
   ScoreResult,
 } from '../../src/app/core/models/opportunities.models';
 import type { FinalActionResult } from '../../src/app/core/models/portfolio.models';
-import { isoDate, isoDateTime } from './factories';
+import { isoDateTime } from './factories';
 
-// PM-029 e2e fixtures. Every number is arbitrary test data, deliberately unlike the design prototypes.
+// SYNTHETIC PM-029 E2E fixtures only; values are not production or verified financial/security data.
+// CCA preserves the no-setup Swing component evidence.
+
+function marketSessionDate(daysAgo: number): string {
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  while (date.getUTCDay() === 0 || date.getUTCDay() === 6) date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function marketSessionTime(daysAgo: number, hour: number): string {
+  return `${marketSessionDate(daysAgo)}T${String(hour).padStart(2, '0')}:30:00.000Z`;
+}
 
 export const opportunityConfig: OpportunityConfig = {
-  version: 'pm029-v1',
-  disclaimer: 'Scores are weighted setup assessments, not probabilities.',
-  sectorMethodology: 'Split-adjusted price returns over completed sessions; dividends excluded.',
+  version: 'pm029-v2',
+  disclaimer: 'Swing-v2 is an evidence-adjusted technical ranking, not a probability of success or an executable buy recommendation.',
+  sectorMethodology: 'Price return (split-adjusted, dividends excluded)',
   strongMin: 85,
   attractiveMin: 70,
-  moderateMin: 55,
-  cautionMin: 40,
+  moderateMin: 60,
+  cautionMin: 50,
   minCompletenessPct: 70,
+  swingDenominatorMax: 80,
   shortWindowSessions: 20,
   longWindowSessions: 60,
   neutralBandPp: 0.5,
@@ -69,7 +83,7 @@ const noFa: OpportunityFinalAction = {
 
 function row(symbol: string, p: Partial<OpportunityRow> & { price: number }): OpportunityRow {
   const { price, ...rest } = p;
-  return {
+  const result: OpportunityRow = {
     symbol,
     companyName: `${symbol.split('.')[0]} Test Corp`,
     analysisTicker: symbol,
@@ -143,9 +157,9 @@ function row(symbol: string, p: Partial<OpportunityRow> & { price: number }): Op
       rs60Pp: null,
     },
     freshness: {
-      dataAsOfDate: isoDate(-1),
-      expectedSession: isoDate(-1),
-      scannedAtUtc: isoDateTime(-1, 22),
+      dataAsOfDate: marketSessionDate(1),
+      expectedSession: marketSessionDate(1),
+      scannedAtUtc: marketSessionTime(1, 22),
       isStale: false,
       fundamentalsAsOfUtc: isoDateTime(-2, 22),
       fundamentalsOrigin: 'Watchlist',
@@ -153,6 +167,12 @@ function row(symbol: string, p: Partial<OpportunityRow> & { price: number }): Op
     rowStatus: 'Ok',
     ...rest,
   };
+  result.indicators = {
+    ...result.indicators,
+    rs20Pp: result.sectorHeat.status === 'Matched' ? result.sectorHeat.diffPp : null,
+    rs60Pp: result.sectorHeat.status === 'Matched' ? result.sectorHeat.diff60Pp : null,
+  };
+  return result;
 }
 
 const setupFor = (entry: number, stop: number, target: number) => ({
@@ -164,7 +184,7 @@ const setupFor = (entry: number, stop: number, target: number) => ({
   rewardRisk: Math.round(((target - entry) / (entry - stop)) * 100) / 100,
   riskPct: Math.round(((entry - stop) / entry) * 1000) / 10,
   rewardPct: Math.round(((target - entry) / entry) * 1000) / 10,
-  stopDistanceAtr: 1.7,
+  stopDistanceAtr: Math.round(((entry - stop) / (entry * 0.025)) * 100) / 100,
   currency: 'CAD',
   reasonCodes: [],
 });
@@ -203,8 +223,8 @@ export function opportunityRows(): OpportunityRow[] {
       swing: score({ score: 88, band: 'Strong' }),
       strategic: score({ score: 73, band: 'Attractive' }),
       sectorHeat: heat(3.6, 'Positive', 2),
-      setup: setupFor(48.2, 45.1, 56.3),
-      risk: { category: 'Medium', riskToStopPct: 6.4, atrPct: 2.5, hardStructuralNegative: false, basis: 'Scanner' },
+      setup: setupFor(48.2, 45.308, 57.84),
+      risk: { category: 'Medium', riskToStopPct: 6.0, atrPct: 2.5, hardStructuralNegative: false, basis: 'Scanner' },
       fit: eligibleFit,
       finalAction: singleFa('Hold / Monitor', 'ma-hold'),
     }),
@@ -215,11 +235,12 @@ export function opportunityRows(): OpportunityRow[] {
       accounts: ['RRSP_E2E', 'TFSA_E2E'],
       roles: ['Swing', 'Strategic'],
       sector: 'Financials',
+      industry: 'Banking',
       swing: score({ score: 76, band: 'Attractive', status: 'Provisional', completenessPct: 78, reasonCodes: ['LowCompleteness'] }),
       strategic: score({ score: 58, band: 'Moderate' }),
       sectorHeat: heat(-2.4, 'Negative', 2, 'XFN.TO'),
-      setup: setupFor(17.35, 16.2, 19.9),
-      risk: { category: 'Medium', riskToStopPct: 6.6, atrPct: 2.8, hardStructuralNegative: false, basis: 'Scanner' },
+      setup: setupFor(17.35, 16.309, 20.82),
+      risk: { category: 'Medium', riskToStopPct: 6.0, atrPct: 2.5, hardStructuralNegative: false, basis: 'Scanner' },
       fit: { ...eligibleFit, status: 'Review', reasonCodes: ['PositionNearLimit'] },
       finalAction: {
         ...singleFa('Hold / Monitor', 'ma-hold'),
@@ -232,12 +253,21 @@ export function opportunityRows(): OpportunityRow[] {
         reason: null,
       },
     }),
-    row('NVX.TO', {
+    row('CCA.TO', {
       price: 9.81,
       sector: 'Materials',
-      swing: score({ score: null, status: 'Unavailable', completenessPct: 52, reasonCodes: ['NoStructuralTarget'] }),
+      swing: score({ score: 28, status: 'Provisional', completenessPct: 75, band: 'Weak', reasonCodes: ['SectorHeat:Unmapped'] }),
       strategic: score({ score: 67, band: 'Moderate' }),
-      sectorHeat: heat(0.3, 'Neutral', 0, 'XMA.TO'),
+      sectorHeat: {
+        diffPp: null,
+        diff60Pp: null,
+        stockReturnPct: null,
+        benchmarkReturnPct: null,
+        status: 'Unmapped',
+        direction: 'None',
+        intensity: 0,
+        benchmarkSymbol: null,
+      },
       finalAction: singleFa('Watch', 'ma-watch'),
     }),
     row('BRQ.TO', {
@@ -248,8 +278,8 @@ export function opportunityRows(): OpportunityRow[] {
       swing: score({ score: 34, band: 'Weak' }),
       strategic: score({ score: 47, band: 'Caution' }),
       sectorHeat: heat(-6.1, 'Negative', 3, 'XEG.TO'),
-      setup: setupFor(63.4, 59.8, 65.1),
-      risk: { category: 'High', riskToStopPct: 5.7, atrPct: 3.6, hardStructuralNegative: true, basis: 'Scanner' },
+      setup: setupFor(63.4, 59.596, 76.08),
+      risk: { category: 'High', riskToStopPct: 6.0, atrPct: 2.5, hardStructuralNegative: true, basis: 'Scanner' },
       fit: eligibleFit,
     }),
     row('ZEN.NE', {
@@ -260,8 +290,8 @@ export function opportunityRows(): OpportunityRow[] {
       sector: 'Technology',
       swing: score({ score: 81, band: 'Attractive' }),
       strategic: score({ score: null, status: 'Insufficient', completenessPct: 44, reasonCodes: ['FundamentalsMissing'] }),
-      setup: setupFor(22.05, 20.9, 25.4),
-      risk: { category: 'Low', riskToStopPct: 5.2, atrPct: 1.9, hardStructuralNegative: false, basis: 'Scanner' },
+      setup: setupFor(22.05, 20.727, 26.46),
+      risk: { category: 'Low', riskToStopPct: 6.0, atrPct: 2.5, hardStructuralNegative: false, basis: 'Scanner' },
       fit: eligibleFit,
       finalAction: singleFa('Entry / Add', 'ma-buy', true),
     }),
@@ -286,11 +316,11 @@ export function opportunitySnapshotResponse(): OpportunitySnapshot {
   const rows = opportunityState.rows;
   return {
     snapshotId: opportunityState.snapshotId,
-    scoringVersion: 'pm029-v1',
+    scoringVersion: 'pm029-v2',
     disclaimer: opportunityConfig.disclaimer,
     computedAtUtc: isoDateTime(-1, 22),
     finalActionComputedAtUtc: isoDateTime(-1, 22),
-    dataAsOfSession: isoDate(-1),
+    dataAsOfSession: marketSessionDate(1),
     status: 'Succeeded',
     errorSummary: null,
     lastAttempt: { atUtc: isoDateTime(-1, 22), status: 'Succeeded', errorSummary: null },
@@ -307,35 +337,88 @@ export function opportunitySnapshotResponse(): OpportunitySnapshot {
   };
 }
 
-function scoreResult(perspective: 'Swing' | 'Strategic', s: OpportunityScoreSummary): ScoreResult {
-  const available = s.score !== null;
+const swingComponents = [
+  { code: 'S1', name: 'Trend & Structure', max: 25, essential: true },
+  { code: 'S2', name: 'Relative Strength', max: 20, essential: false },
+  { code: 'S3', name: 'RSI/MACD Momentum', max: 15, essential: true },
+  { code: 'S4', name: 'Volume Confirmation', max: 10, essential: false },
+  { code: 'S5', name: 'Entry Quality', max: 10, essential: false },
+];
+
+const strategicComponents = [
+  { code: 'T1', name: 'Long-Term Trend', max: 20, essential: true },
+  { code: 'T2', name: 'Relative Strength', max: 10, essential: false },
+  { code: 'T3', name: 'Momentum', max: 5, essential: false },
+  { code: 'T4', name: 'Volume', max: 5, essential: false },
+  { code: 'T5', name: 'Entry Timing', max: 10, essential: false },
+  { code: 'T6', name: 'Downside Risk', max: 10, essential: false },
+  { code: 'T7', name: 'Valuation', max: 25, essential: false },
+  { code: 'T8', name: 'Business Quality', max: 15, essential: true },
+];
+
+function distribute(total: number, capacities: readonly number[]): number[] {
+  let remaining = total;
+  return capacities.map((capacity) => {
+    const value = Math.min(remaining, capacity);
+    remaining -= value;
+    return value;
+  });
+}
+
+function scoreResult(perspective: 'Swing' | 'Strategic', s: OpportunityScoreSummary, symbol: string): ScoreResult {
+  const swingV2 = perspective === 'Swing';
+  const denominator = swingV2 ? 80 : 100;
+  const availableMax = Math.round((s.completenessPct * denominator) / 100);
+  const awardedTotal = s.score === null ? 0 : Math.round((s.score * (swingV2 ? denominator : availableMax)) / 100);
+  const specs = swingV2 ? swingComponents : strategicComponents;
+  const ccaSwingAvailability = [25, 0, 15, 10, 10];
+  const ccaSwingAwarded = [0, 0, 8, 4, 10];
+  const qrkSwingAwarded = [25, 17, 14, 7, 7];
+  const isCcaSwing = swingV2 && symbol === 'CCA.TO';
+  const componentAvailability = isCcaSwing
+    ? ccaSwingAvailability
+    : distribute(availableMax, specs.map((component) => component.max));
+  const componentAwards = isCcaSwing
+    ? ccaSwingAwarded
+    : swingV2 && symbol === 'QRK.TO'
+      ? qrkSwingAwarded
+    : distribute(awardedTotal, componentAvailability);
+
   return {
     perspective,
-    scoringVersion: 'pm029-v1',
+    scoringVersion: swingV2 ? 'pm029-v2' : 'pm029-v1',
     score: s.score,
     normalizedScore: s.score,
-    awardedTotal: s.score ?? 0,
-    availableMax: Math.round(s.completenessPct),
+    ...(swingV2 ? { scoreDenominatorMax: denominator } : {}),
+    awardedTotal,
+    availableMax,
     completenessPct: s.completenessPct,
     status: s.status,
     band: s.band,
-    components: [
-      {
-        code: perspective === 'Swing' ? 'S1' : 'F1',
-        name: perspective === 'Swing' ? 'Trend structure' : 'Valuation',
-        max: 30,
-        essential: true,
-        state: available ? 'Observed' : 'Missing',
-        awarded: available ? 22 : 0,
-        availableMax: available ? 30 : 0,
-        items: [
-          { code: 'A', label: 'Price above EMA20', max: 10, points: available ? 10 : 0, available, detail: null },
-          { code: 'B', label: 'EMA20 above SMA50', max: 20, points: available ? 12 : 0, available, detail: null },
-        ],
-        missingReasons: s.reasonCodes,
+    components: specs.map((component, index) => {
+      const observedMax = componentAvailability[index];
+      const state = observedMax === 0 ? 'Missing' : observedMax === component.max ? 'Observed' : 'Partial';
+      const isQrKS2 = swingV2 && symbol === 'QRK.TO' && component.code === 'S2';
+      return {
+        ...component,
+        state,
+        awarded: componentAwards[index],
+        availableMax: observedMax,
+        items: isQrKS2
+          ? [
+              { code: 'Rs20', label: '20D vs sector', max: 14, points: 11, available: true, detail: '+3.6 pp' },
+              { code: 'Rs60', label: '60D vs sector', max: 6, points: 6, available: true, detail: '+5.8 pp' },
+            ]
+          : [],
+        missingReasons:
+          isCcaSwing && component.code === 'S2'
+            ? ['SectorHeat:Unmapped']
+            : state === 'Missing'
+              ? s.reasonCodes
+              : [],
         note: null,
-      },
-    ],
+      };
+    }),
     reasonCodes: s.reasonCodes,
   };
 }
@@ -379,6 +462,8 @@ export function opportunityDetailResponse(symbol: string, snapshotId: number | n
   if (snapshotId !== null && snapshotId !== opportunityState.snapshotId) return { status: 410 };
   const r = opportunityState.rows.find((x) => x.symbol === symbol);
   if (!r) return { status: 404 };
+  const d60Diff = r.sectorHeat.diff60Pp;
+  const d60Direction = d60Diff === null ? 'None' : d60Diff > 0 ? 'Positive' : d60Diff < 0 ? 'Negative' : 'Neutral';
   const decisions =
     r.finalAction.kind === 'Multiple'
       ? [
@@ -391,20 +476,20 @@ export function opportunityDetailResponse(symbol: string, snapshotId: number | n
   return {
     snapshotId: opportunityState.snapshotId,
     row: r,
-    swingScore: scoreResult('Swing', r.swing),
-    strategicScore: scoreResult('Strategic', r.strategic),
+    swingScore: scoreResult('Swing', r.swing, r.symbol),
+    strategicScore: scoreResult('Strategic', r.strategic, r.symbol),
     sectorRelative:
       r.sectorHeat.status === 'Matched'
         ? {
             status: 'Matched',
             benchmarkSymbol: r.sectorHeat.benchmarkSymbol,
             benchmarkName: `${r.sector} benchmark`,
-            expectedSession: isoDate(-1),
+            expectedSession: marketSessionDate(1),
             d20: {
               sessions: 20,
               status: 'Matched',
-              startSession: isoDate(-29),
-              endSession: isoDate(-1),
+              startSession: marketSessionDate(29),
+              endSession: marketSessionDate(1),
               stockReturnPct: r.sectorHeat.stockReturnPct,
               benchmarkReturnPct: r.sectorHeat.benchmarkReturnPct,
               diffPp: r.sectorHeat.diffPp,
@@ -418,19 +503,19 @@ export function opportunityDetailResponse(symbol: string, snapshotId: number | n
             },
             d60: {
               sessions: 60,
-              status: 'InsufficientObservations',
-              startSession: null,
-              endSession: null,
-              stockReturnPct: null,
-              benchmarkReturnPct: null,
-              diffPp: null,
-              displayDiffPp: null,
-              direction: 'None',
-              intensity: 0,
-              stockObservations: 44,
-              benchmarkObservations: 61,
+              status: d60Diff === null ? 'InsufficientObservations' : 'Matched',
+              startSession: d60Diff === null ? null : marketSessionDate(85),
+              endSession: d60Diff === null ? null : marketSessionDate(1),
+              stockReturnPct: d60Diff === null ? null : 8 + d60Diff,
+              benchmarkReturnPct: d60Diff === null ? null : 8,
+              diffPp: d60Diff,
+              displayDiffPp: d60Diff,
+              direction: d60Direction,
+              intensity: d60Diff === null ? 0 : Math.abs(d60Diff) >= 5 ? 3 : Math.abs(d60Diff) >= 2 ? 2 : 1,
+              stockObservations: d60Diff === null ? 44 : 61,
+              benchmarkObservations: d60Diff === null ? 44 : 61,
               expectedObservations: 61,
-              isAvailable: false,
+              isAvailable: d60Diff !== null,
             },
             methodology: opportunityConfig.sectorMethodology,
           }
@@ -452,10 +537,10 @@ export function opportunityDetailResponse(symbol: string, snapshotId: number | n
         ]
       : [],
     evidence: {
-      scoringVersion: 'pm029-v1',
+      scoringVersion: 'pm029-v2',
       disclaimer: opportunityConfig.disclaimer,
       sectorMethodology: opportunityConfig.sectorMethodology,
-      historySource: 'Daily OHLC (split-adjusted)',
+      historySource: 'Yahoo Finance daily chart (split-adjusted close)',
       benchmarkSymbol: r.sectorHeat.benchmarkSymbol,
       benchmarkName: r.sectorHeat.benchmarkSymbol ? `${r.sector} benchmark` : null,
       sectorSource: r.sectorSource,
@@ -472,6 +557,12 @@ export function opportunityDetailResponse(symbol: string, snapshotId: number | n
       finalActionEvaluationId: 'eval-e2e',
       finalActionComputedAtUtc: isoDateTime(-1, 22),
       warnings: r.usesUnderlying ? ['FundamentalsMissing'] : [],
+      benchmarkCategory: r.sectorHeat.status === 'Matched' ? 'Sector mapping' : null,
+      benchmarkCurrency: r.sectorHeat.status === 'Matched' ? 'CAD' : null,
+      benchmarkMappingSource: r.sectorHeat.status === 'Matched' ? 'Synthetic E2E fixture' : null,
+      benchmarkMappingRationale:
+        r.sectorHeat.status === 'Matched' ? 'Fixture metadata only; not production mapping validation.' : null,
+      benchmarkMappingAsOfDate: r.sectorHeat.status === 'Matched' ? marketSessionDate(1) : null,
     },
   };
 }

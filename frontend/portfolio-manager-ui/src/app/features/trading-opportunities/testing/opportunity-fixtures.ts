@@ -1,4 +1,4 @@
-// Test-only fixtures for PM-029. Values are arbitrary and intentionally unlike the design prototypes.
+// SYNTHETIC test-only fixtures for PM-029; values are not production or verified financial/security data.
 import {
   OpportunityDetail,
   OpportunityRow,

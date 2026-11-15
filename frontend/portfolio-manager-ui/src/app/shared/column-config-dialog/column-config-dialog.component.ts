@@ -11,6 +11,7 @@ import { ColumnPreference, GRID_REGISTRY } from '../../core/store/grid-registry'
 
 export interface ColumnConfigDialogData {
   gridId: string;
+  profile?: string;
 }
 
 @Component({
@@ -36,10 +37,11 @@ export class ColumnConfigDialogComponent {
 
   /** The GridDef for this dialog instance. */
   protected readonly grid = GRID_REGISTRY.find((g) => g.id === this.data.gridId) ?? null;
+  protected readonly profileLabel = this.data.profile ? `${this.data.profile} · ` : '';
 
   /** Working copy of column preferences. */
   protected readonly workingPrefs = signal<ColumnPreference[]>(
-    this.gridColumns.getEditablePrefs(this.data.gridId),
+    this.gridColumns.getEditablePrefs(this.data.gridId, this.data.profile),
   );
 
   /** Count of currently visible columns. */
@@ -49,7 +51,7 @@ export class ColumnConfigDialogComponent {
 
   /** True when preferences differ from defaults. */
   protected readonly hasCustomisation = computed(() =>
-    this.grid ? isCustomisedLayout(this.grid, this.workingPrefs()) : false,
+    this.grid ? isCustomisedLayout(this.grid, this.workingPrefs(), this.data.profile) : false,
   );
 
   /** True when at least one column is hidden, so "Show all" has something to do. */
@@ -112,13 +114,13 @@ export class ColumnConfigDialogComponent {
   }
 
   protected resetToDefaults(): void {
-    this.gridColumns.resetGrid(this.data.gridId);
-    this.workingPrefs.set(this.gridColumns.getEditablePrefs(this.data.gridId));
+    this.gridColumns.resetGrid(this.data.gridId, this.data.profile);
+    this.workingPrefs.set(this.gridColumns.getEditablePrefs(this.data.gridId, this.data.profile));
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
 
   private persist(): void {
-    this.gridColumns.updatePrefs(this.data.gridId, this.workingPrefs());
+    this.gridColumns.updatePrefs(this.data.gridId, this.workingPrefs(), this.data.profile);
   }
 }
