@@ -1,0 +1,637 @@
+{
+  "input": {
+    "datasetKind": "Synthetic",
+    "asOfUtc": "2025-11-26T22:00:00+00:00",
+    "session": "2025-11-26",
+    "requestingUserId": "test-user",
+    "accountScope": "Consolidated",
+    "maximumFxPublicationSessions": 3,
+    "securities": [
+      {
+        "quantity": 10,
+        "listingCurrency": {
+          "currencyCode": "CAD",
+          "source": "Synthetic broker",
+          "isVerified": true,
+          "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+        },
+        "quoteCurrency": "CAD",
+        "quotePrice": 100,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26",
+        "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+        "id": "stock:cad",
+        "ownerId": "test-user",
+        "accountType": "Account",
+        "symbol": "CAD-LISTING",
+        "sector": "Technology",
+        "investmentRole": "Swing"
+      },
+      {
+        "quantity": 10,
+        "listingCurrency": {
+          "currencyCode": "USD",
+          "source": "Synthetic broker",
+          "isVerified": true,
+          "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+        },
+        "quoteCurrency": "USD",
+        "quotePrice": 100,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26",
+        "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+        "id": "stock:usd",
+        "ownerId": "test-user",
+        "accountType": "Account",
+        "symbol": "USD-LISTING",
+        "sector": "Technology",
+        "investmentRole": "Swing"
+      }
+    ],
+    "cash": {
+      "asOfUtc": "2025-11-26T21:00:00+00:00",
+      "completeThroughSession": "2025-11-26",
+      "source": "Synthetic complete ledger",
+      "entries": [
+        {
+          "id": "opening",
+          "ownerId": null,
+          "accountId": "shared",
+          "accountType": "Account",
+          "signedAmount": 500,
+          "effectiveDate": "2025-11-26",
+          "recordedAtUtc": "2025-11-26T21:00:00+00:00",
+          "cashFlowType": "OpeningBalance",
+          "currency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "sourceType": null,
+          "sourceItemId": null,
+          "historicalCurrencyEvidence": null
+        },
+        {
+          "id": "deposit",
+          "ownerId": null,
+          "accountId": "shared",
+          "accountType": "Account",
+          "signedAmount": 200,
+          "effectiveDate": "2025-11-26",
+          "recordedAtUtc": "2025-11-26T21:00:00+00:00",
+          "cashFlowType": "Deposit",
+          "currency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "sourceType": null,
+          "sourceItemId": null,
+          "historicalCurrencyEvidence": null
+        },
+        {
+          "id": "purchase",
+          "ownerId": null,
+          "accountId": "shared",
+          "accountType": "Account",
+          "signedAmount": -200,
+          "effectiveDate": "2025-11-26",
+          "recordedAtUtc": "2025-11-26T21:00:00+00:00",
+          "cashFlowType": "TradePurchase",
+          "currency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "sourceType": "PortfolioOpen",
+          "sourceItemId": 1,
+          "historicalCurrencyEvidence": null
+        },
+        {
+          "id": "usd-opening",
+          "ownerId": "test-user",
+          "accountId": "account-1",
+          "accountType": "Account",
+          "signedAmount": 200,
+          "effectiveDate": "2025-11-26",
+          "recordedAtUtc": "2025-11-26T21:00:00+00:00",
+          "cashFlowType": "OpeningBalance",
+          "currency": {
+            "currencyCode": "USD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "sourceType": null,
+          "sourceItemId": null,
+          "historicalCurrencyEvidence": null
+        }
+      ]
+    },
+    "options": [
+      {
+        "id": "option:long",
+        "ownerId": "test-user",
+        "accountId": "account-1",
+        "accountType": "Account",
+        "contractId": "synthetic-long",
+        "symbol": "OPTION-UNDERLYING",
+        "investmentRole": "Options",
+        "contractType": "CALL",
+        "positionSide": "LONG",
+        "state": "Open",
+        "signedOpenContracts": 2,
+        "positionAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "positionSource": "Synthetic broker position",
+        "currency": {
+          "currencyCode": "CAD",
+          "source": "Synthetic broker",
+          "isVerified": true,
+          "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+        },
+        "multiplier": 10,
+        "termsSource": "Synthetic contract terms",
+        "termsVerifiedAtUtc": "2025-11-26T21:00:00+00:00",
+        "quoteCurrency": "CAD",
+        "markPrice": 1,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26",
+        "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00"
+      },
+      {
+        "id": "option:short",
+        "ownerId": "test-user",
+        "accountId": "account-1",
+        "accountType": "Account",
+        "contractId": "synthetic-short",
+        "symbol": "OPTION-UNDERLYING",
+        "investmentRole": "Options",
+        "contractType": "PUT",
+        "positionSide": "SHORT",
+        "state": "Open",
+        "signedOpenContracts": -1,
+        "positionAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "positionSource": "Synthetic broker position",
+        "currency": {
+          "currencyCode": "CAD",
+          "source": "Synthetic broker",
+          "isVerified": true,
+          "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+        },
+        "multiplier": 100,
+        "termsSource": "Synthetic contract terms",
+        "termsVerifiedAtUtc": "2025-11-26T21:00:00+00:00",
+        "quoteCurrency": "CAD",
+        "markPrice": 1,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "expectedSession": "2025-11-26",
+        "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00"
+      }
+    ],
+    "fx": [
+      {
+        "source": "Bank of Canada",
+        "series": "FXUSDCAD",
+        "baseCurrency": "USD",
+        "quoteCurrency": "CAD",
+        "observationDate": "2025-11-26",
+        "rate": 1.4,
+        "retrievedAtUtc": "2025-11-26T21:40:00+00:00",
+        "firstObservedAtUtc": "2025-11-26T21:40:00+00:00",
+        "verifiedAvailableAtUtc": null,
+        "availabilitySource": "Synthetic response",
+        "dataQuality": "ObservedAtRetrieval"
+      }
+    ],
+    "policies": [
+      {
+        "symbol": "CAD-LISTING",
+        "sector": "Technology",
+        "positionLimitPct": 40,
+        "sectorTargetPct": 60,
+        "sectorTolerancePp": 2
+      }
+    ],
+    "legacy": [
+      {
+        "id": "stock:cad",
+        "kind": "Security",
+        "value": 1000,
+        "currency": "CAD",
+        "usedCostFallback": false
+      },
+      {
+        "id": "stock:usd",
+        "kind": "Security",
+        "value": 1000,
+        "currency": "USD",
+        "usedCostFallback": false
+      },
+      {
+        "id": "cash:shared:shared:CAD",
+        "kind": "Cash",
+        "value": 500,
+        "currency": "CAD",
+        "usedCostFallback": false
+      },
+      {
+        "id": "cash:test-user:account-1:USD",
+        "kind": "Cash",
+        "value": 200,
+        "currency": "USD",
+        "usedCostFallback": false
+      },
+      {
+        "id": "option:long",
+        "kind": "Option",
+        "value": 200,
+        "currency": "CAD",
+        "usedCostFallback": false
+      },
+      {
+        "id": "option:short",
+        "kind": "Option",
+        "value": 100,
+        "currency": "CAD",
+        "usedCostFallback": false
+      }
+    ]
+  },
+  "valuation": {
+    "asOfUtc": "2025-11-26T22:00:00+00:00",
+    "valuationSessionDate": "2025-11-26",
+    "accountScope": "Consolidated",
+    "provisionalMaximumFxPublicationSessions": 3,
+    "complete": true,
+    "denominatorCad": 3100.0,
+    "stockOnlyCad": 2400.0,
+    "components": [
+      {
+        "input": {
+          "$kind": "Security",
+          "quantity": 10,
+          "listingCurrency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "quoteCurrency": "CAD",
+          "quotePrice": 100,
+          "quoteSource": "Synthetic quote",
+          "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "quoteSession": "2025-11-26",
+          "expectedSession": "2025-11-26",
+          "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+          "id": "stock:cad",
+          "ownerId": "test-user",
+          "accountType": "Account",
+          "symbol": "CAD-LISTING",
+          "sector": "Technology",
+          "investmentRole": "Swing"
+        },
+        "id": "stock:cad",
+        "kind": "Security",
+        "symbol": "CAD-LISTING",
+        "sector": "Technology",
+        "investmentRole": "Swing",
+        "accountType": "Account",
+        "isShared": false,
+        "currency": "CAD",
+        "nativeValue": 1000,
+        "valueCad": 1000,
+        "issueCode": null,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "fxSeries": null,
+        "fxObservationDate": null,
+        "fxRetrievedAtUtc": null,
+        "fxRateCadPerUsd": null,
+        "selectedFx": null
+      },
+      {
+        "input": {
+          "$kind": "Security",
+          "quantity": 10,
+          "listingCurrency": {
+            "currencyCode": "USD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "quoteCurrency": "USD",
+          "quotePrice": 100,
+          "quoteSource": "Synthetic quote",
+          "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "quoteSession": "2025-11-26",
+          "expectedSession": "2025-11-26",
+          "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+          "id": "stock:usd",
+          "ownerId": "test-user",
+          "accountType": "Account",
+          "symbol": "USD-LISTING",
+          "sector": "Technology",
+          "investmentRole": "Swing"
+        },
+        "id": "stock:usd",
+        "kind": "Security",
+        "symbol": "USD-LISTING",
+        "sector": "Technology",
+        "investmentRole": "Swing",
+        "accountType": "Account",
+        "isShared": false,
+        "currency": "USD",
+        "nativeValue": 1000,
+        "valueCad": 1400.0,
+        "issueCode": null,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "fxSeries": "FXUSDCAD",
+        "fxObservationDate": "2025-11-26",
+        "fxRetrievedAtUtc": "2025-11-26T21:40:00+00:00",
+        "fxRateCadPerUsd": 1.4,
+        "selectedFx": {
+          "source": "Bank of Canada",
+          "series": "FXUSDCAD",
+          "baseCurrency": "USD",
+          "quoteCurrency": "CAD",
+          "observationDate": "2025-11-26",
+          "rate": 1.4,
+          "retrievedAtUtc": "2025-11-26T21:40:00+00:00",
+          "firstObservedAtUtc": "2025-11-26T21:40:00+00:00",
+          "verifiedAvailableAtUtc": null,
+          "availabilitySource": "Synthetic response",
+          "dataQuality": "ObservedAtRetrieval"
+        }
+      },
+      {
+        "input": {
+          "$kind": "Cash",
+          "balance": 500,
+          "currency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic complete ledger",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "balanceAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "completeThroughSession": "2025-11-26",
+          "ledgerSource": "Synthetic complete ledger",
+          "linkedTradeKeys": [
+            "PortfolioOpen:1"
+          ],
+          "id": "cash:shared:shared:CAD",
+          "ownerId": null,
+          "accountType": "Account",
+          "symbol": null,
+          "sector": null,
+          "investmentRole": null
+        },
+        "id": "cash:shared:shared:CAD",
+        "kind": "Cash",
+        "symbol": null,
+        "sector": null,
+        "investmentRole": null,
+        "accountType": "Account",
+        "isShared": true,
+        "currency": "CAD",
+        "nativeValue": 500,
+        "valueCad": 500,
+        "issueCode": null,
+        "quoteSource": null,
+        "quoteAsOfUtc": null,
+        "quoteSession": null,
+        "fxSeries": null,
+        "fxObservationDate": null,
+        "fxRetrievedAtUtc": null,
+        "fxRateCadPerUsd": null,
+        "selectedFx": null
+      },
+      {
+        "input": {
+          "$kind": "Cash",
+          "balance": 200,
+          "currency": {
+            "currencyCode": "USD",
+            "source": "Synthetic complete ledger",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "balanceAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "completeThroughSession": "2025-11-26",
+          "ledgerSource": "Synthetic complete ledger",
+          "linkedTradeKeys": [],
+          "id": "cash:test-user:account-1:USD",
+          "ownerId": "test-user",
+          "accountType": "Account",
+          "symbol": null,
+          "sector": null,
+          "investmentRole": null
+        },
+        "id": "cash:test-user:account-1:USD",
+        "kind": "Cash",
+        "symbol": null,
+        "sector": null,
+        "investmentRole": null,
+        "accountType": "Account",
+        "isShared": false,
+        "currency": "USD",
+        "nativeValue": 200,
+        "valueCad": 280.0,
+        "issueCode": null,
+        "quoteSource": null,
+        "quoteAsOfUtc": null,
+        "quoteSession": null,
+        "fxSeries": "FXUSDCAD",
+        "fxObservationDate": "2025-11-26",
+        "fxRetrievedAtUtc": "2025-11-26T21:40:00+00:00",
+        "fxRateCadPerUsd": 1.4,
+        "selectedFx": {
+          "source": "Bank of Canada",
+          "series": "FXUSDCAD",
+          "baseCurrency": "USD",
+          "quoteCurrency": "CAD",
+          "observationDate": "2025-11-26",
+          "rate": 1.4,
+          "retrievedAtUtc": "2025-11-26T21:40:00+00:00",
+          "firstObservedAtUtc": "2025-11-26T21:40:00+00:00",
+          "verifiedAvailableAtUtc": null,
+          "availabilitySource": "Synthetic response",
+          "dataQuality": "ObservedAtRetrieval"
+        }
+      },
+      {
+        "input": {
+          "$kind": "Option",
+          "contractCurrency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "quoteCurrency": "CAD",
+          "quotePrice": 1,
+          "quoteSource": "Synthetic quote",
+          "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "quoteSession": "2025-11-26",
+          "expectedSession": "2025-11-26",
+          "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+          "signedContracts": 2,
+          "contractMultiplier": 10,
+          "termsVerified": true,
+          "termsSource": "Synthetic contract terms",
+          "termsVerifiedAtUtc": "2025-11-26T21:00:00+00:00",
+          "id": "option:long",
+          "ownerId": "test-user",
+          "accountType": "Account",
+          "symbol": "OPTION-UNDERLYING",
+          "sector": null,
+          "investmentRole": "Options"
+        },
+        "id": "option:long",
+        "kind": "Option",
+        "symbol": "OPTION-UNDERLYING",
+        "sector": null,
+        "investmentRole": "Options",
+        "accountType": "Account",
+        "isShared": false,
+        "currency": "CAD",
+        "nativeValue": 20,
+        "valueCad": 20,
+        "issueCode": null,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "fxSeries": null,
+        "fxObservationDate": null,
+        "fxRetrievedAtUtc": null,
+        "fxRateCadPerUsd": null,
+        "selectedFx": null
+      },
+      {
+        "input": {
+          "$kind": "Option",
+          "contractCurrency": {
+            "currencyCode": "CAD",
+            "source": "Synthetic broker",
+            "isVerified": true,
+            "verifiedAtUtc": "2025-11-26T21:00:00+00:00"
+          },
+          "quoteCurrency": "CAD",
+          "quotePrice": 1,
+          "quoteSource": "Synthetic quote",
+          "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+          "quoteSession": "2025-11-26",
+          "expectedSession": "2025-11-26",
+          "expectedSessionCloseUtc": "2025-11-26T21:00:00+00:00",
+          "signedContracts": -1,
+          "contractMultiplier": 100,
+          "termsVerified": true,
+          "termsSource": "Synthetic contract terms",
+          "termsVerifiedAtUtc": "2025-11-26T21:00:00+00:00",
+          "id": "option:short",
+          "ownerId": "test-user",
+          "accountType": "Account",
+          "symbol": "OPTION-UNDERLYING",
+          "sector": null,
+          "investmentRole": "Options"
+        },
+        "id": "option:short",
+        "kind": "Option",
+        "symbol": "OPTION-UNDERLYING",
+        "sector": null,
+        "investmentRole": "Options",
+        "accountType": "Account",
+        "isShared": false,
+        "currency": "CAD",
+        "nativeValue": -100,
+        "valueCad": -100,
+        "issueCode": null,
+        "quoteSource": "Synthetic quote",
+        "quoteAsOfUtc": "2025-11-26T21:00:00+00:00",
+        "quoteSession": "2025-11-26",
+        "fxSeries": null,
+        "fxObservationDate": null,
+        "fxRetrievedAtUtc": null,
+        "fxRateCadPerUsd": null,
+        "selectedFx": null
+      }
+    ],
+    "issueCodes": []
+  },
+  "exposures": [
+    {
+      "symbol": "CAD-LISTING",
+      "evidence": {
+        "reliable": true,
+        "positionPct": 32.258064516129032258064516130,
+        "positionLimitPct": 40,
+        "positionLimitExceeded": false,
+        "rolePolicyAmbiguous": false,
+        "sectorPct": 100,
+        "sectorTargetPct": 60,
+        "sectorOverTarget": true
+      },
+      "positionHeadroomPp": 7.741935483870967741935483870,
+      "sectorDeviationPp": 40
+    }
+  ],
+  "adapterIssues": [],
+  "externalFlowsByCurrency": {
+    "CAD": 200,
+    "USD": 0
+  },
+  "differences": [
+    {
+      "componentId": "stock:cad",
+      "legacyValue": 1000,
+      "cadValue": 1000,
+      "classification": "Parity"
+    },
+    {
+      "componentId": "stock:usd",
+      "legacyValue": 1000,
+      "cadValue": 1400.0,
+      "classification": "ExpectedCurrencyCorrection"
+    },
+    {
+      "componentId": "cash:shared:shared:CAD",
+      "legacyValue": 500,
+      "cadValue": 500,
+      "classification": "Parity"
+    },
+    {
+      "componentId": "cash:test-user:account-1:USD",
+      "legacyValue": 200,
+      "cadValue": 280.0,
+      "classification": "ExpectedCurrencyCorrection"
+    },
+    {
+      "componentId": "option:long",
+      "legacyValue": 200,
+      "cadValue": 20,
+      "classification": "PolicyDecisionRequired"
+    },
+    {
+      "componentId": "option:short",
+      "legacyValue": 100,
+      "cadValue": -100,
+      "classification": "PolicyDecisionRequired"
+    }
+  ],
+  "legacyRawDenominator": 3000,
+  "productionActivationAllowed": false
+}

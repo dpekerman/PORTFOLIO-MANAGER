@@ -1,4 +1,4 @@
-namespace PortfolioManager.Tests;
+namespace PortfolioManager.Tests.Phase12;
 
 internal enum Pm029ValuationComponentKind
 {

@@ -48,7 +48,8 @@ public sealed class BankOfCanadaFxProvider(HttpClient httpClient, TimeProvider t
                 throw new InvalidDataException($"Bank of Canada Valet returned an invalid FXUSDCAD value for {date:yyyy-MM-dd}.");
 
             observations.Add(new Pm029FxObservation(
-                "Bank of Canada", Series, "USD", "CAD", date, rate, retrievedAtUtc));
+                "Bank of Canada", Series, "USD", "CAD", date, rate, retrievedAtUtc,
+                FirstObservedAtUtc: retrievedAtUtc, AvailabilitySource: "Valet response received"));
         }
 
         return observations;
