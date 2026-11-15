@@ -62,6 +62,54 @@ public class Pm029CalculatorTests
 
     // ── Swing ────────────────────────────────────────────────────────────────
 
+    [Theory]
+    [InlineData("ETF")]
+    [InlineData("MUTUALFUND")]
+    [InlineData("CLOSEDENDFUND")]
+    public void ConfirmedFundsAreNotEvaluatedInEitherPerspective(string instrument)
+    {
+        var input = Input() with { InstrumentType = instrument };
+        foreach (var score in new[] { OpportunityScoringEngine.ScoreSwing(input), OpportunityScoringEngine.ScoreStrategic(input) })
+        {
+            Assert.Equal(ScoreStatus.NotEvaluated, score.Status);
+            Assert.Null(score.Score);
+            Assert.Empty(score.Components);
+            Assert.Equal([OpportunityReasons.EtfScoringDeferred], score.ReasonCodes);
+        }
+    }
+
+    [Fact]
+    public void UnknownInstrumentAndAnEtfUnderlyingDoNotMisclassifyTheListing()
+    {
+        var input = Input(Scan(scan => { scan.InstrumentType = "ETF"; scan.UsesUnderlyingSecurity = true; }));
+        Assert.Equal(ScoreStatus.Verified, OpportunityScoringEngine.ScoreSwing(input).Status);
+        Assert.Equal(ScoreStatus.Verified, OpportunityScoringEngine.ScoreStrategic(input).Status);
+        Assert.Equal(ScoreStatus.Unavailable, OpportunityScoringEngine.ScoreSwing(input with
+            { IdentityResolved = false, InstrumentType = "ETF" }).Status);
+    }
+
+    [Fact]
+    public void NpiQuoteMarketCapRestoresObservedF2WithoutInventingF1()
+    {
+        var quote = new StockQuote { Symbol = "NPI.TO", CurrentPrice = 20m, MarketCap = 1_000_000_000L, PriceToBook = 1m };
+        var snapshot = new FundamentalsSnapshot { FreeCashFlow = 100_000_000L, PriceToBook = 1m, DataAvailable = true };
+        var logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<ValueScreenerService>.Instance;
+        var value = ValueScreenerService.BuildResult("NPI.TO", ValueOrigin.Watchlist, quote, snapshot, Scan(), logger);
+        value.AnalyzedAt = Now.AddHours(-1);
+        Assert.False(value.MarketCapFallbackUsed);
+        Assert.True(value.F2Available);
+        Assert.False(value.F1Available);
+        var strategic = OpportunityScoringEngine.ScoreStrategic(Input(value: value));
+        Assert.NotNull(strategic.Score);
+        Assert.DoesNotContain(OpportunityReasons.FundamentalsInsufficientFactors, strategic.ReasonCodes);
+
+        quote.MarketCap = 0L;
+        var estimated = ValueScreenerService.BuildResult("NPI.TO", ValueOrigin.Watchlist, quote, snapshot, Scan(), logger);
+        estimated.AnalyzedAt = Now.AddHours(-1);
+        Assert.True(estimated.MarketCapFallbackUsed);
+        Assert.Null(OpportunityScoringEngine.ScoreStrategic(Input(value: estimated)).Score);
+    }
+
     [Fact]
     public void Swing_AllEvidence_IsVerifiedAndReconciles()
     {

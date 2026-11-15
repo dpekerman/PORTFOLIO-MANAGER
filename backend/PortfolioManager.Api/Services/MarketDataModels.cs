@@ -8,7 +8,9 @@ public sealed record MarketDailyClose(
     decimal Open = 0m,
     decimal High = 0m,
     decimal Low = 0m,
-    long Volume = 0L);
+    long Volume = 0L,
+    bool? OriginalOhlcAvailable = null,
+    string? PriceCurrency = null);
 
 // ── Yahoo Finance /v8/finance/chart response ────────────────────────────────
 public sealed class YahooChartResponse
@@ -30,6 +32,8 @@ public sealed class YahooChartResult
 
 public sealed class YahooMeta
 {
+    [JsonPropertyName("currency")]                   public string? Currency { get; set; }
+    [JsonPropertyName("instrumentType")]             public string? InstrumentType { get; set; }
     [JsonPropertyName("symbol")]                     public string? Symbol { get; set; }
     [JsonPropertyName("regularMarketPrice")]         public decimal RegularMarketPrice { get; set; }
     [JsonPropertyName("regularMarketDayHigh")]       public decimal RegularMarketDayHigh { get; set; }

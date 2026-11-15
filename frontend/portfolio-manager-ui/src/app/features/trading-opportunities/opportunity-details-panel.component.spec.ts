@@ -7,7 +7,11 @@ import { OpportunityDetail, OpportunityRow } from '../../core/models/opportuniti
 import { FinalActionResult } from '../../core/models/portfolio.models';
 import { DemoModeStore } from '../../core/store/demo-mode.store';
 import { OpportunityDetailsPanelComponent } from './opportunity-details-panel.component';
-import { opportunityDetail, opportunityRow } from './testing/opportunity-fixtures';
+import {
+  opportunityDetail,
+  opportunityRow,
+  setupQualityFixture,
+} from './testing/opportunity-fixtures';
 import { EMPTY_MANUAL_R } from './opportunities-logic';
 
 const decision = (overrides: Partial<FinalActionResult>): FinalActionResult =>
@@ -32,7 +36,11 @@ function render(row: OpportunityRow, detail: OpportunityDetail | null, demo = fa
       { provide: MatDialog, useValue: { open } },
       {
         provide: DemoModeStore,
-        useValue: { isDemoMode: signal(demo), maskValue: (v: number) => (demo ? v * 2 : v), maskPercent: (v: number) => v },
+        useValue: {
+          isDemoMode: signal(demo),
+          maskValue: (v: number) => (demo ? v * 2 : v),
+          maskPercent: (v: number) => v,
+        },
       },
     ],
   });
@@ -44,6 +52,17 @@ function render(row: OpportunityRow, detail: OpportunityDetail | null, demo = fa
 }
 
 describe('OpportunityDetailsPanelComponent', () => {
+  it('uses the structural analysis currency and masks prices even when listing currency differs', () => {
+    const row = opportunityRow('CDR.NE', {
+      currency: 'CAD',
+      setupQuality: setupQualityFixture({ currency: 'USD' }),
+    });
+    const { el } = render(row, opportunityDetail(row), true);
+    const section = el.querySelector('[data-testid="setup-quality-details"]')!;
+    expect(section.textContent).toContain('USD 200.00');
+    expect(section.textContent).toContain('USD 190.00');
+    expect(section.textContent).not.toContain('CAD 100.00');
+  });
   it('lists every original decision for a conflicting Multiple action and opens the chosen one', () => {
     const row = opportunityRow('ABC.TO', {
       finalAction: {
@@ -56,7 +75,11 @@ describe('OpportunityDetailsPanelComponent', () => {
       },
     });
     const a = decision({ role: 'Swing' });
-    const b = decision({ role: 'Strategic', finalAction: 'Trim / Review', finalActionClass: 'ma-trim' });
+    const b = decision({
+      role: 'Strategic',
+      finalAction: 'Trim / Review',
+      finalActionClass: 'ma-trim',
+    });
     const { el, open } = render(row, { ...opportunityDetail(row), decisions: [a, b] });
 
     const fa = el.querySelector('[data-testid="details-final-action"]')!;
@@ -73,10 +96,17 @@ describe('OpportunityDetailsPanelComponent', () => {
 
   it('shows Not evaluated for universe-only symbols instead of inventing a decision', () => {
     const row = opportunityRow('XYZ.TO', {
-      finalAction: { ...opportunityRow('XYZ.TO').finalAction, kind: 'None', label: null, decisionCount: 0 },
+      finalAction: {
+        ...opportunityRow('XYZ.TO').finalAction,
+        kind: 'None',
+        label: null,
+        decisionCount: 0,
+      },
     });
     const { el } = render(row, opportunityDetail(row));
-    expect(el.querySelector('[data-testid="details-final-action"]')!.textContent).toContain('Not evaluated');
+    expect(el.querySelector('[data-testid="details-final-action"]')!.textContent).toContain(
+      'Not evaluated',
+    );
   });
 
   it('shows no entry, stop or target values when the calculated setup is unavailable', () => {
@@ -138,7 +168,9 @@ describe('OpportunityDetailsPanelComponent', () => {
           state: 'Partial',
           awarded: 1.5,
           availableMax: 4,
-          items: [{ code: 'A', label: 'Alignment', max: 1, points: 0.75, available: true, detail: null }],
+          items: [
+            { code: 'A', label: 'Alignment', max: 1, points: 0.75, available: true, detail: null },
+          ],
           missingReasons: [],
           note: null,
         },
@@ -146,7 +178,9 @@ describe('OpportunityDetailsPanelComponent', () => {
     };
     const { el, fixture } = render(row, detail);
     expect(el.textContent).toContain(`CAD ${row.setup.stop!.toFixed(2)}`);
-    [...el.querySelectorAll<HTMLElement>('[role="tab"]')].find((tab) => tab.textContent?.includes('Scores'))?.click();
+    [...el.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent?.includes('Scores'))
+      ?.click();
     fixture.detectChanges();
 
     expect(el.textContent).toContain('14.50 / 22.00 available scoring points');
@@ -166,7 +200,9 @@ describe('OpportunityDetailsPanelComponent', () => {
       availableMax: 70,
     };
     const { el, fixture } = render(row, detail);
-    [...el.querySelectorAll<HTMLElement>('[role="tab"]')].find((tab) => tab.textContent?.includes('Scores'))?.click();
+    [...el.querySelectorAll<HTMLElement>('[role="tab"]')]
+      .find((tab) => tab.textContent?.includes('Scores'))
+      ?.click();
     fixture.detectChanges();
 
     expect(el.textContent).toContain('60.00 / 80.00 technical points');
@@ -192,12 +228,18 @@ describe('OpportunityDetailsPanelComponent', () => {
     setValue('manual-r-stop', '90');
     setValue('manual-r-target', '120');
     expect(el.querySelector('[data-testid="manual-r-result"]')?.textContent).toContain('2.00 : 1');
-    expect(el.querySelector('[data-testid="manual-r-visual"]')?.getAttribute('aria-label')).toContain('10.0%');
-    expect(el.querySelector('[data-testid="manual-r-visual"]')?.getAttribute('aria-label')).toContain('20.0%');
+    expect(
+      el.querySelector('[data-testid="manual-r-visual"]')?.getAttribute('aria-label'),
+    ).toContain('10.0%');
+    expect(
+      el.querySelector('[data-testid="manual-r-visual"]')?.getAttribute('aria-label'),
+    ).toContain('20.0%');
     expect(detail.setup.rewardRisk).not.toBe(2);
 
     setValue('manual-r-stop', '100');
-    expect(el.querySelector('[data-testid="manual-r-result"]')?.textContent).toContain('stop below entry');
+    expect(el.querySelector('[data-testid="manual-r-result"]')?.textContent).toContain(
+      'stop below entry',
+    );
     expect(el.querySelector('[data-testid="manual-r-result"]')?.textContent).toContain('—');
 
     const nextRow = opportunityRow('XYZ.TO');

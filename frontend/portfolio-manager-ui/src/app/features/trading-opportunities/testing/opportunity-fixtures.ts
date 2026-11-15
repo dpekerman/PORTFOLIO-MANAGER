@@ -5,17 +5,61 @@ import {
   OpportunityScoreSummary,
   OpportunitySnapshot,
   ScoreResult,
+  SetupQuality,
 } from '../../../core/models/opportunities.models';
 
-export function scoreSummary(partial: Partial<OpportunityScoreSummary> = {}): OpportunityScoreSummary {
-  return { score: 77, completenessPct: 100, status: 'Verified', band: 'Attractive', reasonCodes: [], ...partial };
+export function setupQualityFixture(overrides: Partial<SetupQuality> = {}): SetupQuality {
+  return {
+    status: 'Good',
+    policyVersion: 'pm029-setup-proposal-v1',
+    policyApproved: true,
+    currency: 'USD',
+    entry: 100,
+    proposedStop: 95,
+    support: 95,
+    supportSession: '2026-11-09',
+    atr: 2,
+    proposedTarget: 110,
+    targetSource: '52-week high',
+    credibleTarget: 110,
+    resistance: 111,
+    resistanceSession: '2026-11-05',
+    marketRewardRisk: 2,
+    conservativeRewardRisk: 2,
+    expectedSession: '2026-11-13',
+    evidenceAsOfUtc: '2026-11-14T12:00:00Z',
+    reasonCodes: [],
+    ...overrides,
+  };
+}
+
+export function scoreSummary(
+  partial: Partial<OpportunityScoreSummary> = {},
+): OpportunityScoreSummary {
+  return {
+    score: 77,
+    completenessPct: 100,
+    status: 'Verified',
+    band: 'Attractive',
+    reasonCodes: [],
+    ...partial,
+  };
 }
 
 export function unscorable(reason: string): OpportunityScoreSummary {
-  return { score: null, completenessPct: 41, status: 'Unavailable', band: 'None', reasonCodes: [reason] };
+  return {
+    score: null,
+    completenessPct: 41,
+    status: 'Unavailable',
+    band: 'None',
+    reasonCodes: [reason],
+  };
 }
 
-export function opportunityRow(symbol: string, partial: Partial<OpportunityRow> = {}): OpportunityRow {
+export function opportunityRow(
+  symbol: string,
+  partial: Partial<OpportunityRow> = {},
+): OpportunityRow {
   return {
     symbol,
     companyName: `${symbol} Holdings`,
@@ -56,7 +100,13 @@ export function opportunityRow(symbol: string, partial: Partial<OpportunityRow> 
       currency: 'CAD',
       reasonCodes: [],
     },
-    risk: { category: 'Medium', riskToStopPct: 6.4, atrPct: 3.9, hardStructuralNegative: false, basis: 'Scanner' },
+    risk: {
+      category: 'Medium',
+      riskToStopPct: 6.4,
+      atrPct: 3.9,
+      hardStructuralNegative: false,
+      basis: 'Scanner',
+    },
     fit: {
       status: 'Eligible',
       reasonCodes: [],
@@ -137,7 +187,10 @@ export function opportunitySnapshot(
   };
 }
 
-function scoreResult(perspective: 'Swing' | 'Strategic', summary: OpportunityScoreSummary): ScoreResult {
+function scoreResult(
+  perspective: 'Swing' | 'Strategic',
+  summary: OpportunityScoreSummary,
+): ScoreResult {
   return {
     perspective,
     scoringVersion: 'pm029-v1',

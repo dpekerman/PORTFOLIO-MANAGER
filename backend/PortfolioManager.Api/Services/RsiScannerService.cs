@@ -345,7 +345,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
     /// <summary>Enrich scan results with analyst target and 52-week range from Yahoo v7/quote,
     /// with a fallback to quoteSummary/financialData for analyst targets (more reliable for TSX).</summary>
-    private async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
+    internal async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
     {
         if (results.Count == 0) return;
         var symbols = results
@@ -766,7 +766,9 @@ public sealed class RsiScannerService : IRsiScannerService
             {
                 Symbol = symbol,
                 IntradayRangeReconstructed = intradayRangeReconstructed,
-                CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
+                CompanyName = chartResult.Meta?.LongName ?? chartResult.Meta?.ShortName
+                    ?? (CompanyNames.TryGetValue(symbol, out var name) ? name : symbol),
+                InstrumentType = chartResult.Meta?.InstrumentType,
                 Rsi = Math.Round(rsi, 2),
                 RsiSignal = rsiSignalAvailable ? rsiSignalValue : null,
                 RsiSignalAvailable = rsiSignalAvailable,

@@ -2,7 +2,21 @@
 
 **Program status:** IN PROGRESS — PM-029 remains OPEN.  
 **Mode:** Controlled autopilot under the approved master prompt.  
-**Branch policy:** Preserve the existing branch; the master prompt prohibits branch changes.
+**Current branch policy:** Final functional work uses a new branch from `develop`, as explicitly requested. Earlier phase baselines below are historical.
+
+## Final functional work and scoped backlog
+
+Branch: `feature/pm-029-final-functional-implementation`, based on `develop` at `ce6f990`.
+The final review is recorded in [pm029-final-functional-implementation-review.md](pm029-final-functional-implementation-review.md).
+
+The base repository was checked with `git grep -n -E 'PM-036|PM-037' HEAD --`; neither ID existed.
+These entries do not overwrite another feature:
+
+| ID | State | Priority | Scope |
+|---|---|---|---|
+| PM-029 | OPEN | Existing | Individual-stock scoring; baseline advisory Setup Quality and structural stop/target validation; safe shared valuation preparation; company names; independent sorting. Closure requires actual-data readiness and manual UAT. |
+| PM-036 | Deferred | P2 | ETF/fund Swing scoring, ETF-specific Strategic methodology, authoritative classification, benchmarks, and Canadian/USD ETF validation. ETF holdings remain in portfolio valuation and FINAL ACTION. |
+| PM-037 | Deferred | P2 | Advanced structural stop optimization, historical target-quality calibration, additional setup methodologies, extended backtesting. Does not duplicate PM-029's baseline column or validation. |
 
 ## Baseline
 

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="PortfolioManager.Tests" />
+    <InternalsVisibleTo Include="Phase14Verification" />
   </ItemGroup>
 
   <ItemGroup>

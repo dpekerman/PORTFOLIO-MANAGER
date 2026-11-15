@@ -80,6 +80,26 @@ public sealed class SwingReplayRunnerTests
         Assert.Null(row.Score.Score);
     }
 
+    [Fact]
+    public void FundDeferralAndFutureFundamentalsDoNotContaminateTechnicalScoring()
+    {
+        var package = Package();
+        var baseline = new SwingReplayRunner().Evaluate(package).Rows[0];
+        var future = package.Listings[0] with
+        {
+            Fundamentals = new ValueScreenerResult { Symbol = "SYNTHETIC", AnalyzedAt = AsOf.AddMinutes(1).UtcDateTime },
+            FundamentalsSource = "Synthetic source", FundamentalsAvailableAtUtc = AsOf.AddMinutes(1)
+        };
+        var invalid = new SwingReplayRunner().Evaluate(package with { Listings = [future] }).Rows[0];
+        Assert.Contains("FundamentalsProvenanceUnverified", invalid.PackageIssueCodes);
+        Assert.Equal(JsonSerializer.Serialize(baseline.Score, Json), JsonSerializer.Serialize(invalid.Score, Json));
+        Assert.Null(invalid.Strategic!.Score);
+        var fund = new SwingReplayRunner().Evaluate(package with
+            { Listings = [package.Listings[0] with { InstrumentType = "ETF" }] }).Rows[0];
+        Assert.Equal(ScoreStatus.NotEvaluated, fund.Score.Status);
+        Assert.Equal(ScoreStatus.NotEvaluated, fund.Strategic!.Status);
+    }
+
     [Theory]
     [InlineData("benchmark", "BenchmarkEvidenceUnavailable")]
     [InlineData("future-source", "ScanProvenanceUnverified")]

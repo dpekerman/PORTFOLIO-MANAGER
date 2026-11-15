@@ -2,15 +2,20 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './support/test';
 import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
 import { opportunityDetailResponse, opportunitySnapshotResponse } from './fixtures/opportunities';
+import { setupQualityFixture } from '../src/app/features/trading-opportunities/testing/opportunity-fixtures';
+import { join } from 'node:path';
 
 // PM-029 Trading Opportunities. Data comes from e2e/fixtures/opportunities.ts (synthetic values).
 
 const isDesktop = (name: string) => name === 'desktop-chrome';
 const table = (page: Page) => page.getByTestId('opportunities-table');
 const dataRows = (page: Page) => table(page).locator('tr.opp-row');
-const rowFor = (page: Page, symbol: string) => table(page).locator(`tr.opp-row[data-symbol="${symbol}"]`);
+const rowFor = (page: Page, symbol: string) =>
+  table(page).locator(`tr.opp-row[data-symbol="${symbol}"]`);
 const visibleSymbols = async (page: Page) =>
-  (await dataRows(page).evaluateAll((rows) => rows.map((r) => r.getAttribute('data-symbol')))).sort();
+  (
+    await dataRows(page).evaluateAll((rows) => rows.map((r) => r.getAttribute('data-symbol')))
+  ).sort();
 
 async function openFilters(page: Page) {
   const panel = page.locator('.app-filter-panel');
@@ -57,11 +62,17 @@ async function addSyntheticScreenshotLabel(page: Page) {
 test.describe('PM-029 Trading Opportunities', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/trading-opportunities');
-    await expect(page.getByRole('heading', { level: 1, name: /Trading Opportunities/ })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: /Trading Opportunities/ }),
+    ).toBeVisible();
     await expect(dataRows(page).first()).toBeVisible();
   });
 
-  test('default view shows 70+ swing scores with coloured cells and signed sector heat', async ({ page, mocks, errors }, testInfo) => {
+  test('default view shows 70+ swing scores with coloured cells and signed sector heat', async ({
+    page,
+    mocks,
+    errors,
+  }, testInfo) => {
     expect(await visibleSymbols(page)).toEqual(['PLW.TO', 'QRK.TO', 'ZEN.NE']);
 
     const strong = rowFor(page, 'QRK.TO').getByTestId('score-cell').first();
@@ -74,11 +85,17 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expect(provisional).toHaveClass(/heat--provisional/);
     await expect(provisional).toContainText('P');
 
-    await expect(rowFor(page, 'QRK.TO').getByTestId('sector-heat')).toHaveClass(/sh--benchmark-strong/);
+    await expect(rowFor(page, 'QRK.TO').getByTestId('sector-heat')).toHaveClass(
+      /sh--benchmark-strong/,
+    );
     await expect(rowFor(page, 'QRK.TO').getByTestId('sector-heat')).toContainText('+3.6 pp');
-    const heatBg = await rowFor(page, 'QRK.TO').getByTestId('sector-heat').evaluate((el) => getComputedStyle(el).backgroundColor);
+    const heatBg = await rowFor(page, 'QRK.TO')
+      .getByTestId('sector-heat')
+      .evaluate((el) => getComputedStyle(el).backgroundColor);
     expect(heatBg).not.toBe(bg);
-    await expect(rowFor(page, 'PLW.TO').getByTestId('sector-heat')).toHaveClass(/sh--benchmark-strong/);
+    await expect(rowFor(page, 'PLW.TO').getByTestId('sector-heat')).toHaveClass(
+      /sh--benchmark-strong/,
+    );
     // Typographic minus sign (U+2212), as rendered by the badge.
     await expect(rowFor(page, 'PLW.TO').getByTestId('sector-heat')).toContainText('\u22122.4 pp');
 
@@ -90,10 +107,12 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expectNoHorizontalPageOverflow(page);
     if (testInfo.project.name === 'tablet') {
       await expect(page.getByTestId('tablet-grid-scroll-hint')).toBeVisible();
-      const { clientWidth, scrollWidth } = await page.locator('.grid-scroll').evaluate((element) => ({
-        clientWidth: element.clientWidth,
-        scrollWidth: element.scrollWidth,
-      }));
+      const { clientWidth, scrollWidth } = await page
+        .locator('.grid-scroll')
+        .evaluate((element) => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        }));
       expect(scrollWidth).toBeGreaterThan(clientWidth);
     }
     expect(mocks.unmocked).toEqual([]);
@@ -103,14 +122,23 @@ test.describe('PM-029 Trading Opportunities', () => {
   test('a missing trade setup does not hide a technical Swing score', async ({ page, errors }) => {
     await page.getByTestId('score-filter').click();
     await page.getByRole('option', { name: 'All (incl. unavailable)', exact: true }).click();
-    await expect.poll(() => visibleSymbols(page)).toEqual(['BRQ.TO', 'CCA.TO', 'PLW.TO', 'QRK.TO', 'ZEN.NE']);
+    await expect
+      .poll(() => visibleSymbols(page))
+      .toEqual(['BRQ.TO', 'CCA.TO', 'PLW.TO', 'QRK.TO', 'ZEN.NE']);
     await expect(rowFor(page, 'CCA.TO').getByTestId('score-cell').first()).toContainText('28');
-    await expect(rowFor(page, 'CCA.TO').getByTestId('score-cell').first()).toHaveClass(/heat--weak/);
-    await expect(rowFor(page, 'BRQ.TO').getByTestId('score-cell').first()).toHaveClass(/heat--weak/);
+    await expect(rowFor(page, 'CCA.TO').getByTestId('score-cell').first()).toHaveClass(
+      /heat--weak/,
+    );
+    await expect(rowFor(page, 'BRQ.TO').getByTestId('score-cell').first()).toHaveClass(
+      /heat--weak/,
+    );
     expect(errors).toEqual([]);
   });
 
-  test('strategic perspective scores independently of a missing swing setup', async ({ page, errors }) => {
+  test('strategic perspective scores independently of a missing swing setup', async ({
+    page,
+    errors,
+  }) => {
     await page.getByTestId('perspective-strategic').click();
     // CCA has no Swing setup but a valid technical score; ZEN lacks fundamentals for Strategic.
     await openFilters(page);
@@ -126,14 +154,19 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expect(disclaimer).toContainText('Swing-v2 is an evidence-adjusted technical ranking');
 
     await page.getByTestId('perspective-strategic').click();
-    await expect(disclaimer).toContainText('Strategic scores summarize available long-term trend, technical, fundamental, and valuation evidence.');
+    await expect(disclaimer).toContainText(
+      'Strategic scores summarize available long-term trend, technical, fundamental, and valuation evidence.',
+    );
     await expect(disclaimer).not.toContainText('Swing-v2');
 
     await page.getByTestId('perspective-swing').click();
     await expect(disclaimer).toContainText('Swing-v2 is an evidence-adjusted technical ranking');
   });
 
-  test('keeps QRK heat, score evidence, target and scanner stop consistent across tabs', async ({ page, errors }) => {
+  test('keeps QRK heat, score evidence, target and scanner stop consistent across tabs', async ({
+    page,
+    errors,
+  }) => {
     const qrk = rowFor(page, 'QRK.TO');
     await expect(qrk.getByTestId('sector-heat')).toContainText('+3.6 pp');
     await qrk.click();
@@ -154,7 +187,9 @@ test.describe('PM-029 Trading Opportunities', () => {
 
     await panel.getByRole('tab', { name: 'Scores' }).click();
     await expect(panel).toContainText('70.00 / 80.00 technical points');
-    const s2 = panel.locator('.score-block[data-perspective="Swing"] details.component').filter({ hasText: 'Relative Strength' });
+    const s2 = panel
+      .locator('.score-block[data-perspective="Swing"] details.component')
+      .filter({ hasText: 'Relative Strength' });
     await expect(s2).toContainText('17.00 / 20.00');
     await s2.locator('summary').click();
     await expect(s2).toContainText('20D vs sector');
@@ -170,7 +205,9 @@ test.describe('PM-029 Trading Opportunities', () => {
     expect(errors).toEqual([]);
   });
 
-  test('filters by industry, risk, account, role, and freshness with a reachable reset action', async ({ page }) => {
+  test('filters by industry, risk, account, role, and freshness with a reachable reset action', async ({
+    page,
+  }) => {
     await openFilters(page);
 
     await selectFilterOption(page, 'industry-filter', 'Banking');
@@ -178,7 +215,9 @@ test.describe('PM-029 Trading Opportunities', () => {
     await page.getByTestId('reset-opportunity-filters').click();
 
     await selectFilterOption(page, 'risk-filter', 'High');
-    await expect(table(page).locator('.no-data')).toContainText('No securities match the current filters');
+    await expect(table(page).locator('.no-data')).toContainText(
+      'No securities match the current filters',
+    );
     await page.getByTestId('empty-action').click();
     await expect.poll(() => visibleSymbols(page)).toEqual(['PLW.TO', 'QRK.TO', 'ZEN.NE']);
 
@@ -191,19 +230,29 @@ test.describe('PM-029 Trading Opportunities', () => {
     await page.getByTestId('reset-opportunity-filters').click();
 
     await selectFilterOption(page, 'freshness-filter', 'Stale');
-    await expect(table(page).locator('.no-data')).toContainText('No securities match the current filters');
+    await expect(table(page).locator('.no-data')).toContainText(
+      'No securities match the current filters',
+    );
     await page.getByTestId('empty-action').click();
     await expect.poll(() => visibleSymbols(page)).toEqual(['PLW.TO', 'QRK.TO', 'ZEN.NE']);
   });
 
-  test('row opens the four-tab details with every authoritative decision', async ({ page, errors }, testInfo) => {
+  test('row opens the four-tab details with every authoritative decision', async ({
+    page,
+    errors,
+  }, testInfo) => {
     await rowFor(page, 'PLW.TO').click();
     const panel = page.getByTestId('details-panel');
     await expect(panel).toBeVisible();
-    await expect(panel).toHaveAttribute('role', isDesktop(testInfo.project.name) ? 'complementary' : 'dialog');
+    await expect(panel).toHaveAttribute(
+      'role',
+      isDesktop(testInfo.project.name) ? 'complementary' : 'dialog',
+    );
 
     await expect(panel.getByTestId('details-final-action')).toContainText('Multiple (2)');
-    await expect(panel.getByTestId('setup-target-source')).toContainText('Reference/source: 52-week high');
+    await expect(panel.getByTestId('setup-target-source')).toContainText(
+      'Reference/source: 52-week high',
+    );
     await expect(panel).toContainText('Target quality');
     await expect(panel).toContainText('Not assessed; no approved quality model is active.');
     if (testInfo.project.name.startsWith('mobile-')) {
@@ -230,7 +279,10 @@ test.describe('PM-029 Trading Opportunities', () => {
     expect(errors).toEqual([]);
   });
 
-  test('unavailable setup shows no fabricated levels beside the independent technical score', async ({ page, errors }) => {
+  test('unavailable setup shows no fabricated levels beside the independent technical score', async ({
+    page,
+    errors,
+  }) => {
     await page.getByTestId('score-filter').click();
     await page.getByRole('option', { name: 'All (incl. unavailable)', exact: true }).click();
     await rowFor(page, 'CCA.TO').click();
@@ -256,7 +308,10 @@ test.describe('PM-029 Trading Opportunities', () => {
   });
 
   test('columns selector opens from the page', async ({ page, errors }) => {
-    await page.getByRole('button', { name: /^Columns \(\d+\)/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Columns \(\d+\)/ })
+      .first()
+      .click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('Swing · Trading Opportunities');
@@ -266,13 +321,18 @@ test.describe('PM-029 Trading Opportunities', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await page.getByTestId('perspective-strategic').click();
-    await page.getByRole('button', { name: /^Columns \(\d+\)/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Columns \(\d+\)/ })
+      .first()
+      .click();
     await expect(page.getByRole('dialog')).toContainText('Strategic · Trading Opportunities');
     await page.keyboard.press('Escape');
     expect(errors).toEqual([]);
   });
 
-  test('manual R scenarios remain isolated by symbol and strategy perspective', async ({ page }) => {
+  test('manual R scenarios remain isolated by symbol and strategy perspective', async ({
+    page,
+  }) => {
     const qrk = rowFor(page, 'QRK.TO');
     await qrk.click();
     await page.getByTestId('manual-r-entry').fill('50');
@@ -300,9 +360,17 @@ test.describe('PM-029 Trading Opportunities', () => {
     const isHandset = testInfo.project.name.startsWith('mobile-');
     const evidenceColumns = isHandset
       ? ['.mat-column-swing', '.mat-column-finalAction', '.mat-column-sectorHeat']
-      : ['.mat-column-swing', '.mat-column-rr', '.mat-column-fit', '.mat-column-finalAction', '.mat-column-sectorHeat'];
+      : [
+          '.mat-column-swing',
+          '.mat-column-rr',
+          '.mat-column-fit',
+          '.mat-column-finalAction',
+          '.mat-column-sectorHeat',
+        ];
     expect(await qrk.locator('.mat-column-rr').count()).toBe(isHandset ? 0 : 1);
-    const beforeGridEvidence = await Promise.all(evidenceColumns.map((selector) => qrk.locator(selector).innerText()));
+    const beforeGridEvidence = await Promise.all(
+      evidenceColumns.map((selector) => qrk.locator(selector).innerText()),
+    );
 
     await qrk.click();
     const panel = page.getByTestId('details-panel');
@@ -349,7 +417,10 @@ test.describe('PM-029 Trading Opportunities', () => {
     const snapshot = opportunitySnapshotResponse();
     const dates = [
       snapshot.dataAsOfSession,
-      ...snapshot.rows.flatMap((row) => [row.freshness.dataAsOfDate, row.freshness.expectedSession]),
+      ...snapshot.rows.flatMap((row) => [
+        row.freshness.dataAsOfDate,
+        row.freshness.expectedSession,
+      ]),
     ].filter((date): date is string => !!date);
     const detail = opportunityDetailResponse(snapshot.rows[0].symbol, snapshot.snapshotId);
     if ('status' in detail) throw new Error('Expected a synthetic opportunity detail fixture.');
@@ -365,13 +436,142 @@ test.describe('PM-029 Trading Opportunities', () => {
 
   test('refresh runs a new read-only snapshot', async ({ page, mocks, errors }) => {
     await page.getByTestId('refresh-analysis').click();
-    await expect.poll(() => mocks.requests.filter((r) => /POST \/api\/opportunities\/refresh/.test(r)).length).toBe(1);
+    await expect
+      .poll(() => mocks.requests.filter((r) => /POST \/api\/opportunities\/refresh/.test(r)).length)
+      .toBe(1);
     await expect(page.getByTestId('refresh-analysis')).toBeEnabled();
-    expect(mocks.requests.some((r) => /^(POST|PUT|DELETE) \/api\/(cash|portfolio|transactions|risk|signals)/.test(r))).toBe(false);
+    expect(
+      mocks.requests.some((r) =>
+        /^(POST|PUT|DELETE) \/api\/(cash|portfolio|transactions|risk|signals)/.test(r),
+      ),
+    ).toBe(false);
     expect(errors).toEqual([]);
   });
 
   // Opt-in UAT evidence: PM029_SCREENSHOTS=<dir> npx playwright test trading-opportunities
+  test('final functional changes preserve inactive quality, names, sorting and fund context', async ({
+    page,
+    mocks,
+    errors,
+  }, testInfo) => {
+    const directory = process.env['PM029_SCREENSHOTS'];
+    const capture = async (label: string) => {
+      await settle(page);
+      await expectNoHorizontalPageOverflow(page);
+      if (directory) {
+        if ((await page.locator('[data-pm029-synthetic-watermark]').count()) === 0)
+          await addSyntheticScreenshotLabel(page);
+        await settle(page);
+        await page.screenshot({
+          path: join(directory, `SYNTHETIC-${testInfo.project.name}-${label}.png`),
+          fullPage: true,
+        });
+      }
+    };
+    await expect(rowFor(page, 'QRK.TO').getByTestId('company-name')).toBeVisible();
+    await expect(rowFor(page, 'QRK.TO').getByTestId('setup-quality')).toContainText('Unavailable');
+    await capture('01-inactive-swing');
+    await rowFor(page, 'QRK.TO').click();
+    await expect(page.getByTestId('setup-quality-details')).toContainText('historical snapshot');
+    await capture('02-inactive-details');
+    await page.keyboard.press('Escape');
+
+    const snapshot = opportunitySnapshotResponse();
+    snapshot.rows[0].setupQuality = setupQualityFixture({
+      currency: snapshot.rows[0].currency,
+      entry: snapshot.rows[0].setup.entry,
+      proposedStop: snapshot.rows[0].setup.stop,
+      support: snapshot.rows[0].setup.stop,
+      proposedTarget: snapshot.rows[0].setup.target,
+      resistance: snapshot.rows[0].setup.target,
+      credibleTarget: snapshot.rows[0].setup.target,
+      marketRewardRisk: snapshot.rows[0].setup.rewardRisk,
+      conservativeRewardRisk: snapshot.rows[0].setup.rewardRisk,
+    });
+    for (const [symbol, status, ratio] of [
+      ['PLW.TO', 'Caution', 1.7],
+      ['ZEN.NE', 'Poor', 1.2],
+    ] as const) {
+      const row = snapshot.rows.find((candidate) => candidate.symbol === symbol)!;
+      const entry = row.setup.entry!;
+      const stop = row.setup.stop!;
+      const resistance = entry + (entry - stop) * ratio;
+      row.setupQuality = setupQualityFixture({
+        status,
+        entry,
+        proposedStop: stop,
+        support: stop,
+        proposedTarget: row.setup.target,
+        resistance,
+        credibleTarget: resistance,
+        marketRewardRisk: row.setup.rewardRisk,
+        conservativeRewardRisk: ratio,
+      });
+    }
+    const fund = snapshot.rows.find((row) => row.symbol === 'BRQ.TO')!;
+    const originalAction = structuredClone(fund.finalAction);
+    fund.companyName = 'Synthetic Fund';
+    fund.instrumentType = 'ETF';
+    fund.swing = {
+      ...fund.swing,
+      score: null,
+      status: 'NotEvaluated',
+      band: 'None',
+      reasonCodes: ['EtfScoringDeferred'],
+    };
+    fund.strategic = {
+      ...fund.strategic,
+      score: null,
+      status: 'NotEvaluated',
+      band: 'None',
+      reasonCodes: ['EtfScoringDeferred'],
+    };
+    const detail = opportunityDetailResponse('QRK.TO', snapshot.snapshotId);
+    if ('status' in detail) throw new Error('Expected synthetic detail.');
+    detail.row = snapshot.rows[0];
+    await page.route('**/api/opportunities', (route) => route.fulfill({ json: snapshot }));
+    await page.route('**/api/opportunities/QRK.TO?*', (route) => route.fulfill({ json: detail }));
+    await page.reload();
+    await expect(rowFor(page, 'QRK.TO').getByTestId('setup-quality')).toContainText('Good');
+    await expect(rowFor(page, 'PLW.TO').getByTestId('setup-quality')).toContainText('Caution');
+    await expect(rowFor(page, 'ZEN.NE').getByTestId('setup-quality')).toContainText('Poor');
+    await capture('03a-proposed-qualities-grid');
+    await rowFor(page, 'QRK.TO').click();
+    await expect(page.getByTestId('setup-quality-details')).toContainText('Confirmed support');
+    await capture('03-proposed-policy-simulation');
+    await page.getByTestId('setup-quality-details').locator('p').last().scrollIntoViewIfNeeded();
+    await capture('03b-setup-evidence-bottom');
+    await page.keyboard.press('Escape');
+    await page.getByTestId('score-filter').click();
+    await page.getByRole('option', { name: 'All (incl. unavailable)', exact: true }).click();
+    await expect(rowFor(page, 'BRQ.TO').getByTestId('score-cell').first()).toContainText(
+      'Not evaluated',
+    );
+    await expect(page.getByTestId('reason-EtfScoringDeferred')).toContainText(
+      'ETF scoring deferred',
+    );
+    expect(fund.finalAction).toEqual(originalAction);
+    const order = await dataRows(page).evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute('data-symbol')),
+    );
+    expect(order[0]).toBe('QRK.TO');
+    expect(order.at(-1)).toBe('BRQ.TO');
+    await capture('04-fund-deferral');
+    await page.getByTestId('perspective-strategic').click();
+    await expect(page.getByTestId('setup-quality')).toHaveCount(0);
+    const topStrategic = snapshot.rows.reduce((best, row) =>
+      (row.strategic.score ?? -1) > (best.strategic.score ?? -1) ? row : best,
+    );
+    await expect(dataRows(page).first()).toHaveAttribute('data-symbol', topStrategic.symbol);
+    await capture('05-strategic-default');
+    await expectNoHorizontalPageOverflow(page);
+    expect(mocks.unmocked).toEqual([]);
+    expect(
+      mocks.requests.some((request) => /^POST \/api\/opportunities\/refresh/.test(request)),
+    ).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
   test('captures UAT screenshots', async ({ page }, testInfo) => {
     const dir = process.env['PM029_SCREENSHOTS'];
     test.skip(!dir, 'set PM029_SCREENSHOTS to capture');
@@ -402,7 +602,9 @@ test.describe('PM-029 Trading Opportunities', () => {
     await capture('02b-manual-r', { fullPage });
     await page.getByTestId('manual-r-stop').fill('50');
     await expect(page.getByTestId('manual-r-result')).toContainText('—');
-    await expect(page.getByTestId('manual-r-result')).toContainText('use positive prices with stop below entry');
+    await expect(page.getByTestId('manual-r-result')).toContainText(
+      'use positive prices with stop below entry',
+    );
     await settle(page);
     await capture('02g-manual-r-invalid', { fullPage });
     await page.getByTestId('manual-r-stop').fill('45');
@@ -420,14 +622,19 @@ test.describe('PM-029 Trading Opportunities', () => {
     await settle(page);
     await capture('02f-details-multiple', { fullPage });
     await page.getByTestId('details-close').click();
-    await page.getByRole('button', { name: /^Columns \(\d+\)/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Columns \(\d+\)/ })
+      .first()
+      .click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await settle(page);
     await capture('03-columns');
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.getByTestId('perspective-strategic').click();
-    await expect(page.getByTestId('perspective-strategic')).toHaveClass(/mat-button-toggle-checked/);
+    await expect(page.getByTestId('perspective-strategic')).toHaveClass(
+      /mat-button-toggle-checked/,
+    );
     await settle(page);
     await capture('04-strategic-defaults', { fullPage: true });
 
@@ -436,7 +643,10 @@ test.describe('PM-029 Trading Opportunities', () => {
     await page.getByRole('option', { name: 'All (incl. unavailable)', exact: true }).click();
     await settle(page);
     await capture('05-strategic-grid', { fullPage: true });
-    await page.getByRole('button', { name: /^Columns \(\d+\)/ }).first().click();
+    await page
+      .getByRole('button', { name: /^Columns \(\d+\)/ })
+      .first()
+      .click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await settle(page);
     await capture('05a-strategic-columns');

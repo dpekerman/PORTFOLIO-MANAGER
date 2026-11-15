@@ -6,7 +6,8 @@
         Trading Opportunities
       </h1>
       <p class="page-sub">
-        Swing and strategic setups across your watchlist, holdings and the TSX 60. Read-only decision support.
+        Swing and strategic setups across your watchlist, holdings and the TSX 60. Read-only
+        decision support.
       </p>
     </div>
     <div class="header-actions">
@@ -34,8 +35,15 @@
         <button mat-menu-item type="button" (click)="export('csv', false)">
           <mat-icon>description</mat-icon><span>CSV: all columns</span>
         </button>
-        <div class="menu-option" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
-          <mat-checkbox [checked]="includeAccounts()" (change)="includeAccounts.set($event.checked)">
+        <div
+          class="menu-option"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+        >
+          <mat-checkbox
+            [checked]="includeAccounts()"
+            (change)="includeAccounts.set($event.checked)"
+          >
             Include account details
           </mat-checkbox>
         </div>
@@ -66,32 +74,40 @@
       @if (snap.snapshotId !== null) {
         <span class="status-item">
           <mat-icon aria-hidden="true">schedule</mat-icon>
-          Evaluated {{ snap.computedAtUtc | date: 'MMM d, h:mm a' }} · data as of {{ snap.dataAsOfSession ?? '—' }}
+          Evaluated {{ snap.computedAtUtc | date: 'MMM d, h:mm a' }} · data as of
+          {{ snap.dataAsOfSession ?? '—' }}
         </span>
         <span class="status-item muted">
-          {{ snap.counts.watchlist }} watchlist · {{ snap.counts.portfolio }} holdings · {{ snap.counts.tsx60 }} TSX 60 ·
-          {{ snap.counts.total }} unique
+          {{ snap.counts.watchlist }} watchlist · {{ snap.counts.portfolio }} holdings ·
+          {{ snap.counts.tsx60 }} TSX 60 · {{ snap.counts.total }} unique
         </span>
       }
       @if (snap.isStale) {
-        <span class="status-chip warn" matTooltip="A newer completed trading session is available. Refresh to re-evaluate.">
+        <span
+          class="status-chip warn"
+          matTooltip="A newer completed trading session is available. Refresh to re-evaluate."
+        >
           <mat-icon aria-hidden="true">history</mat-icon> Stale
         </span>
       }
       @if (snap.status === 'Partial') {
-        <span class="status-chip warn" [matTooltip]="snap.errorSummary ?? 'Some evidence could not be loaded.'">
+        <span
+          class="status-chip warn"
+          [matTooltip]="snap.errorSummary ?? 'Some evidence could not be loaded.'"
+        >
           <mat-icon aria-hidden="true">warning</mat-icon> Partial evidence
         </span>
       }
       @if (snap.portfolioChangedSinceEvaluation) {
         <span class="status-chip info" data-testid="portfolio-changed">
-          <mat-icon aria-hidden="true">sync_problem</mat-icon> Portfolio changed since evaluation. Refresh to update fit and
-          Final Action.
+          <mat-icon aria-hidden="true">sync_problem</mat-icon> Portfolio changed since evaluation.
+          Refresh to update fit and Final Action.
         </span>
       }
       @if (snap.lastAttempt?.status === 'Failed') {
         <span class="status-chip error" [matTooltip]="snap.lastAttempt?.errorSummary ?? ''">
-          <mat-icon aria-hidden="true">error</mat-icon> Last refresh failed. Showing the last successful analysis.
+          <mat-icon aria-hidden="true">error</mat-icon> Last refresh failed. Showing the last
+          successful analysis.
         </span>
       }
     </div>
@@ -106,12 +122,18 @@
       aria-label="Score perspective"
     >
       <mat-button-toggle value="Swing" data-testid="perspective-swing">Swing</mat-button-toggle>
-      <mat-button-toggle value="Strategic" data-testid="perspective-strategic">Strategic</mat-button-toggle>
+      <mat-button-toggle value="Strategic" data-testid="perspective-strategic"
+        >Strategic</mat-button-toggle
+      >
     </mat-button-toggle-group>
 
     <mat-form-field appearance="outline" subscriptSizing="dynamic" class="score-filter">
       <mat-label>Score</mat-label>
-      <mat-select [value]="view().scoreFilter" (selectionChange)="setScoreFilter($event.value)" data-testid="score-filter">
+      <mat-select
+        [value]="view().scoreFilter"
+        (selectionChange)="setScoreFilter($event.value)"
+        data-testid="score-filter"
+      >
         @for (o of scoreFilterOptions(); track o.value) {
           <mat-option [value]="o.value" [disabled]="o.disabled">{{ o.label }}</mat-option>
         }
@@ -131,11 +153,23 @@
       <mat-icon matSuffix>search</mat-icon>
     </mat-form-field>
   </section>
+  @if (
+    view().perspective === 'Swing' &&
+    store.snapshot() &&
+    store.config() &&
+    store.snapshot()?.scoringVersion !== store.config()?.version
+  ) {
+    <p class="notice" role="note" data-testid="legacy-scoring-warning">
+      Stored snapshot: {{ store.snapshot()?.scoringVersion }}. Swing-v2 has not been evaluated for
+      this snapshot. Historical scores are preserved, not relabelled. A protected refresh requires
+      separate approval.
+    </p>
+  }
 
   @if (!store.config() && store.hasSnapshot()) {
     <p class="notice" role="note">
-      <mat-icon aria-hidden="true">info</mat-icon> Score thresholds are unavailable, so the Attractive and Moderate filters are
-      off. Showing all scored securities.
+      <mat-icon aria-hidden="true">info</mat-icon> Score thresholds are unavailable, so the
+      Attractive and Moderate filters are off. Showing all scored securities.
     </p>
   }
 
@@ -147,9 +181,28 @@
       }
     </summary>
     <div class="filter-grid">
+      @if (view().perspective === 'Swing') {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Setup Quality</mat-label>
+          <mat-select
+            multiple
+            data-testid="setup-quality-filter"
+            [value]="view().setupQuality"
+            (selectionChange)="update({ setupQuality: $event.value })"
+          >
+            @for (quality of ['Good', 'Caution', 'Poor', 'Unavailable']; track quality) {
+              <mat-option [value]="quality">{{ quality }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Sector</mat-label>
-        <mat-select multiple [value]="view().sectors" (selectionChange)="update({ sectors: $event.value })">
+        <mat-select
+          multiple
+          [value]="view().sectors"
+          (selectionChange)="update({ sectors: $event.value })"
+        >
           @for (s of sectorOptions(); track s) {
             <mat-option [value]="s">{{ s }}</mat-option>
           }
@@ -227,7 +280,11 @@
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Sector Heat</mat-label>
-        <mat-select multiple [value]="view().heat" (selectionChange)="update({ heat: $event.value })">
+        <mat-select
+          multiple
+          [value]="view().heat"
+          (selectionChange)="update({ heat: $event.value })"
+        >
           @for (h of heatOptions; track h.value) {
             <mat-option [value]="h.value">{{ h.label }}</mat-option>
           }
@@ -245,7 +302,11 @@
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Final Action</mat-label>
-        <mat-select multiple [value]="view().finalActionLabels" (selectionChange)="update({ finalActionLabels: $event.value })">
+        <mat-select
+          multiple
+          [value]="view().finalActionLabels"
+          (selectionChange)="update({ finalActionLabels: $event.value })"
+        >
           @for (a of finalActionOptions(); track a) {
             <mat-option [value]="a">{{ a }}</mat-option>
           }
@@ -263,7 +324,11 @@
 
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Source</mat-label>
-        <mat-select multiple [value]="view().sources" (selectionChange)="update({ sources: $event.value })">
+        <mat-select
+          multiple
+          [value]="view().sources"
+          (selectionChange)="update({ sources: $event.value })"
+        >
           @for (s of sourceOptions(); track s) {
             <mat-option [value]="s">{{ s }}</mat-option>
           }
@@ -332,11 +397,19 @@
           class="summary-chip"
           [class.active]="store.reasonFilter() === r.code"
           [attr.aria-pressed]="store.reasonFilter() === r.code"
-          [matTooltip]="'Show the ' + r.count + ' ' + view().perspective + ' securities that cannot be scored: ' + r.label"
+          [matTooltip]="
+            'Show the ' +
+            r.count +
+            ' ' +
+            view().perspective +
+            ' securities that cannot be scored: ' +
+            r.label
+          "
           [attr.data-testid]="'reason-' + r.code"
           (click)="toggleReason(r.code)"
         >
-          {{ r.count }} unscorable: {{ r.label }}
+          {{ r.count }} {{ r.code === 'EtfScoringDeferred' ? 'not evaluated' : 'unscorable' }}:
+          {{ r.label }}
         </button>
       }
     </div>
@@ -403,7 +476,8 @@
   @if (store.snapshot()?.disclaimer; as disclaimer) {
     <p class="disclaimer" data-testid="scoring-disclaimer">
       @if (view().perspective === 'Strategic') {
-        Strategic scores summarize available long-term trend, technical, fundamental, and valuation evidence. They are not a probability of success or an investment recommendation.
+        Strategic scores summarize available long-term trend, technical, fundamental, and valuation
+        evidence. They are not a probability of success or an investment recommendation.
       } @else {
         {{ disclaimer }}
       }

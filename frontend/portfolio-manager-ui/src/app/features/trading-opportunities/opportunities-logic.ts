@@ -7,7 +7,11 @@ import {
   OpportunitySectorHeat,
   ScorePerspective,
 } from '../../core/models/opportunities.models';
-import { OpportunitySort, OpportunityView, ScoreFilter } from '../../core/store/opportunities.store';
+import {
+  OpportunitySort,
+  OpportunityView,
+  ScoreFilter,
+} from '../../core/store/opportunities.store';
 import { ExportCell, TxExportColumn, TxExportKind } from '../transactions/transactions-logic';
 
 export interface ManualRValues {
@@ -45,7 +49,10 @@ export function manualRewardRisk(values: ManualRValues | null | undefined): numb
 
 // ── Scores ──────────────────────────────────────────────────────────────────
 
-export function activeScore(row: OpportunityRow, perspective: ScorePerspective): OpportunityScoreSummary {
+export function activeScore(
+  row: OpportunityRow,
+  perspective: ScorePerspective,
+): OpportunityScoreSummary {
   return perspective === 'Swing' ? row.swing : row.strategic;
 }
 
@@ -64,15 +71,18 @@ export function heatClass(s: OpportunityScoreSummary): string {
 }
 
 export function scoreText(s: OpportunityScoreSummary): string {
+  if (s.status === 'NotEvaluated') return 'Not evaluated';
   return s.score === null ? 'N/A' : String(s.score);
 }
 
 export function scoreAriaLabel(perspective: ScorePerspective, s: OpportunityScoreSummary): string {
+  if (s.status === 'NotEvaluated') return `${perspective}: Not evaluated — ETF scoring deferred`;
   if (s.score === null) {
     const reason = s.reasonCodes.length ? `: ${reasonLabel(s.reasonCodes[0])}` : '';
     return `${perspective} score not available (${s.status}${reason})`;
   }
-  const provisional = s.status === 'Provisional' ? `, provisional, ${s.completenessPct}% complete` : '';
+  const provisional =
+    s.status === 'Provisional' ? `, provisional, ${s.completenessPct}% complete` : '';
   return `${perspective} score ${s.score} of 100, ${s.band}${provisional}`;
 }
 
@@ -117,9 +127,27 @@ const REASON_PRIORITY = [
   'NoScan',
   'LowCompleteness',
 ];
-const REASON_CATEGORIES: readonly ReasonCategory[] = ['identity', 'stale', 'setup', 'missing', 'other'];
+const REASON_CATEGORIES: readonly ReasonCategory[] = [
+  'identity',
+  'stale',
+  'setup',
+  'missing',
+  'other',
+];
 
 const REASON_LABELS: Record<string, string> = {
+  EtfScoringDeferred: 'Not evaluated — ETF scoring deferred (PM-036)',
+  SetupPolicyApprovalRequired: 'Advisory classification policy awaits owner approval',
+  ConfirmedSupportUnavailable: 'Confirmed nearby support is unavailable',
+  ConfirmedResistanceUnavailable: 'Confirmed nearby resistance is unavailable',
+  StructuralHistoryUnavailable: 'Complete session-aligned OHLC history is unavailable',
+  StructuralSessionGap: 'Structural history has missing exchange sessions',
+  SetupTimestampUnverified: 'Setup evidence timestamp is not verified',
+  SetupCurrencyUnverified: 'Structural price-basis currency is unverified',
+  OriginalOhlcUnverified:
+    'Original OHLC observations are not verified; reconstructed values are excluded',
+  StructuralCurrencyMismatch: 'Chart and setup price currencies do not match',
+  MarketSetupUnavailable: 'A market-derived entry, stop and target are required',
   NoValidStop: 'No valid stop',
   DynamicStopMissing: 'Scanner stop missing',
   StopAtOrAboveEntry: 'Scanner stop at or above entry',
@@ -169,7 +197,8 @@ const SECTOR_HEAT_REASON_LABELS: Record<string, string> = {
 };
 
 export function reasonLabel(code: string): string {
-  if (code.startsWith('MissingEssential:')) return `Missing essential component ${code.substring('MissingEssential:'.length)}`;
+  if (code.startsWith('MissingEssential:'))
+    return `Missing essential component ${code.substring('MissingEssential:'.length)}`;
   if (/^SectorHeat(?:20D|60D)?:/.test(code)) {
     const status = code.substring(code.indexOf(':') + 1);
     return SECTOR_HEAT_REASON_LABELS[status] ?? `Sector-relative evidence unavailable (${status})`;
@@ -234,32 +263,56 @@ export function finalActionFilterLabel(row: OpportunityRow): string {
 }
 
 /** Non-score filters (search, sector, fit, final action, ownership, source, heat). */
-export function passesAttributeFilters(row: OpportunityRow, view: OpportunityView, search: string): boolean {
+export function passesAttributeFilters(
+  row: OpportunityRow,
+  view: OpportunityView,
+  search: string,
+): boolean {
   const q = search.trim().toLowerCase();
   if (q) {
-    const hay = [row.symbol, row.companyName, row.sector ?? '', row.industry ?? '', row.analysisTicker ?? '']
+    const hay = [
+      row.symbol,
+      row.companyName,
+      row.sector ?? '',
+      row.industry ?? '',
+      row.analysisTicker ?? '',
+    ]
       .join(' ')
       .toLowerCase();
     if (!hay.includes(q)) return false;
   }
   if (view.sectors.length && !view.sectors.includes(row.sector ?? 'Unclassified')) return false;
-  if (view.industries.length && !view.industries.includes(row.industry ?? 'Unclassified')) return false;
+  if (view.industries.length && !view.industries.includes(row.industry ?? 'Unclassified'))
+    return false;
   if (view.riskCategories.length && !view.riskCategories.includes(row.risk.category)) return false;
-  if (view.accounts.length && !row.accounts.some((account) => view.accounts.includes(account))) return false;
+  if (view.accounts.length && !row.accounts.some((account) => view.accounts.includes(account)))
+    return false;
   if (
     view.roles.length &&
-    ![...row.roles, ...(row.watchlistRole ? [row.watchlistRole] : [])].some((role) => view.roles.includes(role))
+    ![...row.roles, ...(row.watchlistRole ? [row.watchlistRole] : [])].some((role) =>
+      view.roles.includes(role),
+    )
   ) {
     return false;
   }
   if (view.freshness === 'current' && row.freshness.isStale) return false;
   if (view.freshness === 'stale' && !row.freshness.isStale) return false;
   if (view.fit.length && !view.fit.includes(row.fit.status)) return false;
-  if (view.finalActionLabels.length && !view.finalActionLabels.includes(finalActionFilterLabel(row))) return false;
+  if (
+    view.finalActionLabels.length &&
+    !view.finalActionLabels.includes(finalActionFilterLabel(row))
+  )
+    return false;
   if (view.ownership === 'owned' && !row.owned) return false;
   if (view.ownership === 'notOwned' && row.owned) return false;
   if (view.sources.length && !row.sources.some((s) => view.sources.includes(s))) return false;
   if (view.heat.length && !view.heat.includes(row.sectorHeat.direction)) return false;
+  if (
+    view.perspective === 'Swing' &&
+    view.setupQuality.length &&
+    !view.setupQuality.includes(row.setupQuality?.status ?? 'Unavailable')
+  )
+    return false;
   return true;
 }
 
@@ -277,7 +330,10 @@ export function scoreGate(row: OpportunityRow, input: OpportunityFilterInput): S
   return 'shown';
 }
 
-export function filterRows(rows: readonly OpportunityRow[], input: OpportunityFilterInput): OpportunityRow[] {
+export function filterRows(
+  rows: readonly OpportunityRow[],
+  input: OpportunityFilterInput,
+): OpportunityRow[] {
   return rows.filter((row) => {
     if (!passesAttributeFilters(row, input.view, input.search)) return false;
     if (input.reasonFilter) {
@@ -302,7 +358,10 @@ export interface ExclusionSummary {
  * "Showing n of total · a below threshold · b unscorable: …" — computed from the snapshot, never hard-coded. Rows removed by
  * attribute filters are counted separately so the parts always add up to the total.
  */
-export function exclusionSummary(rows: readonly OpportunityRow[], input: OpportunityFilterInput): ExclusionSummary {
+export function exclusionSummary(
+  rows: readonly OpportunityRow[],
+  input: OpportunityFilterInput,
+): ExclusionSummary {
   const summary: ExclusionSummary = {
     total: rows.length,
     shown: 0,
@@ -342,7 +401,9 @@ export function exclusionSummary(rows: readonly OpportunityRow[], input: Opportu
     })
     .sort(
       (a, b) =>
-        order.indexOf(a.category) - order.indexOf(b.category) || b.count - a.count || a.label.localeCompare(b.label),
+        order.indexOf(a.category) - order.indexOf(b.category) ||
+        b.count - a.count ||
+        a.label.localeCompare(b.label),
     );
   return summary;
 }
@@ -359,7 +420,10 @@ export function signedPp(value: number): string {
 }
 
 /** `mask` is the demo-mode percent mask; direction and colour always come from the server value. */
-export function sectorHeatText(h: OpportunitySectorHeat, mask: (v: number) => number = (v) => v): string {
+export function sectorHeatText(
+  h: OpportunitySectorHeat,
+  mask: (v: number) => number = (v) => v,
+): string {
   if (h.diffPp === null || h.status !== 'Matched') return 'Unavailable';
   const pp = signedPp(mask(h.diffPp));
   if (h.direction === 'Positive') return `\u25B2 ${pp} pp`;
@@ -371,7 +435,8 @@ export function sectorHeatClass(h: OpportunitySectorHeat): string {
   if (h.status !== 'Matched' || h.diffPp === null || h.benchmarkReturnPct === null) {
     return 'sector-heat-badge sh--unavailable';
   }
-  const momentum = h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
+  const momentum =
+    h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
   return `sector-heat-badge sh--benchmark-${momentum}`;
 }
 
@@ -389,8 +454,14 @@ export function sectorHeatAriaLabel(h: OpportunitySectorHeat, sector: string | n
     return `Sector heat unavailable: ${HEAT_STATUS_LABELS[h.status] ?? h.status}`;
   }
   const vs = sector ? ` versus ${sector} benchmark` : '';
-  const word = h.direction === 'Positive' ? 'outperforming' : h.direction === 'Negative' ? 'underperforming' : 'in line';
-  const momentum = h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
+  const word =
+    h.direction === 'Positive'
+      ? 'outperforming'
+      : h.direction === 'Negative'
+        ? 'underperforming'
+        : 'in line';
+  const momentum =
+    h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
   return `Sector heat ${signedPp(h.diffPp)} percentage points over 20 sessions${vs}, ${word}; benchmark momentum ${momentum} (${signedPp(h.benchmarkReturnPct)}%)`;
 }
 
@@ -421,6 +492,10 @@ export function columnValue(
       return row.strategic.score;
     case 'rr':
       return row.setup.rewardRisk;
+    case 'setupQuality':
+      return { Poor: 0, Caution: 1, Good: 2, Unavailable: null }[
+        row.setupQuality?.status ?? 'Unavailable'
+      ];
     case 'manualR':
       return manualRewardRisk(manualR);
     case 'risk':
@@ -503,7 +578,10 @@ export function tableSortKey(sort: OpportunitySort, perspective: ScorePerspectiv
 }
 
 /** Do not repeat the ticker as a company subtitle when no distinct verified description is available. */
-export function companyNameForDisplay(symbol: string, companyName: string | null | undefined): string | null {
+export function companyNameForDisplay(
+  symbol: string,
+  companyName: string | null | undefined,
+): string | null {
   const name = companyName?.trim();
   return name && name.toLocaleUpperCase() !== symbol.trim().toLocaleUpperCase() ? name : null;
 }
@@ -518,12 +596,25 @@ export function sortRows(
   if (!sort.direction) return copy;
   const dir = sort.direction === 'asc' ? 1 : -1;
   return copy.sort((a, b) => {
-    const va = columnValue(a, sort.active, perspective, manualRByScenario[manualRScenarioKey(a.symbol, perspective)]);
-    const vb = columnValue(b, sort.active, perspective, manualRByScenario[manualRScenarioKey(b.symbol, perspective)]);
+    const va = columnValue(
+      a,
+      sort.active,
+      perspective,
+      manualRByScenario[manualRScenarioKey(a.symbol, perspective)],
+    );
+    const vb = columnValue(
+      b,
+      sort.active,
+      perspective,
+      manualRByScenario[manualRScenarioKey(b.symbol, perspective)],
+    );
     if (va === null && vb === null) return a.symbol.localeCompare(b.symbol);
     if (va === null) return 1;
     if (vb === null) return -1;
-    const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb));
+    const cmp =
+      typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb));
     return cmp !== 0 ? cmp * dir : a.symbol.localeCompare(b.symbol);
   });
 }
@@ -558,19 +649,64 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Exchange', 'text', (r) => r.exchange, 'symbol'),
   xcol('Swing Score', 'int', (r) => r.swing.score, 'swing'),
   xcol('Swing Status', 'text', (r) => r.swing.status, 'swing'),
-  xcol('Swing Band', 'text', (r) => (r.swing.score === null ? 'Unscorable' : r.swing.band), 'swing'),
+  xcol(
+    'Swing Band',
+    'text',
+    (r) => (r.swing.score === null ? 'Unscorable' : r.swing.band),
+    'swing',
+  ),
   xcol('Swing Completeness %', 'qty', (r) => r.swing.completenessPct, 'swingCompleteness'),
   xcol('Swing Reasons', 'text', (r) => list(r.swing.reasonCodes), 'swing'),
   xcol('Strategic Score', 'int', (r) => r.strategic.score, 'strategic'),
   xcol('Strategic Status', 'text', (r) => r.strategic.status, 'strategic'),
-  xcol('Strategic Band', 'text', (r) => (r.strategic.score === null ? 'Unscorable' : r.strategic.band), 'strategic'),
-  xcol('Strategic Completeness %', 'qty', (r) => r.strategic.completenessPct, 'strategicCompleteness'),
+  xcol(
+    'Strategic Band',
+    'text',
+    (r) => (r.strategic.score === null ? 'Unscorable' : r.strategic.band),
+    'strategic',
+  ),
+  xcol(
+    'Strategic Completeness %',
+    'qty',
+    (r) => r.strategic.completenessPct,
+    'strategicCompleteness',
+  ),
   xcol('Strategic Reasons', 'text', (r) => list(r.strategic.reasonCodes), 'strategic'),
   xcol('Market R', 'qty', (r) => r.setup.rewardRisk, 'rr'),
+  xcol('SETUP QUALITY', 'text', (r) => r.setupQuality?.status ?? 'Unavailable', 'setupQuality'),
+  xcol(
+    'Conservative R',
+    'qty',
+    (r) => r.setupQuality?.conservativeRewardRisk ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'Setup Quality Reasons',
+    'text',
+    (r) =>
+      r.setupQuality
+        ? list(r.setupQuality.reasonCodes)
+        : 'Structural snapshot evidence unavailable',
+    'setupQuality',
+  ),
+  xcol(
+    'Setup Policy Version',
+    'text',
+    (r) => r.setupQuality?.policyVersion ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'Setup Policy Approved',
+    'text',
+    (r) => (r.setupQuality?.policyApproved === true ? 'Yes' : 'No'),
+    'setupQuality',
+  ),
+  xcol('Instrument Type', 'text', (r) => r.instrumentType ?? 'Unconfirmed', 'symbol'),
   xcol(
     'Manual R',
     'qty',
-    (r, scenarios, perspective) => manualRewardRisk(scenarios[manualRScenarioKey(r.symbol, perspective)]),
+    (r, scenarios, perspective) =>
+      manualRewardRisk(scenarios[manualRScenarioKey(r.symbol, perspective)]),
     'manualR',
   ),
   xcol('Setup', 'text', (r) => r.setup.kind, 'setupKind'),
@@ -583,10 +719,25 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Risk', 'text', (r) => r.risk.category, 'risk'),
   xcol('Portfolio Fit', 'text', (r) => r.fit.status, 'fit'),
   xcol('Fit Reasons', 'text', (r) => list(r.fit.reasonCodes), 'fit'),
-  xcol('Final Action', 'text', (r) => (r.finalAction.kind === 'None' ? null : finalActionFilterLabel(r)), 'finalAction'),
+  xcol(
+    'Final Action',
+    'text',
+    (r) => (r.finalAction.kind === 'None' ? null : finalActionFilterLabel(r)),
+    'finalAction',
+  ),
   xcol('Final Action Decisions', 'text', (r) => list(r.finalAction.distinctLabels), 'finalAction'),
-  xcol('Sector Heat 20D (pp)', 'qty', (r) => columnValue(r, 'rs20', 'Swing') as number | null, 'sectorHeat'),
-  xcol('Sector Heat 60D (pp)', 'qty', (r) => columnValue(r, 'rs60', 'Swing') as number | null, 'rs60'),
+  xcol(
+    'Sector Heat 20D (pp)',
+    'qty',
+    (r) => columnValue(r, 'rs20', 'Swing') as number | null,
+    'sectorHeat',
+  ),
+  xcol(
+    'Sector Heat 60D (pp)',
+    'qty',
+    (r) => columnValue(r, 'rs60', 'Swing') as number | null,
+    'rs60',
+  ),
   xcol('Sector Heat Status', 'text', (r) => r.sectorHeat.status, 'sectorHeat'),
   xcol('Benchmark', 'text', (r) => r.sectorHeat.benchmarkSymbol, 'sectorHeat'),
   xcol('Stock 20D %', 'qty', (r) => r.sectorHeat.stockReturnPct, 'stock20d'),
@@ -619,7 +770,9 @@ export interface OpportunityExportOptions {
   includeAccounts: boolean;
 }
 
-export function opportunityExportColumns(options: OpportunityExportOptions): OpportunityExportColumn[] {
+export function opportunityExportColumns(
+  options: OpportunityExportOptions,
+): OpportunityExportColumn[] {
   const visible = new Set(options.visibleKeys);
   return EXPORT_COLUMNS.filter((c) => {
     if (c.accountDetail && !options.includeAccounts) return false;
@@ -639,7 +792,13 @@ export function opportunityExportRows(
 
 /** Provenance sheet: snapshot id, scoring version, timestamps and the score disclaimer travel with every export. */
 export function exportNotes(
-  snapshot: { snapshotId: number | null; scoringVersion: string; computedAtUtc: string | null; dataAsOfSession: string | null; disclaimer: string },
+  snapshot: {
+    snapshotId: number | null;
+    scoringVersion: string;
+    computedAtUtc: string | null;
+    dataAsOfSession: string | null;
+    disclaimer: string;
+  },
   view: OpportunityView,
   summary: ExclusionSummary,
 ): string[][] {

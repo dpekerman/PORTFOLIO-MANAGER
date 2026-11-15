@@ -2,6 +2,7 @@ using System.Text.Json;
 using PortfolioManager.Api.Models;
 using PortfolioManager.Api.Services;
 using PortfolioManager.Api.Services.Valuation;
+using PortfolioManager.Api.Services.Opportunities;
 
 namespace PortfolioManager.Tests;
 
@@ -99,6 +100,32 @@ public sealed class SharedShadowValuationTests
         Assert.Equal(expected, result.Valuation.DenominatorCad);
         Assert.Equal(currency == "CAD" ? "Parity" : "ExpectedCurrencyCorrection",
             Assert.Single(result.Differences).Classification);
+    }
+
+    [Fact]
+    public void NvdaEtfCashAndNetOptionsProjectFitFromTheSameSnapshotWithoutDoubleCounting()
+    {
+        var request = Request() with
+        {
+            Securities = [Stock("nvda", "NVDA", Usd), Stock("etf", "SMH", Usd) with { Sector = "ETFs & Funds" }],
+            Policies = [new("NVDA", "Technology", 50m, 60m, 2m)]
+        };
+        var snapshot = Service().Evaluate(request);
+        Assert.Equal(3500m, snapshot.Valuation.DenominatorCad);
+        Assert.Equal(2800m, snapshot.Valuation.StockOnlyCad);
+        var adapter = new ValuationConsumerAdapter();
+        var (fit, authoritative) = adapter.ProjectShadowFit(snapshot, "NVDA");
+        Assert.Equal(FitStatus.Eligible, fit.Status);
+        Assert.Equal(40d, fit.WeightPct);
+        Assert.Equal(50d, fit.SectorWeightPct);
+        Assert.False(authoritative);
+        Assert.Equal(6, snapshot.Valuation.Components.Count);
+        Assert.DoesNotContain(snapshot.Valuation.Components, component => component.Symbol == "OPTION-UNDERLYING" && component.Kind == "Security");
+        foreach (var consumer in new[] { "Portfolio", "Dashboard", "Allocation", "FinalAction", "Pm029PortfolioFit" })
+            Assert.Equal(3500m, adapter.Project(snapshot, consumer).DenominatorCad);
+        var invalid = request with { Options = [Option("unknown", 1, 100m) with { Currency = null }] };
+        Assert.Equal(FitStatus.Unavailable, adapter.ProjectShadowFit(Service().Evaluate(invalid), "NVDA").Fit.Status);
+        Assert.Equal(FitStatus.Unavailable, adapter.ProjectShadowFit(snapshot, "UNMAPPED").Fit.Status);
     }
 
     [Fact]

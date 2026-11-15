@@ -1,0 +1,107 @@
+[
+  {
+    "path": "/v8/finance/chart/NPI.TO",
+    "file": "public-response-01.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:29.4744442+00:00",
+    "sha256": "39754418F4B375DA50499901E678FBBEAD16D75757CFBB9DEB56EF8CA374F772"
+  },
+  {
+    "path": "/v8/finance/chart/NPI.TO",
+    "file": "public-response-02.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:29.7016027+00:00",
+    "sha256": "DBB45C229FCADA4182C734855F0DF57CAFABB364B6FA21A32D45E5D102804A9C"
+  },
+  {
+    "path": "/v7/finance/quote",
+    "file": "public-response-03.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:30.4412052+00:00",
+    "sha256": "EBF607A99AD74D0EE55F876276866DB758A4B334B158FDD75CB47587B99C9153"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/NPI.TO",
+    "file": "public-response-04.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:30.5407186+00:00",
+    "sha256": "288E34E6B9BB3B7151A23EE90138060C66CB15872AC3709635B7267C4AE8AA7A"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/NPI.TO",
+    "file": "public-response-05.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:30.6130644+00:00",
+    "sha256": "AB02F3A531832610B31CBE6A53905FA6C576157D8B328B30A03EAD1554474148"
+  },
+  {
+    "path": "/v8/finance/chart/NVDA",
+    "file": "public-response-06.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.1467392+00:00",
+    "sha256": "AB571CA095FC10B68AB9A1EB6A78CEEA0B767929F586174F780E7F2EA8ED7D37"
+  },
+  {
+    "path": "/v8/finance/chart/NVDA",
+    "file": "public-response-07.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.2257276+00:00",
+    "sha256": "28062A567CC42443AE6924673E591F49E0158FFDEF0967F6092AFBBC8890E299"
+  },
+  {
+    "path": "/v7/finance/quote",
+    "file": "public-response-08.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.29645+00:00",
+    "sha256": "727DED659DD325C0B24EA4583B7D30C9DD7134BB075DBCCE708C74348CF87ACF"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/NVDA",
+    "file": "public-response-09.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.3589111+00:00",
+    "sha256": "160748A60653C783EBDF83CD9C784FD09466496F491BB2D390E91FA906C64395"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/NVDA",
+    "file": "public-response-10.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.4555551+00:00",
+    "sha256": "B11D76423C1DEC446334584CB830D60198D4446CBA8EFB07094F2628A3F14BFC"
+  },
+  {
+    "path": "/v8/finance/chart/SMH",
+    "file": "public-response-11.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.871841+00:00",
+    "sha256": "AF4BA80555D7BA3C0DC81F8ADD5AC5BCA224F28F9D080FD52E9EABA9778E9D44"
+  },
+  {
+    "path": "/v8/finance/chart/SMH",
+    "file": "public-response-12.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:31.9925553+00:00",
+    "sha256": "6726B87FD6ECB49C5702C89FF5172A0CC73E65A5C45034D14DFAF9DC93DDA095"
+  },
+  {
+    "path": "/v7/finance/quote",
+    "file": "public-response-13.json",
+    "status": 200,
+    "availableAtUtc": "2026-11-15T20:34:32.0611806+00:00",
+    "sha256": "FBEAC4B8E02F973FA2E2CE96617D38DC3E9797B092211774615AB02276780856"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/SMH",
+    "file": "public-response-14.json",
+    "status": 404,
+    "availableAtUtc": "2026-11-15T20:34:32.1236146+00:00",
+    "sha256": "7195605E80E2849EC7E2C6A206FC5FB4A6ED75C0064A49FD04B73AEC018F041F"
+  },
+  {
+    "path": "/v10/finance/quoteSummary/SMH.TO",
+    "file": "public-response-15.json",
+    "status": 404,
+    "availableAtUtc": "2026-11-15T20:34:32.1887697+00:00",
+    "sha256": "2C9EAAF187E3E2A8635E9D8F60B6A57897CAEB77AA445BA34999A4DD25BC7E5B"
+  }
+]

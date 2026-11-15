@@ -1,4 +1,9 @@
-<app-mobile-table-controls [sort]="sortRef" [gridId]="gridId" [profile]="perspective()" label="Opportunities" />
+<app-mobile-table-controls
+  [sort]="sortRef"
+  [gridId]="gridId"
+  [profile]="perspective()"
+  label="Opportunities"
+/>
 
 <p class="grid-scroll-hint" role="note" data-testid="tablet-grid-scroll-hint">
   Scroll the grid horizontally to view remaining columns.
@@ -26,14 +31,25 @@
         <div class="sym-line">
           <span class="sym">{{ row.symbol }}</span>
           @if (row.owned) {
-            <mat-icon class="owned-icon" matTooltip="Held in your portfolio" aria-label="Owned">account_balance_wallet</mat-icon>
+            <mat-icon class="owned-icon" matTooltip="Held in your portfolio" aria-label="Owned"
+              >account_balance_wallet</mat-icon
+            >
           }
         </div>
         @if (companyName(row.symbol, row.companyName); as name) {
-          <div class="company" [matTooltip]="name">{{ name }}</div>
+          <div
+            class="company"
+            [matTooltip]="name"
+            [attr.aria-label]="name"
+            data-testid="company-name"
+          >
+            {{ name }}
+          </div>
         }
         @if (row.usesUnderlying && row.analysisTicker) {
-          <div class="via" [matTooltip]="'Scored on the underlying security ' + row.analysisTicker">via {{ row.analysisTicker }}</div>
+          <div class="via" [matTooltip]="'Scored on the underlying security ' + row.analysisTicker">
+            via {{ row.analysisTicker }}
+          </div>
         }
       </td>
     </ng-container>
@@ -46,7 +62,9 @@
     </ng-container>
 
     <ng-container matColumnDef="strategic">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header class="center">{{ label('strategic') }}</th>
+      <th mat-header-cell *matHeaderCellDef mat-sort-header class="center">
+        {{ label('strategic') }}
+      </th>
       <td mat-cell *matCellDef="let row" class="score-td">
         <app-score-heat-cell [summary]="row.strategic" perspective="Strategic" />
       </td>
@@ -62,6 +80,24 @@
           [class.rr-na]="row.setup.kind === 'Unavailable'"
           [matTooltip]="rrTooltip(row)"
           >{{ rrText(row) }}</span
+        >
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="setupQuality">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('setupQuality') }}</th>
+      <td mat-cell *matCellDef="let row">
+        <span
+          class="chip"
+          [class.chip-low]="row.setupQuality?.status === 'Good'"
+          [class.chip-medium]="row.setupQuality?.status === 'Caution'"
+          [class.chip-high]="row.setupQuality?.status === 'Poor'"
+          [matTooltip]="
+            row.setupQuality?.reasonCodes?.join(', ') ||
+            'Structural snapshot evidence unavailable. Classification awaits approval.'
+          "
+          data-testid="setup-quality"
+          >{{ row.setupQuality?.status ?? 'Unavailable' }}</span
         >
       </td>
     </ng-container>
@@ -108,11 +144,17 @@
       <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('finalAction') }}</th>
       <td mat-cell *matCellDef="let row">
         @if (row.finalAction.kind === 'None') {
-          <span class="muted" matTooltip="Final Action is evaluated for watchlist and portfolio symbols only">Not evaluated</span>
+          <span
+            class="muted"
+            matTooltip="Final Action is evaluated for watchlist and portfolio symbols only"
+            >Not evaluated</span
+          >
         } @else {
           <app-final-action-badge
             [label]="finalActionLabel(row)"
-            [bucket]="row.finalAction.kind === 'Single' ? row.finalAction.finalActionClass : 'ma-multiple'"
+            [bucket]="
+              row.finalAction.kind === 'Single' ? row.finalAction.finalActionClass : 'ma-multiple'
+            "
             [tooltip]="finalActionTooltip(row)"
             [ariaLabel]="'Final Action for ' + row.symbol + ': ' + finalActionLabel(row)"
             (activated)="open(row)"
@@ -135,8 +177,12 @@
 
     @for (col of simpleColumns; track col.key) {
       <ng-container [matColumnDef]="col.key">
-        <th mat-header-cell *matHeaderCellDef mat-sort-header [class.num]="col.kind !== 'text'">{{ col.label }}</th>
-        <td mat-cell *matCellDef="let row" [class.num]="col.kind !== 'text'">{{ simpleText(row, col) }}</td>
+        <th mat-header-cell *matHeaderCellDef mat-sort-header [class.num]="col.kind !== 'text'">
+          {{ col.label }}
+        </th>
+        <td mat-cell *matCellDef="let row" [class.num]="col.kind !== 'text'">
+          {{ simpleText(row, col) }}
+        </td>
       </ng-container>
     }
 
@@ -161,8 +207,9 @@
               type="button"
               data-testid="empty-action"
               (click)="$event.stopPropagation(); emptyAction.emit()"
-              >{{ emptyActionLabel() }}</button
             >
+              {{ emptyActionLabel() }}
+            </button>
           }
         </div>
       </td>

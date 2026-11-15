@@ -2,7 +2,12 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { BreakpointStore } from './breakpoint.store';
-import { GridColumnStore, isCustomisedLayout, resolveEditablePrefs, resolveKeys } from './grid-column.store';
+import {
+  GridColumnStore,
+  isCustomisedLayout,
+  resolveEditablePrefs,
+  resolveKeys,
+} from './grid-column.store';
 import { ColumnPreference, GRID_REGISTRY, GridDef, resolveHandsetKeys } from './grid-registry';
 import { UserPreferencesStore } from './user-preferences.store';
 
@@ -122,7 +127,10 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
   });
 
   it('keeps a default-hidden column hidden when it is added after a layout was saved', () => {
-    const saved: ColumnPreference[] = [{ key: 'b', visible: true }, { key: 'a', visible: true }];
+    const saved: ColumnPreference[] = [
+      { key: 'b', visible: true },
+      { key: 'a', visible: true },
+    ];
     expect(resolveKeys(optIn, saved)).toEqual(['b', 'a', 'actions']);
     expect(resolveEditablePrefs(optIn, saved)).toContainEqual({ key: 'c', visible: false });
   });
@@ -139,23 +147,43 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
 
   it('detects customisation against the opted-in defaults', () => {
     expect(isCustomisedLayout(optIn, resolveEditablePrefs(optIn, undefined))).toBe(false);
-    expect(isCustomisedLayout(optIn, [
-      { key: 'a', visible: true },
-      { key: 'b', visible: true },
-      { key: 'c', visible: true },
-    ])).toBe(true);
+    expect(
+      isCustomisedLayout(optIn, [
+        { key: 'a', visible: true },
+        { key: 'b', visible: true },
+        { key: 'c', visible: true },
+      ]),
+    ).toBe(true);
     expect(isCustomisedLayout(grid, resolveEditablePrefs(grid, undefined))).toBe(false);
   });
 
-  it('the real Trading Opportunities grid defaults to the nine approved columns in order', () => {
+  it('defaults Swing to Setup Quality after Market R without changing Strategic defaults', () => {
     const def = GRID_REGISTRY.find((d) => d.id === 'trading-opportunities')!;
     expect(resolveKeys(def, undefined, 'Swing')).toEqual([
-      'symbol', 'swing', 'rr', 'manualR', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
+      'symbol',
+      'swing',
+      'rr',
+      'setupQuality',
+      'manualR',
+      'risk',
+      'fit',
+      'finalAction',
+      'sectorHeat',
+      'sector',
     ]);
     expect(resolveKeys(def, undefined, 'Strategic')).toEqual([
-      'symbol', 'strategic', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
+      'symbol',
+      'strategic',
+      'risk',
+      'fit',
+      'finalAction',
+      'sectorHeat',
+      'sector',
     ]);
-    expect(resolveEditablePrefs(def, undefined, 'Swing').find((pref) => pref.key === 'setupKind')?.visible).toBe(false);
+    expect(
+      resolveEditablePrefs(def, undefined, 'Swing').find((pref) => pref.key === 'setupKind')
+        ?.visible,
+    ).toBe(false);
   });
 });
 
@@ -196,13 +224,25 @@ describe('insertAfter (PM-015 saved-layout reconciliation)', () => {
       { key: 'x', visible: true },
       { key: 'myAction', visible: true },
     ];
-    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual(['a', 'type', 'life', 'x', 'myAction']);
+    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual([
+      'a',
+      'type',
+      'life',
+      'x',
+      'myAction',
+    ]);
     expect(resolveKeys(g, prefs)).toEqual(['a', 'life', 'x', 'myAction', 'actions']);
   });
 
   it('appends when the anchor is absent from the saved layout', () => {
     const prefs: ColumnPreference[] = [{ key: 'a', visible: true }];
-    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual(['a', 'type', 'life', 'x', 'myAction']);
+    expect(resolveEditablePrefs(g, prefs).map((p) => p.key)).toEqual([
+      'a',
+      'type',
+      'life',
+      'x',
+      'myAction',
+    ]);
   });
 
   it('does not move or reset a column the user already has saved', () => {
@@ -224,7 +264,13 @@ describe('insertAfter (PM-015 saved-layout reconciliation)', () => {
     expect(keys.indexOf('lifecycleStatus')).toBe(keys.indexOf('signalType') + 1);
     expect(keys.indexOf('lifecycleStatus')).toBeLessThan(keys.indexOf('myAction'));
 
-    const oldLayout: ColumnPreference[] = ['symbol', 'signalDate', 'signalType', 'source', 'myAction'].map((key) => ({ key, visible: true }));
+    const oldLayout: ColumnPreference[] = [
+      'symbol',
+      'signalDate',
+      'signalType',
+      'source',
+      'myAction',
+    ].map((key) => ({ key, visible: true }));
     const old = resolveKeys(def, oldLayout);
     expect(old.slice(0, 4)).toEqual(['symbol', 'signalDate', 'signalType', 'lifecycleStatus']);
     expect(old.indexOf('lifecycleStatus')).toBeLessThan(old.indexOf('myAction'));
@@ -330,7 +376,7 @@ describe('GridColumnStore', () => {
     const s = store();
     const gridId = 'trading-opportunities';
     const definition = GRID_REGISTRY.find((g) => g.id === gridId)!;
-    expect(definition.columns).toHaveLength(40);
+    expect(definition.columns).toHaveLength(41);
     expect(definition.columns.map((column) => column.key)).toContain('manualR');
     expect(s.getColumnKeys(gridId, 'Swing')).toBe(s.getColumnKeys(gridId, 'Swing'));
     expect(s.getColumnKeys(gridId, 'Swing')).not.toBe(s.getColumnKeys(gridId, 'Strategic'));
@@ -382,20 +428,35 @@ describe('GridColumnStore', () => {
     );
 
     const s = store();
-    expect(s.getColumnKeys('trading-opportunities', 'Swing')().slice(0, 3)).toEqual(['symbol', 'swing', 'rr']);
-    expect(s.getEditablePrefs('trading-opportunities', 'Swing').find((pref) => pref.key === 'manualR')?.visible).toBe(false);
+    expect(s.getColumnKeys('trading-opportunities', 'Swing')().slice(0, 3)).toEqual([
+      'symbol',
+      'swing',
+      'rr',
+    ]);
+    expect(
+      s.getEditablePrefs('trading-opportunities', 'Swing').find((pref) => pref.key === 'manualR')
+        ?.visible,
+    ).toBe(false);
   });
 
   it('saves and resets only the active Opportunities column profile', () => {
     const s = store();
     const gridId = 'trading-opportunities';
     const definition = GRID_REGISTRY.find((g) => g.id === gridId)!;
-    const base = definition.columns.filter((column) => !column.pinned).map(({ key, defaultHidden }) => ({
-      key,
-      visible: !defaultHidden,
+    const base = definition.columns
+      .filter((column) => !column.pinned)
+      .map(({ key, defaultHidden }) => ({
+        key,
+        visible: !defaultHidden,
+      }));
+    const swing = base.map((pref) => ({
+      ...pref,
+      visible: pref.key === 'symbol' || pref.key === 'swing',
     }));
-    const swing = base.map((pref) => ({ ...pref, visible: pref.key === 'symbol' || pref.key === 'swing' }));
-    const strategic = base.map((pref) => ({ ...pref, visible: pref.key === 'symbol' || pref.key === 'strategic' }));
+    const strategic = base.map((pref) => ({
+      ...pref,
+      visible: pref.key === 'symbol' || pref.key === 'strategic',
+    }));
 
     s.updatePrefs(gridId, swing, 'Swing');
     s.updatePrefs(gridId, strategic, 'Strategic');
