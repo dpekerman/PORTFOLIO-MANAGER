@@ -429,6 +429,44 @@ public sealed class Pm029CadValuationTests
             components, [], session, FxCutoff.AddMinutes(10))));
     }
 
+    [Theory]
+    [InlineData(13, true)]
+    [InlineData(15, true)]
+    [InlineData(16, true)]
+    [InlineData(17, false)]
+    public void ThreePublicationSessionBoundaryExcludesRemembranceDayAndWeekend(int day, bool complete)
+    {
+        var observationDate = new DateOnly(2026, 11, 10);
+        var session = new DateOnly(2026, 11, day);
+        var cutoff = BankOfCanadaPublicationClock.ExpectedDailyCutoffUtc(session).AddMinutes(10);
+        var available = BankOfCanadaPublicationClock.ExpectedDailyCutoffUtc(observationDate).AddMinutes(5);
+        var calendar = Calendar(observationDate, session,
+            new[] { 10, 12, 13, 16, 17 }.Where(value => value <= day)
+                .Select(value => new DateOnly(2026, 11, value)).ToArray());
+
+        var result = Evaluate([Cash("cash:boundary", 100m, "USD", session)],
+            [Fx(observationDate, 1.4m, available)], session, cutoff, calendar);
+
+        Assert.Equal(complete, result.Complete);
+        if (complete) Assert.Equal(140m, result.DenominatorCad);
+        else Assert.Contains(Pm029ValuationIssueCodes.FxStale, result.IssueCodes);
+    }
+
+    [Fact]
+    public void ChristmasAndObservedBoxingDayDoNotCreatePublicationSessions()
+    {
+        var observationDate = new DateOnly(2026, 12, 24);
+        var session = new DateOnly(2026, 12, 29);
+        var available = BankOfCanadaPublicationClock.ExpectedDailyCutoffUtc(observationDate).AddMinutes(5);
+        var calendar = Calendar(observationDate, session, observationDate, session);
+        var result = Evaluate([Cash("cash:holiday", 100m, "USD", session)],
+            [Fx(observationDate, 1.4m, available)], session,
+            BankOfCanadaPublicationClock.ExpectedDailyCutoffUtc(session).AddMinutes(10), calendar, maximumAge: 1);
+
+        Assert.True(result.Complete);
+        Assert.Equal(140m, result.DenominatorCad);
+    }
+
     private static Pm029CadValuationResult Evaluate(
         IReadOnlyList<Pm029ValuationComponentInput> components,
         IReadOnlyList<Pm029FxObservation> observations,
