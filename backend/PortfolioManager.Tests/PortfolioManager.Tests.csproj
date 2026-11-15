@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PortfolioManager.Api\PortfolioManager.Api.csproj" />
+    <ProjectReference Include="..\..\scripts\pm029\Phase15Verification\Phase15Verification.csproj" />
   </ItemGroup>
 
 </Project>
