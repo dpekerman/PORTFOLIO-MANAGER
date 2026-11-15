@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import * as XLSX from 'xlsx';
 import { expect, test } from './support/test';
+import { portfolioItems } from './fixtures/portfolio';
 import { signalState } from './fixtures/signals-audit';
 import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
 
@@ -52,6 +53,9 @@ test.describe('PM-035 transactions filters, totals, SINCE CLOSE', () => {
 
   test('PM-013: From after To is flagged and matches nothing; a valid range and account narrow the grid', async ({ page }) => {
     await page.getByRole('radio', { name: 'Closed', exact: true }).click();
+    await expect(stockRows(page)).toHaveCount(
+      portfolioItems.filter((item) => item.transactionType === 'CLOSE').length,
+    );
     const before = await stockRows(page).count();
 
     await page.getByTestId('filter-date-from').fill('2026-10-31');

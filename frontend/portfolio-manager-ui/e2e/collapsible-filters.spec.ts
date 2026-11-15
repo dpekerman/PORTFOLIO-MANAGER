@@ -91,6 +91,9 @@ test('Swing tabs keep filters collapsed, preserve selections and align headers w
     const search = panel.locator('input[type="search"]');
     await search.fill(tab === 'Trade Journal' ? 'ABC.TO' : 'DIS.TO');
     await expect(table.locator('tr.mat-mdc-row').first()).toContainText(tab === 'Trade Journal' ? 'ABC.TO' : 'DIS.TO');
+    await expect(table.locator('tr.mat-mdc-row').filter({
+      hasNotText: tab === 'Trade Journal' ? 'ABC.TO' : 'DIS.TO',
+    })).toHaveCount(0);
     const count = await table.locator('tr.mat-mdc-row').count();
     await summary.click();
     await expect(summary).toContainText('Active');
