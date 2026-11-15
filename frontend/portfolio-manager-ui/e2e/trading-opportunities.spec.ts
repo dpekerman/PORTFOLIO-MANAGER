@@ -121,6 +121,18 @@ test.describe('PM-029 Trading Opportunities', () => {
     expect(errors).toEqual([]);
   });
 
+  test('shows a strategy-appropriate scoring disclaimer', async ({ page }) => {
+    const disclaimer = page.getByTestId('scoring-disclaimer');
+    await expect(disclaimer).toContainText('Swing-v2 is an evidence-adjusted technical ranking');
+
+    await page.getByTestId('perspective-strategic').click();
+    await expect(disclaimer).toContainText('Strategic scores summarize available long-term trend, technical, fundamental, and valuation evidence.');
+    await expect(disclaimer).not.toContainText('Swing-v2');
+
+    await page.getByTestId('perspective-swing').click();
+    await expect(disclaimer).toContainText('Swing-v2 is an evidence-adjusted technical ranking');
+  });
+
   test('keeps QRK heat, score evidence, target and scanner stop consistent across tabs', async ({ page, errors }) => {
     const qrk = rowFor(page, 'QRK.TO');
     await expect(qrk.getByTestId('sector-heat')).toContainText('+3.6 pp');
@@ -283,6 +295,48 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expect(page.getByTestId('manual-r-result')).toContainText('2.00 : 1');
   });
 
+  test('manual R cannot change either score or portfolio evidence', async ({ page }, testInfo) => {
+    const qrk = rowFor(page, 'QRK.TO');
+    const isHandset = testInfo.project.name.startsWith('mobile-');
+    const evidenceColumns = isHandset
+      ? ['.mat-column-swing', '.mat-column-finalAction', '.mat-column-sectorHeat']
+      : ['.mat-column-swing', '.mat-column-rr', '.mat-column-fit', '.mat-column-finalAction', '.mat-column-sectorHeat'];
+    expect(await qrk.locator('.mat-column-rr').count()).toBe(isHandset ? 0 : 1);
+    const beforeGridEvidence = await Promise.all(evidenceColumns.map((selector) => qrk.locator(selector).innerText()));
+
+    await qrk.click();
+    const panel = page.getByTestId('details-panel');
+    const marketR = panel.getByTestId('setup-risk-reward');
+    const beforeMarketR = await marketR.getAttribute('aria-label');
+    await panel.getByRole('tab', { name: 'Scores' }).click();
+    await expect(panel.locator('.score-block').first()).toBeVisible();
+    const beforeScores = await panel.locator('.score-block').allInnerTexts();
+
+    const returnToOverview = async () => {
+      if (isHandset) await panel.locator('.mat-mdc-tab-header-pagination-before').click();
+      await panel.getByRole('tab', { name: 'Overview' }).click();
+    };
+    await returnToOverview();
+    for (const label of ['Entry (CAD)', 'Stop (CAD)', 'Target (CAD)']) {
+      await expect(panel.getByText(label, { exact: true })).toBeVisible();
+    }
+    await page.getByTestId('manual-r-entry').fill('50');
+    await page.getByTestId('manual-r-stop').fill('45');
+    await page.getByTestId('manual-r-target').fill('60');
+    await expect(page.getByTestId('manual-r-result')).toContainText('2.00 : 1');
+
+    await panel.getByRole('tab', { name: 'Scores' }).click();
+    await expect(panel.locator('.score-block').first()).toBeVisible();
+    expect(await panel.locator('.score-block').allInnerTexts()).toEqual(beforeScores);
+    await returnToOverview();
+    expect(await marketR.getAttribute('aria-label')).toBe(beforeMarketR);
+    const afterGridEvidence = await Promise.all(
+      evidenceColumns.map((selector) => rowFor(page, 'QRK.TO').locator(selector).innerText()),
+    );
+    expect(afterGridEvidence).toEqual(beforeGridEvidence);
+    await page.getByTestId('details-close').click();
+  });
+
   test('keeps score filters independent between Swing and Strategic profiles', async ({ page }) => {
     await selectFilterOption(page, 'score-filter', 'All (incl. unavailable)');
     await page.getByTestId('perspective-strategic').click();
@@ -346,6 +400,13 @@ test.describe('PM-029 Trading Opportunities', () => {
     await page.getByTestId('manual-r').scrollIntoViewIfNeeded();
     await settle(page);
     await capture('02b-manual-r', { fullPage });
+    await page.getByTestId('manual-r-stop').fill('50');
+    await expect(page.getByTestId('manual-r-result')).toContainText('—');
+    await expect(page.getByTestId('manual-r-result')).toContainText('use positive prices with stop below entry');
+    await settle(page);
+    await capture('02g-manual-r-invalid', { fullPage });
+    await page.getByTestId('manual-r-stop').fill('45');
+    await expect(page.getByTestId('manual-r-result')).toContainText('2.00 : 1');
     for (const [index, tab] of ['Technicals', 'Scores', 'Evidence'].entries()) {
       await page.getByRole('tab', { name: tab }).click();
       await expect(page.getByRole('tab', { name: tab })).toHaveAttribute('aria-selected', 'true');

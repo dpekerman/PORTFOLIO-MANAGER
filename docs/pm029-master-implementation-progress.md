@@ -6,6 +6,8 @@
 
 ## Baseline
 
+**Phase 10 re-entry note:** The live checkout was on the same branch at HEAD `5a5e1ea14709ce426c9992adfc848316b096dc2e`, with no staged diff. This differs from the baseline below and from other retained handoff records (41, 55, and 59 staged-path counts were recorded). The discrepancy is preserved without attributing authorship or reconstructing an earlier index; Phase 10 leaves the current index untouched.
+
 - Branch: `feature/pm-029-final-review`
 - HEAD: `3d4e7019ae5877eb4d925c5b10ddf50309cb5a22`
 - Existing staged paths: 41; raw `git diff --cached --binary` SHA-256: `e64aabfc810aba6158da2d0379ca4a3f587717ee1842ca02b1ea2deccf5149fd`
@@ -105,6 +107,19 @@
 - Screenshots: 42 synthetic/API-mocked images in `docs/pm029-final-screenshots/`.
 - Final report and UAT checklist: `docs/pm029-final-implementation-and-uat-report.md`.
 - Manual UAT, shared CAD/FX Portfolio Fit, production stop/target methodology, and SQL Server-specific concurrency remain unresolved/approval-gated.
+
+### Phase 10 — Portfolio Fit and Manual R integrity
+
+**State:** SAFE CORRECTION AND AUTOMATED VERIFICATION COMPLETE; LIVE-UNIVERSE VALIDATION AND USER UAT BLOCKED/PENDING. PM-029 remains OPEN.
+
+- Corrected one evidence-status gap: when the sector is known and has a configured target but sector exposure is unavailable, Portfolio Fit now returns `Review` with `SectorExposureUnavailable`; it does not invent a sector weight or headroom. Unknown-sector, no-target, allocation-unverifiable, and limit semantics remain unchanged.
+- Added focused .NET, Angular, and browser regressions for the Fit reason, invalid Manual R values, currency labels, and Manual R non-interference with Swing/Strategic score evidence, Market R, Fit, Sector Heat, and FINAL ACTION.
+- Focused .NET Release filter: 196 passed. Opportunity-logic Angular tests: 21 passed. Angular production build passed with existing SCSS budget warnings. PM-029 Playwright: 56 passed across desktop Chrome, tablet, Samsung S21 (384 px), and Samsung S23 (360 px).
+- Captured and verified 70 watermarked synthetic/API-mocked screenshots in `docs/screenshots/pm029-phase-10-integrity-uat/`; archive: `docs/screenshots/pm029-phase-10-integrity-uat.zip`.
+- No scoring formula, shared FX/accounting/valuation service, FINAL ACTION, stop/target method, schema, database, or production data was changed.
+- Full-universe mapping/score/Fit coverage remains unverified: the test fixtures are synthetic and the existing Phase 9 discovery did not find an available SQL Server or current sanitized universe export.
+- Mixed-currency Portfolio Fit remains unavailable/unverifiable until an authoritative common-currency policy is approved. Quote freshness and mapped-Canadian-security Manual R currency questions also remain open; no policy was inferred.
+- User manual UAT and real-universe validation remain required before PM-029 can close. Full evidence and follow-up gates: `docs/pm029-phase-10-integrity-and-uat-report.md`.
 
 ## Program-wide invariants
 

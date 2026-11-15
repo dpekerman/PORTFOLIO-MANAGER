@@ -45,6 +45,7 @@ public static class PortfolioFitCalculator
             if (sectorPct - target > OpportunityScoringConfig.SectorTolerancePp) Raise(FitStatus.NoAdd, FitReasons.SectorOverTarget);
             else if (sectorPct > target) Raise(FitStatus.Review, FitReasons.SectorAboveTarget);
         }
+        else Raise(FitStatus.Review, FitReasons.SectorExposureUnavailable);
 
         return new FitResult(status, reasons, weight, input.PositionLimitPct, positionHeadroom, input.SectorPct, input.SectorTargetPct, sectorHeadroom);
     }

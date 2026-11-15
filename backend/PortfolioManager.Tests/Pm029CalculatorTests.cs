@@ -481,6 +481,9 @@ public class Pm029CalculatorTests
         Assert.Equal(FitStatus.Review, PortfolioFitCalculator.Evaluate(Fit(sector: 22)).Status);   // exactly +2 pp is within tolerance
         Assert.Equal(FitStatus.NoAdd, PortfolioFitCalculator.Evaluate(Fit(sector: 22.1)).Status);
         Assert.Equal(FitStatus.Review, PortfolioFitCalculator.Evaluate(Fit(sectorKnown: false)).Status);
+        var sectorUnavailable = PortfolioFitCalculator.Evaluate(Fit(sector: null));
+        Assert.Equal(FitStatus.Review, sectorUnavailable.Status);
+        Assert.Contains(FitReasons.SectorExposureUnavailable, sectorUnavailable.ReasonCodes);
         var noTarget = PortfolioFitCalculator.Evaluate(Fit(target: null));
         Assert.Equal(FitStatus.Eligible, noTarget.Status);
         Assert.Contains(FitReasons.SectorNoTarget, noTarget.ReasonCodes);

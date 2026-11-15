@@ -7,6 +7,7 @@ import {
   companyNameForDisplay,
   exclusionSummary,
   filterRows,
+  fitReasonLabel,
   heatClass,
   isUnscorable,
   isWeak,
@@ -235,10 +236,31 @@ describe('opportunities-logic sorting and export', () => {
   });
 
   it('returns no Manual R for incomplete or invalid long scenarios', () => {
+    expect(manualRewardRisk({ entry: null, stop: 90, target: 120 })).toBeNull();
     expect(manualRewardRisk({ entry: 100, stop: null, target: 120 })).toBeNull();
+    expect(manualRewardRisk({ entry: 100, stop: 90, target: null })).toBeNull();
     expect(manualRewardRisk({ entry: 100, stop: 0, target: 120 })).toBeNull();
     expect(manualRewardRisk({ entry: 100, stop: 90, target: 100 })).toBeNull();
     expect(manualRewardRisk({ entry: 100, stop: 90, target: Number.POSITIVE_INFINITY })).toBeNull();
+  });
+
+  it('rejects zero, negative, and non-finite prices in every Manual R field', () => {
+    const invalidScenarios = [
+      { entry: 0, stop: 0, target: 120 },
+      { entry: 100, stop: -1, target: 120 },
+      { entry: 100, stop: 90, target: 0 },
+      { entry: -1, stop: 90, target: 120 },
+      { entry: 100, stop: 90, target: -1 },
+      { entry: Number.NaN, stop: 90, target: 120 },
+      { entry: 100, stop: Number.POSITIVE_INFINITY, target: 120 },
+      { entry: 100, stop: 90, target: Number.NEGATIVE_INFINITY },
+    ];
+
+    for (const scenario of invalidScenarios) expect(manualRewardRisk(scenario)).toBeNull();
+  });
+
+  it('explains unavailable sector exposure in Portfolio Fit', () => {
+    expect(fitReasonLabel('SectorExposureUnavailable')).toBe('Sector exposure unavailable');
   });
 
   it('exports visible columns only, omits accounts unless requested, keeps currency last', () => {

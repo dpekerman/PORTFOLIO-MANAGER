@@ -401,6 +401,12 @@
   }
 
   @if (store.snapshot()?.disclaimer; as disclaimer) {
-    <p class="disclaimer">{{ disclaimer }}</p>
+    <p class="disclaimer" data-testid="scoring-disclaimer">
+      @if (view().perspective === 'Strategic') {
+        Strategic scores summarize available long-term trend, technical, fundamental, and valuation evidence. They are not a probability of success or an investment recommendation.
+      } @else {
+        {{ disclaimer }}
+      }
+    </p>
   }
 </div>

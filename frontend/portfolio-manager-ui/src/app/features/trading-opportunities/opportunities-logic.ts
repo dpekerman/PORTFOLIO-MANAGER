@@ -188,6 +188,7 @@ const FIT_REASON_LABELS: Record<string, string> = {
   SectorAboveTarget: 'Sector above target',
   SectorUnknown: 'Sector unknown',
   SectorNoTarget: 'No sector target',
+  SectorExposureUnavailable: 'Sector exposure unavailable',
 };
 
 export function fitReasonLabel(code: string): string {

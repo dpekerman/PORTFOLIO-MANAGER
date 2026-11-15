@@ -178,4 +178,5 @@ public static class FitReasons
     public const string SectorAboveTarget = "SectorAboveTarget";
     public const string SectorUnknown = "SectorUnknown";
     public const string SectorNoTarget = "SectorNoTarget";
+    public const string SectorExposureUnavailable = "SectorExposureUnavailable";
 }
