@@ -10,6 +10,13 @@
   border-radius: 8px;
 }
 
+.grid-scroll-hint {
+  display: none;
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
 .opp-table {
   width: 100%;
 }
@@ -140,6 +147,14 @@ th.center {
   color: var(--text-muted);
 }
 
+.no-data-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 @media (max-width: 599.98px) {
   .grid-scroll {
     max-height: none;
@@ -149,5 +164,19 @@ th.center {
 
   .symbol-cell {
     max-width: none;
+  }
+}
+
+@media (min-width: 600px) and (max-width: 899.98px) {
+  .grid-scroll-hint {
+    display: block;
+  }
+
+  .grid-scroll {
+    scrollbar-width: thin;
+
+    &::-webkit-scrollbar {
+      height: 8px;
+    }
   }
 }

@@ -66,6 +66,7 @@ namespace PortfolioManager.Api.Models
         public string? FcfYieldBasis { get; set; }
         /// <summary>"ROIC", "ROE" or "Proxy" (EY / P/B).</summary>
         public string? CapitalEfficiencyBasis { get; set; }
+        /// <summary>Legacy JSON property name; this counts proxy-based F4 indicators, not Piotroski signals.</summary>
         public int? PiotroskiSignalsAvailable { get; set; }
         /// <summary>True when market cap was estimated as price × 1,000,000 (no real market-cap data).</summary>
         public bool? MarketCapFallbackUsed { get; set; }

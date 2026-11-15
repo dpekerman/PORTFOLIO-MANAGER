@@ -87,6 +87,8 @@ public sealed class Pm029OpportunityServiceTests
         db.SectorBenchmarkMappings.Add(new SectorBenchmarkMapping
         {
             Sector = "Tech", Market = "Tsx", BenchmarkSymbol = "XIT.TO", BenchmarkName = "Tech ETF", Currency = "CAD", IsActive = true,
+            Source = "Reviewed provider sector mapping", Notes = "Provider technology alias maps to Tech.",
+            SourceAsOfDate = new DateTime(2026, 1, 1),
         });
         db.RiskPlans.Add(new RiskPlan { UserId = "u", AccountType = "MARGIN", Symbol = "BBB.TO", PlannedStopPrice = 100m, TargetPrice = 140m, Currency = "CAD" });
         db.ValueScreenerScheduleConfigs.Add(new ValueScreenerScheduleConfig());
@@ -174,6 +176,11 @@ public sealed class Pm029OpportunityServiceTests
         Assert.Equal(1, f.Market.HistoryCalls["XIT.TO"]);
 
         var detail = await f.Service.GetDetailAsync("u", "BBB.TO", snap.SnapshotId);
+        Assert.Equal("Sector mapping", detail!.Evidence.BenchmarkCategory);
+        Assert.Equal("CAD", detail.Evidence.BenchmarkCurrency);
+        Assert.Equal("Reviewed provider sector mapping", detail.Evidence.BenchmarkMappingSource);
+        Assert.Equal("Provider technology alias maps to Tech.", detail.Evidence.BenchmarkMappingRationale);
+        Assert.Equal(new DateTime(2026, 1, 1), detail.Evidence.BenchmarkMappingAsOfDate);
         var plan = Assert.Single(detail!.SavedPlans);
         Assert.Equal("MARGIN", plan.Account);
         Assert.Equal(100m, plan.PlannedStop);
@@ -215,6 +222,20 @@ public sealed class Pm029OpportunityServiceTests
         Assert.Empty((await f.Service.GetLatestAsync("other")).Rows);
         Assert.Null(await f.Service.GetDetailAsync("other", "BBB.TO", snap.SnapshotId));
         Assert.Null(await f.Service.GetDetailAsync("u", "BBB.TO", snap.SnapshotId!.Value + 999));
+    }
+
+    [Fact]
+    public async Task LatestSnapshot_UsesItsVersionSpecificDisclaimer()
+    {
+        var f = await SetUpAsync();
+        await f.Service.RefreshAsync("u");
+        var stored = await f.Db.OpportunitySnapshots.SingleAsync(s => s.UserId == "u");
+        stored.ScoringVersion = OpportunityScoringConfig.LegacyVersion;
+        await f.Db.SaveChangesAsync();
+
+        var latest = await f.Service.GetLatestAsync("u");
+
+        Assert.Equal(OpportunityScoringConfig.LegacyDisclaimer, latest.Disclaimer);
     }
 
     [Fact]

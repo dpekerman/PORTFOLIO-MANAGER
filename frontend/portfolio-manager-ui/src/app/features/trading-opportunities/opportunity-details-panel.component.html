@@ -20,14 +20,17 @@
             <mat-icon class="owned" matTooltip="Owned in at least one account" aria-label="Owned">account_balance_wallet</mat-icon>
           }
         </h2>
-        <p class="company">{{ row.companyName }}</p>
+        @if (companyName(row.symbol, row.companyName); as name) {
+          <p class="company">{{ name }}</p>
+        }
         <p class="meta">
           {{ row.exchange }}@if (row.currency) { · {{ row.currency }} }
           @if (row.sector) { · {{ row.sector }} }
+          @if (row.industry) { · {{ row.industry }} }
           @if (row.usesUnderlying && row.analysisTicker) { · analysed via {{ row.analysisTicker }} }
         </p>
         <p class="meta">
-          Price {{ money(row.indicators.price) }}
+          Price {{ money(row.indicators.price, row.currency) }}
           @if (row.indicators.changePct !== null) {
             <span [class.pos]="row.indicators.changePct > 0" [class.neg]="row.indicators.changePct < 0">({{ signedPct(row.indicators.changePct) }})</span>
           }
@@ -113,40 +116,135 @@
     } @else if (error()) {
       <div class="state error" role="alert"><mat-icon>error_outline</mat-icon> {{ error() }}</div>
     } @else if (detail(); as d) {
+      <p class="tab-scroll-hint" role="note" data-testid="details-tab-scroll-hint">
+        Swipe the tab row or use its scroll controls to view all details.
+      </p>
       <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" class="tabs">
         <mat-tab label="Overview">
           <div class="tab">
-            <h3>Calculated candidate</h3>
+            <section class="detail-section">
+              <h3>Calculated candidate</h3>
             @if (setup(); as s) {
               <p class="kind" [attr.data-kind]="s.kind">{{ setupLabel(s.kind) }}</p>
+              <div class="setup-values" data-testid="setup-values">
+                <div class="setup-value">
+                  <span class="setup-label">Current price</span>
+                  <strong>{{ money(row.indicators.price, s.currency ?? row.currency) }}</strong>
+                </div>
               @if (s.kind !== 'Unavailable') {
+                <div class="setup-value">
+                  <span class="setup-label">Entry</span>
+                  <strong>{{ money(s.entry, s.currency) }}</strong>
+                </div>
+                <div class="setup-value">
+                  <span class="setup-label">Scanner Dynamic stop</span>
+                  <strong>{{ money(s.stop, s.currency) }}</strong>
+                </div>
+                <div class="setup-value">
+                  <span class="setup-label">Target</span>
+                  <strong>{{ money(s.target, s.currency) }}</strong>
+                  @if (s.targetSource) {
+                    <span class="setup-source" data-testid="setup-target-source">Reference/source: {{ targetSourceLabel(s.targetSource) }}</span>
+                  }
+                </div>
+                <div class="setup-value">
+                  <span class="setup-label">Market R</span>
+                  <strong>{{ rr(s.rewardRisk) }}</strong>
+                </div>
+                @if (s.rewardRisk !== null && s.rewardRisk > 0 && s.riskPct !== null && s.rewardPct !== null) {
+                  <div
+                    class="risk-reward-visual"
+                    role="img"
+                    data-testid="setup-risk-reward"
+                    [attr.aria-label]="'Risk ' + pct(s.riskPct) + ', reward ' + pct(s.rewardPct) + ', reward-to-risk ' + rr(s.rewardRisk)"
+                  >
+                    <div class="risk-reward-track" aria-hidden="true">
+                      <span class="risk-segment" [style.flex-grow]="1"></span>
+                      <span class="reward-segment" [style.flex-grow]="s.rewardRisk"></span>
+                    </div>
+                    <div class="risk-reward-legend" aria-hidden="true">
+                      <span class="legend-risk">Risk {{ pct(s.riskPct) }}</span>
+                      <span class="legend-reward">Reward {{ pct(s.rewardPct) }}</span>
+                    </div>
+                  </div>
+                }
                 <dl class="kv">
-                  <dt>Entry</dt><dd>{{ money(s.entry) }}</dd>
-                  <dt>Stop</dt><dd>{{ money(s.stop) }}</dd>
-                  <dt>Target</dt><dd>{{ money(s.target) }}@if (s.targetSource) {&#32;<span class="muted">({{ s.targetSource }})</span>}</dd>
-                  <dt>Reward : risk</dt><dd>{{ rr(s.rewardRisk) }}</dd>
                   <dt>Risk to stop</dt><dd>{{ pct(s.riskPct) }}</dd>
                   <dt>Reward to target</dt><dd>{{ pct(s.rewardPct) }}</dd>
                   <dt>Stop distance</dt><dd>{{ num(s.stopDistanceAtr, 2) }} ATR</dd>
                   <dt>Currency</dt><dd>{{ s.currency ?? '—' }}</dd>
+                  <dt>Target quality</dt><dd>Not assessed; no approved quality model is active.</dd>
                 </dl>
               }
+              </div>
               @if (s.reasonCodes.length) {
                 <ul class="reasons">
                   @for (c of s.reasonCodes; track c) { <li>{{ reasonLabel(c) }}</li> }
                 </ul>
               }
-              <p class="note">A calculated candidate is derived from scanner levels; it is not a saved plan or an order.</p>
+              <p class="note">
+                The candidate stop is the scanner DynamicStopLoss. The target is the nearest eligible scanner structural
+                level (channel rail, open gap, or 52-week high) in the analysis security's reported currency, as of the
+                scan. The selected reference level is used without additional target adjustment; target quality is not
+                classified. This is not a saved plan or an order.
+              </p>
             }
+            </section>
 
-            <h3>Your saved risk plan</h3>
+            <section class="detail-section manual-r" aria-labelledby="manual-r-heading" data-testid="manual-r">
+              <h3 id="manual-r-heading">Manual R scenario</h3>
+              <p class="note">Temporary and scoped to this ticker and score perspective; values are not saved and never change Market R:R or any recommendation.</p>
+              <div class="manual-r-fields">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Entry{{ row.currency ? ' (' + row.currency + ')' : '' }}</mat-label>
+                  <input matInput type="number" step="any" [formField]="manualRForm.entry" data-testid="manual-r-entry" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Stop{{ row.currency ? ' (' + row.currency + ')' : '' }}</mat-label>
+                  <input matInput type="number" step="any" [formField]="manualRForm.stop" data-testid="manual-r-stop" />
+                </mat-form-field>
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                  <mat-label>Target{{ row.currency ? ' (' + row.currency + ')' : '' }}</mat-label>
+                  <input matInput type="number" step="any" [formField]="manualRForm.target" data-testid="manual-r-target" />
+                </mat-form-field>
+              </div>
+              <div class="manual-r-result" role="status" aria-live="polite" data-testid="manual-r-result">
+                <span>Manual R</span>
+                <strong>{{ manualRewardRisk() === null ? '—' : rr(manualRewardRisk()) }}</strong>
+                <span class="note">{{ manualRMessage() }}</span>
+              </div>
+              @if (manualRewardRisk() !== null && manualRiskPct() !== null && manualRewardPct() !== null) {
+                <div
+                  class="risk-reward-visual"
+                  role="img"
+                  data-testid="manual-r-visual"
+                  [attr.aria-label]="'Manual risk ' + pct(manualRiskPct()) + ', reward ' + pct(manualRewardPct()) + ', reward-to-risk ' + rr(manualRewardRisk())"
+                >
+                  <div class="risk-reward-track" aria-hidden="true">
+                    <span class="risk-segment" [style.flex-grow]="1"></span>
+                    <span class="reward-segment" [style.flex-grow]="manualRewardRisk()"></span>
+                  </div>
+                  <div class="risk-reward-legend" aria-hidden="true">
+                    <span class="legend-risk">Risk {{ pct(manualRiskPct()) }}</span>
+                    <span class="legend-reward">Reward {{ pct(manualRewardPct()) }}</span>
+                  </div>
+                </div>
+                <dl class="kv">
+                  <dt>Risk to stop</dt><dd>{{ pct(manualRiskPct()) }}</dd>
+                  <dt>Reward to target</dt><dd>{{ pct(manualRewardPct()) }}</dd>
+                </dl>
+              }
+            </section>
+
+            <section class="detail-section">
+              <h3>Your saved risk plan</h3>
             @if (d.savedPlans.length) {
               @for (p of d.savedPlans; track $index) {
                 <dl class="kv">
                   <dt>Account</dt><dd>{{ p.account }}</dd>
-                  <dt>Average cost</dt><dd>{{ money(p.averageCost) }}</dd>
-                  <dt>Planned stop</dt><dd>{{ money(p.plannedStop) }} <span class="muted">({{ p.stopType }})</span></dd>
-                  <dt>Target</dt><dd>{{ money(p.target) }}</dd>
+                  <dt>Average cost</dt><dd>{{ money(p.averageCost, p.currency) }}</dd>
+                  <dt>Planned stop</dt><dd>{{ money(p.plannedStop, p.currency) }} <span class="muted">({{ p.stopType }})</span></dd>
+                  <dt>Target</dt><dd>{{ money(p.target, p.currency) }}</dd>
                   <dt>Reward : risk</dt><dd>{{ rr(p.rewardRisk) }}</dd>
                   <dt>Updated</dt><dd>{{ p.updatedAtUtc | date: 'yyyy-MM-dd HH:mm' }}</dd>
                 </dl>
@@ -154,8 +252,10 @@
             } @else {
               <p class="muted">No saved risk plan.</p>
             }
+            </section>
 
-            <h3>Portfolio fit</h3>
+            <section class="detail-section">
+              <h3>Portfolio fit</h3>
             <p class="kind">{{ row.fit.status }}</p>
             <dl class="kv">
               <dt>Position weight</dt><dd>{{ pct(row.fit.weightPct) }}</dd>
@@ -170,8 +270,10 @@
                 @for (c of row.fit.reasonCodes; track c) { <li>{{ fitReasonLabel(c) }}</li> }
               </ul>
             }
+            </section>
 
-            <h3>Sector comparison</h3>
+            <section class="detail-section">
+              <h3>Sector comparison</h3>
             @if (d.sectorRelative; as sr) {
               <p class="muted">vs {{ sr.benchmarkName ?? sr.benchmarkSymbol ?? '—' }}@if (sr.benchmarkSymbol) { ({{ sr.benchmarkSymbol }}) }</p>
               <table class="windows">
@@ -196,33 +298,49 @@
             } @else {
               <p class="muted">{{ sectorHeatStatusLabel(row.sectorHeat.status) }}</p>
             }
+            </section>
           </div>
         </mat-tab>
 
         <mat-tab label="Technicals">
           <div class="tab">
             @let ind = row.indicators;
-            <dl class="kv">
-              <dt>Price</dt><dd>{{ money(ind.price) }}</dd>
-              <dt>RSI (14)</dt><dd>{{ num(ind.rsi14) }}</dd>
-              <dt>RSI signal</dt><dd>{{ num(ind.rsiSignal) }}</dd>
-              <dt>MACD histogram</dt><dd>{{ num(ind.macdHistogram, 3) }}</dd>
-              <dt>EMA 20</dt><dd>{{ money(ind.ema20) }}</dd>
-              <dt>SMA 50</dt><dd>{{ money(ind.sma50) }}</dd>
-              <dt>SMA 200</dt><dd>{{ money(ind.sma200) }}</dd>
-              <dt>ATR</dt><dd>{{ money(ind.atr) }}</dd>
-              <dt>Volume ratio</dt><dd>{{ num(ind.volumeRatio, 2) }}</dd>
-              <dt>52W high</dt><dd>{{ money(ind.week52High) }}</dd>
-              <dt>52W low</dt><dd>{{ money(ind.week52Low) }}</dd>
-              <dt>Dynamic stop</dt><dd>{{ money(ind.dynamicStopLoss) }}</dd>
-              <dt>Trend shift</dt><dd>{{ ind.trendShift ?? '—' }}</dd>
-              <dt>MA structure</dt><dd>{{ ind.maStructure ?? '—' }}</dd>
-              <dt>Fibonacci zone</dt><dd>{{ ind.fibZone ?? '—' }}</dd>
-              <dt>Channel</dt><dd>{{ ind.channelState ?? '—' }}</dd>
-              <dt>Relative strength 20D</dt><dd>{{ pp(ind.rs20Pp) }}</dd>
-              <dt>Relative strength 60D</dt><dd>{{ pp(ind.rs60Pp) }}</dd>
-              <dt>Risk category</dt><dd>{{ row.risk.category }} <span class="muted">({{ row.risk.basis }})</span></dd>
-            </dl>
+            <div class="technical-groups">
+              <section class="detail-section">
+                <h3>Price and moving averages</h3>
+                <dl class="kv">
+                  <dt>Price</dt><dd>{{ money(ind.price, row.currency) }}</dd>
+                  <dt>EMA 20</dt><dd>{{ money(ind.ema20, row.currency) }}</dd>
+                  <dt>SMA 50</dt><dd>{{ money(ind.sma50, row.currency) }}</dd>
+                  <dt>SMA 200</dt><dd>{{ money(ind.sma200, row.currency) }}</dd>
+                  <dt>52-week high</dt><dd>{{ money(ind.week52High, row.currency) }}</dd>
+                  <dt>52-week low</dt><dd>{{ money(ind.week52Low, row.currency) }}</dd>
+                </dl>
+              </section>
+              <section class="detail-section">
+                <h3>Momentum and volume</h3>
+                <dl class="kv">
+                  <dt>RSI (14)</dt><dd>{{ num(ind.rsi14, 2) }}</dd>
+                  <dt>RSI signal</dt><dd>{{ num(ind.rsiSignal, 2) }}</dd>
+                  <dt>MACD histogram</dt><dd>{{ num(ind.macdHistogram, 3) }}</dd>
+                  <dt>Volume ratio</dt><dd>{{ num(ind.volumeRatio, 2) }}</dd>
+                  <dt>Relative strength 20D</dt><dd>{{ pp(ind.rs20Pp) }}</dd>
+                  <dt>Relative strength 60D</dt><dd>{{ pp(ind.rs60Pp) }}</dd>
+                </dl>
+              </section>
+              <section class="detail-section">
+                <h3>Volatility and structure</h3>
+                <dl class="kv">
+                  <dt>ATR</dt><dd>{{ money(ind.atr, row.currency) }}</dd>
+                  <dt>Dynamic stop (scanner)</dt><dd>{{ money(ind.dynamicStopLoss, row.currency) }}</dd>
+                  <dt>Risk category</dt><dd>{{ row.risk.category }} <span class="muted">({{ row.risk.basis }})</span></dd>
+                  <dt>Trend shift</dt><dd>{{ ind.trendShift ?? '—' }}</dd>
+                  <dt>MA structure</dt><dd>{{ ind.maStructure ?? '—' }}</dd>
+                  <dt>Fibonacci zone</dt><dd>{{ ind.fibZone ?? '—' }}</dd>
+                  <dt>Channel</dt><dd>{{ ind.channelState ?? '—' }}</dd>
+                </dl>
+              </section>
+            </div>
           </div>
         </mat-tab>
 
@@ -230,12 +348,22 @@
           <div class="tab">
             @for (s of scores(); track s.perspective) {
               <section class="score-block" [attr.data-perspective]="s.perspective">
-                <h3>{{ s.perspective }} score</h3>
-                <p>
-                  <strong>{{ s.score ?? 'N/A' }}</strong>
-                  · {{ s.status }} · {{ s.band }} · {{ s.completenessPct }}% complete
-                  · {{ s.awardedTotal }} / {{ s.availableMax }} available points
-                </p>
+                <h3>
+                  {{ s.perspective }} score
+                  @if (s.perspective === perspective()) { <span class="active-perspective">Selected view</span> }
+                </h3>
+                <div class="score-overview">
+                  <strong class="score-total">{{ s.score ?? 'N/A' }}<span>/100</span></strong>
+                  <span class="score-meta">{{ s.status }} · {{ s.band }} · {{ pct(s.completenessPct, 0) }} complete</span>
+                  @if (s.scoreDenominatorMax != null) {
+                    <span class="score-points">
+                      {{ points(s.awardedTotal) }} / {{ points(s.scoreDenominatorMax) }} technical points ·
+                      {{ points(s.availableMax) }} / {{ points(s.scoreDenominatorMax) }} evidence available
+                    </span>
+                  } @else {
+                    <span class="score-points">{{ points(s.awardedTotal) }} / {{ points(s.availableMax) }} available scoring points</span>
+                  }
+                </div>
                 @if (s.reasonCodes.length) {
                   <ul class="reasons">
                     @for (c of s.reasonCodes; track c) { <li>{{ reasonLabel(c) }}</li> }
@@ -245,14 +373,14 @@
                   <details class="component" [attr.data-state]="c.state">
                     <summary>
                       <span>{{ c.name }}@if (c.essential) { <span class="essential" matTooltip="Essential input">*</span> }</span>
-                      <span class="pts">{{ c.awarded }} / {{ c.max }}</span>
+                      <span class="pts">{{ points(c.awarded) }} / {{ points(c.max) }}</span>
                       <span class="state-tag">{{ c.state }}</span>
                     </summary>
                     <ul class="items">
                       @for (i of c.items; track i.code) {
                         <li [class.unavailable]="!i.available">
                           <span>{{ i.label }}</span>
-                          <span class="pts">{{ i.available ? i.points + ' / ' + i.max : 'n/a' }}</span>
+                          <span class="pts">{{ i.available ? points(i.points) + ' / ' + points(i.max) : 'n/a' }}</span>
                           @if (i.detail) { <span class="muted item-detail">{{ i.detail }}</span> }
                         </li>
                       }
@@ -263,31 +391,48 @@
                 }
               </section>
             }
-            <p class="note">Scores are {{ d.evidence.scoringVersion }} weighted setup assessments, not probabilities of success.</p>
+            @if (d.evidence.scoringVersion === 'pm029-v2') {
+              <p class="note">Swing-v2 scores technical evidence against a fixed 80-point pool. Market setup and execution readiness are separate; scores are not probabilities of success.</p>
+            } @else {
+              <p class="note">Scores are {{ d.evidence.scoringVersion }} weighted setup assessments, not probabilities of success.</p>
+            }
           </div>
         </mat-tab>
 
         <mat-tab label="Evidence">
           <div class="tab">
             @let e = d.evidence;
-            <dl class="kv">
-              <dt>Scoring version</dt><dd>{{ e.scoringVersion }}</dd>
-              <dt>Snapshot</dt><dd>#{{ d.snapshotId }}</dd>
-              <dt>Expected session</dt><dd>{{ e.expectedSession }}</dd>
-              <dt>Scan trading date</dt><dd>{{ e.scanTradingDate ?? '—' }}</dd>
-              <dt>Scanned at</dt><dd>{{ e.scanAsOfUtc ? (e.scanAsOfUtc | date: 'yyyy-MM-dd HH:mm') : '—' }}</dd>
-              <dt>Price history</dt><dd>{{ e.historySource }}</dd>
-              <dt>Sector source</dt><dd>{{ e.sectorSource }}</dd>
-              <dt>Benchmark</dt><dd>{{ e.benchmarkName ?? e.benchmarkSymbol ?? '—' }}</dd>
-              <dt>Fundamentals</dt>
-              <dd>{{ e.fundamentalsOrigin ?? 'Unavailable' }}@if (e.fundamentalsAsOfUtc) { · {{ e.fundamentalsAsOfUtc | date: 'yyyy-MM-dd' }} }</dd>
-              <dt>Earnings yield basis</dt><dd>{{ e.earningsYieldBasis ?? '—' }}</dd>
-              <dt>FCF yield basis</dt><dd>{{ e.fcfYieldBasis ?? '—' }}</dd>
-              <dt>Capital efficiency basis</dt><dd>{{ e.capitalEfficiencyBasis ?? '—' }}</dd>
-              <dt>Allocation status</dt><dd>{{ e.allocationStatus ?? '—' }}</dd>
-              <dt>Portfolio updated</dt><dd>{{ e.portfolioUpdatedAtUtc ? (e.portfolioUpdatedAtUtc | date: 'yyyy-MM-dd HH:mm') : '—' }}</dd>
-              <dt>Final Action evaluated</dt><dd>{{ e.finalActionComputedAtUtc | date: 'yyyy-MM-dd HH:mm' }}</dd>
-            </dl>
+            <section class="detail-section">
+              <h3>Snapshot and market data</h3>
+              <dl class="kv">
+                <dt>Scoring version</dt><dd>{{ e.scoringVersion }}</dd>
+                <dt>Snapshot</dt><dd>#{{ d.snapshotId }}</dd>
+                <dt>Market data as of session</dt><dd>{{ e.expectedSession }}</dd>
+                <dt>Scan trading date</dt><dd>{{ e.scanTradingDate ?? '—' }}</dd>
+                <dt>Scanned at</dt><dd>{{ e.scanAsOfUtc ? (e.scanAsOfUtc | date: 'yyyy-MM-dd HH:mm') : '—' }}</dd>
+                <dt>Price history</dt><dd>{{ e.historySource }}</dd>
+                <dt>Sector source</dt><dd>{{ e.sectorSource }}</dd>
+                <dt>Benchmark</dt><dd>{{ e.benchmarkSymbol ?? '—' }}@if (e.benchmarkName) { · {{ e.benchmarkName }} }</dd>
+                <dt>Benchmark category</dt><dd>{{ e.benchmarkCategory ?? 'Unavailable' }}</dd>
+                <dt>Benchmark currency</dt><dd>{{ e.benchmarkCurrency ?? '—' }}</dd>
+                <dt>Benchmark mapping source</dt>
+                <dd>{{ e.benchmarkMappingSource ?? 'Not recorded' }}@if (e.benchmarkMappingAsOfDate) { · as of {{ e.benchmarkMappingAsOfDate | date: 'yyyy-MM-dd' }} }</dd>
+                <dt>Benchmark mapping rationale</dt><dd>{{ e.benchmarkMappingRationale ?? 'Not recorded' }}</dd>
+              </dl>
+            </section>
+            <section class="detail-section">
+              <h3>Fundamental and portfolio evidence</h3>
+              <dl class="kv">
+                <dt>Fundamentals</dt>
+                <dd>{{ e.fundamentalsOrigin ?? 'Unavailable' }}@if (e.fundamentalsAsOfUtc) { · {{ e.fundamentalsAsOfUtc | date: 'yyyy-MM-dd' }} }</dd>
+                <dt>Earnings yield basis</dt><dd>{{ e.earningsYieldBasis ?? '—' }}</dd>
+                <dt>FCF yield basis</dt><dd>{{ e.fcfYieldBasis ?? '—' }}</dd>
+                <dt>Capital efficiency basis</dt><dd>{{ e.capitalEfficiencyBasis ?? '—' }}</dd>
+                <dt>Allocation status</dt><dd>{{ e.allocationStatus ?? '—' }}</dd>
+                <dt>Portfolio updated</dt><dd>{{ e.portfolioUpdatedAtUtc ? (e.portfolioUpdatedAtUtc | date: 'yyyy-MM-dd HH:mm') : '—' }}</dd>
+                <dt>Final Action evaluated</dt><dd>{{ e.finalActionComputedAtUtc | date: 'yyyy-MM-dd HH:mm' }}</dd>
+              </dl>
+            </section>
             @if (e.warnings.length) {
               <h3>Warnings</h3>
               <ul class="reasons warn">

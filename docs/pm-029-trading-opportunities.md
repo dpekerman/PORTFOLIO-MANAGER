@@ -1,10 +1,10 @@
 # PM-029 — Trading Opportunities Heatmap (Insights → Trading Opportunities)
 
 Status: **OPEN — implementation in progress; stays open until manual UAT and explicit sign-off.**
-Scoring version: **`pm029-v1`** (approved 2026-11-14 as experimental deterministic heuristics).
+Scoring version: **`pm029-v2`** (Swing technical score; Strategic remains `pm029-v1`).
 
-> **Heuristic setup score (pm029-v1). Not a probability of success; not statistically validated.**
-> A score of 91 means "91 % of the available weighted setup criteria are met", not "91 % chance of a profitable trade".
+> **Swing-v2 is an evidence-adjusted technical ranking, not a probability of success or an executable buy recommendation.**
+> Market setup and execution readiness are separate from the technical score.
 
 ## 1. Principles
 
@@ -24,11 +24,11 @@ The universe is the union of:
 
 The row key is the uppercase trading ticker, with the suffix preserved. The analysis security is resolved with `SecurityAnalysisResolver`; for universe-only symbols this is done read-only, so no mapping is written. An unresolved identity keeps the row with status `IdentityUnresolved` and gives it no scores.
 
-## 3. Scoring — `pm029-v1`
+## 3. Scoring — Swing-v2 and Strategic-v1
 
 ### 3.0 Common rules
 
-- **Evidence session E** = `TradingCalendar.LastCompletedSession(analysis exchange)`. A scan is usable only if `scan.TradingDate == E`; otherwise every scan-based component is **Missing (Stale)**.
+- **Evidence session E** = `TradingCalendar.LastCompletedSession(analysis exchange)`. Swing-v2 requires `scan.TradingDate == E`, a positive analysis price, and `ScannedAt` between the actual exchange session close and evaluation time. Otherwise the Swing score is unavailable.
 - Inputs:
   - P = `CurrentPrice` of that completed bar.
   - ATR = `DailyAtr`; `0` means missing.
@@ -37,21 +37,23 @@ The row key is the uppercase trading ticker, with the suffix preserved. The anal
   - A missing sub-item removes its points from both *awarded* and *available max*; the component becomes **Partial**.
   - A missing component removes its whole max from the available max.
 - Arithmetic is in `decimal`.
-  - **Headline** = round-half-away-from-zero(Σawarded / Σavailable × 100).
-  - **Completeness %** = Σavailable max (the weights sum to 100).
+  - **Swing-v2 headline** = round-half-away-from-zero(Σawarded S1–S5 / 80 × 100); `ScoreDenominatorMax` is 80.
+  - **Swing-v2 completeness %** = Σavailable S1–S5 max / 80 × 100; `AvailableMax` remains the observed evidence maximum.
+  - **Strategic-v1 headline** retains its original available-evidence calculation. Existing Swing-v1 snapshots remain immutable and are presented with the legacy disclaimer.
 
-### 3.1 Swing (100) — essential: S1, S3, S6
+### 3.1 Swing-v2 technical opportunity (80) — essential: S1, S3
 
 | Comp | Max | Sub-items (points) | Missing when |
 |---|---|---|---|
 | S1 Trend & Structure | 25 | P > EMA20 **7** · EMA20 > SMA50 **6** · P > SMA50 **6** · P > SMA200 **6** (sub-item missing if there is no SMA200). A hard structural negative sets the component to 0 (observed) | EMA20 or SMA50 ≤ 0 |
 | S2 Relative Strength | 20 | **20D diff** (pp, §4): ≥ +5.0 → **14** · ≥ +2.0 → **11** · ≥ +0.5 → **8** · neutral → **5** · ≥ −2.0 → **2** · else **0**. **60D diff**: ≥ +2.0 → **6** · ≥ +0.5 → **4** · neutral → **2** · else **0** | Both windows unavailable (one unavailable ⇒ Partial) |
 | S3 RSI/MACD Momentum | 15 | **RSI(14)**: 50–65 → **6** · 45–<50 or >65–70 → **4** · 40–<45 → **2** · >70 → **1** · <40 → **0**. **RSI > RSI signal** → **3** (sub-item missing if `!RsiSignalAvailable`). **MACD**: hist > 0 & Δ > 0 → **6** · hist > 0 & Δ ≤ 0 → **4** · hist ≤ 0 & Δ > 0 → **2** · else **0** | Stale or no scan |
-| S4 Volume Confirmation | 10 | **Up day** (`ChangePercent` > 0): VolRatio ≥ 1.5 → **8** · ≥ 1.0 → **6** · ≥ 0.7 → **4** · else **2**. **Down day**: ≥ 1.5 → **0** · ≥ 1.0 → **2** · else **4**. **Flat day**: **4**. `VolumeSignal == "Validated"` on an up day adds **+2** (component capped at 10) | VolumeRatio ≤ 0 |
+| S4 Volume Confirmation | 10 | **Up day** (`ChangePercent` > 0): VolRatio ≥ 1.5 → **8** · ≥ 1.0 → **6** · ≥ 0.7 → **4** · else **2**. **Down day**: ≥ 1.5 → **0** · ≥ 1.0 → **2** · else **4**. **Flat day**: **4**. `VolumeSignal == "Validated"` on an up day adds **+2** (component capped at 10) | Volume is zero or VolumeRatio ≤ 0 |
 | S5 Entry Quality | 10 | **Extension** x = (P − EMA20)/ATR: −0.5 ≤ x ≤ 1.0 → **6** · 1.0 < x ≤ 2.0 → **3** · x > 2.0 → **0** · −1.5 ≤ x < −0.5 → **4** · x < −1.5 → **1**. **Chase risk**: `ChaseRisk != "Elevated"` → **2**. **Fib zone**: Normal Pullback / Value Zone / Key Fib Support → **2** · Shallow Pullback → **1** · Deep Pullback / Trend Damage → **0** (sub-item missing if empty) | ATR missing |
-| S6 Risk/Reward | 20 | Uses the **calculated candidate** (§5) only. **R:R**: ≥ 3.0 → **14** · ≥ 2.0 → **11** · ≥ 1.5 → **7** · ≥ 1.0 → **3** · < 1.0 → **0**. **Stop distance in ATR**: 1.0–3.0 → **6** · 0.5–<1.0 or >3.0–4.0 → **3** | Candidate `Unavailable` (Not-actionable geometry still scores) |
 
-### 3.2 Strategic (100) — essential: T1, T7
+S6 is not part of Swing-v2 scoring. An unavailable stop, target, or Reward/Risk does not by itself make a technical Swing score unavailable.
+
+### 3.2 Strategic-v1 (100) — essential: T1, T7
 
 | Comp | Max | Sub-items (points) | Missing when |
 |---|---|---|---|
@@ -74,7 +76,7 @@ A value-trap warning (`ActionTrigger == ValueTrapWarning`) appears as an Evidenc
 |---|---|---|
 | **Verified** | Completeness = 100 % and all essentials observed | Solid band colour and band label |
 | **Provisional** | 70 % ≤ completeness < 100 % and all essentials observed | Band colour plus hatch and a "P" marker. The label is prefixed "Provisional", and the details banner reads "Incomplete evidence — not a verified opportunity". Hidden by the **Verified only** filter |
-| **Insufficient** | Completeness < 70 %, **or** any essential component missing | Grey "N/A" with the reasons |
+| **Insufficient** | Swing completeness < 70 %, **or** any Swing essential component missing | Grey "N/A" with the reasons |
 | **Unavailable** | No usable scan, unresolved identity, or failed evaluation | Neutral "—" with the reasons |
 
 ### 3.4 Bands (applied to the integer headline)
@@ -90,15 +92,17 @@ A value-trap warning (`ActionTrigger == ValueTrapWarning`) appears as an Evidenc
 
 **Weak** (a scored value below 50) and **Unscorable** (N/A) are disjoint concepts and use disjoint filters.
 
-### 3.5 Unscorable reason codes
+### 3.5 Reason codes
 
-These codes are stored per row and per perspective. They appear in the Scores tab, the exclusion summary and the export.
+Scoring reasons are stored per row and per perspective. The first five reasons below belong only to the separate setup result and do not make a Swing-v2 score unscorable. Scoring reasons appear in the Scores tab, exclusion summary and export; setup reasons appear with the calculated setup.
 
 | Code | Meaning |
 |---|---|
-| `NoValidStop` | Scanner stop missing, or not below entry (U2 — never fabricated) |
-| `StopOutsideVolatilityBand` | Stop distance outside 0.5–4 ATR, or risk > 15 % |
-| `NoStructuralTarget` | No overhead level above entry + 0.5 ATR |
+| `NoValidStop` | Setup only: scanner stop is missing or not below entry (U2 — never fabricated); paired with a detail code below |
+| `DynamicStopMissing` | Setup only: `DynamicStopLoss` is null/zero; no stop value is inferred |
+| `StopAtOrAboveEntry` | Setup only: observed `DynamicStopLoss` is at or above the long entry |
+| `StopOutsideVolatilityBand` | Setup only: stop distance outside 0.5–4 ATR, or risk > 15 % |
+| `NoStructuralTarget` | Setup only: no overhead level above entry + 0.5 ATR |
 | `StaleScan` | Scan session ≠ E |
 | `NoScan` | Scanner returned nothing for the symbol |
 | `MissingEssential:<comp>` | An essential component is missing |
@@ -113,9 +117,11 @@ These codes are stored per row and per perspective. They appear in the Scores ta
 
 **Score filter:** `70+` (default) · `50+` · `All scored` · `All (incl. unscorable)`, plus the **Show unavailable** and **Verified only** toggles.
 
-The **exclusion summary** is computed from the snapshot and shows how many rows fall below the threshold and how many are unscorable, broken down by reason.
+The **exclusion summary** is computed from the snapshot and shows how many rows fall below the threshold and how many are unscorable, broken down by mutually exclusive primary reason. Selecting a reason shows only unscorable rows with that specific reason; all-reason score views remain available.
 
 The perspectives are independent: a row whose Swing score is N/A still shows its Strategic score.
+
+Filters include sector, industry, Sector Heat, risk, Portfolio Fit, Final Action, ownership, source, account, role and evidence freshness. The grid retains the full 39-column selector; these filters do not add or hide saved columns.
 
 ## 4. Sector Heat (stock vs sector benchmark)
 
@@ -141,11 +147,11 @@ The perspectives are independent: a row whose Swing score is N/A still shows its
 |---|---|---|
 | Freshness | scan `TradingDate == E` | Unavailable (`StaleScan`) |
 | Entry | Completed close P > 0 | Unavailable |
-| Stop | `DynamicStopLoss` > 0 and < entry | Unavailable (`NoValidStop`) |
+| Stop | `DynamicStopLoss` > 0 and < entry | Unavailable (`NoValidStop`, plus `DynamicStopMissing` or `StopAtOrAboveEntry`) |
 | Volatility | ATR > 0; 0.5 ATR ≤ entry − stop ≤ 4 ATR; risk ≤ 15 % | Unavailable (`StopOutsideVolatilityBand`) |
 | Target | Nearest level above entry + 0.5 ATR, from `UpperRailToday` (channel ≠ NONE), `NearestOpenGapAbove` and `Week52High` | Unavailable (`NoStructuralTarget`) |
 | R:R | (target − entry) / (entry − stop) | — |
-| Acceptability | R:R ≥ 1.5 ⇒ **Valid candidate**; otherwise **Not actionable** (still scored in S6) | — |
+| Acceptability | R:R ≥ 1.5 ⇒ **Valid candidate**; otherwise **Not actionable** | — |
 
 **Calculated candidate** and **Your saved risk plan** are separate cards.
 - The saved plan is display only, never scored, and shown in the trading-security currency.
@@ -162,7 +168,8 @@ A hard structural negative makes it High.
 - **Fit** uses the Final Action exposure and the `GrandTotalAsync` denominator (stocks + cash + options), `SinglePositionLimits` and `AllocationSectorTargets` (2 pp tolerance). Possible values: Eligible / Review / No Add / Unavailable. Rules (worst wins):
   - Allocation not single-currency, or owned exposure unknown → **Unavailable**.
   - Weight ≥ role limit → **No Add** (same comparison as the Final Action gate); headroom < 1 pp → **Review**; no configured limit or ambiguous role policy → **Review**.
-  - Sector weight > target + 2 pp → **No Add** (same as the gate); above target within tolerance → **Review**; sector unknown → **Review**; no sector target → informational only.
+  - Sector weight > target + 2 pp → **No Add** (same as the gate); above target within tolerance → **Review**; sector unknown or sector exposure unavailable → **Review**; no sector target → informational only.
+- Portfolio Fit does not introduce its own FX conversion or infer a currency. Mixed-currency allocation remains Unavailable until verified common-currency valuation is provided by the authoritative portfolio/allocation services.
 - **External cash flows (PM-035):** deposits and withdrawals never change scores, Sector Heat or the setup, and create no P&L. They do recalculate weight, headroom and Fit. The authoritative FINAL ACTION may legitimately change, and the heatmap always shows the current decision.
 - **Multiple decisions:** when an owned symbol's authoritative decisions differ (e.g. per role), the grid shows a neutral **"Multiple (n)"** chip (no buy/sell colour) and the drawer lists each original decision as source · role with its own badge; each opens the existing Final Action details dialog with the original reason, evaluation state and evidence freshness. The authoritative `FinalActionResult` carries no account field, so accounts are shown in the row header, not per decision.
 

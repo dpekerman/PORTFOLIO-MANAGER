@@ -3,13 +3,13 @@
 namespace PortfolioManager.Api.Services;
 
 /// <summary>
-/// Capital Valuation Scoring Engine — v2 (Enhanced with real FCF, proper Piotroski, dynamic normalization, sector routing)
+/// Capital Valuation Scoring Engine — v2 (dynamic normalization and sector routing; F4 uses proxy-based screening indicators)
 ///
 /// SCORING MATRIX (max 10.0 normalized points):
 ///   +3.0  F1 — Valuation Anchor  : EarningsYield = EBIT / EnterpriseValue  (or 1/TrailingPE fallback)
-///   +2.0  F2 — Cash Sufficiency  : FCF Yield = FreeCashFlow / MarketCap     (real OCF−CapEx, not 1/FwdPE)
+///   +2.0  F2 — Cash Sufficiency  : cash-flow yield from FCF, or OCF when FCF is unavailable
 ///   +1.0  F3 — Asset Utilization : Price-to-Book (skipped / routed for REITs & Financials)
-///   +3.0  F4 — Fundamental Health: Real Piotroski F-Score (9 accounting-based signals, no PE dependency)
+///   +3.0  F4 — Fundamental Health: legacy proxy-based indicators (not the Piotroski F-score)
 ///   +1.0  F5 — Capital Efficiency: ROIC = EBIT / (TotalAssets − CurrentLiabilities)  (or ROE fallback)
 ///
 /// DYNAMIC NORMALIZATION:
@@ -21,16 +21,11 @@ namespace PortfolioManager.Api.Services;
 ///   Financial Services (Banks/Insurance) → use ROE-driven scoring, relax P/B threshold
 ///   Everything else → standard engine
 ///
-/// REAL PIOTROSKI 9 SIGNALS (accounting-based, independent of P/E):
-///   F1: Net Income > 0 (profitability)
-///   F2: Operating Cash Flow > 0 (cash generation)
-///   F3: ROA improved YoY  → proxied: ROA > 0
-///   F4: Operating CF > Net Income (accrual quality)
-///   F5: Long-term debt ratio decreased → proxied: DebtToEquity < 1.5
-///   F6: Current Ratio > 1 (liquidity improving)
-///   F7: Shares not diluted → proxied: share-level data unavailable → use RevenueGrowth > 0
-///   F8: Gross margin improving → proxied: ProfitMargins > 0
-///   F9: Asset turnover improving → proxied: revenue / total assets > 0.3
+/// F4 is a historical screening score, not a Piotroski F-score. It uses these current-value proxies:
+///   1: Net income or ROA > 0; 2: operating cash flow > 0; 3: ROA > 1% (not a year-over-year change);
+///   4: operating cash flow > net income; 5: debt/equity < 1.5 (not a change in leverage);
+///   6: current ratio > 1; 7: revenue growth > 0 (not share dilution); 8: profit margin > 0
+///   (not improving gross margin); 9: revenue / total assets > 0.3 (not improving asset turnover).
 /// </summary>
 public sealed class ValueScreenerService(
     IPortfolioService portfolioService,
@@ -268,28 +263,27 @@ public sealed class ValueScreenerService(
         }
         decimal f3Max = f3Available ? 1.0m : 0m;
 
-        // ── F4: Fundamental Health — Real Piotroski (max +3.0) ────────────────
-        // 9 accounting-based signals, NONE depend on market multiples (no PE usage)
+        // ── F4: Fundamental Health — legacy proxy indicators (max +3.0) ──────
         int pio = 0;
         int pioAvailable = 0;
 
-        // Signal 1: Net Income > 0  (profitability — ROA positive)
+        // Indicator 1: Net income or ROA is positive.
         if (netIncome != 0 || roa != 0m) { pioAvailable++; if (netIncome > 0 || roa > 0m) pio++; }
-        // Signal 2: Operating Cash Flow > 0  (actual cash generation)
+        // Indicator 2: Operating cash flow is positive.
         if (ocf != 0) { pioAvailable++; if (ocf > 0) pio++; }
-        // Signal 3: ROA > 0  (asset efficiency, mirrors Piotroski's ΔRoa signal)
+        // Indicator 3: ROA exceeds 1%; this is not a year-over-year comparison.
         if (roa != 0m) { pioAvailable++; if (roa > 0.01m) pio++; }
-        // Signal 4: Cash flow quality — OCF > Net Income (accrual reversal)
+        // Indicator 4: Operating cash flow exceeds net income.
         if (ocf != 0 && netIncome != 0) { pioAvailable++; if (ocf > netIncome) pio++; }
-        // Signal 5: Leverage declining — DebtToEquity < 1.5 (or equity > 0 and no long-term debt explosion)
+        // Indicator 5: Debt/equity is below a fixed threshold; this is not a leverage trend.
         if (debtToEquity != 0m || equity != 0) { pioAvailable++; if (debtToEquity >= 0m && debtToEquity < 1.5m) pio++; }
-        // Signal 6: Liquidity improving — Current Ratio > 1.0
+        // Indicator 6: Current ratio is above 1.
         if (currentRatio != 0m) { pioAvailable++; if (currentRatio > 1.0m) pio++; }
-        // Signal 7: No equity dilution — proxy: positive revenue growth (indirect health signal)
+        // Indicator 7: Revenue growth is positive; this does not measure share dilution.
         if (revGrowth != 0m) { pioAvailable++; if (revGrowth > 0m) pio++; }
-        // Signal 8: Gross margin positive — company has pricing power
+        // Indicator 8: Profit margin is positive; this does not measure gross-margin improvement.
         if (profitMargin != 0m) { pioAvailable++; if (profitMargin > 0m) pio++; }
-        // Signal 9: Asset turnover > 0.3 (revenue generating relative to asset base)
+        // Indicator 9: Revenue/assets exceeds a fixed threshold; this does not measure improvement.
         if (revenue > 0 && totalAssets > 0)
         {
             pioAvailable++;

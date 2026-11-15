@@ -104,6 +104,15 @@ public sealed class TradingCalendarTests
     }
 
     [Fact]
+    public void SessionCloseUtc_UsesTheExchangeCloseAndTorontoDst()
+    {
+        Assert.Equal(Utc(2026, 11, 13, 21, 0), TradingCalendar.SessionCloseUtc(D(2026, 11, 13), MarketExchange.Tsx));
+        Assert.Equal(Utc(2026, 11, 27, 18, 0), TradingCalendar.SessionCloseUtc(D(2026, 11, 27), MarketExchange.Nyse));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            TradingCalendar.SessionCloseUtc(D(2026, 11, 28), MarketExchange.Nyse));
+    }
+
+    [Fact]
     public void TradingDaysBetween_IsHolidayAware_UnlikeWeekdayCounting()
     {
         Assert.Equal(1, TradingCalendar.TradingDaysBetween(D(2026, 10, 9), D(2026, 10, 13), MarketExchange.Tsx));    // Mon Oct 12 closed

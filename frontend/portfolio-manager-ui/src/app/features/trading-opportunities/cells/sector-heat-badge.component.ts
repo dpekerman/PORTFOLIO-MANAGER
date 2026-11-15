@@ -4,7 +4,7 @@ import { OpportunitySectorHeat } from '../../../core/models/opportunities.models
 import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { sectorHeatAriaLabel, sectorHeatClass, sectorHeatText, signedPp } from '../opportunities-logic';
 
-/** Signed 20-session Sector Heat in a green/red badge; arrow + sign so colour is never the only cue. */
+/** Signed relative-return text; the badge background independently represents absolute benchmark momentum. */
 @Component({
   selector: 'app-sector-heat-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +25,8 @@ export class SectorHeatBadgeComponent {
     if (h.diffPp === null || h.status !== 'Matched') return this.label();
     const pct = (v: number | null) => (v === null ? 'n/a' : `${signedPp(this.demo.maskPercent(v))}%`);
     const d60 = h.diff60Pp === null ? 'n/a' : `${signedPp(this.demo.maskPercent(h.diff60Pp))} pp`;
-    return `20 sessions: stock ${pct(h.stockReturnPct)} vs ${h.benchmarkSymbol ?? 'benchmark'} ${pct(h.benchmarkReturnPct)} · 60 sessions: ${d60}`;
+    const momentum =
+      h.benchmarkReturnPct === null ? 'unavailable' : h.benchmarkReturnPct > 0 ? 'strong' : h.benchmarkReturnPct < 0 ? 'weak' : 'neutral';
+    return `20 sessions: stock ${pct(h.stockReturnPct)} vs ${h.benchmarkSymbol ?? 'benchmark'} ${pct(h.benchmarkReturnPct)} · benchmark momentum ${momentum} · 60 sessions: ${d60}`;
   });
 }

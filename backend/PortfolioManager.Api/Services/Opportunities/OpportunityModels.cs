@@ -26,8 +26,8 @@ public sealed record ScoreComponent(
     string? Note = null);
 
 /// <summary>
-/// Headline result for one perspective. <see cref="Score"/> is only set for Verified/Provisional; <see cref="NormalizedScore"/>
-/// is the reconciliation value (Σawarded / Σavailable × 100) shown in the Scores tab even when the headline is N/A.
+/// Headline result for one perspective. <see cref="Score"/> is only set for Verified/Provisional. For Swing-v2,
+/// <see cref="ScoreDenominatorMax"/> is the fixed 80-point technical pool and <see cref="AvailableMax"/> is observed evidence.
 /// </summary>
 public sealed record ScoreResult(
     ScorePerspective Perspective,
@@ -40,11 +40,14 @@ public sealed record ScoreResult(
     ScoreStatus Status,
     ScoreBand Band,
     IReadOnlyList<ScoreComponent> Components,
-    IReadOnlyList<string> ReasonCodes);
+    IReadOnlyList<string> ReasonCodes,
+    decimal? ScoreDenominatorMax = null);
 
 public static class OpportunityReasons
 {
     public const string NoValidStop = "NoValidStop";
+    public const string DynamicStopMissing = "DynamicStopMissing";
+    public const string StopAtOrAboveEntry = "StopAtOrAboveEntry";
     public const string StopOutsideVolatilityBand = "StopOutsideVolatilityBand";
     public const string NoStructuralTarget = "NoStructuralTarget";
     public const string NoEntryPrice = "NoEntryPrice";
@@ -53,6 +56,20 @@ public static class OpportunityReasons
     public const string LowCompleteness = "LowCompleteness";
     public const string IdentityUnresolved = "IdentityUnresolved";
     public const string EvaluationFailed = "EvaluationFailed";
+    public const string ExpectedSessionMismatch = "ExpectedSessionMismatch";
+    public const string InvalidAnalysisPrice = "InvalidAnalysisPrice";
+    public const string InvalidScanTimestamp = "InvalidScanTimestamp";
+    public const string ScanTimestampInFuture = "ScanTimestampInFuture";
+    public const string ScanBeforeSessionClose = "ScanBeforeSessionClose";
+    public const string InvalidRsi = "InvalidRsi";
+    public const string InvalidRsiSignal = "InvalidRsiSignal";
+    public const string InvalidMovingAverage = "InvalidMovingAverage";
+    public const string InvalidSma200 = "InvalidSma200";
+    public const string InvalidEma20 = "InvalidEma20";
+    public const string InvalidVolume = "InvalidVolume";
+    public const string InvalidVolumeRatio = "InvalidVolumeRatio";
+    public const string InvalidChangePercent = "InvalidChangePercent";
+    public const string InvalidAtr = "InvalidAtr";
     public const string FundamentalsStale = "FundamentalsStale";
     public const string FundamentalsMissing = "FundamentalsMissing";
     /// <summary>Value Screener snapshot written before PM-029 (no per-factor availability): fail-closed.</summary>
@@ -113,7 +130,7 @@ public sealed record TradeSetupResult(
     string? Currency,
     IReadOnlyList<string> ReasonCodes)
 {
-    /// <summary>A geometrically valid candidate (valid or not actionable) that S6 may score.</summary>
+    /// <summary>A geometrically valid candidate (valid or not actionable) independent of Swing technical scoring.</summary>
     public bool IsScorable => Kind is SetupKind.ValidCandidate or SetupKind.NotActionable;
 }
 
@@ -161,4 +178,5 @@ public static class FitReasons
     public const string SectorAboveTarget = "SectorAboveTarget";
     public const string SectorUnknown = "SectorUnknown";
     public const string SectorNoTarget = "SectorNoTarget";
+    public const string SectorExposureUnavailable = "SectorExposureUnavailable";
 }

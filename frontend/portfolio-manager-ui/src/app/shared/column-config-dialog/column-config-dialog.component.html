@@ -1,7 +1,7 @@
 <h2 mat-dialog-title class="ccd-title">
   <mat-icon class="ccd-title-icon">view_column</mat-icon>
   <div class="ccd-title-text">
-    <span class="ccd-title-label">{{ grid?.label ?? 'Configure Columns' }}</span>
+    <span class="ccd-title-label">{{ profileLabel }}{{ grid?.label ?? 'Configure Columns' }}</span>
     @if (grid) {
       <span class="ccd-page-badge">{{ grid.page }}</span>
     }

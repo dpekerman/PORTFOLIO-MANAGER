@@ -149,9 +149,13 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
 
   it('the real Trading Opportunities grid defaults to the nine approved columns in order', () => {
     const def = GRID_REGISTRY.find((d) => d.id === 'trading-opportunities')!;
-    expect(resolveKeys(def, undefined)).toEqual([
-      'symbol', 'swing', 'strategic', 'rr', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
+    expect(resolveKeys(def, undefined, 'Swing')).toEqual([
+      'symbol', 'swing', 'rr', 'manualR', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
     ]);
+    expect(resolveKeys(def, undefined, 'Strategic')).toEqual([
+      'symbol', 'strategic', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector',
+    ]);
+    expect(resolveEditablePrefs(def, undefined, 'Swing').find((pref) => pref.key === 'setupKind')?.visible).toBe(false);
   });
 });
 
@@ -281,7 +285,7 @@ describe('GRID_REGISTRY handset priorities', () => {
 });
 
 describe('GridColumnStore', () => {
-  const dbValue = signal<Record<string, ColumnPreference[]> | null>(null);
+  const dbValue = signal<unknown>(null);
   const userPrefs = { get: vi.fn(() => dbValue()), set: vi.fn(), remove: vi.fn() };
   const isHandset = signal(false);
 
@@ -322,6 +326,16 @@ describe('GridColumnStore', () => {
     expect(s.getColumnKeys('watchlist')).not.toBe(s.getColumnKeys('scanner'));
   });
 
+  it('preserves the 39 existing Opportunities keys, adds Manual R, and caches profiles independently', () => {
+    const s = store();
+    const gridId = 'trading-opportunities';
+    const definition = GRID_REGISTRY.find((g) => g.id === gridId)!;
+    expect(definition.columns).toHaveLength(40);
+    expect(definition.columns.map((column) => column.key)).toContain('manualR');
+    expect(s.getColumnKeys(gridId, 'Swing')).toBe(s.getColumnKeys(gridId, 'Swing'));
+    expect(s.getColumnKeys(gridId, 'Swing')).not.toBe(s.getColumnKeys(gridId, 'Strategic'));
+  });
+
   it('returns an empty list for an unknown grid', () => {
     expect(store().getColumnKeys('nope')()).toEqual([]);
   });
@@ -342,6 +356,62 @@ describe('GridColumnStore', () => {
     ]);
   });
 
+  it('migrates the legacy Opportunities columns into both strategy profiles', () => {
+    const legacy = [
+      { key: 'symbol', visible: true },
+      { key: 'swing', visible: true },
+      { key: 'strategic', visible: false },
+    ];
+    localStorage.setItem(LS_KEY, JSON.stringify({ 'trading-opportunities': legacy }));
+
+    const s = store();
+    expect(s.getColumnKeys('trading-opportunities', 'Swing')()).not.toContain('strategic');
+    expect(s.getColumnKeys('trading-opportunities', 'Swing')()).toContain('manualR');
+    expect(s.getColumnKeys('trading-opportunities', 'Strategic')()).not.toContain('manualR');
+  });
+
+  it('loads versioned preferences without changing saved order or visibility', () => {
+    const saved: ColumnPreference[] = [
+      { key: 'symbol', visible: true },
+      { key: 'manualR', visible: false },
+      { key: 'swing', visible: true },
+    ];
+    localStorage.setItem(
+      LS_KEY,
+      JSON.stringify({ schemaVersion: 2, grids: { 'trading-opportunities:swing': saved } }),
+    );
+
+    const s = store();
+    expect(s.getColumnKeys('trading-opportunities', 'Swing')().slice(0, 3)).toEqual(['symbol', 'swing', 'rr']);
+    expect(s.getEditablePrefs('trading-opportunities', 'Swing').find((pref) => pref.key === 'manualR')?.visible).toBe(false);
+  });
+
+  it('saves and resets only the active Opportunities column profile', () => {
+    const s = store();
+    const gridId = 'trading-opportunities';
+    const definition = GRID_REGISTRY.find((g) => g.id === gridId)!;
+    const base = definition.columns.filter((column) => !column.pinned).map(({ key, defaultHidden }) => ({
+      key,
+      visible: !defaultHidden,
+    }));
+    const swing = base.map((pref) => ({ ...pref, visible: pref.key === 'symbol' || pref.key === 'swing' }));
+    const strategic = base.map((pref) => ({ ...pref, visible: pref.key === 'symbol' || pref.key === 'strategic' }));
+
+    s.updatePrefs(gridId, swing, 'Swing');
+    s.updatePrefs(gridId, strategic, 'Strategic');
+    expect(s.getColumnKeys(gridId, 'Swing')()).toContain('swing');
+    expect(s.getColumnKeys(gridId, 'Swing')()).not.toContain('strategic');
+    expect(s.getColumnKeys(gridId, 'Strategic')()).toContain('strategic');
+    expect(s.getColumnKeys(gridId, 'Strategic')()).not.toContain('swing');
+
+    s.resetGrid(gridId, 'Strategic');
+    expect(s.getColumnKeys(gridId, 'Strategic')()).toEqual(
+      resolveKeys(definition, undefined, 'Strategic'),
+    );
+    expect(s.getColumnKeys(gridId, 'Swing')()).toContain('swing');
+    expect(s.getColumnKeys(gridId, 'Swing')()).not.toContain('strategic');
+  });
+
   it('writes updates to localStorage and through to the DB', () => {
     const s = store();
     const prefs: ColumnPreference[] = [
@@ -358,8 +428,9 @@ describe('GridColumnStore', () => {
       'cashActions',
       'colConfig',
     ]);
-    expect(JSON.parse(localStorage.getItem(LS_KEY)!)).toEqual({ 'portfolio-cash': prefs });
-    expect(userPrefs.set).toHaveBeenCalledWith(LS_KEY, { 'portfolio-cash': prefs });
+    const stored = { schemaVersion: 2, grids: { 'portfolio-cash': prefs } };
+    expect(JSON.parse(localStorage.getItem(LS_KEY)!)).toEqual(stored);
+    expect(userPrefs.set).toHaveBeenCalledWith(LS_KEY, stored);
   });
 
   it('resetGrid restores defaults for one grid only', () => {
@@ -373,7 +444,8 @@ describe('GridColumnStore', () => {
       GRID_REGISTRY.find((g) => g.id === 'portfolio-cash')!.columns.map((c) => c.key),
     );
     expect(JSON.parse(localStorage.getItem(LS_KEY)!)).toEqual({
-      watchlist: [{ key: 'symbol', visible: true }],
+      schemaVersion: 2,
+      grids: { watchlist: [{ key: 'symbol', visible: true }] },
     });
   });
 
@@ -490,7 +562,7 @@ describe('GridColumnStore', () => {
 
       expect(JSON.stringify(localStorage.getItem(LS_KEY))).toBe(before);
       expect(userPrefs.set).not.toHaveBeenCalled();
-      expect(s.prefs()).toEqual({});
+      expect(s.prefs()).toEqual({ schemaVersion: 2, grids: {} });
       // ...and the desktop projection is untouched once the viewport grows again
       isHandset.set(false);
       expect(s.getResponsiveColumnKeys(GRID)()).toEqual(s.getColumnKeys(GRID)());

@@ -14,12 +14,15 @@ public interface IRsiScannerService
     Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
 
     /// <summary>
-    /// PM-029: same analysis as <see cref="AnalyzeSymbolsAsync"/> but side-effect free — no staged-signal upsert/enrichment and no
-    /// AUTO analysis-mapping writes. Used for symbols the user neither holds nor watches (TSX 60 universe) so scanning them never
-    /// touches the signal lifecycle. Test doubles that never persist may rely on the default.
+    /// PM-029: same analysis as <see cref="AnalyzeSymbolsAsync"/> but without staged-signal enrichment or AUTO mapping writes.
+    /// Used for universe-only symbols that must not consult or touch the signal lifecycle.
     /// </summary>
     Task<List<RsiScanResult>> AnalyzeSymbolsReadOnlyAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
         => AnalyzeSymbolsAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, ct);
+
+    /// <summary>PM-029: enriches from staged-signal state without persisting lifecycle changes or AUTO mappings.</summary>
+    Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => throw new NotSupportedException("This scanner does not support read-only staged-signal previews.");
 
     /// <summary>
     /// Trading symbols of the most recent <see cref="AnalyzeSymbolsAsync"/> call that returned data the scanner refused to use
@@ -40,6 +43,8 @@ public static class ScanRejection
 
 public sealed class RsiScannerService : IRsiScannerService
 {
+    private enum AnalysisMode { Persist, ReadOnly, Preview }
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _rejections = new(StringComparer.OrdinalIgnoreCase);
     public IReadOnlyDictionary<string, string> LastRejections => _rejections;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RejectedMarketBar> _rejectedBars = new(StringComparer.OrdinalIgnoreCase);
@@ -147,14 +152,18 @@ public sealed class RsiScannerService : IRsiScannerService
     // ── Live scan ─────────────────────────────────────────────────────────────
     public Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
         IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
-        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, persist: true, ct);
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.Persist, ct);
 
     public Task<List<RsiScanResult>> AnalyzeSymbolsReadOnlyAsync(
         IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
-        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, persist: false, ct);
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.ReadOnly, ct);
+
+    public Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.Preview, ct);
 
     private async Task<List<RsiScanResult>> AnalyzeCoreAsync(
-        IEnumerable<string> symbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, string? userId, bool persist, CancellationToken ct)
+        IEnumerable<string> symbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, string? userId, AnalysisMode mode, CancellationToken ct)
     {
         var results = new List<RsiScanResult>();
         _rejections.Clear();
@@ -165,7 +174,7 @@ public sealed class RsiScannerService : IRsiScannerService
             .Distinct()
             .ToArray();
 
-        var resolved = await ResolveSymbolsAsync(distinct, userId, ct, persist);
+        var resolved = await ResolveSymbolsAsync(distinct, userId, ct, persist: mode == AnalysisMode.Persist);
         var analysisGroups = resolved
             .Where(symbol => symbol.ResolutionStatus != UnderlyingResolutionStatus.NeedsUserInput)
             .GroupBy(symbol => symbol.AnalysisTicker, StringComparer.OrdinalIgnoreCase)
@@ -200,20 +209,47 @@ public sealed class RsiScannerService : IRsiScannerService
         }
 
         await EnrichWithQuoteDataAsync(results, ct);
-        // Enrich with staged signal data (for ad-hoc analysis)
         var withSignal = results.Where(r => r.ScanType != ScanType.Neutral).ToList();
-        if (persist && withSignal.Count > 0)
-        {
-            try { await _stagedSignals.UpsertAndEnrichAsync(withSignal,
-                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
-                normalMin: _runtimeConfig.TurnStrengthNormalMin,
-                strongMin: _runtimeConfig.TurnStrengthStrongMin,
-                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
-                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
-                ct: ct); }
-            catch { /* non-critical for ad-hoc */ }
-        }
+        await EnrichWithStagedSignalsAsync(withSignal, mode, ct);
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
+    }
+
+    private async Task EnrichWithStagedSignalsAsync(IReadOnlyCollection<RsiScanResult> results, AnalysisMode mode, CancellationToken ct)
+    {
+        if (results.Count == 0 || mode == AnalysisMode.ReadOnly) return;
+
+        try
+        {
+            if (mode == AnalysisMode.Persist)
+                await _stagedSignals.UpsertAndEnrichAsync(results,
+                    earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                    normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                    strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                    explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                    maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                    ct: ct);
+            else
+                await _stagedSignals.PreviewAndEnrichAsync(results,
+                    earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                    normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                    strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                    explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                    maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                    ct: ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (mode == AnalysisMode.Preview)
+            {
+                _logger.LogError(ex, "[StagedSignals] Read-only preview enrichment failed");
+                throw;
+            }
+            _logger.LogWarning(ex, "[StagedSignals] Persisted enrichment failed; continuing without staged enrichment");
+        }
     }
 
     private async Task<ScannerResponse> RunLiveScanAsync(IReadOnlyList<ResolvedSecurityAnalysis> resolvedSymbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)

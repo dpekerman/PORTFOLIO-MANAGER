@@ -25,6 +25,7 @@ public sealed class Pm029FinalActionGoldenTests
     {
         public int PersistingCalls { get; private set; }
         public int ReadOnlyCalls { get; private set; }
+        public int PreviewCalls { get; private set; }
 
         public Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m,
             decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
@@ -38,6 +39,14 @@ public sealed class Pm029FinalActionGoldenTests
             decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
         {
             ReadOnlyCalls++;
+            var wanted = symbols.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            return Task.FromResult(results.Where(r => wanted.Contains(r.Symbol)).Select(r => r.Copy()).ToList());
+        }
+
+        public Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m,
+            decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        {
+            PreviewCalls++;
             var wanted = symbols.ToHashSet(StringComparer.OrdinalIgnoreCase);
             return Task.FromResult(results.Where(r => wanted.Contains(r.Symbol)).Select(r => r.Copy()).ToList());
         }

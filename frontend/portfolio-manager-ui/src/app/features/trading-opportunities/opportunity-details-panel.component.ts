@@ -7,12 +7,16 @@ import {
   computed,
   inject,
   input,
+  model,
   output,
   viewChild,
 } from '@angular/core';
+import { FormField, form } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
+import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -32,7 +36,16 @@ import { FinalActionDetailsDialogComponent } from '../../shared/final-action-det
 import { stateLabel } from '../../shared/final-action-details-dialog/final-action-labels';
 import { ScoreHeatCellComponent } from './cells/score-heat-cell.component';
 import { SectorHeatBadgeComponent } from './cells/sector-heat-badge.component';
-import { fitReasonLabel, reasonLabel, sectorHeatStatusLabel, signedPp } from './opportunities-logic';
+import {
+  companyNameForDisplay,
+  EMPTY_MANUAL_R,
+  fitReasonLabel,
+  ManualRValues,
+  manualRewardRisk as calculateManualRewardRisk,
+  reasonLabel,
+  sectorHeatStatusLabel,
+  signedPp,
+} from './opportunities-logic';
 
 const SETUP_LABELS: Record<string, string> = {
   ValidCandidate: 'Valid candidate',
@@ -41,8 +54,8 @@ const SETUP_LABELS: Record<string, string> = {
 };
 
 /**
- * PM-029 ticker details (desktop side panel / full-screen on smaller screens). Read-only: it shows the snapshot
- * evidence and every original authoritative Final Action decision; it never computes or changes a decision.
+ * PM-029 ticker details (desktop side panel / full-screen on smaller screens). Snapshot evidence and authoritative Final Action
+ * decisions stay read-only; the only local calculation is an ephemeral Manual R scenario, never used by a decision.
  */
 @Component({
   selector: 'app-opportunity-details-panel',
@@ -50,8 +63,11 @@ const SETUP_LABELS: Record<string, string> = {
   imports: [
     DatePipe,
     RouterLink,
+    FormField,
     MatButtonModule,
     MatIconModule,
+    MatFormFieldModule,
+    MatInputModule,
     MatProgressSpinnerModule,
     MatTabsModule,
     MatTooltipModule,
@@ -91,9 +107,29 @@ export class OpportunityDetailsPanelComponent implements AfterViewInit {
     const s = this.detail()?.sectorRelative;
     return s ? [s.d20, s.d60] : [];
   });
+  readonly manualRValues = model<ManualRValues>({ ...EMPTY_MANUAL_R });
+  protected readonly manualRForm = form(this.manualRValues);
+  protected readonly manualRStatus = computed(() => {
+    const { entry, stop, target } = this.manualRValues();
+    if (entry === null && stop === null && target === null) return 'empty';
+    if (entry === null || stop === null || target === null) return 'incomplete';
+    return calculateManualRewardRisk({ entry, stop, target }) === null ? 'invalid' : 'valid';
+  });
+  protected readonly manualRewardRisk = computed(() => {
+    return this.manualRStatus() === 'valid' ? calculateManualRewardRisk(this.manualRValues()) : null;
+  });
+  protected readonly manualRiskPct = computed(() => {
+    const { entry, stop } = this.manualRValues();
+    return this.manualRStatus() === 'valid' && entry !== null && stop !== null ? ((entry - stop) / entry) * 100 : null;
+  });
+  protected readonly manualRewardPct = computed(() => {
+    const { entry, target } = this.manualRValues();
+    return this.manualRStatus() === 'valid' && entry !== null && target !== null ? ((target - entry) / entry) * 100 : null;
+  });
 
   protected readonly reasonLabel = reasonLabel;
   protected readonly fitReasonLabel = fitReasonLabel;
+  protected readonly companyName = companyNameForDisplay;
   protected readonly sectorHeatStatusLabel = sectorHeatStatusLabel;
   protected readonly stateLabel = stateLabel;
 
@@ -101,8 +137,12 @@ export class OpportunityDetailsPanelComponent implements AfterViewInit {
     this.closeButton()?.nativeElement.focus();
   }
 
-  protected money(v: number | null | undefined): string {
-    return v === null || v === undefined ? '—' : this.demo.maskValue(v).toFixed(2);
+  protected money(v: number | null | undefined, currency: string | null = null): string {
+    if (v === null || v === undefined) return '—';
+    const formatted = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(
+      this.demo.maskValue(v),
+    );
+    return currency ? `${currency} ${formatted}` : formatted;
   }
 
   protected pct(v: number | null | undefined, digits = 1): string {
@@ -121,12 +161,41 @@ export class OpportunityDetailsPanelComponent implements AfterViewInit {
     return v === null || v === undefined ? '—' : v.toFixed(digits);
   }
 
+  protected points(v: number): string {
+    return v.toFixed(2);
+  }
+
   protected rr(v: number | null | undefined): string {
     return v === null || v === undefined ? '—' : `${v.toFixed(2)} : 1`;
   }
 
+  protected manualRMessage(): string {
+    switch (this.manualRStatus()) {
+      case 'valid':
+        return 'Session-only scenario; it does not affect Market R:R, scores, Portfolio Fit, or Final Action.';
+      case 'invalid':
+        return 'For a long scenario, use positive prices with stop below entry and target above entry.';
+      default:
+        return 'Enter entry, stop, and target prices to calculate a manual reward-to-risk ratio.';
+    }
+  }
+
   protected setupLabel(kind: string): string {
     return SETUP_LABELS[kind] ?? kind;
+  }
+
+  protected targetSourceLabel(source: string): string {
+    switch (source.trim().toLowerCase().replace(/[\s_-]/g, '')) {
+      case 'week52high':
+      case '52weekhigh':
+        return '52-week high';
+      case 'upperchannelrail':
+        return 'Upper channel rail';
+      case 'opengapabove':
+        return 'Open gap above';
+      default:
+        return source.trim();
+    }
   }
 
   protected decisionLabel(d: FinalActionResult): string {

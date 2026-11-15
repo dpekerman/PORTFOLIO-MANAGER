@@ -5,7 +5,7 @@ using PortfolioManager.Api.Services.Opportunities;
 
 namespace PortfolioManager.Tests;
 
-/// <summary>PM-029 Phase 3: rule-branch tests for the pure pm029-v1 calculators (docs/pm-029-trading-opportunities.md).</summary>
+/// <summary>PM-029 rule-branch tests for Swing-v2 and the unchanged Strategic-v1 calculators.</summary>
 public class Pm029CalculatorTests
 {
     private static readonly DateOnly E = new(2026, 11, 13);
@@ -17,10 +17,10 @@ public class Pm029CalculatorTests
     {
         var s = new RsiScanResult
         {
-            Symbol = "TST.TO", AnalysisCurrency = "CAD", AnalysisMarket = "TSX", TradingDate = E,
+            Symbol = "TST.TO", AnalysisCurrency = "CAD", AnalysisMarket = "TSX", TradingDate = E, ScannedAt = Now,
             CurrentPrice = 100m, Ema20Price = 98m, Sma50Price = 95m, Sma200 = 90m, Has200Dma = true, Dma200Deviation = 11.1m,
             Rsi = 58m, RsiSignal = 55m, RsiSignalAvailable = true, MacdHistogram = 0.5m, MacdHistDelta = 0.1m,
-            ChangePercent = 1.2m, VolumeRatio = 1.6m, VolumeSignal = "Validated",
+            ChangePercent = 1.2m, Volume = 1_000_000, VolumeRatio = 1.6m, VolumeSignal = "Validated",
             DailyAtr = 2m, ChaseRisk = "", FibZone = "Normal Pullback",
             DynamicStopLoss = 96m, ChannelDirection = "ASCENDING", UpperRailToday = 108m, Week52High = 110m,
             MomentumState = "Positive", PriceStructure = PriceStructureResult.None,
@@ -68,10 +68,13 @@ public class Pm029CalculatorTests
         var r = OpportunityScoringEngine.ScoreSwing(Input());
         Assert.Equal(ScoreStatus.Verified, r.Status);
         Assert.Equal(100m, r.CompletenessPct);
-        // S1 25 + S2 (11+2) + S3 15 + S4 10 + S5 10 + S6 (11+6) = 90
-        Assert.Equal(new[] { 25m, 13m, 15m, 10m, 10m, 17m }, r.Components.Select(c => c.Awarded));
-        Assert.Equal(90, r.Score);
+        // S1 25 + S2 (11+2) + S3 15 + S4 10 + S5 10 = 73; 73 / 80 × 100 = 91.25 → 91.
+        Assert.Equal(new[] { 25m, 13m, 15m, 10m, 10m }, r.Components.Select(c => c.Awarded));
+        Assert.Equal(80m, r.ScoreDenominatorMax);
+        Assert.Equal(91, r.Score);
+        Assert.Equal(91, r.NormalizedScore);
         Assert.Equal(ScoreBand.Strong, r.Band);
+        Assert.Equal("pm029-v2", r.ScoringVersion);
     }
 
     [Fact]
@@ -79,35 +82,35 @@ public class Pm029CalculatorTests
     {
         var r = OpportunityScoringEngine.ScoreSwing(Input(Scan(s => s.RsiSignalAvailable = false)));
         Assert.Equal(ScoreStatus.Provisional, r.Status);
-        Assert.Equal(97m, r.CompletenessPct);
-        Assert.Equal(90, r.Score); // 87 / 97 = 89.69 → 90
+        Assert.Equal(96.25m, r.CompletenessPct);
+        Assert.Equal(88, r.Score); // 70 / 80 = 87.5 → 88
         Assert.Equal(ComponentState.Partial, r.Components.Single(c => c.Code == "S3").State);
     }
 
     [Fact]
-    public void Swing_NoValidStop_IsInsufficient_ButStrategicStillScores()
+    public void Swing_NoValidStop_DoesNotAffectTechnicalScore_AndStrategicStillScores()
     {
         var input = Input(Scan(s => s.DynamicStopLoss = 0m));
         var swing = OpportunityScoringEngine.ScoreSwing(input);
-        Assert.Equal(ScoreStatus.Insufficient, swing.Status);
-        Assert.Null(swing.Score);
-        Assert.NotNull(swing.NormalizedScore);
-        Assert.Contains("MissingEssential:S6", swing.ReasonCodes);
-        Assert.Contains(OpportunityReasons.NoValidStop, swing.ReasonCodes);
-        Assert.Equal(ScoreBand.None, swing.Band);
+        Assert.Equal(ScoreStatus.Verified, swing.Status);
+        Assert.Equal(91, swing.Score);
+        Assert.DoesNotContain(swing.Components, c => c.Code == "S6");
+        Assert.DoesNotContain(swing.ReasonCodes, c => c == "MissingEssential:S6");
+        Assert.Equal(SetupKind.Unavailable, input.Setup.Kind);
+        Assert.Contains(OpportunityReasons.NoValidStop, input.Setup.ReasonCodes);
 
         var strategic = OpportunityScoringEngine.ScoreStrategic(input);
         Assert.NotNull(strategic.Score);
+        Assert.Equal("pm029-v1", strategic.ScoringVersion);
     }
 
     [Fact]
     public void Swing_LowCompleteness_IsInsufficient()
     {
         var scan = Scan(s => { s.VolumeRatio = 0m; s.DailyAtr = 0m; });
-        // ATR 0 also removes S6 (setup unavailable) – use a hand-built valid setup to isolate the completeness rule.
-        var setup = new TradeSetupResult(SetupKind.ValidCandidate, 100m, 96m, 108m, "x", 2m, 4m, 8m, 2m, "CAD", []);
-        var r = OpportunityScoringEngine.ScoreSwing(new OpportunityScoringInput(scan, E, Sector(null, null), setup, null, Now));
-        Assert.Equal(60m, r.CompletenessPct);
+        var r = OpportunityScoringEngine.ScoreSwing(new OpportunityScoringInput(
+            scan, E, Sector(null, null), TradeSetupResolver.Resolve(scan, E), null, Now));
+        Assert.Equal(50m, r.CompletenessPct);
         Assert.Equal(ScoreStatus.Insufficient, r.Status);
         Assert.Contains(OpportunityReasons.LowCompleteness, r.ReasonCodes);
     }
@@ -165,6 +168,25 @@ public class Pm029CalculatorTests
         Assert.Equal(a, b);
     }
 
+    [Fact]
+    public void LegacySwingV1Json_DeserializesWithoutTheAdditiveDenominatorField()
+    {
+        const string legacy = """
+            {"perspective":"Swing","scoringVersion":"pm029-v1","score":null,"normalizedScore":null,
+             "awardedTotal":0,"availableMax":0,"completenessPct":0,"status":"Insufficient","band":"None",
+             "components":[],"reasonCodes":[]}
+            """;
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+
+        var result = JsonSerializer.Deserialize<ScoreResult>(legacy, options);
+
+        Assert.NotNull(result);
+        Assert.Null(result.ScoreDenominatorMax);
+        Assert.Equal(OpportunityScoringConfig.LegacyDisclaimer,
+            OpportunityScoringConfig.DisclaimerFor(result.ScoringVersion));
+    }
+
     [Theory]
     [InlineData(null, ScoreBand.None)] [InlineData(85, ScoreBand.Strong)] [InlineData(84, ScoreBand.Attractive)] [InlineData(70, ScoreBand.Attractive)]
     [InlineData(69, ScoreBand.Moderate)] [InlineData(60, ScoreBand.Moderate)] [InlineData(59, ScoreBand.Caution)] [InlineData(50, ScoreBand.Caution)] [InlineData(49, ScoreBand.Weak)]
@@ -181,6 +203,19 @@ public class Pm029CalculatorTests
         Assert.Equal(84, r.Score);
         Assert.Equal(ScoreBand.Attractive, r.Band);
         Assert.Equal(r.AwardedTotal, r.Components.Sum(c => c.Awarded));
+    }
+
+    [Fact]
+    public void Strategic_F4Label_DisclosesProxyIndicatorsWithoutChangingTheScore()
+    {
+        var r = OpportunityScoringEngine.ScoreStrategic(Input());
+        var t8 = r.Components.Single(c => c.Code == "T8");
+        var f4 = t8.Items.Single(i => i.Code == "F4");
+
+        Assert.Equal(84, r.Score);
+        Assert.Contains("proxy-based", f4.Label, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Piotroski", f4.Label, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(2m, f4.Points);
     }
 
     [Theory]
@@ -264,19 +299,37 @@ public class Pm029CalculatorTests
     }
 
     [Theory]
-    [InlineData(0, OpportunityReasons.NoValidStop)]
-    [InlineData(100, OpportunityReasons.NoValidStop)]
-    [InlineData(101, OpportunityReasons.NoValidStop)]
-    [InlineData(99.5, OpportunityReasons.StopOutsideVolatilityBand)]
-    [InlineData(91.5, OpportunityReasons.StopOutsideVolatilityBand)]
-    public void Setup_InvalidStop_IsUnavailableAndNeverFabricated(double stop, string reason)
+    [InlineData(0, OpportunityReasons.NoValidStop, OpportunityReasons.DynamicStopMissing)]
+    [InlineData(100, OpportunityReasons.NoValidStop, OpportunityReasons.StopAtOrAboveEntry)]
+    [InlineData(101, OpportunityReasons.NoValidStop, OpportunityReasons.StopAtOrAboveEntry)]
+    [InlineData(99.5, OpportunityReasons.StopOutsideVolatilityBand, null)]
+    [InlineData(91.5, OpportunityReasons.StopOutsideVolatilityBand, null)]
+    public void Setup_InvalidStop_IsUnavailableAndNeverFabricated(double stop, string reason, string? detailReason)
     {
         var r = TradeSetupResolver.Resolve(Scan(s => s.DynamicStopLoss = (decimal)stop), E);
         Assert.Equal(SetupKind.Unavailable, r.Kind);
-        Assert.Equal([reason], r.ReasonCodes);
+        Assert.Equal(detailReason is null ? [reason] : [reason, detailReason], r.ReasonCodes);
         Assert.Null(r.Stop);
         Assert.Null(r.Target);
         Assert.Null(r.RewardRisk);
+    }
+
+    [Theory]
+    [InlineData(85, SetupKind.NotActionable)]
+    [InlineData(84.9, SetupKind.Unavailable)]
+    public void Setup_RiskPercentBoundary_IsInclusiveAtFifteenPercent(double stop, SetupKind expected)
+    {
+        var r = TradeSetupResolver.Resolve(Scan(s =>
+        {
+            s.DynamicStopLoss = (decimal)stop;
+            s.DailyAtr = 4m;
+        }), E);
+
+        Assert.Equal(expected, r.Kind);
+        if (stop == 85)
+            Assert.Equal(15m, r.RiskPct);
+        if (expected == SetupKind.Unavailable)
+            Assert.Equal([OpportunityReasons.StopOutsideVolatilityBand], r.ReasonCodes);
     }
 
     [Fact]
@@ -428,6 +481,9 @@ public class Pm029CalculatorTests
         Assert.Equal(FitStatus.Review, PortfolioFitCalculator.Evaluate(Fit(sector: 22)).Status);   // exactly +2 pp is within tolerance
         Assert.Equal(FitStatus.NoAdd, PortfolioFitCalculator.Evaluate(Fit(sector: 22.1)).Status);
         Assert.Equal(FitStatus.Review, PortfolioFitCalculator.Evaluate(Fit(sectorKnown: false)).Status);
+        var sectorUnavailable = PortfolioFitCalculator.Evaluate(Fit(sector: null));
+        Assert.Equal(FitStatus.Review, sectorUnavailable.Status);
+        Assert.Contains(FitReasons.SectorExposureUnavailable, sectorUnavailable.ReasonCodes);
         var noTarget = PortfolioFitCalculator.Evaluate(Fit(target: null));
         Assert.Equal(FitStatus.Eligible, noTarget.Status);
         Assert.Contains(FitReasons.SectorNoTarget, noTarget.ReasonCodes);

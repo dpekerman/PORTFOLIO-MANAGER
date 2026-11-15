@@ -7,7 +7,13 @@ import { vi } from 'vitest';
 import { OpportunityDetail, OpportunitySnapshot } from '../models/opportunities.models';
 import { OpportunitiesApiService } from '../services/opportunities-api.service';
 import { AuthStore } from './auth.store';
-import { OPPORTUNITIES_VIEW_KEY, OpportunitiesStore, REFRESH_POLL_MS, normaliseView } from './opportunities.store';
+import {
+  OPPORTUNITIES_VIEW_KEY,
+  OpportunitiesStore,
+  REFRESH_POLL_MS,
+  normaliseView,
+  normaliseViewPreferences,
+} from './opportunities.store';
 import { UserPreferencesStore } from './user-preferences.store';
 import {
   opportunityDetail,
@@ -166,10 +172,16 @@ describe('OpportunitiesStore', () => {
 
   it('persists view changes locally and to the DB, and reset keeps the perspective and sort', () => {
     const s = loaded();
+    expect(s.view().sort.active).toBe('swing');
     s.updateView({ perspective: 'Strategic', scoreFilter: 'all', sectors: ['Energy'] });
+    expect(s.view().sort.active).toBe('strategic');
 
     expect(JSON.parse(localStorage.getItem(OPPORTUNITIES_VIEW_KEY)!).perspective).toBe('Strategic');
-    expect(userPrefs.set).toHaveBeenCalledWith(OPPORTUNITIES_VIEW_KEY, expect.objectContaining({ scoreFilter: 'all' }));
+    expect(JSON.parse(localStorage.getItem(OPPORTUNITIES_VIEW_KEY)!).profiles.Strategic.scoreFilter).toBe('all');
+    expect(userPrefs.set).toHaveBeenCalledWith(
+      OPPORTUNITIES_VIEW_KEY,
+      expect.objectContaining({ profiles: expect.objectContaining({ Strategic: expect.objectContaining({ scoreFilter: 'all' }) }) }),
+    );
 
     s.setSearch('aaa');
     s.resetFilters();
@@ -179,17 +191,57 @@ describe('OpportunitiesStore', () => {
     expect(s.search()).toBe('');
   });
 
+  it('keeps filters and sort independent per perspective and resets only the active profile', () => {
+    const s = loaded();
+    s.updateView({ scoreFilter: 'scored', sort: { active: 'symbol', direction: 'asc' } });
+    s.updateView({ perspective: 'Strategic', scoreFilter: 'all', sectors: ['Energy'] });
+    s.updateView({ perspective: 'Swing' });
+
+    expect(s.view().scoreFilter).toBe('scored');
+    expect(s.view().sort).toEqual({ active: 'symbol', direction: 'asc' });
+
+    s.updateView({ perspective: 'Strategic' });
+    expect(s.view().scoreFilter).toBe('all');
+    expect(s.view().sectors).toEqual(['Energy']);
+    s.resetFilters();
+    s.updateView({ perspective: 'Swing' });
+
+    expect(s.view().scoreFilter).toBe('scored');
+    expect(s.view().sort).toEqual({ active: 'symbol', direction: 'asc' });
+  });
+
   it('applies the DB copy of the view once it loads', () => {
     const s = loaded();
     dbView.set({ perspective: 'Strategic', showUnavailable: true });
     TestBed.tick();
     expect(s.view().perspective).toBe('Strategic');
     expect(s.view().showUnavailable).toBe(true);
-    expect(s.view().sort.active).toBe('score');
+    expect(s.view().sort.active).toBe('strategic');
   });
 
   it('normalises a malformed saved view to defaults', () => {
     expect(normaliseView(null).scoreFilter).toBe('attractive');
     expect(normaliseView({ verifiedOnly: true }).sort.direction).toBe('desc');
+    expect(normaliseView(null, 'Strategic').sort.active).toBe('strategic');
+  });
+
+  it('migrates a legacy view to both perspective profiles and preserves explicit profile differences', () => {
+    const legacy = normaliseViewPreferences({ perspective: 'Strategic', scoreFilter: 'scored', sectors: ['Tech'] });
+    expect(legacy.perspective).toBe('Strategic');
+    expect(legacy.profiles.Swing.scoreFilter).toBe('scored');
+    expect(legacy.profiles.Swing.sort.active).toBe('swing');
+    expect(legacy.profiles.Strategic.sectors).toEqual(['Tech']);
+    expect(legacy.profiles.Strategic.sort.active).toBe('strategic');
+
+    const profiled = normaliseViewPreferences({
+      perspective: 'Swing',
+      profiles: {
+        Swing: { scoreFilter: 'attractive' },
+        Strategic: { scoreFilter: 'all', industries: ['Banks'] },
+      },
+    });
+    expect(profiled.profiles.Swing.scoreFilter).toBe('attractive');
+    expect(profiled.profiles.Strategic.scoreFilter).toBe('all');
+    expect(profiled.profiles.Strategic.industries).toEqual(['Banks']);
   });
 });

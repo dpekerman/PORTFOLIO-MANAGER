@@ -43,6 +43,8 @@ export interface GridDef {
   page: string;
   pageIcon: string;
   columns: ColumnDef[];
+  /** Optional clean-profile defaults for named layouts such as Swing and Strategic. */
+  profileDefaults?: Record<string, readonly string[]>;
   /**
    * Opt-in: honour `defaultHidden` everywhere — for users with no saved layout, in "Reset to defaults", and for columns
    * added after a layout was saved. Without it (every legacy grid) an unsaved layout shows all columns, as before.
@@ -479,15 +481,21 @@ export const GRID_REGISTRY: GridDef[] = [
     page: 'Trading Opportunities',
     pageIcon: 'local_fire_department',
     respectDefaultHiddenWhenUnsaved: true,
+    profileDefaults: {
+      Swing: ['symbol', 'swing', 'rr', 'manualR', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector'],
+      Strategic: ['symbol', 'strategic', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector'],
+    },
     columns: [
       { key: 'symbol', label: 'Symbol', required: true, priority: 'primary' },
-      { key: 'swing', label: 'Swing Score', priority: 'primary' },
+      { key: 'swing', label: 'Swing Opportunity Score', priority: 'primary' },
       { key: 'strategic', label: 'Strategic Score', priority: 'primary' },
-      { key: 'rr', label: 'Reward : Risk' },
+      { key: 'rr', label: 'Market R' },
+      { key: 'manualR', label: 'Manual R', priority: 'primary' },
+      { key: 'setupKind', label: 'Setup Status', defaultHidden: true },
       { key: 'risk', label: 'Risk' },
       { key: 'fit', label: 'Portfolio Fit' },
-      { key: 'finalAction', label: 'Final Action', priority: 'primary' },
-      { key: 'sectorHeat', label: 'Sector Heat', priority: 'primary' },
+      { key: 'finalAction', label: 'FINAL ACTION', priority: 'primary' },
+      { key: 'sectorHeat', label: 'Sector / Theme Heat', priority: 'primary' },
       { key: 'sector', label: 'Sector' },
       { key: 'price', label: 'Price', defaultHidden: true },
       { key: 'rsi14', label: 'RSI (14)', defaultHidden: true },
@@ -505,7 +513,6 @@ export const GRID_REGISTRY: GridDef[] = [
       { key: 'target', label: 'Target', defaultHidden: true },
       { key: 'riskPct', label: 'Risk %', defaultHidden: true },
       { key: 'rewardPct', label: 'Reward %', defaultHidden: true },
-      { key: 'setupKind', label: 'Setup', defaultHidden: true },
       { key: 'owned', label: 'Owned', defaultHidden: true },
       { key: 'sources', label: 'Sources', defaultHidden: true },
       { key: 'weightPct', label: 'Portfolio Weight %', defaultHidden: true },

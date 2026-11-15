@@ -100,6 +100,15 @@ public static class TradingCalendar
         return PreviousTradingDay(date, ex);
     }
 
+    public static DateTime SessionCloseUtc(DateOnly session, MarketExchange ex)
+    {
+        if (!IsTradingDay(session, ex))
+            throw new ArgumentOutOfRangeException(nameof(session), "A session close requires a trading day.");
+
+        var localClose = session.ToDateTime(CloseTime(session, ex), DateTimeKind.Unspecified);
+        return TimeZoneInfo.ConvertTimeToUtc(localClose, TorontoZone());
+    }
+
     /// <summary>Trading days after <paramref name="from"/> up to and including <paramref name="to"/>.</summary>
     public static int TradingDaysBetween(DateOnly from, DateOnly to, MarketExchange ex)
     {

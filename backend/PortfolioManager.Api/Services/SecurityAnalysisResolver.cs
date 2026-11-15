@@ -41,15 +41,41 @@ public sealed class SecurityAnalysisResolver(AppDbContext db, IMarketDataProvide
         CancellationToken ct)
     {
         var normalizedTradingTicker = Normalize(tradingTicker);
-        var mapping = await db.SecurityAnalysisMappings.AsNoTracking()
+        var mappings = await db.SecurityAnalysisMappings.AsNoTracking()
             .Where(item => item.TradingTicker == normalizedTradingTicker
                 && (item.UserId == userId || item.UserId == null))
             .OrderByDescending(item => item.UserId == userId)
             .ThenByDescending(item => item.MappingSource == SecurityAnalysisMappingSource.USER)
-            .FirstOrDefaultAsync(ct);
+            .ThenBy(item => item.Id)
+            .ToListAsync(ct);
 
-        if (mapping is not null)
-            return ToResolved(mapping, normalizedTradingTicker);
+        if (mappings.Count > 0)
+        {
+            var selected = mappings[0];
+            var selectedIsUserSpecific = selected.UserId == userId;
+            var selectedIsUserMapping = selected.MappingSource == SecurityAnalysisMappingSource.USER;
+            var highestPriority = mappings
+                .TakeWhile(item => (item.UserId == userId) == selectedIsUserSpecific
+                    && (item.MappingSource == SecurityAnalysisMappingSource.USER) == selectedIsUserMapping)
+                .Select(item => ToResolved(item, normalizedTradingTicker))
+                .ToList();
+            var distinctIdentities = highestPriority
+                .Select(item => (item.AnalysisTicker, item.AnalysisMarket, item.AnalysisCurrency, item.UsesUnderlyingSecurity, item.ResolutionStatus))
+                .Distinct()
+                .ToList();
+            if (distinctIdentities.Count > 1)
+            {
+                var self = SelfResolved(normalizedTradingTicker);
+                return self with
+                {
+                    ResolutionStatus = UnderlyingResolutionStatus.NeedsUserInput,
+                    MappingSource = null,
+                    DataError = "Conflicting security analysis mappings require resolution.",
+                };
+            }
+
+            return highestPriority[0];
+        }
 
         var quote = normalizedTradingTicker.EndsWith(".TO", StringComparison.OrdinalIgnoreCase)
             ? await marketData.GetQuoteAsync(normalizedTradingTicker, ct)

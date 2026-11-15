@@ -23,7 +23,17 @@ import { ResponsiveTableDirective } from '../../shared/responsive-table/responsi
 import { ROW_SELECTION, RowSelectionDirective } from '../../shared/row-selection/row-selection.directive';
 import { ScoreHeatCellComponent } from './cells/score-heat-cell.component';
 import { SectorHeatBadgeComponent } from './cells/sector-heat-badge.component';
-import { columnValue, fitReasonLabel, reasonLabel, signedPp, tableSortKey } from './opportunities-logic';
+import {
+  columnValue,
+  companyNameForDisplay,
+  fitReasonLabel,
+  ManualRValues,
+  manualRewardRisk,
+  manualRScenarioKey,
+  reasonLabel,
+  signedPp,
+  tableSortKey,
+} from './opportunities-logic';
 
 export const OPPORTUNITIES_GRID_ID = 'trading-opportunities';
 
@@ -103,18 +113,26 @@ const FIT_LABELS: Record<string, string> = { Eligible: 'Eligible', Review: 'Revi
 })
 export class OpportunitiesGridComponent {
   private readonly demo = inject(DemoModeStore);
+  private readonly gridColumns = inject(GridColumnStore);
 
   readonly rows = input.required<OpportunityRow[]>();
   readonly perspective = input.required<ScorePerspective>();
   readonly sort = input.required<OpportunitySort>();
+  readonly manualRByScenario = input<Readonly<Record<string, ManualRValues>>>({});
   readonly selectedSymbol = input<string | null>(null);
+  readonly emptyMessage = input('No securities match the current filters.');
+  readonly emptyActionLabel = input<string | null>(null);
   readonly rowSelected = output<string | null>();
   readonly sortChanged = output<OpportunitySort>();
+  readonly emptyAction = output<void>();
 
   protected readonly gridId = OPPORTUNITIES_GRID_ID;
-  protected readonly columns = inject(GridColumnStore).getResponsiveColumnKeys(OPPORTUNITIES_GRID_ID);
+  protected readonly columns = computed(() =>
+    this.gridColumns.getResponsiveColumnKeys(OPPORTUNITIES_GRID_ID, this.perspective())(),
+  );
   protected readonly simpleColumns = SIMPLE_COLUMNS;
   protected readonly label = (key: string) => LABELS.get(key) ?? key;
+  protected readonly companyName = companyNameForDisplay;
   protected readonly sortActive = computed(() => tableSortKey(this.sort(), this.perspective()));
 
   private readonly selection = viewChild(RowSelectionDirective);
@@ -193,10 +211,17 @@ export class OpportunitiesGridComponent {
 
   protected rrTooltip(row: OpportunityRow): string {
     const s = row.setup;
-    if (s.kind === 'ValidCandidate') return 'Calculated candidate setup (not your saved risk plan)';
+    if (s.kind === 'ValidCandidate') return 'Market R from the calculated candidate setup; not your saved risk plan.';
     const reasons = s.reasonCodes.map(reasonLabel).join('; ');
     if (s.kind === 'NotActionable') return `Calculated, but below the actionable reward:risk${reasons ? ` · ${reasons}` : ''}`;
     return `No verifiable setup${reasons ? `: ${reasons}` : ''}`;
+  }
+
+  protected manualRText(row: OpportunityRow): string {
+    const rr = manualRewardRisk(
+      this.manualRByScenario()[manualRScenarioKey(row.symbol, this.perspective())],
+    );
+    return rr === null ? '—' : `${rr.toFixed(2)} : 1`;
   }
 
   protected fitLabel(row: OpportunityRow): string {
