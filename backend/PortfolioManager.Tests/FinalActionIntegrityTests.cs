@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -87,7 +87,7 @@ public sealed class FinalActionIntegrityTests
     {
         var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
         foreach (var w in watch) db.WatchlistItems.Add(new WatchlistItem { UserId = "u", Symbol = w, Role = "Strategic" });
-        foreach (var n in new[] { "MARGIN", "TFSA" }) db.AccountTypes.Add(new AccountType { Name = n, NormalizedName = n });
+        foreach (var n in new[] { "MARGIN", "TFSA", "MARGIN_USD" }) db.AccountTypes.Add(new AccountType { Name = n, NormalizedName = n });
         db.PortfolioItems.AddRange(lots);
         if (plan is not null) db.RiskPlans.Add(plan);
         if (stops is not null) db.BrokerStopRecords.AddRange(stops);
@@ -97,7 +97,7 @@ public sealed class FinalActionIntegrityTests
         var snap = new PortfolioSnapshotService(db, NullLogger<PortfolioSnapshotService>.Instance);
         var reader = new FixedQuoteReader(new OpenRiskReader(db, new ConfigurationBuilder().Build(), new FixedClock(ClockUtc)), riskQuotes);
         var service = new FinalActionService(db, new FakeScanner(scans), snap, new MemoryCache(new MemoryCacheOptions()),
-            NullLogger<FinalActionService>.Instance, reader);
+            NullLogger<FinalActionService>.Instance, reader, NextFx);
         return new Setup(service, db, reader);
     }
 
@@ -295,6 +295,105 @@ public sealed class FinalActionIntegrityTests
 
     // â”€â”€ FX-safe allocation â”€â”€
 
+    private sealed class FixedFx(PortfolioManager.Api.Services.Valuation.UsdCadRate rate) : PortfolioManager.Api.Services.Valuation.IUsdCadRateSource
+    {
+        public int Calls { get; private set; }
+        public Task<PortfolioManager.Api.Services.Valuation.UsdCadRate> GetAsync(DateTimeOffset asOfUtc, CancellationToken ct = default)
+        {
+            Calls++;
+            return Task.FromResult(rate);
+        }
+    }
+
+    private static PortfolioManager.Api.Services.Valuation.IUsdCadRateSource? NextFx;
+
+    private static PortfolioManager.Api.Services.Valuation.UsdCadRate Rate(decimal v) => new(v, new DateOnly(2026, 10, 27), null, $"Bank of Canada FXUSDCAD 2026-10-27 = {v} CAD per USD");
+
+    private static CashItem CashRow(decimal amount, string account) => new()
+    { UserId = "u", Amount = amount, AccountType = account, Description = "CASH", CashFlowType = "Deposit" };
+
+    private static async Task<FinalActionEvaluation> MixedPortfolioAsync(PortfolioManager.Api.Services.Valuation.IUsdCadRateSource? fx)
+    {
+        NextFx = fx;
+        try
+        {
+            var s = await SetUpAsync(
+                [Holding(1, "AAA.TO", "Strategic", price: 100m, currency: "CAD"), Holding(2, "MSFT", "Strategic", shares: 10m, price: 100m, currency: "USD")],
+                [Lot(1, "AAA.TO", 100m, "Strategic"), Lot(2, "MSFT", 10m, "Strategic")], new(), [], null, null,
+                [CashRow(5000m, "MARGIN"), CashRow(100m, "MARGIN_USD"), CashRow(-500m, "TFSA")],
+                OverboughtScan("AAA.TO"), OverboughtScan("MSFT"));
+            s.Db.OptionItems.AddRange(
+                new OptionItem { UserId = null, UnderlyingTicker = "BCE.TO", PositionType = "CALL", TransactionType = "OPEN", AccountType = "TFSA", NumberOfContracts = 10, MarketPrice = 1.5m },
+                new OptionItem { UserId = "u", UnderlyingTicker = "BIDU", PositionType = "CALL", TransactionType = "OPEN", AccountType = "MARGIN_USD", NumberOfContracts = 2, MarketPrice = 2m },
+                new OptionItem { UserId = "u", UnderlyingTicker = "RY.TO", PositionType = "PUT", TransactionType = "CLOSE", AccountType = "TFSA", NumberOfContracts = 50, MarketPrice = 9m });
+            await s.Db.SaveChangesAsync();
+            return await s.Service.EvaluateAsync("u", fresh: true);
+        }
+        finally { NextFx = null; }
+    }
+
+    [Fact]
+    public void MixedPortfolio_IsReliableOnlyWithAVerifiedUsdCadRate()
+    {
+        var stocks = new[] { ("AAA.TO", (string?)"CAD"), ("MSFT", "USD") };
+        var cash = new[] { ((string?)"MARGIN", (string?)"CASH") };
+        var converted = FinalActionService.ClassifyValuation(stocks, cash, [], Rate(1.4m));
+        Assert.True(converted.Reliable);
+        Assert.Equal(ValuationCheck.CadConverted, converted.Status);
+        Assert.Equal(1.4m, converted.UsdCad);
+
+        var unavailable = FinalActionService.ClassifyValuation(stocks, cash, [],
+            new(null, null, "FxStale", "the latest Bank of Canada USD/CAD observation is stale"));
+        Assert.False(unavailable.Reliable);
+        Assert.Contains("stale", unavailable.Detail);
+        Assert.Equal(1m, unavailable.UsdCad);
+
+        Assert.True(FinalActionService.ClassifyValuation([("AAA.TO", "CAD")], cash, [], null).Reliable);
+    }
+
+    [Fact]
+    public async Task UsdHoldingCashAndOptions_AreConvertedOnceIntoOneCadDenominator()
+    {
+        var fx = new FixedFx(Rate(1.4m));
+        var eval = await MixedPortfolioAsync(fx);
+        // CAD: AAA 10,000 + MSFT 1,000 USD x1.4 = 1,400 + cash (5,000 - 500 + 100 USD x1.4 = 4,640)
+        //      + options (BCE 10 x 1.5 x 100 = 1,500; BIDU 2 x 2 x 100 = 400 USD x1.4 = 560; closed RY excluded) = 18,100.
+        Assert.Equal(ValuationCheck.CadConverted, eval.Portfolio.Valuation.Status);
+        Assert.Equal(18100d, eval.Portfolio.GrandTotal, 6);
+        var msft = eval.Snapshot.Portfolio.Single(r => r.Symbol == "MSFT");
+        Assert.Equal(1400d / 18100d * 100, msft.Ownership!.ExposurePct!.Value, 6);
+        var aaa = eval.Snapshot.Portfolio.Single(r => r.Symbol == "AAA.TO");
+        Assert.Equal(10000d / 18100d * 100, aaa.Ownership!.ExposurePct!.Value, 6);
+        // The stock-only sector denominator is 11,400 CAD (no cash/options), both lots are in "Tech".
+        Assert.Equal(11400m, eval.Portfolio.StockTotal);
+        Assert.Equal(1, fx.Calls);
+    }
+
+    [Fact]
+    public async Task MixedPortfolioWithoutAVerifiedRate_StaysUnavailable_AndNeverGuessesOne()
+    {
+        var eval = await MixedPortfolioAsync(new FixedFx(new(null, null, "FxUnavailable", "the Bank of Canada USD/CAD rate could not be retrieved")));
+        Assert.Equal(ValuationCheck.MixedCurrency, eval.Portfolio.Valuation.Status);
+        Assert.Contains("could not be retrieved", eval.Portfolio.Valuation.Detail);
+        Assert.All(eval.Snapshot.Portfolio, r => Assert.Null(r.Ownership!.ExposurePct));
+    }
+
+    [Fact]
+    public async Task CadOnlyPortfolio_NeverCallsTheFxSource()
+    {
+        var fx = new FixedFx(Rate(1.4m));
+        NextFx = fx;
+        try
+        {
+            var s = await SetUpAsync([Holding(1, "AAA.TO", "Strategic", currency: "CAD")], [Lot(1, "AAA.TO", 100m, "Strategic")], new(), [], null, null,
+                [CashRow(1000m, "MARGIN")], OverboughtScan("AAA.TO"));
+            var eval = await s.Service.EvaluateAsync("u", fresh: true);
+            Assert.Equal(ValuationCheck.SingleCurrency, eval.Portfolio.Valuation.Status);
+            Assert.Equal(0, fx.Calls);
+        }
+        finally { NextFx = null; }
+    }
+
     [Fact]
     public void ValuationClassification_SingleMixedAndCashMarkers()
     {
@@ -311,6 +410,17 @@ public sealed class FinalActionIntegrityTests
 
         var usdOption = FinalActionService.ClassifyValuation([("AAA.TO", null)], [], ["NVDA"]);
         Assert.False(usdOption.Reliable);
+    }
+
+    [Fact]
+    public void MixedCurrencyDetail_NamesEachComponentCurrencySplitAndTheMissingEvidence()
+    {
+        var mixed = FinalActionService.ClassifyValuation([("AAA.TO", null), ("BBB.TO", "CAD"), ("MSFT", "USD")],
+            [("Margin_USD", "CASH"), ("TFSA_L_TD", "CASH")], ["NVDA"]);
+        Assert.Contains("stocks 2 CAD/1 USD", mixed.Detail);
+        Assert.Contains("cash rows 1 CAD/1 USD", mixed.Detail);
+        Assert.Contains("open options 1 USD", mixed.Detail);
+        Assert.Contains("no FX source is configured", mixed.Detail);
     }
 
     [Fact]

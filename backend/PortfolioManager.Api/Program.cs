@@ -153,6 +153,11 @@ builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.ISwingTradingServi
 builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IOpenRiskReader, PortfolioManager.Api.Services.Risk.OpenRiskReader>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddHttpClient<PortfolioManager.Api.Services.Valuation.IBankOfCanadaFxProvider, PortfolioManager.Api.Services.Valuation.BankOfCanadaFxProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<PortfolioManager.Api.Services.Valuation.IFxPublicationCalendar, PortfolioManager.Api.Services.Valuation.BankOfCanadaPublicationCalendar>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Valuation.IUsdCadRateSource, PortfolioManager.Api.Services.Valuation.UsdCadRateSource>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
 builder.Services.AddScoped<IUnlinkedTradeService, UnlinkedTradeService>();
 builder.Services.AddSingleton<IMutationClock, MutationClock>();
