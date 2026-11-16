@@ -536,7 +536,9 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expect(rowFor(page, 'PLW.TO').getByTestId('setup-quality')).toContainText('Caution');
     await expect(rowFor(page, 'ZEN.NE').getByTestId('setup-quality')).toContainText('Poor');
     await capture('03a-proposed-qualities-grid');
-    await rowFor(page, 'QRK.TO').click();
+    // The selected row can be restored across the reload, and a row click toggles; open it only when it is not already selected.
+    const qrkRow = rowFor(page, 'QRK.TO');
+    if ((await qrkRow.getAttribute('aria-selected')) !== 'true') await qrkRow.click();
     await expect(page.getByTestId('setup-quality-details')).toContainText('Confirmed support');
     await capture('03-proposed-policy-simulation');
     await page.getByTestId('setup-quality-details').locator('p').last().scrollIntoViewIfNeeded();
