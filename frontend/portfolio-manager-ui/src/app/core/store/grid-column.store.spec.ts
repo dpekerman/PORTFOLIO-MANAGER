@@ -157,7 +157,7 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
     expect(isCustomisedLayout(grid, resolveEditablePrefs(grid, undefined))).toBe(false);
   });
 
-  it('defaults Swing to Setup Quality after Market R without changing Strategic defaults', () => {
+  it('shows Market R and Setup Quality by default on both perspectives, Manual R on Swing only', () => {
     const def = GRID_REGISTRY.find((d) => d.id === 'trading-opportunities')!;
     expect(resolveKeys(def, undefined, 'Swing')).toEqual([
       'symbol',
@@ -174,6 +174,8 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
     expect(resolveKeys(def, undefined, 'Strategic')).toEqual([
       'symbol',
       'strategic',
+      'rr',
+      'setupQuality',
       'risk',
       'fit',
       'finalAction',

@@ -79,6 +79,49 @@ public class Pm029CalculatorTests
     }
 
     [Fact]
+    public void UsProxyBenchmark_IsConvertedToCad_OnTheStocksOwnSessions()
+    {
+        var monday = new DateOnly(2026, 11, 9);
+        List<MarketDailyClose> Series(params (int Day, decimal Close)[] points) =>
+            points.Select(p => new MarketDailyClose(monday.AddDays(p.Day), p.Close)).ToList();
+        var stock = Series((0, 100m), (1, 100m), (2, 100m), (3, 100m), (4, 100m));
+        var etf = Series((0, 50m), (1, 50m), (3, 55m));
+        var fx = Series((0, 1.4m), (1, 1.4m), (2, 1.4m), (3, 1.5m));
+
+        var cad = SectorRelativeCalculator.ConvertUsBenchmarkToCad(etf, fx, stock)!;
+
+        Assert.Equal([70m, 70m, 70m, 82.5m, 82.5m], cad.Select(b => b.Close));
+        Assert.Equal(stock.Select(b => b.Date), cad.Select(b => b.Date));
+    }
+
+    [Fact]
+    public void UsProxyBenchmark_OmitsSessionsWithoutRecentCloses_AndNeedsAllInputs()
+    {
+        var monday = new DateOnly(2026, 11, 9);
+        var stock = new[] { new MarketDailyClose(monday, 10m), new MarketDailyClose(monday.AddDays(7), 10m) };
+        var etf = new[] { new MarketDailyClose(monday, 50m) };
+        var fx = new[] { new MarketDailyClose(monday, 1.4m), new MarketDailyClose(monday.AddDays(7), 1.4m) };
+
+        var cad = SectorRelativeCalculator.ConvertUsBenchmarkToCad(etf, fx, stock)!;
+
+        Assert.Equal([monday], cad.Select(b => b.Date));
+        Assert.Null(SectorRelativeCalculator.ConvertUsBenchmarkToCad(etf, null, stock));
+        Assert.Null(SectorRelativeCalculator.ConvertUsBenchmarkToCad(null, fx, stock));
+    }
+
+    [Theory]
+    [InlineData(true, "EQUITY", "ETF", "EQUITY")]
+    [InlineData(true, null, "ETF", null)]
+    [InlineData(false, "EQUITY", "ETF", "ETF")]
+    [InlineData(false, "EQUITY", null, "EQUITY")]
+    public void InstrumentType_UsesTheUnderlyingOnlyWhenTheUnderlyingIsAnalysed(
+        bool usesUnderlying, string? scanType, string? listingType, string? expected)
+    {
+        var scan = Scan(s => { s.UsesUnderlyingSecurity = usesUnderlying; s.InstrumentType = scanType; });
+        Assert.Equal(expected, OpportunityService.ResolveInstrumentType(scan, listingType));
+    }
+
+    [Fact]
     public void UnknownInstrumentAndAnEtfUnderlyingDoNotMisclassifyTheListing()
     {
         var input = Input(Scan(scan => { scan.InstrumentType = "ETF"; scan.UsesUnderlyingSecurity = true; }));

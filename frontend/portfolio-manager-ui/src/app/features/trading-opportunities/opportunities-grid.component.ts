@@ -30,7 +30,9 @@ import {
   ManualRValues,
   manualRewardRisk,
   manualRScenarioKey,
+  marketRFor,
   reasonLabel,
+  setupQualityFor,
   signedPp,
   tableSortKey,
 } from './opportunities-logic';
@@ -205,11 +207,42 @@ export class OpportunitiesGridComponent {
   }
 
   protected rrText(row: OpportunityRow): string {
-    const rr = row.setup.rewardRisk;
+    const rr = marketRFor(row, this.perspective());
     return rr === null ? 'N/A' : `${rr.toFixed(1)} : 1`;
   }
 
+  protected quality(row: OpportunityRow) {
+    return setupQualityFor(row, this.perspective());
+  }
+
+  /** 'valid' | 'weak' | 'na' for the Market R chip in either perspective. */
+  protected rrState(row: OpportunityRow): 'valid' | 'weak' | 'na' {
+    if (this.perspective() === 'Strategic') {
+      const q = row.strategicSetupQuality;
+      if (q?.marketRewardRisk == null) return 'na';
+      return q.status === 'Poor' ? 'weak' : 'valid';
+    }
+    return row.setup.kind === 'ValidCandidate' ? 'valid' : row.setup.kind === 'NotActionable' ? 'weak' : 'na';
+  }
+
+  protected qualityTooltip(row: OpportunityRow): string {
+    const q = this.quality(row);
+    const reasons = q?.reasonCodes?.map(reasonLabel).join('; ');
+    if (this.perspective() === 'Strategic')
+      return reasons
+        ? `Strategic setup (confirmed support → resistance): ${reasons}`
+        : 'Strategic setup: confirmed support as invalidation level, confirmed resistance as target; no signal stop needed.';
+    return reasons || 'Structural snapshot evidence unavailable.';
+  }
+
   protected rrTooltip(row: OpportunityRow): string {
+    if (this.perspective() === 'Strategic') {
+      const q = row.strategicSetupQuality;
+      if (q?.marketRewardRisk != null)
+        return 'Strategic Market R: distance to confirmed resistance divided by distance to confirmed support. No signal stop is used.';
+      const missing = q?.reasonCodes?.map(reasonLabel).join('; ');
+      return `No confirmed structure${missing ? `: ${missing}` : ''}`;
+    }
     const s = row.setup;
     if (s.kind === 'ValidCandidate') return 'Market R from the calculated candidate setup; not your saved risk plan.';
     const reasons = s.reasonCodes.map(reasonLabel).join('; ');

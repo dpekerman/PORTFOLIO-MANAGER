@@ -45,6 +45,10 @@ public sealed class OpportunityService(
     public const string SourceTsx60 = "TSX60";
     internal const int HistoryBatchSize = 5;
     internal static TimeSpan HistoryBatchDelay = TimeSpan.FromMilliseconds(300);
+
+    /// <summary>Yahoo USD→CAD daily series, used only to put a US sector-ETF proxy into CAD for TSX stocks.</summary>
+    private const string UsdCadSymbol = "CAD=X";
+    private const string UsProxySuffix = " (US proxy, converted to CAD)";
     private const int SnapshotsKept = 5;
 
     internal static readonly JsonSerializerOptions Json = new()
@@ -70,16 +74,16 @@ public sealed class OpportunityService(
                 null, null, lastAttempt, new OpportunityUniverseCountsDto(0, 0, 0, 0), true, false, inFlight, []);
 
         var payload = Deserialize(snap.SnapshotJson);
-        var portfolioUpdatedAt = await db.PortfolioSnapshots.AsNoTracking().Where(p => p.UserId == userId)
-            .Select(p => (DateTime?)p.UpdatedAt).FirstOrDefaultAsync(ct);
+        var portfolioSnapshot = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == userId, ct);
+        var listingNames = await ExistingListingNamesAsync(userId, portfolioSnapshot, ct);
         var session = DateOnly.FromDateTime(snap.DataAsOfSession);
         return new OpportunitySnapshotDto(
             snap.Id, snap.ScoringVersion, OpportunityScoringConfig.DisclaimerFor(snap.ScoringVersion), snap.ComputedAtUtc, snap.FinalActionComputedAtUtc, session,
             snap.Status, snap.ErrorSummary, lastAttempt, payload.Counts,
             session < TradingCalendar.LastCompletedSession(DateTime.UtcNow, MarketExchange.Tsx),
-            portfolioUpdatedAt is { } now && payload.PortfolioUpdatedAtUtc is { } then ? now > then : portfolioUpdatedAt is not null && payload.PortfolioUpdatedAtUtc is null,
+            portfolioSnapshot?.UpdatedAt is { } now && payload.PortfolioUpdatedAtUtc is { } then ? now > then : portfolioSnapshot is not null && payload.PortfolioUpdatedAtUtc is null,
             inFlight,
-            payload.Records.Select(r => r.Row).ToList());
+            payload.Records.Select(r => ProjectListingName(r.Row, listingNames)).ToList());
     }
 
     public async Task<OpportunityDetailDto?> GetDetailAsync(string userId, string symbol, int? snapshotId, CancellationToken ct = default)
@@ -91,7 +95,10 @@ public sealed class OpportunityService(
         if (snap is null) return null;
         var record = Deserialize(snap.SnapshotJson).Records
             .FirstOrDefault(r => string.Equals(r.Row.Symbol, symbol.Trim(), StringComparison.OrdinalIgnoreCase));
-        return record is null ? null : record with { SnapshotId = snap.Id };
+        if (record is null) return null;
+        var portfolioSnapshot = await db.PortfolioSnapshots.AsNoTracking().SingleOrDefaultAsync(p => p.UserId == userId, ct);
+        var listingNames = await ExistingListingNamesAsync(userId, portfolioSnapshot, ct);
+        return record with { SnapshotId = snap.Id, Row = ProjectListingName(record.Row, listingNames) };
     }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
@@ -249,16 +256,26 @@ public sealed class OpportunityService(
             var analysisTicker = scan is null || string.IsNullOrEmpty(scan.AnalysisTicker) ? m.Symbol : scan.AnalysisTicker;
             var exchange = TradingCalendar.ExchangeFor(analysisTicker, scan?.AnalysisMarket);
             var mapping = SectorClassificationResolver.FindBenchmark(mappings, classification.Sector, exchange);
+            var usProxy = false;
+            if (mapping is null && exchange == MarketExchange.Tsx && classification.IsClassified)
+            {
+                // TSX has no sector ETF for Consumer Discretionary, Communication Services or Health Care: use the US sector ETF in CAD.
+                mapping = SectorClassificationResolver.FindBenchmark(mappings, classification.Sector, MarketExchange.Nyse);
+                usProxy = mapping is not null;
+            }
             plans[m.Symbol] = new RowPlan(m, scan, value, lots, classification, analysisTicker, exchange, mapping,
                 TradingCalendar.LastCompletedSession(nowUtc, exchange),
-                listingQuote?.InstrumentType ?? (scan?.UsesUnderlyingSecurity == false ? scan.InstrumentType : null), listingQuote?.CompanyName);
+                ResolveInstrumentType(scan, listingQuote?.InstrumentType),
+                listingQuote?.CompanyName, usProxy);
         }
         var historySymbols = plans.Values.Where(p => p.Scan is not null)
             .SelectMany(p => p.Mapping is null ? new[] { p.AnalysisTicker } : new[] { p.AnalysisTicker, p.Mapping.BenchmarkSymbol })
+            .Concat(plans.Values.Any(p => p.Scan is not null && p.BenchmarkIsUsProxy) ? [UsdCadSymbol] : [])
             .Select(s => s.Trim().ToUpperInvariant()).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList();
         var histories = await LoadHistoriesAsync(historySymbols, ct);
         var failedBenchmarks = plans.Values.Where(p => p.Mapping is not null)
-            .Select(p => p.Mapping!.BenchmarkSymbol.Trim().ToUpperInvariant()).Distinct()
+            .Select(p => p.Mapping!.BenchmarkSymbol.Trim().ToUpperInvariant())
+            .Concat(plans.Values.Any(p => p.Scan is not null && p.BenchmarkIsUsProxy) ? [UsdCadSymbol] : []).Distinct()
             .Where(b => histories.GetValueOrDefault(b) is not { Count: > 0 }).ToList();
         if (failedBenchmarks.Count > 0) warnings.Add($"Benchmark history unavailable: {string.Join(", ", failedBenchmarks)}");
 
@@ -268,10 +285,17 @@ public sealed class OpportunityService(
         foreach (var p in plans.Values.OrderBy(p => p.Member.Symbol, StringComparer.Ordinal))
         {
             var benchInfo = p.Mapping is null ? null
-                : new SectorBenchmarkInfo(p.Mapping.BenchmarkSymbol.Trim().ToUpperInvariant(), p.Mapping.BenchmarkName, p.Mapping.Currency);
+                : new SectorBenchmarkInfo(p.Mapping.BenchmarkSymbol.Trim().ToUpperInvariant(),
+                    p.BenchmarkIsUsProxy ? p.Mapping.BenchmarkName + UsProxySuffix : p.Mapping.BenchmarkName,
+                    p.BenchmarkIsUsProxy ? "CAD" : p.Mapping.Currency);
+            var analysisBars = histories.GetValueOrDefault(p.AnalysisTicker.Trim().ToUpperInvariant());
+            var benchBars = benchInfo is null ? null
+                : p.BenchmarkIsUsProxy
+                    ? SectorRelativeCalculator.ConvertUsBenchmarkToCad(
+                        histories.GetValueOrDefault(benchInfo.Symbol), histories.GetValueOrDefault(UsdCadSymbol), analysisBars)
+                    : histories.GetValueOrDefault(benchInfo.Symbol);
             SectorRelativeResult? sector = p.Scan is null ? null : SectorRelativeCalculator.Compute(
-                histories.GetValueOrDefault(p.AnalysisTicker.Trim().ToUpperInvariant()),
-                benchInfo is null ? null : histories.GetValueOrDefault(benchInfo.Symbol),
+                analysisBars, benchBars,
                 p.ExpectedSession, p.Exchange, p.Scan.AnalysisCurrency, benchInfo, p.Classification.IsClassified);
             var setup = TradeSetupResolver.Resolve(p.Scan, p.ExpectedSession);
             var risk = TradeSetupResolver.AssessRisk(p.Scan, setup, p.ExpectedSession);
@@ -286,8 +310,15 @@ public sealed class OpportunityService(
 
             var decisions = faRows.Where(r => string.Equals(r.Symbol, p.Member.Symbol, StringComparison.OrdinalIgnoreCase)).ToList();
             var row = BuildRow(p, swing, strategic, sector, setup, risk, fit, decisions, unresolved.Contains(p.Member.Symbol), valueOrigins);
-            row = row with { SetupQuality = SetupQualityCalculator.Evaluate(p.Scan,
-                histories.GetValueOrDefault(p.AnalysisTicker.Trim().ToUpperInvariant()), p.ExpectedSession, DateTime.UtcNow) };
+            var structuralHistory = histories.GetValueOrDefault(p.AnalysisTicker.Trim().ToUpperInvariant());
+            // The Good/Caution/Poor policy was approved by the owner on 2026-11-15; it remains advisory and never changes scores, FINAL ACTION or stops.
+            // Swing grades the staged-signal setup; Strategic grades the confirmed-structure setup (no signal stop required).
+            row = row with
+            {
+                SetupQuality = SetupQualityCalculator.Evaluate(p.Scan, structuralHistory, p.ExpectedSession, DateTime.UtcNow,
+                    classificationApproved: true),
+                StrategicSetupQuality = SetupQualityCalculator.EvaluateStrategic(p.Scan, structuralHistory, p.ExpectedSession, DateTime.UtcNow),
+            };
             var evidence = BuildEvidence(p, valueOrigins, basis, evaluation, decisions);
             records.Add(new OpportunityDetailDto(0, row, swing, strategic, sector, setup, decisions,
                 savedPlans.GetValueOrDefault(p.Member.Symbol) ?? [], evidence));
@@ -309,7 +340,8 @@ public sealed class OpportunityService(
         SectorBenchmarkMapping? Mapping,
         DateOnly ExpectedSession,
         string? InstrumentType,
-        string? ListingCompanyName);
+        string? ListingCompanyName,
+        bool BenchmarkIsUsProxy = false);
 
     // ── Row mapping ───────────────────────────────────────────────────────────
 
@@ -326,10 +358,8 @@ public sealed class OpportunityService(
         var accounts = p.Lots.Select(l => l.AccountType ?? "").Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(a => a).ToList();
         var roles = p.Lots.Select(l => string.IsNullOrWhiteSpace(l.HoldingRole) ? "Strategic" : l.HoldingRole!.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r).ToList();
-        var nameCandidates = new[] { p.ListingCompanyName, scan?.UsesUnderlyingSecurity == true ? null : scan?.CompanyName }
-            .Concat(p.Lots.Select(l => l.CompanyName)).Concat([m.IndexName, p.Value?.Description]);
-        var companyName = FirstUsable(nameCandidates
-            .Where(name => !string.Equals(name?.Trim(), m.Symbol, StringComparison.OrdinalIgnoreCase)).ToArray()) ?? m.Symbol;
+        var companyName = ListingName(m.Symbol, p.Lots.OrderBy(l => l.Id).Select(l => l.CompanyName)
+            .Concat([p.ListingCompanyName, m.IndexName, scan?.UsesUnderlyingSecurity == true ? null : scan?.CompanyName, p.Value?.Description])) ?? m.Symbol;
         var stale = scan is not null && scan.TradingDate != p.ExpectedSession;
         var rowStatus = unresolved ? "IdentityUnresolved" : scan is null ? "NoScan" : stale ? "StaleScan" : "Ok";
         var d20 = sector?.D20;
@@ -406,14 +436,16 @@ public sealed class OpportunityService(
             OpportunityScoringConfig.Version, OpportunityScoringConfig.Disclaimer, OpportunityScoringConfig.SectorMethodology,
             "Yahoo Finance daily chart (split-adjusted close)",
             p.Mapping?.BenchmarkSymbol.Trim().ToUpperInvariant(),
-            string.IsNullOrWhiteSpace(p.Mapping?.BenchmarkName) ? null : p.Mapping.BenchmarkName,
+            string.IsNullOrWhiteSpace(p.Mapping?.BenchmarkName) ? null : p.Mapping.BenchmarkName + (p.BenchmarkIsUsProxy ? UsProxySuffix : ""),
             p.Classification.Source,
             p.Scan?.ScannedAt, p.Scan?.TradingDate, p.ExpectedSession,
             valueOrigin, p.Value?.AnalyzedAt,
             p.Value?.EarningsYieldBasis, p.Value?.FcfYieldBasis, p.Value?.CapitalEfficiencyBasis,
             decisions.Select(d => d.AllocationStatus).FirstOrDefault(a => a is not null) ?? basis.Valuation.Status,
             basis.PortfolioUpdatedAt, evaluation.EvaluationId.ToString(), evaluation.Snapshot.ComputedAtUtc, warnings,
-            p.Mapping is null ? null : "Sector mapping", p.Mapping?.Currency, p.Mapping?.Source, p.Mapping?.Notes,
+            p.Mapping is null ? null : p.BenchmarkIsUsProxy ? "Sector mapping (US proxy)" : "Sector mapping",
+            p.BenchmarkIsUsProxy ? "CAD" : p.Mapping?.Currency, p.Mapping?.Source,
+            p.BenchmarkIsUsProxy ? "No TSX benchmark exists for this sector; the US sector ETF is converted to CAD with the USD/CAD daily rate." : p.Mapping?.Notes,
             p.Mapping?.SourceAsOfDate);
     }
 
@@ -538,8 +570,78 @@ public sealed class OpportunityService(
 
     private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
+    /// <summary>
+    /// A CDR/wrapper analysed through its mapped underlying is classified by the underlying security; the wrapper listing's own
+    /// (often "ETF") type must not defer scoring. Any other row keeps the verified listing type first.
+    /// </summary>
+    internal static string? ResolveInstrumentType(RsiScanResult? scan, string? listingType) =>
+        scan?.UsesUnderlyingSecurity == true ? scan.InstrumentType : listingType ?? scan?.InstrumentType;
+
     private static string? FirstUsable(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v) && !string.Equals(v.Trim(), "ETFs & Funds", StringComparison.OrdinalIgnoreCase))?.Trim();
+
+    private async Task<Dictionary<string, string>> ExistingListingNamesAsync(
+        string userId, PortfolioSnapshot? portfolioSnapshot, CancellationToken ct)
+    {
+        var names = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        List<PortfolioSummaryDto> holdings = [];
+        try
+        {
+            holdings = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(portfolioSnapshot?.SnapshotJson ?? "[]", Json) ?? [];
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "[Opportunities] Could not read Portfolio names for user {UserId}", userId);
+        }
+        foreach (var holding in holdings
+            .Where(h => !h.Item.IsManual && !IsClosedTransaction(h.Item.TransactionType))
+            .OrderBy(h => h.Item.Id))
+            AddListingName(names, holding.Item.Symbol, holding.Item.CompanyName);
+
+        var watchlistSnapshot = await db.WatchlistSnapshots.AsNoTracking().SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        try
+        {
+            foreach (var item in JsonSerializer.Deserialize<List<WatchlistSummaryDto>>(watchlistSnapshot?.SnapshotJson ?? "[]", Json) ?? [])
+            {
+                if (item.Quote is null || !string.Equals(item.Quote.Symbol, item.Item.Symbol, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                AddListingName(names, item.Item.Symbol, item.Quote.CompanyName);
+            }
+        }
+        catch (JsonException ex)
+        {
+            logger.LogWarning(ex, "[Opportunities] Could not read Watchlist names for user {UserId}", userId);
+        }
+
+        var constituents = await db.IndexConstituents.AsNoTracking()
+            .Where(c => c.IndexCode == IndexCode && c.EffectiveTo == null).ToListAsync(ct);
+        foreach (var constituent in constituents.OrderBy(c => c.Symbol, StringComparer.Ordinal))
+            AddListingName(names, constituent.Symbol, constituent.CompanyName);
+        return names;
+    }
+
+    private static void AddListingName(IDictionary<string, string> names, string symbol, string? candidate)
+    {
+        var name = ListingName(symbol, [candidate]);
+        if (name is not null) names.TryAdd(symbol.Trim(), name);
+    }
+
+    private static string? ListingName(string symbol, IEnumerable<string?> candidates) =>
+        candidates.Select(name => name?.Trim()).FirstOrDefault(name =>
+            !string.IsNullOrWhiteSpace(name)
+            && !string.Equals(name, symbol.Trim(), StringComparison.OrdinalIgnoreCase)
+            && name.ToUpperInvariant() is not ("N/A" or "NA" or "UNKNOWN" or "UNAVAILABLE" or "ETFS & FUNDS" or "-"));
+
+    private static OpportunityRowDto ProjectListingName(
+        OpportunityRowDto row, IReadOnlyDictionary<string, string> listingNames)
+    {
+        if (listingNames.TryGetValue(row.Symbol, out var name))
+            return row with { CompanyName = name };
+        return row.UsesUnderlying ? row with { CompanyName = row.Symbol } : row;
+    }
+
+    private static bool IsClosedTransaction(string? transactionType) =>
+        string.Equals(transactionType, "CLOSE", StringComparison.OrdinalIgnoreCase);
 
     private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 }

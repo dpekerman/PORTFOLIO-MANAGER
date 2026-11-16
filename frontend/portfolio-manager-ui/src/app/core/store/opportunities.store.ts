@@ -442,6 +442,18 @@ export const OpportunitiesStore = signalStore(
           persistView();
         },
 
+        restoreDefaultSort(): void {
+          patchState(store, (s) => {
+            const perspective = s.view.perspective;
+            const reset = { ...s.view, sort: defaultOpportunityView(perspective).sort };
+            return {
+              view: reset,
+              viewProfiles: { ...s.viewProfiles, [perspective]: reset },
+            };
+          });
+          persistView();
+        },
+
         setSearch(search: string): void {
           patchState(store, { search });
         },

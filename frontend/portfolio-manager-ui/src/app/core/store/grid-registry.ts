@@ -504,7 +504,17 @@ export const GRID_REGISTRY: GridDef[] = [
         'sectorHeat',
         'sector',
       ],
-      Strategic: ['symbol', 'strategic', 'risk', 'fit', 'finalAction', 'sectorHeat', 'sector'],
+      Strategic: [
+        'symbol',
+        'strategic',
+        'rr',
+        'setupQuality',
+        'risk',
+        'fit',
+        'finalAction',
+        'sectorHeat',
+        'sector',
+      ],
     },
     columns: [
       { key: 'symbol', label: 'Symbol', required: true, priority: 'primary' },

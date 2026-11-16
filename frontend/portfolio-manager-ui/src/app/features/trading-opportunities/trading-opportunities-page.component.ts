@@ -253,7 +253,7 @@ export class TradingOpportunitiesPageComponent {
       v.showUnavailable ||
       this.store.search().trim() !== '' ||
       this.store.reasonFilter() !== null ||
-      (v.perspective === 'Swing' && v.setupQuality.length > 0)
+      v.setupQuality.length > 0
     );
   });
 

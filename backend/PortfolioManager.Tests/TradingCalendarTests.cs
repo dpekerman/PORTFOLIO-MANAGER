@@ -40,6 +40,14 @@ public sealed class TradingCalendarTests
     }
 
     [Fact]
+    public void Nyse_ClosedOnTheNationalDayOfMourning2025_WhileTsxTraded()
+    {
+        Assert.False(TradingCalendar.IsTradingDay(D(2025, 1, 9), MarketExchange.Nyse));
+        Assert.True(TradingCalendar.IsTradingDay(D(2025, 1, 9), MarketExchange.Tsx));
+        Assert.Equal(D(2025, 1, 8), TradingCalendar.PreviousTradingDay(D(2025, 1, 10), MarketExchange.Nyse));
+    }
+
+    [Fact]
     public void GoodFriday_2027_And_WeekendHolidayObservance()
     {
         Assert.Contains(D(2027, 3, 26), TradingCalendar.Holidays(2027, MarketExchange.Tsx));

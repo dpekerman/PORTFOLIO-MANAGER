@@ -109,6 +109,34 @@ public static class SectorRelativeCalculator
         return map;
     }
 
+    /// <summary>Largest calendar gap (holidays/weekends) over which a US benchmark or FX close may be carried forward onto a TSX session.</summary>
+    private const int MaxCarryForwardDays = 4;
+
+    /// <summary>
+    /// US-proxy benchmark for a CAD stock: the USD sector ETF closes multiplied by the USD→CAD rate, sampled on the stock's own sessions
+    /// (the last ETF/FX close within <see cref="MaxCarryForwardDays"/> days carries over TSX-only sessions). A session without both closes is
+    /// omitted, never invented. Returns null when any input is missing.
+    /// </summary>
+    public static IReadOnlyList<MarketDailyClose>? ConvertUsBenchmarkToCad(
+        IReadOnlyList<MarketDailyClose>? benchmarkUsd, IReadOnlyList<MarketDailyClose>? usdCad, IReadOnlyList<MarketDailyClose>? stockBars)
+    {
+        if (benchmarkUsd is not { Count: > 0 } || usdCad is not { Count: > 0 } || stockBars is not { Count: > 0 }) return null;
+        var bench = benchmarkUsd.Where(b => b.Close > 0m).GroupBy(b => b.Date).Select(g => g.Last()).OrderBy(b => b.Date).ToList();
+        var fx = usdCad.Where(b => b.Close > 0m).GroupBy(b => b.Date).Select(g => g.Last()).OrderBy(b => b.Date).ToList();
+        var result = new List<MarketDailyClose>(stockBars.Count);
+        int bi = -1, fi = -1;
+        foreach (var date in stockBars.Select(b => b.Date).Distinct().Order())
+        {
+            while (bi + 1 < bench.Count && bench[bi + 1].Date <= date) bi++;
+            while (fi + 1 < fx.Count && fx[fi + 1].Date <= date) fi++;
+            if (bi < 0 || fi < 0) continue;
+            if (date.DayNumber - bench[bi].Date.DayNumber > MaxCarryForwardDays
+                || date.DayNumber - fx[fi].Date.DayNumber > MaxCarryForwardDays) continue;
+            result.Add(new MarketDailyClose(date, bench[bi].Close * fx[fi].Close, PriceCurrency: "CAD"));
+        }
+        return result;
+    }
+
     private static SectorWindowResult Empty(int sessions, SectorHeatStatus status) =>
         new(sessions, status, null, null, null, null, null, null, SectorHeatDirection.None, 0, 0, 0, sessions + 1);
 }

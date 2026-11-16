@@ -153,10 +153,15 @@
       <mat-tab-group mat-stretch-tabs="false" animationDuration="0ms" class="tabs">
         <mat-tab label="Overview">
           <div class="tab">
-            @if (perspective() === 'Swing') {
-              <section class="detail-section" data-testid="setup-quality-details">
+            <section class="detail-section" data-testid="setup-quality-details">
                 <h3>SETUP QUALITY — advisory only</h3>
-                @if (row.setupQuality; as quality) {
+                @if (perspective() === 'Strategic') {
+                  <p>
+                    Strategic setup: confirmed support is the invalidation level and confirmed
+                    resistance is the target. No staged-signal stop is used.
+                  </p>
+                }
+                @if (perspective() === 'Strategic' ? row.strategicSetupQuality : row.setupQuality; as quality) {
                   <p>{{ quality.status }} · {{ quality.policyVersion }}</p>
                   @if (!quality.policyApproved) {
                     <p>
@@ -223,7 +228,6 @@
                   </p>
                 }
               </section>
-            }
             <section class="detail-section">
               <h3>Calculated candidate</h3>
               @if (setup(); as s) {

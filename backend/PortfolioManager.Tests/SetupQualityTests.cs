@@ -63,6 +63,45 @@ public sealed class SetupQualityTests
         Assert.Equal("Unavailable", SetupQualityCalculator.Evaluate(scan, History(), Session, Now).Status);
     }
 
+    [Theory]
+    [InlineData(100, "Good", 2.2)]       // 5 below / 11 above, 2.5 ATR stop distance
+    [InlineData(96.5, "Caution", 14.5 / 1.5)] // support closer than one ATR
+    [InlineData(108, "Poor", 3.0 / 13)]  // little room to confirmed resistance
+    public void StrategicSetupNeedsNoSignalStopAndGradesConfirmedStructure(double price, string expected, double ratio)
+    {
+        var scan = Scan(stop: 0m);
+        scan.CurrentPrice = (decimal)price;
+        Assert.Equal("Unavailable", SetupQualityCalculator.Evaluate(scan, History(), Session, Now, true).Status);
+
+        var result = SetupQualityCalculator.EvaluateStrategic(scan, History(), Session, Now);
+
+        Assert.Equal(expected, result.Status);
+        Assert.True(result.PolicyApproved);
+        Assert.Equal(SetupQualityCalculator.StrategicPolicyVersion, result.PolicyVersion);
+        Assert.Equal(95m, result.ProposedStop);
+        Assert.Equal(111m, result.ProposedTarget);
+        Assert.Equal(ratio, (double)result.MarketRewardRisk!.Value, 8);
+        Assert.DoesNotContain("NoValidStop", result.ReasonCodes);
+        Assert.Equal(0m, scan.DynamicStopLoss);
+    }
+
+    [Fact]
+    public void StrategicSetupIsUnavailableWithoutConfirmedLevelsOrVerifiedStructure()
+    {
+        var aboveEveryHigh = Scan(stop: 0m);
+        aboveEveryHigh.CurrentPrice = 112m;
+        var noResistance = SetupQualityCalculator.EvaluateStrategic(aboveEveryHigh, History(), Session, Now);
+        Assert.Equal("Unavailable", noResistance.Status);
+        Assert.Contains("ConfirmedResistanceUnavailable", noResistance.ReasonCodes);
+        Assert.Null(noResistance.MarketRewardRisk);
+
+        var gapped = SetupQualityCalculator.EvaluateStrategic(Scan(stop: 0m),
+            History().Skip(1).Where((_, index) => index != 2).ToArray(), Session, Now);
+        Assert.Equal("Unavailable", gapped.Status);
+        Assert.Contains("StructuralSessionGap", gapped.ReasonCodes);
+        Assert.Equal("Unavailable", SetupQualityCalculator.EvaluateStrategic(null, null, Session, Now).Status);
+    }
+
     [Fact]
     public void MissingStaleFutureAndGappedStructuralEvidenceFailClosed()
     {

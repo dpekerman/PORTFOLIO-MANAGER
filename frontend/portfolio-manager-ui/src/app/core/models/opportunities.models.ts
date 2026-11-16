@@ -147,6 +147,8 @@ export interface OpportunityFreshness {
 export interface OpportunityRow {
   instrumentType?: string | null;
   setupQuality?: SetupQuality | null;
+  /** Strategic perspective: grade of the confirmed-structure setup (support as invalidation, resistance as target). */
+  strategicSetupQuality?: SetupQuality | null;
   symbol: string;
   companyName: string;
   analysisTicker: string | null;

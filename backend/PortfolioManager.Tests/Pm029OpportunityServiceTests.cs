@@ -184,6 +184,94 @@ public sealed class Pm029OpportunityServiceTests
     }
 
     [Fact]
+    public async Task Refresh_PrefersPortfolioListingNameOverWatchlistQuoteName()
+    {
+        var f = await SetUpAsync();
+        await f.Service.RefreshAsync("u");
+        var portfolio = await f.Db.PortfolioSnapshots.SingleAsync(s => s.UserId == "u");
+        var holdings = JsonSerializer.Deserialize<List<PortfolioSummaryDto>>(portfolio.SnapshotJson, OpportunityService.Json)!;
+        var target = Assert.Single(holdings, h => h.Item.Symbol == "EEE.TO");
+        portfolio.SnapshotJson = JsonSerializer.Serialize(
+            holdings.Select(h => h == target
+                ? h with { Item = h.Item with { CompanyName = "Portfolio listing name" } }
+                : h),
+            OpportunityService.Json);
+        var watchlist = await f.Db.WatchlistSnapshots.SingleOrDefaultAsync(s => s.UserId == "u");
+        if (watchlist is null)
+        {
+            watchlist = new WatchlistSnapshot { UserId = "u" };
+            f.Db.WatchlistSnapshots.Add(watchlist);
+        }
+        watchlist.SnapshotJson = JsonSerializer.Serialize(new[]
+        {
+            new WatchlistSummaryDto(
+                new WatchlistItemDto(1, "EEE.TO", "", DateTime.UtcNow),
+                new StockQuote { Symbol = "EEE.TO", CompanyName = "Watchlist quote name" }),
+        }, OpportunityService.Json);
+        await f.Db.SaveChangesAsync();
+
+        var row = (await f.Service.RefreshAsync("u")).Rows.Single(r => r.Symbol == "EEE.TO");
+
+        Assert.Equal("Portfolio listing name", row.CompanyName);
+    }
+
+    [Fact]
+    public async Task LatestAndDetail_ProjectVerifiedLocalNamesWithoutRewritingFinancialSnapshot()
+    {
+        var f = await SetUpAsync();
+        var snapshot = await f.Service.RefreshAsync("u");
+        var stored = await f.Db.OpportunitySnapshots.SingleAsync(s => s.UserId == "u");
+        var payload = JsonSerializer.Deserialize<OpportunitySnapshotPayload>(stored.SnapshotJson, OpportunityService.Json)!;
+        var legacyRecords = payload.Records.Select(record => record.Row.Symbol switch
+        {
+            "BBB.TO" => record with { Row = record.Row with { CompanyName = "Legacy name", UsesUnderlying = false } },
+            "AAA.TO" => record with { Row = record.Row with { CompanyName = "Legacy name", UsesUnderlying = false } },
+            "ZZZ.TO" => record with { Row = record.Row with { CompanyName = "Underlying company", UsesUnderlying = true } },
+            _ => record,
+        }).ToList();
+        stored.SnapshotJson = JsonSerializer.Serialize(payload with { Records = legacyRecords }, OpportunityService.Json);
+
+        var portfolio = await f.Db.PortfolioSnapshots.SingleAsync(s => s.UserId == "u");
+        portfolio.SnapshotJson = JsonSerializer.Serialize(new[]
+        {
+            new PortfolioSummaryDto(
+                new PortfolioItemDto(1, "BBB.TO", "Portfolio listing name", 10m, 1m, "Tech", "", false, false, null, DateTime.UtcNow, "OPEN"),
+                null),
+        }, OpportunityService.Json);
+        var watchlist = await f.Db.WatchlistSnapshots.SingleOrDefaultAsync(s => s.UserId == "u");
+        if (watchlist is null)
+        {
+            watchlist = new WatchlistSnapshot { UserId = "u" };
+            f.Db.WatchlistSnapshots.Add(watchlist);
+        }
+        watchlist.SnapshotJson = JsonSerializer.Serialize(new[]
+        {
+            new WatchlistSummaryDto(
+                new WatchlistItemDto(1, "BBB.TO", "", DateTime.UtcNow),
+                new StockQuote { Symbol = "BBB.TO", CompanyName = "Lower-priority watchlist name" }),
+            new WatchlistSummaryDto(
+                new WatchlistItemDto(2, "AAA.TO", "", DateTime.UtcNow),
+                new StockQuote { Symbol = "AAA.TO", CompanyName = "Watchlist listing name" }),
+        }, OpportunityService.Json);
+        await f.Db.SaveChangesAsync();
+        var savedJson = stored.SnapshotJson;
+
+        var latest = await f.Service.GetLatestAsync("u");
+        var detail = await f.Service.GetDetailAsync("u", "BBB.TO", snapshot.SnapshotId);
+
+        Assert.Equal("Portfolio listing name", latest.Rows.Single(r => r.Symbol == "BBB.TO").CompanyName);
+        Assert.Equal("Watchlist listing name", latest.Rows.Single(r => r.Symbol == "AAA.TO").CompanyName);
+        Assert.Equal("Zzz Corp", latest.Rows.Single(r => r.Symbol == "ZZZ.TO").CompanyName);
+        Assert.Equal("Portfolio listing name", detail!.Row.CompanyName);
+
+        f.Db.IndexConstituents.RemoveRange(f.Db.IndexConstituents.Where(c => c.Symbol == "ZZZ.TO"));
+        await f.Db.SaveChangesAsync();
+        var withoutIndexName = await f.Service.GetLatestAsync("u");
+        Assert.Equal("ZZZ.TO", withoutIndexName.Rows.Single(r => r.Symbol == "ZZZ.TO").CompanyName);
+        Assert.Equal(savedJson, (await f.Db.OpportunitySnapshots.SingleAsync(s => s.UserId == "u")).SnapshotJson);
+    }
+
+    [Fact]
     public async Task Refresh_ComputesSectorHeatFromHistories_AndShowsTheSavedPlanSeparately()
     {
         var f = await SetUpAsync();
@@ -214,6 +302,66 @@ public sealed class Pm029OpportunityServiceTests
 
         var unmapped = snap.Rows.Single(r => r.Symbol == "AAA.TO");
         Assert.Null(unmapped.SectorHeat.DiffPp);
+    }
+
+    [Fact]
+    public async Task Refresh_UsesTheUsSectorEtfConvertedToCad_WhenTsxHasNoSectorBenchmark()
+    {
+        var f = await SetUpAsync();
+        (await f.Db.SectorBenchmarkMappings.SingleAsync(m => m.Market == "Tsx")).IsActive = false;
+        f.Db.SectorBenchmarkMappings.Add(new SectorBenchmarkMapping
+        {
+            Sector = "Tech", Market = "Nyse", BenchmarkSymbol = "XLK", BenchmarkName = "Tech SPDR", Currency = "USD", IsActive = true,
+            Source = "test", SourceAsOfDate = new DateTime(2026, 1, 1),
+        });
+        await f.Db.SaveChangesAsync();
+        // XLK 200 → 210 (+5 % in USD); USD/CAD constant, so the CAD benchmark also returns +5 % and BBB.TO (+10 %) leads by 5.0 pp.
+        f.Market.Bars["XLK"] = Bars(80, a => a == 0 ? 210m : 200m);
+        f.Market.Bars["CAD=X"] = Bars(80, _ => 1.4m);
+
+        var snap = await f.Service.RefreshAsync("u");
+        var bbb = snap.Rows.Single(r => r.Symbol == "BBB.TO");
+
+        Assert.Equal("XLK", bbb.SectorHeat.BenchmarkSymbol);
+        Assert.Equal(5.0m, bbb.SectorHeat.DiffPp);
+        Assert.Equal(5m, bbb.SectorHeat.BenchmarkReturnPct);
+        var detail = await f.Service.GetDetailAsync("u", "BBB.TO", snap.SnapshotId);
+        Assert.Equal("Sector mapping (US proxy)", detail!.Evidence.BenchmarkCategory);
+        Assert.Equal("CAD", detail.Evidence.BenchmarkCurrency);
+        Assert.Contains("US proxy", detail.Evidence.BenchmarkName);
+    }
+
+    [Fact]
+    public async Task Refresh_LeavesSectorHeatUnavailable_WhenTheUsdCadSeriesIsMissingForAProxy()
+    {
+        var f = await SetUpAsync();
+        (await f.Db.SectorBenchmarkMappings.SingleAsync(m => m.Market == "Tsx")).IsActive = false;
+        f.Db.SectorBenchmarkMappings.Add(new SectorBenchmarkMapping
+        {
+            Sector = "Tech", Market = "Nyse", BenchmarkSymbol = "XLK", BenchmarkName = "Tech SPDR", Currency = "USD", IsActive = true,
+            Source = "test", SourceAsOfDate = new DateTime(2026, 1, 1),
+        });
+        await f.Db.SaveChangesAsync();
+        f.Market.Bars["XLK"] = Bars(80, a => a == 0 ? 210m : 200m);
+
+        var snap = await f.Service.RefreshAsync("u");
+
+        Assert.Null(snap.Rows.Single(r => r.Symbol == "BBB.TO").SectorHeat.DiffPp);
+        Assert.Contains("CAD=X", snap.ErrorSummary);
+    }
+
+    [Fact]
+    public async Task Refresh_ActivatesTheApprovedSetupQualityPolicy_WithoutChangingScores()
+    {
+        var f = await SetUpAsync();
+        var snap = await f.Service.RefreshAsync("u");
+
+        Assert.All(snap.Rows, row =>
+        {
+            Assert.True(row.SetupQuality!.PolicyApproved);
+            Assert.DoesNotContain("SetupPolicyApprovalRequired", row.SetupQuality.ReasonCodes);
+            Assert.Equal(SetupQualityCalculator.StrategicPolicyVersion, row.StrategicSetupQuality!.PolicyVersion);
+        });
     }
 
     [Fact]

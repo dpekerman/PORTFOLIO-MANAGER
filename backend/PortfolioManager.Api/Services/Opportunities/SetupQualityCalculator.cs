@@ -11,12 +11,49 @@ public sealed record SetupQualityResult(
     DateOnly ExpectedSession, DateTime? EvidenceAsOfUtc,
     IReadOnlyList<string> ReasonCodes);
 
-/// <summary>Advisory only. The proposal is not activated by production call sites.</summary>
+/// <summary>Advisory only: the classification policy is owner-approved (2026-11-15) and is activated by the opportunity refresh; it never alters scores, FINAL ACTION or stops.</summary>
 public static class SetupQualityCalculator
 {
     public const string PolicyVersion = "pm029-setup-proposal-v1";
+    public const string StrategicPolicyVersion = "pm029-strategic-structure-v1";
     public const decimal GoodRewardRisk = 2m;
     public const decimal AdequateStopAtr = 1m;
+
+    /// <summary>Reasons that only describe the Swing staged-signal stop/target; they do not apply to the Strategic structure setup.</summary>
+    private static readonly HashSet<string> SignalStopReasons = new(StringComparer.Ordinal)
+    {
+        "NoValidStop", "DynamicStopMissing", "StopAtOrAboveEntry", "StopOutsideVolatilityBand", "NoStructuralTarget", "MarketSetupUnavailable",
+    };
+
+    /// <summary>
+    /// Strategic setup: no staged-signal stop. The invalidation level is the nearest confirmed, unbroken swing support below price and the
+    /// target is the nearest confirmed, unbroken resistance above it (both from the verified structural history). Nothing is invented: without
+    /// both confirmed levels the result is Unavailable. Grading reuses the Swing reward/risk thresholds.
+    /// </summary>
+    public static SetupQualityResult EvaluateStrategic(
+        RsiScanResult? scan, IReadOnlyList<MarketDailyClose>? history, DateOnly expectedSession, DateTime asOfUtc)
+    {
+        var basis = Evaluate(scan, history, expectedSession, asOfUtc, true);
+        var reasons = basis.ReasonCodes.Where(code => !SignalStopReasons.Contains(code)).ToList();
+        decimal? entry = scan is { CurrentPrice: > 0m } && scan.TradingDate == expectedSession ? scan.CurrentPrice : null;
+        var status = "Unavailable";
+        decimal? ratio = null;
+        if (reasons.Count == 0)
+        {
+            if (entry is { } price && basis.Support is { } support && basis.Resistance is { } resistance
+                && support < price && resistance > price && scan!.DailyAtr > 0m)
+            {
+                ratio = (resistance - price) / (price - support);
+                var stopDistanceAtr = (price - support) / scan.DailyAtr;
+                status = ratio < OpportunityScoringConfig.ActionableRewardRisk ? "Poor"
+                    : stopDistanceAtr < AdequateStopAtr || ratio < GoodRewardRisk ? "Caution" : "Good";
+            }
+            else reasons.Add("StrategicStructureUnavailable");
+        }
+        return new(status, StrategicPolicyVersion, true, scan?.AnalysisCurrency, entry, basis.Support, basis.Support, basis.SupportSession,
+            basis.Atr, basis.Resistance, "Confirmed resistance", basis.Resistance, basis.Resistance, basis.ResistanceSession,
+            ratio, ratio, expectedSession, basis.EvidenceAsOfUtc, reasons.Distinct(StringComparer.Ordinal).ToArray());
+    }
 
     public static SetupQualityResult Evaluate(
         RsiScanResult? scan, IReadOnlyList<MarketDailyClose>? history,

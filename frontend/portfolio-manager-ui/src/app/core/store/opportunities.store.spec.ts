@@ -250,6 +250,19 @@ describe('OpportunitiesStore', () => {
     expect(migrated.profiles.Strategic.sort).toEqual({ active: 'strategic', direction: 'desc' });
   });
 
+  it('restores only the active perspective default sort and preserves other view preferences', () => {
+    const s = loaded();
+    s.updateView({ perspective: 'Swing', sort: { active: 'symbol', direction: 'asc' } });
+    s.updateView({ perspective: 'Strategic', scoreFilter: 'all', sectors: ['Energy'], sort: { active: 'price', direction: 'asc' } });
+
+    s.restoreDefaultSort();
+
+    expect(s.view().sort).toEqual({ active: 'strategic', direction: 'desc' });
+    expect(s.view().scoreFilter).toBe('all');
+    expect(s.view().sectors).toEqual(['Energy']);
+    expect(s.viewProfiles().Swing.sort).toEqual({ active: 'symbol', direction: 'asc' });
+  });
+
   it('migrates a legacy view to both perspective profiles and preserves explicit profile differences', () => {
     const legacy = normaliseViewPreferences({
       perspective: 'Strategic',

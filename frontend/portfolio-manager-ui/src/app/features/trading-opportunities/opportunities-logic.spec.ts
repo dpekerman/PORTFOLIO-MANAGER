@@ -13,6 +13,8 @@ import {
   isWeak,
   manualRewardRisk,
   manualRScenarioKey,
+  marketRFor,
+  setupQualityFor,
   opportunityExportColumns,
   opportunityExportRows,
   reasonCategory,
@@ -54,7 +56,7 @@ const stale = opportunityRow('EEE', { swing: unscorable('StaleScan') });
 const rows = [strong, moderate, weak, noSetup, stale];
 
 describe('opportunities-logic score filter (C2)', () => {
-  it('sorts advisory quality with unavailable last and filters only Swing', () => {
+  it('sorts advisory quality with unavailable last and filters each perspective by its own setup', () => {
     const sample = [
       opportunityRow('POOR', { setupQuality: setupQualityFixture({ status: 'Poor' }) }),
       opportunityRow('NA'),
@@ -70,12 +72,23 @@ describe('opportunities-logic score filter (C2)', () => {
         (row) => row.symbol,
       ),
     ).toEqual(['GOOD']);
+    // Strategic reads strategicSetupQuality, which these Swing-only rows do not have.
     expect(
       filterRows(
         sample,
         input({ perspective: 'Strategic', setupQuality: ['Good'], scoreFilter: 'all' }),
       ),
-    ).toHaveLength(3);
+    ).toHaveLength(0);
+    const strategic = [
+      opportunityRow('SGOOD', { strategicSetupQuality: setupQualityFixture() }),
+      opportunityRow('SNA'),
+    ];
+    expect(
+      filterRows(
+        strategic,
+        input({ perspective: 'Strategic', setupQuality: ['Good'], scoreFilter: 'all' }),
+      ).map((row) => row.symbol),
+    ).toEqual(['SGOOD']);
   });
 
   it('keeps deferred ETF rows under All and exposes the exact deferral reason', () => {
@@ -159,11 +172,11 @@ describe('opportunities-logic score filter (C2)', () => {
     expect(exclusionSummary([missingStop, atEntry], input()).reasons).toEqual([
       {
         category: 'setup',
-        code: 'StopAtOrAboveEntry',
-        label: 'Scanner stop at or above entry',
+        code: 'DynamicStopMissing',
+        label: 'No active signal stop (none is invented)',
         count: 1,
       },
-      { category: 'setup', code: 'DynamicStopMissing', label: 'Scanner stop missing', count: 1 },
+      { category: 'setup', code: 'StopAtOrAboveEntry', label: 'Signal stop at or above entry', count: 1 },
     ]);
     expect(
       filterRows([missingStop, atEntry], input({}, { reasonFilter: 'DynamicStopMissing' })).map(
@@ -301,6 +314,24 @@ describe('opportunities-logic sorting and export', () => {
         (r) => r.symbol,
       ),
     ).toEqual(['HIGH', 'AAA', 'ZZZ', 'MISS']);
+  });
+
+  it('reads Market R and Setup Quality from the active perspective setup', () => {
+    const structure = {
+      status: 'Good',
+      policyVersion: 'pm029-strategic-structure-v1',
+      policyApproved: true,
+      marketRewardRisk: 3.5,
+      reasonCodes: [],
+    } as unknown as NonNullable<typeof strong.strategicSetupQuality>;
+    const row = { ...strong, strategicSetupQuality: structure };
+
+    expect(columnValue(row, 'rr', 'Strategic')).toBe(3.5);
+    expect(columnValue(row, 'rr', 'Swing')).toBe(strong.setup.rewardRisk);
+    expect(columnValue(row, 'setupQuality', 'Strategic')).toBe(2);
+    expect(setupQualityFor(row, 'Swing')).toBe(strong.setupQuality);
+    expect(marketRFor({ ...strong, strategicSetupQuality: null }, 'Strategic')).toBeNull();
+    expect(columnValue({ ...strong, strategicSetupQuality: null }, 'setupQuality', 'Strategic')).toBeNull();
   });
 
   it('keeps Market R and a valid Manual R scenario separate for sorting and export', () => {
