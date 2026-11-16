@@ -61,7 +61,10 @@ public sealed record PortfolioEvidence(
     /// <summary>Minimum unrealized gain for a Strategic tactical profit-protection reading. Candidate default, not an approved universal limit.</summary>
     public double TacticalMinGainPct { get; init; } = 10;
 
-    public bool AllocationReliable => Valuation?.Reliable ?? true;
+    /// <summary>The consolidated portfolio denominator must exist before any allocation percentage can be trusted.</summary>
+    public bool AllocationDenominatorAvailable { get; init; } = true;
+
+    public bool AllocationReliable => (Valuation?.Reliable ?? true) && AllocationDenominatorAvailable;
 }
 
 public sealed record GateOutcome(FinalActionDecision Decision, IReadOnlyList<string> ReasonCodes, string? OriginalAction);
@@ -381,7 +384,10 @@ public static class PortfolioEvidenceGate
     }
 
     /// <summary>A watchlist entry for a ticker that is already held is an ADD: the same limit, sector and allocation-reliability checks apply.</summary>
-    public static GateOutcome ConditionOwnedEntry(FinalActionDecision d, PortfolioEvidence e) => ConditionAdd(d, e);
+    public static GateOutcome ConditionOwnedEntry(FinalActionDecision d, PortfolioEvidence e) => ConditionEntry(d, e);
+
+    /// <summary>Any entry increases portfolio exposure and requires trustworthy allocation evidence.</summary>
+    public static GateOutcome ConditionEntry(FinalActionDecision d, PortfolioEvidence e) => ConditionAdd(d, e);
 
     private static GateOutcome ConditionAdd(FinalActionDecision d, PortfolioEvidence e)
     {
@@ -403,12 +409,15 @@ public static class PortfolioEvidenceGate
         // Without a single-currency valuation no allocation percentage is trustworthy, so no limit can approve an Add.
         if (!e.AllocationReliable)
         {
+            var allocationDetail = !e.AllocationDenominatorAvailable
+                ? "the consolidated portfolio total is unavailable"
+                : e.Valuation?.Detail ?? "the valuation currency is not single or known";
             var unverified = d with
             {
                 FinalAction = "Add / Needs Review",
                 FinalActionClass = "ma-standby",
                 FinalActionReason = Join(d.FinalActionReason,
-                    $"Allocation cannot be verified: {e.Valuation?.Detail ?? "the valuation currency is not single or known"}. Position and sector limits were not checked. Not an instruction to buy. Original technical action: {d.FinalAction}."),
+                    $"Allocation cannot be verified: {allocationDetail}. Position and sector limits were not checked. Not an instruction to buy. Original technical action: {d.FinalAction}."),
             };
             return new GateOutcome(unverified, [GateReasons.AllocationUnavailable], d.FinalAction);
         }

@@ -383,7 +383,12 @@ public sealed class FinalActionService(
         var list = symbols.Select(s => s.Trim().ToUpperInvariant()).Where(s => s.Length > 0).Distinct().ToList();
         var pass = await ScanSymbolsAsync(list, userId, ScannerEvaluationMode.ReadOnly, ct);
         var valueByTicker = await LoadValueScreenerAsync(ct);
-        var valuation = await CheckValuationAsync(userId, await LoadSummariesAsync(userId, ct), ct);
+        var summaries = await LoadSummariesAsync(userId, ct);
+        var grandTotal = await GrandTotalAsync(userId, summaries, ct);
+        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
+        var valuation = await CheckValuationAsync(userId, summaries, ct);
+        var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
+        var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
         var nowUtc = DateTime.UtcNow;
         var notOwned = OwnershipOf([], 0, valuation);
 
@@ -401,8 +406,19 @@ public sealed class FinalActionService(
                 rows.Add(AwaitingWatchlistRow(symbol, UniverseSource, role, scan, assessment, rejectedBar, null, null));
                 continue;
             }
+            var codes = EvidenceCodes(assessment);
+            string? originalAction = null;
+            if (category == "Entry")
+            {
+                var evidence = BuildNewPositionEvidence(symbol, role, scan!, summaries, grandTotal, stockTotal,
+                    positionLimits, sectorTargets, valuation);
+                var conditioned = PortfolioEvidenceGate.ConditionEntry(decision, evidence);
+                decision = conditioned.Decision;
+                originalAction = conditioned.OriginalAction;
+                codes = conditioned.ReasonCodes.Concat(codes).ToList();
+            }
             rows.Add(CurrentWatchlistRow(decision, symbol, UniverseSource, role, scan!, assessment, nowUtc,
-                EvidenceCodes(assessment), null, notOwned, valuation.Status, null, null));
+                codes, originalAction, notOwned, valuation.Status, null, null));
         }
         return new UniverseFinalActions(rows,
             pass.Scans.ToDictionary(kv => kv.Key, kv => kv.Value.Copy(), StringComparer.OrdinalIgnoreCase),
@@ -526,6 +542,15 @@ public sealed class FinalActionService(
                         wlCodes = blocked.ReasonCodes.Concat(wlCodes).ToList();
                     }
                 }
+            }
+            else if (category == "Entry")
+            {
+                var evidence = BuildNewPositionEvidence(item.Symbol, role, scan!, summaries, grandTotal, stockTotal,
+                    positionLimits, sectorTargets, valuation);
+                var conditioned = PortfolioEvidenceGate.ConditionEntry(decision, evidence);
+                decision = conditioned.Decision;
+                wlOriginal = conditioned.OriginalAction;
+                wlCodes = conditioned.ReasonCodes.Concat(wlCodes).ToList();
             }
             else if (owned.Count > 0) wlCodes = ["ALREADY_OWNED", .. wlCodes];
             watchlist.Add(CurrentWatchlistRow(decision, item.Symbol, SignalSources.Watchlist, role, scan!, assessment, nowUtc,
@@ -709,7 +734,31 @@ public sealed class FinalActionService(
             context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
             limit is null ? null : Dbl(limit.TargetPct), sectorOver,
             scan.PriceStructure?.HasHardStructuralNegative == true, item.DecisionSource,
-            ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector), risk, valuation);
+            ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector), risk, valuation)
+        {
+            AllocationDenominatorAvailable = grandTotal > 0,
+        };
+    }
+
+    private static PortfolioEvidence BuildNewPositionEvidence(
+        string symbol, string role, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> summaries,
+        double grandTotal, decimal stockTotal, IReadOnlyList<SinglePositionLimit> limits,
+        IReadOnlyList<AllocationSectorTarget> sectorTargets, ValuationCheck valuation)
+    {
+        var sector = scan.Sector ?? "";
+        var (sectorPct, target, sectorOver) = SectorExposure(symbol, sector, summaries, stockTotal, sectorTargets, valuation.Reliable);
+        var limit = limits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
+        var positionSize = valuation.Reliable && grandTotal > 0 ? 0d : (double?)null;
+
+        return new PortfolioEvidence(
+            null, null, scan.TradingDate, scan.ScannedAt, positionSize,
+            limit is null ? null : Dbl(limit.TargetPct), sectorOver,
+            scan.PriceStructure?.HasHardStructuralNegative == true, "Watchlist",
+            SectorPct: sectorPct, SectorTargetPct: target is null ? null : Dbl(target.TargetPct),
+            SectorKnown: !string.IsNullOrWhiteSpace(sector), Valuation: valuation)
+        {
+            AllocationDenominatorAvailable = grandTotal > 0,
+        };
     }
 
     private static string SymbolSector(IEnumerable<PortfolioSummaryDto> lots, string? fallback) =>

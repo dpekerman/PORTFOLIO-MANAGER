@@ -181,21 +181,19 @@
       }
     </summary>
     <div class="filter-grid">
-      @if (view().perspective === 'Swing') {
-        <mat-form-field appearance="outline" subscriptSizing="dynamic">
-          <mat-label>Setup Quality</mat-label>
-          <mat-select
-            multiple
-            data-testid="setup-quality-filter"
-            [value]="view().setupQuality"
-            (selectionChange)="update({ setupQuality: $event.value })"
-          >
-            @for (quality of ['Good', 'Caution', 'Poor', 'Unavailable']; track quality) {
-              <mat-option [value]="quality">{{ quality }}</mat-option>
-            }
-          </mat-select>
-        </mat-form-field>
-      }
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Setup Quality</mat-label>
+        <mat-select
+          multiple
+          data-testid="setup-quality-filter"
+          [value]="view().setupQuality"
+          (selectionChange)="update({ setupQuality: $event.value })"
+        >
+          @for (quality of ['Good', 'Caution', 'Poor', 'Unavailable']; track quality) {
+            <mat-option [value]="quality">{{ quality }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Sector</mat-label>
         <mat-select
@@ -351,6 +349,16 @@
       >
         Verified only
       </mat-slide-toggle>
+
+      <button
+        mat-button
+        type="button"
+        class="touch"
+        data-testid="restore-default-sort"
+        (click)="store.restoreDefaultSort()"
+      >
+        <mat-icon>sort</mat-icon> Restore default score sort
+      </button>
 
       <button
         mat-button

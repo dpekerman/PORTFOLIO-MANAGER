@@ -16,7 +16,7 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize(Roles = "Admin,Trader")]
 [ApiController]
 [Route("api/opportunities")]
-public sealed class OpportunitiesController(IOpportunityService service, AppDbContext db) : ControllerBase
+public sealed class OpportunitiesController(IOpportunityService service, AppDbContext db, IHostApplicationLifetime lifetime) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
@@ -35,12 +35,16 @@ public sealed class OpportunitiesController(IOpportunityService service, AppDbCo
             : Ok(detail);
     }
 
+    /// <summary>
+    /// A refresh scans the whole universe and takes minutes, so a closed tab, reload or proxy timeout must not cancel it half-way;
+    /// only application shutdown does. The single-flight gate still rejects a second concurrent refresh.
+    /// </summary>
     [HttpPost("refresh")]
-    public async Task<ActionResult<OpportunitySnapshotDto>> Refresh(CancellationToken ct)
+    public async Task<ActionResult<OpportunitySnapshotDto>> Refresh()
     {
         try
         {
-            return Ok(await service.RefreshAsync(CurrentUserId(), ct));
+            return Ok(await service.RefreshAsync(CurrentUserId(), lifetime.ApplicationStopping));
         }
         catch (OpportunityRefreshInProgressException ex)
         {

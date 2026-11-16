@@ -75,9 +75,9 @@
       <td mat-cell *matCellDef="let row">
         <span
           class="rr"
-          [class.rr-valid]="row.setup.kind === 'ValidCandidate'"
-          [class.rr-weak]="row.setup.kind === 'NotActionable'"
-          [class.rr-na]="row.setup.kind === 'Unavailable'"
+          [class.rr-valid]="rrState(row) === 'valid'"
+          [class.rr-weak]="rrState(row) === 'weak'"
+          [class.rr-na]="rrState(row) === 'na'"
           [matTooltip]="rrTooltip(row)"
           >{{ rrText(row) }}</span
         >
@@ -89,15 +89,12 @@
       <td mat-cell *matCellDef="let row">
         <span
           class="chip"
-          [class.chip-low]="row.setupQuality?.status === 'Good'"
-          [class.chip-medium]="row.setupQuality?.status === 'Caution'"
-          [class.chip-high]="row.setupQuality?.status === 'Poor'"
-          [matTooltip]="
-            row.setupQuality?.reasonCodes?.join(', ') ||
-            'Structural snapshot evidence unavailable. Classification awaits approval.'
-          "
+          [class.chip-low]="quality(row)?.status === 'Good'"
+          [class.chip-medium]="quality(row)?.status === 'Caution'"
+          [class.chip-high]="quality(row)?.status === 'Poor'"
+          [matTooltip]="qualityTooltip(row)"
           data-testid="setup-quality"
-          >{{ row.setupQuality?.status ?? 'Unavailable' }}</span
+          >{{ quality(row)?.status ?? 'Unavailable' }}</span
         >
       </td>
     </ng-container>

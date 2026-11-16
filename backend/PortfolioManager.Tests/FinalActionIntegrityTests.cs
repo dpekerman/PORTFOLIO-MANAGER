@@ -439,10 +439,57 @@ public sealed class FinalActionIntegrityTests
         Assert.NotEqual("STARTER ENTRY", w.FinalAction);
     }
 
+    [Fact]
+    public async Task UnownedWatchlistAndUniverseEntriesAreNotActionableWithoutPortfolioTotal()
+    {
+        var s = await SetUpAsync([], [], new(), ["NEW.TO"], null, null, null, Entry("NEW.TO"));
+
+        var watchlist = Assert.Single((await s.Service.ComputeAsync("u", fresh: true)).Watchlist);
+        Assert.Equal("Add / Needs Review", watchlist.FinalAction);
+        Assert.Equal("STARTER ENTRY", watchlist.OriginalAction);
+        Assert.Contains(GateReasons.AllocationUnavailable, watchlist.ReasonCodes!);
+        Assert.False(watchlist.IsActionable);
+        Assert.Contains("portfolio total is unavailable", watchlist.Reason!);
+
+        var universe = Assert.Single((await s.Service.EvaluateUniverseAsync("u", ["NEW.TO"])).Rows);
+        Assert.Equal("Add / Needs Review", universe.FinalAction);
+        Assert.Equal("STARTER ENTRY", universe.OriginalAction);
+        Assert.Contains(GateReasons.AllocationUnavailable, universe.ReasonCodes!);
+        Assert.False(universe.IsActionable);
+    }
+
     private static RsiScanResult Entry(string symbol)
     {
-        var s = OverboughtScan(symbol);
-        s.Rsi = 50m; s.RsiSignal = 48m; s.MacdHistDelta = 0.3m; s.VolumeRatio = 1.5m;
-        return s;
+        return new RsiScanResult
+        {
+            Symbol = symbol,
+            AnalysisTicker = symbol,
+            AnalysisMarket = "CA",
+            AnalysisCurrency = "CAD",
+            Rsi = 57.5m,
+            CurrentPrice = 100m,
+            ChangePercent = 0.5m,
+            DayHigh = 101m,
+            DayLow = 98m,
+            OpenPrice = 99.5m,
+            PreviousClose = 99.5m,
+            VolumeRatio = 1.8m,
+            RsiSignal = 53m,
+            RsiSignalAvailable = true,
+            MacdHistogram = 0.4m,
+            MacdHistDelta = 0.1m,
+            Ema9Price = 99m,
+            Ema10Price = 98.5m,
+            Ema20Price = 97m,
+            Sma20Price = 96m,
+            Sma50Price = 94m,
+            Sma200 = 95m,
+            Status = SignalStatus.Neutral,
+            ScanType = ScanType.Neutral,
+            Week52High = 101m,
+            TradingDate = TradingCalendar.LastCompletedSession(DateTime.UtcNow, MarketExchange.Tsx),
+            ScannedAt = DateTime.UtcNow,
+            PriceStructure = PriceStructureResult.None with { KeyLevelRole = "SUPPORT", KeyLevelState = "SUPPORT_RECLAIM" },
+        };
     }
 }

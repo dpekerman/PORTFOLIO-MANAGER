@@ -6,6 +6,7 @@ import {
   OpportunityScoreSummary,
   OpportunitySectorHeat,
   ScorePerspective,
+  SetupQuality,
 } from '../../core/models/opportunities.models';
 import {
   OpportunitySort,
@@ -149,8 +150,8 @@ const REASON_LABELS: Record<string, string> = {
   StructuralCurrencyMismatch: 'Chart and setup price currencies do not match',
   MarketSetupUnavailable: 'A market-derived entry, stop and target are required',
   NoValidStop: 'No valid stop',
-  DynamicStopMissing: 'Scanner stop missing',
-  StopAtOrAboveEntry: 'Scanner stop at or above entry',
+  DynamicStopMissing: 'No active signal stop (none is invented)',
+  StopAtOrAboveEntry: 'Signal stop at or above entry',
   StopOutsideVolatilityBand: 'Stop outside volatility band',
   NoStructuralTarget: 'No structural target',
   NoEntryPrice: 'No entry price',
@@ -308,9 +309,8 @@ export function passesAttributeFilters(
   if (view.sources.length && !row.sources.some((s) => view.sources.includes(s))) return false;
   if (view.heat.length && !view.heat.includes(row.sectorHeat.direction)) return false;
   if (
-    view.perspective === 'Swing' &&
     view.setupQuality.length &&
-    !view.setupQuality.includes(row.setupQuality?.status ?? 'Unavailable')
+    !view.setupQuality.includes(setupQualityFor(row, view.perspective)?.status ?? 'Unavailable')
   )
     return false;
   return true;
@@ -475,6 +475,20 @@ const RISK_ORDER: Record<string, number> = { Low: 1, Medium: 2, High: 3 };
 const FIT_ORDER: Record<string, number> = { Eligible: 1, Review: 2, NoAdd: 3 };
 
 /** Sortable / exportable value of a grid column. `score` is the active-perspective score. */
+/** Swing grades the staged-signal setup; Strategic grades the confirmed-structure setup (no signal stop needed). */
+export function setupQualityFor(
+  row: OpportunityRow,
+  perspective: ScorePerspective,
+): SetupQuality | null | undefined {
+  return perspective === 'Strategic' ? row.strategicSetupQuality : row.setupQuality;
+}
+
+export function marketRFor(row: OpportunityRow, perspective: ScorePerspective): number | null {
+  return perspective === 'Strategic'
+    ? (row.strategicSetupQuality?.marketRewardRisk ?? null)
+    : row.setup.rewardRisk;
+}
+
 export function columnValue(
   row: OpportunityRow,
   key: string,
@@ -491,10 +505,10 @@ export function columnValue(
     case 'strategic':
       return row.strategic.score;
     case 'rr':
-      return row.setup.rewardRisk;
+      return marketRFor(row, perspective);
     case 'setupQuality':
       return { Poor: 0, Caution: 1, Good: 2, Unavailable: null }[
-        row.setupQuality?.status ?? 'Unavailable'
+        setupQualityFor(row, perspective)?.status ?? 'Unavailable'
       ];
     case 'manualR':
       return manualRewardRisk(manualR);
@@ -672,33 +686,40 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
     'strategicCompleteness',
   ),
   xcol('Strategic Reasons', 'text', (r) => list(r.strategic.reasonCodes), 'strategic'),
-  xcol('Market R', 'qty', (r) => r.setup.rewardRisk, 'rr'),
-  xcol('SETUP QUALITY', 'text', (r) => r.setupQuality?.status ?? 'Unavailable', 'setupQuality'),
+  xcol('Market R', 'qty', (r, _scenarios, perspective) => marketRFor(r, perspective), 'rr'),
+  xcol(
+    'SETUP QUALITY',
+    'text',
+    (r, _scenarios, perspective) => setupQualityFor(r, perspective)?.status ?? 'Unavailable',
+    'setupQuality',
+  ),
   xcol(
     'Conservative R',
     'qty',
-    (r) => r.setupQuality?.conservativeRewardRisk ?? null,
+    (r, _scenarios, perspective) =>
+      setupQualityFor(r, perspective)?.conservativeRewardRisk ?? null,
     'setupQuality',
   ),
   xcol(
     'Setup Quality Reasons',
     'text',
-    (r) =>
-      r.setupQuality
-        ? list(r.setupQuality.reasonCodes)
-        : 'Structural snapshot evidence unavailable',
+    (r, _scenarios, perspective) => {
+      const quality = setupQualityFor(r, perspective);
+      return quality ? list(quality.reasonCodes) : 'Structural snapshot evidence unavailable';
+    },
     'setupQuality',
   ),
   xcol(
     'Setup Policy Version',
     'text',
-    (r) => r.setupQuality?.policyVersion ?? null,
+    (r, _scenarios, perspective) => setupQualityFor(r, perspective)?.policyVersion ?? null,
     'setupQuality',
   ),
   xcol(
     'Setup Policy Approved',
     'text',
-    (r) => (r.setupQuality?.policyApproved === true ? 'Yes' : 'No'),
+    (r, _scenarios, perspective) =>
+      setupQualityFor(r, perspective)?.policyApproved === true ? 'Yes' : 'No',
     'setupQuality',
   ),
   xcol('Instrument Type', 'text', (r) => r.instrumentType ?? 'Unconfirmed', 'symbol'),

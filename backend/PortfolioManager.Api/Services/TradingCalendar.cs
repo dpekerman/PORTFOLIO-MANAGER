@@ -166,9 +166,17 @@ public static class TradingCalendar
             set.Add(NthWeekday(year, 9, DayOfWeek.Monday, 1));                // Labor Day
             set.Add(NthWeekday(year, 11, DayOfWeek.Thursday, 4));             // Thanksgiving
             set.Add(Dec25ObservedUs(year));
+            foreach (var closure in UsSpecialClosures)
+                if (closure.Year == year) set.Add(closure);
         }
         return set;
     }
+
+    /// <summary>
+    /// One-off NYSE closures outside the recurring rules. Add a date only when the exchange announced the closure and the
+    /// provider's history confirms no session (2025-01-09: National Day of Mourning for President Carter).
+    /// </summary>
+    private static readonly DateOnly[] UsSpecialClosures = [new DateOnly(2025, 1, 9)];
 
     private static DateOnly NextMondayIfWeekend(DateOnly d) => d.DayOfWeek switch
     {
