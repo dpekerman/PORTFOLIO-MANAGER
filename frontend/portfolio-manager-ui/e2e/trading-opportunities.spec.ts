@@ -536,7 +536,9 @@ test.describe('PM-029 Trading Opportunities', () => {
     await expect(rowFor(page, 'PLW.TO').getByTestId('setup-quality')).toContainText('Caution');
     await expect(rowFor(page, 'ZEN.NE').getByTestId('setup-quality')).toContainText('Poor');
     await capture('03a-proposed-qualities-grid');
-    await rowFor(page, 'QRK.TO').click();
+    // The selected row can be restored across the reload, and a row click toggles; open it only when it is not already selected.
+    const qrkRow = rowFor(page, 'QRK.TO');
+    if ((await qrkRow.getAttribute('aria-selected')) !== 'true') await qrkRow.click();
     await expect(page.getByTestId('setup-quality-details')).toContainText('Confirmed support');
     await capture('03-proposed-policy-simulation');
     await page.getByTestId('setup-quality-details').locator('p').last().scrollIntoViewIfNeeded();
@@ -558,7 +560,10 @@ test.describe('PM-029 Trading Opportunities', () => {
     expect(order.at(-1)).toBe('BRQ.TO');
     await capture('04-fund-deferral');
     await page.getByTestId('perspective-strategic').click();
-    await expect(page.getByTestId('setup-quality')).toHaveCount(0);
+    // Swing-only proposed grades must not leak into the Strategic perspective, which reads strategicSetupQuality.
+    await expect(
+      page.getByTestId('setup-quality').filter({ hasText: /Good|Caution|Poor/ }),
+    ).toHaveCount(0);
     const topStrategic = snapshot.rows.reduce((best, row) =>
       (row.strategic.score ?? -1) > (best.strategic.score ?? -1) ? row : best,
     );
