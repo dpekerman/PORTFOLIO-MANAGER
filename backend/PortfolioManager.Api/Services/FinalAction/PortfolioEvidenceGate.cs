@@ -25,12 +25,14 @@ public sealed record StopRiskEvidence(
     DateTime? EpisodeOpenDate);
 
 /// <summary>Whether the portfolio valuation behind an allocation percentage is in one currency. No conversion is ever assumed.</summary>
-public sealed record ValuationCheck(string Status, string Detail)
+public sealed record ValuationCheck(string Status, string Detail, decimal UsdCad = 1m)
 {
     public const string SingleCurrency = "SingleCurrency";
+    /// <summary>USD components converted to CAD with one verified Bank of Canada USD/CAD rate (<see cref="UsdCad"/>, CAD per USD).</summary>
+    public const string CadConverted = "CadConverted";
     public const string MixedCurrency = "MixedCurrency";
     public const string UnknownCurrency = "UnknownCurrency";
-    public bool Reliable => Status == SingleCurrency;
+    public bool Reliable => Status is SingleCurrency or CadConverted;
 }
 
 /// <summary>Portfolio-level facts a technical signal must be reconciled with before it may become a trade recommendation.</summary>

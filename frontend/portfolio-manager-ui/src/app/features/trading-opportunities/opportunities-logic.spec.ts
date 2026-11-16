@@ -129,11 +129,24 @@ describe('opportunities-logic score filter (C2)', () => {
 
   it('shows unscorable rows under All scores or Show unavailable', () => {
     expect(filterRows(rows, input({ scoreFilter: 'all' })).length).toBe(5);
-    expect(filterRows(rows, input({ showUnavailable: true })).map((r) => r.symbol)).toEqual([
-      'AAA',
-      'DDD',
-      'EEE',
-    ]);
+    expect(
+      filterRows(rows, input({ scoreFilter: 'scored', showUnavailable: true })).length,
+    ).toBe(5);
+  });
+
+  it('never lists unscored rows under a score-threshold filter, even with Show unavailable', () => {
+    for (const scoreFilter of ['attractive', 'strong'] as const) {
+      const shown = filterRows(rows, input({ scoreFilter, showUnavailable: true }));
+      expect(shown.every((r) => r.swing.score !== null)).toBe(true);
+    }
+  });
+
+  it('Strong keeps only scores of 80 or more', () => {
+    const i = input(
+      { scoreFilter: 'strong' },
+      { config: { attractiveMin: 70, moderateMin: 52 } as OpportunityConfig },
+    );
+    expect(filterRows(rows, i).every((r) => (r.swing.score ?? 0) >= 80)).toBe(true);
   });
 
   it('keeps the independently available Strategic score for a row whose Swing is unscorable', () => {
@@ -176,7 +189,12 @@ describe('opportunities-logic score filter (C2)', () => {
         label: 'No active signal stop (none is invented)',
         count: 1,
       },
-      { category: 'setup', code: 'StopAtOrAboveEntry', label: 'Signal stop at or above entry', count: 1 },
+      {
+        category: 'setup',
+        code: 'StopAtOrAboveEntry',
+        label: 'Signal stop at or above entry',
+        count: 1,
+      },
     ]);
     expect(
       filterRows([missingStop, atEntry], input({}, { reasonFilter: 'DynamicStopMissing' })).map(
@@ -331,7 +349,9 @@ describe('opportunities-logic sorting and export', () => {
     expect(columnValue(row, 'setupQuality', 'Strategic')).toBe(2);
     expect(setupQualityFor(row, 'Swing')).toBe(strong.setupQuality);
     expect(marketRFor({ ...strong, strategicSetupQuality: null }, 'Strategic')).toBeNull();
-    expect(columnValue({ ...strong, strategicSetupQuality: null }, 'setupQuality', 'Strategic')).toBeNull();
+    expect(
+      columnValue({ ...strong, strategicSetupQuality: null }, 'setupQuality', 'Strategic'),
+    ).toBeNull();
   });
 
   it('keeps Market R and a valid Manual R scenario separate for sorting and export', () => {

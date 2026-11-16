@@ -304,7 +304,7 @@ public sealed class OpportunityService(
             var swing = OpportunityScoringEngine.ScoreSwing(input);
             var strategic = OpportunityScoringEngine.ScoreStrategic(input);
 
-            var exposure = FinalActionService.ExposureFor(p.Member.Symbol, p.Member.WatchlistRole ?? "Strategic", p.Scan?.Sector, basis);
+            var exposure = FinalActionService.ExposureFor(p.Member.Symbol, p.Member.WatchlistRole ?? "Strategic", p.Classification.Sector ?? p.Scan?.Sector, basis);
             var fit = PortfolioFitCalculator.Evaluate(new FitInput(exposure.Owned, exposure.AllocationReliable, exposure.PositionSizePct,
                 exposure.PositionLimitPct, exposure.RolePolicyAmbiguous, exposure.SectorKnown, exposure.SectorPct, exposure.SectorTargetPct));
 

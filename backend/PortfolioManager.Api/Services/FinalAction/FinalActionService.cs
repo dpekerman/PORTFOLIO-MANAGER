@@ -186,7 +186,8 @@ public sealed class FinalActionService(
     IPortfolioSnapshotService portfolioSnapshot,
     IMemoryCache cache,
     ILogger<FinalActionService> logger,
-    PortfolioManager.Api.Services.Risk.IOpenRiskReader? riskReader = null) : IFinalActionService
+    PortfolioManager.Api.Services.Risk.IOpenRiskReader? riskReader = null,
+    PortfolioManager.Api.Services.Valuation.IUsdCadRateSource? usdCadRates = null) : IFinalActionService
 {
     // Same parameters the Angular watchlist analysis uses (analyzeSymbols(batch, 30, 75, 'Enhanced')).
     private const decimal OversoldThreshold = 30m;
@@ -384,9 +385,9 @@ public sealed class FinalActionService(
         var pass = await ScanSymbolsAsync(list, userId, ScannerEvaluationMode.ReadOnly, ct);
         var valueByTicker = await LoadValueScreenerAsync(ct);
         var summaries = await LoadSummariesAsync(userId, ct);
-        var grandTotal = await GrandTotalAsync(userId, summaries, ct);
-        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
         var valuation = await CheckValuationAsync(userId, summaries, ct);
+        var grandTotal = await GrandTotalAsync(userId, summaries, valuation, ct);
+        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(s => MarketValue(s, valuation));
         var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
         var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
         var nowUtc = DateTime.UtcNow;
@@ -468,11 +469,11 @@ public sealed class FinalActionService(
 
         static string Basis(string symbol, RsiScanResult? scan) => ExchangeBasisOf(symbol, scan);
 
-        var grandTotal = await GrandTotalAsync(userId, summaries, ct);
+        var valuation = await CheckValuationAsync(userId, summaries, ct);
+        var grandTotal = await GrandTotalAsync(userId, summaries, valuation, ct);
         var positionLimits = await db.SinglePositionLimits.AsNoTracking().ToListAsync(ct);
         var sectorTargets = await db.AllocationSectorTargets.AsNoTracking().ToListAsync(ct);
-        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(MarketValue);
-        var valuation = await CheckValuationAsync(userId, summaries, ct);
+        var stockTotal = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(s => MarketValue(s, valuation));
         var riskByLot = await LoadRiskAsync(userId, summaries, ct);
 
         // One authoritative portfolio evaluation per open lot (engine + evidence + gate), shared by the Portfolio rows below and
@@ -714,7 +715,7 @@ public sealed class FinalActionService(
 
         // Concentration is the symbol's TOTAL exposure (every lot, every account). The limit is the target lot's own role limit.
         var reliable = valuation?.Reliable ?? true;
-        double? positionSize = reliable && grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
+        double? positionSize = reliable && grandTotal > 0 ? Dbl(lots.Sum(l => MarketValue(l, valuation))) / grandTotal * 100 : null;
         string RoleOf(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
         var targetRole = RoleOf(holding);
         SinglePositionLimit? LimitFor(string role) => limits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
@@ -728,7 +729,7 @@ public sealed class FinalActionService(
         // The symbol's sector is resolved once (first lot that has one, else the scan), so a lot with a blank sector
         // still counts toward the sector of its own symbol.
         var sector = SymbolSector(lots, scan.Sector);
-        var (sectorPct, target, sectorOver) = SectorExposure(item.Symbol, sector, all, stockTotal, sectorTargets, reliable);
+        var (sectorPct, target, sectorOver) = SectorExposure(item.Symbol, sector, all, stockTotal, sectorTargets, reliable, valuation);
 
         return new PortfolioEvidence(
             context.UnrealizedGainPct, entry, evidenceDate, evidenceUtc, positionSize,
@@ -746,7 +747,7 @@ public sealed class FinalActionService(
         IReadOnlyList<AllocationSectorTarget> sectorTargets, ValuationCheck valuation)
     {
         var sector = scan.Sector ?? "";
-        var (sectorPct, target, sectorOver) = SectorExposure(symbol, sector, summaries, stockTotal, sectorTargets, valuation.Reliable);
+        var (sectorPct, target, sectorOver) = SectorExposure(symbol, sector, summaries, stockTotal, sectorTargets, valuation.Reliable, valuation);
         var limit = limits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
         var positionSize = valuation.Reliable && grandTotal > 0 ? 0d : (double?)null;
 
@@ -767,7 +768,7 @@ public sealed class FinalActionService(
     /// <summary>Sector weight of open stock (stockTotal denominator) vs its target; over = actual − target &gt; 2 pp (the ADD gate).</summary>
     private static (double? Pct, AllocationSectorTarget? Target, bool Over) SectorExposure(
         string symbol, string sector, IReadOnlyList<PortfolioSummaryDto> all, decimal stockTotal,
-        IReadOnlyList<AllocationSectorTarget> sectorTargets, bool reliable)
+        IReadOnlyList<AllocationSectorTarget> sectorTargets, bool reliable, ValuationCheck? valuation = null)
     {
         var target = string.IsNullOrEmpty(sector) ? null
             : sectorTargets.FirstOrDefault(t => string.Equals(t.Sector, sector, StringComparison.OrdinalIgnoreCase));
@@ -775,7 +776,7 @@ public sealed class FinalActionService(
         var actual = all.Where(s => !IsClose(s.Item.TransactionType)
                 && (string.Equals(s.Item.Sector ?? "", sector, StringComparison.OrdinalIgnoreCase)
                     || (string.IsNullOrWhiteSpace(s.Item.Sector)
-                        && string.Equals(s.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase)))).Sum(MarketValue) / stockTotal * 100m;
+                        && string.Equals(s.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase)))).Sum(s => MarketValue(s, valuation)) / stockTotal * 100m;
         return (Dbl(actual), target, actual - target.TargetPct > 2m);
     }
 
@@ -789,14 +790,14 @@ public sealed class FinalActionService(
         var reliable = basis.Valuation.Reliable;
         var lots = basis.OpenHoldings.Where(h => string.Equals(h.Item.Symbol, symbol, StringComparison.OrdinalIgnoreCase)).ToList();
         var owned = lots.Count > 0;
-        double? positionSize = !owned ? 0d : reliable && basis.GrandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / basis.GrandTotal * 100 : null;
+        double? positionSize = !owned ? 0d : reliable && basis.GrandTotal > 0 ? Dbl(lots.Sum(l => MarketValue(l, basis.Valuation))) / basis.GrandTotal * 100 : null;
         SinglePositionLimit? LimitFor(string role) =>
             basis.PositionLimits.FirstOrDefault(l => string.Equals(l.Role, role, StringComparison.OrdinalIgnoreCase));
         var roles = owned ? lots.Select(RoleOfLot).Distinct(StringComparer.OrdinalIgnoreCase).ToList() : [defaultRole];
         var limit = LimitFor(roles[0]);
         var ambiguous = roles.Count > 1;
         var sector = SymbolSector(lots, fallbackSector);
-        var (sectorPct, target, _) = SectorExposure(symbol, sector, basis.Summaries, basis.StockTotal, basis.SectorTargets, reliable);
+        var (sectorPct, target, _) = SectorExposure(symbol, sector, basis.Summaries, basis.StockTotal, basis.SectorTargets, reliable, basis.Valuation);
         return new PortfolioExposure(owned, reliable, positionSize, ambiguous ? null : limit is null ? null : Dbl(limit.TargetPct), ambiguous,
             !string.IsNullOrEmpty(sector), sector, sectorPct, target is null ? null : Dbl(target.TargetPct));
     }
@@ -814,6 +815,13 @@ public sealed class FinalActionService(
     private static decimal MarketValue(PortfolioSummaryDto s) => s.Item.IsManual
         ? s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares
         : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares;
+
+    /// <summary>Allocation value in the portfolio's CAD-equivalent basis: a USD lot is converted with the evaluation's single USD/CAD rate.</summary>
+    private static decimal MarketValue(PortfolioSummaryDto s, ValuationCheck? valuation) =>
+        MarketValue(s) * (valuation is not null && IsUsd(s) ? valuation.UsdCad : 1m);
+
+    private static bool IsUsd(PortfolioSummaryDto s) =>
+        PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(s.Item.Symbol, s.Quote?.Currency).Code == "USD";
 
     private static TimeZoneInfo EasternZone() =>
         TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Eastern Standard Time" : "America/New_York");
@@ -883,6 +891,7 @@ public sealed class FinalActionService(
         double? marketValue = item.IsManual
             ? Dbl(item.ManualMarketValue ?? item.AverageCostBasis)
             : tradedPrice is not null ? tradedPrice.Value * Dbl(item.Shares) : null;
+        if (marketValue is not null && valuation is not null && IsUsd(holding)) marketValue *= Dbl(valuation.UsdCad);
         double? positionSize = (valuation?.Reliable ?? true) && grandTotal > 0 && marketValue is not null ? marketValue.Value / grandTotal * 100 : null;
 
         return new PortfolioItemContext(
@@ -900,16 +909,21 @@ public sealed class FinalActionService(
         return total > 0 ? closedShares / total * 100 : null;
     }
 
-    /// <summary>Stocks + cash + options, the same denominator the Portfolio page and Dashboard use.</summary>
-    private async Task<double> GrandTotalAsync(string userId, IReadOnlyList<PortfolioSummaryDto> summaries, CancellationToken ct)
+    /// <summary>
+    /// CAD-equivalent total: stocks/ETFs at market + cash + open-option market value, the same screen formulas the Portfolio page
+    /// uses (option value = Market Price × contracts × 100). Each USD component is converted with the single evaluation rate.
+    /// </summary>
+    private async Task<double> GrandTotalAsync(string userId, IReadOnlyList<PortfolioSummaryDto> summaries, ValuationCheck valuation, CancellationToken ct)
     {
-        var stocks = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(s => s.Item.IsManual
-            ? (s.Item.ManualMarketValue ?? s.Item.AverageCostBasis * s.Item.Shares)
-            : (s.Quote?.CurrentPrice ?? s.Item.AverageCostBasis) * s.Item.Shares);
-        var cash = await db.CashItems.Where(c => c.UserId == userId || c.UserId == null).SumAsync(c => c.Amount, ct);
-        var options = await db.OptionItems
+        var stocks = summaries.Where(s => !IsClose(s.Item.TransactionType)).Sum(s => MarketValue(s, valuation));
+        var cashRows = await db.CashItems.AsNoTracking().Where(c => c.UserId == userId || c.UserId == null)
+            .Select(c => new { c.Amount, c.AccountType, c.Description }).ToListAsync(ct);
+        var cash = cashRows.Sum(c => CashCurrency(c.AccountType, c.Description) == "USD" ? c.Amount * valuation.UsdCad : c.Amount);
+        var optionRows = await db.OptionItems.AsNoTracking()
             .Where(o => (o.UserId == userId || o.UserId == null) && o.TransactionType != "CLOSE")
-            .SumAsync(o => o.MarketPrice * o.NumberOfContracts * 100, ct);
+            .Select(o => new { o.UnderlyingTicker, o.MarketPrice, o.NumberOfContracts }).ToListAsync(ct);
+        var options = optionRows.Sum(o => o.MarketPrice * o.NumberOfContracts * 100
+            * (PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(o.UnderlyingTicker, null).Code == "USD" ? valuation.UsdCad : 1m));
         return Dbl(stocks + cash + options);
     }
 
@@ -932,29 +946,41 @@ public sealed class FinalActionService(
     }
 
     /// <summary>
-    /// Decides whether allocation percentages can be trusted. There is no FX service and no currency on holdings or cash, so
-    /// the currency of each component is the provider's quote currency (ticker suffix as a labelled fallback); cash follows the
-    /// ledger convention (reporting currency CAD unless the account or description is marked USD). More than one currency
-    /// means the raw sum is not meaningful and no conversion is guessed.
+    /// Decides whether allocation percentages can be trusted. The currency of each component is the provider's quote currency
+    /// (ticker suffix as a labelled fallback); cash follows the owner-approved ledger convention (CAD unless the account or
+    /// description is marked USD). A single currency needs no conversion. A mix is reliable only when one verified Bank of
+    /// Canada USD/CAD rate is supplied; the rate is never guessed or defaulted to 1.
     /// </summary>
     internal static ValuationCheck ClassifyValuation(
         IEnumerable<(string Symbol, string? QuoteCurrency)> stocks,
         IEnumerable<(string? Account, string? Description)> cash,
-        IEnumerable<string> optionUnderlyings)
+        IEnumerable<string> optionUnderlyings,
+        PortfolioManager.Api.Services.Valuation.UsdCadRate? fx = null)
     {
         var currencies = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var (symbol, quoteCurrency) in stocks)
-            currencies.Add(PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(symbol, quoteCurrency).Code);
-        foreach (var u in optionUnderlyings)
-            currencies.Add(PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(u, null).Code);
-        foreach (var (account, description) in cash)
-            currencies.Add(UsdMarker.IsMatch(account ?? "") || UsdMarker.IsMatch(description ?? "") ? "USD" : "CAD");
+        var stockCodes = stocks.Select(s => PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(s.Symbol, s.QuoteCurrency).Code).ToList();
+        var optionCodes = optionUnderlyings.Select(u => PortfolioManager.Api.Services.Risk.TradingCurrency.Resolve(u, null).Code).ToList();
+        var cashCodes = cash.Select(c => CashCurrency(c.Account, c.Description)).ToList();
+        foreach (var code in stockCodes.Concat(optionCodes).Concat(cashCodes)) currencies.Add(code);
 
         if (currencies.Count <= 1)
             return new ValuationCheck(ValuationCheck.SingleCurrency, currencies.Count == 0 ? "no valued components" : $"all components in {currencies.Single()}");
+        if (!currencies.SetEquals(["CAD", "USD"]))
+            return new ValuationCheck(ValuationCheck.MixedCurrency,
+                $"the portfolio contains unsupported currencies ({string.Join(", ", currencies)}); only CAD and USD can be converted");
+        if (fx is { IsAvailable: true })
+            return new ValuationCheck(ValuationCheck.CadConverted,
+                $"USD components converted to CAD: {fx.Detail}", fx.Rate!.Value);
+        static string Split(string label, List<string> codes) => codes.Count == 0 ? "" :
+            $"{label} {string.Join("/", codes.GroupBy(c => c).OrderBy(g => g.Key).Select(g => $"{g.Count()} {g.Key}"))}";
+        var parts = new[] { Split("stocks", stockCodes), Split("cash rows", cashCodes), Split("open options", optionCodes) }.Where(p => p.Length > 0);
         return new ValuationCheck(ValuationCheck.MixedCurrency,
-            $"the portfolio total mixes {string.Join(" and ", currencies)} with no verified conversion");
+            $"the portfolio total mixes {string.Join(" and ", currencies)} ({string.Join("; ", parts)}) and no verified USD/CAD rate is available: "
+            + (fx?.Detail ?? "no FX source is configured"));
     }
+
+    private static string CashCurrency(string? account, string? description) =>
+        UsdMarker.IsMatch(account ?? "") || UsdMarker.IsMatch(description ?? "") ? "USD" : "CAD";
 
     private static readonly System.Text.RegularExpressions.Regex UsdMarker = new(
         @"(?<![A-Za-z])(USD|US\$|USDOLLAR)(?![A-Za-z])|_USD\b",
@@ -969,7 +995,10 @@ public sealed class FinalActionService(
         var options = await db.OptionItems.AsNoTracking()
             .Where(o => (o.UserId == userId || o.UserId == null) && o.TransactionType != "CLOSE")
             .Select(o => o.UnderlyingTicker).ToListAsync(ct);
-        return ClassifyValuation(stocks, cash, options);
+        var plain = ClassifyValuation(stocks, cash, options);
+        if (plain.Status != ValuationCheck.MixedCurrency || usdCadRates is null) return plain;
+        // Only a genuine CAD/USD mix needs the rate, so a CAD-only portfolio never calls the FX provider.
+        return ClassifyValuation(stocks, cash, options, await usdCadRates.GetAsync(DateTimeOffset.UtcNow, ct));
     }
 
     /// <summary>One batched read of open Swing risk for the whole pass. A failed read leaves risk unknown; it never implies Clear.</summary>
@@ -1014,7 +1043,7 @@ public sealed class FinalActionService(
         string Role(PortfolioSummaryDto s) => string.IsNullOrWhiteSpace(s.Item.HoldingRole) ? "Strategic" : s.Item.HoldingRole!.Trim();
         var roles = lots.Select(Role).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(r => r).ToList();
         var accounts = lots.Select(l => l.Item.AccountType ?? "").Where(a => a.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(a => a).ToList();
-        double? exposure = valuation.Reliable && grandTotal > 0 ? Dbl(lots.Sum(MarketValue)) / grandTotal * 100 : null;
+        double? exposure = valuation.Reliable && grandTotal > 0 ? Dbl(lots.Sum(l => MarketValue(l, valuation))) / grandTotal * 100 : null;
         return new FinalActionOwnership(true, lots.Count, accounts, roles, roles.Count > 1, exposure);
     }
 
