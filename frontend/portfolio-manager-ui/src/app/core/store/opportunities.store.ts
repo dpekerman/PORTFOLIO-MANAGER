@@ -42,7 +42,7 @@ const MAX_POLLS = 120;
  * Score filter (C2). Thresholds are never literals here: `attractive`/`moderate` use the published config
  * (`attractiveMin`/`moderateMin`), `scored` keeps every row with a score, `all` also keeps unscorable rows.
  */
-export type ScoreFilter = 'attractive' | 'moderate' | 'scored' | 'all';
+export type ScoreFilter = 'strong' | 'attractive' | 'moderate' | 'scored' | 'all';
 export type OwnershipFilter = 'all' | 'owned' | 'notOwned';
 export type FreshnessFilter = 'all' | 'current' | 'stale';
 export type SortDirection = 'asc' | 'desc' | '';

@@ -55,6 +55,7 @@ import {
   opportunityExportColumns,
   opportunityExportRows,
   sortRows,
+  STRONG_SCORE_MIN,
 } from './opportunities-logic';
 import { OpportunityDetailsPanelComponent } from './opportunity-details-panel.component';
 
@@ -219,6 +220,11 @@ export class TradingOpportunitiesPageComponent {
     const c = this.store.config();
     return [
       {
+        value: 'strong' as ScoreFilter,
+        label: c ? `Strong (${Math.max(STRONG_SCORE_MIN, c.attractiveMin)}+)` : 'Strong',
+        disabled: !c,
+      },
+      {
         value: 'attractive' as ScoreFilter,
         label: c ? `Attractive (${c.attractiveMin}+)` : 'Attractive',
         disabled: !c,
@@ -289,7 +295,7 @@ export class TradingOpportunitiesPageComponent {
 
   protected applyEmptyAction(): void {
     if (this.emptyState().action === 'showUnavailable') {
-      this.update({ showUnavailable: true });
+      this.update({ scoreFilter: 'all' });
     } else if (this.emptyState().action === 'reset') {
       this.store.resetFilters();
     }

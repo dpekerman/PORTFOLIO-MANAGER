@@ -87,8 +87,12 @@ export function scoreAriaLabel(perspective: ScorePerspective, s: OpportunityScor
   return `${perspective} score ${s.score} of 100, ${s.band}${provisional}`;
 }
 
+/** Owner-requested "Strong" cut-off, a stricter tier above the published Attractive threshold. */
+export const STRONG_SCORE_MIN = 80;
+
 export function minScoreFor(filter: ScoreFilter, config: OpportunityConfig | null): number | null {
   if (!config) return null;
+  if (filter === 'strong') return Math.max(STRONG_SCORE_MIN, config.attractiveMin);
   if (filter === 'attractive') return config.attractiveMin;
   if (filter === 'moderate') return config.moderateMin;
   return null;
@@ -322,6 +326,9 @@ export type ScoreGate = 'shown' | 'belowThreshold' | 'notVerified' | 'unscorable
 export function scoreGate(row: OpportunityRow, input: OpportunityFilterInput): ScoreGate {
   const s = activeScore(row, input.view.perspective);
   if (isUnscorable(s)) {
+    // A score-threshold filter (Strong/Attractive/Moderate) never lists unscored or "Not evaluated" rows.
+    const thresholdFilter = ['strong', 'attractive', 'moderate'].includes(input.view.scoreFilter);
+    if (thresholdFilter) return 'unscorable';
     return input.view.scoreFilter === 'all' || input.view.showUnavailable ? 'shown' : 'unscorable';
   }
   if (input.view.verifiedOnly && s.status !== 'Verified') return 'notVerified';
