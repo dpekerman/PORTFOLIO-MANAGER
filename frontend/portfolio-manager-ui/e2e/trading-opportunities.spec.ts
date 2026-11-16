@@ -558,7 +558,10 @@ test.describe('PM-029 Trading Opportunities', () => {
     expect(order.at(-1)).toBe('BRQ.TO');
     await capture('04-fund-deferral');
     await page.getByTestId('perspective-strategic').click();
-    await expect(page.getByTestId('setup-quality')).toHaveCount(0);
+    // Swing-only proposed grades must not leak into the Strategic perspective, which reads strategicSetupQuality.
+    await expect(
+      page.getByTestId('setup-quality').filter({ hasText: /Good|Caution|Poor/ }),
+    ).toHaveCount(0);
     const topStrategic = snapshot.rows.reduce((best, row) =>
       (row.strategic.score ?? -1) > (best.strategic.score ?? -1) ? row : best,
     );
