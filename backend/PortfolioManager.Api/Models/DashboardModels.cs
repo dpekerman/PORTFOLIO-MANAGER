@@ -44,7 +44,9 @@ public sealed record PeriodPerformanceDto(
     decimal? ValueChange,
     decimal? NetExternalFlow,
     decimal? InvestmentGainLoss,
-    decimal? InvestmentGainLossPercent);
+    decimal? InvestmentGainLossPercent,
+    decimal? BaselineValue = null,
+    string? ReturnMethod = null);
 
 public sealed record DashboardMover(
     string Symbol,

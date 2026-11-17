@@ -223,13 +223,26 @@ export const OpportunitiesStore = signalStore(
     detailError: null,
   })),
   withRequestStatus(),
-  withComputed(({ snapshot, selectedSymbol }) => ({
+  withComputed(({ snapshot, selectedSymbol, view }) => ({
     rows: computed(() => snapshot()?.rows ?? []),
     selectedRow: computed(() => {
       const symbol = selectedSymbol();
       return symbol ? (snapshot()?.rows.find((r) => r.symbol === symbol) ?? null) : null;
     }),
     hasSnapshot: computed(() => (snapshot()?.snapshotId ?? null) !== null),
+    /**
+     * True when the snapshot has rows but none carries a score in the active perspective (e.g. refreshed before the
+     * session counts as completed). A score-threshold filter would then hide every row, so the page lists them all.
+     * Derived, never written to the saved view, so a later preference reload cannot undo it.
+     */
+    nothingScored: computed(() => {
+      const rows = snapshot()?.rows ?? [];
+      const perspective = view().perspective;
+      return (
+        rows.length > 0 &&
+        !rows.some((r) => (perspective === 'Swing' ? r.swing : r.strategic).score !== null)
+      );
+    }),
   })),
   withMethods(
     (

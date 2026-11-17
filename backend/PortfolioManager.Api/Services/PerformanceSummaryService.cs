@@ -1,26 +1,22 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
-using PortfolioManager.Api.Models;
 
 namespace PortfolioManager.Api.Services;
 
 public sealed record BenchmarkReturn(string Name, string Symbol, decimal YtdReturnPct);
 
+/// <summary>
+/// Benchmark returns over the same period the Dashboard's upper performance card reports for the portfolio.
+/// The portfolio's own return is NOT computed here: it comes from <see cref="IPortfolioPerformanceService"/> via the dashboard
+/// (cash-flow adjusted), so there is a single calculation path.
+/// </summary>
 public sealed record PerformanceSummaryResponse(
-    decimal PortfolioYtdReturnPct,
-    decimal PortfolioYtdDollar,
-    decimal PortfolioStartValue,
-    string  PortfolioStartDate,
-    decimal PortfolioCurrentValue,
-    string  PortfolioCurrentDate,
-    IReadOnlyList<BenchmarkReturn> Benchmarks,
-    decimal AlphaVsPrimaryBenchmarkPct,
-    string PrimaryBenchmarkName,
-    // False when no snapshot exists on/before Jan 1 of the current year (e.g. tracking started
-    // mid-year) — the baseline is the earliest available snapshot instead, so this is really an
-    // "since inception" return, not a true year-to-date return. The frontend must relabel accordingly.
-    bool IsFullYear);
+    // Date the benchmark return starts from (the portfolio baseline snapshot date).
+    string BenchmarkStartDate,
+    // True when that baseline is the prior year-end (a real year-to-date period); false for the shorter
+    // "since cash-ledger start" period the portfolio card falls back to. The frontend labels accordingly.
+    bool IsFullYear,
+    IReadOnlyList<BenchmarkReturn> Benchmarks);
 
 public interface IPerformanceSummaryService
 {
@@ -29,8 +25,6 @@ public interface IPerformanceSummaryService
 
 public sealed class PerformanceSummaryService(AppDbContext db, IMarketDataProvider marketData) : IPerformanceSummaryService
 {
-    private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
-
     private static readonly (string symbol, string name)[] Benchmarks =
     [
         ("^GSPTSE", "TSX Composite"),
@@ -39,121 +33,54 @@ public sealed class PerformanceSummaryService(AppDbContext db, IMarketDataProvid
 
     public async Task<PerformanceSummaryResponse?> GetSummaryAsync(string userId, CancellationToken ct = default)
     {
-        var history = await db.PortfolioValueHistories
-            .AsNoTracking()
-            .OrderBy(h => h.RecordedDate)
-            .ToListAsync(ct);
-
+        var history = await db.PortfolioValueHistories.AsNoTracking().OrderBy(h => h.RecordedDate).ToListAsync(ct);
         if (history.Count < 2) return null;
 
-        var today = DateTime.UtcNow;
-        var janFirst = $"{today.Year}-01-01";
+        var settings = await db.CashLedgerSettings.AsNoTracking().SingleOrDefaultAsync(s => s.Id == 1, ct);
+        DateOnly? ledgerStart = settings is null ? null : DateOnly.FromDateTime(settings.LedgerStartDate);
+        var today = DateOnly.FromDateTime(TradingCalendar.TorontoNow(DateTime.UtcNow));
+        var janFirst = new DateOnly(today.Year, 1, 1);
 
-        // Find last value on or before Jan 1 (prior year-end close). If tracking only started
-        // mid-year there is no such row — fall back to the earliest available snapshot and flag
-        // the result as "since inception" instead of silently mislabeling it as YTD.
-        var ytdBase = history.LastOrDefault(h => string.Compare(h.RecordedDate, janFirst, StringComparison.Ordinal) <= 0);
-        var isFullYear = ytdBase is not null;
-        ytdBase ??= history.First();
-        var latest = history.Last();
+        // Same baseline rule as the portfolio card: a usable pre-Jan-1 snapshot means true YTD, otherwise the first
+        // snapshot on/after the cash-ledger start. Never a silent rebase of the benchmark.
+        var ytdBase = history.LastOrDefault(h => DateOnly.Parse(h.RecordedDate) < janFirst);
+        var isFullYear = PortfolioPerformanceService.CheckBaseline(ytdBase, janFirst, ledgerStart, updating: false) is null;
+        var baseline = isFullYear ? ytdBase : PortfolioPerformanceService.SinceStartBaseline(history, ledgerStart, today);
+        if (baseline is null) return null;
 
-        if (ytdBase.TotalValue <= 0) return null;
-
-        // ── Live current value from portfolio snapshot (matches the portfolio hero) ──
-        var portfolioSnap = await db.PortfolioSnapshots.AsNoTracking()
-            .SingleOrDefaultAsync(s => s.UserId == userId, ct);
-        var snapItems = Deserialize<List<PortfolioSummaryDto>>(portfolioSnap?.SnapshotJson ?? "[]") ?? [];
-        var liveStocksValue = snapItems
-            .Where(p => !IsClose(p.Item.TransactionType))
-            .Sum(p => p.Item.IsManual
-                ? (p.Item.ManualMarketValue ?? p.Item.AverageCostBasis * p.Item.Shares)
-                : (p.Quote?.CurrentPrice ?? p.Item.AverageCostBasis) * p.Item.Shares);
-        var cashTotal = await db.CashItems.AsNoTracking().SumAsync(c => c.Amount, ct);
-        var currentValue = liveStocksValue > 0 ? liveStocksValue + cashTotal : latest.TotalValue;
-
-        var portfolioYtd = ytdBase.TotalValue > 0
-            ? Math.Round((currentValue - ytdBase.TotalValue) / ytdBase.TotalValue * 100m, 2)
-            : 0m;
-        var portfolioYtdDollar = Math.Round(currentValue - ytdBase.TotalValue, 2);
-
-        // ── Benchmark YTD returns from Yahoo Finance ──────────────────────────────
         var benchmarkReturns = new List<BenchmarkReturn>();
         try
         {
-            var benchmarkSymbols = Benchmarks.Select(b => b.symbol).ToList();
-
-            // Get prior year-end closing price (Dec 31, or nearest trading day before Jan 1)
-            var startPrices = await GetLastTradingPricesBeforeYearAsync(benchmarkSymbols, today.Year, ct);
-
-            // Get current quotes
-            var currentQuotes = await marketData.GetBatchQuotesAsync(benchmarkSymbols, ct);
-
+            var symbols = Benchmarks.Select(b => b.symbol).ToList();
+            var startPrices = await GetClosingPricesOnOrBeforeAsync(symbols, baseline.RecordedDate, ct);
+            var currentQuotes = await marketData.GetBatchQuotesAsync(symbols, ct);
             foreach (var (sym, name) in Benchmarks)
             {
-                if (currentQuotes.TryGetValue(sym, out var q) &&
-                    startPrices.TryGetValue(sym, out var startPrice) &&
-                    startPrice > 0)
-                {
-                    var ytd = Math.Round((q.CurrentPrice - startPrice) / startPrice * 100m, 2);
-                    benchmarkReturns.Add(new BenchmarkReturn(name, sym, ytd));
-                }
-                else
-                {
-                    benchmarkReturns.Add(new BenchmarkReturn(name, sym, 0m));
-                }
+                var ok = currentQuotes.TryGetValue(sym, out var q) && startPrices.TryGetValue(sym, out var start) && start > 0;
+                benchmarkReturns.Add(new BenchmarkReturn(name, sym,
+                    ok ? Math.Round((q!.CurrentPrice - startPrices[sym]) / startPrices[sym] * 100m, 2) : 0m));
             }
         }
         catch
         {
-            // Non-critical — return portfolio data without benchmarks
-            foreach (var (sym, name) in Benchmarks)
-                benchmarkReturns.Add(new BenchmarkReturn(name, sym, 0m));
+            // Non-critical: the portfolio card still renders; benchmarks show N/A.
+            benchmarkReturns.Clear();
+            foreach (var (sym, name) in Benchmarks) benchmarkReturns.Add(new BenchmarkReturn(name, sym, 0m));
         }
 
-        var primaryBenchmark = benchmarkReturns.FirstOrDefault(b => b.YtdReturnPct != 0)
-            ?? benchmarkReturns.FirstOrDefault();
-        var alpha = primaryBenchmark is not null && primaryBenchmark.YtdReturnPct != 0
-            ? Math.Round(portfolioYtd - primaryBenchmark.YtdReturnPct, 2)
-            : 0m;
-
-        return new PerformanceSummaryResponse(
-            PortfolioYtdReturnPct:         portfolioYtd,
-            PortfolioYtdDollar:            portfolioYtdDollar,
-            PortfolioStartValue:           ytdBase.TotalValue,
-            PortfolioStartDate:            ytdBase.RecordedDate,
-            PortfolioCurrentValue:         currentValue,
-            PortfolioCurrentDate:          latest.RecordedDate,
-            Benchmarks:                    benchmarkReturns.AsReadOnly(),
-            AlphaVsPrimaryBenchmarkPct:    alpha,
-            PrimaryBenchmarkName:          primaryBenchmark?.Name ?? "TSX Composite",
-            IsFullYear:                    isFullYear);
+        return new PerformanceSummaryResponse(baseline.RecordedDate, isFullYear, benchmarkReturns.AsReadOnly());
     }
 
-    /// <summary>
-    /// Returns prior-year closing prices for the given symbols by trying
-    /// Dec 31, Dec 30, … Dec 25 until data is found.
-    /// </summary>
-    private async Task<Dictionary<string, decimal>> GetLastTradingPricesBeforeYearAsync(
-        IEnumerable<string> symbols, int year, CancellationToken ct)
+    /// <summary>Closing prices on the baseline date, or the nearest earlier trading day (up to 7 days back).</summary>
+    private async Task<Dictionary<string, decimal>> GetClosingPricesOnOrBeforeAsync(
+        IReadOnlyList<string> symbols, string baselineDate, CancellationToken ct)
     {
-        var syms = symbols.ToList();
-        for (var offset = 1; offset <= 7; offset++)
+        var date = DateOnly.Parse(baselineDate);
+        for (var offset = 0; offset <= 7; offset++)
         {
-            var dateStr = new DateTime(year, 1, 1).AddDays(-offset).ToString("yyyy-MM-dd");
-            var prices = await marketData.GetHistoricalClosingPricesAsync(dateStr, syms, ct);
+            var prices = await marketData.GetHistoricalClosingPricesAsync(date.AddDays(-offset).ToString("yyyy-MM-dd"), symbols, ct);
             if (prices.Count > 0) return prices;
         }
         return new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
     }
-
-    private static bool IsClose(string? txType)
-        => string.Equals(txType, "CLOSE", StringComparison.OrdinalIgnoreCase);
-
-    private static T? Deserialize<T>(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return default;
-        try { return JsonSerializer.Deserialize<T>(json, JsonOpts); }
-        catch { return default; }
-    }
 }
-

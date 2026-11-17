@@ -122,12 +122,22 @@ export class TradingOpportunitiesPageComponent {
       : EMPTY_MANUAL_R;
   });
 
-  private readonly filterInput = computed(() => ({
-    view: this.store.view(),
-    search: this.store.search(),
-    reasonFilter: this.store.reasonFilter(),
-    config: this.store.config(),
-  }));
+  private readonly filterInput = computed(() => {
+    const view = this.store.view();
+    return {
+      view: this.showingAllBecauseNothingScored() ? { ...view, scoreFilter: 'all' as const } : view,
+      search: this.store.search(),
+      reasonFilter: this.store.reasonFilter(),
+      config: this.store.config(),
+    };
+  });
+
+  /** A score-threshold filter would hide every row of a snapshot with no scores, so list them all (the filter itself is unchanged). */
+  protected readonly showingAllBecauseNothingScored = computed(
+    () =>
+      this.store.nothingScored() &&
+      ['strong', 'attractive', 'moderate'].includes(this.store.view().scoreFilter),
+  );
 
   protected readonly visibleRows = computed(() =>
     sortRows(

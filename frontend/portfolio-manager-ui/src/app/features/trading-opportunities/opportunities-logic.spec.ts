@@ -393,6 +393,46 @@ describe('opportunities-logic sorting and export', () => {
     ).toBe(1);
   });
 
+  it('exports the Strategic structure setup (not the blank Swing signal setup) for the Strategic perspective', () => {
+    const row = opportunityRow('FFH.TO', {
+      setup: { ...opportunityRow('X').setup, kind: 'Unavailable', entry: null, stop: null, target: null, riskPct: null, rewardPct: null, rewardRisk: null, reasonCodes: ['NoValidStop'] },
+      strategicSetupQuality: setupQualityFixture({
+        status: 'Poor',
+        policyVersion: 'pm029-strategic-structure-v1',
+        entry: 2750.37,
+        proposedStop: 2614.31,
+        support: 2614.31,
+        supportSession: '2026-11-09',
+        proposedTarget: 2788.03,
+        resistance: 2788.03,
+        resistanceSession: '2026-11-04',
+        atr: 72.2249,
+        marketRewardRisk: 0.2768,
+        reasonCodes: [],
+      }),
+    });
+    const columns = opportunityExportColumns({ visibleOnly: false, visibleKeys: [], includeAccounts: false });
+    const at = (rows: ReturnType<typeof opportunityExportRows>, header: string) =>
+      rows[0][columns.findIndex((c) => c.header === header)];
+
+    const strategic = opportunityExportRows([row], columns, {}, 'Strategic');
+    expect(at(strategic, 'Setup')).toBe('Confirmed structure');
+    expect(at(strategic, 'Entry')).toBe(2750.37);
+    expect(at(strategic, 'Stop')).toBe(2614.31);
+    expect(at(strategic, 'Target')).toBe(2788.03);
+    expect(at(strategic, 'Structural Support')).toBe(2614.31);
+    expect(at(strategic, 'Support Session')).toBe('2026-11-09');
+    expect(at(strategic, 'Resistance Session')).toBe('2026-11-04');
+    expect(Number(at(strategic, 'Risk %'))).toBeCloseTo(4.946, 2);
+    expect(Number(at(strategic, 'Reward %'))).toBeCloseTo(1.369, 2);
+    expect(String(at(strategic, 'Setup Basis'))).toContain('Strategic');
+
+    const swing = opportunityExportRows([row], columns, {}, 'Swing');
+    expect(at(swing, 'Setup')).toBe('Unavailable');
+    expect(at(swing, 'Entry')).toBeNull();
+    expect(at(swing, 'Setup Reasons')).toBe('NoValidStop');
+  });
+
   it('returns no Manual R for incomplete or invalid long scenarios', () => {
     expect(manualRewardRisk({ entry: null, stop: 90, target: 120 })).toBeNull();
     expect(manualRewardRisk({ entry: 100, stop: null, target: 120 })).toBeNull();

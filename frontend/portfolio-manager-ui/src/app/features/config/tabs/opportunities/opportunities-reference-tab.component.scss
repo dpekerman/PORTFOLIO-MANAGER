@@ -5,7 +5,7 @@
 }
 
 h3 {
-  margin: 12px 0 0;
+  margin: 0;
   font-size: 1rem;
 
   .count {
@@ -14,10 +14,77 @@ h3 {
   }
 }
 
+.block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+
+  .search {
+    flex: 1 1 260px;
+    max-width: 420px;
+  }
+
+  @media (max-width: 599.98px) {
+    .search {
+      max-width: none;
+    }
+
+    mat-button-toggle-group {
+      width: 100%;
+    }
+  }
+}
+
 .hint {
   margin: 0;
   font-size: 0.85rem;
   color: var(--mat-sys-on-surface-variant);
+}
+
+.help {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface);
+  }
+
+  h4 {
+    margin: 12px 0 4px;
+    font-size: 0.9rem;
+    color: var(--mat-sys-on-surface);
+  }
+
+  p,
+  ul {
+    margin: 4px 0;
+  }
+
+  ul {
+    padding-left: 20px;
+  }
+
+  .inline-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    vertical-align: middle;
+  }
 }
 
 .state {
@@ -36,65 +103,13 @@ h3 {
   min-height: 44px;
 }
 
-.ref-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px 12px;
-  align-items: center;
-
-  .wide {
-    grid-column: span 2;
-  }
-
-  @media (max-width: 599.98px) {
-    grid-template-columns: minmax(0, 1fr);
-
-    .wide {
-      grid-column: auto;
-    }
-  }
-}
-
-.form-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.errors {
-  grid-column: 1 / -1;
-  margin: 0;
-  padding-left: 18px;
-  font-size: 0.82rem;
-  color: var(--mat-sys-error);
-}
-
-.toggle {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-}
-
 .table-wrap {
   overflow-x: auto;
 }
 
 .ref-table {
   width: 100%;
-  border-collapse: collapse;
   font-size: 0.85rem;
-
-  th,
-  td {
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  th {
-    font-weight: 600;
-    color: var(--mat-sys-on-surface-variant);
-  }
 
   tr.retired td {
     color: var(--text-muted);
@@ -104,11 +119,6 @@ h3 {
     padding: 14px 8px;
     color: var(--text-muted);
   }
-}
-
-.armed {
-  color: var(--mat-sys-error);
-  border-color: var(--mat-sys-error);
 }
 
 .muted {

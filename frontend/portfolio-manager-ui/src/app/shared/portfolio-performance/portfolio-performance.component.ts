@@ -9,6 +9,7 @@ const PERIOD_LABELS: Record<PerformancePeriod, string> = {
   Week: 'This week',
   Month: 'This month',
   YTD: 'Year to date',
+  SinceStart: 'Since ledger start',
 };
 
 /** Portfolio-level Value Change, Net External Flow and Investment Gain/Loss, shared by Dashboard and Portfolio. */
@@ -23,7 +24,10 @@ export class PortfolioPerformanceComponent {
   private readonly dashboard = inject(DashboardStore);
   private readonly demoMode = inject(DemoModeStore);
 
-  protected readonly periods = computed(() => this.dashboard.data()?.summary.performance ?? []);
+  // SinceStart feeds the Dashboard's upper YTD card only; this grid shows the four standard periods.
+  protected readonly periods = computed(() =>
+    (this.dashboard.data()?.summary.performance ?? []).filter((p) => p.period !== 'SinceStart'),
+  );
 
   protected label(p: PeriodPerformance): string {
     return PERIOD_LABELS[p.period];

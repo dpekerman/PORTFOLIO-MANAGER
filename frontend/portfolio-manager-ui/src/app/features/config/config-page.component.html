@@ -122,6 +122,9 @@
   </div>
   <div class="cfg-panel cfg-tab" [class.cfg-panel--active]="activeSection() === 'opportunities'">
     @defer (when isVisited('opportunities')) {
+      @if (isAdmin()) {
+        <app-opportunities-schedule-card />
+      }
       <app-opportunities-reference-tab />
     }
   </div>

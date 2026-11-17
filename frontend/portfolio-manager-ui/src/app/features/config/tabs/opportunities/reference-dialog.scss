@@ -1,0 +1,24 @@
+:host {
+  display: block;
+}
+
+.dlg-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(480px, 80vw);
+  padding-top: 8px;
+}
+
+.dlg-hint {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.dlg-errors {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--mat-sys-error);
+}

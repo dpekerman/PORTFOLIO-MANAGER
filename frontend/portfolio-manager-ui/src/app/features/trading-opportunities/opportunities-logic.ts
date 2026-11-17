@@ -663,6 +663,29 @@ const xcol = (
 
 const list = (v: readonly string[]): string | null => (v.length ? v.join('; ') : null);
 
+/** Which setup the export's Setup/Entry/Stop/Target and Setup Quality columns describe. */
+const SETUP_BASIS: Record<ScorePerspective, string> = {
+  Swing: 'Swing: staged-signal entry, Scanner Dynamic stop, structural target',
+  Strategic: 'Strategic: price vs confirmed swing support (stop) and resistance (target)',
+};
+
+/** Strategic has no staged-signal setup: it is "Confirmed structure" when its own support/resistance R exists. */
+function setupKindFor(row: OpportunityRow, perspective: ScorePerspective): string {
+  if (perspective === 'Swing') return row.setup.kind;
+  return row.strategicSetupQuality?.marketRewardRisk != null ? 'Confirmed structure' : 'Unavailable';
+}
+
+/** Risk/reward % of the Strategic structure setup (entry to support / resistance), null unless support < entry < resistance. */
+function structureRiskReward(row: OpportunityRow): { riskPct: number; rewardPct: number } | null {
+  const q = row.strategicSetupQuality;
+  if (!q || q.entry == null || q.proposedStop == null || q.proposedTarget == null) return null;
+  if (!(q.proposedStop < q.entry && q.entry < q.proposedTarget)) return null;
+  return {
+    riskPct: ((q.entry - q.proposedStop) / q.entry) * 100,
+    rewardPct: ((q.proposedTarget - q.entry) / q.entry) * 100,
+  };
+}
+
 const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Symbol', 'text', (r) => r.symbol),
   xcol('Company', 'text', (r) => companyNameForDisplay(r.symbol, r.companyName)),
@@ -737,13 +760,89 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
       manualRewardRisk(scenarios[manualRScenarioKey(r.symbol, perspective)]),
     'manualR',
   ),
-  xcol('Setup', 'text', (r) => r.setup.kind, 'setupKind'),
-  xcol('Setup Reasons', 'text', (r) => list(r.setup.reasonCodes), 'setupKind'),
-  xcol('Entry', 'money', (r) => r.setup.entry, 'entry'),
-  xcol('Stop', 'money', (r) => r.setup.stop, 'stop'),
-  xcol('Target', 'money', (r) => r.setup.target, 'target'),
-  xcol('Risk %', 'qty', (r) => r.setup.riskPct, 'riskPct'),
-  xcol('Reward %', 'qty', (r) => r.setup.rewardPct, 'rewardPct'),
+  xcol(
+    'Setup Basis',
+    'text',
+    (_r, _scenarios, perspective) => SETUP_BASIS[perspective],
+    'setupQuality',
+  ),
+  xcol('Setup', 'text', (r, _s, perspective) => setupKindFor(r, perspective), 'setupKind'),
+  xcol(
+    'Setup Reasons',
+    'text',
+    (r, _s, perspective) =>
+      perspective === 'Strategic'
+        ? list(r.strategicSetupQuality?.reasonCodes ?? [])
+        : list(r.setup.reasonCodes),
+    'setupKind',
+  ),
+  xcol(
+    'Entry',
+    'money',
+    (r, _s, perspective) =>
+      perspective === 'Strategic' ? (r.strategicSetupQuality?.entry ?? null) : r.setup.entry,
+    'entry',
+  ),
+  xcol(
+    'Stop',
+    'money',
+    (r, _s, perspective) =>
+      perspective === 'Strategic' ? (r.strategicSetupQuality?.proposedStop ?? null) : r.setup.stop,
+    'stop',
+  ),
+  xcol(
+    'Target',
+    'money',
+    (r, _s, perspective) =>
+      perspective === 'Strategic'
+        ? (r.strategicSetupQuality?.proposedTarget ?? null)
+        : r.setup.target,
+    'target',
+  ),
+  xcol(
+    'Risk %',
+    'qty',
+    (r, _s, perspective) =>
+      perspective === 'Strategic' ? structureRiskReward(r)?.riskPct ?? null : r.setup.riskPct,
+    'riskPct',
+  ),
+  xcol(
+    'Reward %',
+    'qty',
+    (r, _s, perspective) =>
+      perspective === 'Strategic' ? structureRiskReward(r)?.rewardPct ?? null : r.setup.rewardPct,
+    'rewardPct',
+  ),
+  xcol(
+    'Structural Support',
+    'money',
+    (r, _s, perspective) => setupQualityFor(r, perspective)?.support ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'Support Session',
+    'date',
+    (r, _s, perspective) => setupQualityFor(r, perspective)?.supportSession ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'Structural Resistance',
+    'money',
+    (r, _s, perspective) => setupQualityFor(r, perspective)?.resistance ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'Resistance Session',
+    'date',
+    (r, _s, perspective) => setupQualityFor(r, perspective)?.resistanceSession ?? null,
+    'setupQuality',
+  ),
+  xcol(
+    'ATR (14)',
+    'money',
+    (r, _s, perspective) => setupQualityFor(r, perspective)?.atr ?? null,
+    'setupQuality',
+  ),
   xcol('Risk', 'text', (r) => r.risk.category, 'risk'),
   xcol('Portfolio Fit', 'text', (r) => r.fit.status, 'fit'),
   xcol('Fit Reasons', 'text', (r) => list(r.fit.reasonCodes), 'fit'),

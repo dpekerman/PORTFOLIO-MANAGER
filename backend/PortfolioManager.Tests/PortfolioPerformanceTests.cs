@@ -68,7 +68,7 @@ public sealed class PortfolioPerformanceTests
             Assert.Equal(10_000m, p.ValueChange);
             Assert.Equal(10_000m, p.NetExternalFlow);
             Assert.Equal(0m, p.InvestmentGainLoss);
-            Assert.Null(p.InvestmentGainLossPercent);
+            Assert.Equal(0m, p.InvestmentGainLossPercent); // time-weighted: the deposit earns nothing
         }
     }
 
@@ -92,7 +92,7 @@ public sealed class PortfolioPerformanceTests
         var day = Get(await Svc(db).BuildAsync(User, History(), 111_500m, Today, default), "Day");
 
         Assert.Equal(1_500m, day.InvestmentGainLoss);
-        Assert.Null(day.InvestmentGainLossPercent);
+        Assert.Equal(1.50m, day.InvestmentGainLossPercent); // 1,500 on the pre-deposit 100,000, not on 110,000
     }
 
     [Fact]
@@ -301,6 +301,77 @@ public sealed class PortfolioPerformanceTests
         Assert.Equal("Available", ytd.Status);
         Assert.Equal("2025-12-31", ytd.BaselineDate);
         Assert.Equal(5_000m, ytd.InvestmentGainLoss);
+    }
+
+    [Fact]
+    public async Task SinceStart_UsesFirstSnapshotOnOrAfterLedgerStart_NotEarlierSnapshots()
+    {
+        await using var db = CreateDb(new DateOnly(2026, 8, 29));
+        Cash(db, CashFlowTypeRules.Deposit, 20_000m, "2026-09-02");
+        var since = Get(await Svc(db).BuildAsync(User, History(), 120_000m, Today, default), PortfolioPerformanceService.SinceStartPeriod);
+
+        Assert.Equal("Available", since.Status);
+        Assert.Equal("2026-08-31", since.BaselineDate);   // not 2025-12-31, which predates the ledger
+        Assert.Equal(100_000m, since.BaselineValue);
+        Assert.Equal(20_000m, since.NetExternalFlow);
+        Assert.Equal(0m, since.InvestmentGainLoss);
+        Assert.Equal(0m, since.InvestmentGainLossPercent);
+    }
+
+    [Fact]
+    public async Task SinceStart_IsUnavailable_WhenNoSnapshotAfterLedgerStart()
+    {
+        await using var db = CreateDb(new DateOnly(2026, 9, 2));
+        var since = Get(await Svc(db).BuildAsync(User, History(), 100_000m, Today, default), PortfolioPerformanceService.SinceStartPeriod);
+
+        Assert.Equal("Unavailable", since.Status);
+        Assert.Null(since.InvestmentGainLoss);
+    }
+
+    [Fact]
+    public async Task MonthWith40kContributionAnd34702Increase_IsMinus5298_AndPercentIsNaWithoutDailySnapshots()
+    {
+        await using var db = CreateDb();
+        Cash(db, CashFlowTypeRules.Deposit, 20_000m, "2026-11-11", desc: "A");
+        Cash(db, CashFlowTypeRules.Deposit, 20_000m, "2026-11-16", desc: "B");
+        var history = new List<PortfolioValueHistory> { Row("2026-10-30", 679_411.37m, 100_000m) };
+        var month = Get(await Svc(db).BuildAsync(User, history, 814_113.37m, new DateOnly(2026, 11, 16), default), "Month");
+
+        Assert.Equal(34_702m, month.ValueChange);
+        Assert.Equal(40_000m, month.NetExternalFlow);
+        Assert.Equal(-5_298m, month.InvestmentGainLoss);
+        Assert.Null(month.InvestmentGainLossPercent);   // no fabricated return across a 17-day snapshot gap
+    }
+
+    [Fact]
+    public void TimeWeightedReturn_IgnoresTheDepositAndWeightsByWhenItArrived()
+    {
+        // Day 1: flat, +100k deposit (200k at close). Day 2: -10% on 200k. Money-weighted/simple would say -20%.
+        var rows = new List<PortfolioValueHistory> { Row("2026-11-02", 100_000m, 0m), Row("2026-11-03", 200_000m, 0m) };
+        var twr = PortfolioPerformanceService.TimeWeightedReturnPct(
+            rows, rows[0], 180_000m, new DateOnly(2026, 11, 4), [(new DateOnly(2026, 11, 3), 100_000m)]);
+
+        Assert.Equal(-10.00m, twr);
+    }
+
+    [Fact]
+    public void TimeWeightedReturn_Withdrawal_WithUnchangedInvestments_IsZero()
+    {
+        var rows = new List<PortfolioValueHistory> { Row("2026-11-02", 100_000m, 0m) };
+        var twr = PortfolioPerformanceService.TimeWeightedReturnPct(
+            rows, rows[0], 80_000m, new DateOnly(2026, 11, 3), [(new DateOnly(2026, 11, 3), -20_000m)]);
+
+        Assert.Equal(0m, twr);
+    }
+
+    [Fact]
+    public void TimeWeightedReturn_IsNull_WhenAFlowSitsInAMissingSnapshotGap()
+    {
+        var rows = new List<PortfolioValueHistory> { Row("2026-10-20", 100_000m, 0m) };
+        var twr = PortfolioPerformanceService.TimeWeightedReturnPct(
+            rows, rows[0], 125_000m, new DateOnly(2026, 11, 3), [(new DateOnly(2026, 11, 1), 20_000m)]);
+
+        Assert.Null(twr);
     }
 
     [Fact]

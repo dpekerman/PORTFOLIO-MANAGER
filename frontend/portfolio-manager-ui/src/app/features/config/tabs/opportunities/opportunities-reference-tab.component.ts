@@ -1,37 +1,30 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { FormField, form } from '@angular/forms/signals';
+import { ChangeDetectionStrategy, Component, OnInit, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSelectModule } from '@angular/material/select';
+import { MatSort, MatSortModule } from '@angular/material/sort';
+import { MatTableDataSource, MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { SectorBenchmarkMapping } from '../../../../core/models/opportunities.models';
+import { IndexConstituent, SectorBenchmarkMapping } from '../../../../core/models/opportunities.models';
 import { AuthStore } from '../../../../core/store/auth.store';
 import { OpportunityReferenceStore } from '../../../../core/store/opportunity-reference.store';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../../shared/confirm-dialog/confirm-dialog.component';
+import { ResponsiveTableDirective } from '../../../../shared/responsive-table/responsive-table.directive';
 import { SettingsSectionComponent } from '../../../../shared/ui/settings-section/settings-section.component';
-import { benchmarkFormErrors, constituentFormErrors, parseAliases, splitAliases } from './opportunity-reference-logic';
+import { BenchmarkDialogComponent } from './benchmark-dialog.component';
+import { ConstituentDialogComponent, ConstituentDialogData } from './constituent-dialog.component';
+import { parseAliases } from './opportunity-reference-logic';
 
-const EMPTY_CONSTITUENT = { symbol: '', companyName: '', effectiveFrom: '', source: '', sourceAsOfDate: '' };
-const EMPTY_BENCHMARK = {
-  id: null as number | null,
-  sector: '',
-  market: 'Tsx',
-  benchmarkSymbol: '',
-  benchmarkName: '',
-  currency: '',
-  aliases: '',
-  isActive: true,
-  notes: '',
-  source: '',
-  sourceAsOfDate: '',
-};
+type StatusFilter = 'current' | 'retired' | 'all';
 
 /**
  * PM-029 reference data: TSX 60 constituents and sector benchmark mappings. Nothing is seeded automatically;
- * an administrator enters each sourced, date-stamped row. Constituents are retired (EffectiveTo), never deleted.
+ * an administrator enters each sourced, date-stamped row. Constituents are retired (EffectiveTo), never deleted, and a
+ * retire needs a confirmation dialog and can be undone (Restore).
  */
 @Component({
   selector: 'app-opportunities-reference-tab',
@@ -39,107 +32,113 @@ const EMPTY_BENCHMARK = {
   styleUrl: './opportunities-reference-tab.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormField,
     MatButtonModule,
-    MatCheckboxModule,
+    MatButtonToggleModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
     MatProgressSpinnerModule,
-    MatSelectModule,
+    MatSortModule,
+    MatTableModule,
     MatTooltipModule,
+    ResponsiveTableDirective,
     SettingsSectionComponent,
   ],
 })
 export class OpportunitiesReferenceTabComponent implements OnInit {
   protected readonly store = inject(OpportunityReferenceStore);
   protected readonly isAdmin = inject(AuthStore).isAdmin;
+  private readonly dialog = inject(MatDialog);
 
-  protected readonly constituentModel = signal({ ...EMPTY_CONSTITUENT });
-  protected readonly constituentForm = form(this.constituentModel);
-  protected readonly constituentErrors = computed(() => constituentFormErrors(this.constituentModel()));
+  protected readonly constituentColumns = computed(() => [
+    'symbol', 'companyName', 'effectiveFrom', 'source', ...(this.isAdmin() ? ['actions'] : []),
+  ]);
+  protected readonly benchmarkColumns = computed(() => [
+    'sector', 'market', 'benchmarkSymbol', 'currency', 'aliases', 'source', 'isActive', ...(this.isAdmin() ? ['actions'] : []),
+  ]);
 
-  protected readonly benchmarkModel = signal({ ...EMPTY_BENCHMARK });
-  protected readonly benchmarkForm = form(this.benchmarkModel);
-  protected readonly benchmarkErrors = computed(() => benchmarkFormErrors(this.benchmarkModel()));
+  protected readonly status = signal<StatusFilter>('current');
+  protected readonly constituentFilter = signal('');
+  protected readonly benchmarkFilter = signal('');
 
-  protected readonly retireId = signal<number | null>(null);
-  protected readonly showRetired = signal(false);
-  protected readonly markets = ['Tsx', 'Nyse'] as const;
+  protected readonly constituentSource = new MatTableDataSource<IndexConstituent>([]);
+  protected readonly benchmarkSource = new MatTableDataSource<SectorBenchmarkMapping>([]);
+  private readonly constituentSort = viewChild<MatSort>('constituentSort');
+  private readonly benchmarkSort = viewChild<MatSort>('benchmarkSort');
+
+  protected readonly shownConstituents = computed(() => {
+    const all = this.store.constituents();
+    const s = this.status();
+    return s === 'all' ? all : all.filter((c) => (s === 'retired') === !!c.effectiveTo);
+  });
+
+  constructor() {
+    this.constituentSource.sortingDataAccessor = (row, column) => String((row as unknown as Record<string, unknown>)[column] ?? '').toLowerCase();
+    this.benchmarkSource.sortingDataAccessor = (row, column) =>
+      column === 'aliases' ? this.aliases(row).toLowerCase() : String((row as unknown as Record<string, unknown>)[column] ?? '').toLowerCase();
+    effect(() => (this.constituentSource.data = this.shownConstituents()));
+    effect(() => (this.benchmarkSource.data = this.store.benchmarks()));
+    effect(() => (this.constituentSource.filter = this.constituentFilter().trim().toLowerCase()));
+    effect(() => (this.benchmarkSource.filter = this.benchmarkFilter().trim().toLowerCase()));
+    effect(() => (this.constituentSource.sort = this.constituentSort() ?? null));
+    effect(() => (this.benchmarkSource.sort = this.benchmarkSort() ?? null));
+  }
 
   ngOnInit(): void {
     this.store.load();
   }
 
-  protected addConstituent(): void {
-    if (this.constituentErrors().length || this.store.saving()) return;
-    const m = this.constituentModel();
-    this.store.addConstituent({
-      symbol: m.symbol.trim(),
-      companyName: m.companyName.trim() || null,
-      indexCode: null,
-      effectiveFrom: m.effectiveFrom,
-      source: m.source.trim(),
-      sourceAsOfDate: m.sourceAsOfDate,
-    });
-    // Keep the shared source fields so a sourced list can be entered row by row.
-    this.constituentModel.set({ ...EMPTY_CONSTITUENT, effectiveFrom: m.effectiveFrom, source: m.source, sourceAsOfDate: m.sourceAsOfDate });
-  }
-
-  /** Two-step retire: the first click arms the row, the second confirms. */
-  protected retire(id: number): void {
-    if (this.retireId() !== id) {
-      this.retireId.set(id);
-      return;
-    }
-    this.retireId.set(null);
-    this.store.retireConstituent({ id, effectiveTo: null });
-  }
-
-  protected editBenchmark(b: SectorBenchmarkMapping): void {
-    this.benchmarkModel.set({
-      id: b.id,
-      sector: b.sector,
-      market: b.market,
-      benchmarkSymbol: b.benchmarkSymbol,
-      benchmarkName: b.benchmarkName,
-      currency: b.currency,
-      aliases: parseAliases(b.providerSectorAliasesJson).join(', '),
-      isActive: b.isActive,
-      notes: b.notes ?? '',
-      source: b.source ?? '',
-      sourceAsOfDate: b.sourceAsOfDate?.substring(0, 10) ?? '',
-    });
-  }
-
-  protected resetBenchmark(): void {
-    this.benchmarkModel.set({ ...EMPTY_BENCHMARK });
-  }
-
-  protected saveBenchmark(): void {
-    if (this.benchmarkErrors().length || this.store.saving()) return;
-    const m = this.benchmarkModel();
-    this.store.upsertBenchmark({
-      id: m.id,
-      sector: m.sector.trim(),
-      market: m.market,
-      benchmarkSymbol: m.benchmarkSymbol.trim(),
-      benchmarkName: m.benchmarkName.trim() || null,
-      currency: m.currency.trim(),
-      providerSectorAliases: splitAliases(m.aliases),
-      isActive: m.isActive,
-      notes: m.notes.trim() || null,
-      source: m.source.trim() || null,
-      sourceAsOfDate: m.sourceAsOfDate || null,
-    });
-    this.resetBenchmark();
+  protected date(value: string | null | undefined): string {
+    return value ? value.substring(0, 10) : '—';
   }
 
   protected aliases(b: SectorBenchmarkMapping): string {
     return parseAliases(b.providerSectorAliasesJson).join(', ') || '—';
   }
 
-  protected date(v: string | null | undefined): string {
-    return v ? v.substring(0, 10) : '—';
+  protected setFilter(kind: 'constituent' | 'benchmark', event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    (kind === 'constituent' ? this.constituentFilter : this.benchmarkFilter).set(value);
+  }
+
+  protected addConstituent(): void {
+    const last = this.store.constituents().at(-1);
+    const data: ConstituentDialogData = {
+      effectiveFrom: last?.effectiveFrom?.substring(0, 10) ?? '',
+      source: last?.source ?? '',
+      sourceAsOfDate: last?.sourceAsOfDate?.substring(0, 10) ?? '',
+    };
+    this.dialog
+      .open(ConstituentDialogComponent, { data, autoFocus: 'first-tabbable' })
+      .afterClosed()
+      .subscribe((request) => request && this.store.addConstituent(request));
+  }
+
+  /** Always asks first; the answer defaults to Cancel. Retiring only end-dates the row and can be undone. */
+  protected retire(c: IndexConstituent): void {
+    const data: ConfirmDialogData = {
+      title: `Retire ${c.symbol}?`,
+      message:
+        `${c.companyName || c.symbol} will leave the TSX 60 universe on the next refresh of Trading Opportunities. ` +
+        'The row is kept (end-dated today) and can be restored at any time.',
+      confirmLabel: 'Retire',
+      cancelLabel: 'Cancel',
+      danger: true,
+    };
+    this.dialog
+      .open(ConfirmDialogComponent, { data, autoFocus: 'first-tabbable' })
+      .afterClosed()
+      .subscribe((ok) => ok === true && this.store.retireConstituent({ id: c.id, effectiveTo: null }));
+  }
+
+  protected restore(c: IndexConstituent): void {
+    this.store.restoreConstituent(c.id);
+  }
+
+  protected editBenchmark(b: SectorBenchmarkMapping | null): void {
+    this.dialog
+      .open(BenchmarkDialogComponent, { data: b, autoFocus: 'first-tabbable' })
+      .afterClosed()
+      .subscribe((request) => request && this.store.upsertBenchmark(request));
   }
 }
