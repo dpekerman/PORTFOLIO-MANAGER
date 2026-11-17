@@ -176,7 +176,20 @@
         {{ pct(h) > 0 ? '+' : '' }}{{ pct(h) | number: '1.2-2' }}%
       </span>
     } @else if (h.status === 'Pending') {
-      <span class="muted" [matTooltip]="horizonTip(h)">Pending</span>
+      @if (h.interimPct != null) {
+        <span
+          class="pct pct-interim"
+          [class.pct-pos]="h.interimPct > 0"
+          [class.pct-neg]="h.interimPct < 0"
+          [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+          [matTooltip]="horizonTip(h)"
+        >
+          {{ interimPct(h) > 0 ? '+' : '' }}{{ interimPct(h) | number: '1.2-2' }}%
+          <span class="muted">so far</span>
+        </span>
+      } @else {
+        <span class="muted" [matTooltip]="horizonTip(h)">Pending</span>
+      }
     } @else {
       <span class="muted" [matTooltip]="horizonTip(h)">N/A</span>
     }

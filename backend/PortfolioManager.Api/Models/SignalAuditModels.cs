@@ -267,7 +267,8 @@ public sealed record FinalActionCatalogItemDto(string Id, string Label, string C
 
 public sealed record SignalTypeOptionDto(string Key, string Label, string Category, string Direction);
 
-public sealed record SignalHorizonDto(decimal? Pct, string? EvalDate, decimal? EvalPrice, string Status);
+/// <summary><c>InterimPct</c> is the to-date return of a still-<c>Pending</c> horizon (latest close); it is display-only and never feeds statistics.</summary>
+public sealed record SignalHorizonDto(decimal? Pct, string? EvalDate, decimal? EvalPrice, string Status, decimal? InterimPct = null, string? InterimDate = null, int? SessionsElapsed = null);
 
 public sealed record SignalAuditRowDto(
     long Id,

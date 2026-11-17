@@ -1639,6 +1639,10 @@ export interface SignalHorizon {
   evalDate: string | null;
   evalPrice: number | null;
   status: SignalHorizonStatus;
+  /** To-date return of a Pending horizon (display only). */
+  interimPct?: number | null;
+  interimDate?: string | null;
+  sessionsElapsed?: number | null;
 }
 
 export interface SignalAuditRow {

@@ -291,6 +291,10 @@ export class SignalTrackerPageComponent implements OnInit {
     return this.demoMode.maskPercent(h.pct ?? 0);
   }
 
+  protected interimPct(h: SignalHorizon): number {
+    return this.demoMode.maskPercent(h.interimPct ?? 0);
+  }
+
   protected price(row: SignalAuditRow): number {
     return this.demoMode.maskValue(row.signalPrice);
   }
@@ -338,6 +342,8 @@ export class SignalTrackerPageComponent implements OnInit {
 
   protected horizonTip(h: SignalHorizon): string {
     if (h.status === 'Complete') return `Close ${h.evalPrice} on ${h.evalDate}`;
+    if (h.status === 'Pending' && h.interimPct != null)
+      return `Evaluation period not complete: ${h.sessionsElapsed ?? 0} session(s) since signal, return to date as of ${h.interimDate}`;
     return h.status === 'Pending' ? 'Evaluation period not complete yet' : 'Price history unavailable';
   }
 
