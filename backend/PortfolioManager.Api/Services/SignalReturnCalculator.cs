@@ -35,14 +35,14 @@ public static class SignalReturnCalculator
 
         var oneMonthTarget = signalDate.AddMonths(1);
         var oneMonth = latest.Date < oneMonthTarget
-            ? Pend()
+            ? Pend(signalPrice, latest, after.Count)
             : Horizon(signalPrice, ordered.First(c => c.Date >= oneMonthTarget));
 
         var today = latest.Date < signalDate ? Pend() : Horizon(signalPrice, latest);
 
         return new Result(
-            after.Count >= 5 ? Horizon(signalPrice, after[4]) : Pend(),
-            after.Count >= 20 ? Horizon(signalPrice, after[19]) : Pend(),
+            after.Count >= 5 ? Horizon(signalPrice, after[4]) : Pend(signalPrice, latest, after.Count),
+            after.Count >= 20 ? Horizon(signalPrice, after[19]) : Pend(signalPrice, latest, after.Count),
             oneMonth,
             today);
     }
@@ -54,5 +54,10 @@ public static class SignalReturnCalculator
         new(ReturnPct(signalPrice, close.Close), close.Date.ToString("yyyy-MM-dd"), close.Close, Complete);
 
     private static SignalHorizonDto Pend() => new(null, null, null, Pending);
+    private static SignalHorizonDto Pend(decimal signalPrice, MarketDailyClose latest, int sessionsAfter) =>
+        sessionsAfter > 0 && latest.Close > 0m
+            ? new(null, null, null, Pending, ReturnPct(signalPrice, latest.Close), latest.Date.ToString("yyyy-MM-dd"), sessionsAfter)
+            : Pend();
+
     private static SignalHorizonDto Na() => new(null, null, null, NotAvailable);
 }
