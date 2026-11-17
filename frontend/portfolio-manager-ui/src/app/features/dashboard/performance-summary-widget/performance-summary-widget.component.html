@@ -2,61 +2,79 @@
   @if (loading()) {
     <mat-progress-bar mode="indeterminate" class="ps-progress" />
   }
-  @if (summary(); as s) {
-    <div class="ps-stats">
-      <!-- Portfolio YTD % -->
-      <div class="ps-stat ps-stat-main">
-        <span class="ps-label">{{ ytdLabel() }}</span>
-        <strong [class]="signCls(ytdPct())" class="ps-big">
-          {{ sign(ytdPct()) }}{{ ytdPct() | number: '1.2-2' }}%
-        </strong>
-      </div>
-      <!-- Portfolio $ YTD -->
-      <div class="ps-stat">
-        <span class="ps-label">{{ ytdDollarLabel() }}</span>
-        <strong [class]="signCls(ytdDollar())">
-          {{ sign(ytdDollar())
-          }}{{ maskVal(ytdDollar()) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
-        </strong>
-      </div>
-      <!-- Benchmarks -->
-      @for (b of s.benchmarks; track b.symbol) {
-        <div class="ps-stat">
-          <span class="ps-label">{{ b.name }}</span>
-          @if (b.ytdReturnPct !== 0) {
-            <strong [class]="signCls(b.ytdReturnPct)">
-              {{ sign(b.ytdReturnPct) }}{{ b.ytdReturnPct | number: '1.2-2' }}%
+  @if (active(); as a) {
+    @if (a.status === 'Available') {
+      <div class="ps-stats" data-testid="ps-stats">
+        <div class="ps-stat ps-stat-main">
+          <span class="ps-label" data-testid="ps-return-label">{{ returnLabel() }}</span>
+          @if (a.investmentGainLossPercent !== null) {
+            <strong
+              [class]="signCls(a.investmentGainLossPercent)"
+              class="ps-big"
+              data-testid="ps-return-pct"
+              [matTooltip]="a.returnMethod ?? ''"
+            >
+              {{ sign(a.investmentGainLossPercent)
+              }}{{ maskPct(a.investmentGainLossPercent) | number: '1.2-2' }}%
             </strong>
           } @else {
-            <span class="ps-na" matTooltip="Fetching YTD from Yahoo Finance on next refresh"
-              >N/A</span
+            <strong
+              class="ps-big ps-na"
+              data-testid="ps-return-pct"
+              matTooltip="Cash moved in this period and daily snapshots are not complete enough for a time-weighted return."
+              >N/A</strong
             >
           }
         </div>
+        <div class="ps-stat">
+          <span class="ps-label">{{ dollarLabel() }}</span>
+          <strong [class]="signCls(a.investmentGainLoss ?? 0)" data-testid="ps-gain">
+            {{ sign(a.investmentGainLoss ?? 0)
+            }}{{ maskVal(a.investmentGainLoss ?? 0) | currency: 'CAD' : 'symbol-narrow' : '1.0-0' }}
+          </strong>
+        </div>
+        <div class="ps-stat">
+          <span class="ps-label">Net cash in/out</span>
+          <strong data-testid="ps-flow">{{
+            maskVal(a.netExternalFlow ?? 0) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+          }}</strong>
+        </div>
+        @for (b of benchmarks(); track b.symbol) {
+          <div class="ps-stat">
+            <span class="ps-label">{{ b.name }} {{ benchmarkSuffix() }}</span>
+            @if (b.ytdReturnPct !== 0) {
+              <strong [class]="signCls(b.ytdReturnPct)">
+                {{ sign(b.ytdReturnPct) }}{{ b.ytdReturnPct | number: '1.2-2' }}%
+              </strong>
+            } @else {
+              <span class="ps-na" matTooltip="Benchmark history unavailable for this period">N/A</span>
+            }
+          </div>
+        }
+        <div class="ps-divider"></div>
+        <div class="ps-stat ps-stat-date-block">
+          <span class="ps-label">{{ startLabel() }}</span>
+          <strong class="ps-value-num">{{
+            maskVal(a.baselineValue ?? 0) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+          }}</strong>
+          <span class="ps-date-sub">{{ fmtDate(a.baselineDate ?? '') }}</span>
+        </div>
+        <div class="ps-stat ps-stat-date-block">
+          <span class="ps-label">Current</span>
+          <strong class="ps-value-num">{{
+            maskVal(liveCurrentValue()) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
+          }}</strong>
+          <span class="ps-date-sub">{{ todayLabel }}</span>
+        </div>
+      </div>
+      @if (ytdNote(); as note) {
+        <p class="ps-empty" data-testid="ps-ytd-note">{{ note }}. Showing the shorter period above.</p>
       }
-      <div class="ps-divider"></div>
-      <!-- Start of Year -->
-      <div class="ps-stat ps-stat-date-block">
-        <span class="ps-label">{{ startLabel() }}</span>
-        <strong class="ps-value-num">{{
-          maskVal(s.portfolioStartValue) | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
-        }}</strong>
-        <span class="ps-date-sub">{{ fmtDate(s.portfolioStartDate) }}</span>
-      </div>
-      <!-- Current -->
-      <div class="ps-stat ps-stat-date-block">
-        <span class="ps-label">Current</span>
-        <strong class="ps-value-num">{{
-          maskVal(liveCurrentValue() || s.portfolioCurrentValue)
-            | currency: 'CAD' : 'symbol-narrow' : '1.0-0'
-        }}</strong>
-        <span
-          class="ps-date-sub"
-          [matTooltip]="'Last EOD record: ' + fmtDate(s.portfolioCurrentDate)"
-          >{{ todayLabel }}</span
-        >
-      </div>
-    </div>
+    } @else {
+      <p class="ps-empty" data-testid="ps-unavailable">
+        {{ a.status === 'Updating' ? 'Updating…' : 'Performance unavailable' }}{{ a.reason ? ': ' + a.reason : '' }}
+      </p>
+    }
   } @else if (!loading()) {
     <p class="ps-empty">Portfolio history data appears after the first EOD snapshot is recorded.</p>
   }

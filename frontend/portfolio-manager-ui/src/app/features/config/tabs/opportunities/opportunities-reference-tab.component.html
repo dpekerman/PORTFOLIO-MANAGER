@@ -21,197 +21,215 @@
         }
       </p>
 
-      <h3>TSX 60 constituents <span class="count">({{ store.currentConstituents().length }} current)</span></h3>
-      @if (isAdmin()) {
-        <form class="ref-form" (submit)="$event.preventDefault(); addConstituent()" data-testid="constituent-form">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Symbol</mat-label>
-            <input matInput [formField]="constituentForm.symbol" autocomplete="off" placeholder="e.g. listing ticker" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Company name</mat-label>
-            <input matInput [formField]="constituentForm.companyName" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Effective from</mat-label>
-            <input matInput type="date" [formField]="constituentForm.effectiveFrom" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Source</mat-label>
-            <input matInput [formField]="constituentForm.source" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Source as-of date</mat-label>
-            <input matInput type="date" [formField]="constituentForm.sourceAsOfDate" />
-          </mat-form-field>
-          <button
-            mat-flat-button
-            type="submit"
-            class="touch"
-            [disabled]="constituentErrors().length > 0 || store.saving()"
-            data-testid="add-constituent"
-          >
-            <mat-icon>add</mat-icon>
-            Add constituent
-          </button>
-          @if (constituentModel().symbol && constituentErrors().length) {
-            <ul class="errors" role="alert">
-              @for (e of constituentErrors(); track e) { <li>{{ e }}</li> }
-            </ul>
-          }
-        </form>
-      }
+      <details class="help" open data-testid="opportunities-help">
+        <summary>How to use this page</summary>
+        <h4>Why is this in Configuration?</h4>
+        <p>
+          The Trading Opportunities page needs two lists that no market-data feed supplies reliably: which companies are
+          in the TSX 60, and which sector ETF each sector is compared against. They are reference settings that change
+          only a few times a year (index rebalances), so they are maintained here by an administrator instead of on the
+          Opportunities page. They are never imported automatically.
+        </p>
+        <h4>TSX 60 constituents</h4>
+        <ul>
+          <li>These are the Canadian stocks added to the Opportunities universe, next to your Watchlist and holdings.</li>
+          <li><strong>Find:</strong> type in the search box, click a column heading to sort, or use Current / Retired / All.</li>
+          <li><strong>Add:</strong> press <em>Add constituent</em>. A form opens with the last source details pre-filled.</li>
+          <li><strong>Retire:</strong> press the <mat-icon class="inline-icon">remove_circle_outline</mat-icon> icon on a row when a company leaves the index. A confirmation window opens first (Cancel is the default). The row is kept and end-dated today, and a message offers <em>Undo</em> for 10 seconds.</li>
+          <li><strong>Restore:</strong> choose <em>Retired</em>, then press the <mat-icon class="inline-icon">restore</mat-icon> icon to put a company back.</li>
+        </ul>
+        <h4>Sector benchmarks</h4>
+        <ul>
+          <li>Each sector is compared with one benchmark ETF to produce the Sector / Theme Heat column and part of the score.</li>
+          <li><strong>Edit:</strong> press the <mat-icon class="inline-icon">edit</mat-icon> icon. A form opens with the row's values; press <em>Save changes</em> or <em>Cancel</em>.</li>
+          <li><strong>Add / stop using one:</strong> press <em>Add benchmark</em>. To stop using one, edit it and untick Active.</li>
+          <li>Aliases are the sector names your data provider uses for the same sector (for example Technology for Information Technology).</li>
+        </ul>
+        <p>
+          After any change, run Refresh analysis on the Trading Opportunities page (or wait for the scheduled refresh) to
+          see it.
+        </p>
+      </details>
 
-      <label class="toggle">
-        <mat-checkbox [checked]="showRetired()" (change)="showRetired.set($event.checked)">Show retired constituents</mat-checkbox>
-      </label>
+      <div class="block-head">
+        <h3>TSX 60 constituents <span class="count">({{ store.currentConstituents().length }} current)</span></h3>
+        @if (isAdmin()) {
+          <button mat-flat-button type="button" class="touch" (click)="addConstituent()" data-testid="add-constituent">
+            <mat-icon>add</mat-icon> Add constituent
+          </button>
+        }
+      </div>
+
+      <div class="toolbar">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-label>Search constituents</mat-label>
+          <input matInput [value]="constituentFilter()" (input)="setFilter('constituent', $event)" autocomplete="off" data-testid="constituent-search" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+        <mat-button-toggle-group
+          aria-label="Show constituents"
+          [value]="status()"
+          (change)="status.set($event.value)"
+          data-testid="constituent-status"
+        >
+          <mat-button-toggle value="current">Current ({{ store.currentConstituents().length }})</mat-button-toggle>
+          <mat-button-toggle value="retired">Retired ({{ store.retiredConstituents().length }})</mat-button-toggle>
+          <mat-button-toggle value="all">All</mat-button-toggle>
+        </mat-button-toggle-group>
+      </div>
 
       <div class="table-wrap">
-        <table class="ref-table" data-testid="constituents-table">
-          <thead>
-            <tr>
-              <th scope="col">Symbol</th>
-              <th scope="col">Company</th>
-              <th scope="col">Effective</th>
-              <th scope="col">Source</th>
-              <th scope="col">Verified</th>
-              @if (isAdmin()) { <th scope="col"><span class="cdk-visually-hidden">Actions</span></th> }
-            </tr>
-          </thead>
-          <tbody>
-            @for (c of showRetired() ? store.constituents() : store.currentConstituents(); track c.id) {
-              <tr [class.retired]="!!c.effectiveTo">
-                <td>{{ c.symbol }}</td>
-                <td>{{ c.companyName || '—' }}</td>
-                <td>{{ date(c.effectiveFrom) }} → {{ c.effectiveTo ? date(c.effectiveTo) : 'current' }}</td>
-                <td>{{ c.source }} ({{ date(c.sourceAsOfDate) }})</td>
-                <td>{{ c.verifiedBy ?? '—' }} {{ date(c.verifiedAtUtc) }}</td>
-                @if (isAdmin()) {
-                  <td>
-                    @if (!c.effectiveTo) {
-                      <button
-                        mat-stroked-button
-                        type="button"
-                        class="touch"
-                        [class.armed]="retireId() === c.id"
-                        [disabled]="store.saving()"
-                        (click)="retire(c.id)"
-                        [attr.aria-label]="(retireId() === c.id ? 'Confirm retire ' : 'Retire ') + c.symbol"
-                      >
-                        {{ retireId() === c.id ? 'Confirm retire' : 'Retire' }}
-                      </button>
-                    }
-                  </td>
-                }
-              </tr>
-            } @empty {
-              <tr><td colspan="6" class="empty">No constituents entered. The TSX 60 universe is empty until verified rows are added.</td></tr>
-            }
-          </tbody>
+        <table
+          mat-table
+          matSort
+          #constituentSort="matSort"
+          appResponsiveTable
+          [dataSource]="constituentSource"
+          class="ref-table"
+          data-testid="constituents-table"
+        >
+          <ng-container matColumnDef="symbol">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Symbol</th>
+            <td mat-cell *matCellDef="let c">{{ c.symbol }}</td>
+          </ng-container>
+          <ng-container matColumnDef="companyName">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Company</th>
+            <td mat-cell *matCellDef="let c">{{ c.companyName || '—' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="effectiveFrom">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Effective</th>
+            <td mat-cell *matCellDef="let c">{{ date(c.effectiveFrom) }} → {{ c.effectiveTo ? date(c.effectiveTo) : 'current' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="source">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Source</th>
+            <td mat-cell *matCellDef="let c">{{ c.source }} ({{ date(c.sourceAsOfDate) }})</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef><span class="cdk-visually-hidden">Actions</span></th>
+            <td mat-cell *matCellDef="let c">
+              @if (c.effectiveTo) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  matTooltip="Restore to the TSX 60 universe"
+                  [attr.aria-label]="'Restore ' + c.symbol"
+                  [disabled]="store.saving()"
+                  (click)="restore(c)"
+                >
+                  <mat-icon>restore</mat-icon>
+                </button>
+              } @else {
+                <button
+                  mat-icon-button
+                  type="button"
+                  matTooltip="Retire (asks for confirmation)"
+                  [attr.aria-label]="'Retire ' + c.symbol"
+                  [disabled]="store.saving()"
+                  (click)="retire(c)"
+                >
+                  <mat-icon>remove_circle_outline</mat-icon>
+                </button>
+              }
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="constituentColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: constituentColumns()" [class.retired]="!!row.effectiveTo"></tr>
+          <tr class="mat-row" *matNoDataRow>
+            <td class="empty" [attr.colspan]="constituentColumns().length">
+              @if (store.constituents().length === 0) {
+                No constituents entered. The TSX 60 universe is empty until verified rows are added.
+              } @else {
+                No constituents match this search / filter.
+              }
+            </td>
+          </tr>
         </table>
       </div>
 
-      <h3>Sector benchmarks <span class="count">({{ store.benchmarks().length }})</span></h3>
-      @if (isAdmin()) {
-        <form class="ref-form" (submit)="$event.preventDefault(); saveBenchmark()" data-testid="benchmark-form">
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Sector</mat-label>
-            <input matInput [formField]="benchmarkForm.sector" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Market</mat-label>
-            <mat-select [formField]="benchmarkForm.market">
-              @for (m of markets; track m) { <mat-option [value]="m">{{ m }}</mat-option> }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Benchmark symbol</mat-label>
-            <input matInput [formField]="benchmarkForm.benchmarkSymbol" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Benchmark name</mat-label>
-            <input matInput [formField]="benchmarkForm.benchmarkName" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Currency</mat-label>
-            <input matInput [formField]="benchmarkForm.currency" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide">
-            <mat-label>Provider sector aliases (comma separated)</mat-label>
-            <input matInput [formField]="benchmarkForm.aliases" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Source</mat-label>
-            <input matInput [formField]="benchmarkForm.source" autocomplete="off" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Source as-of date</mat-label>
-            <input matInput type="date" [formField]="benchmarkForm.sourceAsOfDate" />
-          </mat-form-field>
-          <mat-form-field appearance="outline" subscriptSizing="dynamic" class="wide">
-            <mat-label>Notes</mat-label>
-            <input matInput [formField]="benchmarkForm.notes" autocomplete="off" />
-          </mat-form-field>
-          <mat-checkbox [formField]="benchmarkForm.isActive">Active</mat-checkbox>
-          <div class="form-actions">
-            <button
-              mat-flat-button
-              type="submit"
-              class="touch"
-              [disabled]="benchmarkErrors().length > 0 || store.saving()"
-              data-testid="save-benchmark"
-            >
-              <mat-icon>save</mat-icon>
-              {{ benchmarkModel().id ? 'Update benchmark' : 'Add benchmark' }}
-            </button>
-            @if (benchmarkModel().id) {
-              <button mat-button type="button" class="touch" (click)="resetBenchmark()">Cancel edit</button>
-            }
-          </div>
-          @if (benchmarkModel().sector && benchmarkErrors().length) {
-            <ul class="errors" role="alert">
-              @for (e of benchmarkErrors(); track e) { <li>{{ e }}</li> }
-            </ul>
-          }
-        </form>
-      }
+      <div class="block-head">
+        <h3>Sector benchmarks <span class="count">({{ store.benchmarks().length }})</span></h3>
+        @if (isAdmin()) {
+          <button mat-flat-button type="button" class="touch" (click)="editBenchmark(null)" data-testid="add-benchmark">
+            <mat-icon>add</mat-icon> Add benchmark
+          </button>
+        }
+      </div>
+
+      <div class="toolbar">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+          <mat-label>Search benchmarks</mat-label>
+          <input matInput [value]="benchmarkFilter()" (input)="setFilter('benchmark', $event)" autocomplete="off" data-testid="benchmark-search" />
+          <mat-icon matSuffix>search</mat-icon>
+        </mat-form-field>
+      </div>
 
       <div class="table-wrap">
-        <table class="ref-table" data-testid="benchmarks-table">
-          <thead>
-            <tr>
-              <th scope="col">Sector</th>
-              <th scope="col">Market</th>
-              <th scope="col">Benchmark</th>
-              <th scope="col">Currency</th>
-              <th scope="col">Aliases</th>
-              <th scope="col">Source</th>
-              <th scope="col">Status</th>
-              @if (isAdmin()) { <th scope="col"><span class="cdk-visually-hidden">Actions</span></th> }
-            </tr>
-          </thead>
-          <tbody>
-            @for (b of store.benchmarks(); track b.id) {
-              <tr [class.retired]="!b.isActive">
-                <td>{{ b.sector }}</td>
-                <td>{{ b.market }}</td>
-                <td>{{ b.benchmarkSymbol }}@if (b.benchmarkName) { <span class="muted"> · {{ b.benchmarkName }}</span> }</td>
-                <td>{{ b.currency }}</td>
-                <td>{{ aliases(b) }}</td>
-                <td>{{ b.source ?? '—' }} ({{ date(b.sourceAsOfDate) }})</td>
-                <td>{{ b.isActive ? 'Active' : 'Inactive' }}</td>
-                @if (isAdmin()) {
-                  <td>
-                    <button mat-stroked-button type="button" class="touch" (click)="editBenchmark(b)" [attr.aria-label]="'Edit ' + b.sector + ' benchmark'">
-                      Edit
-                    </button>
-                  </td>
-                }
-              </tr>
-            } @empty {
-              <tr><td colspan="8" class="empty">No sector benchmarks. Sector Heat stays Unmapped until verified mappings are added.</td></tr>
-            }
-          </tbody>
+        <table
+          mat-table
+          matSort
+          #benchmarkSort="matSort"
+          appResponsiveTable
+          [dataSource]="benchmarkSource"
+          class="ref-table"
+          data-testid="benchmarks-table"
+        >
+          <ng-container matColumnDef="sector">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Sector</th>
+            <td mat-cell *matCellDef="let b">{{ b.sector }}</td>
+          </ng-container>
+          <ng-container matColumnDef="market">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Market</th>
+            <td mat-cell *matCellDef="let b">{{ b.market }}</td>
+          </ng-container>
+          <ng-container matColumnDef="benchmarkSymbol">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Benchmark</th>
+            <td mat-cell *matCellDef="let b">
+              {{ b.benchmarkSymbol }}@if (b.benchmarkName) { <span class="muted"> · {{ b.benchmarkName }}</span> }
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="currency">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Currency</th>
+            <td mat-cell *matCellDef="let b">{{ b.currency }}</td>
+          </ng-container>
+          <ng-container matColumnDef="aliases">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Aliases</th>
+            <td mat-cell *matCellDef="let b">{{ aliases(b) }}</td>
+          </ng-container>
+          <ng-container matColumnDef="source">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Source</th>
+            <td mat-cell *matCellDef="let b">{{ b.source ?? '—' }} ({{ date(b.sourceAsOfDate) }})</td>
+          </ng-container>
+          <ng-container matColumnDef="isActive">
+            <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+            <td mat-cell *matCellDef="let b">{{ b.isActive ? 'Active' : 'Inactive' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef><span class="cdk-visually-hidden">Actions</span></th>
+            <td mat-cell *matCellDef="let b">
+              <button
+                mat-icon-button
+                type="button"
+                matTooltip="Edit this benchmark"
+                [attr.aria-label]="'Edit ' + b.sector + ' benchmark'"
+                (click)="editBenchmark(b)"
+              >
+                <mat-icon>edit</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+
+          <tr mat-header-row *matHeaderRowDef="benchmarkColumns()"></tr>
+          <tr mat-row *matRowDef="let row; columns: benchmarkColumns()" [class.retired]="!row.isActive"></tr>
+          <tr class="mat-row" *matNoDataRow>
+            <td class="empty" [attr.colspan]="benchmarkColumns().length">
+              @if (store.benchmarks().length === 0) {
+                No benchmark mappings entered. Sector Heat is unavailable until verified mappings are added.
+              } @else {
+                No benchmarks match this search.
+              }
+            </td>
+          </tr>
         </table>
       </div>
     }

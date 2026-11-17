@@ -136,6 +136,7 @@ export const dashboardResponse: DashboardResponse = {
       { period: 'Week', status: 'Available', reason: null, baselineDate: '2026-10-23', valueChange: 4_210.55, netExternalFlow: 0, investmentGainLoss: 4_210.55, investmentGainLossPercent: 1.34 },
       { period: 'Month', status: 'Unavailable', reason: 'A USD or non-reporting-currency cash flow is not converted.', baselineDate: '2026-09-30', valueChange: null, netExternalFlow: null, investmentGainLoss: null, investmentGainLossPercent: null },
       { period: 'YTD', status: 'Updating', reason: 'Snapshot reseal is pending.', baselineDate: null, valueChange: null, netExternalFlow: null, investmentGainLoss: null, investmentGainLossPercent: null },
+      { period: 'SinceStart', status: 'Available', reason: null, baselineDate: '2026-09-05', valueChange: 37_397, netExternalFlow: 40_000, investmentGainLoss: -2_603, investmentGainLossPercent: -0.29, baselineValue: 776_716, returnMethod: 'Time-weighted (daily snapshots, flows at end of day)' },
     ],
   },
   topMovers: [
@@ -493,19 +494,12 @@ export const marketLeadership: MarketLeadershipResponse = {
 };
 
 export const performanceSummary: PerformanceSummaryResponse = {
-  portfolioYtdReturnPct: 11.4,
-  portfolioYtdDollar: 32_610.4,
-  portfolioStartValue: 285_840.32,
-  portfolioStartDate: isoDate(-280),
-  portfolioCurrentValue: 318_450.72,
-  portfolioCurrentDate: isoDate(0),
+  benchmarkStartDate: isoDate(-280),
+  isFullYear: true,
   benchmarks: [
     { name: 'S&P/TSX Composite', symbol: '^GSPTSE', ytdReturnPct: 9.2 },
     { name: 'S&P 500', symbol: '^GSPC', ytdReturnPct: 13.8 },
   ],
-  alphaVsPrimaryBenchmarkPct: 2.2,
-  primaryBenchmarkName: 'S&P/TSX Composite',
-  isFullYear: true,
 };
 
 export const decisionPerformance: AnalyticsDecisionPerformanceResponse = {

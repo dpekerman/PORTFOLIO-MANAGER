@@ -166,6 +166,13 @@
     </p>
   }
 
+  @if (showingAllBecauseNothingScored()) {
+    <p class="notice" role="note" data-testid="nothing-scored-notice">
+      No security has a {{ view().perspective }} score in this snapshot, so every row is listed. Scores appear after
+      a refresh once the trading session has completed (6:00 PM ET on a normal day).
+    </p>
+  }
+
   @if (!store.config() && store.hasSnapshot()) {
     <p class="notice" role="note">
       <mat-icon aria-hidden="true">info</mat-icon> Score thresholds are unavailable, so the

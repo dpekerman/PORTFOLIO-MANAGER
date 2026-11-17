@@ -19,6 +19,8 @@ import {
   opportunityDetail,
   opportunityRow,
   opportunitySnapshot,
+  scoreSummary,
+  unscorable,
 } from '../../features/trading-opportunities/testing/opportunity-fixtures';
 
 describe('OpportunitiesStore', () => {
@@ -82,6 +84,24 @@ describe('OpportunitiesStore', () => {
     expect(s.rows().map((r) => r.symbol)).toEqual(['AAA.TO', 'BBB.TO']);
     expect(s.config()?.attractiveMin).toBe(71);
     expect(s.loading()).toBe(false);
+  });
+
+  it('flags a snapshot with no scored row per perspective, without touching the saved view', () => {
+    const none = opportunitySnapshot([
+      opportunityRow('AAA.TO', { swing: unscorable('StaleScan'), strategic: scoreSummary() }),
+    ]);
+    api.getLatest.mockReturnValue(of(none));
+    const s = loaded();
+
+    s.updateView({ perspective: 'Swing' });
+    expect(s.nothingScored()).toBe(true);
+    s.updateView({ perspective: 'Strategic' });
+    expect(s.nothingScored()).toBe(false);
+    expect(s.viewProfiles().Swing.scoreFilter).toBe('attractive');
+  });
+
+  it('does not flag a snapshot that has scored rows', () => {
+    expect(loaded().nothingScored()).toBe(false);
   });
 
   it('auto-refreshes at most once when the stored snapshot misses a completed session', () => {

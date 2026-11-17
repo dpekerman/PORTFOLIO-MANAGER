@@ -301,6 +301,13 @@ builder.Services.AddScoped<ISignalsAuditService, SignalsAuditService>();
 builder.Services.AddScoped<IOpenDecisionsService, OpenDecisionsService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.FinalAction.IFinalActionService, PortfolioManager.Api.Services.FinalAction.FinalActionService>();
 builder.Services.AddScoped<PortfolioManager.Api.Services.Opportunities.IOpportunityService, PortfolioManager.Api.Services.Opportunities.OpportunityService>();
+builder.Services.AddSingleton<PortfolioManager.Api.Services.Opportunities.OpportunityScheduleConfig>(_ =>
+{
+    var cfg = new PortfolioManager.Api.Services.Opportunities.OpportunityScheduleConfig();
+    cfg.LoadFromFile();
+    return cfg;
+});
+builder.Services.AddHostedService<PortfolioManager.Api.Services.Opportunities.OpportunityRefreshSchedulerService>();
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 // Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window

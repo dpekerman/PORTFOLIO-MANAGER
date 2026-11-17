@@ -22,7 +22,7 @@
               </div>
               <div>
                 <dt>Return</dt>
-                <dd data-testid="pp-pct">
+                <dd data-testid="pp-pct" [attr.title]="p.returnMethod ?? null">
                   @if (p.investmentGainLossPercent !== null) {
                     {{ percent(p.investmentGainLossPercent) | number: '1.2-2' }}%
                   } @else {

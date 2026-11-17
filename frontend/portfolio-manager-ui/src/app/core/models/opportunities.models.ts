@@ -381,6 +381,25 @@ export interface SectorBenchmarkMapping {
   updatedBy: string | null;
 }
 
+export type ScheduleDay = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday';
+
+/** Automatic post-close refresh schedule (Eastern Time). */
+export interface OpportunitySchedule {
+  enabled: boolean;
+  timeEt: string;
+  days: ScheduleDay[];
+  lastRunDateEt: string | null;
+  lastRunAtUtc: string | null;
+  lastRunStatus: string | null;
+  lastRunMessage: string | null;
+}
+
+export interface OpportunityScheduleRequest {
+  enabled: boolean;
+  timeEt: string;
+  days: ScheduleDay[];
+}
+
 export interface OpportunityReference {
   constituents: IndexConstituent[];
   benchmarks: SectorBenchmarkMapping[];

@@ -1,0 +1,48 @@
+:host {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.schedule-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.schedule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  &.error {
+    color: var(--mat-sys-error);
+  }
+}
+
+@media (max-width: 480px) {
+  mat-form-field {
+    width: 100%;
+  }
+
+  mat-button-toggle-group {
+    width: 100%;
+  }
+
+  mat-button-toggle {
+    flex: 1;
+  }
+}

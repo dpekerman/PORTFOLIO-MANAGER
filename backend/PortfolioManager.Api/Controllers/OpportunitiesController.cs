@@ -16,8 +16,28 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize(Roles = "Admin,Trader")]
 [ApiController]
 [Route("api/opportunities")]
-public sealed class OpportunitiesController(IOpportunityService service, AppDbContext db, IHostApplicationLifetime lifetime) : ControllerBase
+public sealed class OpportunitiesController(
+    IOpportunityService service, AppDbContext db, IHostApplicationLifetime lifetime, OpportunityScheduleConfig schedule) : ControllerBase
 {
+    private OpportunityScheduleDto ScheduleDto() => new(
+        schedule.Enabled, schedule.TimeEt, schedule.Days, schedule.LastRunDateEt, schedule.LastRunAtUtc, schedule.LastRunStatus, schedule.LastRunMessage);
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet("schedule")]
+    public ActionResult<OpportunityScheduleDto> GetSchedule() => Ok(ScheduleDto());
+
+    /// <summary>Saves the automatic refresh schedule. The scheduler picks it up on its next one-minute tick.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPut("schedule")]
+    public ActionResult<OpportunityScheduleDto> PutSchedule(OpportunityScheduleRequest req)
+    {
+        if (!OpportunityScheduleConfig.IsValidTime(req.TimeEt)) return ValidationProblem("Time must be HH:mm (Eastern).");
+        if (req.Days is null || req.Days.Count == 0) return ValidationProblem("Select at least one day.");
+        if (req.Days.Any(d => d is DayOfWeek.Saturday or DayOfWeek.Sunday)) return ValidationProblem("Only market days (Mon-Fri) can be scheduled.");
+        schedule.Update(req.Enabled, req.TimeEt, req.Days);
+        return Ok(ScheduleDto());
+    }
+
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
     [HttpGet]
@@ -100,6 +120,21 @@ public sealed class OpportunitiesController(IOpportunityService service, AppDbCo
         return Ok(row);
     }
 
+    /// <summary>Undo of a retire (e.g. a mis-click): clears <c>EffectiveTo</c>. Refused if the symbol is already a current constituent.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("reference/constituents/{id:int}/restore")]
+    public async Task<ActionResult<IndexConstituent>> RestoreConstituent(int id, CancellationToken ct)
+    {
+        var row = await db.IndexConstituents.SingleOrDefaultAsync(c => c.Id == id, ct);
+        if (row is null) return NotFound();
+        if (row.EffectiveTo is null) return Ok(row);
+        if (await db.IndexConstituents.AnyAsync(c => c.IndexCode == row.IndexCode && c.Symbol == row.Symbol && c.EffectiveTo == null, ct))
+            return Problem(statusCode: StatusCodes.Status409Conflict, title: "Already a current constituent");
+        row.EffectiveTo = null;
+        await db.SaveChangesAsync(ct);
+        return Ok(row);
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpPut("reference/benchmarks")]
     public async Task<ActionResult<SectorBenchmarkMapping>> UpsertBenchmark(SectorBenchmarkRequest req, CancellationToken ct)
@@ -134,6 +169,11 @@ public sealed class OpportunitiesController(IOpportunityService service, AppDbCo
         return Ok(row);
     }
 }
+
+public sealed record OpportunityScheduleDto(
+    bool Enabled, string TimeEt, IReadOnlyList<DayOfWeek> Days, string? LastRunDateEt, DateTime? LastRunAtUtc, string? LastRunStatus, string? LastRunMessage);
+
+public sealed record OpportunityScheduleRequest(bool Enabled, string TimeEt, IReadOnlyList<DayOfWeek> Days);
 
 public sealed record OpportunityReferenceDto(IReadOnlyList<IndexConstituent> Constituents, IReadOnlyList<SectorBenchmarkMapping> Benchmarks);
 

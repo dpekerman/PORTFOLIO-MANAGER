@@ -229,7 +229,13 @@
                 }
               </section>
             <section class="detail-section">
-              <h3>Calculated candidate</h3>
+              <h3>{{ perspective() === 'Strategic' ? 'Swing staged-signal candidate' : 'Calculated candidate' }}</h3>
+              @if (perspective() === 'Strategic') {
+                <p class="hint" data-testid="swing-candidate-note">
+                  This is the Swing setup (scanner Dynamic stop). Strategic does not use it; its entry, support and resistance are
+                  shown under SETUP QUALITY above.
+                </p>
+              }
               @if (setup(); as s) {
                 <p class="kind" [attr.data-kind]="s.kind">{{ setupLabel(s.kind) }}</p>
                 <div class="setup-values" data-testid="setup-values">

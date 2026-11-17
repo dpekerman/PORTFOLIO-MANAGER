@@ -56,6 +56,23 @@ export const OpportunityReferenceStore = signalStore(
           : [...store.constituents(), row],
       });
 
+    const restore = rxMethod<number>(
+      pipe(
+        tap(() => patchState(store, { saving: true })),
+        concatMap((id) =>
+          api.restoreConstituent(id).pipe(
+            tapResponse({
+              next: (row) => {
+                upsertConstituent(row);
+                snackBar.open(`${row.symbol} restored to ${row.indexCode}.`, 'OK', { duration: 4000 });
+              },
+              error: (err) => fail(err, 'Could not restore constituent.'),
+            }),
+          ),
+        ),
+      ),
+    );
+
     return {
       load: rxMethod<void>(
         pipe(
@@ -98,7 +115,11 @@ export const OpportunityReferenceStore = signalStore(
               tapResponse({
                 next: (row) => {
                   upsertConstituent(row);
-                  snackBar.open(`${row.symbol} retired from ${row.indexCode}.`, 'OK', { duration: 3000 });
+                  // A mis-click is one tap from undone; the row was only ever end-dated, never deleted.
+                  snackBar
+                    .open(`${row.symbol} retired from ${row.indexCode}.`, 'Undo', { duration: 10000 })
+                    ?.onAction()
+                    .subscribe(() => restore(row.id));
                 },
                 error: (err) => fail(err, 'Could not retire constituent.'),
               }),
@@ -106,6 +127,7 @@ export const OpportunityReferenceStore = signalStore(
           ),
         ),
       ),
+      restoreConstituent: restore,
       upsertBenchmark: rxMethod<SectorBenchmarkRequest>(
         pipe(
           tap(() => patchState(store, { saving: true })),

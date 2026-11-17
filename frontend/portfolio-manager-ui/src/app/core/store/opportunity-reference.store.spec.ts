@@ -56,6 +56,24 @@ describe('OpportunityReferenceStore', () => {
     expect(store.currentConstituents()).toHaveLength(0);
   });
 
+  it('offers Undo after a retire, and undo restores the row', () => {
+    const undo$ = new Subject<void>();
+    const { store, snack } = setup({
+      getReference: () => of({ constituents: [constituent(1, 'AAA.TO')], benchmarks: [] }),
+      retireConstituent: () => of(constituent(1, 'AAA.TO', '2026-11-16')),
+      restoreConstituent: () => of(constituent(1, 'AAA.TO')),
+    });
+    snack.open.mockReturnValue({ onAction: () => undo$ });
+    store.load();
+    store.retireConstituent({ id: 1, effectiveTo: null });
+    expect(snack.open).toHaveBeenCalledWith(expect.stringContaining('retired'), 'Undo', expect.anything());
+    expect(store.currentConstituents()).toHaveLength(0);
+
+    undo$.next();
+    expect(store.currentConstituents()).toHaveLength(1);
+    expect(store.saving()).toBe(false);
+  });
+
   it('reports a server conflict without changing state', () => {
     const conflict = new HttpErrorResponse({ status: 409, error: { title: 'Already a current constituent' } });
     const { store, snack } = setup({

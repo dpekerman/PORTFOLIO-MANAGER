@@ -45,6 +45,11 @@ describe('PortfolioPerformanceComponent', () => {
     expect(el.querySelector('[data-testid="pp-pct"]')?.textContent?.trim()).toBe('0.50%');
   });
 
+  it('keeps the SinceStart period out of the four-period grid', () => {
+    const el = render([base, { ...base, period: 'SinceStart' }]);
+    expect(el.querySelectorAll('.pp-card').length).toBe(1);
+  });
+
   it('shows Updating and Unavailable states instead of numbers', () => {
     const el = render([
       { ...base, period: 'Month', status: 'Unavailable', reason: 'No baseline', valueChange: null, netExternalFlow: null, investmentGainLoss: null },

@@ -1,0 +1,61 @@
+<h2 mat-dialog-title>{{ editing ? 'Edit sector benchmark' : 'Add sector benchmark' }}</h2>
+<mat-dialog-content class="dlg-body">
+  <p class="dlg-hint">
+    The benchmark ETF a sector is compared with for Sector / Theme Heat. Aliases are the sector names your data provider
+    uses for the same sector.
+  </p>
+  <mat-form-field appearance="outline">
+    <mat-label>Sector</mat-label>
+    <input matInput [formField]="f.sector" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Market</mat-label>
+    <mat-select [formField]="f.market">
+      @for (m of markets; track m) {
+        <mat-option [value]="m">{{ m }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Benchmark symbol</mat-label>
+    <input matInput [formField]="f.benchmarkSymbol" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Benchmark name</mat-label>
+    <input matInput [formField]="f.benchmarkName" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Currency</mat-label>
+    <input matInput [formField]="f.currency" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Provider sector aliases (comma separated)</mat-label>
+    <input matInput [formField]="f.aliases" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Source</mat-label>
+    <input matInput [formField]="f.source" autocomplete="off" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Source as-of date</mat-label>
+    <input matInput type="date" [formField]="f.sourceAsOfDate" />
+  </mat-form-field>
+  <mat-form-field appearance="outline">
+    <mat-label>Notes</mat-label>
+    <input matInput [formField]="f.notes" autocomplete="off" />
+  </mat-form-field>
+  <mat-checkbox [formField]="f.isActive">Active (untick to stop using this benchmark)</mat-checkbox>
+  @if (model().sector && errors().length) {
+    <ul class="dlg-errors" role="alert">
+      @for (e of errors(); track e) {
+        <li>{{ e }}</li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" [mat-dialog-close]="undefined">Cancel</button>
+  <button mat-flat-button type="button" [disabled]="errors().length > 0" (click)="submit()" data-testid="benchmark-dialog-save">
+    {{ editing ? 'Save changes' : 'Add benchmark' }}
+  </button>
+</mat-dialog-actions>

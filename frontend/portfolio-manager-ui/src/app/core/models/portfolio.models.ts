@@ -1039,7 +1039,7 @@ export interface DashboardSummary {
   performance?: PeriodPerformance[] | null;
 }
 
-export type PerformancePeriod = 'Day' | 'Week' | 'Month' | 'YTD';
+export type PerformancePeriod = 'Day' | 'Week' | 'Month' | 'YTD' | 'SinceStart';
 export type PerformanceStatus = 'Available' | 'Updating' | 'Unavailable';
 
 /** Investment Gain/Loss = Value Change - Net External Flow. Dollar fields are null unless status is Available. */
@@ -1051,8 +1051,12 @@ export interface PeriodPerformance {
   valueChange: number | null;
   netExternalFlow: number | null;
   investmentGainLoss: number | null;
-  /** Null (N/A) whenever an external flow occurred. */
+  /** Null (N/A) when an external flow occurred and the daily snapshots are insufficient for a time-weighted return. */
   investmentGainLossPercent: number | null;
+  /** Portfolio value at the baseline snapshot. */
+  baselineValue?: number | null;
+  /** How `investmentGainLossPercent` was calculated. */
+  returnMethod?: string | null;
 }
 
 export interface DashboardMover {
@@ -1430,19 +1434,13 @@ export interface BenchmarkReturn {
   ytdReturnPct: number;
 }
 
+/** Benchmark returns over the same period as the portfolio card; the portfolio's own return comes from `summary.performance`. */
 export interface PerformanceSummaryResponse {
-  portfolioYtdReturnPct: number;
-  portfolioYtdDollar: number;
-  portfolioStartValue: number;
-  portfolioStartDate: string;
-  portfolioCurrentValue: number;
-  portfolioCurrentDate: string;
-  benchmarks: BenchmarkReturn[];
-  alphaVsPrimaryBenchmarkPct: number;
-  primaryBenchmarkName: string;
-  /** False when no snapshot exists before Jan 1 of the current year — the figures are a
-   *  "since inception" return using the earliest available snapshot, not a true YTD return. */
+  /** Baseline snapshot date the benchmark returns start from (same date as the portfolio baseline). */
+  benchmarkStartDate: string;
+  /** True when that baseline is the prior year-end (a real YTD); false for the shorter "since cash-ledger start" period. */
   isFullYear: boolean;
+  benchmarks: BenchmarkReturn[];
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────

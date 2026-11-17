@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
@@ -7,65 +6,68 @@ using PortfolioManager.Api.Services;
 namespace PortfolioManager.Tests;
 
 /// <summary>
-/// Regression tests guarding the "wrong baseline" bug class: GetSummaryAsync must never label
-/// a partial-year return as "Portfolio YTD" when nothing exists on/before Jan 1 (found live in
-/// production — history only went back to July 2026). Instead of hiding the data entirely, it
-/// falls back to the earliest available row and flags the result via IsFullYear = false so the
-/// frontend can relabel it "Since inception".
+/// The summary only supplies benchmark returns now, and must start them on the same baseline date as the portfolio card:
+/// the prior year-end when a usable one exists, otherwise the first snapshot on/after the cash-ledger start (never a pre-ledger
+/// July baseline, and never a silent full-year rebase).
 /// </summary>
 public sealed class PerformanceSummaryServiceTests
 {
     [Fact]
-    public async Task GetSummaryAsync_FallsBackToInceptionBaseline_WhenNoSnapshotExistsAtOrBeforeJanFirst()
+    public async Task GetSummaryAsync_UsesFirstSnapshotOnOrAfterLedgerStart_WhenNoYearEndBaseline()
     {
-        // History exists (>= 2 rows) but none of it reaches back to Jan 1 of the current year —
-        // this is exactly the production scenario that produced a bogus YTD baseline.
         var year = DateTime.UtcNow.Year;
-        await using var db = CreateDb();
+        await using var db = CreateDb($"{year}-02-05");
         db.PortfolioValueHistories.AddRange(
-            Row($"{year}-07-06", 805803.5387m),
-            Row($"{year}-07-07", 811995.4929m));
+            Row($"{year}-01-06", 805803.5387m),   // before the ledger: not comparable
+            Row($"{year}-02-05", 776716.4298m),
+            Row($"{year}-02-06", 774753.3400m));
         await db.SaveChangesAsync();
 
-        var service = new PerformanceSummaryService(db, new FakeMarketData());
-
-        var result = await service.GetSummaryAsync("user");
+        var result = await new PerformanceSummaryService(db, new FakeMarketData()).GetSummaryAsync("user");
 
         Assert.NotNull(result);
         Assert.False(result!.IsFullYear);
-        Assert.Equal($"{year}-07-06", result.PortfolioStartDate);
-        Assert.Equal(805803.5387m, result.PortfolioStartValue);
+        Assert.Equal($"{year}-02-05", result.BenchmarkStartDate);
     }
 
     [Fact]
-    public async Task GetSummaryAsync_UsesGenuineYearStartBaseline_NotEarliestRow()
+    public async Task GetSummaryAsync_UsesYearEndBaseline_WhenLedgerCoversIt()
     {
         var year = DateTime.UtcNow.Year;
-        await using var db = CreateDb();
+        await using var db = CreateDb($"{year - 1}-12-01");
         db.PortfolioValueHistories.AddRange(
-            Row($"{year - 1}-06-15", 500000m),  // earliest row overall — must NOT be picked
-            Row($"{year - 1}-12-31", 700000m),  // genuine prior year-end close — expected baseline
-            Row($"{year}-07-07", 811995.4929m)); // latest
-        db.PortfolioSnapshots.Add(new PortfolioSnapshot
-        {
-            UserId = "user",
-            SnapshotJson = JsonSerializer.Serialize(new List<PortfolioSummaryDto>()),
-        });
+            Row($"{year - 1}-06-15", 500000m),
+            Row($"{year - 1}-12-31", 700000m),
+            Row($"{year}-01-07", 811995.4929m));
         await db.SaveChangesAsync();
 
-        var service = new PerformanceSummaryService(db, new FakeMarketData());
-
-        var result = await service.GetSummaryAsync("user");
+        var result = await new PerformanceSummaryService(db, new FakeMarketData()).GetSummaryAsync("user");
 
         Assert.NotNull(result);
         Assert.True(result!.IsFullYear);
-        Assert.Equal($"{year - 1}-12-31", result.PortfolioStartDate);
-        Assert.Equal(700000m, result.PortfolioStartValue);
+        Assert.Equal($"{year - 1}-12-31", result.BenchmarkStartDate);
     }
 
-    private static AppDbContext CreateDb() => new(new DbContextOptionsBuilder<AppDbContext>()
-        .UseInMemoryDatabase(Guid.NewGuid().ToString())
-        .Options);
+    [Fact]
+    public async Task GetSummaryAsync_ReturnsNull_WhenNoComparableBaselineExists()
+    {
+        var year = DateTime.UtcNow.Year;
+        await using var db = CreateDb($"{year}-02-05");
+        db.PortfolioValueHistories.AddRange(Row($"{year}-01-06", 805803.5387m), Row($"{year}-01-07", 811995.4929m));
+        await db.SaveChangesAsync();
+
+        Assert.Null(await new PerformanceSummaryService(db, new FakeMarketData()).GetSummaryAsync("user"));
+    }
+
+    private static AppDbContext CreateDb(string ledgerStart)
+    {
+        var db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+        db.CashLedgerSettings.Add(new CashLedgerSettings { Id = 1, LedgerStartDate = DateTime.Parse(ledgerStart) });
+        db.SaveChanges();
+        return db;
+    }
 
     private static PortfolioValueHistory Row(string recordedDate, decimal totalValue) => new()
     {

@@ -7,6 +7,8 @@ import {
   OpportunityConfig,
   OpportunityDetail,
   OpportunityReference,
+  OpportunitySchedule,
+  OpportunityScheduleRequest,
   OpportunitySnapshot,
   SectorBenchmarkMapping,
   SectorBenchmarkRequest,
@@ -40,6 +42,14 @@ export class OpportunitiesApiService {
     return this.http.get<OpportunityConfig>(`${BASE}/config`);
   }
 
+  getSchedule(): Observable<OpportunitySchedule> {
+    return this.http.get<OpportunitySchedule>(`${BASE}/schedule`);
+  }
+
+  saveSchedule(request: OpportunityScheduleRequest): Observable<OpportunitySchedule> {
+    return this.http.put<OpportunitySchedule>(`${BASE}/schedule`, request);
+  }
+
   getReference(): Observable<OpportunityReference> {
     return this.http.get<OpportunityReference>(`${BASE}/reference`);
   }
@@ -52,6 +62,11 @@ export class OpportunitiesApiService {
     let params = new HttpParams();
     if (effectiveTo) params = params.set('effectiveTo', effectiveTo);
     return this.http.post<IndexConstituent>(`${BASE}/reference/constituents/${id}/retire`, {}, { params });
+  }
+
+  /** Undo of a retire. 409 = the symbol is already a current constituent. */
+  restoreConstituent(id: number): Observable<IndexConstituent> {
+    return this.http.post<IndexConstituent>(`${BASE}/reference/constituents/${id}/restore`, {});
   }
 
   upsertBenchmark(request: SectorBenchmarkRequest): Observable<SectorBenchmarkMapping> {

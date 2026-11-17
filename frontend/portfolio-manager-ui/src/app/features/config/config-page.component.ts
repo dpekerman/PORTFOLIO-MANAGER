@@ -18,6 +18,7 @@ import { DemoModeTabComponent } from './tabs/demo-mode/demo-mode-tab.component';
 import { EodWindowTabComponent } from './tabs/eod-window/eod-window-tab.component';
 import { HistoryTabComponent } from './tabs/history/history-tab.component';
 import { OpportunitiesReferenceTabComponent } from './tabs/opportunities/opportunities-reference-tab.component';
+import { OpportunitiesScheduleCardComponent } from './tabs/opportunities/opportunities-schedule-card.component';
 import { ScannerTabComponent } from './tabs/scanner/scanner-tab.component';
 import { SectorsTabComponent } from './tabs/sectors/sectors-tab.component';
 import { SignalsAuditTabComponent } from './tabs/signals-audit/signals-audit-tab.component';
@@ -52,6 +53,7 @@ import { ValueScreenerTabComponent } from './tabs/value-screener/value-screener-
     EodWindowTabComponent,
     HistoryTabComponent,
     OpportunitiesReferenceTabComponent,
+    OpportunitiesScheduleCardComponent,
     ScannerTabComponent,
     SectorsTabComponent,
     SignalsAuditTabComponent,
