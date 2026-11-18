@@ -32,6 +32,7 @@ public sealed record ValuationCheck(string Status, string Detail, decimal UsdCad
     public const string CadConverted = "CadConverted";
     public const string MixedCurrency = "MixedCurrency";
     public const string UnknownCurrency = "UnknownCurrency";
+    public const string UnverifiedPrices = "UnverifiedPrices";
     public bool Reliable => Status is SingleCurrency or CadConverted;
 }
 
@@ -60,6 +61,12 @@ public sealed record PortfolioEvidence(
     /// <summary>Null means the valuation is treated as reliable (legacy callers).</summary>
     ValuationCheck? Valuation = null)
 {
+    /// <summary>Role of the lot an ADD would belong to; the reversal safeguard applies to Strategic lots only.</summary>
+    public string? TargetRole { get; init; }
+
+    /// <summary>The scan's reversal facts. Null means they were not available, so no confirmation can be claimed.</summary>
+    public ReversalEvidence? Reversal { get; init; }
+
     /// <summary>Minimum unrealized gain for a Strategic tactical profit-protection reading. Candidate default, not an approved universal limit.</summary>
     public double TacticalMinGainPct { get; init; } = 10;
 
@@ -97,6 +104,8 @@ public static class GateReasons
     public const string LabelCorrectedForLoss = "TAKE_PROFIT_LABEL_CORRECTED_FOR_LOSS";
     public const string ProfitProtectionWatch = "PROFIT_PROTECTION_WATCH";
     public const string TacticalTrimConfirmed = "TACTICAL_TRIM_CONFIRMED";
+    public const string AddBlockedReversalUnconfirmed = "ADD_BLOCKED_REVERSAL_UNCONFIRMED";
+    public const string AddReversalConfirmed = "ADD_REVERSAL_CONFIRMED";
 }
 
 /// <summary>
@@ -122,6 +131,7 @@ public static class PortfolioEvidenceGate
     public const string SpecTrailStopNoAdd = "Hold Spec / Trail Stop — No Add";
     public const string ProfitProtectionWatchAction = "Profit Protection Watch";
     public const string ConsiderPartialTrim = "Consider Partial Trim";
+    public const string ReversalWatchWaitForConfirmation = "REVERSAL WATCH — Wait for Confirmation";
 
     private enum Kind { None, Add, Trim, ProfitExit, LossExit, ProfitTake, ProfitWatch }
 
@@ -364,7 +374,8 @@ public static class PortfolioEvidenceGate
     {
         var def = FinalActionCatalog.Describe(portfolioAction);
         if (def.Category == "Entry") return false;
-        if (def.Category == "TrimExit" || def.Id is "REVIEW STOP BREACH" or "ADD/NEEDS REVIEW" or "HOLD/REVIEW") return true;
+        if (def.Category == "TrimExit" || def.Id is "REVIEW STOP BREACH" or "ADD/NEEDS REVIEW" or "HOLD/REVIEW"
+            || def.Id == FinalActionCatalog.CanonicalId(ReversalWatchWaitForConfirmation)) return true;
         return def.Group is "Portfolio" or "Profit-taking"
             && (def.Id.Contains("NO ADD", StringComparison.Ordinal) || def.Id.Contains("NO CHASE", StringComparison.Ordinal)
                 || def.Id.Contains("NO NEW BUY", StringComparison.Ordinal) || def.Id.Contains("CAUTION", StringComparison.Ordinal)
@@ -374,11 +385,13 @@ public static class PortfolioEvidenceGate
     /// <summary>A Watchlist Entry on a held ticker where the Portfolio's own decision for the lot does not permit an add.</summary>
     public static GateOutcome BlockOwnedEntryByPortfolioAction(FinalActionDecision d, string portfolioAction)
     {
-        const string replacement = "Hold / No Add";
+        // The Portfolio's reversal-wait is the same advisory on the Watchlist, so both screens read identically.
+        var replacement = FinalActionCatalog.CanonicalId(portfolioAction) == FinalActionCatalog.CanonicalId(ReversalWatchWaitForConfirmation)
+            ? ReversalWatchWaitForConfirmation : "Hold / No Add";
         var gated = d with
         {
             FinalAction = replacement,
-            FinalActionClass = "ma-hold",
+            FinalActionClass = replacement == "Hold / No Add" ? "ma-hold" : "ma-standby",
             FinalActionReason = Join(d.FinalActionReason,
                 $"The Portfolio's decision for this holding is \"{portfolioAction}\", which does not permit adding. Original technical action: {d.FinalAction}."),
         };
@@ -392,6 +405,51 @@ public static class PortfolioEvidenceGate
     public static GateOutcome ConditionEntry(FinalActionDecision d, PortfolioEvidence e) => ConditionAdd(d, e);
 
     private static GateOutcome ConditionAdd(FinalActionDecision d, PortfolioEvidence e)
+    {
+        var (reversalBlocked, reversalConfirmed) = ReversalCheck(d, e);
+        var outcome = ConditionAddByPolicy(d, e);
+
+        // The safeguard never weakens another outcome: it only adds its own reason when the add was already stopped elsewhere.
+        if (outcome.OriginalAction is not null)
+            return reversalBlocked ? outcome with { ReasonCodes = [.. outcome.ReasonCodes, GateReasons.AddBlockedReversalUnconfirmed] } : outcome;
+        if (reversalBlocked) return WaitForReversal(d, e);
+        return reversalConfirmed ? outcome with { ReasonCodes = [GateReasons.AddReversalConfirmed] } : outcome;
+    }
+
+    /// <summary>
+    /// Strategic additions into an active adverse structure (Waterfall / Falling Knife or a hard structural negative) need the
+    /// same reversal confirmation a new Watchlist entry needs. Oversold RSI, high volume or an intraday recovery alone is not confirmation.
+    /// </summary>
+    private static (bool Blocked, bool Confirmed) ReversalCheck(FinalActionDecision d, PortfolioEvidence e)
+    {
+        if (!string.Equals(e.TargetRole?.Trim(), "Strategic", StringComparison.OrdinalIgnoreCase)) return (false, false);
+        var adverse = d.TrendSetup == "Waterfall / Falling Knife" || e.HardStructuralNegative || e.Reversal?.HardNegative == true;
+        if (!adverse) return (false, false);
+        return e.Reversal?.Confirmed == true ? (false, true) : (true, false);
+    }
+
+    /// <summary>The holding itself is unchanged: this is an advisory about additional buying, never a sell or exit.</summary>
+    private static GateOutcome WaitForReversal(FinalActionDecision d, PortfolioEvidence e)
+    {
+        var why = e.Reversal switch
+        {
+            null => "no reversal evidence is available",
+            { HardNegative: true } => "an active hard structural negative remains",
+            { TrendDamage: true } => "the trend or moving-average structure is damaged",
+            _ => "no confirmed support reclaim, bounce or breakout exists",
+        };
+        var waiting = d with
+        {
+            FinalAction = ReversalWatchWaitForConfirmation,
+            FinalActionClass = "ma-standby",
+            FinalActionReason = Join(d.FinalActionReason,
+                $"Do not add yet: the trend is {d.TrendSetup} and {why}. Oversold RSI, high volume or an intraday recovery is not reversal confirmation. " +
+                $"The existing holding is kept under its holding rules; this is not a sell or exit. Original technical action: {d.FinalAction}."),
+        };
+        return new GateOutcome(waiting, [GateReasons.AddBlockedReversalUnconfirmed], d.FinalAction);
+    }
+
+    private static GateOutcome ConditionAddByPolicy(FinalActionDecision d, PortfolioEvidence e)
     {
         // The ADD belongs to the target lot's role: its limit applies to the symbol's total exposure. When that role has
         // no configured policy but the symbol's other roles do, no limit is guessed — the result needs review instead.

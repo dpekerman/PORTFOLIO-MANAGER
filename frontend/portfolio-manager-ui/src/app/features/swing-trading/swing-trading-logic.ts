@@ -326,6 +326,7 @@ export const OPEN_TRADES_EXPORT_COLUMNS: readonly TxExportColumn[] = [
   col('Risk State'),
   col('Risk Severity'),
   col('Final Action'),
+  col('FIB Swing High/Low'),
   col('Decision Source'),
   col('Advisory Threshold %', 'pct'),
   col('Currency'),
@@ -335,6 +336,7 @@ export function openTradesExportRows(
   rows: readonly SwingTradeRow[],
   finalActionOf: (row: SwingTradeRow) => string | null,
   thresholdPct: number,
+  fibFor: (row: SwingTradeRow) => FibonacciSwingEvidence | null = () => null,
 ): ExportCell[][] {
   return rows.map((r) => [
     r.symbol,
@@ -368,6 +370,7 @@ export function openTradesExportRows(
     r.riskStatuses.map(riskStatusLabel).join('; '),
     r.severity,
     finalActionOf(r),
+    fibonacciRange(fibFor(r)),
     r.decisionSource,
     thresholdPct,
     r.currency,
@@ -495,3 +498,5 @@ export function eligibleCloseLotsForSymbol<T extends CloseLotCandidate>(symbol: 
     .filter((i) => !i.isManual && i.transactionType === 'OPEN' && i.shares > 0 && i.symbol.trim().toUpperCase() === wanted)
     .sort((a, b) => (a.accountType ?? '').localeCompare(b.accountType ?? '') || a.id - b.id);
 }
+import { FibonacciSwingEvidence } from '../../core/models/portfolio.models';
+import { fibonacciRange } from '../../core/technical-display';

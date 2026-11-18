@@ -235,6 +235,15 @@ describe('exports', () => {
     expect(cells[headers.length - 1]).toBe('CAD');
   });
 
+  it('includes the listing Fibonacci range in Open Trades exports', () => {
+    const [cells] = openTradesExportRows([row()], () => null, 5, () => ({
+      symbol: row().symbol, currency: 'CAD', swingLow: 34.54, swingHigh: 54.17,
+      lowDate: '2026-11-12', highDate: '2026-10-12', fib38_2: 46, fib50: 44, fib61_8: 42, fib78_6: 38,
+    }));
+    const index = OPEN_TRADES_EXPORT_COLUMNS.findIndex((column) => column.header === 'FIB Swing High/Low');
+    expect(cells[index]).toBe('C$34.54 → C$54.17');
+  });
+
   it('keeps the filtered dataset: one export row per supplied row', () => {
     expect(openTradesExportRows([row(), row({ symbol: 'DIS.TO' })], fa, 5)).toHaveLength(2);
     expect(openTradesExportRows([], fa, 5)).toHaveLength(0);

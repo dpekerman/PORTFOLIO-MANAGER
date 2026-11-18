@@ -871,15 +871,15 @@ public sealed class SignalsAuditService(
             }
 
             // Each distinct symbol's history is fetched once per request (and cached across requests).
-            var missing = batch.Select(e => e.AnalysisSymbol).Distinct(StringComparer.OrdinalIgnoreCase)
+            var missing = batch.Select(e => e.Symbol).Distinct(StringComparer.OrdinalIgnoreCase)
                 .Where(s => !series.ContainsKey(s.ToUpperInvariant())).ToList();
             if (missing.Count > 0)
                 foreach (var kv in await LoadSeriesAsync(missing, ct)) series[kv.Key] = kv.Value;
 
             foreach (var e in batch)
             {
-                var closes = series.GetValueOrDefault(e.AnalysisSymbol.ToUpperInvariant());
-                var (referencePrice, _) = ResolveBasis(e, closes);
+                var closes = series.GetValueOrDefault(e.Symbol.ToUpperInvariant());
+                var (referencePrice, _, _) = ResolvePerformanceBasis(e, closes);
                 var r = SignalReturnCalculator.Compute(e.SignalDate, referencePrice, closes);
                 cohortEvents++;
                 if (r.Return5D.Status == SignalReturnCalculator.NotAvailable) noPrice++; else withPrice++;
@@ -1085,7 +1085,7 @@ public sealed class SignalsAuditService(
 
     private async Task<List<SignalAuditRowDto>> ToRowsAsync(string userId, IReadOnlyList<SignalAuditEvent> events, CancellationToken ct)
     {
-        var series = await LoadSeriesAsync(events.Select(e => e.AnalysisSymbol).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), ct);
+        var series = await LoadSeriesAsync(events.Select(e => e.Symbol).Distinct(StringComparer.OrdinalIgnoreCase).ToList(), ct);
         var today = TorontoToday();
 
         // Effective current state per Final Action recommendation: read-only, cache-only (never scans, publishes or touches a timestamp).
@@ -1102,8 +1102,8 @@ public sealed class SignalsAuditService(
 
         return events.Select(e =>
         {
-            var closes = series.GetValueOrDefault(e.AnalysisSymbol.ToUpperInvariant());
-            var (referencePrice, basis) = ResolveBasis(e, closes);
+            var closes = series.GetValueOrDefault(e.Symbol.ToUpperInvariant());
+            var (referencePrice, basis, currency) = ResolvePerformanceBasis(e, closes);
             var r = SignalReturnCalculator.Compute(e.SignalDate, referencePrice, closes);
             var days = today.DayNumber - e.SignalDate.DayNumber;
             var def = SignalTypeCatalog.Find(e.SignalType);
@@ -1112,7 +1112,10 @@ public sealed class SignalsAuditService(
             if (e.LinkedTransactionId is int linkId && linkedTx.TryGetValue(linkId, out var tx))
             {
                 actionedPrice = e.Direction == SignalDirections.Sell && tx.ClosingPrice is > 0m ? tx.ClosingPrice : tx.AverageCostBasis;
-                if (actionedPrice is > 0m && r.Today.EvalPrice is > 0m)
+                if (actionedPrice is > 0m && r.Today.EvalPrice is > 0m
+                    && string.Equals(tx.Symbol, e.Symbol, StringComparison.OrdinalIgnoreCase)
+                    && basis is SignalPriceBasis.Verified or SignalPriceBasis.Unverified
+                    && currency == TradingCurrency.Resolve(tx.Symbol, null).Code)
                     vsActioned = Math.Round((r.Today.EvalPrice.Value - actionedPrice.Value) / actionedPrice.Value * 100m, 2);
             }
             var effective = EffectiveStateProvider.ForEvent(e, cachedSnapshot, evalStatus, nowUtc);
@@ -1126,7 +1129,8 @@ public sealed class SignalsAuditService(
                 actionedPrice, vsActioned, e.Status, e.PerformanceAudited, e.LastValidatedAtUtc, e.StatusReason, e.SupersededByEventId,
                 effective?.Status.State.ToString(), effective?.Status.IsActionable, effective?.EvidenceHealth,
                 effective?.DataAsOf?.ToString("yyyy-MM-dd"), effective?.Codes, e.StatusChangedAtUtc,
-                current.Price, current.Currency, current.AsOfUtc, current.Source, current.Status);
+                current.Price, current.Currency, current.AsOfUtc, current.Source, current.Status,
+                referencePrice > 0m ? referencePrice : null, currency, e.AnalysisSymbol);
         }).ToList();
     }
 
@@ -1141,7 +1145,7 @@ public sealed class SignalsAuditService(
         var map = new Dictionary<string, StockQuote>(StringComparer.OrdinalIgnoreCase);
         void Add(string? key, StockQuote? q)
         {
-            if (q is null || string.IsNullOrWhiteSpace(key)) return;
+            if (q is null || string.IsNullOrWhiteSpace(key) || !TradingCurrency.IsListingQuote(key, q)) return;
             if (!map.TryGetValue(key, out var existing)
                 || (q.SourcePriceTimestamp ?? 0) > (existing.SourcePriceTimestamp ?? 0))
                 map[key] = q;
@@ -1186,6 +1190,32 @@ public sealed class SignalsAuditService(
         return Math.Abs(factor - 1m) <= BasisTolerance
             ? (e.SignalPrice, SignalPriceBasis.Verified)
             : (e.SignalPrice * factor, SignalPriceBasis.Adjusted);
+    }
+
+    internal static (decimal Price, string Basis, string? Currency) ResolvePerformanceBasis(
+        SignalAuditEvent e, IReadOnlyList<MarketDailyClose>? listingCloses)
+    {
+        var mapped = !string.IsNullOrWhiteSpace(e.AnalysisSymbol)
+            && !string.Equals(e.Symbol, e.AnalysisSymbol, StringComparison.OrdinalIgnoreCase);
+        if (listingCloses is not { Count: > 0 })
+            return (0m, mapped ? SignalPriceBasis.Unavailable : SignalPriceBasis.Unverified, null);
+        var currency = TradingCurrency.Resolve(e.Symbol, mapped ? null : e.Currency).Code;
+        if (listingCloses.Any(c => (mapped || !string.IsNullOrWhiteSpace(c.PriceCurrency))
+            && !string.Equals(c.PriceCurrency, currency, StringComparison.OrdinalIgnoreCase)))
+            return (0m, SignalPriceBasis.Unavailable, null);
+
+        if (mapped)
+        {
+            // The captured analysis price stays immutable. Use the same listing series for both ends,
+            // never a converted underlying price or a close from a later session.
+            var reference = listingCloses.FirstOrDefault(c => c.Date == e.SignalDate)?.Close;
+            return reference is > 0m
+                ? (reference.Value, SignalPriceBasis.ListingClose, currency)
+                : (0m, SignalPriceBasis.Unavailable, null);
+        }
+
+        var (price, basis) = ResolveBasis(e, listingCloses);
+        return (price, basis, currency);
     }
 
     /// <summary>TransactionVerified: the linked transaction still exists and matches the signal's ticker and window.</summary>

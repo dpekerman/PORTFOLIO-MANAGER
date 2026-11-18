@@ -1,6 +1,6 @@
 // PM-029 Trading Opportunities — mirrors backend Services/Opportunities/OpportunityDtos.cs + OpportunityModels.cs.
 // Every value is computed server-side per refresh and stored in an immutable snapshot; nothing here is a prototype literal.
-import { FinalActionResult } from './portfolio.models';
+import { FibonacciSwingEvidence, FinalActionResult } from './portfolio.models';
 
 export type ScoreStatus =
   'Verified' | 'Provisional' | 'Insufficient' | 'Unavailable' | 'NotEvaluated';
@@ -145,6 +145,7 @@ export interface OpportunityFreshness {
 }
 
 export interface OpportunityRow {
+  fibonacciSwing?: FibonacciSwingEvidence | null;
   instrumentType?: string | null;
   setupQuality?: SetupQuality | null;
   /** Strategic perspective: grade of the confirmed-structure setup (support as invalidation, resistance as target). */

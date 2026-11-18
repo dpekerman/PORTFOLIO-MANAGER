@@ -168,7 +168,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
             var chart = JsonSerializer.Deserialize<YahooChartResponse>(json, _json)
                 ?.Chart?.Result?.FirstOrDefault();
             var quote = chart?.Indicators?.Quote?.FirstOrDefault();
-            if (quote is null || chart?.Timestamp is null) return null;
+            if (quote is null || chart?.Timestamp is null
+                || !string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)) return null;
 
             return quote.Close
                 .Select((close, index) => new { Close = close, Index = index })
@@ -181,8 +182,7 @@ public sealed class YahooFinanceService : IMarketDataProvider
                     quote.High[item.Index] ?? item.Close.Value,
                     quote.Low[item.Index] ?? item.Close.Value,
                     item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L,
-                    string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
-                        && quote.Open[item.Index].HasValue && quote.High[item.Index].HasValue && quote.Low[item.Index].HasValue,
+                    quote.Open[item.Index].HasValue && quote.High[item.Index].HasValue && quote.Low[item.Index].HasValue,
                     chart.Meta?.Currency))
                 .ToList();
         }

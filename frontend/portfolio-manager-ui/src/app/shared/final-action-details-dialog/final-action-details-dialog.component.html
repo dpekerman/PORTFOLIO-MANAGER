@@ -40,6 +40,9 @@
       <dt>Trend setup</dt><dd>{{ r.trendSetup || '—' }}</dd>
       <dt>Momentum shift</dt><dd>{{ r.momentumShift || '—' }}</dd>
     </dl>
+    @if (r.fibonacciSwing && !(demo.isDemoMode() && demo.demoStyle() === 'blur')) {
+      <p class="fad-note">Fibonacci: {{ fibDetails() }}</p>
+    }
     @if (conflict) {
       <p class="fad-note" data-testid="fad-conflict">{{ conflict }}</p>
     }

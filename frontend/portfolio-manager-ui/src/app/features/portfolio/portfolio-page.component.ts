@@ -39,6 +39,7 @@ import {
 import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
+  fibonacciDetails, fibonacciRange, listingFibonacci,
 } from '../../core/technical-display';
 import { AppRefreshStore } from '../../core/store/app-refresh.store';
 import { AuthStore } from '../../core/store/auth.store';
@@ -148,6 +149,7 @@ type GridSortCol =
   | 'priceStructure'
   | 'finalAction'
   | 'maStatus'
+  | 'fibSwing'
   | 'fib38_2'
   | 'fib50'
   | 'fib61_8'
@@ -497,7 +499,19 @@ export class PortfolioPageComponent {
   }
 
   protected fibForSymbol(symbol: string) {
-    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+    const scan = this.rsiMap().get(symbol.toUpperCase());
+    return scan && !scan.usesUnderlyingSecurity && (!scan.analysisTicker || scan.analysisTicker === scan.symbol) ? scan : null;
+  }
+
+  protected listingFib(symbol: string) {
+    return listingFibonacci(symbol, this.fibForSymbol(symbol)?.fibonacciSwing);
+  }
+  protected fibRange(symbol: string): string {
+    return fibonacciRange(this.listingFib(symbol), (value) => this.demoMode.maskValue(value));
+  }
+  protected fibDetails(symbol: string): string {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'blur'
+      ? '' : fibonacciDetails(this.listingFib(symbol), (value) => this.demoMode.maskValue(value));
   }
 
   protected holdingCurrency(symbol: string): string {
@@ -1071,6 +1085,8 @@ export class PortfolioPageComponent {
         );
       case 'maStatus':
         return this.maStatusForSymbol(s.item.symbol) === 'STRONG BUY' ? 1 : 0;
+      case 'fibSwing':
+        return this.listingFib(s.item.symbol)?.swingLow ?? 0;
       case 'fib38_2':
         return this.fibForSymbol(s.item.symbol)?.fib38_2 ?? 0;
       case 'fib50':

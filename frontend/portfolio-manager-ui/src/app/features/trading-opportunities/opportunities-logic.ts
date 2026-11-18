@@ -534,6 +534,8 @@ export function columnValue(
       return row.sector;
     case 'industry':
       return row.industry;
+    case 'fibSwing':
+      return listingFibonacci(row.symbol, row.fibonacciSwing)?.swingLow ?? null;
     case 'price':
       return row.indicators.price;
     case 'rsi14':
@@ -872,6 +874,7 @@ const EXPORT_COLUMNS: readonly OpportunityExportColumn[] = [
   xcol('Sector', 'text', (r) => r.sector, 'sector'),
   xcol('Industry', 'text', (r) => r.industry, 'industry'),
   xcol('Price', 'money', (r) => r.indicators.price, 'price'),
+  xcol('FIB Swing High/Low', 'text', (r) => fibonacciRange(listingFibonacci(r.symbol, r.fibonacciSwing)), 'fibSwing'),
   xcol('RSI (14)', 'qty', (r) => r.indicators.rsi14, 'rsi14'),
   xcol('MACD Hist.', 'qty', (r) => r.indicators.macdHistogram, 'macdHist'),
   xcol('EMA 20', 'money', (r) => r.indicators.ema20, 'ema20'),
@@ -941,3 +944,4 @@ export function exportNotes(
     ['Disclaimer', snapshot.disclaimer],
   ];
 }
+import { fibonacciRange, listingFibonacci } from '../../core/technical-display';

@@ -94,6 +94,17 @@ describe('signal tracker export', () => {
     expect(col('Signal Date')).toBe('2026-10-23');
   });
 
+  it('distinguishes the captured analysis price from the listing performance reference', () => {
+    const [cells] = signalsExportRows([{
+      ...row, symbol: 'ABC.TO', analysisSymbol: 'ABC', currency: 'USD',
+      signalPrice: 200, performanceReferencePrice: 25, performanceCurrency: 'CAD', priceBasis: 'ListingClose',
+    }], (value) => value / 2);
+    expect(cells[SIGNALS_EXPORT_HEADERS.indexOf('Signal Price')]).toBe(100);
+    expect(cells[SIGNALS_EXPORT_HEADERS.indexOf('Currency')]).toBe('USD');
+    expect(cells[SIGNALS_EXPORT_HEADERS.indexOf('Performance Reference Price')]).toBe(12.5);
+    expect(cells[SIGNALS_EXPORT_HEADERS.indexOf('Performance Currency')]).toBe('CAD');
+  });
+
   it('leaves the effective columns blank for closed lifecycles and never claims actionability it does not know', () => {
     const [r] = signalsExportRows([{ ...row, status: 'Invalidated' } as unknown as SignalAuditRow], (v) => v);
     expect(r[SIGNALS_EXPORT_HEADERS.indexOf('Lifecycle Status')]).toBe('Invalidated');

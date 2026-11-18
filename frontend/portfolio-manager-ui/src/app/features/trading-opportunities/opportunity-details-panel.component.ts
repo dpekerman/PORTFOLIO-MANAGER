@@ -80,6 +80,11 @@ const SETUP_LABELS: Record<string, string> = {
 })
 export class OpportunityDetailsPanelComponent implements AfterViewInit {
   private readonly demo = inject(DemoModeStore);
+  protected readonly listingFibDetails = (row: OpportunityRow) => {
+    const fib = listingFibonacci(row.symbol, row.fibonacciSwing);
+    return fib && this.demo.isDemoMode() && this.demo.demoStyle() === 'blur' ? 'Hidden in demo mode'
+      : fibonacciDetails(fib, (value) => this.demo.maskValue(value));
+  };
   private readonly dialog = inject(MatDialog);
 
   readonly row = input<OpportunityRow | null>(null);
@@ -212,3 +217,4 @@ export class OpportunityDetailsPanelComponent implements AfterViewInit {
     if (first) this.openDecision(first);
   }
 }
+import { fibonacciDetails, listingFibonacci } from '../../core/technical-display';

@@ -52,6 +52,13 @@ describe('final-action-labels', () => {
     expect(describeReasonCode('SOMETHING_NEW')).toBe('SOMETHING_NEW');
   });
 
+  it('explains why a Strategic add is blocked or allowed in a falling trend, and that the holding is not a sell', () => {
+    expect(describeReasonCode('ADD_BLOCKED_REVERSAL_UNCONFIRMED')).toContain('no reversal is confirmed');
+    expect(describeReasonCode('ADD_BLOCKED_REVERSAL_UNCONFIRMED')).toContain('not a sell');
+    expect(describeReasonCode('ADD_REVERSAL_CONFIRMED')).toContain('Reversal confirmed');
+    expect(technicalConflictNote(result({ finalAction: 'REVERSAL WATCH — Wait for Confirmation', momentumShift: 'Active Buy Trigger' }))).toBeNull();
+  });
+
   it('labels every effective state', () => {
     expect(stateLabel('AwaitingData')).toBe('Awaiting Data');
     expect(stateLabel('PriorSessionValid')).toBe('Valid prior-session recommendation');

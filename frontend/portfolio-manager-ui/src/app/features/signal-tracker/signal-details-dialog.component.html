@@ -106,6 +106,16 @@
 
     <section class="block" aria-label="Performance since signal">
       <h3>Performance since signal</h3>
+      @if (r.analysisSymbol && r.analysisSymbol !== r.symbol) {
+        <p class="hint">Signal price used {{ r.analysisSymbol }}. Performance uses {{ r.symbol }} listing history, not the underlying price.</p>
+        @if (r.performanceReferencePrice != null) {
+          <p>Listing close on signal date:
+            <span [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">
+              {{ price(r.performanceReferencePrice) | number: '1.2-2' }} {{ r.performanceCurrency }}
+            </span>
+          </p>
+        }
+      }
       <dl class="grid">
         @for (h of [
           { label: '5D', v: r.return5D },
@@ -123,7 +133,7 @@
                 </span>
                 <small>on {{ h.v.evalDate }}</small>
               } @else {
-                {{ h.v.status === 'Pending' ? 'Pending' : 'N/A' }}
+                {{ h.v.status === 'Pending' ? 'Pending' : 'Unavailable' }}
               }
             </dd>
           </div>

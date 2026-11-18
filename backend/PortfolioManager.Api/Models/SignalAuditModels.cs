@@ -113,6 +113,8 @@ public static class SignalEligibility
 
 public static class SignalPriceBasis
 {
+    public const string ListingClose = "ListingClose";
+    public const string Unavailable = "Unavailable";
     /// <summary>Provider history still matches the price basis the signal was recorded on.</summary>
     public const string Verified = "Verified";
     /// <summary>History was re-based (e.g. split); the signal price was scaled by the same factor before computing returns.</summary>
@@ -322,7 +324,10 @@ public sealed record SignalAuditRowDto(
     string? CurrentPriceCurrency = null,
     DateTime? CurrentPriceAsOfUtc = null,
     string? CurrentPriceSource = null,
-    string CurrentPriceStatus = "Unavailable");
+    string CurrentPriceStatus = "Unavailable",
+    decimal? PerformanceReferencePrice = null,
+    string? PerformanceCurrency = null,
+    string? AnalysisSymbol = null);
 
 public sealed record SignalAuditPagedResponse(
     IReadOnlyList<SignalAuditRowDto> Items,

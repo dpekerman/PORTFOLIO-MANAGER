@@ -32,6 +32,9 @@ export const SIGNALS_EXPORT_HEADERS = [
   'Last Evaluated (UTC)',
   'Data As Of',
   'Reason Codes',
+  'Analysis Ticker',
+  'Performance Reference Price',
+  'Performance Currency',
 ] as const;
 
 type Cell = string | number | null;
@@ -73,6 +76,9 @@ export function signalsExportRows(rows: readonly SignalAuditRow[], maskValue: (v
     r.lastValidatedAtUtc ?? '',
     r.dataAsOfDate ?? '',
     (r.reasonCodes ?? []).join('; '),
+    r.analysisSymbol ?? '',
+    r.performanceReferencePrice != null ? maskValue(r.performanceReferencePrice) : '',
+    r.performanceCurrency ?? '',
   ]);
 }
 

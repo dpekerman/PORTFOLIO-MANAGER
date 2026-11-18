@@ -1149,28 +1149,15 @@
                     <th
                       mat-header-cell
                       *matHeaderCellDef
+                      mat-sort-header
                       matTooltip="Swing High / Low used for Fibonacci calculation (60-day lookback, ≥8% decline required)"
                     >
                       FIB SWING HIGH/LOW
                     </th>
                     <td mat-cell *matCellDef="let row">
                       @let fibSym = isAggRow(0, row) ? asAgg(row).symbol : asItem(row).item.symbol;
-                      @let fibR = fibForSymbol(fibSym);
-                      @if (fibR && fibR.fib61_8 > 0) {
-                        <div class="fib-swing-cell">
-                          <span class="fib-swing-low"
-                            >${{ fibR.fibSwingLow | number: '1.2-2'
-                            }}</span
-                          >
-                          <mat-icon class="fib-swing-arrow">arrow_forward</mat-icon>
-                          <span class="fib-swing-high"
-                            >${{ fibR.fibSwingHigh | number: '1.2-2'
-                            }}</span
-                          >
-                        </div>
-                      } @else {
-                        <span class="pg-dim">—</span>
-                      }
+                      <span [matTooltip]="fibDetails(fibSym)"
+                        [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'">{{ fibRange(fibSym) }}</span>
                     </td>
                   </ng-container>
                   <!-- Fibonacci 38.2% -->

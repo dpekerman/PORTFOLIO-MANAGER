@@ -13,6 +13,9 @@ const REASON_LABELS: Record<string, string> = {
   ADD_BLOCKED_SECTOR_OVER: 'Add blocked: sector above its target',
   ADD_ROLE_POLICY_AMBIGUOUS: 'Add needs review: the role policy is ambiguous',
   ADD_ELIGIBLE: 'Add eligible within position and sector limits',
+  ADD_BLOCKED_REVERSAL_UNCONFIRMED:
+    'Add blocked: the trend is still falling and no reversal is confirmed — wait for a reclaim, bounce or breakout. The holding itself is not a sell',
+  ADD_REVERSAL_CONFIRMED: 'Reversal confirmed by structure (reclaim, bounce or breakout with no hard negative), so the add may proceed',
   PROFIT_TAKING_RULE: 'Profit-taking rule',
   NO_ADD_TECHNICAL_COOLING: 'No add: momentum is cooling',
   NO_ADD_OVERBOUGHT: 'No add: extended after an overbought run',

@@ -47,7 +47,7 @@
           }
         </p>
         <p class="meta">
-          Price {{ money(row.indicators.price, row.currency) }}
+          {{ row.usesUnderlying ? 'Underlying analysis price' : 'Price' }} {{ money(row.indicators.price, row.currency) }}
           @if (row.indicators.changePct !== null) {
             <span
               [class.pos]="row.indicators.changePct > 0"
@@ -566,6 +566,8 @@
                   <dd>{{ ind.maStructure ?? '—' }}</dd>
                   <dt>Fibonacci zone</dt>
                   <dd>{{ ind.fibZone ?? '—' }}</dd>
+                  <dt>Listing Fibonacci</dt>
+                  <dd>{{ listingFibDetails(row) }}</dd>
                   <dt>Channel</dt>
                   <dd>{{ ind.channelState ?? '—' }}</dd>
                 </dl>

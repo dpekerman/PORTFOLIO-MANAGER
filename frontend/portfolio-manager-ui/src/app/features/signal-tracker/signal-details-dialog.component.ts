@@ -113,6 +113,8 @@ export class SignalDetailsDialogComponent {
   }
 
   protected basisLabel(basis: string): string {
+    if (basis === 'ListingClose') return 'Trading listing close on the signal date';
+    if (basis === 'Unavailable') return 'Unavailable — no comparable listing price evidence';
     return basis === 'Adjusted' ? 'Adjusted (rescaled to split-adjusted history)' : basis === 'Unverified' ? 'Unverified (returns not verified against history)' : 'Verified';
   }
 }

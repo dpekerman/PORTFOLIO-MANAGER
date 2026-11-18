@@ -818,6 +818,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 IsDemo = false,
                 FibSwingLow = fib.SwingLow,
                 FibSwingHigh = fib.SwingHigh,
+                FibonacciSwing = fib.LowIndex is int low && fib.HighIndex is int high
+                    && string.Equals(chartResult.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+                    && chartResult.Meta?.Currency is { Length: > 0 } currency
+                    ? new FibonacciSwingEvidence(symbol, currency.ToUpperInvariant(), fib.SwingLow, fib.SwingHigh,
+                        TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[low]).UtcDateTime),
+                        TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[high]).UtcDateTime),
+                        fib.Fib38_2, fib.Fib50, fib.Fib61_8, fib.Fib78_6)
+                    : null,
                 Fib38_2 = fib.Fib38_2,
                 Fib50 = fib.Fib50,
                 Fib61_8 = fib.Fib61_8,
@@ -859,7 +867,7 @@ public sealed class RsiScannerService : IRsiScannerService
     private record FibCalcResult(
         decimal SwingLow, decimal SwingHigh,
         decimal Fib38_2, decimal Fib50, decimal Fib61_8, decimal Fib78_6,
-        string FibZone, string FibStatus, decimal DistanceToFib61_8Pct);
+        string FibZone, string FibStatus, decimal DistanceToFib61_8Pct, int? LowIndex = null, int? HighIndex = null);
 
     private static readonly FibCalcResult _fibNoData =
         new(0m, 0m, 0m, 0m, 0m, 0m, string.Empty, string.Empty, 0m);
@@ -896,11 +904,12 @@ public sealed class RsiScannerService : IRsiScannerService
         // Include the current bar so that currently-declining stocks are captured
         if (swingHighIdx >= closes.Count - 2) return _fibNoData;
 
-        decimal swingLow = closes[swingHighIdx + 1];
+        int swingLowIdx = swingHighIdx + 1;
         for (int i = swingHighIdx + 2; i < closes.Count; i++)
         {
-            if (closes[i] < swingLow) swingLow = closes[i];
+            if (closes[i] < closes[swingLowIdx]) swingLowIdx = i;
         }
+        var swingLow = closes[swingLowIdx];
 
         // Validate: require at least minMovePercent% decline from high to low
         if (swingHigh <= 0m || swingLow >= swingHigh) return _fibNoData;
@@ -920,7 +929,7 @@ public sealed class RsiScannerService : IRsiScannerService
         return new FibCalcResult(
             Math.Round(swingLow, 4), Math.Round(swingHigh, 4),
             f38_2, f50, f61_8, f78_6,
-            fibZone, fibStatus, distPct);
+            fibZone, fibStatus, distPct, swingLowIdx, swingHighIdx);
     }
 
     private static string ClassifyFibZone(

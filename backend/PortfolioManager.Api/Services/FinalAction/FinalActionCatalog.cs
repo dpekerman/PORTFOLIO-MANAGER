@@ -61,6 +61,7 @@ public static partial class FinalActionCatalog
         ("Hold", Advisory, Neutral, "Portfolio"),
         ("Hold / Monitor", Advisory, Neutral, "Portfolio"),
         ("Add / Needs Review", Advisory, Neutral, "Portfolio"),
+        ("REVERSAL WATCH — Wait for Confirmation", Advisory, Neutral, "Portfolio"),
         ("Hold / Catalyst Monitoring", Advisory, Neutral, "Portfolio"),
         ("Hold Swing",  Advisory, Neutral, "Portfolio"),
         ("Hold Swing / Watch", Advisory, Neutral, "Portfolio"),

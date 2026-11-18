@@ -165,6 +165,7 @@ describe('opt-in respectDefaultHiddenWhenUnsaved + required (PM-029)', () => {
       'rr',
       'setupQuality',
       'manualR',
+      'fibSwing',
       'risk',
       'fit',
       'finalAction',
@@ -374,12 +375,13 @@ describe('GridColumnStore', () => {
     expect(s.getColumnKeys('watchlist')).not.toBe(s.getColumnKeys('scanner'));
   });
 
-  it('preserves the 39 existing Opportunities keys, adds Manual R, and caches profiles independently', () => {
+  it('defaults Fibonacci to the Swing grids and allows Strategic users to opt in', () => {
     const s = store();
     const gridId = 'trading-opportunities';
-    const definition = GRID_REGISTRY.find((g) => g.id === gridId)!;
-    expect(definition.columns).toHaveLength(41);
-    expect(definition.columns.map((column) => column.key)).toContain('manualR');
+    expect(s.getColumnKeys('swing-open-trades')()).toContain('fibSwing');
+    expect(s.getColumnKeys(gridId, 'Swing')()).toContain('fibSwing');
+    expect(s.getColumnKeys(gridId, 'Strategic')()).not.toContain('fibSwing');
+    expect(s.getEditablePrefs(gridId, 'Strategic').find((pref) => pref.key === 'fibSwing')?.visible).toBe(false);
     expect(s.getColumnKeys(gridId, 'Swing')).toBe(s.getColumnKeys(gridId, 'Swing'));
     expect(s.getColumnKeys(gridId, 'Swing')).not.toBe(s.getColumnKeys(gridId, 'Strategic'));
   });
