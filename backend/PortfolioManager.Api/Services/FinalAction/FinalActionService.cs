@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using PortfolioManager.Api.Data;
 using PortfolioManager.Api.Models;
+using PortfolioManager.Api.Services.Risk;
 
 namespace PortfolioManager.Api.Services.FinalAction;
 
@@ -71,7 +72,9 @@ public sealed record FinalActionResultDto(
     /// <summary>When the app fetched the quote (distinct from <see cref="QuoteTimestampUtc"/>, the provider's own price time).</summary>
     DateTime? QuoteFetchedAtUtc = null,
     RejectedMarketBar? RejectedBar = null,
-    bool IntradayRangeReconstructed = false);
+    bool IntradayRangeReconstructed = false,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    FibonacciSwingEvidence? FibonacciSwing = null);
 
 /// <summary>Ownership facts across all open lots and accounts of a symbol. Exposure is null when it cannot be verified.</summary>
 public sealed record FinalActionOwnership(
@@ -695,7 +698,8 @@ public sealed class FinalActionService(
             new FinalActionTechnicalsDto(scan.Rsi, scan.TrendShift, scan.MaStructure, scan.MaCrossState, scan.PriceStructure,
                 scan.FibZone, scan.FibStatus, scan.Fib61_8, scan.DynamicStopLoss));
         return dto with { IsActionable = DecisionEligibility.IsActionable(dto), EvidenceAsOfUtc = scan.ScannedAt,
-            IntradayRangeReconstructed = scan.IntradayRangeReconstructed };
+            IntradayRangeReconstructed = scan.IntradayRangeReconstructed,
+            FibonacciSwing = scan.FibonacciSwing };
     }
 
     internal static PortfolioEvidence BuildEvidence(
@@ -738,6 +742,8 @@ public sealed class FinalActionService(
             ambiguous, ambiguityDetail, sectorPct, target is null ? null : Dbl(target.TargetPct), !string.IsNullOrEmpty(sector), risk, valuation)
         {
             AllocationDenominatorAvailable = grandTotal > 0,
+            TargetRole = targetRole,
+            Reversal = FinalActionEngine.ReversalConfirmation(ToInput(scan)),
         };
     }
 
@@ -879,9 +885,12 @@ public sealed class FinalActionService(
         PortfolioSummaryDto holding, RsiScanResult scan, IReadOnlyList<PortfolioSummaryDto> all, double grandTotal, ValuationCheck? valuation = null)
     {
         var item = holding.Item;
-        double? tradedPrice = all.FirstOrDefault(s => s.Item.Id == item.Id)?.Quote is { } q
-            ? Dbl(q.CurrentPrice)
-            : scan.UsesUnderlyingSecurity ? null : Dbl(scan.CurrentPrice);
+        var quote = all.FirstOrDefault(s => s.Item.Id == item.Id)?.Quote;
+        double? tradedPrice = TradingCurrency.IsListingQuote(item.Symbol, quote)
+            ? Dbl(quote!.CurrentPrice)
+            : quote is null && !scan.UsesUnderlyingSecurity
+                && (string.IsNullOrEmpty(scan.AnalysisTicker) || string.Equals(scan.AnalysisTicker, item.Symbol, StringComparison.OrdinalIgnoreCase))
+                ? Dbl(scan.CurrentPrice) : null;
         var analysisPrice = Dbl(scan.CurrentPrice);
         var avgCost = Dbl(item.AverageCostBasis);
         double? gain = tradedPrice is not null && avgCost > 0 ? (tradedPrice.Value - avgCost) / avgCost * 100 : null;
@@ -988,6 +997,10 @@ public sealed class FinalActionService(
 
     private async Task<ValuationCheck> CheckValuationAsync(string userId, IReadOnlyList<PortfolioSummaryDto> summaries, CancellationToken ct)
     {
+        if (summaries.Any(s => !IsClose(s.Item.TransactionType) && !s.Item.IsManual
+            && !TradingCurrency.IsListingQuote(s.Item.Symbol, s.Quote)))
+            return new ValuationCheck(ValuationCheck.UnverifiedPrices, "one or more holdings lack a valid trading-listing quote");
+
         var stocks = summaries.Where(s => !IsClose(s.Item.TransactionType))
             .Select(s => (s.Item.Symbol, s.Quote?.Currency)).ToList();
         var cash = (await db.CashItems.AsNoTracking().Where(c => c.UserId == userId || c.UserId == null)

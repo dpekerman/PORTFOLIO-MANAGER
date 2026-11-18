@@ -104,6 +104,12 @@
       <td mat-cell *matCellDef="let row">{{ manualRText(row) }}</td>
     </ng-container>
 
+    <ng-container matColumnDef="fibSwing">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('fibSwing') }}</th>
+      <td mat-cell *matCellDef="let row" [matTooltip]="fibDetails(row)">
+        <span [class.demo-redact]="demoBlur()">{{ fibRange(row) }}</span>
+      </td>
+    </ng-container>
     <ng-container matColumnDef="risk">
       <th mat-header-cell *matHeaderCellDef mat-sort-header>{{ label('risk') }}</th>
       <td mat-cell *matCellDef="let row">

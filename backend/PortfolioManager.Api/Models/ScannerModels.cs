@@ -1,5 +1,14 @@
 namespace PortfolioManager.Api.Models;
 
+public sealed record FibonacciSwingEvidence(
+    string Symbol, string Currency, decimal SwingLow, decimal SwingHigh,
+    DateOnly LowDate, DateOnly HighDate, decimal Fib38_2, decimal Fib50, decimal Fib61_8, decimal Fib78_6)
+{
+    public bool Matches(string symbol, string? currency = null) =>
+        string.Equals(Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+        && (currency is null || string.Equals(Currency, currency, StringComparison.OrdinalIgnoreCase));
+}
+
 public enum ScanType { Oversold, Overbought, Neutral }
 
 public enum ChannelDirection { NONE, RISING }
@@ -32,6 +41,7 @@ public class RsiScanResult
     public string AnalysisMarket { get; set; } = string.Empty;
     public string AnalysisCurrency { get; set; } = string.Empty;
     public bool UsesUnderlyingSecurity { get; set; }
+    public FibonacciSwingEvidence? FibonacciSwing { get; set; }
     public bool IntradayRangeReconstructed { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string? InstrumentType { get; set; }

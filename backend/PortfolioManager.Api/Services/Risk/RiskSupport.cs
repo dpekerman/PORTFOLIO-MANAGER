@@ -32,6 +32,11 @@ public static class TradingCurrency
 {
     private static readonly string[] CadSuffixes = [".TO", ".V", ".CN", ".NE"];
 
+    public static bool IsListingQuote(string symbol, StockQuote? quote) =>
+        quote is { CurrentPrice: > 0m }
+        && string.Equals(symbol, quote.Symbol, StringComparison.OrdinalIgnoreCase)
+        && (Resolve(symbol, null).Code != "CAD" || Resolve(symbol, quote.Currency).Code == "CAD");
+
     /// <summary>Provider-reported currency wins; the ticker suffix is only a labelled fallback.</summary>
     public static (string Code, string Basis) Resolve(string symbol, string? providerCurrency)
     {

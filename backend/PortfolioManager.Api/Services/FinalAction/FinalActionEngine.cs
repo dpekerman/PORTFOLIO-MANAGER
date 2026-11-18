@@ -67,6 +67,12 @@ public sealed record PortfolioItemContext(
 
 public sealed record GapResult(string Status, int Score, double GapPct);
 
+/// <summary>Whether the structure confirms a reversal, using the same facts the Watchlist entry rule reads.</summary>
+public sealed record ReversalEvidence(bool HardNegative, bool StructureConfirmed, bool TrendDamage)
+{
+    public bool Confirmed => StructureConfirmed && !HardNegative && !TrendDamage;
+}
+
 public sealed record WatchlistEntryDecision(
     string FinalAction,
     string FinalActionReason,
@@ -504,6 +510,29 @@ public static class FinalActionEngine
         "TIGHT_RISING_WEDGE_BREAKDOWN",
     ];
 
+    private static bool IsHardNegative(FinalActionPriceStructure? structure)
+    {
+        var levelState = structure?.KeyLevelState ?? "NONE";
+        var patternState = structure?.PrimaryPatternState ?? "NONE";
+        var patternType = structure?.PrimaryPatternType ?? "NONE";
+        return structure?.HasHardStructuralNegative == true
+            || HardLevelStates.Contains(levelState)
+            || patternState == "CHANNEL_BROKEN"
+            || (patternState == "BREAKDOWN" && patternType.Contains("WEDGE", StringComparison.Ordinal));
+    }
+
+    private static bool IsStructureConfirmed(FinalActionPriceStructure? structure) =>
+        (structure?.KeyLevelState ?? "NONE") is "BREAKOUT_CONFIRMED" or "SUPPORT_RECLAIM" or "BOUNCE_CONFIRMED"
+        || (structure?.PrimaryPatternState ?? "NONE") == "BREAKOUT";
+
+    /// <summary>
+    /// The Watchlist entry rule's own reversal confirmation, exposed so a held Strategic add cannot be approved on weaker
+    /// evidence than a new entry: confirmed structure, no active hard negative, no Fibonacci trend damage and no severely bearish MA stack.
+    /// </summary>
+    public static ReversalEvidence ReversalConfirmation(FinalActionInput r) => new(
+        IsHardNegative(r.PriceStructure), IsStructureConfirmed(r.PriceStructure),
+        r.FibZone == "Trend Damage" || DeriveMaStructure(r) == "200 > 50 > P");
+
     private static WatchlistEntryDecision EvaluateWatchlistEntry(WatchlistEntryContext c)
     {
         var structure = c.PriceStructure;
@@ -514,10 +543,7 @@ public static class FinalActionEngine
         var momentum = c.MomentumState ?? c.MomentumShift ?? "Neutral";
         var buyScore = c.BuyScore;
 
-        var hardNegative = structure?.HasHardStructuralNegative == true
-            || HardLevelStates.Contains(levelState)
-            || patternState == "CHANNEL_BROKEN"
-            || (patternState == "BREAKDOWN" && patternType.Contains("WEDGE", StringComparison.Ordinal));
+        var hardNegative = IsHardNegative(structure);
         string? hardNegativeReason = hardNegative
             ? (levelState != "NONE" && HardLevelStates.Contains(levelState) ? levelState : $"{patternType}_{patternState}")
             : null;
@@ -529,8 +555,7 @@ public static class FinalActionEngine
             || momentum.Contains("Bullish Shift", StringComparison.Ordinal) || momentum == "Uptrend";
         var resistance = structure?.KeyLevelRole == "RESISTANCE"
             && levelState is "RESISTANCE_TEST" or "APPROACHING_RESISTANCE" or "BREAKOUT_WATCH";
-        var confirmedConstructive = levelState is "BREAKOUT_CONFIRMED" or "SUPPORT_RECLAIM" or "BOUNCE_CONFIRMED"
-            || patternState == "BREAKOUT";
+        var confirmedConstructive = IsStructureConfirmed(structure);
         var supportConstructive = structure?.KeyLevelRole == "SUPPORT"
             && levelState is "SUPPORT_TEST" or "SUPPORT_RECLAIM" or "BOUNCE_CONFIRMED" or "APPROACHING_SUPPORT";
         var compression = patternType.Contains("FALLING_WEDGE", StringComparison.Ordinal)

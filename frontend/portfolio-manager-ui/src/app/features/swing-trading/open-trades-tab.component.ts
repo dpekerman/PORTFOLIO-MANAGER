@@ -77,6 +77,11 @@ export class OpenTradesTabComponent {
   protected readonly priceOf = priceView;
   protected readonly brokerStopOf = brokerStopView;
   protected readonly protectionOf = protectionView;
+  protected readonly demoBlur = () => this.demo.isDemoMode() && this.demo.demoStyle() === 'blur';
+  protected readonly fibRange = (r: SwingTradeRow) =>
+    fibonacciRange(this.store.fibonacciFor(r), (value) => this.demo.maskValue(value));
+  protected readonly fibDetails = (r: SwingTradeRow) =>
+    this.demoBlur() ? '' : fibonacciDetails(this.store.fibonacciFor(r), (value) => this.demo.maskValue(value));
   protected readonly targetOf = (r: SwingTradeRow) => targetView(r, (n) => (n === null ? '—' : String(this.demo.maskValue(n))));
 
   protected readonly rows = computed(() => {
@@ -114,6 +119,7 @@ export class OpenTradesTabComponent {
       case 'stopLoss': return r.plannedStop;
       case 'brokerStop': return r.brokerStopTrigger;
       case 'target': return r.targetPrice;
+      case 'fibSwing': return this.store.fibonacciFor(r)?.swingLow ?? null;
       case 'toTarget': return targetView(r, () => '').pct;
       case 'stopType': return r.stopType;
       case 'protection': return r.protection;
@@ -151,13 +157,13 @@ export class OpenTradesTabComponent {
 
   protected exportCsv(): void {
     if (this.demo.isDemoMode()) return;
-    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
+    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct(), this.store.fibonacciFor);
     downloadTextFile(`swing-open-trades-${torontoDateString()}.csv`, txRowsToCsv(OPEN_TRADES_EXPORT_COLUMNS, rows));
   }
 
   protected exportXlsx(): void {
     if (this.demo.isDemoMode()) return;
-    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
+    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct(), this.store.fibonacciFor);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, txSheet(OPEN_TRADES_EXPORT_COLUMNS, rows), 'Open Trades');
     XLSX.utils.book_append_sheet(
@@ -172,3 +178,4 @@ export class OpenTradesTabComponent {
     XLSX.writeFile(book, `swing-open-trades-${torontoDateString()}.xlsx`);
   }
 }
+import { fibonacciDetails, fibonacciRange } from '../../core/technical-display';

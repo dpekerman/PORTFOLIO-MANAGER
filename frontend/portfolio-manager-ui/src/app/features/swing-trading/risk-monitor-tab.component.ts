@@ -202,13 +202,13 @@ export class RiskMonitorTabComponent {
 
   protected exportCsv(): void {
     if (this.demo.isDemoMode()) return;
-    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
+    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct(), this.store.fibonacciFor);
     downloadTextFile(`swing-risk-monitor-${torontoDateString()}.csv`, txRowsToCsv(OPEN_TRADES_EXPORT_COLUMNS, rows));
   }
 
   protected exportXlsx(): void {
     if (this.demo.isDemoMode()) return;
-    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct());
+    const rows = openTradesExportRows(this.rows(), (r) => this.store.finalActionOf(r), this.store.thresholdPct(), this.store.fibonacciFor);
     const book = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(book, txSheet(OPEN_TRADES_EXPORT_COLUMNS, rows), 'Risk Monitor');
     XLSX.utils.book_append_sheet(

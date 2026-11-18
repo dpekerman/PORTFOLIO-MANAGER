@@ -21,8 +21,9 @@ public static class FinalActionExplainer
     public static (IReadOnlyList<string> Codes, string? Rationale) ExplainPortfolio(
         FinalActionDecision d, GateOutcome gate, PortfolioEvidence e, string? role)
     {
-        // The gate already explained anything it passed, changed or conditioned.
-        if (gate.ReasonCodes.Count > 0) return (gate.ReasonCodes, d.FinalActionReason);
+        // The gate already explained anything it passed, changed or conditioned. A confirmed reversal only annotates an allowed add.
+        var confirmed = gate.ReasonCodes.Contains(GateReasons.AddReversalConfirmed);
+        if (gate.ReasonCodes.Count > (confirmed ? 1 : 0)) return (gate.ReasonCodes, d.FinalActionReason);
 
         var def = FinalActionCatalog.Describe(d.FinalAction);
         var roleName = string.IsNullOrWhiteSpace(role) ? "Strategic" : role;
@@ -34,8 +35,10 @@ public static class FinalActionExplainer
                 : $"no position limit is configured for {roleName}";
             var sector = !e.SectorKnown ? "sector unknown, no sector limit applied"
                 : e.SectorTargetPct is { } t ? $"sector {F(e.SectorPct)}% vs target {F(t)}%" : "no sector target configured";
-            return ([AddEligible],
-                $"Add eligible: {d.MomentumShift} / {d.TrendSetup}. Symbol exposure {F(e.PositionSizePct)}% ({limit}); {sector}.");
+            var rationale = $"Add eligible: {d.MomentumShift} / {d.TrendSetup}. Symbol exposure {F(e.PositionSizePct)}% ({limit}); {sector}.";
+            if (!confirmed) return ([AddEligible], rationale);
+            return ([AddEligible, GateReasons.AddReversalConfirmed],
+                rationale + " The adverse structure has confirmed reversal evidence (reclaim, bounce or breakout with no hard negative).");
         }
 
         if (def.Category == "TrimExit" && def.Group == "Profit-taking")

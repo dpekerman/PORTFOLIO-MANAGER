@@ -296,6 +296,26 @@ describe('opportunities-logic sector heat', () => {
 });
 
 describe('opportunities-logic sorting and export', () => {
+  it('sorts by numeric listing swing low and exports a CAD range without leaking underlying evidence', () => {
+    const fib = {
+      symbol: 'ABC.TO', currency: 'CAD', swingLow: 34.54, swingHigh: 54.17,
+      lowDate: '2026-11-12', highDate: '2026-10-12', fib38_2: 46, fib50: 44, fib61_8: 42, fib78_6: 38,
+    };
+    const rows = [
+      opportunityRow('CDR.TO', { fibonacciSwing: { ...fib, symbol: 'CDR', currency: 'USD' } }),
+      opportunityRow('ABC.TO', { fibonacciSwing: fib }),
+      opportunityRow('XYZ.TO', { fibonacciSwing: { ...fib, symbol: 'XYZ.TO', swingLow: 9 } }),
+    ];
+    const sorted = sortRows(rows, { active: 'fibSwing', direction: 'asc' }, 'Swing');
+    expect(sorted.map((row) => row.symbol)).toEqual(['XYZ.TO', 'ABC.TO', 'CDR.TO']);
+    const columns = opportunityExportColumns({ visibleOnly: true, visibleKeys: ['fibSwing'], includeAccounts: false });
+    const index = columns.findIndex((column) => column.header === 'FIB Swing High/Low');
+    expect(opportunityExportRows(sorted, columns).map((cells) => cells[index])).toEqual([
+      'C$9.00 → C$54.17', 'C$34.54 → C$54.17', 'N/A',
+    ]);
+    expect(opportunityExportColumns({ visibleOnly: true, visibleKeys: ['symbol'], includeAccounts: false }))
+      .not.toContainEqual(expect.objectContaining({ header: 'FIB Swing High/Low' }));
+  });
   it('does not repeat a ticker as a company description in the UI or export', () => {
     expect(companyNameForDisplay('ABC.TO', 'ABC.TO')).toBeNull();
     expect(companyNameForDisplay('ABC.TO', '  abc.to  ')).toBeNull();

@@ -393,7 +393,8 @@ public sealed class OpportunityService(
                     d20?.IsAvailable == true ? d20.DisplayDiffPp : null, d60?.IsAvailable == true ? d60.DisplayDiffPp : null),
             new OpportunityFreshnessDto(scan?.TradingDate, p.ExpectedSession, scan?.ScannedAt, scan is null || stale,
                 p.Value?.AnalyzedAt, valueOrigin),
-            rowStatus, p.InstrumentType);
+            rowStatus, p.InstrumentType, FibonacciSwing: !stale && scan?.FibonacciSwing is { } fib
+                && fib.Matches(m.Symbol) ? fib : null);
     }
 
     private static OpportunityScoreSummaryDto Summary(ScoreResult s) =>

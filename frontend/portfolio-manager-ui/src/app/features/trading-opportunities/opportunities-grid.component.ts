@@ -115,6 +115,12 @@ const FIT_LABELS: Record<string, string> = { Eligible: 'Eligible', Review: 'Revi
 })
 export class OpportunitiesGridComponent {
   private readonly demo = inject(DemoModeStore);
+  protected readonly demoBlur = () => this.demo.isDemoMode() && this.demo.demoStyle() === 'blur';
+  protected readonly fibFor = (row: OpportunityRow) => listingFibonacci(row.symbol, row.fibonacciSwing);
+  protected readonly fibRange = (row: OpportunityRow) =>
+    fibonacciRange(this.fibFor(row), (value) => this.demo.maskValue(value));
+  protected readonly fibDetails = (row: OpportunityRow) =>
+    this.demoBlur() ? '' : fibonacciDetails(this.fibFor(row), (value) => this.demo.maskValue(value));
   private readonly gridColumns = inject(GridColumnStore);
 
   readonly rows = input.required<OpportunityRow[]>();
@@ -281,3 +287,4 @@ export class OpportunitiesGridComponent {
     return fa.reason ?? fa.label ?? '';
   }
 }
+import { fibonacciDetails, fibonacciRange, listingFibonacci } from '../../core/technical-display';

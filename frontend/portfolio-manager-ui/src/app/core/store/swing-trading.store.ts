@@ -258,6 +258,9 @@ export const SwingTradingStore = signalStore(
     return {
       finalActionResultFor,
       finalActionResultForLot: (id: number): FinalActionResult | null => finalActions.portfolioByItemId().get(id) ?? null,
+      fibonacciFor: (row: SwingTradeRow) => listingFibonacci(
+        row.symbol, finalActions.portfolioByItemId().get(row.anchorItemId)?.fibonacciSwing, row.currency,
+      ),
       finalActionOf,
       loadOpenTrades,
       loadJournal,
@@ -314,3 +317,4 @@ export const SwingTradingStore = signalStore(
     },
   }),
 );
+import { listingFibonacci } from '../technical-display';

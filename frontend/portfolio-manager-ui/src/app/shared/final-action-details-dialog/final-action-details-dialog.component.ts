@@ -25,8 +25,12 @@ export interface FinalActionDetailsData {
 export class FinalActionDetailsDialogComponent {
   protected readonly demo = inject(DemoModeStore);
   protected readonly r = inject<FinalActionDetailsData>(MAT_DIALOG_DATA).result;
+  protected readonly fibDetails = () => fibonacciDetails(
+    listingFibonacci(this.r.symbol, this.r.fibonacciSwing), (value) => this.demo.maskValue(value),
+  );
   protected readonly state = stateLabel(this.r.evaluationState);
   protected readonly conflict = technicalConflictNote(this.r);
   protected readonly codes = (this.r.reasonCodes ?? []).map((c) => ({ code: c, text: describeReasonCode(c) }));
   protected readonly awaiting = this.r.finalAction === 'Awaiting Data';
 }
+import { fibonacciDetails, listingFibonacci } from '../../core/technical-display';

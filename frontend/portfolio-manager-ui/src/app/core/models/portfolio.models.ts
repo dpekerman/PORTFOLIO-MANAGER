@@ -267,7 +267,21 @@ export type ChannelState =
   | 'BOUNCE_CONFIRMED'
   | 'CHANNEL_BROKEN';
 
+export interface FibonacciSwingEvidence {
+  symbol: string;
+  currency: string;
+  swingLow: number;
+  swingHigh: number;
+  lowDate: string;
+  highDate: string;
+  fib38_2: number;
+  fib50: number;
+  fib61_8: number;
+  fib78_6: number;
+}
+
 export interface RsiScanResult {
+  fibonacciSwing?: FibonacciSwingEvidence | null;
   instrumentType?: string | null;
   symbol: string;
   analysisTicker?: string;
@@ -1515,6 +1529,7 @@ export interface FinalActionResult {
     close: number;
   } | null;
   intradayRangeReconstructed?: boolean;
+  fibonacciSwing?: FibonacciSwingEvidence | null;
   /** The last valid published action, kept separately when this result is Awaiting Data. */
   lastValidAction?: string | null;
   lastSuccessfulEvaluationUtc?: string | null;
@@ -1553,7 +1568,7 @@ export interface FinalActionResult {
     exposurePct: number | null;
   } | null;
   /** SingleCurrency | MixedCurrency | UnknownCurrency — whether allocation percentages are verifiable. */
-  allocationStatus?: 'SingleCurrency' | 'MixedCurrency' | 'UnknownCurrency' | null;
+  allocationStatus?: 'SingleCurrency' | 'CadConverted' | 'MixedCurrency' | 'UnknownCurrency' | 'UnverifiedPrices' | null;
   /** Present on watchlist decisions: the structure / momentum / MA facts behind the entry status. */
   diagnostics?: {
     priceStructureState: string;
@@ -1676,7 +1691,7 @@ export interface SignalAuditRow {
   /** Verified = passed the Action Center eligibility rules at capture; Unverified = captured before that check existed. */
   eligibilityStatus: 'Verified' | 'Unverified';
   /** Verified = history matches the recorded price basis; Adjusted = rebased (split) and corrected; Unverified = cannot be proven. */
-  priceBasis: 'Verified' | 'Adjusted' | 'Unverified';
+  priceBasis: 'Verified' | 'Adjusted' | 'Unverified' | 'ListingClose' | 'Unavailable';
   status?: RecommendationStatus;
   /** False = recorded for the Action Center but excluded from performance analytics. */
   performanceAudited?: boolean;
@@ -1700,6 +1715,9 @@ export interface SignalAuditRow {
   currentPriceAsOfUtc?: string | null;
   currentPriceSource?: string | null;
   currentPriceStatus?: CurrentPriceStatus;
+  performanceReferencePrice?: number | null;
+  performanceCurrency?: string | null;
+  analysisSymbol?: string | null;
 }
 
 export type CurrentPriceStatus = 'Live' | 'EOD' | 'Stale' | 'Unavailable';

@@ -55,6 +55,7 @@ import { WatchlistStore } from '../../core/store/watchlist.store';
 import {
   currencyCodeForAnalysis,
   currencyCodeForTradingSymbol,
+  fibonacciDetails, fibonacciRange, listingFibonacci,
 } from '../../core/technical-display';
 import { GridColumnButtonComponent } from '../../shared/column-config-dialog/grid-column-btn.component';
 import { MobileTableControlsComponent } from '../../shared/responsive-table/mobile-table-controls.component';
@@ -99,6 +100,7 @@ type SortColumn =
   | 'valueStatus'
   | 'reversalP'
   | 'maStatus'
+  | 'fibSwing'
   | 'fib38_2'
   | 'fib50'
   | 'fib61_8'
@@ -561,7 +563,22 @@ export class WatchlistPageComponent {
   }
 
   protected fibForSymbol(symbol: string) {
-    return this.rsiMap().get(symbol.toUpperCase()) ?? null;
+    const scan = this.rsiMap().get(symbol.toUpperCase());
+    return scan && !scan.usesUnderlyingSecurity && (!scan.analysisTicker || scan.analysisTicker === scan.symbol) ? scan : null;
+  }
+
+  protected listingFib(symbol: string) {
+    return listingFibonacci(symbol, this.fibForSymbol(symbol)?.fibonacciSwing);
+  }
+  protected fibRange(symbol: string): string {
+    return fibonacciRange(this.listingFib(symbol), (value) => this.demoMode.maskValue(value));
+  }
+  protected fibDetails(symbol: string): string {
+    return this.fibBlur()
+      ? '' : fibonacciDetails(this.listingFib(symbol), (value) => this.demoMode.maskValue(value));
+  }
+  protected fibBlur(): boolean {
+    return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'blur';
   }
 
   protected tradingCurrency(symbol: string): string {
@@ -749,6 +766,10 @@ export class WatchlistPageComponent {
         case 'maStatus':
           av = this.maStatusForSymbol(a.item.symbol) === 'STRONG BUY' ? 1 : 0;
           bv = this.maStatusForSymbol(b.item.symbol) === 'STRONG BUY' ? 1 : 0;
+          break;
+        case 'fibSwing':
+          av = this.listingFib(a.item.symbol)?.swingLow ?? 0;
+          bv = this.listingFib(b.item.symbol)?.swingLow ?? 0;
           break;
         case 'fib38_2':
           av = this.fibForSymbol(a.item.symbol)?.fib38_2 ?? 0;
