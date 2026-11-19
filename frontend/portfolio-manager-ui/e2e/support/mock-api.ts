@@ -1,4 +1,5 @@
 ﻿import type { Page, Route } from '@playwright/test';
+import type { AwaitingDataStatusDto } from '../../src/app/core/models/portfolio.models';
 import {
   accountTypes,
   cashItems,
@@ -147,6 +148,13 @@ get(/^\/api\/notification\/status$/, {
 // â”€â”€ Automation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 get(/^\/api\/automation\/settings$/, automationSettings);
 get(/^\/api\/automation\/last-run$/, automationRun);
+get(/^\/api\/automation\/awaiting-data$/, {
+  symbols: [],
+  tradingDate: automationRun.tradingDate,
+  canRetry: false,
+  availableAtUtc: null,
+  reason: null,
+} satisfies AwaitingDataStatusDto);
 get(/^\/api\/automation\/history$/, [
   automationRun,
   { ...automationRun, runId: 'run-0002', tradingDate: isoDate(-2), triggerType: 'ManualRunNow' },
