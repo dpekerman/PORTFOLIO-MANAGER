@@ -110,6 +110,10 @@
               {{ scan.status }}
             </span>
             <span class="automation-history-scan-count">{{ scan.counts.total }} symbols</span>
+          } @else if (opportunityScans.loading()) {
+            <span>Loading…</span>
+          } @else if (opportunityScans.error()) {
+            <span>Unavailable</span>
           } @else {
             <span class="section-header-badge status-badge--skipped">Not recorded</span>
           }
