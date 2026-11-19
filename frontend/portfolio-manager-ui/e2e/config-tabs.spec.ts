@@ -1,5 +1,6 @@
 import { test, expect } from './support/test';
 import { expectNoHorizontalPageOverflow, settle } from './support/overflow';
+import type { AwaitingDataStatusDto } from '../src/app/core/models/portfolio.models';
 
 /** Each config tab opens, shows its own section heading and raises no runtime errors. */
 const TABS: { label: RegExp; heading: RegExp }[] = [
@@ -41,10 +42,43 @@ test('config: unsaved edits survive switching tabs and Save All reports dirty se
   await expect(page.getByText(/section\(s\) with unsaved changes/)).toBeAttached();
 });
 
-test('automation refresh counts identify portfolio rows including closed positions', async ({ page }) => {
+test('automation refresh counts identify portfolio rows including closed positions', async ({
+  page,
+  mocks,
+  errors,
+}) => {
+  const awaitingResponse = page.waitForResponse('**/api/automation/awaiting-data');
   await page.goto('/config');
   await page.getByRole('tab', { name: /Automation/ }).click();
   await expect(page.getByText(/9 portfolio rows \(including closed\)/)).toBeVisible();
   await expect(page.getByText(/10 watchlist rows/)).toBeVisible();
+  await (await awaitingResponse).finished();
+  await settle(page);
+  expect(mocks.unmocked).not.toContain('GET /api/automation/awaiting-data');
+  await expect(page.getByRole('button', { name: 'Retry awaiting data' })).toHaveCount(0);
   await expectNoHorizontalPageOverflow(page);
+  expect(errors, 'uncaught exceptions / console.error').toEqual([]);
+});
+
+test('automation shows the affected symbol and disables retry while data settles', async ({
+  page,
+  errors,
+}) => {
+  await page.route('**/api/automation/awaiting-data', (route) =>
+    route.fulfill({
+      json: {
+        symbols: ['MHO'],
+        tradingDate: '2026-11-18',
+        canRetry: false,
+        availableAtUtc: '2026-11-18T23:05:00Z',
+        reason: 'Market data is still settling.',
+      } satisfies AwaitingDataStatusDto,
+    }),
+  );
+  await page.goto('/config');
+  await page.getByRole('tab', { name: /Automation/ }).click();
+  await expect(page.getByText('MHO', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry awaiting data' })).toBeDisabled();
+  await expectNoHorizontalPageOverflow(page);
+  expect(errors, 'uncaught exceptions / console.error').toEqual([]);
 });

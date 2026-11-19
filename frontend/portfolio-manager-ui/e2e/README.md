@@ -61,4 +61,6 @@ failing combination. The measured baseline is in `BASELINE.md`.
 1. Add an entry to `APP_ROUTES` in `support/routes.ts` (path, nav label, a landmark locator,
    `hasMatTable`, optional `primaryControls`).
 2. Mock any new endpoint in `support/mock-api.ts` and add fixtures if the page needs new shapes.
+   For object-shaped GET responses, use `satisfies` with the API DTO when available; the generic
+   `[]` fallback does not represent an empty object response (for example, Automation awaiting-data).
 3. Run `npm run e2e`; if the new page overflows on a phone, add its keys to the backlog set.
