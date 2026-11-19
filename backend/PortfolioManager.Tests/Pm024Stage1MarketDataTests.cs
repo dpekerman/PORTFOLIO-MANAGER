@@ -222,6 +222,21 @@ public sealed class Pm024Stage1MarketDataTests
     }
 
     [Fact]
+    public void IntradayRecovery_AcceptsNoTradeMinutes_ForIlliquidSymbols()
+    {
+        var friday = new DateOnly(2026, 11, 13);
+        var data = Intraday(friday);
+        var q = data.Indicators!.Quote![0];
+        for (var i = 1; i < 390; i += 2)
+        {
+            q.Open[i] = null; q.High[i] = null; q.Low[i] = null; q.Close[i] = null;
+        }
+        var recovered = RsiScannerService.ReconstructSessionRange(data, "SYN", friday, 102m, 101m, 99m, 100m,
+            new DateTime(2026, 11, 16, 15, 0, 0, DateTimeKind.Utc));
+        Assert.Equal((102m, 99m), recovered);
+    }
+
+    [Fact]
     public void IntradayRecovery_RejectsGapsAndInvalidCandles()
     {
         var friday = new DateOnly(2026, 11, 13);

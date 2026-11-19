@@ -7,6 +7,8 @@ import {
   AutomationTaskStatusDto,
   AutomationTimezoneDiagnosticsDto,
   AutomationTriggerResponseDto,
+  AwaitingDataRetryResultDto,
+  AwaitingDataStatusDto,
   DatabaseBackupResultDto,
   MissedDataRecoveryResultDto,
   UpdateAutomationSettingsRequest,
@@ -104,6 +106,19 @@ export class AutomationApiService {
   recoverMissedData(): Observable<MissedDataRecoveryResultDto> {
     return this.withTimeout(
       this.http.post<MissedDataRecoveryResultDto>(`${this.base}/recover-missed-data`, {}),
+      this.recoveryTimeoutMs,
+    );
+  }
+
+  /** Symbols from the latest run that were left on "Awaiting Data", plus whether a retry is safe now. */
+  getAwaitingData(): Observable<AwaitingDataStatusDto> {
+    return this.withTimeout(this.http.get<AwaitingDataStatusDto>(`${this.base}/awaiting-data`));
+  }
+
+  /** Re-evaluates the latest run's awaiting-data symbols; the server refuses it until the session is final. */
+  retryAwaitingData(): Observable<AwaitingDataRetryResultDto> {
+    return this.withTimeout(
+      this.http.post<AwaitingDataRetryResultDto>(`${this.base}/retry-awaiting-data`, {}),
       this.recoveryTimeoutMs,
     );
   }

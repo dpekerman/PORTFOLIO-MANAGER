@@ -87,5 +87,50 @@
         </div>
       }
     </div>
+
+    @if (automationState.awaitingData(); as awaiting) {
+      @if (awaiting.symbols.length > 0) {
+        <div class="awaiting-data">
+          <div class="awaiting-data__title">
+            <mat-icon>hourglass_top</mat-icon>
+            <strong>Awaiting Data</strong>
+            <span>— not evaluated, previous recommendations kept</span>
+          </div>
+          <div class="awaiting-data__symbols">
+            @for (symbol of awaiting.symbols; track symbol) {
+              <span class="awaiting-data__chip">{{ symbol }}</span>
+            }
+          </div>
+          <div class="awaiting-data__actions">
+            <button
+              mat-flat-button
+              type="button"
+              color="primary"
+              (click)="automationState.retryAwaitingData()"
+              [disabled]="!awaiting.canRetry || automationState.retryingAwaitingData()"
+            >
+              <mat-icon [class.spinning]="automationState.retryingAwaitingData()">{{
+                automationState.retryingAwaitingData() ? 'sync' : 'refresh'
+              }}</mat-icon>
+              {{ automationState.retryingAwaitingData() ? 'Retrying…' : 'Retry awaiting data' }}
+            </button>
+            <span class="eod-toggle-hint">
+              @if (awaiting.canRetry) {
+                Safe to retry now — the session is final. Nothing is duplicated.
+              } @else if (awaiting.availableAtUtc) {
+                Available after
+                {{ awaiting.availableAtUtc | date: 'h:mm a' : 'America/New_York' }} ET (market data
+                is still settling).
+              } @else if (awaiting.reason) {
+                {{ awaiting.reason }}
+              }
+            </span>
+          </div>
+        </div>
+      }
+    }
+    @if (automationState.awaitingRetryResult(); as retry) {
+      <div class="eod-toggle-hint" role="status">{{ retry.message }}</div>
+    }
   </div>
 }

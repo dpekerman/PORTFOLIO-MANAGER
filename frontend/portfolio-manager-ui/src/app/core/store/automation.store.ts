@@ -7,6 +7,8 @@ import {
   AutomationSettingsDto,
   AutomationTaskStatusDto,
   AutomationTimezoneDiagnosticsDto,
+  AwaitingDataRetryResultDto,
+  AwaitingDataStatusDto,
   DatabaseBackupResultDto,
   MissedDataRecoveryResultDto,
   UpdateAutomationSettingsRequest,
@@ -33,6 +35,9 @@ interface AutomationState {
   clearingHistory: boolean;
   recovering: boolean;
   recoveryResult: MissedDataRecoveryResultDto | null;
+  awaitingData: AwaitingDataStatusDto | null;
+  retryingAwaitingData: boolean;
+  awaitingRetryResult: AwaitingDataRetryResultDto | null;
   backingUp: boolean;
   backupResult: DatabaseBackupResultDto | null;
   /** Human-readable description of what is currently running, or the failure that ended it. */
@@ -59,6 +64,9 @@ const initialState: AutomationState = {
   clearingHistory: false,
   recovering: false,
   recoveryResult: null,
+  awaitingData: null,
+  retryingAwaitingData: false,
+  awaitingRetryResult: null,
   backingUp: false,
   backupResult: null,
   activeOperation: null,
@@ -102,6 +110,28 @@ export const AutomationStore = signalStore(
       });
     };
 
+    const loadAwaitingData = (): void => {
+      api.getAwaitingData().subscribe({
+        next: (a) => patchState(store, { awaitingData: a }),
+        error: () => patchState(store, { awaitingData: null }),
+      });
+    };
+
+    const finishAwaitingRetry = (r: AwaitingDataRetryResultDto): void => {
+      patchState(store, {
+        awaitingRetryResult: r,
+        retryingAwaitingData: false,
+        activeOperation: null,
+        loadingLastRun: true,
+      });
+      api.getLastRun().subscribe({
+        next: (run) => patchState(store, { lastRun: run, loadingLastRun: false }),
+        error: () => patchState(store, { loadingLastRun: false }),
+      });
+      loadAwaitingData();
+      loadHistory();
+    };
+
     const pollUntilComplete = (runId: string): void => {
       pollSub?.unsubscribe();
       patchState(store, {
@@ -120,6 +150,7 @@ export const AutomationStore = signalStore(
               patchState(store, { runInFlight: false, activeOperation: null });
               pollSub?.unsubscribe();
               loadHistory();
+              loadAwaitingData();
             }
           },
           error: () => {
@@ -144,6 +175,7 @@ export const AutomationStore = signalStore(
       loadSettings,
       loadHistory,
       loadTaskStatus,
+      loadAwaitingData,
 
       saveSettings(request: UpdateAutomationSettingsRequest): void {
         patchState(store, {
@@ -165,10 +197,39 @@ export const AutomationStore = signalStore(
       loadLastRun(): void {
         patchState(store, { loadingLastRun: true });
         api.getLastRun().subscribe({
-          next: (r) => patchState(store, { lastRun: r, loadingLastRun: false }),
+          next: (r) => {
+            patchState(store, { lastRun: r, loadingLastRun: false });
+            loadAwaitingData();
+          },
           error: () => patchState(store, { lastRun: null, loadingLastRun: false }), // 404 = no runs yet
         });
       },
+
+      /** Re-evaluates only the symbols the latest run left on "Awaiting Data". The server refuses
+       * it until the session is final (see AwaitingDataRetryService.EvaluateWindow). */
+      retryAwaitingData(): void {
+        patchState(store, {
+          activeOperation: 'Retrying symbols that were awaiting data…',
+          retryingAwaitingData: true,
+          awaitingRetryResult: null,
+        });
+        api.retryAwaitingData().subscribe({
+          next: (r) => finishAwaitingRetry(r),
+          error: (err) => {
+            const body = err?.error as AwaitingDataRetryResultDto | undefined;
+            if (body?.status) {
+              finishAwaitingRetry(body);
+              return;
+            }
+            patchState(store, {
+              error: err?.error?.message ?? 'Failed to retry awaiting data',
+              retryingAwaitingData: false,
+              activeOperation: 'Retry awaiting data timed out or failed.',
+            });
+          },
+        });
+      },
+
 
       loadTimezoneDiagnostics(): void {
         patchState(store, { loadingTimezoneDiagnostics: true });

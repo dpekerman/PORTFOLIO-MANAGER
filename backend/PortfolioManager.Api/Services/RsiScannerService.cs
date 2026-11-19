@@ -480,6 +480,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
         var expectedMinutes = (int)(closeTime.ToTimeSpan() - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
         var minutes = new SortedDictionary<int, (decimal Open, decimal High, decimal Low, decimal Close)>();
+        var slots = new HashSet<int>();
         var count = new[] { chart.Timestamp.Count, quote.Open.Count, quote.High.Count, quote.Low.Count, quote.Close.Count }.Min();
         for (var i = 0; i < count; i++)
         {
@@ -488,13 +489,17 @@ public sealed class RsiScannerService : IRsiScannerService
             if (DateOnly.FromDateTime(local) != session) continue;
             var minute = (int)(local.TimeOfDay - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
             if (local.Second != 0 || minute < 0 || minute >= expectedMinutes) continue;
+            if (!slots.Add(minute)) return null;
+            // An illiquid symbol has minutes with no trades: Yahoo keeps the timestamp but nulls every price. A
+            // partially populated candle is still corrupt evidence.
+            if (quote.Open[i] is null && quote.High[i] is null && quote.Low[i] is null && quote.Close[i] is null) continue;
             if (quote.Open[i] is not { } o || quote.High[i] is not { } h ||
                 quote.Low[i] is not { } l || quote.Close[i] is not { } c ||
-                !IsSessionConsistent(o, h, l, c) || !minutes.TryAdd(minute, (o, h, l, c))) return null;
+                !IsSessionConsistent(o, h, l, c)) return null;
+            minutes.Add(minute, (o, h, l, c));
         }
 
-        if (minutes.Count != expectedMinutes ||
-            !minutes.ContainsKey(0) || !minutes.ContainsKey(expectedMinutes - 1)) return null;
+        if (slots.Count != expectedMinutes || minutes.Count == 0) return null;
         static bool Matches(decimal a, decimal b) => a > 0m && b > 0m && Math.Abs(a - b) <= b * 0.001m;
         if (!Matches(minutes.First().Value.Open, open) || !Matches(minutes.Last().Value.Close, close)) return null;
         var reconstructedHigh = minutes.Values.Max(m => m.High);

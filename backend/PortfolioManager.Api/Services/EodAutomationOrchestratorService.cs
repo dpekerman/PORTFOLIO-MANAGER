@@ -238,19 +238,9 @@ public sealed class EodAutomationOrchestratorService(
             {
                 // Independently valid symbols were published; the rest keep their previous record and timestamp. The run is
                 // reported as PartialSuccess with the affected symbols, never as a clean success.
-                var detail = string.Join(", ", awaiting.Select(s =>
-                {
-                    var row = snapshot.Portfolio.Concat(snapshot.Watchlist)
-                        .FirstOrDefault(r => string.Equals(r.Symbol, s, StringComparison.OrdinalIgnoreCase)
-                            && r.EvaluationState == nameof(Services.FinalAction.EffectiveState.AwaitingData));
-                    var why = row is null ? "" : $" [{row.EvidenceHealth}{(row.ReasonCodes is { Count: > 0 } c ? ": " + string.Join("/", c) : "")}]";
-                    var bar = row?.RejectedBar;
-                    var analysis = bar is null ? "" : $" (analysis: {bar.AnalysisTicker}, session: {bar.TradingDate:yyyy-MM-dd}; recovery unverified)";
-                    return s + analysis + why;
-                }));
                 log.ErrorStep = PartialEvaluationStep;
-                log.ErrorMessage = Truncate($"{published} holding(s) published; Awaiting Data (not evaluated): {detail}", 2000);
-                logger.LogWarning("[EodAutomation] Partial evaluation: {Count} symbol(s) awaiting data: {Symbols}.", awaiting.Count, detail);
+                log.ErrorMessage = AwaitingDataRetryService.BuildPartialMessage(snapshot, published);
+                logger.LogWarning("[EodAutomation] Partial evaluation: {Count} symbol(s) awaiting data: {Symbols}.", awaiting.Count, log.ErrorMessage);
             }
             logger.LogInformation("[EodAutomation] Final Action: {Watchlist} watchlist and {Portfolio} portfolio decisions; {Published} published to Action Center.",
                 snapshot.Watchlist.Count, snapshot.Portfolio.Count, published);

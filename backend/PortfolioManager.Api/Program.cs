@@ -271,6 +271,7 @@ builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
 
 // One-click "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today
 builder.Services.AddScoped<IMissedDataRecoveryService, MissedDataRecoveryService>();
+builder.Services.AddScoped<IAwaitingDataRetryService, AwaitingDataRetryService>();
 
 // Daily full SQL backup at 15:00 ET (default) into D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\DAYLY_BACKUP
 builder.Services.AddSingleton<IDatabaseBackupService, DatabaseBackupService>();
