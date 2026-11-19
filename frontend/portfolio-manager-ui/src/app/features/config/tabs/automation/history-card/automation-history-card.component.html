@@ -1,5 +1,5 @@
-@if (automationState.history().length > 0) {
-  <div class="automation-history">
+<div class="automation-history">
+  @if (automationState.history().length > 0) {
     <div class="sub-card-header">
       <mat-icon>history</mat-icon>
       <span class="sub-card-title"
@@ -39,6 +39,12 @@
         }
       </mat-form-field>
     </details>
+
+    @if (opportunityScans.error()) {
+      <p class="section-footer-hint scan-history-error" role="alert">
+        {{ opportunityScans.error() }}
+      </p>
+    }
 
     <table
       mat-table
@@ -92,6 +98,24 @@
         </td>
       </ng-container>
 
+      <ng-container matColumnDef="tradingOpportunitiesStatus">
+        <th mat-header-cell *matHeaderCellDef mat-sort-header>Trading Opportunities</th>
+        <td mat-cell *matCellDef="let run">
+          @let scan = tradingOpportunityScan(run.tradingDate);
+          @if (scan) {
+            <span
+              [class]="'section-header-badge ' + scanStatusClass(scan.status)"
+              [matTooltip]="scan.errorSummary ?? ''"
+            >
+              {{ scan.status }}
+            </span>
+            <span class="automation-history-scan-count">{{ scan.counts.total }} symbols</span>
+          } @else {
+            <span class="section-header-badge status-badge--skipped">Not recorded</span>
+          }
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="actualStartUtc">
         <th mat-header-cell *matHeaderCellDef mat-sort-header>Started</th>
         <td mat-cell *matCellDef="let run">{{ run.actualStartUtc | date: 'MMM d, h:mm a' }}</td>
@@ -117,5 +141,5 @@
     @if (rows().length === 0) {
       <p class="section-footer-hint no-match">No runs match "{{ filter() }}".</p>
     }
-  </div>
-}
+  }
+</div>

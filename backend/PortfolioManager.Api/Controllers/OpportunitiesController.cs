@@ -44,6 +44,10 @@ public sealed class OpportunitiesController(
     public async Task<ActionResult<OpportunitySnapshotDto>> Get(CancellationToken ct) =>
         Ok(await service.GetLatestAsync(CurrentUserId(), ct));
 
+    [HttpGet("history")]
+    public async Task<ActionResult<IReadOnlyList<OpportunityScanHistoryDto>>> GetHistory(CancellationToken ct) =>
+        Ok(await service.GetHistoryAsync(CurrentUserId(), ct));
+
     /// <summary>Drawer detail from the same snapshot as the grid row. 410 when that snapshot was replaced/expired.</summary>
     [HttpGet("{symbol}")]
     public async Task<ActionResult<OpportunityDetailDto>> GetDetail(string symbol, [FromQuery] int? snapshotId, CancellationToken ct)

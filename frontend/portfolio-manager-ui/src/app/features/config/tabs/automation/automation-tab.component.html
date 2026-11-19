@@ -283,6 +283,23 @@
       mat-flat-button
       type="button"
       color="primary"
+      (click)="runTradingOpportunitiesNow()"
+      [disabled]="opportunityScans.refreshing()"
+      matTooltip="Runs only the Trading Opportunities scan; it does not run EOD Automation"
+    >
+      <mat-icon [class.spinning]="opportunityScans.refreshing()">{{
+        opportunityScans.refreshing() ? 'sync' : 'query_stats'
+      }}</mat-icon>
+      {{
+        opportunityScans.refreshing()
+          ? 'Scanning Trading Opportunities…'
+          : 'Run Trading Opportunities Scan'
+      }}
+    </button>
+    <button
+      mat-flat-button
+      type="button"
+      color="primary"
       (click)="fixMissingData()"
       [disabled]="automationState.recovering()"
       matTooltip="Use if today's automation failed to run (e.g. machine was asleep) — persists today's EOD Signals, Portfolio Snapshot and Value Screener in one click. Safe to click more than once; nothing is ever duplicated."

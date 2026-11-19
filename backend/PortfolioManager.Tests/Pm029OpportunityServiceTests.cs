@@ -443,6 +443,21 @@ public sealed class Pm029OpportunityServiceTests
     }
 
     [Fact]
+    public async Task GetHistory_IncludesPersistedScansAndLatestFailedAttempt()
+    {
+        var f = await SetUpAsync();
+        var snapshot = await f.Service.RefreshAsync("u");
+        await With(f, new FailingFinalActions()).RefreshAsync("u");
+
+        var history = await f.Service.GetHistoryAsync("u");
+
+        Assert.Equal(2, history.Count);
+        Assert.Contains(history, row => row.SnapshotId == snapshot.SnapshotId && row.Status == "Succeeded");
+        Assert.Contains(history, row => row.SnapshotId is null && row.Status == "Failed" && !string.IsNullOrWhiteSpace(row.ErrorSummary));
+        Assert.Empty(await f.Service.GetHistoryAsync("other"));
+    }
+
+    [Fact]
     public async Task Refresh_KeepsOnlyTheLatestFiveSnapshots()
     {
         var f = await SetUpAsync();

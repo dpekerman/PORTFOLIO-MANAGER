@@ -179,6 +179,14 @@ public sealed record OpportunityUniverseCountsDto(int Watchlist, int Portfolio, 
 
 public sealed record OpportunityLastAttemptDto(DateTime? AtUtc, string? Status, string? ErrorSummary);
 
+public sealed record OpportunityScanHistoryDto(
+    int? SnapshotId,
+    DateTime AtUtc,
+    DateOnly? DataAsOfSession,
+    string Status,
+    OpportunityUniverseCountsDto Counts,
+    string? ErrorSummary);
+
 public sealed record OpportunitySnapshotDto(
     int? SnapshotId,
     string ScoringVersion,
