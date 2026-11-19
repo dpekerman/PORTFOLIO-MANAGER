@@ -21,6 +21,7 @@ public class AutomationController(
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
     IMissedDataRecoveryService missedDataRecovery,
+    IAwaitingDataRetryService awaitingDataRetry,
     IAutomationRunNotificationService automationNotifications,
     IDatabaseBackupService databaseBackup,
     IConfiguration configuration,
@@ -176,6 +177,21 @@ public class AutomationController(
             result.ValueScreener,
         };
         return result.Status == "AlreadyRunning" ? Conflict(response) : Ok(response);
+    }
+
+    // On-demand backup, and "Retry awaiting data": re-evaluates only what the latest run could not (see AwaitingDataRetryService).
+    [Authorize(Roles = "Admin")]
+    [HttpGet("awaiting-data")]
+    public async Task<ActionResult<AwaitingDataStatusDto>> GetAwaitingData(CancellationToken ct) =>
+        Ok(await awaitingDataRetry.GetStatusAsync(ct));
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("retry-awaiting-data")]
+    public async Task<ActionResult<AwaitingDataRetryResultDto>> RetryAwaitingData(CancellationToken ct)
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var result = await awaitingDataRetry.RetryAsync(ownerId, ct);
+        return result.Status is "AlreadyRunning" or "NotYet" ? Conflict(result) : Ok(result);
     }
 
     // On-demand "Backup Now" — unlike the scheduled background timer, this always produces a new

@@ -1024,6 +1024,22 @@ export interface MissedDataRecoveryResultDto {
   valueScreener: RecoveryStepResultDto | null;
 }
 
+/** Symbols the latest run could not evaluate, and whether a retry is safe right now (AwaitingDataRetryService). */
+export interface AwaitingDataStatusDto {
+  symbols: string[];
+  tradingDate: string | null;
+  canRetry: boolean;
+  availableAtUtc: string | null;
+  reason: string | null;
+}
+
+export interface AwaitingDataRetryResultDto {
+  status: 'Resolved' | 'StillAwaiting' | 'NotYet' | 'AlreadyRunning' | 'NothingToRetry' | string;
+  published: number;
+  stillAwaiting: string[];
+  message: string;
+}
+
 /** Result of "Backup Now" (see DatabaseBackupService — backend). */
 export interface DatabaseBackupResultDto {
   ran: boolean;

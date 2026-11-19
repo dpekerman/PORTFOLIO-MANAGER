@@ -29,11 +29,16 @@ describe('AutomationStore', () => {
     setup: vi.fn(),
     recoverMissedData: vi.fn(),
     backupNow: vi.fn(),
+    getAwaitingData: vi.fn(),
+    retryAwaitingData: vi.fn(),
   };
 
   beforeEach(() => {
     vi.useFakeTimers();
     Object.values(api).forEach((fn) => fn.mockReset());
+    api.getAwaitingData.mockReturnValue(
+      of({ symbols: [], tradingDate: null, canRetry: false, availableAtUtc: null, reason: null }),
+    );
     api.getSettings.mockReturnValue(of({ maxPollMinutes: 90 } as AutomationSettingsDto));
     api.getHistory.mockReturnValue(of([]));
     api.getTaskStatus.mockReturnValue(of({ exists: true }));
@@ -226,6 +231,24 @@ describe('AutomationStore', () => {
 
     expect(s.recovering()).toBe(false);
     expect(s.activeOperation()).toBe('Fix Missing Data ended with status: Partial.');
+  });
+
+  it('retryAwaitingData keeps the server verdict when the retry is refused as too early', () => {
+    api.retryAwaitingData.mockReturnValue(
+      throwError(() => ({
+        error: { status: 'NotYet', published: 0, stillAwaiting: ['MHO'], message: 'Still settling.' },
+      })),
+    );
+    api.getLastRun.mockReturnValue(of(run('PartialSuccess')));
+    const s = store();
+
+    s.retryAwaitingData();
+
+    expect(s.retryingAwaitingData()).toBe(false);
+    expect(s.awaitingRetryResult()?.status).toBe('NotYet');
+    expect(s.error()).toBeNull();
+    expect(api.getLastRun).toHaveBeenCalledOnce();
+    expect(api.getAwaitingData).toHaveBeenCalledOnce();
   });
 
   it('backupNow clears the previous result before running', () => {
