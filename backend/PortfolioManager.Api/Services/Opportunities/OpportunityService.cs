@@ -13,6 +13,9 @@ public interface IOpportunityService
     /// <summary>Latest stored snapshot for the user. Never calls market data.</summary>
     Task<OpportunitySnapshotDto> GetLatestAsync(string userId, CancellationToken ct = default);
 
+    /// <summary>Recent persisted scans and the latest failed/in-flight attempt for the user.</summary>
+    Task<IReadOnlyList<OpportunityScanHistoryDto>> GetHistoryAsync(string userId, CancellationToken ct = default);
+
     /// <summary>One row's detail from a specific snapshot (or the latest). Null when the snapshot no longer exists (HTTP 410).</summary>
     Task<OpportunityDetailDto?> GetDetailAsync(string userId, string symbol, int? snapshotId, CancellationToken ct = default);
 
@@ -84,6 +87,68 @@ public sealed class OpportunityService(
             portfolioSnapshot?.UpdatedAt is { } now && payload.PortfolioUpdatedAtUtc is { } then ? now > then : portfolioSnapshot is not null && payload.PortfolioUpdatedAtUtc is null,
             inFlight,
             payload.Records.Select(r => ProjectListingName(r.Row, listingNames)).ToList());
+    }
+
+    public async Task<IReadOnlyList<OpportunityScanHistoryDto>> GetHistoryAsync(string userId, CancellationToken ct = default)
+    {
+        List<OpportunityScanHistoryDto> history;
+        if (db.Database.IsSqlServer())
+        {
+            // Return only the counts; full snapshots can be several MB each.
+            var summaries = await db.Database.SqlQuery<ScanSummary>($"""
+                SELECT TOP ({SnapshotsKept}) [Id], [ComputedAtUtc], [DataAsOfSession], [Status], [ErrorSummary],
+                    JSON_QUERY([SnapshotJson], '$.counts') AS [CountsJson]
+                FROM [OpportunitySnapshots]
+                WHERE [UserId] = {userId}
+                ORDER BY [ComputedAtUtc] DESC, [Id] DESC
+                """).ToListAsync(ct);
+            history = summaries.Select(s => ToHistoryRow(s.Id, s.ComputedAtUtc, s.DataAsOfSession,
+                s.Status, s.CountsJson is null
+                    ? throw new JsonException($"Opportunity snapshot {s.Id} is missing counts.")
+                    : JsonSerializer.Deserialize<OpportunityUniverseCountsDto>(s.CountsJson, Json)
+                        ?? throw new JsonException($"Opportunity snapshot {s.Id} has invalid counts."),
+                s.ErrorSummary)).ToList();
+        }
+        else
+        {
+            var snapshots = await db.OpportunitySnapshots.AsNoTracking()
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.ComputedAtUtc).ThenByDescending(s => s.Id)
+                .Take(SnapshotsKept)
+                .ToListAsync(ct);
+            history = snapshots.Select(s => ToHistoryRow(s.Id, s.ComputedAtUtc, s.DataAsOfSession,
+                s.Status, Deserialize(s.SnapshotJson).Counts, s.ErrorSummary)).ToList();
+        }
+
+        var attempt = await db.OpportunityRefreshStates.AsNoTracking()
+            .SingleOrDefaultAsync(s => s.UserId == userId, ct);
+        if (attempt?.LastAttemptAtUtc is { } attemptedAt &&
+            attempt.LastAttemptStatus is "Failed" or "Running")
+        {
+            history.Add(new OpportunityScanHistoryDto(
+                null,
+                attemptedAt,
+                TradingCalendar.LastCompletedSession(attemptedAt, MarketExchange.Tsx),
+                attempt.LastAttemptStatus,
+                new OpportunityUniverseCountsDto(0, 0, 0, 0),
+                attempt.ErrorSummary));
+        }
+
+        return history.OrderByDescending(s => s.AtUtc).Take(SnapshotsKept + 1).ToList();
+    }
+
+    private static OpportunityScanHistoryDto ToHistoryRow(int id, DateTime computedAtUtc,
+        DateTime dataAsOfSession, string status, OpportunityUniverseCountsDto counts, string? errorSummary) =>
+        new(id, computedAtUtc, DateOnly.FromDateTime(dataAsOfSession), status, counts, errorSummary);
+
+    private sealed class ScanSummary
+    {
+        public int Id { get; set; }
+        public DateTime ComputedAtUtc { get; set; }
+        public DateTime DataAsOfSession { get; set; }
+        public string Status { get; set; } = null!;
+        public string? ErrorSummary { get; set; }
+        public string? CountsJson { get; set; }
     }
 
     public async Task<OpportunityDetailDto?> GetDetailAsync(string userId, string symbol, int? snapshotId, CancellationToken ct = default)

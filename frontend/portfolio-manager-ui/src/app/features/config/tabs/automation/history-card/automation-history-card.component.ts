@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -10,7 +10,9 @@ import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { ROW_SELECTION } from '../../../../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { OpportunityScanHistory } from '../../../../../core/models/opportunities.models';
 import { AutomationStore } from '../../../../../core/store/automation.store';
+import { OpportunityScanHistoryStore } from '../../../../../core/store/opportunity-scan-history.store';
 import { ResponsiveTableDirective } from '../../../../../shared/responsive-table/responsive-table.directive';
 import { AllocConfirmDialogComponent } from '../../../alloc-confirm-dialog.component';
 import {
@@ -39,8 +41,9 @@ import {
     ResponsiveTableDirective,
   ],
 })
-export class AutomationHistoryCardComponent {
+export class AutomationHistoryCardComponent implements OnInit {
   protected readonly automationState = inject(AutomationStore);
+  protected readonly opportunityScans = inject(OpportunityScanHistoryStore);
   private readonly dialog = inject(MatDialog);
 
   protected readonly statusClass = automationStatusClass;
@@ -58,6 +61,7 @@ export class AutomationHistoryCardComponent {
     'rsiStatus',
     'snapshotStatus',
     'valueScreenerStatus',
+    'tradingOpportunitiesStatus',
     'actualStartUtc',
     'errorMessage',
   ];
@@ -67,18 +71,33 @@ export class AutomationHistoryCardComponent {
     let rows = this.automationState.history();
 
     if (filter) {
-      rows = rows.filter((r) =>
-        [r.overallStatus, r.tradingDate, r.triggerType, r.errorMessage, r.errorStep]
+      rows = rows.filter((r) => {
+        const scan = this.tradingOpportunityScan(r.tradingDate);
+        return [
+          r.overallStatus,
+          r.tradingDate,
+          r.triggerType,
+          r.errorMessage,
+          r.errorStep,
+          scan?.status,
+          scan?.errorSummary,
+        ]
           .filter(Boolean)
-          .some((v) => v!.toLowerCase().includes(filter)),
-      );
+          .some((v) => v!.toLowerCase().includes(filter));
+      });
     }
 
     const col = this.sortCol();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
     return [...rows].sort((a, b) => {
-      const av = (a as unknown as Record<string, unknown>)[col];
-      const bv = (b as unknown as Record<string, unknown>)[col];
+      const av =
+        col === 'tradingOpportunitiesStatus'
+          ? this.tradingOpportunityScan(a.tradingDate)?.status
+          : (a as unknown as Record<string, unknown>)[col];
+      const bv =
+        col === 'tradingOpportunitiesStatus'
+          ? this.tradingOpportunityScan(b.tradingDate)?.status
+          : (b as unknown as Record<string, unknown>)[col];
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
@@ -86,6 +105,29 @@ export class AutomationHistoryCardComponent {
       return String(av).localeCompare(String(bv)) * dir;
     });
   });
+
+  ngOnInit(): void {
+    this.opportunityScans.load();
+  }
+
+  protected scanStatusClass(status: string): string {
+    switch (status) {
+      case 'Succeeded':
+        return 'status-badge--success';
+      case 'Running':
+        return 'status-badge--running';
+      case 'Failed':
+        return 'status-badge--failed';
+      default:
+        return 'status-badge--partial';
+    }
+  }
+
+  protected tradingOpportunityScan(tradingDate: string): OpportunityScanHistory | null {
+    return (
+      this.opportunityScans.history().find((scan) => scan.dataAsOfSession === tradingDate) ?? null
+    );
+  }
 
   protected onSortChange(sort: Sort): void {
     this.sortCol.set(sort.active || 'actualStartUtc');

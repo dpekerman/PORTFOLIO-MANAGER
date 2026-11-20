@@ -7,6 +7,7 @@ import {
   OpportunityConfig,
   OpportunityDetail,
   OpportunityReference,
+  OpportunityScanHistory,
   OpportunitySchedule,
   OpportunityScheduleRequest,
   OpportunitySnapshot,
@@ -24,6 +25,11 @@ export class OpportunitiesApiService {
   /** Latest stored snapshot (DB only, no market calls). */
   getLatest(): Observable<OpportunitySnapshot> {
     return this.http.get<OpportunitySnapshot>(BASE);
+  }
+
+  /** Recent persisted scan results and the latest failed/in-flight attempt. */
+  getHistory(): Observable<OpportunityScanHistory[]> {
+    return this.http.get<OpportunityScanHistory[]>(`${BASE}/history`);
   }
 
   /** Drawer detail from a specific snapshot. 410 = that snapshot has expired. */

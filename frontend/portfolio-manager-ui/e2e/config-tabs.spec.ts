@@ -60,6 +60,35 @@ test('automation refresh counts identify portfolio rows including closed positio
   expect(errors, 'uncaught exceptions / console.error').toEqual([]);
 });
 
+test('automation shows Trading Opportunities results and can start a scan manually', async ({
+  page,
+  errors,
+}) => {
+  const historyResponse = page.waitForResponse('**/api/opportunities/history');
+  await page.goto('/config');
+  await page.getByRole('tab', { name: /Automation/ }).click();
+  await (await historyResponse).finished();
+
+  const historyTable = page.locator('.automation-history-table');
+  await expect(historyTable).toBeVisible();
+  const opportunityResult = historyTable.locator('td.mat-column-tradingOpportunitiesStatus').first();
+  await expect(opportunityResult).toContainText('Succeeded');
+  await expect(opportunityResult).toContainText(/\d+ symbols/);
+
+  const refreshResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/api/opportunities/refresh') &&
+      response.request().method() === 'POST',
+  );
+  await page
+    .locator('.section-footer')
+    .getByRole('button', { name: 'Run Trading Opportunities Scan' })
+    .click();
+  expect((await refreshResponse).ok()).toBeTruthy();
+  await expectNoHorizontalPageOverflow(page);
+  expect(errors, 'uncaught exceptions / console.error').toEqual([]);
+});
+
 test('automation shows the affected symbol and disables retry while data settles', async ({
   page,
   errors,

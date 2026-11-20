@@ -398,6 +398,16 @@ get(/^\/api\/eod-signals\/meta$/, eodMeta);
 
 // PM-029 Trading Opportunities (read-only; refresh only bumps the mock snapshot id).
 get(/^\/api\/opportunities$/, () => opportunitySnapshotResponse());
+get(/^\/api\/opportunities\/history$/, () => [
+  {
+    snapshotId: opportunityState.snapshotId,
+    atUtc: isoDateTime(-1, 22),
+    dataAsOfSession: isoDate(-1),
+    status: 'Succeeded',
+    counts: opportunitySnapshotResponse().counts,
+    errorSummary: null,
+  },
+]);
 get(/^\/api\/opportunities\/config$/, opportunityConfig);
 get(/^\/api\/opportunities\/reference$/, { constituents: [], benchmarks: [] });
 on('POST', /^\/api\/opportunities\/refresh$/, () => {

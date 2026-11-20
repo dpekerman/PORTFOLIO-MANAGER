@@ -10,6 +10,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTimepickerModule } from '@angular/material/timepicker';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NotificationApiService } from '../../../../core/services/notification-api.service';
+import { OpportunityScanHistoryStore } from '../../../../core/store/opportunity-scan-history.store';
 import { AutomationStore } from '../../../../core/store/automation.store';
 import { SettingsSectionComponent } from '../../../../shared/ui/settings-section/settings-section.component';
 import { dateToTimeString, timeStrToDate } from '../../../../shared/utils/time';
@@ -42,6 +43,7 @@ import { AutomationTimezoneCardComponent } from './timezone-card/automation-time
 })
 export class AutomationTabComponent implements OnInit {
   protected readonly automationState = inject(AutomationStore);
+  protected readonly opportunityScans = inject(OpportunityScanHistoryStore);
   private readonly notificationApi = inject(NotificationApiService);
   private readonly fb = inject(FormBuilder);
   private readonly snackBar = inject(MatSnackBar);
@@ -114,6 +116,10 @@ export class AutomationTabComponent implements OnInit {
 
   protected runAutomationNow(): void {
     this.automationState.runNow();
+  }
+
+  protected runTradingOpportunitiesNow(): void {
+    this.opportunityScans.refreshNow();
   }
 
   protected fixMissingData(): void {

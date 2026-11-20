@@ -206,6 +206,15 @@ export interface OpportunitySnapshot {
   rows: OpportunityRow[];
 }
 
+export interface OpportunityScanHistory {
+  snapshotId: number | null;
+  atUtc: string;
+  dataAsOfSession: string | null;
+  status: string;
+  counts: OpportunityUniverseCounts;
+  errorSummary: string | null;
+}
+
 // ── Detail (drawer) ─────────────────────────────────────────────────────────
 
 export interface ScoreSubItem {

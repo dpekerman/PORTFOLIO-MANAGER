@@ -17,6 +17,7 @@ public sealed class OpportunitiesControllerTests
         public Exception? Throw;
 
         public Task<OpportunitySnapshotDto> GetLatestAsync(string userId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<OpportunityScanHistoryDto>> GetHistoryAsync(string userId, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<OpportunityDetailDto?> GetDetailAsync(string userId, string symbol, int? snapshotId, CancellationToken ct = default) => throw new NotSupportedException();
 
         public Task<OpportunitySnapshotDto> RefreshAsync(string userId, CancellationToken ct = default)

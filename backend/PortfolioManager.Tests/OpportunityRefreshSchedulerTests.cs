@@ -18,6 +18,10 @@ public sealed class OpportunityRefreshSchedulerTests
     }
 
     [Fact]
+    public void Default_schedule_time_is_605_pm_eastern()
+        => Assert.Equal("18:05", new OpportunityScheduleConfig().TimeEt);
+
+    [Fact]
     public void Due_after_scheduled_time_on_a_configured_market_day()
         => Assert.True(OpportunityRefreshSchedulerService.IsDue(Config(), Et("2026-11-16", "18:06")));
 

@@ -405,6 +405,20 @@
   }
 }
 
+.automation-history-table td.mat-column-tradingOpportunitiesStatus {
+  white-space: normal;
+}
+
+.scan-history-error {
+  padding: 8px 16px;
+  color: #f44336;
+}
+
+.automation-history-scan-count {
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
 .automation-history-error {
   color: #f44336;
   font-size: 0.72rem;

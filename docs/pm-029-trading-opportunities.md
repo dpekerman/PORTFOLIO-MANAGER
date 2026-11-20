@@ -182,6 +182,7 @@ A hard structural negative makes it High.
 - TSX 60-only evaluation uses scanner `ReadOnly` mode. It writes no StagedSignals, DailySignals, SignalAuditEvents, RsiScanSnapshots, TechnicalChannels, Action Center items, notifications, PortfolioSnapshot patch or user Final Action cache.
 - A refresh may only write `OpportunitySnapshots`, `OpportunityRefreshState` and `ValueScreenerSnapshots` rows with `Origin = Universe`. A whole-database state-hash test enforces this.
 - Snapshots are immutable (the last 5 per user are kept). The grid, drawer and export all read the same `snapshotId`. A failed refresh never replaces the last successful snapshot.
+- Automation history reads only snapshot metadata and universe counts from SQL Server, not full symbol and evidence records.
 
 ## 8. Verification
 
