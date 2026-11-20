@@ -1,0 +1,216 @@
+{
+  "datasetKind": "Synthetic",
+  "scorerCommit": "dc2260b2926200d42ebff9d68cf60468afcce778",
+  "asOfUtc": "2026-11-15T16:00:00+00:00",
+  "uniqueListings": 1,
+  "scoredListings": 1,
+  "statusCounts": {
+    "Provisional": 1
+  },
+  "rows": [
+    {
+      "listingId": "listing:synthetic",
+      "symbol": "SYNTHETIC",
+      "score": {
+        "perspective": "Swing",
+        "scoringVersion": "pm029-v2",
+        "score": 75,
+        "normalizedScore": 75,
+        "awardedTotal": 60,
+        "availableMax": 60,
+        "completenessPct": 75.00,
+        "status": "Provisional",
+        "band": "Attractive",
+        "components": [
+          {
+            "code": "S1",
+            "name": "Trend \u0026 Structure",
+            "max": 25,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 25,
+            "availableMax": 25,
+            "items": [
+              {
+                "code": "PriceAboveEma20",
+                "label": "Price \u003E EMA20",
+                "max": 7,
+                "points": 7,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Ema20AboveSma50",
+                "label": "EMA20 \u003E SMA50",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma50",
+                "label": "Price \u003E SMA50",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma200",
+                "label": "Price \u003E SMA200",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S2",
+            "name": "Relative Strength",
+            "max": 20,
+            "essential": false,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [],
+            "missingReasons": [
+              "SectorHeat:NotEvaluated"
+            ],
+            "note": null
+          },
+          {
+            "code": "S3",
+            "name": "RSI/MACD Momentum",
+            "max": 15,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 15,
+            "availableMax": 15,
+            "items": [
+              {
+                "code": "RsiZone",
+                "label": "RSI(14) zone",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": "RSI 55.0"
+              },
+              {
+                "code": "RsiAboveSignal",
+                "label": "RSI \u003E RSI signal",
+                "max": 3,
+                "points": 3,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Macd",
+                "label": "MACD histogram",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S4",
+            "name": "Volume Confirmation",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 10,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "VolumeDirection",
+                "label": "Volume vs price direction",
+                "max": 8,
+                "points": 8,
+                "available": true,
+                "detail": "1.50\u00D7 avg, up day"
+              },
+              {
+                "code": "VolumeValidated",
+                "label": "Validated volume on up day",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S5",
+            "name": "Entry Quality",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 10,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "Extension",
+                "label": "Distance to EMA20 (ATR)",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": "0.50 ATR"
+              },
+              {
+                "code": "ChaseRisk",
+                "label": "No elevated chase risk",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "FibZone",
+                "label": "Fibonacci zone",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": "Normal Pullback"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          }
+        ],
+        "reasonCodes": [
+          "SectorHeat:NotEvaluated"
+        ],
+        "scoreDenominatorMax": 80
+      },
+      "sector": null,
+      "setup": {
+        "kind": "Unavailable",
+        "entry": 100,
+        "stop": null,
+        "target": null,
+        "targetSource": null,
+        "rewardRisk": null,
+        "riskPct": null,
+        "rewardPct": null,
+        "stopDistanceAtr": null,
+        "currency": "USD",
+        "reasonCodes": [
+          "NoValidStop",
+          "DynamicStopMissing"
+        ],
+        "isScorable": false
+      },
+      "packageIssueCodes": [
+        "BenchmarkEvidenceUnavailable"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+@let v = value();
+@if (v !== null) {
+  <span
+    class="fwd"
+    [class.demo-redact]="demoMode.isDemoMode() && demoMode.demoStyle() === 'blur'"
+    [matTooltip]="view().tooltip"
+    tabindex="0"
+  >
+    @if (metric() === 'perShare') {
+      {{ v | currency: currency() : 'symbol-narrow' : '1.2-4' }}
+    } @else {
+      {{ v | number: '1.2-2' }}%
+    }
+  </span>
+} @else {
+  <span class="fwd fwd-na" [matTooltip]="view().tooltip" tabindex="0" aria-label="Forward dividend unavailable">—</span>
+}

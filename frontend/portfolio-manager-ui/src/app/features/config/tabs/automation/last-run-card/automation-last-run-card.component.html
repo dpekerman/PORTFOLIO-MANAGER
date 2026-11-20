@@ -1,0 +1,136 @@
+@if (automationState.lastRun(); as run) {
+  <div class="automation-run-detail">
+    <div class="eod-toggle-row">
+      <span [class]="'section-header-badge ' + statusClass(run.overallStatus)">
+        Last run: {{ run.overallStatus }}
+      </span>
+      <span class="eod-toggle-hint">
+        {{ run.tradingDate }} · {{ run.triggerType }} · {{ run.machineName }}
+      </span>
+    </div>
+
+    <div class="automation-steps">
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">power</mat-icon>
+        <span>
+          Keep-awake lock acquired:
+          {{
+            run.powerRequestAcquiredAtUtc
+              ? (run.powerRequestAcquiredAtUtc | date: 'h:mm:ss a')
+              : 'pending'
+          }}
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">sync</mat-icon>
+        <span>
+          Market data refresh: <strong>{{ run.refreshStatus || 'pending' }}</strong>
+          @if (run.refreshCompletedAtUtc) {
+            ({{ run.refreshStartedAtUtc | date: 'h:mm a' }} –
+            {{ run.refreshCompletedAtUtc | date: 'h:mm a' }} ·
+            {{ run.portfolioSymbolCount }} portfolio rows (including closed) +
+            {{ run.watchlistSymbolCount }} watchlist rows)
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">query_stats</mat-icon>
+        <span>
+          RSI / EOD Signals: <strong>{{ run.rsiStatus || 'pending' }}</strong>
+          @if (run.rsiCompletedAtUtc) {
+            (observed {{ run.rsiCompletedAtUtc | date: 'h:mm a' }} ·
+            {{ run.eodSignalsPersistedCount }} signals persisted today)
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">photo_camera</mat-icon>
+        <span>
+          Portfolio Snapshot: <strong>{{ run.snapshotStatus || 'pending' }}</strong>
+          @if (run.snapshotCompletedAtUtc) {
+            (observed {{ run.snapshotCompletedAtUtc | date: 'h:mm a' }}
+            {{ run.snapshotSource ? '· source: ' + run.snapshotSource : '' }})
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">insights</mat-icon>
+        <span>
+          Value Screener (informational):
+          <strong>{{ valueScreenerLabel(run.valueScreenerStatus) }}</strong>
+          @if (run.valueScreenerStatus === 'NotObserved') {
+            (runs independently at 5:00 PM ET)
+          }
+          @if (run.valueScreenerLastRunAtUtc) {
+            (last run {{ run.valueScreenerLastRunAtUtc | date: 'h:mm a' }})
+          }
+        </span>
+      </div>
+      <div class="automation-step">
+        <mat-icon class="automation-step-icon">bedtime</mat-icon>
+        <span>
+          Keep-awake lock released:
+          {{
+            run.powerRequestReleasedAtUtc
+              ? (run.powerRequestReleasedAtUtc | date: 'h:mm:ss a')
+              : 'pending'
+          }}
+          @if (run.completedAtUtc) {
+            · Completed {{ run.completedAtUtc | date: 'h:mm:ss a' }}
+          }
+        </span>
+      </div>
+      @if (run.errorMessage) {
+        <div class="automation-step automation-step--error">
+          <mat-icon class="automation-step-icon">error_outline</mat-icon>
+          <span>Error @ {{ run.errorStep }}: {{ run.errorMessage }}</span>
+        </div>
+      }
+    </div>
+
+    @if (automationState.awaitingData(); as awaiting) {
+      @if (awaiting.symbols.length > 0) {
+        <div class="awaiting-data">
+          <div class="awaiting-data__title">
+            <mat-icon>hourglass_top</mat-icon>
+            <strong>Awaiting Data</strong>
+            <span>— not evaluated, previous recommendations kept</span>
+          </div>
+          <div class="awaiting-data__symbols">
+            @for (symbol of awaiting.symbols; track symbol) {
+              <span class="awaiting-data__chip">{{ symbol }}</span>
+            }
+          </div>
+          <div class="awaiting-data__actions">
+            <button
+              mat-flat-button
+              type="button"
+              color="primary"
+              (click)="automationState.retryAwaitingData()"
+              [disabled]="!awaiting.canRetry || automationState.retryingAwaitingData()"
+            >
+              <mat-icon [class.spinning]="automationState.retryingAwaitingData()">{{
+                automationState.retryingAwaitingData() ? 'sync' : 'refresh'
+              }}</mat-icon>
+              {{ automationState.retryingAwaitingData() ? 'Retrying…' : 'Retry awaiting data' }}
+            </button>
+            <span class="eod-toggle-hint">
+              @if (awaiting.canRetry) {
+                Safe to retry now — the session is final. Nothing is duplicated.
+              } @else if (awaiting.availableAtUtc) {
+                Available after
+                {{ awaiting.availableAtUtc | date: 'h:mm a' : 'America/New_York' }} ET (market data
+                is still settling).
+              } @else if (awaiting.reason) {
+                {{ awaiting.reason }}
+              }
+            </span>
+          </div>
+        </div>
+      }
+    }
+    @if (automationState.awaitingRetryResult(); as retry) {
+      <div class="eod-toggle-hint" role="status">{{ retry.message }}</div>
+    }
+  </div>
+}

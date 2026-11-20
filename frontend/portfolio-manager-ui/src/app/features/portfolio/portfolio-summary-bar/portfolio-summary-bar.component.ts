@@ -4,12 +4,12 @@ import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PortfolioValueHistoryDto } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
-import { OptionStateService } from '../../../core/services/option-state.service';
+import { CashStore } from '../../../core/store/cash.store';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
+import { OptionStore } from '../../../core/store/option.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
-import { PortfolioBetaStateService } from '../../../core/services/portfolio-beta-state.service';
-import { PortfolioStateService } from '../../../core/services/portfolio-state.service';
+import { PortfolioBetaStore } from '../../../core/store/portfolio-beta.store';
+import { PortfolioStore } from '../../../core/store/portfolio.store';
 
 @Component({
   selector: 'app-portfolio-summary-bar',
@@ -19,12 +19,12 @@ import { PortfolioStateService } from '../../../core/services/portfolio-state.se
   imports: [MatCardModule, MatIconModule, CurrencyPipe, DecimalPipe, MatTooltipModule],
 })
 export class PortfolioSummaryBarComponent {
-  protected readonly stockState = inject(PortfolioStateService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly optionState = inject(OptionStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly stockState = inject(PortfolioStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly optionState = inject(OptionStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly api = inject(PortfolioApiService);
-  protected readonly betaState = inject(PortfolioBetaStateService);
+  protected readonly betaState = inject(PortfolioBetaStore);
 
   protected dv(v: number): number {
     return this.demoMode.isDemoMode() && this.demoMode.demoStyle() === 'fake'

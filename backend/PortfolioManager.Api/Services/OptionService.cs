@@ -146,11 +146,26 @@ public sealed class OptionService(
             var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
             if (qd is null) return null;
 
-            var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
-            var highs   = qd.High.Where(h => h.HasValue).Select(h => h!.Value).ToList();
-            var lows    = qd.Low.Where(l => l.HasValue).Select(l => l!.Value).ToList();
+            // Bars are kept or dropped whole (close, high and low together). Filtering each series on its own would pair an
+            // unfinished session's high/low with the previous session's close, shifting "yesterday" and the ATR by a session.
+            var barCount = new[] { qd.High.Count, qd.Low.Count, qd.Close.Count }.Min();
+            var closes = new List<decimal>(barCount);
+            var highs  = new List<decimal>(barCount);
+            var lows   = new List<decimal>(barCount);
+            for (var i = 0; i < barCount; i++)
+            {
+                if (qd.Close[i] is not { } barClose || qd.High[i] is not { } barHigh || qd.Low[i] is not { } barLow) continue;
+                closes.Add(barClose);
+                highs.Add(barHigh);
+                lows.Add(barLow);
+            }
 
             if (closes.Count < 22) return null;
+            if (!RsiScannerService.IsSessionConsistent(closes[^1], highs[^1], lows[^1], closes[^1]))
+            {
+                logger.LogWarning("Technical data for {Symbol} rejected: last bar is internally inconsistent.", symbol);
+                return null;
+            }
 
             decimal currentPrice  = closes.Last();
             decimal previousClose = closes.Count >= 2 ? closes[^2] : currentPrice;

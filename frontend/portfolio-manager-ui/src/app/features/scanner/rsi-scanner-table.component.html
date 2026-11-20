@@ -9,9 +9,13 @@
       <mat-icon>download</mat-icon>
     </button>
   </div>
+  <app-mobile-table-controls [sort]="scannerSort" gridId="scanner" label="Scanner" />
   <table
     mat-table
+    appResponsiveTable
+    appRowSelection
     matSort
+    #scannerSort="matSort"
     matSortActive="momentumShift"
     matSortDirection="asc"
     (matSortChange)="onSortChange($event)"
@@ -812,6 +816,7 @@
     <tr
       mat-row
       *matRowDef="let row; columns: displayedColumns()"
+      [appSelectableRow]="row.symbol"
       [class.row-confirmed]="row.status === 'Confirmed'"
       [class.row-warning]="row.status === 'EarlyWarning'"
     ></tr>

@@ -12,9 +12,11 @@ export interface ScreenRefreshState {
 }
 
 /**
- * Per-screen refresh state management with AbortController-based cancellation.
- * Typically instantiated per component/screen for independent refresh tracking.
- * Use: const screenRefresh = new ScreenRefreshService('portfolio');
+ * Per-screen refresh state with AbortController-based cancellation.
+ *
+ * Intentionally a plain class, not a signalStore: each screen constructs its own instance
+ * (`new ScreenRefreshService('portfolio')`) and each instance owns an AbortController, so a
+ * root-provided singleton store would share cancellation across screens.
  */
 export class ScreenRefreshService {
   private readonly _screenName = signal<ScreenName>('portfolio');

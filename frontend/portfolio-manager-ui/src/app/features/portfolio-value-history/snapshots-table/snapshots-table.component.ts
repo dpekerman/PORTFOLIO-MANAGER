@@ -5,15 +5,16 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSortModule, Sort } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
+import { ROW_SELECTION } from '../../../shared/row-selection/row-selection.directive';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import {
   CashItem,
   PortfolioValueHistoryDto,
   SnapshotStatus,
 } from '../../../core/models/portfolio.models';
-import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
-import { PortfolioValueHistoryStateService } from '../../../core/services/portfolio-value-history-state.service';
+import { CashStore } from '../../../core/store/cash.store';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
+import { PortfolioValueHistoryStore } from '../../../core/store/portfolio-value-history.store';
 import { HistorySortAccessors, sortHistoryRows } from '../history-table-sort';
 import { SnapshotDetailComponent } from './snapshot-detail/snapshot-detail.component';
 
@@ -34,6 +35,7 @@ interface ReconciliationIcon {
   styleUrl: './snapshots-table.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ...ROW_SELECTION,
     MatTableModule,
     MatSortModule,
     MatChipsModule,
@@ -47,9 +49,9 @@ interface ReconciliationIcon {
   ],
 })
 export class SnapshotsTableComponent {
-  protected readonly historyState = inject(PortfolioValueHistoryStateService);
-  protected readonly cashState = inject(CashStateService);
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly historyState = inject(PortfolioValueHistoryStore);
+  protected readonly cashState = inject(CashStore);
+  protected readonly demoMode = inject(DemoModeStore);
 
   protected readonly displayedColumns = [
     'recordedDate',

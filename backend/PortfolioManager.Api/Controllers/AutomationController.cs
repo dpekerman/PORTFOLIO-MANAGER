@@ -21,6 +21,7 @@ public class AutomationController(
     ScannerRuntimeConfig scannerConfig,
     ValueScreenerPersistenceService valueScreenerPersistence,
     IMissedDataRecoveryService missedDataRecovery,
+    IAwaitingDataRetryService awaitingDataRetry,
     IAutomationRunNotificationService automationNotifications,
     IDatabaseBackupService databaseBackup,
     IConfiguration configuration,
@@ -178,6 +179,21 @@ public class AutomationController(
         return result.Status == "AlreadyRunning" ? Conflict(response) : Ok(response);
     }
 
+    // On-demand backup, and "Retry awaiting data": re-evaluates only what the latest run could not (see AwaitingDataRetryService).
+    [Authorize(Roles = "Admin")]
+    [HttpGet("awaiting-data")]
+    public async Task<ActionResult<AwaitingDataStatusDto>> GetAwaitingData(CancellationToken ct) =>
+        Ok(await awaitingDataRetry.GetStatusAsync(ct));
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost("retry-awaiting-data")]
+    public async Task<ActionResult<AwaitingDataRetryResultDto>> RetryAwaitingData(CancellationToken ct)
+    {
+        var ownerId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+        var result = await awaitingDataRetry.RetryAsync(ownerId, ct);
+        return result.Status is "AlreadyRunning" or "NotYet" ? Conflict(result) : Ok(result);
+    }
+
     // On-demand "Backup Now" — unlike the scheduled background timer, this always produces a new
     // backup: if today's default file already exists, a new timestamped file is added alongside it
     // instead of being skipped, so every manual click is preserved.
@@ -186,6 +202,18 @@ public class AutomationController(
     public async Task<ActionResult<object>> BackupNow(CancellationToken ct)
     {
         var result = await databaseBackup.RunManualBackupAsync(ct);
+        db.AuditLogs.Add(new AuditLog
+        {
+            UserId = User.FindFirstValue(ClaimTypes.NameIdentifier),
+            UserName = User.FindFirstValue(ClaimTypes.Name),
+            Source = AuditSources.User,
+            Category = AuditCategories.Automation,
+            Action = AuditActions.Other,
+            EntityType = "DatabaseBackup",
+            Summary = result.Ran ? "Manual database backup created" : $"Manual database backup skipped: {result.Message}",
+            CorrelationId = HttpContext.TraceIdentifier,
+        });
+        await db.SaveChangesAsync(ct);
         var operationId = Guid.NewGuid();
         await TrySendOperationEmailAsync(
             operationId,

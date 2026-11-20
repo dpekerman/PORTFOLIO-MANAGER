@@ -12,10 +12,44 @@ public interface IRsiScannerService
     Task<ScannerResponse> ScanAsync(IEnumerable<string>? extraSymbols = null, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
     /// <summary>Analyze an ad-hoc list of symbols (e.g. user-entered tickers).</summary>
     Task<List<RsiScanResult>> AnalyzeSymbolsAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default);
+
+    /// <summary>
+    /// PM-029: same analysis as <see cref="AnalyzeSymbolsAsync"/> but without staged-signal enrichment or AUTO mapping writes.
+    /// Used for universe-only symbols that must not consult or touch the signal lifecycle.
+    /// </summary>
+    Task<List<RsiScanResult>> AnalyzeSymbolsReadOnlyAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => AnalyzeSymbolsAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, ct);
+
+    /// <summary>PM-029: enriches from staged-signal state without persisting lifecycle changes or AUTO mappings.</summary>
+    Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => throw new NotSupportedException("This scanner does not support read-only staged-signal previews.");
+
+    /// <summary>
+    /// Trading symbols of the most recent <see cref="AnalyzeSymbolsAsync"/> call that returned data the scanner refused to use
+    /// (see <see cref="ScanRejection"/>), as opposed to symbols that simply failed to load. Empty for scanners that don't classify.
+    /// </summary>
+    IReadOnlyDictionary<string, string> LastRejections => new Dictionary<string, string>();
+    IReadOnlyDictionary<string, RejectedMarketBar> LastRejectedBars => new Dictionary<string, RejectedMarketBar>();
+}
+
+public sealed record RejectedMarketBar(string AnalysisTicker, DateOnly TradingDate, decimal Open, decimal High, decimal Low, decimal Close);
+
+/// <summary>Why market data was fetched but not usable. A rejection is a data-quality problem, never a transport failure.</summary>
+public static class ScanRejection
+{
+    public const string InconsistentSession = "INCONSISTENT_SESSION";
+    public const string InsufficientHistory = "INSUFFICIENT_HISTORY";
 }
 
 public sealed class RsiScannerService : IRsiScannerService
 {
+    private enum AnalysisMode { Persist, ReadOnly, Preview }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _rejections = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, string> LastRejections => _rejections;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RejectedMarketBar> _rejectedBars = new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, RejectedMarketBar> LastRejectedBars => _rejectedBars;
+
     private readonly HttpClient _http;
     private readonly ILogger<RsiScannerService> _logger;
     private readonly IMarketDataProvider _marketData;
@@ -116,17 +150,31 @@ public sealed class RsiScannerService : IRsiScannerService
     }
 
     // ── Live scan ─────────────────────────────────────────────────────────────
-    public async Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
+    public Task<List<RsiScanResult>> AnalyzeSymbolsAsync(
         IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.Persist, ct);
+
+    public Task<List<RsiScanResult>> AnalyzeSymbolsReadOnlyAsync(
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.ReadOnly, ct);
+
+    public Task<List<RsiScanResult>> AnalyzeSymbolsPreviewAsync(
+        IEnumerable<string> symbols, decimal oversoldThreshold = 30m, decimal overboughtThreshold = 75m, string logicMode = "Legacy", string? userId = null, CancellationToken ct = default)
+        => AnalyzeCoreAsync(symbols, oversoldThreshold, overboughtThreshold, logicMode, userId, AnalysisMode.Preview, ct);
+
+    private async Task<List<RsiScanResult>> AnalyzeCoreAsync(
+        IEnumerable<string> symbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, string? userId, AnalysisMode mode, CancellationToken ct)
     {
         var results = new List<RsiScanResult>();
+        _rejections.Clear();
+        _rejectedBars.Clear();
         var distinct = symbols
             .Select(s => s.Trim().ToUpperInvariant())
             .Where(s => s.Length > 0)
             .Distinct()
             .ToArray();
 
-        var resolved = await ResolveSymbolsAsync(distinct, userId, ct);
+        var resolved = await ResolveSymbolsAsync(distinct, userId, ct, persist: mode == AnalysisMode.Persist);
         var analysisGroups = resolved
             .Where(symbol => symbol.ResolutionStatus != UnderlyingResolutionStatus.NeedsUserInput)
             .GroupBy(symbol => symbol.AnalysisTicker, StringComparer.OrdinalIgnoreCase)
@@ -149,24 +197,59 @@ public sealed class RsiScannerService : IRsiScannerService
             var batchResults = await Task.WhenAll(tasks);
             foreach (var scanned in batchResults.Where(item => item.Result is not null))
                 results.AddRange(scanned.Symbols.Select(symbol => CopyForTradingTicker(scanned.Result!, symbol)));
+            foreach (var unusable in batchResults.Where(item => item.Result is null))
+                if (_rejections.TryGetValue(unusable.Symbols[0].AnalysisTicker, out var why))
+                    foreach (var symbol in unusable.Symbols)
+                    {
+                        _rejections[symbol.TradingTicker] = why;
+                        if (_rejectedBars.TryGetValue(symbol.AnalysisTicker, out var rejectedBar))
+                            _rejectedBars[symbol.TradingTicker] = rejectedBar;
+                    }
             if (analysisGroups.Count > 3) await Task.Delay(1500, ct);
         }
 
         await EnrichWithQuoteDataAsync(results, ct);
-        // Enrich with staged signal data (for ad-hoc analysis)
         var withSignal = results.Where(r => r.ScanType != ScanType.Neutral).ToList();
-        if (withSignal.Count > 0)
-        {
-            try { await _stagedSignals.UpsertAndEnrichAsync(withSignal,
-                earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
-                normalMin: _runtimeConfig.TurnStrengthNormalMin,
-                strongMin: _runtimeConfig.TurnStrengthStrongMin,
-                explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
-                maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
-                ct: ct); }
-            catch { /* non-critical for ad-hoc */ }
-        }
+        await EnrichWithStagedSignalsAsync(withSignal, mode, ct);
         return results.OrderBy(r => r.Status != SignalStatus.Confirmed ? 1 : 0).ThenBy(r => r.Rsi).ToList();
+    }
+
+    private async Task EnrichWithStagedSignalsAsync(IReadOnlyCollection<RsiScanResult> results, AnalysisMode mode, CancellationToken ct)
+    {
+        if (results.Count == 0 || mode == AnalysisMode.ReadOnly) return;
+
+        try
+        {
+            if (mode == AnalysisMode.Persist)
+                await _stagedSignals.UpsertAndEnrichAsync(results,
+                    earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                    normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                    strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                    explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                    maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                    ct: ct);
+            else
+                await _stagedSignals.PreviewAndEnrichAsync(results,
+                    earlyMin: _runtimeConfig.TurnStrengthEarlyMin,
+                    normalMin: _runtimeConfig.TurnStrengthNormalMin,
+                    strongMin: _runtimeConfig.TurnStrengthStrongMin,
+                    explosiveMin: _runtimeConfig.TurnStrengthExplosiveMin,
+                    maxActiveTradingDays: _runtimeConfig.MaxActiveTradingDays,
+                    ct: ct);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            if (mode == AnalysisMode.Preview)
+            {
+                _logger.LogError(ex, "[StagedSignals] Read-only preview enrichment failed");
+                throw;
+            }
+            _logger.LogWarning(ex, "[StagedSignals] Persisted enrichment failed; continuing without staged enrichment");
+        }
     }
 
     private async Task<ScannerResponse> RunLiveScanAsync(IReadOnlyList<ResolvedSecurityAnalysis> resolvedSymbols, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
@@ -262,7 +345,7 @@ public sealed class RsiScannerService : IRsiScannerService
 
     /// <summary>Enrich scan results with analyst target and 52-week range from Yahoo v7/quote,
     /// with a fallback to quoteSummary/financialData for analyst targets (more reliable for TSX).</summary>
-    private async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
+    internal async Task EnrichWithQuoteDataAsync(List<RsiScanResult> results, CancellationToken ct)
     {
         if (results.Count == 0) return;
         var symbols = results
@@ -331,11 +414,14 @@ public sealed class RsiScannerService : IRsiScannerService
     private async Task<IReadOnlyList<ResolvedSecurityAnalysis>> ResolveSymbolsAsync(
         IEnumerable<string> symbols,
         string? userId,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool persist = true)
     {
         var resolved = new List<ResolvedSecurityAnalysis>();
         foreach (var symbol in symbols)
-            resolved.Add(await _analysisResolver.ResolveAsync(symbol, userId, ct));
+            resolved.Add(persist
+                ? await _analysisResolver.ResolveAsync(symbol, userId, ct)
+                : await _analysisResolver.ResolveReadOnlyAsync(symbol, userId, ct));
         return resolved;
     }
 
@@ -372,7 +458,84 @@ public sealed class RsiScannerService : IRsiScannerService
         return null;
     }
 
-    private async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
+    /// <summary>One session's open, high, low and close must describe a single price range (a small tolerance absorbs provider rounding).</summary>
+    internal static bool IsSessionConsistent(decimal open, decimal high, decimal low, decimal close)
+    {
+        const decimal tolerance = 0.001m;
+        if (high <= 0m || low <= 0m || high < low) return false;
+        var floor = low * (1m - tolerance);
+        var ceiling = high * (1m + tolerance);
+        return close >= floor && close <= ceiling && open >= floor && open <= ceiling;
+    }
+
+    internal static (decimal High, decimal Low)? ReconstructSessionRange(
+        YahooChartResult? chart, string symbol, DateOnly session, decimal open, decimal high, decimal low, decimal close, DateTime nowUtc)
+    {
+        var exchange = TradingCalendar.ExchangeFor(symbol);
+        if (!SessionHasClosed(session, exchange, nowUtc)) return null;
+        var closeTime = TradingCalendar.CloseTime(session, exchange);
+        var quote = chart?.Indicators?.Quote?.FirstOrDefault();
+        if (quote is null || chart?.Timestamp is null ||
+            !string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)) return null;
+
+        var expectedMinutes = (int)(closeTime.ToTimeSpan() - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
+        var minutes = new SortedDictionary<int, (decimal Open, decimal High, decimal Low, decimal Close)>();
+        var slots = new HashSet<int>();
+        var count = new[] { chart.Timestamp.Count, quote.Open.Count, quote.High.Count, quote.Low.Count, quote.Close.Count }.Min();
+        for (var i = 0; i < count; i++)
+        {
+            var instant = DateTimeOffset.FromUnixTimeSeconds(chart.Timestamp[i]).UtcDateTime;
+            var local = TradingCalendar.TorontoNow(instant);
+            if (DateOnly.FromDateTime(local) != session) continue;
+            var minute = (int)(local.TimeOfDay - new TimeOnly(9, 30).ToTimeSpan()).TotalMinutes;
+            if (local.Second != 0 || minute < 0 || minute >= expectedMinutes) continue;
+            if (!slots.Add(minute)) return null;
+            // An illiquid symbol has minutes with no trades: Yahoo keeps the timestamp but nulls every price. A
+            // partially populated candle is still corrupt evidence.
+            if (quote.Open[i] is null && quote.High[i] is null && quote.Low[i] is null && quote.Close[i] is null) continue;
+            if (quote.Open[i] is not { } o || quote.High[i] is not { } h ||
+                quote.Low[i] is not { } l || quote.Close[i] is not { } c ||
+                !IsSessionConsistent(o, h, l, c)) return null;
+            minutes.Add(minute, (o, h, l, c));
+        }
+
+        if (slots.Count != expectedMinutes || minutes.Count == 0) return null;
+        static bool Matches(decimal a, decimal b) => a > 0m && b > 0m && Math.Abs(a - b) <= b * 0.001m;
+        if (!Matches(minutes.First().Value.Open, open) || !Matches(minutes.Last().Value.Close, close)) return null;
+        var reconstructedHigh = minutes.Values.Max(m => m.High);
+        var reconstructedLow = minutes.Values.Min(m => m.Low);
+        if (high <= 0m || low <= 0m || high < low ||
+            !Matches(reconstructedHigh, Math.Max(high, Math.Max(open, close))) ||
+            !Matches(reconstructedLow, Math.Min(low, Math.Min(open, close))) ||
+            !IsSessionConsistent(open, reconstructedHigh, reconstructedLow, close)) return null;
+        return (reconstructedHigh, reconstructedLow);
+    }
+
+    private static bool SessionHasClosed(DateOnly session, MarketExchange exchange, DateTime nowUtc)
+    {
+        if (!TradingCalendar.IsTradingDay(session, exchange)) return false;
+        var now = TradingCalendar.TorontoNow(nowUtc);
+        var today = DateOnly.FromDateTime(now);
+        return today > session || (today == session && TimeOnly.FromDateTime(now) >= TradingCalendar.CloseTime(session, exchange));
+    }
+
+    private async Task<(decimal High, decimal Low)?> RecoverSessionRangeAsync(
+        string symbol, DateOnly session, decimal open, decimal high, decimal low, decimal close, CancellationToken ct)
+    {
+        if (!SessionHasClosed(session, TradingCalendar.ExchangeFor(symbol), DateTime.UtcNow)) return null;
+        await Task.Delay(300, ct);
+        using var response = await FetchWithRetryAsync($"v8/finance/chart/{Uri.EscapeDataString(symbol)}?interval=1m&range=5d", ct);
+        if (response is null || !response.IsSuccessStatusCode)
+        {
+            _logger.LogWarning("Intraday range recovery for {Symbol} failed: provider response {Status}.", symbol, response?.StatusCode);
+            return null;
+        }
+        var json = await response.Content.ReadAsStringAsync(ct);
+        var chart = JsonSerializer.Deserialize<YahooChartResponse>(json, _json)?.Chart?.Result?.FirstOrDefault();
+        return ReconstructSessionRange(chart, symbol, session, open, high, low, close, DateTime.UtcNow);
+    }
+
+    internal async Task<RsiScanResult?> AnalyzeSymbolAsync(string symbol, decimal oversoldThreshold, decimal overboughtThreshold, string logicMode, CancellationToken ct)
     {
         try
         {
@@ -389,15 +552,64 @@ public sealed class RsiScannerService : IRsiScannerService
 
             var qd = chartResult.Indicators?.Quote?.FirstOrDefault();
             if (qd is null) return null;
-            var timestamps = chartResult.Timestamp ?? [];
+            var rawTimestamps = chartResult.Timestamp ?? [];
 
-            // Filter out null slots (non-trading days Yahoo sometimes returns as null)
-            var closes  = qd.Close.Where(c => c.HasValue).Select(c => c!.Value).ToList();
-            var highs   = qd.High.Where(h => h.HasValue).Select(h => h!.Value).ToList();
-            var lows    = qd.Low.Where(l => l.HasValue).Select(l => l!.Value).ToList();
-            var volumes = qd.Volume.Where(v => v.HasValue).Select(v => v!.Value).ToList();
+            // A bar is only usable when it is complete. Dropping nulls per series would shift them against each other:
+            // a still-open session (null close, real open/high/low/volume) would then pair the previous close with the
+            // new session's range. Bars are therefore kept or dropped whole, preserving index <-> timestamp alignment.
+            var barCount = new[] { rawTimestamps.Count, qd.Open.Count, qd.High.Count, qd.Low.Count, qd.Close.Count }.Min();
+            var timestamps = new List<long>(barCount);
+            var opens   = new List<decimal>(barCount);
+            var highs   = new List<decimal>(barCount);
+            var lows    = new List<decimal>(barCount);
+            var closes  = new List<decimal>(barCount);
+            var volumes = new List<long>(barCount);
+            for (var i = 0; i < barCount; i++)
+            {
+                if (qd.Open[i] is not { } barOpen || qd.High[i] is not { } barHigh
+                    || qd.Low[i] is not { } barLow || qd.Close[i] is not { } barClose) continue;
+                timestamps.Add(rawTimestamps[i]);
+                opens.Add(barOpen);
+                highs.Add(barHigh);
+                lows.Add(barLow);
+                closes.Add(barClose);
+                volumes.Add(i < qd.Volume.Count ? qd.Volume[i] ?? 0L : 0L);
+            }
 
-            if (closes.Count < 30) return null;
+            if (closes.Count < 30)
+            {
+                _rejections[symbol] = ScanRejection.InsufficientHistory;
+                return null;
+            }
+            var intradayRangeReconstructed = false;
+            if (!IsSessionConsistent(opens[^1], highs[^1], lows[^1], closes[^1]))
+            {
+                var session = TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[^1]).UtcDateTime);
+                var rejected = new RejectedMarketBar(symbol, session, opens[^1], highs[^1], lows[^1], closes[^1]);
+                (decimal High, decimal Low)? recovered;
+                try
+                {
+                    recovered = await RecoverSessionRangeAsync(symbol, session, rejected.Open, rejected.High, rejected.Low, rejected.Close, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Intraday range recovery failed for {Symbol} on {Date}.", symbol, session);
+                    recovered = null;
+                }
+                if (recovered is null)
+                {
+                    _rejections[symbol] = ScanRejection.InconsistentSession;
+                    _rejectedBars[symbol] = rejected;
+                    _logger.LogWarning("Scan for {Symbol} rejected: last bar {Date} is internally inconsistent (O {O} H {H} L {L} C {C}); intraday recovery unavailable or unverified.",
+                        symbol, session, rejected.Open, rejected.High, rejected.Low, rejected.Close);
+                    return null;
+                }
+                highs[^1] = recovered.Value.High;
+                lows[^1] = recovered.Value.Low;
+                intradayRangeReconstructed = true;
+                _logger.LogWarning("Scan for {Symbol} on {Date} used same-provider intraday range H {RecoveredHigh} L {RecoveredLow}; daily bar was O {Open} H {High} L {Low} C {Close}.",
+                    symbol, session, highs[^1], lows[^1], rejected.Open, rejected.High, rejected.Low, rejected.Close);
+            }
 
             // ── Core RSI ────────────────────────────────────────────────────
             decimal rsi = CalculateRsi(closes, 14);
@@ -411,8 +623,6 @@ public sealed class RsiScannerService : IRsiScannerService
                 : volumes.Select(v => (decimal)v).Average();
             decimal todayVol   = volumes.Count > 0 ? volumes.Last() : 0L;
             decimal volRatio   = avgVol > 0 ? todayVol / avgVol : 1m;
-
-            var opens = qd.Open.Where(o => o.HasValue).Select(o => o!.Value).ToList();
 
             // ── Candle data ─────────────────────────────────────────────────
             decimal todayOpen  = opens.Count  > 0 ? opens.Last()   : closes.Last();
@@ -560,7 +770,10 @@ public sealed class RsiScannerService : IRsiScannerService
             return new RsiScanResult
             {
                 Symbol = symbol,
-                CompanyName = CompanyNames.TryGetValue(symbol, out var name) ? name : symbol,
+                IntradayRangeReconstructed = intradayRangeReconstructed,
+                CompanyName = chartResult.Meta?.LongName ?? chartResult.Meta?.ShortName
+                    ?? (CompanyNames.TryGetValue(symbol, out var name) ? name : symbol),
+                InstrumentType = chartResult.Meta?.InstrumentType,
                 Rsi = Math.Round(rsi, 2),
                 RsiSignal = rsiSignalAvailable ? rsiSignalValue : null,
                 RsiSignalAvailable = rsiSignalAvailable,
@@ -569,7 +782,9 @@ public sealed class RsiScannerService : IRsiScannerService
                 ChangePercent = Math.Round(changePct, 2),
                 ScanType = scanType,
                 Status = status,
-                TriggerDetails = trigger,
+                TriggerDetails = intradayRangeReconstructed
+                    ? trigger + " [Daily range reconstructed from same-provider intraday bars.]"
+                    : trigger,
                 Volume = todayVol,
                 VolumeRatio = Math.Round(volRatio, 2),
                 TradingDate = DateOnly.FromDateTime(candles[^1].Date),
@@ -608,6 +823,14 @@ public sealed class RsiScannerService : IRsiScannerService
                 IsDemo = false,
                 FibSwingLow = fib.SwingLow,
                 FibSwingHigh = fib.SwingHigh,
+                FibonacciSwing = fib.LowIndex is int low && fib.HighIndex is int high
+                    && string.Equals(chartResult.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)
+                    && chartResult.Meta?.Currency is { Length: > 0 } currency
+                    ? new FibonacciSwingEvidence(symbol, currency.ToUpperInvariant(), fib.SwingLow, fib.SwingHigh,
+                        TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[low]).UtcDateTime),
+                        TradingCalendar.TorontoDate(DateTimeOffset.FromUnixTimeSeconds(timestamps[high]).UtcDateTime),
+                        fib.Fib38_2, fib.Fib50, fib.Fib61_8, fib.Fib78_6)
+                    : null,
                 Fib38_2 = fib.Fib38_2,
                 Fib50 = fib.Fib50,
                 Fib61_8 = fib.Fib61_8,
@@ -636,7 +859,7 @@ public sealed class RsiScannerService : IRsiScannerService
                 MomentumState = technicalAnalysis.MomentumState,
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogDebug(ex, "Failed to analyze {Symbol}", symbol);
         }
@@ -649,7 +872,7 @@ public sealed class RsiScannerService : IRsiScannerService
     private record FibCalcResult(
         decimal SwingLow, decimal SwingHigh,
         decimal Fib38_2, decimal Fib50, decimal Fib61_8, decimal Fib78_6,
-        string FibZone, string FibStatus, decimal DistanceToFib61_8Pct);
+        string FibZone, string FibStatus, decimal DistanceToFib61_8Pct, int? LowIndex = null, int? HighIndex = null);
 
     private static readonly FibCalcResult _fibNoData =
         new(0m, 0m, 0m, 0m, 0m, 0m, string.Empty, string.Empty, 0m);
@@ -686,11 +909,12 @@ public sealed class RsiScannerService : IRsiScannerService
         // Include the current bar so that currently-declining stocks are captured
         if (swingHighIdx >= closes.Count - 2) return _fibNoData;
 
-        decimal swingLow = closes[swingHighIdx + 1];
+        int swingLowIdx = swingHighIdx + 1;
         for (int i = swingHighIdx + 2; i < closes.Count; i++)
         {
-            if (closes[i] < swingLow) swingLow = closes[i];
+            if (closes[i] < closes[swingLowIdx]) swingLowIdx = i;
         }
+        var swingLow = closes[swingLowIdx];
 
         // Validate: require at least minMovePercent% decline from high to low
         if (swingHigh <= 0m || swingLow >= swingHigh) return _fibNoData;
@@ -710,7 +934,7 @@ public sealed class RsiScannerService : IRsiScannerService
         return new FibCalcResult(
             Math.Round(swingLow, 4), Math.Round(swingHigh, 4),
             f38_2, f50, f61_8, f78_6,
-            fibZone, fibStatus, distPct);
+            fibZone, fibStatus, distPct, swingLowIdx, swingHighIdx);
     }
 
     private static string ClassifyFibZone(

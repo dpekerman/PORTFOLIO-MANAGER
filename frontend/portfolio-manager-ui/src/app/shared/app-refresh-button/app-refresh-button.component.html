@@ -1,0 +1,24 @@
+@if (label()) {
+  <button
+    mat-stroked-button
+    type="button"
+    [matTooltip]="tooltip()"
+    (click)="click()"
+    [disabled]="appRefresh.isRefreshing() || busy()"
+    [attr.aria-label]="label()"
+  >
+    <mat-icon [class.spinning]="appRefresh.isRefreshing() || busy()">refresh</mat-icon>
+    {{ label() }}
+  </button>
+} @else {
+  <button
+    mat-icon-button
+    type="button"
+    [matTooltip]="tooltip()"
+    (click)="click()"
+    [disabled]="appRefresh.isRefreshing() || busy()"
+    aria-label="Refresh all data"
+  >
+    <mat-icon [class.spinning]="appRefresh.isRefreshing() || busy()">refresh</mat-icon>
+  </button>
+}

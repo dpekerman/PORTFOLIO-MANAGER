@@ -1,0 +1,74 @@
+@if (automationState.timezoneDiagnostics(); as tz) {
+  <div class="automation-tz-panel">
+    <div class="sub-card-header">
+      <mat-icon>public</mat-icon>
+      <span class="sub-card-title">Timezone Diagnostics</span>
+      <button
+        mat-icon-button
+        type="button"
+        class="tz-refresh"
+        (click)="automationState.loadTimezoneDiagnostics()"
+        [disabled]="automationState.loadingTimezoneDiagnostics()"
+        matTooltip="Refresh"
+      >
+        <mat-icon [class.spinning]="automationState.loadingTimezoneDiagnostics()">refresh</mat-icon>
+      </button>
+    </div>
+    <div class="automation-tz-rows">
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Business timezone</span>
+        <span class="automation-tz-value">{{ tz.businessTimeZoneLabel }}</span>
+      </div>
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Windows local timezone</span>
+        <span class="automation-tz-value">{{ tz.windowsLocalTimeZoneLabel }}</span>
+      </div>
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Wake / start time</span>
+        <span class="automation-tz-value"
+          >{{ tz.wakeTimeEtDisplay }} ({{ tz.wakeTimeLocalDisplay }})</span
+        >
+      </div>
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Next scheduled run (Task Scheduler)</span>
+        <span class="automation-tz-value">
+          @if (tz.taskExists && tz.taskNextRunEtDisplay) {
+            {{ tz.taskNextRunEtDisplay }} ({{ tz.taskNextRunLocalDisplay }})
+          } @else {
+            — (task not installed)
+          }
+        </span>
+      </div>
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Expected next run (from Eastern Time config)</span>
+        <span class="automation-tz-value">{{ tz.expectedNextRunEtDisplay }}</span>
+      </div>
+      <div class="automation-tz-row">
+        <span class="automation-tz-label">Underlying task verified correct</span>
+        <span class="automation-tz-value">
+          @if (tz.taskMatchesExpected === true) {
+            <span class="status-badge--success section-header-badge">
+              <mat-icon class="eod-active-icon-sm">check_circle</mat-icon> Matches — the Scheduled
+              Task itself is anchored to Eastern Time
+            </span>
+          } @else if (tz.taskMatchesExpected === false) {
+            <span class="status-badge--failed section-header-badge">
+              <mat-icon class="eod-active-icon-sm">error</mat-icon> Drift detected (~{{
+                tz.driftMinutes | number: '1.0-0'
+              }}
+              min)
+            </span>
+          } @else {
+            — (task not installed, nothing to verify yet)
+          }
+        </span>
+      </div>
+    </div>
+    @if (tz.warning) {
+      <div class="eod-info-banner tz-warning">
+        <mat-icon class="eod-info-icon">warning</mat-icon>
+        <span>{{ tz.warning }}</span>
+      </div>
+    }
+  </div>
+}

@@ -1,0 +1,251 @@
+.opp-page {
+  padding: 0 24px 48px;
+  min-width: 0;
+
+  @media (max-width: 599.98px) {
+    padding: 0 12px 32px;
+  }
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 20px 0 8px;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+
+  mat-icon {
+    color: var(--heat-caution);
+  }
+}
+
+.page-sub {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+
+  mat-spinner {
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+}
+
+.touch {
+  min-height: 44px;
+}
+
+.menu-option {
+  padding: 4px 12px;
+}
+
+.status-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 4px 0 10px;
+  font-size: 0.82rem;
+}
+
+.status-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  border: 1px solid currentColor;
+
+  mat-icon {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+  }
+
+  &.warn {
+    color: var(--heat-moderate);
+  }
+
+  &.info {
+    color: var(--mat-sys-primary);
+  }
+
+  &.error {
+    color: var(--mat-sys-error);
+  }
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+
+  .perspective .mat-button-toggle {
+    min-height: 44px;
+  }
+
+  .score-filter {
+    width: 220px;
+  }
+
+  .search {
+    flex: 1 1 220px;
+    max-width: 360px;
+  }
+
+  @media (max-width: 599.98px) {
+    .score-filter,
+    .search {
+      width: 100%;
+      max-width: none;
+      flex: 1 1 100%;
+    }
+  }
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: center;
+  gap: 10px 12px;
+  padding-bottom: 12px;
+
+  @media (max-width: 599.98px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin: 8px 0 10px;
+  font-size: 0.85rem;
+}
+
+.summary-count {
+  margin-right: 4px;
+}
+
+.summary-chip {
+  font-size: 0.8rem;
+  min-height: 32px;
+
+  &.plain {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--mat-sys-outline-variant);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &.active {
+    background: color-mix(in srgb, var(--mat-sys-primary) 16%, transparent);
+  }
+
+  @media (max-width: 599.98px) {
+    min-height: 44px;
+  }
+}
+
+.state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 16px;
+  color: var(--mat-sys-on-surface-variant);
+
+  &.error {
+    color: var(--mat-sys-error);
+  }
+}
+
+.opp-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.side-panel.panel-open .opp-layout {
+  grid-template-columns: minmax(0, 1fr) clamp(420px, 36vw, 640px);
+}
+
+.grid-pane {
+  min-width: 0;
+}
+
+.details-pane {
+  position: sticky;
+  top: 8px;
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 10px;
+  background: var(--mat-sys-surface-container-low);
+
+  &.fullscreen {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    background: var(--mat-sys-surface);
+  }
+}
+
+.disclaimer {
+  margin: 16px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

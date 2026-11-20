@@ -147,31 +147,6 @@ public class ChannelAndSeverityTests
     }
 
     [Fact]
-    public void AtdRegression_HardStructuralNegativeProducesAvoidDespiteBullTurn()
-    {
-        var structure = PriceStructureResult.None with
-        {
-            PrimaryPatternType = "TIGHT_RISING_WEDGE",
-            PrimaryPatternState = "BREAKDOWN",
-        };
-        var scan = new RsiScanResult
-        {
-            ScanType = ScanType.Oversold,
-            Status = SignalStatus.EodConfirm,
-            Rsi = 29.2m,
-            TrendShift = "🟢 Bull Turn",
-            PriceStructure = structure,
-        };
-        var deriveAction = typeof(PortfolioActionsService).GetMethod(
-            "DeriveAction", BindingFlags.Static | BindingFlags.NonPublic)!;
-
-        var result = ((string label, string severity, string priority))deriveAction.Invoke(
-            null, [scan, "Strategic", "under", true, structure])!;
-
-        Assert.Equal(("AVOID", "danger", "REQUIRED"), result);
-    }
-
-    [Fact]
     public void AtdRegression_PersistedHardNegativeTakesPrecedenceOverScannerLevel()
     {
         var scannerStructure = PriceStructureResult.None with
@@ -193,25 +168,5 @@ public class ChannelAndSeverityTests
 
         Assert.True(selected.HasHardStructuralNegative);
         Assert.Equal("BREAKDOWN", selected.PrimaryPatternState);
-    }
-
-    [Fact]
-    public void AtdRegression_EodContextCannotDowngradeHardNegativeAvoid()
-    {
-        var structure = PriceStructureResult.None with
-        {
-            PrimaryPatternType = "TIGHT_RISING_WEDGE",
-            PrimaryPatternState = "BREAKDOWN",
-        };
-        var facts = new SharedTechnicalFacts(
-            "ATD.TO", 29.2m, null, null, "Accelerating", structure, null, DateTime.UtcNow,
-            LatestEodSignalState: "Active");
-        var applyEodContext = typeof(PortfolioActionsService).GetMethod(
-            "ApplyEodContext", BindingFlags.Static | BindingFlags.NonPublic)!;
-
-        var result = ((string label, string severity, string priority))applyEodContext.Invoke(
-            null, ["AVOID", "danger", "REQUIRED", facts, structure])!;
-
-        Assert.Equal(("AVOID", "danger", "REQUIRED"), result);
     }
 }

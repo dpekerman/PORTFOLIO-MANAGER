@@ -82,7 +82,7 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 12px;
-  min-width: 380px;
+  min-width: min(380px, 100%);
 }
 
 .full-width {

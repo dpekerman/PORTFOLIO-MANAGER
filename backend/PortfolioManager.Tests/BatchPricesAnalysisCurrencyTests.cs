@@ -42,7 +42,7 @@ public class BatchPricesAnalysisCurrencyTests
     }
 
     private static StocksController CreateController(FakeMarketData market, FakeResolver resolver) =>
-        new(market, null!, null!, null!, null!, resolver)
+        new(market, null!, null!, null!, null!, resolver, null!)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() },
         };

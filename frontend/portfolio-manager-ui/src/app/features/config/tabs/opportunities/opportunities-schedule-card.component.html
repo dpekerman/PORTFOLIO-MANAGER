@@ -1,0 +1,81 @@
+<app-settings-section
+  icon="schedule"
+  title="Automatic refresh"
+  subtitle="Runs Refresh analysis on the days and time you choose (Eastern Time) · market holidays are skipped"
+>
+  <div class="schedule-body" data-testid="opportunities-schedule">
+    @if (store.loading() && !store.schedule()) {
+      <div class="state"><mat-spinner diameter="24" /> Loading schedule…</div>
+    } @else if (store.error()) {
+      <div class="state error" role="alert">
+        <span>{{ store.error() }}</span>
+        <button mat-stroked-button type="button" (click)="store.load()">Retry</button>
+      </div>
+    } @else {
+      <mat-slide-toggle
+        color="accent"
+        data-testid="schedule-enabled"
+        [checked]="enabled()"
+        (change)="enabled.set($event.checked)"
+      >
+        Automatic refresh enabled
+      </mat-slide-toggle>
+
+      <div class="schedule-row">
+        <mat-timepicker #picker interval="15m" />
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Refresh time (ET)</mat-label>
+          <input
+            matInput
+            data-testid="schedule-time"
+            [matTimepicker]="picker"
+            [value]="time()"
+            (valueChange)="time.set($event)"
+          />
+          <mat-timepicker-toggle matSuffix [for]="picker" />
+        </mat-form-field>
+
+        <mat-button-toggle-group
+          multiple
+          aria-label="Refresh days"
+          data-testid="schedule-days"
+          [value]="days()"
+          (change)="days.set($event.value)"
+        >
+          @for (d of weekdays; track d.value) {
+            <mat-button-toggle [value]="d.value">{{ d.label }}</mat-button-toggle>
+          }
+        </mat-button-toggle-group>
+      </div>
+
+      <p class="hint">
+        A session counts as completed 2 hours after the close (6:00 PM ET on a normal day, 3:00 PM on an early-close
+        day). The run is held until then, so the snapshot is scored against that day's session. If the PC was off at
+        the time, it catches up later the same day.
+      </p>
+
+      @if (store.schedule(); as s) {
+        @if (s.lastRunAtUtc) {
+          <p class="hint" data-testid="schedule-last-run">
+            Last scheduled run: {{ s.lastRunAtUtc | date: 'medium' }} — {{ s.lastRunStatus }}
+            @if (s.lastRunMessage) {
+              ({{ s.lastRunMessage }})
+            }
+          </p>
+        }
+      }
+
+      <div>
+        <button
+          mat-flat-button
+          type="button"
+          data-testid="schedule-save"
+          [disabled]="!canSave()"
+          (click)="save()"
+        >
+          Save schedule
+        </button>
+      </div>
+    }
+  </div>
+</app-settings-section>

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { MatCardModule } from '@angular/material/card';
 import { MatIconModule } from '@angular/material/icon';
 import { PortfolioValueHistoryDto } from '../../../core/models/portfolio.models';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 
 @Component({
   selector: 'app-history-summary-cards',
@@ -13,7 +13,7 @@ import { DemoModeService } from '../../../core/services/demo-mode.service';
   imports: [MatCardModule, MatIconModule, CurrencyPipe, DatePipe],
 })
 export class HistorySummaryCardsComponent {
-  protected readonly demoMode = inject(DemoModeService);
+  protected readonly demoMode = inject(DemoModeStore);
 
   readonly latestSnapshot = input<PortfolioValueHistoryDto | null>(null);
   readonly loading = input(false);

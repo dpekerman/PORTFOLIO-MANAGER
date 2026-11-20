@@ -1,0 +1,193 @@
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Handset (<600px) layout for the dashboard and its widgets. Kept in the global bundle for the
+// same reason as `_responsive-pages.scss` (the dashboard stylesheet is already over the component
+// style budget). The `html` prefix out-ranks the components' attribute-scoped selectors without
+// `!important`; tablet and desktop are never affected.
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+@media (max-width: 599.98px) {
+  html .db-page {
+    .db-grid > * {
+      min-width: 0;
+    }
+
+    .db-hero-ts {
+      overflow-wrap: anywhere;
+    }
+
+    .db-metric-strip {
+      width: 100%;
+      gap: 12px 16px;
+    }
+
+    .db-metric--today {
+      min-width: 0;
+    }
+
+    // Chart range toggles + collapse button must stay on one line.
+    .db-panel-hd-right {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .db-range-group.db-range-group {
+      display: flex;
+      box-sizing: border-box;
+      width: calc(100% - 24px);
+      max-width: calc(100% - 24px);
+      margin: 0 12px 4px;
+
+      mat-button-toggle,
+      mat-button-toggle.mat-button-toggle-checked {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: 0;
+      }
+
+      .mat-pseudo-checkbox,
+      .mat-button-toggle-checkbox-wrapper {
+        display: none;
+      }
+
+      // Material reserves 30px for the (hidden) check mark on the selected toggle.
+      .mat-button-toggle-checked .mat-button-toggle-button {
+        padding-left: 0;
+      }
+
+      .mat-button-toggle-label-content {
+        padding: 0;
+        line-height: 44px;
+      }
+    }
+
+    // Top movers: Portfolio and Watchlist stack instead of sharing 328px.
+    .db-movers-cols {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .db-movers-col:first-child {
+      border-right: 0;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .db-mover-row {
+      min-width: 0;
+
+      .mover-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .db-signal-summary {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding-left: 12px;
+      padding-right: 12px;
+
+      .db-sig-divider {
+        display: none;
+      }
+    }
+
+    .db-sig {
+      min-height: 44px;
+      background: var(--mat-sys-surface-container-high);
+      border-radius: 8px;
+      padding: 6px 4px;
+    }
+
+    .db-alloc-table th:nth-child(5),
+    .db-alloc-table td:nth-child(5) {
+      display: none;
+    }
+
+    .db-alloc-table.db-alloc-table th,
+    .db-alloc-table.db-alloc-table td {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+
+    .db-alloc-table.db-alloc-table .alloc-sector {
+      min-width: 0;
+    }
+
+    .db-alloc-table.db-alloc-table th {
+      letter-spacing: 0;
+    }
+
+    .db-alloc-table-wrap,
+    .db-eod-table-wrap {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
+    .db-panel-hd {
+      flex-wrap: nowrap;
+    }
+
+    // Long single titles wrap inside their own space instead of dropping below the icon.
+    .db-title-fill {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    // The title group must wrap too: the EOD ownership legend is wider than the card minus the
+    // title on a 360px phone, and its width grows with the platform's font metrics (it overflowed
+    // by 3px on the Linux CI runner while fitting on Windows). It shrinks (basis 0) so the
+    // expand/collapse chevron always stays on the same row, pinned right.
+    .db-panel-hd-left {
+      flex: 1 1 0;
+      flex-wrap: wrap;
+      min-width: 0;
+      row-gap: 2px;
+    }
+
+    .eod-ownership-legend.eod-ownership-legend {
+      white-space: normal;
+    }
+
+    .db-alloc-tab {
+      min-height: 44px;
+    }
+
+    .db-earnings-card,
+    .db-panel {
+      overflow: hidden;
+    }
+  }
+
+  // Card per candidate: ring + name + price on top, trend/allocation/badges wrapping below.
+  html app-priority-candidates-widget .pc-row.pc-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    row-gap: 6px;
+
+    .pc-info,
+    .pc-price-col {
+      min-width: 0;
+    }
+
+    .pc-meta.pc-meta,
+    .pc-badges.pc-badges {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 10px;
+      overflow: visible;
+    }
+  }
+
+  html app-performance-summary-widget {
+    .ps-divider {
+      display: none;
+    }
+
+    .ps-stats {
+      gap: 12px 20px;
+    }
+  }
+}

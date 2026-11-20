@@ -1,0 +1,51 @@
+.app-filter-panel {
+  display: block;
+  min-width: 0;
+  margin: 8px 0;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+
+  > summary {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 10px 12px;
+    color: var(--mat-sys-on-surface);
+    font-weight: 600;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+
+    &:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: 2px;
+      border-radius: 8px;
+    }
+  }
+
+  &[open] > summary {
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    margin-bottom: 8px;
+  }
+
+  > :not(summary) {
+    margin-inline: 12px;
+  }
+
+  .app-filter-state {
+    margin-inline-start: 8px;
+    color: var(--mat-sys-primary);
+    font-size: 0.85em;
+  }
+
+  @media (max-width: 599.98px) {
+    mat-form-field {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    button:not(.mat-mdc-icon-button),
+    .mat-button-toggle {
+      min-height: 44px;
+    }
+  }
+}

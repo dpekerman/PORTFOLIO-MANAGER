@@ -28,34 +28,26 @@ export class XComponent {
 }
 ```
 
-## State Services
+## State Stores
 
-State services in `core/services/` expose **readonly** signals:
+State lives in NgRx signal stores in `core/store/` (see `watchlist.store.ts`). Stores expose readonly signals; only the store patches its state:
 
 ```typescript
-private readonly _data = signal<T[]>([]);
-readonly data = this._data.asReadonly();
-readonly count = computed(() => this._data().length);
+export const FooStore = signalStore(
+  { providedIn: 'root' },
+  withState({ items: [] as Foo[] }),
+  withRequestStatus(),
+  withComputed(({ items }) => ({ count: computed(() => items().length) })),
+  withMethods((store, api = inject(FooApiService)) => ({ /* rxMethod loads, mutations */ })),
+  withHooks({ onInit: (store) => onceAuthenticated(() => store.load()) }),
+);
 ```
 
-Call `demoMode.maskValue(n)` / `maskPercent(n)` before displaying any monetary value in templates.
+Call `demoMode.maskValue(n)` / `maskPercent(n)` before displaying any monetary value in templates. Test stores with `unprotected(store)` (`@ngrx/signals/testing`) to patch state.
 
 ## Subscription Cleanup
 
-Always use `takeUntilDestroyed()` for subscriptions inside services and components:
-
-```typescript
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-
-@Injectable({ providedIn: 'root' })
-export class FooStateService {
-  constructor() {
-    this.api.getAll().pipe(takeUntilDestroyed()).subscribe(...);
-  }
-}
-```
-
-**Never** manually implement `ngOnDestroy` + `Subject` just to clean up subscriptions — `takeUntilDestroyed()` replaces that pattern entirely.
+Inside components use `takeUntilDestroyed()`; inside stores prefer `rxMethod` (it cleans up with the store). **Never** implement `ngOnDestroy` + `Subject` only to clean up subscriptions.
 
 ## Template: `@let` Variables
 
@@ -89,10 +81,10 @@ protected readonly selected = linkedSignal(() => this.state.items()[0] ?? null);
 
 ## Things NOT Used in This Project
 
-- `resource()` / `httpResource()` — project uses the two-service API+State pattern instead
-- `async` pipe — prefer signals; only use `async` pipe if converting a cold observable in a template with no state service
+- `resource()` / `httpResource()` — the project uses api-service + signal store instead
+- `async` pipe — prefer signals; only use `async` pipe if converting a cold observable in a template with no store
 - `NgModules` — all components are standalone (default since v20)
-- `Zone.js`-based change detection tricks — use `OnPush` + signals only
+- `Zone.js` — the app is zoneless; use `OnPush` + signals only
 
 ## Angular Material (used in this project)
 

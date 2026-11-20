@@ -14,7 +14,8 @@ public class PortfolioController(
     IPortfolioSnapshotService portfolioSnapshot,
     ICashService cashService,
     ITransactionContextCaptureService contextCapture,
-    IServiceScopeFactory scopeFactory) : ControllerBase
+    IServiceScopeFactory scopeFactory,
+    IAuditService audit) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
     [HttpGet]
@@ -161,6 +162,7 @@ public class PortfolioController(
     public async Task<IActionResult> Restore([FromBody] RestorePortfolioRequest request, CancellationToken ct)
     {
         var count = await portfolioService.RestoreAsync(request.Items, ct);
+        await audit.LogAsync(AuditCategories.Stock, AuditActions.Restore, $"Restored {count} stock positions from backup", nameof(PortfolioItem), ct: ct);
         return Ok(new { restored = count });
     }
 

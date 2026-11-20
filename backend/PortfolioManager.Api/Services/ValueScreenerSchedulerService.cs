@@ -88,6 +88,13 @@ public sealed class ValueScreenerSchedulerService(
         using var scope = scopeFactory.CreateScope();
         var screener = scope.ServiceProvider.GetRequiredService<ValueScreenerService>();
 
+        // No HTTP user here: scope to the automation owner (first Admin, same rule as the EOD automation).
+        var admins = await scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>>()
+            .GetUsersInRoleAsync("Admin");
+        var ownerId = admins.FirstOrDefault()?.Id;
+        if (ownerId is null)
+            logger.LogWarning("[ValueScreenerScheduler] No Admin user found; screening shared rows only.");
+
         // Run Portfolio
         if (!cfg.LastPortfolioRunAt.HasValue ||
             TimeZoneInfo.ConvertTimeFromUtc(cfg.LastPortfolioRunAt.Value, tz).Date != etToday)
@@ -96,7 +103,7 @@ public sealed class ValueScreenerSchedulerService(
             {
                 logger.LogInformation("[ValueScreenerScheduler] Running Portfolio screener...");
                 var results = await screener.RunAsync(
-                    new ValueScreenerRequest { IncludePortfolio = true, IncludeWatchlist = false }, ct);
+                    new ValueScreenerRequest { IncludePortfolio = true, IncludeWatchlist = false }, ct, ownerId);
                 await persistence.SaveAsync("Portfolio", results, ct);
                 logger.LogInformation("[ValueScreenerScheduler] Portfolio screener complete ({Count} results).", results.Count);
                 cfg.LastPortfolioRunAt = DateTime.UtcNow;
@@ -115,7 +122,7 @@ public sealed class ValueScreenerSchedulerService(
             {
                 logger.LogInformation("[ValueScreenerScheduler] Running Watchlist screener...");
                 var results = await screener.RunAsync(
-                    new ValueScreenerRequest { IncludePortfolio = false, IncludeWatchlist = true }, ct);
+                    new ValueScreenerRequest { IncludePortfolio = false, IncludeWatchlist = true }, ct, ownerId);
                 await persistence.SaveAsync("Watchlist", results, ct);
                 logger.LogInformation("[ValueScreenerScheduler] Watchlist screener complete ({Count} results).", results.Count);
                 cfg.LastWatchlistRunAt = DateTime.UtcNow;

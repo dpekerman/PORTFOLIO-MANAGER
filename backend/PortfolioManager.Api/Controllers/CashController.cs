@@ -9,7 +9,7 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger, IUnlinkedTradeService unlinkedTrades) : ControllerBase
+public class CashController(ICashService cashService, ICashLedgerQueryService cashLedger, IUnlinkedTradeService unlinkedTrades, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<CashItemDto>>> GetAll(CancellationToken ct)
@@ -31,6 +31,13 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
     [HttpGet("unlinked-trades")]
     public async Task<ActionResult<IReadOnlyList<UnlinkedTradeDto>>> GetUnlinkedTrades(CancellationToken ct)
         => Ok(await unlinkedTrades.GetUnlinkedAsync(ct));
+
+    /// <summary>Acknowledges every currently listed trade as legacy history so it is no longer displayed.
+    /// Insert-only; never alters trades or cash.</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("unlinked-trades/baseline")]
+    public async Task<ActionResult<UnlinkedBaselineResultDto>> BaselineUnlinkedTrades(CancellationToken ct)
+        => Ok(await unlinkedTrades.BaselineCurrentAsync(ct));
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<CashItemDto>> GetById(int id, CancellationToken ct)
@@ -150,6 +157,7 @@ public class CashController(ICashService cashService, ICashLedgerQueryService ca
     public async Task<IActionResult> Restore([FromBody] RestoreCashRequest request, CancellationToken ct)
     {
         var count = await cashService.RestoreAsync(request.Items, ct);
+        await audit.LogAsync(AuditCategories.Cash, AuditActions.Restore, $"Restored {count} cash entries from backup", nameof(CashItem), ct: ct);
         return Ok(new { restored = count });
     }
 }

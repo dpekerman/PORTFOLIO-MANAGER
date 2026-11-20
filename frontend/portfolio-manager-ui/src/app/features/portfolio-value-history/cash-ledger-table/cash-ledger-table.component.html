@@ -19,6 +19,7 @@
   } @else {
     <table
       mat-table
+      appRowSelection
       [dataSource]="sortedItems()"
       matSort
       [matSortActive]="sort().active"
@@ -102,7 +103,7 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns" [appSelectableRow]="row.id"></tr>
     </table>
 
     <div class="mobile-only mobile-cards">

@@ -9,15 +9,17 @@
     </button>
   </div>
   <p class="panel-hint">
-    Each trade below changed Stocks or Options but not Cash, so Portfolio Value is overstated or
-    understated by that amount. Use "Link cash" to record it.
+    Only trades recorded after monitoring began are listed (earlier known gaps are archived and
+    hidden). Each trade below changed Stocks or Options but not Cash, so Portfolio Value is
+    overstated or understated by that amount. Open "Why?" to see exactly what was checked, then use
+    "Link cash" to record it.
   </p>
 
   @if (cashState.unlinkedLoading() && cashState.unlinkedTrades().length === 0) {
     <div class="panel-empty">Checking…</div>
   } @else if (cashState.unlinkedTrades().length === 0) {
     <div class="panel-empty ok">
-      <mat-icon>check_circle</mat-icon> Every trade since the ledger start has a cash entry.
+      <mat-icon>check_circle</mat-icon> No new trades without a cash entry.
     </div>
   } @else {
     <ul class="leg-list">
@@ -37,8 +39,27 @@
               {{ isBuy(t) ? '−' : '+' }}{{ dv(t.amount) | currency: 'CAD' : 'symbol-narrow' }}
             }
           </div>
+          @if (t.diagnosis) {
+            <button mat-button (click)="toggle(t)" [attr.aria-expanded]="expanded().has(key(t))">
+              Why?
+            </button>
+          }
           @if (authState.canWrite()) {
             <button mat-stroked-button (click)="link(t)">Link cash</button>
+          }
+          @if (t.diagnosis && expanded().has(key(t))) {
+            <div class="why">
+              @if (demoMode.isDemoMode()) {
+                <p>Details are hidden in demo mode.</p>
+              } @else {
+                <p class="why-summary">{{ t.diagnosis.summary }}</p>
+                <ul>
+                  @for (d of t.diagnosis.details; track $index) {
+                    <li>{{ d }}</li>
+                  }
+                </ul>
+              }
+            </div>
           }
         </li>
       }

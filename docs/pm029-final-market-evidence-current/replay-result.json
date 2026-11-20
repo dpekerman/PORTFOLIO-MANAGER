@@ -1,0 +1,1068 @@
+{
+  "datasetKind": "VerifiedReal",
+  "scorerCommit": "ce6f990-api-working-tree-sha256-39a321a8401e2719cb1660362726b1f0d29ec7c005e0c4a4b52c649d7fa107f4",
+  "asOfUtc": "2026-11-15T20:34:32.4914643+00:00",
+  "uniqueListings": 3,
+  "scoredListings": 2,
+  "statusCounts": {
+    "NotEvaluated": 1,
+    "Provisional": 2
+  },
+  "rows": [
+    {
+      "listingId": "NPI.TO:TOR",
+      "symbol": "NPI.TO",
+      "score": {
+        "perspective": "Swing",
+        "scoringVersion": "pm029-v2",
+        "score": 59,
+        "normalizedScore": 59,
+        "awardedTotal": 47,
+        "availableMax": 58,
+        "completenessPct": 72.500,
+        "status": "Provisional",
+        "band": "Caution",
+        "components": [
+          {
+            "code": "S1",
+            "name": "Trend \u0026 Structure",
+            "max": 25,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 25,
+            "availableMax": 25,
+            "items": [
+              {
+                "code": "PriceAboveEma20",
+                "label": "Price \u003E EMA20",
+                "max": 7,
+                "points": 7,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Ema20AboveSma50",
+                "label": "EMA20 \u003E SMA50",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma50",
+                "label": "Price \u003E SMA50",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma200",
+                "label": "Price \u003E SMA200",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S2",
+            "name": "Relative Strength",
+            "max": 20,
+            "essential": false,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [],
+            "missingReasons": [
+              "SectorHeat:NotEvaluated"
+            ],
+            "note": null
+          },
+          {
+            "code": "S3",
+            "name": "RSI/MACD Momentum",
+            "max": 15,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 10,
+            "availableMax": 15,
+            "items": [
+              {
+                "code": "RsiZone",
+                "label": "RSI(14) zone",
+                "max": 6,
+                "points": 1,
+                "available": true,
+                "detail": "RSI 71.0"
+              },
+              {
+                "code": "RsiAboveSignal",
+                "label": "RSI \u003E RSI signal",
+                "max": 3,
+                "points": 3,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Macd",
+                "label": "MACD histogram",
+                "max": 6,
+                "points": 6,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S4",
+            "name": "Volume Confirmation",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 10,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "VolumeDirection",
+                "label": "Volume vs price direction",
+                "max": 8,
+                "points": 8,
+                "available": true,
+                "detail": "2.07\u00D7 avg, up day"
+              },
+              {
+                "code": "VolumeValidated",
+                "label": "Validated volume on up day",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S5",
+            "name": "Entry Quality",
+            "max": 10,
+            "essential": false,
+            "state": "Partial",
+            "awarded": 2,
+            "availableMax": 8,
+            "items": [
+              {
+                "code": "Extension",
+                "label": "Distance to EMA20 (ATR)",
+                "max": 6,
+                "points": 0,
+                "available": true,
+                "detail": "2.54 ATR"
+              },
+              {
+                "code": "ChaseRisk",
+                "label": "No elevated chase risk",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "FibZone",
+                "label": "Fibonacci zone",
+                "max": 2,
+                "points": 0,
+                "available": false,
+                "detail": "FibUnavailable"
+              }
+            ],
+            "missingReasons": [
+              "FibUnavailable"
+            ],
+            "note": null
+          }
+        ],
+        "reasonCodes": [
+          "SectorHeat:NotEvaluated"
+        ],
+        "scoreDenominatorMax": 80
+      },
+      "sector": null,
+      "setup": {
+        "kind": "Unavailable",
+        "entry": 23.860000610351562,
+        "stop": null,
+        "target": null,
+        "targetSource": null,
+        "rewardRisk": null,
+        "riskPct": null,
+        "rewardPct": null,
+        "stopDistanceAtr": null,
+        "currency": "CAD",
+        "reasonCodes": [
+          "NoValidStop",
+          "DynamicStopMissing"
+        ],
+        "isScorable": false
+      },
+      "packageIssueCodes": [
+        "BenchmarkEvidenceUnavailable"
+      ],
+      "strategic": {
+        "perspective": "Strategic",
+        "scoringVersion": "pm029-v1",
+        "score": null,
+        "normalizedScore": 84,
+        "awardedTotal": 52.0,
+        "availableMax": 62,
+        "completenessPct": 62,
+        "status": "Insufficient",
+        "band": "None",
+        "components": [
+          {
+            "code": "T1",
+            "name": "Long-Term Trend",
+            "max": 20,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 20,
+            "availableMax": 20,
+            "items": [
+              {
+                "code": "PriceAboveSma200",
+                "label": "Price \u003E SMA200",
+                "max": 8,
+                "points": 8,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Sma50AboveSma200",
+                "label": "SMA50 \u003E SMA200",
+                "max": 7,
+                "points": 7,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Sma200Deviation",
+                "label": "Distance above SMA200",
+                "max": 5,
+                "points": 5,
+                "available": true,
+                "detail": "\u002B8.5 %"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T2",
+            "name": "Relative Strength",
+            "max": 10,
+            "essential": false,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [],
+            "missingReasons": [
+              "SectorHeat60D:NotEvaluated"
+            ],
+            "note": null
+          },
+          {
+            "code": "T3",
+            "name": "Momentum",
+            "max": 5,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 5,
+            "availableMax": 5,
+            "items": [
+              {
+                "code": "MacdPositive",
+                "label": "MACD histogram \u003E 0",
+                "max": 3,
+                "points": 3,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "MomentumState",
+                "label": "Momentum state",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": "Accelerating"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T4",
+            "name": "Volume",
+            "max": 5,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 5,
+            "availableMax": 5,
+            "items": [
+              {
+                "code": "VolumeDirection",
+                "label": "Volume vs price direction",
+                "max": 5,
+                "points": 5,
+                "available": true,
+                "detail": "2.07\u00D7 avg"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T5",
+            "name": "Entry Timing",
+            "max": 10,
+            "essential": false,
+            "state": "Partial",
+            "awarded": 1,
+            "availableMax": 7,
+            "items": [
+              {
+                "code": "RsiZone",
+                "label": "RSI not extended",
+                "max": 4,
+                "points": 0,
+                "available": true,
+                "detail": "RSI 71.0"
+              },
+              {
+                "code": "Off52WHigh",
+                "label": "Price / 52-week high",
+                "max": 3,
+                "points": 1,
+                "available": true,
+                "detail": "0.98"
+              },
+              {
+                "code": "FibZone",
+                "label": "Fibonacci zone",
+                "max": 3,
+                "points": 0,
+                "available": false,
+                "detail": "FibUnavailable"
+              }
+            ],
+            "missingReasons": [
+              "FibUnavailable"
+            ],
+            "note": null
+          },
+          {
+            "code": "T6",
+            "name": "Downside Risk",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 6,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "Sma200Cushion",
+                "label": "Distance to SMA200 (ATR)",
+                "max": 5,
+                "points": 3,
+                "available": true,
+                "detail": "3.3 ATR"
+              },
+              {
+                "code": "AtrPct",
+                "label": "ATR % of price",
+                "max": 5,
+                "points": 3,
+                "available": true,
+                "detail": "2.36 %"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T7",
+            "name": "Valuation",
+            "max": 25,
+            "essential": true,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [
+              {
+                "code": "F1",
+                "label": "Earnings yield",
+                "max": 3,
+                "points": 0,
+                "available": false,
+                "detail": "F1Unavailable"
+              },
+              {
+                "code": "F2",
+                "label": "FCF yield",
+                "max": 2,
+                "points": 0,
+                "available": false,
+                "detail": "MarketCapEstimated"
+              },
+              {
+                "code": "F3",
+                "label": "Price / book",
+                "max": 1,
+                "points": 0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [
+              "FundamentalsInsufficientFactors"
+            ],
+            "note": null
+          },
+          {
+            "code": "T8",
+            "name": "Business Quality",
+            "max": 15,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 15.0,
+            "availableMax": 15,
+            "items": [
+              {
+                "code": "F4",
+                "label": "Fundamental health indicators (6; proxy-based)",
+                "max": 3,
+                "points": 3.0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "F5",
+                "label": "ROE",
+                "max": 1,
+                "points": 1.0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          }
+        ],
+        "reasonCodes": [
+          "MissingEssential:T7",
+          "FundamentalsInsufficientFactors",
+          "LowCompleteness",
+          "SectorHeat60D:NotEvaluated"
+        ],
+        "scoreDenominatorMax": null
+      },
+      "setupQuality": {
+        "status": "Unavailable",
+        "policyVersion": "pm029-setup-proposal-v1",
+        "policyApproved": false,
+        "currency": "CAD",
+        "entry": 23.860000610351562,
+        "proposedStop": null,
+        "support": 21.43000030517578,
+        "supportSession": "2026-10-15",
+        "atr": 0.5622,
+        "proposedTarget": null,
+        "targetSource": null,
+        "credibleTarget": null,
+        "resistance": 23.950000762939453,
+        "resistanceSession": "2026-04-28",
+        "marketRewardRisk": null,
+        "conservativeRewardRisk": null,
+        "expectedSession": "2026-11-13",
+        "evidenceAsOfUtc": "2026-11-15T20:34:32.4914643Z",
+        "reasonCodes": [
+          "NoValidStop",
+          "DynamicStopMissing",
+          "SetupPolicyApprovalRequired"
+        ]
+      }
+    },
+    {
+      "listingId": "NVDA:NMS",
+      "symbol": "NVDA",
+      "score": {
+        "perspective": "Swing",
+        "scoringVersion": "pm029-v2",
+        "score": 6,
+        "normalizedScore": 6,
+        "awardedTotal": 5,
+        "availableMax": 60,
+        "completenessPct": 75.00,
+        "status": "Provisional",
+        "band": "Weak",
+        "components": [
+          {
+            "code": "S1",
+            "name": "Trend \u0026 Structure",
+            "max": 25,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 25,
+            "items": [
+              {
+                "code": "PriceAboveEma20",
+                "label": "Price \u003E EMA20",
+                "max": 7,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Ema20AboveSma50",
+                "label": "EMA20 \u003E SMA50",
+                "max": 6,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma50",
+                "label": "Price \u003E SMA50",
+                "max": 6,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "PriceAboveSma200",
+                "label": "Price \u003E SMA200",
+                "max": 6,
+                "points": 0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S2",
+            "name": "Relative Strength",
+            "max": 20,
+            "essential": false,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [],
+            "missingReasons": [
+              "SectorHeat:NotEvaluated"
+            ],
+            "note": null
+          },
+          {
+            "code": "S3",
+            "name": "RSI/MACD Momentum",
+            "max": 15,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 2,
+            "availableMax": 15,
+            "items": [
+              {
+                "code": "RsiZone",
+                "label": "RSI(14) zone",
+                "max": 6,
+                "points": 0,
+                "available": true,
+                "detail": "RSI 24.9"
+              },
+              {
+                "code": "RsiAboveSignal",
+                "label": "RSI \u003E RSI signal",
+                "max": 3,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Macd",
+                "label": "MACD histogram",
+                "max": 6,
+                "points": 2,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S4",
+            "name": "Volume Confirmation",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "VolumeDirection",
+                "label": "Volume vs price direction",
+                "max": 8,
+                "points": 0,
+                "available": true,
+                "detail": "1.85\u00D7 avg, down day"
+              },
+              {
+                "code": "VolumeValidated",
+                "label": "Validated volume on up day",
+                "max": 2,
+                "points": 0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "S5",
+            "name": "Entry Quality",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 3,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "Extension",
+                "label": "Distance to EMA20 (ATR)",
+                "max": 6,
+                "points": 1,
+                "available": true,
+                "detail": "-3.05 ATR"
+              },
+              {
+                "code": "ChaseRisk",
+                "label": "No elevated chase risk",
+                "max": 2,
+                "points": 2,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "FibZone",
+                "label": "Fibonacci zone",
+                "max": 2,
+                "points": 0,
+                "available": true,
+                "detail": "Trend Damage"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          }
+        ],
+        "reasonCodes": [
+          "SectorHeat:NotEvaluated"
+        ],
+        "scoreDenominatorMax": 80
+      },
+      "sector": null,
+      "setup": {
+        "kind": "Unavailable",
+        "entry": 162.85000610351562,
+        "stop": null,
+        "target": null,
+        "targetSource": null,
+        "rewardRisk": null,
+        "riskPct": null,
+        "rewardPct": null,
+        "stopDistanceAtr": null,
+        "currency": "USD",
+        "reasonCodes": [
+          "NoValidStop",
+          "DynamicStopMissing"
+        ],
+        "isScorable": false
+      },
+      "packageIssueCodes": [
+        "BenchmarkEvidenceUnavailable"
+      ],
+      "strategic": {
+        "perspective": "Strategic",
+        "scoringVersion": "pm029-v1",
+        "score": 27,
+        "normalizedScore": 27,
+        "awardedTotal": 24.0,
+        "availableMax": 90,
+        "completenessPct": 90,
+        "status": "Provisional",
+        "band": "Weak",
+        "components": [
+          {
+            "code": "T1",
+            "name": "Long-Term Trend",
+            "max": 20,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 7,
+            "availableMax": 20,
+            "items": [
+              {
+                "code": "PriceAboveSma200",
+                "label": "Price \u003E SMA200",
+                "max": 8,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Sma50AboveSma200",
+                "label": "SMA50 \u003E SMA200",
+                "max": 7,
+                "points": 7,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "Sma200Deviation",
+                "label": "Distance above SMA200",
+                "max": 5,
+                "points": 0,
+                "available": true,
+                "detail": "-20.3 %"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T2",
+            "name": "Relative Strength",
+            "max": 10,
+            "essential": false,
+            "state": "Missing",
+            "awarded": 0,
+            "availableMax": 0,
+            "items": [],
+            "missingReasons": [
+              "SectorHeat60D:NotEvaluated"
+            ],
+            "note": null
+          },
+          {
+            "code": "T3",
+            "name": "Momentum",
+            "max": 5,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 5,
+            "items": [
+              {
+                "code": "MacdPositive",
+                "label": "MACD histogram \u003E 0",
+                "max": 3,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "MomentumState",
+                "label": "Momentum state",
+                "max": 2,
+                "points": 0,
+                "available": true,
+                "detail": "Declining"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T4",
+            "name": "Volume",
+            "max": 5,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 5,
+            "items": [
+              {
+                "code": "VolumeDirection",
+                "label": "Volume vs price direction",
+                "max": 5,
+                "points": 0,
+                "available": true,
+                "detail": "1.85\u00D7 avg"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T5",
+            "name": "Entry Timing",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 2,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "RsiZone",
+                "label": "RSI not extended",
+                "max": 4,
+                "points": 0,
+                "available": true,
+                "detail": "RSI 24.9"
+              },
+              {
+                "code": "Off52WHigh",
+                "label": "Price / 52-week high",
+                "max": 3,
+                "points": 2,
+                "available": true,
+                "detail": "0.67"
+              },
+              {
+                "code": "FibZone",
+                "label": "Fibonacci zone",
+                "max": 3,
+                "points": 0,
+                "available": true,
+                "detail": "Trend Damage"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T6",
+            "name": "Downside Risk",
+            "max": 10,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 10,
+            "items": [
+              {
+                "code": "Sma200Cushion",
+                "label": "Distance to SMA200 (ATR)",
+                "max": 5,
+                "points": 0,
+                "available": true,
+                "detail": "-4.1 ATR"
+              },
+              {
+                "code": "AtrPct",
+                "label": "ATR % of price",
+                "max": 5,
+                "points": 0,
+                "available": true,
+                "detail": "6.13 %"
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T7",
+            "name": "Valuation",
+            "max": 25,
+            "essential": true,
+            "state": "Observed",
+            "awarded": 0,
+            "availableMax": 25,
+            "items": [
+              {
+                "code": "F1",
+                "label": "Earnings yield (TrailingPE)",
+                "max": 3,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "F2",
+                "label": "FCF yield (FCF)",
+                "max": 2,
+                "points": 0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "F3",
+                "label": "Price / book",
+                "max": 1,
+                "points": 0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          },
+          {
+            "code": "T8",
+            "name": "Business Quality",
+            "max": 15,
+            "essential": false,
+            "state": "Observed",
+            "awarded": 15.0,
+            "availableMax": 15,
+            "items": [
+              {
+                "code": "F4",
+                "label": "Fundamental health indicators (6; proxy-based)",
+                "max": 3,
+                "points": 3.0,
+                "available": true,
+                "detail": null
+              },
+              {
+                "code": "F5",
+                "label": "ROE",
+                "max": 1,
+                "points": 1.0,
+                "available": true,
+                "detail": null
+              }
+            ],
+            "missingReasons": [],
+            "note": null
+          }
+        ],
+        "reasonCodes": [
+          "SectorHeat60D:NotEvaluated"
+        ],
+        "scoreDenominatorMax": null
+      },
+      "setupQuality": {
+        "status": "Unavailable",
+        "policyVersion": "pm029-setup-proposal-v1",
+        "policyApproved": false,
+        "currency": "USD",
+        "entry": 162.85000610351562,
+        "proposedStop": null,
+        "support": null,
+        "supportSession": null,
+        "atr": 9.9812,
+        "proposedTarget": null,
+        "targetSource": null,
+        "credibleTarget": null,
+        "resistance": null,
+        "resistanceSession": null,
+        "marketRewardRisk": null,
+        "conservativeRewardRisk": null,
+        "expectedSession": "2026-11-13",
+        "evidenceAsOfUtc": "2026-11-15T20:34:32.4914643Z",
+        "reasonCodes": [
+          "StructuralSessionGap",
+          "ConfirmedSupportUnavailable",
+          "ConfirmedResistanceUnavailable",
+          "NoValidStop",
+          "DynamicStopMissing",
+          "SetupPolicyApprovalRequired"
+        ]
+      }
+    },
+    {
+      "listingId": "SMH:NGM",
+      "symbol": "SMH",
+      "score": {
+        "perspective": "Swing",
+        "scoringVersion": "pm029-v2",
+        "score": null,
+        "normalizedScore": null,
+        "awardedTotal": 0,
+        "availableMax": 0,
+        "completenessPct": 0,
+        "status": "NotEvaluated",
+        "band": "None",
+        "components": [],
+        "reasonCodes": [
+          "EtfScoringDeferred"
+        ],
+        "scoreDenominatorMax": 80
+      },
+      "sector": null,
+      "setup": {
+        "kind": "Unavailable",
+        "entry": 486.75,
+        "stop": null,
+        "target": null,
+        "targetSource": null,
+        "rewardRisk": null,
+        "riskPct": null,
+        "rewardPct": null,
+        "stopDistanceAtr": null,
+        "currency": "USD",
+        "reasonCodes": [
+          "NoValidStop",
+          "DynamicStopMissing"
+        ],
+        "isScorable": false
+      },
+      "packageIssueCodes": [
+        "BenchmarkEvidenceUnavailable"
+      ],
+      "strategic": {
+        "perspective": "Strategic",
+        "scoringVersion": "pm029-v1",
+        "score": null,
+        "normalizedScore": null,
+        "awardedTotal": 0,
+        "availableMax": 0,
+        "completenessPct": 0,
+        "status": "NotEvaluated",
+        "band": "None",
+        "components": [],
+        "reasonCodes": [
+          "EtfScoringDeferred"
+        ],
+        "scoreDenominatorMax": null
+      },
+      "setupQuality": {
+        "status": "Unavailable",
+        "policyVersion": "pm029-setup-proposal-v1",
+        "policyApproved": false,
+        "currency": "USD",
+        "entry": 486.75,
+        "proposedStop": null,
+        "support": null,
+        "supportSession": null,
+        "atr": 24.2164,
+        "proposedTarget": null,
+        "targetSource": null,
+        "credibleTarget": null,
+        "resistance": null,
+        "resistanceSession": null,
+        "marketRewardRisk": null,
+        "conservativeRewardRisk": null,
+        "expectedSession": "2026-11-13",
+        "evidenceAsOfUtc": "2026-11-15T20:34:32.4914643Z",
+        "reasonCodes": [
+          "StructuralSessionGap",
+          "ConfirmedSupportUnavailable",
+          "ConfirmedResistanceUnavailable",
+          "NoValidStop",
+          "DynamicStopMissing",
+          "SetupPolicyApprovalRequired"
+        ]
+      }
+    }
+  ]
+}

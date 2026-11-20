@@ -42,7 +42,7 @@ public sealed class TradingSessionGuardTests
         var todayEt = TodayEtDate();
         var guard = new TradingSessionGuard(new StubMarketData(todayEt), NullLogger<TradingSessionGuard>.Instance);
 
-        (await guard.IsTodayATradingDayAsync()).Should().BeTrue();
+        (await guard.IsTodayATradingDayAsync()).Should().Be(!IsWeekendEt());
     }
 
     [Fact]
@@ -61,8 +61,11 @@ public sealed class TradingSessionGuardTests
     {
         var guard = new TradingSessionGuard(new StubMarketData(bar: null), NullLogger<TradingSessionGuard>.Instance);
 
-        (await guard.IsTodayATradingDayAsync()).Should().BeTrue();
+        // Fails open on weekdays, but a weekend is never a trading day even without data.
+        (await guard.IsTodayATradingDayAsync()).Should().Be(!IsWeekendEt());
     }
+
+    private static bool IsWeekendEt() => TodayEtDate().DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
 
     private static DateOnly TodayEtDate()
     {

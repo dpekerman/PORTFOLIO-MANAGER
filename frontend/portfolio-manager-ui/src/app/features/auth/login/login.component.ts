@@ -8,7 +8,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from '@angular/router';
 import { AuthApiService } from '../../../core/services/auth-api.service';
-import { AuthStateService } from '../../../core/services/auth-state.service';
+import { AuthStore } from '../../../core/store/auth.store';
 
 @Component({
   selector: 'app-login',
@@ -27,7 +27,7 @@ import { AuthStateService } from '../../../core/services/auth-state.service';
 })
 export class LoginComponent {
   private readonly authApi = inject(AuthApiService);
-  private readonly authState = inject(AuthStateService);
+  private readonly authState = inject(AuthStore);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
 

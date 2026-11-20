@@ -1,0 +1,205 @@
+@use 'sass:color';
+
+// Severity and status chips shared by every Swing Trading tab (no ::ng-deep, Material system tokens only).
+.st-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+// Frozen identity columns (CDK computes the left offsets from `sticky` on the column def; mirrors Watchlist .wl-sticky-col).
+.st-sticky-col {
+  background: var(--bg-surface);
+
+  &.mat-mdc-cell {
+    z-index: 2;
+  }
+
+  &.mat-mdc-header-cell {
+    z-index: 3;
+  }
+
+  &.st-sticky-last {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    box-shadow: 1px 0 0 var(--mat-sys-outline-variant);
+  }
+}
+
+.sev-critical {
+  color: var(--mat-sys-error);
+  font-weight: 700;
+}
+
+.sev-high {
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.sev-medium {
+  color: #b26a00;
+}
+
+.sev-low,
+.sev-none {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.st-warn {
+  color: #b26a00;
+}
+
+.st-pos {
+  color: #1b7f3a;
+}
+
+.st-neg {
+  color: var(--mat-sys-error);
+}
+
+.st-dim {
+  opacity: 0.65;
+}
+
+.st-price {
+  &:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+}
+
+.st-sub {
+  display: block;
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.st-cell-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.st-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.st-empty {
+  padding: 24px 8px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.st-table-wrapper {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.st-status-stack,
+.st-status-chips {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
+}
+
+.st-status-stack .st-chip {
+  box-sizing: border-box;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 600px) {
+  .st-table.mat-mdc-table {
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .st-table {
+    td,
+    th {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    .mat-column-thesis,
+    .mat-column-notes {
+      text-align: left;
+      overflow-wrap: anywhere;
+    }
+
+    th,
+    .mat-column-symbol,
+    .mat-column-openDate,
+    .mat-column-closeDate,
+    .mat-column-asOf,
+    .mat-column-actions {
+      white-space: nowrap;
+    }
+
+    .mat-column-protection,
+    .mat-column-risk,
+    .mat-column-severity {
+      min-width: 160px;
+    }
+  }
+
+  .st-status-stack .st-chip {
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 599.98px) {
+  .st-cell-value {
+    align-items: flex-end;
+  }
+
+  .st-status-stack,
+  .st-status-chips {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .st-toolbar button,
+  .st-row-btn {
+    min-height: 44px;
+  }
+}
+
+.st-row-btn {
+  margin: 2px 4px;
+}
+
+// Compact grid action: shorter and narrower on desktop; handsets keep the 44px touch target above.
+@media (min-width: 600px) {
+  .st-row-btn.mat-mdc-button-base {
+    --mdc-text-button-container-height: 28px;
+    --mdc-filled-button-container-height: 28px;
+    --mdc-outlined-button-container-height: 28px;
+    --mat-button-text-container-height: 28px;
+    --mat-button-filled-container-height: 28px;
+    --mat-button-outlined-container-height: 28px;
+    --mat-button-filled-horizontal-padding: 8px;
+    --mat-button-outlined-horizontal-padding: 8px;
+    --mat-button-text-horizontal-padding: 8px;
+    font-size: 0.78rem;
+    letter-spacing: normal;
+  }
+}

@@ -17,6 +17,8 @@
         <mat-icon>add</mat-icon>
       </button>
     </div>
+    <details class="app-filter-panel">
+      <summary>Filters @if (selectedSignal()) { <span class="app-filter-state">{{ selectedSignal() }}</span> }</summary>
     <div class="ml-counters" aria-label="Filter market leadership signals">
       @for (
         counter of [
@@ -38,6 +40,7 @@
         </button>
       }
     </div>
+    </details>
   </div>
   @if (trackerState.error(); as error) {
     <p class="ml-error">{{ error }}</p>

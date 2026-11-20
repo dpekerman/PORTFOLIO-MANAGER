@@ -15,7 +15,7 @@ import {
   MarketLeadershipTrackerType,
   SymbolSearchResult,
 } from '../../../core/models/portfolio.models';
-import { MarketLeadershipStateService } from '../../../core/services/market-leadership-state.service';
+import { MarketLeadershipStore } from '../../../core/store/market-leadership.store';
 import { PortfolioApiService } from '../../../core/services/portfolio-api.service';
 
 export interface MarketTrackerDialogData {
@@ -42,7 +42,7 @@ export interface MarketTrackerDialogData {
 export class AddMarketTrackerDialogComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly portfolioApi = inject(PortfolioApiService);
-  protected readonly state = inject(MarketLeadershipStateService);
+  protected readonly state = inject(MarketLeadershipStore);
   protected readonly data =
     inject<MarketTrackerDialogData>(MAT_DIALOG_DATA, { optional: true }) ?? {};
   private readonly dialogRef = inject(MatDialogRef<AddMarketTrackerDialogComponent>);

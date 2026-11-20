@@ -15,9 +15,19 @@ public class StocksController(
     IPortfolioService portfolioService,
     IPortfolioSnapshotService portfolioSnapshot,
     IDashboardService dashboard,
-    ISecurityAnalysisResolver analysisResolver) : ControllerBase
+    ISecurityAnalysisResolver analysisResolver,
+    IPeriodChangeService periodChanges) : ControllerBase
 {
     private string CurrentUserId() => User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
+
+    /// <summary>5-trading-day and 1-month change % (from Yahoo daily closes) for arbitrary symbols. Max 100 per call.</summary>
+    [HttpPost("period-changes")]
+    public async Task<ActionResult<IReadOnlyList<PeriodChangeDto>>> GetPeriodChanges(
+        [FromBody] IReadOnlyList<string> symbols, CancellationToken ct)
+    {
+        if (symbols is null || symbols.Count == 0) return Ok(Array.Empty<PeriodChangeDto>());
+        return Ok(await periodChanges.GetChangesAsync(symbols, ct));
+    }
 
     /// <summary>Returns the latest persisted portfolio snapshot from DB — no Yahoo Finance call. 204 when no snapshot exists yet.</summary>
     [HttpGet("quotes/snapshot")]

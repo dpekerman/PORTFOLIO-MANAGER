@@ -1,0 +1,20 @@
+.picker-intro {
+  margin: 0 0 12px;
+}
+
+.picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.picker-btn {
+  width: 100%;
+}
+
+.picker-btn span + span::before {
+  content: '·';
+  margin: 0 8px;
+}

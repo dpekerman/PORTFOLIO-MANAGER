@@ -50,11 +50,25 @@ export class NotificationApiService {
     );
   }
 
+  sendScoreAlertTest(): Observable<TestEmailResult> {
+    return this.http.post<TestEmailResult>(`${this.base}/score-alert-test`, {});
+  }
+
   scanAndNotifyNow(): Observable<ScanNowResult> {
     return this.http.post<ScanNowResult>(`${this.base}/scan-now`, {});
   }
 
   getStatus(): Observable<NotificationStatus> {
     return this.http.get<NotificationStatus>(`${this.base}/status`);
+  }
+
+  sendScoreAlert(
+    threshold: number,
+    symbols: string[],
+  ): Observable<{ sent: boolean; symbols: string[]; reason?: string }> {
+    return this.http.post<{ sent: boolean; symbols: string[]; reason?: string }>(
+      `${this.base}/score-alert`,
+      { threshold, symbols },
+    );
   }
 }

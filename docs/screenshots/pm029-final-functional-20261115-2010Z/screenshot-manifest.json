@@ -1,0 +1,402 @@
+{
+  "generatedUtc": "2026-11-15T20:29:23.092Z",
+  "branch": "feature/pm-029-final-functional-implementation",
+  "baseCommit": "ce6f990c3d43b2ec7eb86873619c381fc76335f0",
+  "test": "final functional changes preserve inactive quality, names, sorting and fund context",
+  "retries": 0,
+  "count": 28,
+  "images": [
+    {
+      "file": "SYNTHETIC-desktop-chrome-01-inactive-swing.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:48.672Z",
+      "sha256": "21abd97652a774355a4be89a2f3621aa03f7841352a25f623422bda027167c8e",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-02-inactive-details.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:50.638Z",
+      "sha256": "33f96b5f604da1bbdf6c7477ab065c2769d7e5b8446834e4d20ccb32042d21c4",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-03-proposed-policy-simulation.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:55.619Z",
+      "sha256": "82661d651097cd0d51722bc5fec61eac15525680b81a071f31b4adf6e0f87aea",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-03a-proposed-qualities-grid.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:53.775Z",
+      "sha256": "0ba59d3d12942b3a0f6a9656e34395b69249f14e1a5fdea4c27a16429ec9c331",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-03b-setup-evidence-bottom.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:57.384Z",
+      "sha256": "82661d651097cd0d51722bc5fec61eac15525680b81a071f31b4adf6e0f87aea",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-04-fund-deferral.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:25:59.433Z",
+      "sha256": "938aab3ae70e626740b0d907fd3e2e168d2c7a5265cb012badf293c3fda478a3",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-desktop-chrome-05-strategic-default.png",
+      "project": "desktop-chrome",
+      "viewportCssPixels": {
+        "width": 1920,
+        "height": 1080,
+        "deviceScaleFactor": 1
+      },
+      "widthPixels": 1920,
+      "heightPixels": 1080,
+      "captureUtc": "2026-11-15T20:26:01.197Z",
+      "sha256": "2ee1a9eb09eec1ab95a92878a5d5b3f2ef7ab37be024f8d53635b72c760d3832",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-01-inactive-swing.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:05.959Z",
+      "sha256": "47337b52eb59d42a28df86e535df117ce0bd49d1b76b9f075bea199ecbaf0caa",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-02-inactive-details.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:08.012Z",
+      "sha256": "f67f118aecb29c699f4f6c6f62247362434f6ca4463bab9e020d042d5e6470e3",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-03-proposed-policy-simulation.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:13.513Z",
+      "sha256": "2d99a388fbb58c505ab78698a240f4e5795125bca6a3b0ee272967e957bd9a03",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-03a-proposed-qualities-grid.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:11.345Z",
+      "sha256": "aaaa8edb86e76bd0d1eba1ea6bffe9964a720a6bbc1e3b58f53c5783b854e4e9",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-03b-setup-evidence-bottom.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:15.378Z",
+      "sha256": "f0112d9ee6a4d11bc897856d0ed3925c94cea5766855e242571ddbfabb4503b6",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-04-fund-deferral.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:17.687Z",
+      "sha256": "f9e4bfe55615f39634a454fb2dd4229254d890f084aa577e85e3ea1da21ac86d",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s21-05-strategic-default.png",
+      "project": "mobile-s21",
+      "viewportCssPixels": {
+        "width": 384,
+        "height": 854,
+        "deviceScaleFactor": 3.75
+      },
+      "widthPixels": 1440,
+      "heightPixels": 3203,
+      "captureUtc": "2026-11-15T20:26:19.622Z",
+      "sha256": "fcb5415e5efca38d32de6bf999a2bfd03d90cf898cce75236aa23e5268571664",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-01-inactive-swing.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:06.606Z",
+      "sha256": "cc498723e81042edeca43a2fdfe1f255147b03ae77763749433e822ae839bca6",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-02-inactive-details.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:08.489Z",
+      "sha256": "b76a767935fd4858c5939c05a0c64ea0661a9bad653c4a5f315f025a07a4b1a1",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-03-proposed-policy-simulation.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:13.837Z",
+      "sha256": "44435a60353e4e26e9126ee3da4d30bc623a672ed9cfa6350c09f19a4e3a8d00",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-03a-proposed-qualities-grid.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:11.845Z",
+      "sha256": "b826303e86aadc289f4a0f35f2c9c568823aac079890399a43bd4926c6486250",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-03b-setup-evidence-bottom.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:15.638Z",
+      "sha256": "ba3dfa53d70fe7c94f1c8c5b84d09797afd7232fdebe58d13809a171fea71c33",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-04-fund-deferral.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:17.935Z",
+      "sha256": "f863cc3ad9aa8bc134c8359dea56e9bf927bdd1a54f9e1fd3467041e3947d4f6",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-mobile-s23-05-strategic-default.png",
+      "project": "mobile-s23",
+      "viewportCssPixels": {
+        "width": 360,
+        "height": 780,
+        "deviceScaleFactor": 3
+      },
+      "widthPixels": 1080,
+      "heightPixels": 2340,
+      "captureUtc": "2026-11-15T20:26:19.772Z",
+      "sha256": "88dae0f4c07a1c85878117241d0ade4be6479db805826088d1f6bbf9e1c19535",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-01-inactive-swing.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:25:48.777Z",
+      "sha256": "fa84e01bd71b6f8322a12a672d28f8a32d0835bdbdc0e5eb169b7c2e7c577071",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-02-inactive-details.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:25:50.800Z",
+      "sha256": "7603a3e45583227bc2777f7a3a1ffa15bff06499b6e1b586eb5e43477e7fafa5",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-03-proposed-policy-simulation.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:25:56.234Z",
+      "sha256": "04a2d7e0eb643acdb90ad31c7e8b44ba2c2784b552aa65d14baf86c2d25f02d5",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-03a-proposed-qualities-grid.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:25:54.180Z",
+      "sha256": "3658784e45f3bccf29452e8e7d26df12c7001e5ba8fa9a7a163f59a3e6340be8",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-03b-setup-evidence-bottom.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:25:58.083Z",
+      "sha256": "04a2d7e0eb643acdb90ad31c7e8b44ba2c2784b552aa65d14baf86c2d25f02d5",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-04-fund-deferral.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:26:00.215Z",
+      "sha256": "81ec52b8b94bc6a57af01e60bb400027a2372ce388ee3d58fb52d254f0c619a2",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    },
+    {
+      "file": "SYNTHETIC-tablet-05-strategic-default.png",
+      "project": "tablet",
+      "viewportCssPixels": {
+        "width": 800,
+        "height": 1280,
+        "deviceScaleFactor": 2
+      },
+      "widthPixels": 1600,
+      "heightPixels": 2560,
+      "captureUtc": "2026-11-15T20:26:02.043Z",
+      "sha256": "a6aef5838c8a774d608244c8abddf01989126c3780a2dc59600fbc98e86f5880",
+      "provenance": "Synthetic mocked API; proposed grades simulate approval; not production UAT"
+    }
+  ]
+}

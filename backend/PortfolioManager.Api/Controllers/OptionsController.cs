@@ -8,7 +8,7 @@ namespace PortfolioManager.Api.Controllers;
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class OptionsController(IOptionService optionService) : ControllerBase
+public class OptionsController(IOptionService optionService, IAuditService audit) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<OptionItemDto>>> GetAll(CancellationToken ct)
@@ -78,6 +78,7 @@ public class OptionsController(IOptionService optionService) : ControllerBase
     public async Task<IActionResult> Restore([FromBody] RestoreOptionsRequest request, CancellationToken ct)
     {
         var count = await optionService.RestoreAsync(request.Items, ct);
+        await audit.LogAsync(AuditCategories.Option, AuditActions.Restore, $"Restored {count} option positions from backup", nameof(OptionItem), ct: ct);
         return Ok(new { restored = count });
     }
 }

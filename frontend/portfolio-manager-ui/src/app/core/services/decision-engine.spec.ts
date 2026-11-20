@@ -137,6 +137,55 @@ describe('canonical watchlist entry status', () => {
       expect(decision.finalAction).toBe('WAIT FOR RECLAIM');
     },
   );
+
+  describe('gap handling (PM-024)', () => {
+    it('structural damage outranks a holding gap-up: never Wait for Pullback', () => {
+      const decision = evaluateWatchlistEntry(
+        context({
+          trendDamage: true,
+          maStructure: '200 > 50 > P',
+          momentumState: 'Neutral',
+          buyScore: 3,
+          gapChase: true,
+        }),
+      );
+
+      expect(decision.finalAction).toBe('WAIT FOR RECLAIM');
+      expect(decision.finalActionReason).not.toContain('extended');
+    });
+
+    it('a failed gap is not an extension and confirms no entry', () => {
+      const decision = evaluateWatchlistEntry(
+        context({
+          role: 'Strategic',
+          priceStructure: level('SUPPORT_TEST'),
+          momentumState: 'Positive',
+          buyScore: 4,
+          maStructure: 'P > 50 > 200',
+          gapFailed: true,
+        }),
+      );
+
+      expect(decision.finalAction).toBe('WAIT FOR PULLBACK');
+      expect(decision.finalActionReason).not.toContain('extended');
+    });
+
+    it('a holding gap-up on an undamaged trend waits for a pullback and names the gap', () => {
+      const decision = evaluateWatchlistEntry(
+        context({ momentumState: 'Positive', buyScore: 4, gapChase: true }),
+      );
+
+      expect(decision.finalAction).toBe('WAIT FOR PULLBACK');
+      expect(decision.finalActionReason).toContain('gap is holding');
+    });
+
+    it('a genuinely extended trend keeps the trend wording', () => {
+      const decision = evaluateWatchlistEntry(context({ trendSetup: 'Constructive Extended' }));
+
+      expect(decision.finalAction).toBe('WAIT FOR PULLBACK');
+      expect(decision.finalActionReason).toContain('extended');
+    });
+  });
 });
 
 function context(overrides: Partial<WatchlistEntryContext>): WatchlistEntryContext {

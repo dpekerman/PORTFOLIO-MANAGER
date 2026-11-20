@@ -1,0 +1,19 @@
+{
+  "datasetKind": "Synthetic",
+  "scorerCommit": "dc2260b2926200d42ebff9d68cf60468afcce778",
+  "asOfUtc": "2026-11-15T16:00:00Z",
+  "expectedUniqueListings": 1,
+  "listings": [
+    {
+      "listingId": "listing:synthetic", "symbol": "SYNTHETIC", "listingExchange": "NYSE", "listingCurrency": "USD",
+      "expectedSession": "2026-11-13",
+      "scanJson": "{\"symbol\":\"SYNTHETIC\",\"analysisTicker\":\"SYNTHETIC\",\"analysisMarket\":\"US\",\"analysisCurrency\":\"USD\",\"usesUnderlyingSecurity\":false,\"tradingDate\":\"2026-11-13\",\"scannedAt\":\"2026-11-13T21:05:00Z\",\"currentPrice\":100,\"rsi\":55,\"rsiSignal\":50,\"rsiSignalAvailable\":true,\"macdHistogram\":1,\"macdHistDelta\":0.1,\"ema20Price\":99,\"sma50Price\":90,\"sma200\":80,\"has200Dma\":true,\"volume\":10000,\"volumeRatio\":1.5,\"volumeSignal\":\"Validated\",\"changePercent\":1,\"dailyAtr\":2,\"priceStructure\":{\"label\":\"None\",\"primaryPatternState\":\"NONE\",\"keyLevelState\":\"NONE\",\"calculatedAt\":\"2026-11-13T21:00:00Z\"},\"chaseRisk\":\"\",\"fibZone\":\"Normal Pullback\",\"dynamicStopLoss\":0}",
+      "scanSource": "Synthetic complete scanner fixture",
+      "evidenceAvailableAtUtc": "2026-11-13T21:05:00Z",
+      "benchmark": null, "benchmarkVerified": false, "mappingSource": null, "mappingAvailableAtUtc": null,
+      "historySource": null, "historyAvailableAtUtc": null, "analysisHistory": [], "benchmarkHistory": [],
+      "listingIdentitySource": "Synthetic verified listing",
+      "identityAvailableAtUtc": "2026-11-13T21:00:00Z"
+    }
+  ]
+}

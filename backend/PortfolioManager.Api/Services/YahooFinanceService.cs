@@ -136,6 +136,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
             {
                 Symbol        = symbol.ToUpperInvariant(),
                 CompanyName   = m.LongName ?? m.ShortName ?? symbol,
+                InstrumentType = m.InstrumentType,
+                Currency = m.Currency,
                 CurrentPrice  = price,
                 Change        = Math.Round(change, 2),
                 ChangePercent = Math.Round(changePct, 2),
@@ -143,7 +145,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                 LowPrice      = m.RegularMarketDayLow,
                 OpenPrice     = m.RegularMarketOpen,
                 PreviousClose = prev,
-                Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
+                Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                SourcePriceTimestamp = m.RegularMarketTime
             };
         }
         catch (Exception ex)
@@ -165,7 +168,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
             var chart = JsonSerializer.Deserialize<YahooChartResponse>(json, _json)
                 ?.Chart?.Result?.FirstOrDefault();
             var quote = chart?.Indicators?.Quote?.FirstOrDefault();
-            if (quote is null || chart?.Timestamp is null) return null;
+            if (quote is null || chart?.Timestamp is null
+                || !string.Equals(chart.Meta?.Symbol, symbol, StringComparison.OrdinalIgnoreCase)) return null;
 
             return quote.Close
                 .Select((close, index) => new { Close = close, Index = index })
@@ -177,7 +181,9 @@ public sealed class YahooFinanceService : IMarketDataProvider
                     quote.Open[item.Index] ?? item.Close.Value,
                     quote.High[item.Index] ?? item.Close.Value,
                     quote.Low[item.Index] ?? item.Close.Value,
-                    item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L))
+                    item.Index < quote.Volume.Count ? quote.Volume[item.Index] ?? 0L : 0L,
+                    quote.Open[item.Index].HasValue && quote.High[item.Index].HasValue && quote.Low[item.Index].HasValue,
+                    chart.Meta?.Currency))
                 .ToList();
         }
         catch (Exception ex)
@@ -204,9 +210,10 @@ public sealed class YahooFinanceService : IMarketDataProvider
                 var url  = $"v7/finance/quote?symbols={joined}" +
                            "&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent," +
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
-                           "regularMarketPreviousClose,regularMarketVolume," +
-                           "longName,shortName,sector,industry,quoteType,marketState," +
-                           "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield";
+                           "regularMarketPreviousClose,regularMarketVolume,regularMarketTime," +
+                           "longName,shortName,sector,industry,quoteType,marketState,currency,marketCap," +
+                           "fiftyTwoWeekHigh,fiftyTwoWeekLow,targetMeanPrice,trailingPE,forwardPE,priceToBook,trailingAnnualDividendYield," +
+                           "dividendRate,dividendYield,dividendDate";
 
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode)
@@ -347,10 +354,16 @@ public sealed class YahooFinanceService : IMarketDataProvider
         if (string.IsNullOrWhiteSpace(sector) && q.QuoteType is not null)
             QuoteTypeSectorMap.TryGetValue(q.QuoteType, out sector!);
 
+        var currency = string.IsNullOrWhiteSpace(q.Currency) ? null : q.Currency.Trim().ToUpperInvariant();
+        // Only a live regular-market price can be compared with the yield; a previous-close fallback may be stale.
+        var forward = ForwardDividendCalculator.Evaluate(q.DividendRate, q.DividendYieldPct, q.RegularMarketPrice, q.DividendDate,
+            DateTime.UtcNow, currency);
+
         return new StockQuote
         {
             Symbol        = q.Symbol,
             CompanyName   = q.LongName ?? q.ShortName ?? q.Symbol,
+            InstrumentType = q.QuoteType,
             CurrentPrice  = price,
             Change        = Math.Round(change, 2),
             ChangePercent = Math.Round(changePct, 2),
@@ -361,7 +374,9 @@ public sealed class YahooFinanceService : IMarketDataProvider
             Sector        = sector ?? "",
             Industry      = q.Industry ?? "",
             MarketState   = q.MarketState ?? "",
+            Currency      = string.IsNullOrWhiteSpace(q.Currency) ? null : q.Currency.Trim().ToUpperInvariant(),
             Timestamp     = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            SourcePriceTimestamp = q.RegularMarketTime,
             Week52High    = q.FiftyTwoWeekHigh,
             Week52Low     = q.FiftyTwoWeekLow,
             TargetMeanPrice = q.TargetMeanPrice,
@@ -369,7 +384,12 @@ public sealed class YahooFinanceService : IMarketDataProvider
             ForwardPE     = q.ForwardPE,
             PriceToBook   = q.PriceToBook,
             DividendYield = q.TrailingAnnualDividendYield,
-            MarketCap     = q.MarketCap ?? 0L
+            MarketCap     = q.MarketCap ?? 0L,
+            ForwardDividendPerShare = forward.PerShare,
+            ForwardYieldPct         = forward.YieldPct,
+            DividendStatus          = forward.Status,
+            DividendDateUtc         = forward.DividendDateUtc,
+            DividendSource          = forward.Status == DividendStatuses.Missing ? null : forward.Source,
         };
     }
 
@@ -397,7 +417,8 @@ public sealed class YahooFinanceService : IMarketDataProvider
                            "&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent," +
                            "regularMarketDayHigh,regularMarketDayLow,regularMarketOpen," +
                            "regularMarketPreviousClose,regularMarketVolume," +
-                           "longName,shortName,sector,industry,quoteType,marketState";
+                           "longName,shortName,sector,industry,quoteType,marketState,currency,marketCap," +
+                           "trailingPE,forwardPE,priceToBook,dividendRate,dividendYield,dividendDate";
                 var resp = await SendWithCrumbAsync(url, ct);
                 if (!resp.IsSuccessStatusCode) continue;
 
@@ -520,31 +541,49 @@ public sealed class YahooFinanceService : IMarketDataProvider
         return null;
     }
 
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime? Date, DateTime ExpiresUtc)> EarningsCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly TimeSpan EarningsHitTtl = TimeSpan.FromHours(6);
+    private static readonly TimeSpan EarningsMissTtl = TimeSpan.FromHours(1);
+
     public async Task<Dictionary<string, DateTime>> GetEarningsDatesAsync(IEnumerable<string> symbols, CancellationToken ct = default)
     {
         var result = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
         foreach (var symbol in symbols.Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            if (EarningsCache.TryGetValue(symbol, out var cached) && cached.ExpiresUtc > DateTime.UtcNow)
+            {
+                if (cached.Date.HasValue) result[symbol] = cached.Date.Value;
+                continue;
+            }
+
+            DateTime? fetched = null;
+            var cacheable = false;
             try
             {
                 var response = await SendWithCrumbAsync(
                     $"v10/finance/quoteSummary/{Uri.EscapeDataString(symbol)}?modules=calendarEvents", ct);
-                if (!response.IsSuccessStatusCode) continue;
-                using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
-                var dates = document.RootElement
-                    .GetProperty("quoteSummary").GetProperty("result")[0]
-                    .GetProperty("calendarEvents").GetProperty("earnings").GetProperty("earningsDate");
-                var date = dates.EnumerateArray()
-                    .Select(x => x.TryGetProperty("raw", out var raw) && raw.TryGetInt64(out var unix)
-                        ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.Date
-                        : (DateTime?)null)
-                    .FirstOrDefault(x => x.HasValue);
-                if (date.HasValue) result[symbol] = date.Value;
+                if (response.IsSuccessStatusCode)
+                {
+                    using var document = JsonDocument.Parse(await response.Content.ReadAsStreamAsync(ct));
+                    var dates = document.RootElement
+                        .GetProperty("quoteSummary").GetProperty("result")[0]
+                        .GetProperty("calendarEvents").GetProperty("earnings").GetProperty("earningsDate");
+                    fetched = dates.EnumerateArray()
+                        .Select(x => x.TryGetProperty("raw", out var raw) && raw.TryGetInt64(out var unix)
+                            ? DateTimeOffset.FromUnixTimeSeconds(unix).UtcDateTime.Date
+                            : (DateTime?)null)
+                        .FirstOrDefault(x => x.HasValue);
+                    cacheable = true;
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogDebug(ex, "Earnings date unavailable for {Symbol}", symbol);
             }
+
+            if (fetched.HasValue) result[symbol] = fetched.Value;
+            if (cacheable)
+                EarningsCache[symbol] = (fetched, DateTime.UtcNow + (fetched.HasValue ? EarningsHitTtl : EarningsMissTtl));
             await Task.Delay(300, ct);
         }
         return result;
@@ -689,4 +728,3 @@ public sealed class YahooFinanceService : IMarketDataProvider
         return result;
     }
 }
-

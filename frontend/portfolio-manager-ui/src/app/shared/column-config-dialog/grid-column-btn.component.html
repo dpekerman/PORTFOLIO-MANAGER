@@ -1,0 +1,24 @@
+@if (showLabel()) {
+  <button
+    mat-stroked-button
+    class="gcb-labelled"
+    [class.gcb-customised]="isCustomised()"
+    [matTooltip]="tooltip()"
+    (click)="open()"
+    aria-haspopup="dialog"
+  >
+    <mat-icon>view_column</mat-icon>
+    Columns ({{ visibleCount() }})
+  </button>
+} @else {
+  <button
+    mat-icon-button
+    class="gcb-btn"
+    [class.gcb-customised]="isCustomised()"
+    [matTooltip]="tooltip()"
+    (click)="open()"
+    aria-label="Configure columns"
+  >
+    <mat-icon>view_column</mat-icon>
+  </button>
+}

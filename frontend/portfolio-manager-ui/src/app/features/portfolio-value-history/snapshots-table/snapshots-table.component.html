@@ -6,6 +6,7 @@
   } @else {
     <table
       mat-table
+      appRowSelection
       [dataSource]="sortedSnapshots()"
       matSort
       [matSortActive]="sort().active"
@@ -129,6 +130,7 @@
         mat-row
         *matRowDef="let row; columns: displayedColumns"
         class="snapshot-row"
+        [appSelectableRow]="row.id"
         (click)="toggleRow(row)"
       ></tr>
       <tr

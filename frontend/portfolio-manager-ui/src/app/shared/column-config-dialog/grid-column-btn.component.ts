@@ -3,7 +3,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { GRID_REGISTRY, GridColumnService } from '../../core/services/grid-column.service';
+import { GridColumnStore, resolveKeys } from '../../core/store/grid-column.store';
+import { GRID_REGISTRY } from '../../core/store/grid-registry';
 import {
   ColumnConfigDialogComponent,
   ColumnConfigDialogData,
@@ -16,54 +17,37 @@ import {
  */
 @Component({
   selector: 'app-grid-column-btn',
-  template: `
-    <button
-      mat-icon-button
-      class="gcb-btn"
-      [class.gcb-customised]="isCustomised()"
-      [matTooltip]="tooltip()"
-      (click)="open()"
-      aria-label="Configure columns"
-    >
-      <mat-icon>view_column</mat-icon>
-    </button>
-  `,
-  styles: [
-    `
-      :host {
-        display: inline-flex;
-        align-items: center;
-      }
-      .gcb-btn {
-        opacity: 0.65;
-        transition: opacity 150ms;
-      }
-      .gcb-btn:hover {
-        opacity: 1;
-      }
-      .gcb-btn.gcb-customised {
-        opacity: 1;
-        color: var(--mat-sys-primary);
-      }
-    `,
-  ],
+  templateUrl: './grid-column-btn.component.html',
+  styleUrl: './grid-column-btn.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatButtonModule, MatIconModule, MatTooltipModule],
 })
 export class GridColumnButtonComponent {
   readonly gridId = input.required<string>();
+  readonly profile = input<string | undefined>(undefined);
+  /** Renders a labelled "Columns (n)" button instead of the bare icon. */
+  readonly showLabel = input(false);
 
   private readonly dialog = inject(MatDialog);
-  private readonly gridColService = inject(GridColumnService);
+  private readonly gridColumns = inject(GridColumnStore);
 
-  private readonly _cols = computed(() => this.gridColService.getColumnKeys(this.gridId())());
+  private readonly _cols = computed(() =>
+    this.gridColumns.getColumnKeys(this.gridId(), this.profile())(),
+  );
+
+  /** Number of visible data columns (pinned chrome such as the config gear excluded). */
+  protected readonly visibleCount = computed(() => {
+    const gridDef = GRID_REGISTRY.find((g) => g.id === this.gridId());
+    const pinned = new Set(gridDef?.columns.filter((c) => c.pinned).map((c) => c.key) ?? []);
+    return this._cols().filter((k) => !pinned.has(k)).length;
+  });
 
   /** True when the grid has been customised (differs from defaults). */
   protected readonly isCustomised = computed(() => {
     const gridDef = GRID_REGISTRY.find((g) => g.id === this.gridId());
     if (!gridDef) return false;
     const current = this._cols();
-    const defaults = gridDef.columns.map((c) => c.key);
+    const defaults = resolveKeys(gridDef, undefined, this.profile());
     if (current.length !== defaults.length) return true;
     return current.some((k, i) => k !== defaults[i]);
   });
@@ -73,14 +57,15 @@ export class GridColumnButtonComponent {
     const label = gridDef?.label ?? 'grid';
     const current = this._cols().length;
     const total = (gridDef?.columns ?? []).length;
-    return `Configure ${label} columns (${current} / ${total} visible)`;
+    const profile = this.profile();
+    return `Configure ${profile ? `${profile} ` : ''}${label} columns (${current} / ${total} visible)`;
   });
 
   protected open(): void {
     this.dialog.open<ColumnConfigDialogComponent, ColumnConfigDialogData>(
       ColumnConfigDialogComponent,
       {
-        data: { gridId: this.gridId() },
+        data: { gridId: this.gridId(), profile: this.profile() },
         autoFocus: false,
         panelClass: 'column-config-panel',
       },

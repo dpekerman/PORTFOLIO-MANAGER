@@ -920,6 +920,21 @@ public sealed class ChannelAnalysisService : IChannelAnalysisService
         => candles[i].Low < candles[i - 1].Low && candles[i].Low < candles[i - 2].Low
         && candles[i].Low < candles[i + 1].Low && candles[i].Low < candles[i + 2].Low;
 
+    public static IReadOnlyList<(DateTime Date, decimal Price, string Role)> ConfirmedSwingLevels(
+        IReadOnlyList<ChannelCandle> candles, decimal atr)
+    {
+        var levels = new List<(DateTime, decimal, string)>();
+        if (atr <= 0m) return levels;
+        for (var i = 2; i < candles.Count - 2; i++)
+        {
+            if (IsPivotLow(candles, i) && IsMeaningfulSwing(candles, i, atr, TouchSide.Lower))
+                levels.Add((candles[i].Date, candles[i].Low, "Support"));
+            if (IsPivotHigh(candles, i) && IsMeaningfulSwing(candles, i, atr, TouchSide.Upper))
+                levels.Add((candles[i].Date, candles[i].High, "Resistance"));
+        }
+        return levels;
+    }
+
     private static bool IsPivotHigh(IReadOnlyList<ChannelCandle> candles, int i)
         => candles[i].High > candles[i - 1].High && candles[i].High > candles[i - 2].High
         && candles[i].High > candles[i + 1].High && candles[i].High > candles[i + 2].High;

@@ -74,3 +74,7 @@ docs/test-code-review-report.md
 # Private guide screenshots and browser-automation output (contain real portfolio numbers; never commit)
 docs/images/
 .playwright-mcp/
+
+# Local LAN HTTPS certificates (private keys)
+certs/
+

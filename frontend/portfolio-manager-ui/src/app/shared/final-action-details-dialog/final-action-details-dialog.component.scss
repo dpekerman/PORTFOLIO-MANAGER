@@ -1,0 +1,90 @@
+.fad {
+  display: grid;
+  gap: 12px;
+  max-width: 560px;
+  min-width: 0;
+}
+
+.fad-sec h3 {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.fad-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+
+.fad-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  border: 1px solid currentColor;
+  opacity: 0.85;
+}
+
+.fad-chip-warn {
+  color: #b26a00;
+}
+
+.fad-chip-on {
+  color: #1b7f3a;
+}
+
+.fad-reason {
+  margin: 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.fad-note {
+  margin: 4px 0;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.fad-codes {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+}
+
+.fad-code {
+  font-family: monospace;
+  font-size: 0.72rem;
+  opacity: 0.75;
+  margin-right: 4px;
+}
+
+.fad-dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.fad-dl dt {
+  opacity: 0.7;
+}
+
+.fad-dl dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.fad-dim {
+  opacity: 0.65;
+  font-weight: normal;
+  text-transform: none;
+}
+
+@media (max-width: 480px) {
+  .fad-dl {
+    grid-template-columns: 1fr;
+  }
+}

@@ -82,8 +82,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // ── Database ─────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opts =>
-    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddSingleton<AuditSaveChangesInterceptor>();
+builder.Services.AddDbContext<AppDbContext>((sp, opts) =>
+    opts.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(sp.GetRequiredService<AuditSaveChangesInterceptor>()));
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 // ── ASP.NET Core Identity ─────────────────────────────────────────────────────
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -144,8 +147,17 @@ builder.Services.AddHttpClient<IMarketDataProvider, YahooFinanceService>(client 
 
 // ── Application Services ──────────────────────────────────────────────────────
 builder.Services.AddScoped<IPortfolioService, PortfolioService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IRiskService, PortfolioManager.Api.Services.Risk.RiskService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IStopSheetImportService, PortfolioManager.Api.Services.Risk.StopSheetImportService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.ISwingTradingService, PortfolioManager.Api.Services.Risk.SwingTradingService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Risk.IOpenRiskReader, PortfolioManager.Api.Services.Risk.OpenRiskReader>();
 builder.Services.AddScoped<IWatchlistService, WatchlistService>();
 builder.Services.AddScoped<ICashService, CashService>();
+builder.Services.AddHttpClient<PortfolioManager.Api.Services.Valuation.IBankOfCanadaFxProvider, PortfolioManager.Api.Services.Valuation.BankOfCanadaFxProvider>(client =>
+    client.Timeout = TimeSpan.FromSeconds(15));
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<PortfolioManager.Api.Services.Valuation.IFxPublicationCalendar, PortfolioManager.Api.Services.Valuation.BankOfCanadaPublicationCalendar>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Valuation.IUsdCadRateSource, PortfolioManager.Api.Services.Valuation.UsdCadRateSource>();
 builder.Services.AddScoped<ICashLedgerQueryService, CashLedgerQueryService>();
 builder.Services.AddScoped<IUnlinkedTradeService, UnlinkedTradeService>();
 builder.Services.AddSingleton<IMutationClock, MutationClock>();
@@ -244,6 +256,7 @@ builder.Services.AddScoped<IAllocationRestoreService, AllocationRestoreService>(
 builder.Services.AddExceptionHandler<PortfolioManager.Api.Middleware.AccountTypeExceptionHandler>();
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton<SignalNotificationTracker>();
+builder.Services.AddSingleton<ScoreAlertTracker>();
 // Singleton: all dependencies (IOptions, NotificationRecipientsService, SignalNotificationTracker, ILogger) are singletons
 builder.Services.AddSingleton<EmailNotificationService>();
 // Singleton: persists EOD CONFIRM signals to eod-signal-history.json for next-morning review
@@ -258,6 +271,7 @@ builder.Services.AddHostedService<PortfolioValueEodBackgroundService>();
 
 // One-click "Fix Missing Data" — replays EOD signals + snapshot + Value Screener for today
 builder.Services.AddScoped<IMissedDataRecoveryService, MissedDataRecoveryService>();
+builder.Services.AddScoped<IAwaitingDataRetryService, AwaitingDataRetryService>();
 
 // Daily full SQL backup at 15:00 ET (default) into D:\PORTFOLIO-MANAGER-SQL-BACKUP-ALL\DAYLY_BACKUP
 builder.Services.AddSingleton<IDatabaseBackupService, DatabaseBackupService>();
@@ -271,6 +285,7 @@ builder.Services.AddScoped<IRsiSnapshotService, RsiSnapshotService>();
 builder.Services.AddScoped<IUserPreferenceService, UserPreferenceService>();
 builder.Services.AddScoped<IPortfolioSnapshotService, PortfolioSnapshotService>();
 builder.Services.AddScoped<IWatchlistSnapshotService, WatchlistSnapshotService>();
+builder.Services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IDataRefreshService, DataRefreshService>();
 builder.Services.AddScoped<IPortfolioActionsService, PortfolioActionsService>();
@@ -282,6 +297,18 @@ builder.Services.AddScoped<ITechnicalSnapshotService, TechnicalSnapshotService>(
 builder.Services.AddScoped<ISecurityAnalysisResolver, SecurityAnalysisResolver>();
 builder.Services.AddScoped<IMarketLeadershipService, MarketLeadershipService>();
 builder.Services.AddScoped<IPerformanceSummaryService, PerformanceSummaryService>();
+builder.Services.AddScoped<IPeriodChangeService, PeriodChangeService>();
+builder.Services.AddScoped<ISignalsAuditService, SignalsAuditService>();
+builder.Services.AddScoped<IOpenDecisionsService, OpenDecisionsService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.FinalAction.IFinalActionService, PortfolioManager.Api.Services.FinalAction.FinalActionService>();
+builder.Services.AddScoped<PortfolioManager.Api.Services.Opportunities.IOpportunityService, PortfolioManager.Api.Services.Opportunities.OpportunityService>();
+builder.Services.AddSingleton<PortfolioManager.Api.Services.Opportunities.OpportunityScheduleConfig>(_ =>
+{
+    var cfg = new PortfolioManager.Api.Services.Opportunities.OpportunityScheduleConfig();
+    cfg.LoadFromFile();
+    return cfg;
+});
+builder.Services.AddHostedService<PortfolioManager.Api.Services.Opportunities.OpportunityRefreshSchedulerService>();
 
 // ── EOD Automation Pipeline ──────────────────────────────────────────────────
 // Machine wake/keep-awake settings — deliberately separate from ScannerRuntimeConfig's EOD Window
@@ -307,6 +334,18 @@ builder.Services.AddSingleton<IAutomationRunCoordinator, AutomationRunCoordinato
 builder.Services.AddHostedService<AutomationMissedRunWatchdogService>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var safetyScope = app.Services.CreateScope();
+    var safetyDb = safetyScope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var pending = await safetyDb.Database.GetPendingMigrationsAsync();
+    if (pending.Contains("20261028213913_CorrectPm033EpisodeIntegrity"))
+    {
+        app.Logger.LogCritical("PM-033 corrective migration is pending. Startup refused; review and apply the migration explicitly before restarting.");
+        throw new InvalidOperationException("PM-033 migration approval is required. Automatic development migration is blocked.");
+    }
+}
 
 // ── Middleware Pipeline ───────────────────────────────────────────────────────
 // Auto-apply EF migrations on every startup (ensures DailySignals and all tables exist)

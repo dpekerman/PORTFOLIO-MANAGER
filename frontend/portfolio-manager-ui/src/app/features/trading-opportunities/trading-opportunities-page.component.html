@@ -1,0 +1,501 @@
+<div class="opp-page" [class.panel-open]="panelOpen()" [class.side-panel]="sidePanel()">
+  <header class="page-header">
+    <div class="title-block">
+      <h1 class="page-title">
+        <mat-icon aria-hidden="true">local_fire_department</mat-icon>
+        Trading Opportunities
+      </h1>
+      <p class="page-sub">
+        Swing and strategic setups across your watchlist, holdings and the TSX 60. Read-only
+        decision support.
+      </p>
+    </div>
+    <div class="header-actions">
+      <app-grid-column-btn [gridId]="gridId" [profile]="view().perspective" [showLabel]="true" />
+      <button
+        mat-stroked-button
+        type="button"
+        class="touch"
+        [matMenuTriggerFor]="exportMenu"
+        [disabled]="!store.hasSnapshot()"
+        aria-label="Export opportunities"
+      >
+        <mat-icon>download</mat-icon> Export
+      </button>
+      <mat-menu #exportMenu="matMenu">
+        <button mat-menu-item type="button" (click)="export('xlsx', true)">
+          <mat-icon>table_view</mat-icon><span>Excel: visible columns</span>
+        </button>
+        <button mat-menu-item type="button" (click)="export('xlsx', false)">
+          <mat-icon>table_view</mat-icon><span>Excel: all columns</span>
+        </button>
+        <button mat-menu-item type="button" (click)="export('csv', true)">
+          <mat-icon>description</mat-icon><span>CSV: visible columns</span>
+        </button>
+        <button mat-menu-item type="button" (click)="export('csv', false)">
+          <mat-icon>description</mat-icon><span>CSV: all columns</span>
+        </button>
+        <div
+          class="menu-option"
+          (click)="$event.stopPropagation()"
+          (keydown)="$event.stopPropagation()"
+        >
+          <mat-checkbox
+            [checked]="includeAccounts()"
+            (change)="includeAccounts.set($event.checked)"
+          >
+            Include account details
+          </mat-checkbox>
+        </div>
+      </mat-menu>
+      <button
+        mat-flat-button
+        type="button"
+        class="touch"
+        data-testid="refresh-analysis"
+        [disabled]="store.refreshing() || !!store.snapshot()?.refreshInFlight"
+        (click)="store.refresh()"
+      >
+        @if (store.refreshing() || store.snapshot()?.refreshInFlight) {
+          <mat-spinner diameter="18" />
+          Refreshing…
+        } @else {
+          <mat-icon>refresh</mat-icon>
+        }
+        @if (!(store.refreshing() || store.snapshot()?.refreshInFlight)) {
+          Refresh analysis
+        }
+      </button>
+    </div>
+  </header>
+
+  @if (store.snapshot(); as snap) {
+    <div class="status-bar" role="status" data-testid="snapshot-status">
+      @if (snap.snapshotId !== null) {
+        <span class="status-item">
+          <mat-icon aria-hidden="true">schedule</mat-icon>
+          Evaluated {{ snap.computedAtUtc | date: 'MMM d, h:mm a' }} · data as of
+          {{ snap.dataAsOfSession ?? '—' }}
+        </span>
+        <span class="status-item muted">
+          {{ snap.counts.watchlist }} watchlist · {{ snap.counts.portfolio }} holdings ·
+          {{ snap.counts.tsx60 }} TSX 60 · {{ snap.counts.total }} unique
+        </span>
+      }
+      @if (snap.isStale) {
+        <span
+          class="status-chip warn"
+          matTooltip="A newer completed trading session is available. Refresh to re-evaluate."
+        >
+          <mat-icon aria-hidden="true">history</mat-icon> Stale
+        </span>
+      }
+      @if (snap.status === 'Partial') {
+        <span
+          class="status-chip warn"
+          [matTooltip]="snap.errorSummary ?? 'Some evidence could not be loaded.'"
+        >
+          <mat-icon aria-hidden="true">warning</mat-icon> Partial evidence
+        </span>
+      }
+      @if (snap.portfolioChangedSinceEvaluation) {
+        <span class="status-chip info" data-testid="portfolio-changed">
+          <mat-icon aria-hidden="true">sync_problem</mat-icon> Portfolio changed since evaluation.
+          Refresh to update fit and Final Action.
+        </span>
+      }
+      @if (snap.lastAttempt?.status === 'Failed') {
+        <span class="status-chip error" [matTooltip]="snap.lastAttempt?.errorSummary ?? ''">
+          <mat-icon aria-hidden="true">error</mat-icon> Last refresh failed. Showing the last
+          successful analysis.
+        </span>
+      }
+    </div>
+  }
+
+  <section class="toolbar" aria-label="View">
+    <mat-button-toggle-group
+      class="perspective"
+      hideSingleSelectionIndicator
+      [value]="view().perspective"
+      (change)="setPerspective($event.value)"
+      aria-label="Score perspective"
+    >
+      <mat-button-toggle value="Swing" data-testid="perspective-swing">Swing</mat-button-toggle>
+      <mat-button-toggle value="Strategic" data-testid="perspective-strategic"
+        >Strategic</mat-button-toggle
+      >
+    </mat-button-toggle-group>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="score-filter">
+      <mat-label>Score</mat-label>
+      <mat-select
+        [value]="view().scoreFilter"
+        (selectionChange)="setScoreFilter($event.value)"
+        data-testid="score-filter"
+      >
+        @for (o of scoreFilterOptions(); track o.value) {
+          <mat-option [value]="o.value" [disabled]="o.disabled">{{ o.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search">
+      <mat-label>Search</mat-label>
+      <input
+        matInput
+        autocomplete="off"
+        [value]="store.search()"
+        (input)="store.setSearch($any($event.target).value)"
+        placeholder="Symbol, company, sector"
+        data-testid="opp-search"
+      />
+      <mat-icon matSuffix>search</mat-icon>
+    </mat-form-field>
+  </section>
+  @if (
+    view().perspective === 'Swing' &&
+    store.snapshot() &&
+    store.config() &&
+    store.snapshot()?.scoringVersion !== store.config()?.version
+  ) {
+    <p class="notice" role="note" data-testid="legacy-scoring-warning">
+      Stored snapshot: {{ store.snapshot()?.scoringVersion }}. Swing-v2 has not been evaluated for
+      this snapshot. Historical scores are preserved, not relabelled. A protected refresh requires
+      separate approval.
+    </p>
+  }
+
+  @if (showingAllBecauseNothingScored()) {
+    <p class="notice" role="note" data-testid="nothing-scored-notice">
+      No security has a {{ view().perspective }} score in this snapshot, so every row is listed. Scores appear after
+      a refresh once the trading session has completed (6:00 PM ET on a normal day).
+    </p>
+  }
+
+  @if (!store.config() && store.hasSnapshot()) {
+    <p class="notice" role="note">
+      <mat-icon aria-hidden="true">info</mat-icon> Score thresholds are unavailable, so the
+      Attractive and Moderate filters are off. Showing all scored securities.
+    </p>
+  }
+
+  <details class="app-filter-panel">
+    <summary>
+      Filters
+      @if (hasActiveFilters()) {
+        <span class="app-filter-state">Active</span>
+      }
+    </summary>
+    <div class="filter-grid">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Setup Quality</mat-label>
+        <mat-select
+          multiple
+          data-testid="setup-quality-filter"
+          [value]="view().setupQuality"
+          (selectionChange)="update({ setupQuality: $event.value })"
+        >
+          @for (quality of ['Good', 'Caution', 'Poor', 'Unavailable']; track quality) {
+            <mat-option [value]="quality">{{ quality }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Sector</mat-label>
+        <mat-select
+          multiple
+          [value]="view().sectors"
+          (selectionChange)="update({ sectors: $event.value })"
+        >
+          @for (s of sectorOptions(); track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Industry</mat-label>
+        <mat-select
+          multiple
+          data-testid="industry-filter"
+          [value]="view().industries"
+          (selectionChange)="update({ industries: $event.value })"
+        >
+          @for (i of industryOptions(); track i) {
+            <mat-option [value]="i">{{ i }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Risk</mat-label>
+        <mat-select
+          multiple
+          data-testid="risk-filter"
+          [value]="view().riskCategories"
+          (selectionChange)="update({ riskCategories: $event.value })"
+        >
+          @for (r of riskOptions; track r.value) {
+            <mat-option [value]="r.value">{{ r.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Account</mat-label>
+        <mat-select
+          multiple
+          data-testid="account-filter"
+          [value]="view().accounts"
+          (selectionChange)="update({ accounts: $event.value })"
+        >
+          @for (a of accountOptions(); track a) {
+            <mat-option [value]="a">{{ a }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Role</mat-label>
+        <mat-select
+          multiple
+          data-testid="role-filter"
+          [value]="view().roles"
+          (selectionChange)="update({ roles: $event.value })"
+        >
+          @for (r of roleOptions(); track r) {
+            <mat-option [value]="r">{{ r }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Freshness</mat-label>
+        <mat-select
+          data-testid="freshness-filter"
+          [value]="view().freshness"
+          (selectionChange)="update({ freshness: $event.value })"
+        >
+          @for (f of freshnessOptions; track f.value) {
+            <mat-option [value]="f.value">{{ f.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Sector Heat</mat-label>
+        <mat-select
+          multiple
+          [value]="view().heat"
+          (selectionChange)="update({ heat: $event.value })"
+        >
+          @for (h of heatOptions; track h.value) {
+            <mat-option [value]="h.value">{{ h.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Portfolio Fit</mat-label>
+        <mat-select multiple [value]="view().fit" (selectionChange)="update({ fit: $event.value })">
+          @for (f of fitOptions; track f.value) {
+            <mat-option [value]="f.value">{{ f.label }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Final Action</mat-label>
+        <mat-select
+          multiple
+          [value]="view().finalActionLabels"
+          (selectionChange)="update({ finalActionLabels: $event.value })"
+        >
+          @for (a of finalActionOptions(); track a) {
+            <mat-option [value]="a">{{ a }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Ownership</mat-label>
+        <mat-select [value]="view().ownership" (selectionChange)="setOwnership($event.value)">
+          <mat-option value="all">All</mat-option>
+          <mat-option value="owned">Owned</mat-option>
+          <mat-option value="notOwned">Not owned</mat-option>
+        </mat-select>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Source</mat-label>
+        <mat-select
+          multiple
+          [value]="view().sources"
+          (selectionChange)="update({ sources: $event.value })"
+        >
+          @for (s of sourceOptions(); track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <mat-slide-toggle
+        [checked]="view().showUnavailable"
+        (change)="update({ showUnavailable: $event.checked })"
+        data-testid="show-unavailable"
+      >
+        Show unavailable scores
+      </mat-slide-toggle>
+
+      <mat-slide-toggle
+        [checked]="view().verifiedOnly"
+        (change)="update({ verifiedOnly: $event.checked })"
+        matTooltip="Hide provisional scores (computed with incomplete evidence)"
+        data-testid="verified-only"
+      >
+        Verified only
+      </mat-slide-toggle>
+
+      <button
+        mat-button
+        type="button"
+        class="touch"
+        data-testid="restore-default-sort"
+        (click)="store.restoreDefaultSort()"
+      >
+        <mat-icon>sort</mat-icon> Restore default score sort
+      </button>
+
+      <button
+        mat-button
+        type="button"
+        class="touch"
+        data-testid="reset-opportunity-filters"
+        (click)="store.resetFilters()"
+        [disabled]="!hasActiveFilters()"
+      >
+        <mat-icon>filter_alt_off</mat-icon> Reset filters
+      </button>
+    </div>
+  </details>
+
+  @if (store.hasSnapshot()) {
+    <div class="summary" aria-live="polite" data-testid="exclusion-summary">
+      <span class="summary-count">
+        Showing <strong>{{ summary().shown }}</strong> of {{ summary().total }}
+      </span>
+      @if (store.reasonFilter()) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="summary-chip active"
+          data-testid="clear-reason-filter"
+          (click)="store.setReasonFilter(null)"
+        >
+          Unscorable only <mat-icon iconPositionEnd>close</mat-icon>
+        </button>
+      }
+      @if (summary().belowThreshold > 0) {
+        <span class="summary-chip plain">{{ summary().belowThreshold }} below threshold</span>
+      }
+      @if (summary().notVerified > 0) {
+        <span class="summary-chip plain">{{ summary().notVerified }} provisional hidden</span>
+      }
+      @if (summary().filteredOut > 0) {
+        <span class="summary-chip plain">{{ summary().filteredOut }} filtered out</span>
+      }
+      @for (r of summary().reasons; track r.code) {
+        <button
+          mat-stroked-button
+          type="button"
+          class="summary-chip"
+          [class.active]="store.reasonFilter() === r.code"
+          [attr.aria-pressed]="store.reasonFilter() === r.code"
+          [matTooltip]="
+            'Show the ' +
+            r.count +
+            ' ' +
+            view().perspective +
+            ' securities that cannot be scored: ' +
+            r.label
+          "
+          [attr.data-testid]="'reason-' + r.code"
+          (click)="toggleReason(r.code)"
+        >
+          {{ r.count }} {{ r.code === 'EtfScoringDeferred' ? 'not evaluated' : 'unscorable' }}:
+          {{ r.label }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (store.loading() && !store.snapshot()) {
+    <div class="state" role="status"><mat-spinner diameter="36" /> Loading opportunities…</div>
+  } @else if (store.error() && !store.snapshot()) {
+    <div class="state error" role="alert">
+      <mat-icon>error</mat-icon> {{ store.error() }}
+      <button mat-stroked-button type="button" (click)="store.load()">Retry</button>
+    </div>
+  } @else if (store.snapshot() && !store.hasSnapshot()) {
+    <div class="state" role="status" data-testid="no-snapshot">
+      <mat-icon>local_fire_department</mat-icon>
+      @if (store.refreshing() || store.snapshot()?.refreshInFlight) {
+        Running the first analysis. This can take a minute.
+      } @else {
+        No analysis has been run yet.
+        <button mat-flat-button type="button" (click)="store.refresh()">Run analysis</button>
+      }
+    </div>
+  } @else if (store.hasSnapshot()) {
+    <div class="opp-layout">
+      <app-opportunities-grid
+        class="grid-pane"
+        [rows]="visibleRows()"
+        [perspective]="view().perspective"
+        [sort]="view().sort"
+        [manualRByScenario]="manualRScenarios()"
+        [selectedSymbol]="store.selectedSymbol()"
+        [emptyMessage]="emptyState().message"
+        [emptyActionLabel]="emptyState().actionLabel"
+        (rowSelected)="selectSymbol($event)"
+        (sortChanged)="onSort($event)"
+        (emptyAction)="applyEmptyAction()"
+      />
+      @if (panelOpen()) {
+        <aside
+          class="details-pane"
+          [class.fullscreen]="!sidePanel()"
+          [attr.role]="sidePanel() ? 'complementary' : 'dialog'"
+          [attr.aria-modal]="sidePanel() ? null : 'true'"
+          [attr.aria-label]="'Details for ' + store.selectedSymbol()"
+          data-testid="details-panel"
+        >
+          <app-opportunity-details-panel
+            [row]="store.selectedRow()"
+            [detail]="store.detail()"
+            [loading]="store.detailLoading()"
+            [error]="store.detailError()"
+            [perspective]="view().perspective"
+            [manualRValues]="selectedManualR()"
+            [config]="store.config()"
+            [fullscreen]="!sidePanel()"
+            (manualRValuesChange)="setManualRScenario($event)"
+            (closed)="closePanel()"
+          />
+        </aside>
+      }
+    </div>
+  }
+
+  @if (store.snapshot()?.disclaimer; as disclaimer) {
+    <p class="disclaimer" data-testid="scoring-disclaimer">
+      @if (view().perspective === 'Strategic') {
+        Strategic scores summarize available long-term trend, technical, fundamental, and valuation
+        evidence. They are not a probability of success or an investment recommendation.
+      } @else {
+        {{ disclaimer }}
+      }
+    </p>
+  }
+</div>

@@ -1,22 +1,22 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { RsiScanResult } from '../models/portfolio.models';
 import { PortfolioApiService } from './portfolio-api.service';
-import { PortfolioFinalActionSyncService } from './portfolio-final-action-sync.service';
-import { PortfolioStateService } from './portfolio-state.service';
-import { ScannerStateService } from './scanner-state.service';
+import { PortfolioStore } from '../store/portfolio.store';
+import { ScannerStore } from '../store/scanner.store';
 
 /**
  * Fetches full Enhanced-mode RSI/technical data for every open portfolio symbol (not just the
  * oversold/overbought scanner extremes), then pushes computed Final Actions to the backend.
  * Runs app-wide — not tied to the Portfolio page being open — so Dashboard Action Center reflects
  * today's recommendation the moment the app loads or refreshes.
+ *
+ * Plain service, not a store: it owns no state — it reads other stores and pushes to the API.
  */
 @Injectable({ providedIn: 'root' })
 export class PortfolioRsiAnalysisService {
   private readonly api = inject(PortfolioApiService);
-  private readonly portfolio = inject(PortfolioStateService);
-  private readonly scanner = inject(ScannerStateService);
-  private readonly finalActionSync = inject(PortfolioFinalActionSyncService);
+  private readonly portfolio = inject(PortfolioStore);
+  private readonly scanner = inject(ScannerStore);
 
   private readonly _resultMap = signal<Map<string, RsiScanResult>>(new Map());
 
@@ -65,6 +65,5 @@ export class PortfolioRsiAnalysisService {
 
   private onBatchComplete(merged: Map<string, RsiScanResult>): void {
     this._resultMap.set(new Map(merged));
-    this.finalActionSync.computeAndSync(this.fullMap());
   }
 }

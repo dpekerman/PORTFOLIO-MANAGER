@@ -105,3 +105,7 @@ Recommended order: link the two options, then resolve the Corp_TD adjustment tog
 Backend: `PortfolioSnapshotService.cs`, `PortfolioController.cs`, `CashController.cs`, `CashService.cs`, `UnlinkedTradeService.cs` (new), `Dtos.cs`, `Program.cs`, tests `UnlinkedTradeAndSnapshotTests.cs` (new), `CashTradeLinkTests.cs` (helper made internal).
 Frontend: `auth-state.service.ts`, `auth.interceptor.ts`, `cash-state.service.ts`, `portfolio-api.service.ts`, `portfolio-state.service.ts`, `trade-cash-link.service.ts`, `portfolio.models.ts`, `link-cash-dialog.component.ts`, `portfolio-page.component.{ts,html}`, `portfolio-value-history-page.component.{ts,html}`, `unlinked-trades/*` (new), specs `trade-cash-link.service.spec.ts`, `auth-state.service.spec.ts` (new).
 No database migration in this pass. Nothing is committed to git yet.
+
+## 7. Update 2026-10-08 - legacy gaps archived
+
+The 8 trades listed in section 5 were decided *won't fix*. They are recorded in the new table `UnlinkedTradeBaselines` (additive migration `AddUnlinkedTradeBaselines`) and no longer shown in the "Trades without a cash entry" panel. No cash, trade or snapshot data was changed. A baselined trade that is edited later reappears. New unlinked trades are shown with a "Why?" diagnosis (expected cash row, nearest rejected cash row and the rule it failed) and logged as a server warning. To show a legacy row again, delete its row from `UnlinkedTradeBaselines`; `POST /api/cash/unlinked-trades/baseline` (Admin) archives whatever is currently listed.

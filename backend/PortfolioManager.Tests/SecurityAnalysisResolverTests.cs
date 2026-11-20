@@ -62,6 +62,75 @@ public class SecurityAnalysisResolverTests
     }
 
     [Fact]
+    public async Task ResolveReadOnlyAsync_SameResultForDetectedWrapper_ButPersistsNoAutoMapping()
+    {
+        await using var db = CreateDb();
+        var provider = new FakeMarketData { QuoteName = "Example Canadian Depositary Receipt CAD Hedged" };
+        var resolver = new SecurityAnalysisResolver(db, provider);
+
+        var readOnly = await resolver.ResolveReadOnlyAsync("EXAMPLE.TO", "user-1");
+
+        Assert.Empty(db.SecurityAnalysisMappings);
+        Assert.Equal(await resolver.ResolveAsync("EXAMPLE.TO", "user-1"), readOnly);
+        Assert.Single(db.SecurityAnalysisMappings);
+    }
+
+    [Fact]
+    public async Task ResolveReadOnlyAsync_UsesUserMappingOverSharedMappingWithoutWriting()
+    {
+        await using var db = CreateDb();
+        db.SecurityAnalysisMappings.AddRange(
+            new SecurityAnalysisMapping
+            {
+                TradingTicker = "EXAMPLE.TO",
+                UnderlyingTicker = "SHARED",
+                UnderlyingMarket = "US",
+                UseUnderlyingForAnalysis = true,
+                ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                MappingSource = SecurityAnalysisMappingSource.AUTO,
+            },
+            new SecurityAnalysisMapping
+            {
+                TradingTicker = "EXAMPLE.TO",
+                UnderlyingTicker = "USER",
+                UnderlyingMarket = "US",
+                UseUnderlyingForAnalysis = true,
+                ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+                MappingSource = SecurityAnalysisMappingSource.USER,
+                UserId = "user-1",
+            });
+        await db.SaveChangesAsync();
+        var resolver = new SecurityAnalysisResolver(db, new FakeMarketData());
+
+        var result = await resolver.ResolveReadOnlyAsync("EXAMPLE.TO", "user-1");
+
+        Assert.Equal("USER", result.AnalysisTicker);
+        Assert.Equal(SecurityAnalysisMappingSource.USER, result.MappingSource);
+        Assert.Equal(2, await db.SecurityAnalysisMappings.CountAsync());
+    }
+
+    [Fact]
+    public async Task ResolveAsyncAndReadOnlyAsync_FailClosedForConflictingTopPriorityMappings()
+    {
+        await using var db = CreateDb();
+        db.SecurityAnalysisMappings.AddRange(
+            Mapping("EXAMPLE.TO", "SPGI", "user-1"),
+            Mapping("EXAMPLE.TO", "DIS", "user-1"));
+        await db.SaveChangesAsync();
+        var resolver = new SecurityAnalysisResolver(db, new FakeMarketData());
+
+        var preview = await resolver.ResolveReadOnlyAsync("EXAMPLE.TO", "user-1");
+        var normal = await resolver.ResolveAsync("EXAMPLE.TO", "user-1");
+
+        Assert.Equal(normal, preview);
+        Assert.Equal(UnderlyingResolutionStatus.NeedsUserInput, preview.ResolutionStatus);
+        Assert.Equal("EXAMPLE.TO", preview.AnalysisTicker);
+        Assert.Equal("CAD", preview.AnalysisCurrency);
+        Assert.Contains("Conflicting", preview.DataError);
+        Assert.Equal(2, await db.SecurityAnalysisMappings.CountAsync());
+    }
+
+    [Fact]
     public async Task ValidateUnderlyingTickerAsync_RequiresQuoteAndSufficientHistory()
     {
         await using var db = CreateDb();
@@ -77,6 +146,17 @@ public class SecurityAnalysisResolverTests
     private static AppDbContext CreateDb() => new(new DbContextOptionsBuilder<AppDbContext>()
         .UseInMemoryDatabase(Guid.NewGuid().ToString())
         .Options);
+
+    private static SecurityAnalysisMapping Mapping(string tradingTicker, string underlyingTicker, string userId) => new()
+    {
+        TradingTicker = tradingTicker,
+        UnderlyingTicker = underlyingTicker,
+        UnderlyingMarket = "US",
+        UseUnderlyingForAnalysis = true,
+        ResolutionStatus = UnderlyingResolutionStatus.Resolved,
+        MappingSource = SecurityAnalysisMappingSource.USER,
+        UserId = userId,
+    };
 
     private sealed class FakeMarketData : IMarketDataProvider
     {

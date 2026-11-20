@@ -181,15 +181,11 @@
             <mat-icon>wb_sunny</mat-icon>
           </button>
         }
-        <button
-          mat-icon-button
-          matTooltip="Force new scan (bypasses cache)"
-          (click)="refresh()"
-          [disabled]="scanner.loading()"
-          aria-label="Refresh scanner"
-        >
-          <mat-icon [class.spinning]="scanner.loading()">refresh</mat-icon>
-        </button>
+        <app-refresh-button
+          tooltip="Refresh all data and force new scan (bypasses cache)"
+          [busy]="scanner.loading()"
+          (refreshed)="refresh()"
+        />
       </div>
     </div>
 

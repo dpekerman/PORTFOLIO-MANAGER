@@ -1,0 +1,147 @@
+:host {
+  display: block;
+}
+
+.sa-heading {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sa-threshold {
+  display: block;
+  max-width: 340px;
+  margin-top: 16px;
+}
+
+.sa-notes {
+  margin: 16px 0 0;
+  padding-left: 18px;
+  font-size: 0.82rem;
+  color: var(--mat-sys-on-surface-variant);
+
+  li {
+    margin-bottom: 4px;
+  }
+}
+
+.sa-meta {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.sa-fa-heading {
+  margin-top: 28px;
+}
+
+.sa-fa-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sa-search {
+  flex: 1 1 200px;
+  max-width: 280px;
+}
+
+.sa-filter {
+  display: flex;
+  gap: 6px;
+}
+
+.sa-chip {
+  padding: 4px 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 16px;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sa-chip-active {
+  background: var(--mat-sys-secondary-container);
+  font-weight: 600;
+}
+
+.sa-link {
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.sa-fa-list {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 8px;
+}
+
+.sa-fa-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.sa-fa-off .sa-fa-label {
+  opacity: 0.6;
+}
+
+.sa-fa-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+}
+
+.sa-edit {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.sa-badge {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--mat-sys-tertiary-container);
+  font-size: 0.7rem;
+}
+
+.sa-fa-empty {
+  padding: 12px;
+  font-size: 0.85rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.sa-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sa-add-field {
+  flex: 1;
+  max-width: 340px;
+}
+
+@media (max-width: 599px) {
+  .sa-search,
+  .sa-add-field {
+    max-width: none;
+  }
+}

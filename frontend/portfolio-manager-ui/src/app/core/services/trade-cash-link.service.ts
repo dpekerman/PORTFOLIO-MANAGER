@@ -19,9 +19,9 @@ import {
   TradeLinkSourceType,
   UnlinkedTrade,
 } from '../models/portfolio.models';
-import { CashStateService } from './cash-state.service';
-import { DashboardStateService } from './dashboard-state.service';
-import { DemoModeService } from './demo-mode.service';
+import { CashStore } from '../store/cash.store';
+import { DashboardStore } from '../store/dashboard.store';
+import { DemoModeStore } from '../store/demo-mode.store';
 import { PortfolioApiService } from './portfolio-api.service';
 
 /** Everything needed to offer (or correct) the cash row of one trade leg. */
@@ -52,15 +52,17 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
  * Offers the cash-ledger side of a stock/option trade after it is saved, so buys and sells move Cash the
  * same way they move Stocks/Options. Always a confirm step ("Skip" keeps today's manual workflow), and
  * never nags on edits that don't touch size, price or account.
+ *
+ * Plain service, not a store: stateless dialog orchestration over the cash API.
  */
 @Injectable({ providedIn: 'root' })
 export class TradeCashLinkService {
   private readonly api = inject(PortfolioApiService);
-  private readonly cashState = inject(CashStateService);
+  private readonly cashState = inject(CashStore);
   private readonly dialog = inject(MatDialog);
   private readonly snackBar = inject(MatSnackBar);
-  private readonly demoMode = inject(DemoModeService);
-  private readonly dashboardState = inject(DashboardStateService);
+  private readonly demoMode = inject(DemoModeStore);
+  private readonly dashboardState = inject(DashboardStore);
 
   /** Offers the missing cash row for a trade leg that was saved without one (from the "Unlinked trades" list). */
   linkUnlinkedTrade(t: UnlinkedTrade): Promise<void> {

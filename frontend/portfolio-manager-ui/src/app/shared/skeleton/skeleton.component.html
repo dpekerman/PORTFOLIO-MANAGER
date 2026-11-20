@@ -1,0 +1,9 @@
+<div
+  class="skeleton-block"
+  [class.skeleton-circle]="circle()"
+  [style.width]="width()"
+  [style.height]="height()"
+  [style.border-radius]="circle() ? '50%' : borderRadius()"
+  role="status"
+  aria-label="Loading…"
+></div>

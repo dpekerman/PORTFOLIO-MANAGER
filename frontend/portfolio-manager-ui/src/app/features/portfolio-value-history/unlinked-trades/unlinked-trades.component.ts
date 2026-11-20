@@ -1,12 +1,12 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { UnlinkedTrade } from '../../../core/models/portfolio.models';
-import { AuthStateService } from '../../../core/services/auth-state.service';
-import { CashStateService } from '../../../core/services/cash-state.service';
-import { DemoModeService } from '../../../core/services/demo-mode.service';
+import { AuthStore } from '../../../core/store/auth.store';
+import { CashStore } from '../../../core/store/cash.store';
+import { DemoModeStore } from '../../../core/store/demo-mode.store';
 import { TradeCashLinkService } from '../../../core/services/trade-cash-link.service';
 
 @Component({
@@ -17,10 +17,24 @@ import { TradeCashLinkService } from '../../../core/services/trade-cash-link.ser
   imports: [MatButtonModule, MatIconModule, MatTooltipModule, CurrencyPipe, DatePipe],
 })
 export class UnlinkedTradesComponent {
-  protected readonly cashState = inject(CashStateService);
-  protected readonly authState = inject(AuthStateService);
-  private readonly demoMode = inject(DemoModeService);
+  protected readonly cashState = inject(CashStore);
+  protected readonly authState = inject(AuthStore);
+  protected readonly demoMode = inject(DemoModeStore);
   private readonly tradeCashLink = inject(TradeCashLinkService);
+  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  protected key(t: UnlinkedTrade): string {
+    return t.sourceType + t.sourceItemId;
+  }
+
+  protected toggle(t: UnlinkedTrade): void {
+    const k = this.key(t);
+    this.expanded.update((s) => {
+      const next = new Set(s);
+      if (!next.delete(k)) next.add(k);
+      return next;
+    });
+  }
 
   constructor() {
     // Any change to the cash ledger (a link was added/removed, a row edited) can change what is unlinked.

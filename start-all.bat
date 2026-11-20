@@ -35,13 +35,13 @@ start "Portfolio Manager Backend - http://localhost:5000" cmd /k "cd /d "%~dp0ba
 timeout /t 2 /nobreak >nul
 
 :: ── Start frontend in a new window ──────────────────────
-start "Angular Frontend - http://localhost:4200" cmd /k "cd /d "%~dp0frontend\portfolio-manager-ui" && npx ng serve"
+start "Angular Frontend - https://192.168.2.31:4200" cmd /k "cd /d "%~dp0frontend\portfolio-manager-ui" && npx ng serve --configuration https"
 
 echo.
 echo  Both services are starting in their own windows.
 echo  Backend  : http://localhost:5000
 echo  Swagger  : http://localhost:5000/swagger
-echo  Frontend : http://localhost:4200  (ready in ~15s)
+echo  Frontend : https://192.168.2.31:4200  (ready in ~15s)
 echo.
 echo  Market data is provided by Yahoo Finance (no API key required).
 echo  Close this window or press any key to exit.

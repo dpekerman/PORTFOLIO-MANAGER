@@ -1,0 +1,36 @@
+@if (isHandset()) {
+  <div class="mtc-bar" role="group" [attr.aria-label]="label() + ' display options'">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="mtc-sort-field">
+      <mat-label>Sort by</mat-label>
+      <mat-select
+        [value]="activeKey()"
+        (valueChange)="onSortKeyChange($event)"
+        [attr.aria-label]="'Sort ' + label() + ' by'"
+      >
+        @for (option of sortOptions(); track option.key) {
+          <mat-option [value]="option.key">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+
+    <button
+      mat-stroked-button
+      type="button"
+      class="mtc-dir-btn"
+      (click)="toggleDirection()"
+      [matTooltip]="directionLabel()"
+      [attr.aria-label]="'Sort direction: ' + directionLabel() + '. Activate to reverse.'"
+    >
+      <mat-icon>{{ direction() === 'desc' ? 'arrow_downward' : 'arrow_upward' }}</mat-icon>
+    </button>
+
+    <mat-slide-toggle
+      class="mtc-show-all"
+      [checked]="showAllColumns()"
+      (change)="onShowAllChange($event.checked)"
+      aria-label="Show all fields on each card"
+    >
+      All fields
+    </mat-slide-toggle>
+  </div>
+}

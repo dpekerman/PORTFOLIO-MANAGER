@@ -1,13 +1,18 @@
 import { effect, inject, Injectable, NgZone, OnDestroy } from '@angular/core';
+import { AuthStore } from '../store/auth.store';
 import { AuthApiService } from './auth-api.service';
-import { AuthStateService } from './auth-state.service';
-import { ConfigService } from './config.service';
+import { ConfigStore } from '../store/config.store';
 
+/**
+ * Logs the user out after the configured idle period.
+ *
+ * Plain service, not a store: it owns timers and DOM listeners, and exposes no state to read.
+ */
 @Injectable({ providedIn: 'root' })
 export class SessionTimeoutService implements OnDestroy {
-  private readonly authState = inject(AuthStateService);
+  private readonly authState = inject(AuthStore);
   private readonly authApi = inject(AuthApiService);
-  private readonly config = inject(ConfigService);
+  private readonly config = inject(ConfigStore);
   private readonly zone = inject(NgZone);
 
   private timer: ReturnType<typeof setTimeout> | null = null;

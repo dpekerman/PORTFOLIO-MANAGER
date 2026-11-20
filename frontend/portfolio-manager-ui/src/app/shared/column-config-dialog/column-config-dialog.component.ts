@@ -6,14 +6,12 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import {
-  ColumnPreference,
-  GRID_REGISTRY,
-  GridColumnService,
-} from '../../core/services/grid-column.service';
+import { GridColumnStore, isCustomisedLayout } from '../../core/store/grid-column.store';
+import { ColumnPreference, GRID_REGISTRY } from '../../core/store/grid-registry';
 
 export interface ColumnConfigDialogData {
   gridId: string;
+  profile?: string;
 }
 
 @Component({
@@ -34,15 +32,16 @@ export interface ColumnConfigDialogData {
   ],
 })
 export class ColumnConfigDialogComponent {
-  private readonly gridColumnService = inject(GridColumnService);
+  private readonly gridColumns = inject(GridColumnStore);
   private readonly data = inject<ColumnConfigDialogData>(MAT_DIALOG_DATA);
 
   /** The GridDef for this dialog instance. */
   protected readonly grid = GRID_REGISTRY.find((g) => g.id === this.data.gridId) ?? null;
+  protected readonly profileLabel = this.data.profile ? `${this.data.profile} · ` : '';
 
   /** Working copy of column preferences. */
   protected readonly workingPrefs = signal<ColumnPreference[]>(
-    this.gridColumnService.getEditablePrefs(this.data.gridId),
+    this.gridColumns.getEditablePrefs(this.data.gridId, this.data.profile),
   );
 
   /** Count of currently visible columns. */
@@ -51,18 +50,21 @@ export class ColumnConfigDialogComponent {
   );
 
   /** True when preferences differ from defaults. */
-  protected readonly hasCustomisation = computed(() => {
-    const prefs = this.workingPrefs();
-    if (!this.grid) return false;
-    const defaults = this.grid.columns.filter((c) => !c.pinned);
-    if (prefs.length !== defaults.length) return true;
-    return prefs.some((p, i) => !p.visible || p.key !== defaults[i].key);
-  });
+  protected readonly hasCustomisation = computed(() =>
+    this.grid ? isCustomisedLayout(this.grid, this.workingPrefs(), this.data.profile) : false,
+  );
+
+  /** True when at least one column is hidden, so "Show all" has something to do. */
+  protected readonly anyHidden = computed(() => this.workingPrefs().some((p) => !p.visible));
 
   // ── Column management ──────────────────────────────────────────────────────
 
   protected getLabel(key: string): string {
     return this.grid?.columns.find((c) => c.key === key)?.label ?? key;
+  }
+
+  protected isRequired(key: string): boolean {
+    return this.grid?.columns.find((c) => c.key === key)?.required === true;
   }
 
   protected moveUp(index: number): void {
@@ -96,6 +98,7 @@ export class ColumnConfigDialogComponent {
   }
 
   protected setVisible(index: number, visible: boolean): void {
+    if (!visible && this.isRequired(this.workingPrefs()[index].key)) return;
     this.workingPrefs.update((prefs) => {
       const copy = [...prefs];
       copy[index] = { ...copy[index], visible };
@@ -104,14 +107,20 @@ export class ColumnConfigDialogComponent {
     this.persist();
   }
 
+  /** Shows every column, keeping the current order. */
+  protected showAll(): void {
+    this.workingPrefs.update((prefs) => prefs.map((p) => ({ ...p, visible: true })));
+    this.persist();
+  }
+
   protected resetToDefaults(): void {
-    this.gridColumnService.resetGrid(this.data.gridId);
-    this.workingPrefs.set(this.gridColumnService.getEditablePrefs(this.data.gridId));
+    this.gridColumns.resetGrid(this.data.gridId, this.data.profile);
+    this.workingPrefs.set(this.gridColumns.getEditablePrefs(this.data.gridId, this.data.profile));
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
 
   private persist(): void {
-    this.gridColumnService.updatePrefs(this.data.gridId, this.workingPrefs());
+    this.gridColumns.updatePrefs(this.data.gridId, this.workingPrefs(), this.data.profile);
   }
 }

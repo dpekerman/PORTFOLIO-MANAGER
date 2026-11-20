@@ -1,0 +1,51 @@
+<h2 mat-dialog-title id="jd-title">Trade details — {{ row.symbol }}</h2>
+<mat-dialog-content class="jd" aria-labelledby="jd-title">
+  <dl class="jd-grid">
+    <div><dt>Account</dt><dd>{{ row.account }}</dd></div>
+    <div><dt>Outcome</dt><dd>{{ row.outcome }}</dd></div>
+    <div><dt>Opened</dt><dd>{{ row.openDate ? (row.openDate | date: 'yyyy-MM-dd') : '—' }}</dd></div>
+    <div><dt>Closed</dt><dd>{{ row.finalCloseDate ? (row.finalCloseDate | date: 'yyyy-MM-dd') : (row.episodeStillOpen ? 'Still open' : '—') }}</dd></div>
+    <div><dt>Days held</dt><dd>{{ row.daysHeld ?? '—' }}</dd></div>
+    <div><dt>Closed quantity</dt><dd>{{ row.closedQuantity | number: '1.0-6' }}</dd></div>
+    <div><dt>Entry</dt><dd>{{ row.entryPrice === null ? '—' : (value(row.entryPrice) | number: '1.2-4') }}</dd></div>
+    <div><dt>Exit</dt><dd>{{ row.exitPrice === null ? '—' : (value(row.exitPrice) | number: '1.2-4') }}</dd></div>
+    <div><dt>Realized P/L ({{ row.currency }})</dt><dd>{{ pnl() === null ? '—' : (pnl() | number: '1.2-2') }}</dd></div>
+    <div><dt>Original source</dt><dd>{{ row.originalDecisionSource ?? '—' }}</dd></div>
+    <div><dt>Closing source</dt><dd>{{ row.closingDecisionSource ?? '—' }}</dd></div>
+    <div><dt>Records</dt><dd>{{ row.lotIds.length }} transaction {{ row.lotIds.length === 1 ? 'record' : 'records' }}</dd></div>
+  </dl>
+
+  @if (row.episodeResolution === 'Unresolved') {
+    <p class="jd-note">
+      This record is not linked to a stored trade episode. It is shown on its own and is not merged with other records of the same security.
+    </p>
+  }
+
+  <section aria-labelledby="jd-thesis">
+    <h3 id="jd-thesis">Recorded thesis / catalyst</h3>
+    <p>{{ row.thesis || 'No thesis recorded for this trade.' }}</p>
+  </section>
+
+  <section aria-labelledby="jd-notes">
+    <h3 id="jd-notes">Notes</h3>
+    <p>{{ row.notes || 'No notes.' }}</p>
+  </section>
+
+  <section aria-labelledby="jd-hist">
+    <h3 id="jd-hist">Stop and target history</h3>
+    <ol class="jd-hist" data-testid="journal-history">
+      @for (h of row.riskHistory; track $index) {
+        <li>
+          <strong>{{ h.eventType }}</strong>
+          <span class="jd-sub">{{ h.occurredAtUtc | date: 'yyyy-MM-dd HH:mm' }}</span>
+          <div class="jd-sub">{{ demo.isDemoMode() ? 'History details hidden in demo mode' : h.summary }}</div>
+        </li>
+      } @empty {
+        <li class="jd-sub">No episode-attributed stop or target changes are available. Legacy account history may still exist in Manage Risk.</li>
+      }
+    </ol>
+  </section>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-stroked-button type="button" mat-dialog-close>Close</button>
+</mat-dialog-actions>

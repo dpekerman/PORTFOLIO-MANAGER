@@ -1,7 +1,7 @@
 <h2 mat-dialog-title class="ccd-title">
   <mat-icon class="ccd-title-icon">view_column</mat-icon>
   <div class="ccd-title-text">
-    <span class="ccd-title-label">{{ grid?.label ?? 'Configure Columns' }}</span>
+    <span class="ccd-title-label">{{ profileLabel }}{{ grid?.label ?? 'Configure Columns' }}</span>
     @if (grid) {
       <span class="ccd-page-badge">{{ grid.page }}</span>
     }
@@ -55,6 +55,8 @@
         <mat-slide-toggle
           class="ccd-toggle"
           [checked]="pref.visible"
+          [disabled]="isRequired(pref.key)"
+          [matTooltip]="isRequired(pref.key) ? 'This column is required and cannot be hidden' : ''"
           (change)="setVisible(i, $event.checked)"
           [attr.aria-label]="'Show ' + getLabel(pref.key) + ' column'"
         />
@@ -89,6 +91,15 @@
   >
     <mat-icon>restart_alt</mat-icon>
     Reset to defaults
+  </button>
+  <button
+    mat-stroked-button
+    (click)="showAll()"
+    [disabled]="!anyHidden()"
+    matTooltip="Show every column"
+  >
+    <mat-icon>visibility</mat-icon>
+    Show all
   </button>
   <span class="ccd-actions-spacer"></span>
   <button mat-flat-button mat-dialog-close>

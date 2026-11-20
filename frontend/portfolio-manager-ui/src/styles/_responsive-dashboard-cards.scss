@@ -1,0 +1,548 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Handset (<600px) card layouts for the dashboard's dense plain tables and grids: market signals,
+// EOD summary, Action Center and Market leadership. Each row becomes a small card with labelled
+// metrics, so nothing scrolls sideways inside a panel. Desktop never matches this file; only the
+// market leadership grid also applies on tablet portrait (see below).
+// Selectors repeat a class (`.x.x`) to out-rank the components' attribute-scoped rules; labels come
+// from CSS because the cells carry stable class names.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@mixin metric-label {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--mat-sys-on-surface-variant);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+@mixin row-card {
+  display: grid;
+  gap: 8px 10px;
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-high);
+}
+
+@mixin cell {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  color: var(--mat-sys-on-surface);
+  font-size: 0.8rem;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+@media (max-width: 599.98px) {
+  html .db-page {
+    // Movers section headings were designed for the light theme only.
+    .db-movers-col-hd.db-movers-col-hd {
+      background: var(--mat-sys-surface-container-high);
+      border-bottom-color: var(--mat-sys-outline-variant);
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    // ── Market signals ──
+    .db-sig-table.db-sig-table {
+      display: block;
+      width: auto;
+      margin: 0;
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: block;
+      }
+
+      tr {
+        @include row-card;
+        grid-template-columns: 0.7fr 1.3fr 1fr 0.9fr;
+      }
+
+      td {
+        @include cell;
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+
+        &::before {
+          @include metric-label;
+        }
+      }
+
+      .st-sym {
+        grid-area: 1 / 1 / 2 / 3;
+        font-size: 0.95rem;
+        font-weight: 700;
+      }
+
+      .st-act {
+        grid-area: 1 / 3 / 2 / 5;
+        justify-self: end;
+        text-align: right;
+      }
+
+      .st-ms {
+        max-width: none;
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+      }
+
+      .st-rsi::before {
+        content: 'RSI';
+      }
+
+      .st-ms::before {
+        content: 'Momentum';
+      }
+
+      .st-vol::before {
+        content: 'Volume';
+      }
+
+      .st-ret::before {
+        content: 'Chg%';
+      }
+    }
+
+    // ── EOD summary ──
+    .db-eod-table-wrap {
+      overflow: visible;
+    }
+
+    .db-eod-table.db-eod-table {
+      display: block;
+      width: auto;
+
+      thead {
+        display: none;
+      }
+
+      tbody {
+        display: block;
+      }
+
+      tr {
+        @include row-card;
+        grid-template-columns: 1fr 0.6fr 1.2fr;
+        margin-left: 0;
+        margin-right: 0;
+      }
+
+      td {
+        @include cell;
+
+        &::before {
+          @include metric-label;
+        }
+      }
+
+      // The component pins the ticker colour with !important for the light theme.
+      .eod-symbol {
+        grid-area: 1 / 1 / 2 / 3;
+        color: var(--mat-sys-on-surface) !important;
+        font-size: 0.95rem;
+      }
+
+      .eod-status {
+        grid-area: 1 / 3 / 2 / 4;
+        justify-self: end;
+        text-align: right;
+      }
+
+      .eod-status:not(:empty)::before {
+        content: none;
+      }
+
+      td:nth-child(2)::before {
+        content: 'Signal';
+      }
+
+      .eod-rsi::before {
+        content: 'RSI';
+      }
+
+      td:nth-child(4)::before {
+        content: 'Structure';
+      }
+
+      .eod-why {
+        grid-column: 1 / -1;
+        min-width: 0;
+        color: var(--mat-sys-on-surface-variant);
+
+        &::before {
+          content: 'Why';
+        }
+      }
+    }
+  }
+
+}
+
+// The EOD table headings and cells were designed for the light theme only.
+@media (max-width: 959.98px) {
+  html .db-page .db-eod-table {
+    th {
+      background: var(--mat-sys-surface-container-high);
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    td {
+      color: var(--mat-sys-on-surface);
+    }
+
+    .eod-symbol {
+      color: var(--mat-sys-on-surface) !important;
+    }
+  }
+}
+
+// Action Center and Market leadership also use cards up to the tablet portrait width: the Action
+// Center table is clipped there, and the leadership grid has a minimum width above the tablet
+// content area that would widen the whole dashboard.
+@media (max-width: 959.98px) {
+  // ── Action Center ──
+  html app-portfolio-actions-widget {
+    .pa-table-wrap {
+      overflow: visible;
+    }
+
+    // The header row stays available as a wrapping set of sort chips.
+    .pa-table.pa-table {
+      display: block;
+      width: auto;
+      min-width: 0;
+
+      thead,
+      tbody {
+        display: block;
+      }
+
+      thead tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 0 10px;
+      }
+
+      // The component sets column widths with :has() selectors that cannot be out-ranked.
+      th:nth-child(n) {
+        width: auto !important;
+        padding: 0;
+        border: 0;
+      }
+
+      .pa-sort.pa-sort {
+        min-height: 44px;
+        padding: 0 10px;
+        border: 1px solid var(--mat-sys-outline-variant);
+        border-radius: 22px;
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
+
+      tbody tr {
+        @include row-card;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 0 0 8px;
+        border-left-width: 3px;
+      }
+
+      td:nth-child(n) {
+        @include cell;
+        width: auto !important;
+        white-space: normal;
+
+        &::before {
+          @include metric-label;
+        }
+      }
+
+      // The component draws the severity bar on the first cell; here it moves to the card edge.
+      td:first-child {
+        border-left: 0 !important;
+      }
+
+      @media (min-width: 600px) {
+        tbody tr {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+
+      tr.action-buy {
+        border-left-color: #2e7d32;
+      }
+
+      tr.action-trim {
+        border-left-color: #e65100;
+      }
+
+      tr.action-review {
+        border-left-color: #f57c00;
+      }
+
+      tr.action-danger {
+        border-left-color: #c62828;
+      }
+
+      tr.action-wait {
+        border-left-color: var(--mat-sys-outline);
+      }
+
+      .pa-symbol.pa-symbol {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 6px;
+
+        .pa-scan-ico {
+          flex: none;
+          overflow-wrap: normal;
+          white-space: nowrap;
+        }
+        grid-column: 1 / -1;
+        font-size: 0.95rem;
+        order: -2;
+
+        &::before {
+          content: none;
+        }
+      }
+
+      .pa-action-col {
+        grid-column: 1 / -1;
+        order: -1;
+
+        &::before {
+          content: none;
+        }
+      }
+
+      td:nth-child(2)::before {
+        content: 'Role';
+      }
+
+      .pa-rsi::before {
+        content: 'RSI';
+      }
+
+      td:nth-child(4)::before {
+        content: 'MA structure';
+      }
+
+      td:nth-child(5)::before {
+        content: 'Momentum';
+      }
+
+      .pa-structure::before {
+        content: 'Price structure';
+      }
+
+      .pa-alloc::before {
+        content: 'Allocation';
+      }
+    }
+  }
+
+
+  // ── Market leadership ──
+  html app-market-leadership-widget {
+    .ml-counters {
+      flex-wrap: wrap;
+    }
+
+    .ml-counter {
+      min-height: 44px;
+    }
+
+    .ml-head.ml-head.ml-head {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 0 0 8px;
+
+      button:nth-child(n) {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 12px;
+        border: 1px solid var(--mat-sys-outline-variant);
+        border-radius: 22px;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 0.74rem;
+        white-space: nowrap;
+      }
+    }
+
+    .ml-details-content.ml-details-content {
+      display: none;
+    }
+
+    .ml-row.ml-row.ml-row {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+
+      > :nth-child(n) {
+        display: block;
+        min-width: 0;
+        text-align: left;
+        overflow-wrap: break-word;
+      }
+
+      .ml-name {
+        display: grid;
+        grid-column: 1 / 5;
+      }
+
+      > :nth-child(2) {
+        grid-column: 5 / 7;
+        justify-self: end;
+        font-weight: 700;
+        text-align: right;
+      }
+
+      > :nth-child(3),
+      > :nth-child(4),
+      > :nth-child(5) {
+        grid-column: span 2;
+      }
+
+      > :nth-child(6),
+      > :nth-child(7),
+      > :nth-child(8),
+      > :nth-child(9) {
+        grid-column: span 3;
+        justify-self: start;
+        max-width: 100%;
+        white-space: normal;
+      }
+
+      > :nth-child(3)::before,
+      > :nth-child(4)::before,
+      > :nth-child(5)::before,
+      > :nth-child(6)::before,
+      > :nth-child(7)::before,
+      > :nth-child(8)::before,
+      > :nth-child(9)::before {
+        @include metric-label;
+      }
+
+      > :nth-child(3)::before {
+        content: 'Day';
+      }
+
+      > :nth-child(4)::before {
+        content: '5D';
+      }
+
+      > :nth-child(5)::before {
+        content: '20D';
+      }
+
+      > :nth-child(6)::before {
+        content: 'MA structure';
+      }
+
+      > :nth-child(7)::before {
+        content: 'Momentum';
+      }
+
+      > :nth-child(8)::before {
+        content: 'Pattern';
+      }
+
+      > :nth-child(9)::before {
+        content: 'Signal';
+      }
+
+      .ml-details.ml-details,
+      .ml-action-head {
+        display: none;
+      }
+
+      .ml-edit.ml-edit,
+      .ml-remove.ml-remove {
+        width: 44px;
+        height: 44px;
+        padding: 10px;
+        opacity: 0.8;
+      }
+
+      .ml-actions {
+        grid-column: 1 / -1;
+        justify-self: end;
+      }
+    }
+  }
+}
+
+// Status colours in these components were picked for light surfaces; lift them on dark.
+@media (max-width: 959.98px) {
+  body:not(.light-theme) {
+    app-portfolio-actions-widget {
+      .pa-count {
+        min-height: 44px;
+      }
+
+      .pa-action-label {
+        &.pa-action-buy {
+          color: #81c784;
+        }
+
+        &.pa-action-trim {
+          color: #ffab91;
+        }
+
+        &.pa-action-review {
+          color: #ffb74d;
+        }
+
+        &.pa-action-danger {
+          color: #ef9a9a;
+        }
+      }
+    }
+
+    app-market-leadership-widget {
+      .ml-positive,
+      .ml-badge.ml-leading,
+      .ml-badge.ml-golden-cross,
+      .ml-badge.ml-bullish,
+      .ml-badge.ml-accelerating {
+        color: #81c784;
+      }
+
+      .ml-negative,
+      .ml-badge.ml-weak,
+      .ml-badge.ml-death-cross,
+      .ml-badge.ml-bearish,
+      .ml-badge.ml-declining {
+        color: #ef9a9a;
+      }
+
+      .ml-badge.ml-cooling,
+      .ml-badge.ml-50-near-200,
+      .ml-badge.ml-weakening {
+        color: #ffb74d;
+      }
+
+      .ml-badge.ml-emerging {
+        color: #4db6ac;
+      }
+    }
+  }
+}
